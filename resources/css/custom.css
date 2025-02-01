@@ -1,0 +1,164 @@
+.table {
+    border: 1px solid #ccc;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    border: 1px solid #ccc;
+}
+
+.table th,
+.table td {
+    padding: 0.5rem;
+}
+
+.draggable {
+    cursor: move;
+    user-select: none;
+}
+
+.placeholder {
+    background-color: #edf2f7;
+    border: 2px dashed #cbd5e0;
+}
+
+.clone-list {
+    border-left: 1px solid #ccc;
+    border-top: 1px solid #ccc;
+    display: flex;
+}
+
+.clone-table {
+    border-collapse: collapse;
+    border: none;
+}
+
+.clone-table th,
+.clone-table td {
+    border: 1px solid #ccc;
+    border-left: none;
+    border-top: none;
+    padding: 0.5rem;
+}
+
+.dragging {
+    background: #fff;
+    border-left: 1px solid #ccc;
+    border-top: 1px solid #ccc;
+    z-index: 999;
+}
+
+#table {
+    display: grid;
+    width: 100%;
+    border-collapse: collapse; /* Убираем двойные границы */
+}
+
+#header-row, #table-body .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Динамическое количество колонок */
+    width: 100%; /* Таблица занимает всю ширину */
+}
+
+#header-row > div,
+#table-body .grid > div {
+    text-align: left; /* Выравнивание текста в ячейках */
+    font-weight: 500;
+    padding: 0.75rem 1.5rem; /* Внутренние отступы */
+    border-bottom: 1px solid #e5e7eb; /* Граница вокруг ячеек */
+    overflow: hidden; /* Скрываем текст, выходящий за пределы */
+    height: 44px;
+    text-overflow: ellipsis; /* Многоточие при переполнении */
+    white-space: nowrap; /* Текст не переносится */
+}
+
+#header-row {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: rgb(107, 114, 128);
+    background-color: rgb(249, 250, 251); /* Светло-серый фон */
+}
+
+#table-body {
+    font-size: 14px;
+    background-color: white;
+}
+
+#table-body .grid:nth-of-type(even) {
+    background-color: rgb(249, 250, 251);
+}
+
+#table-body .grid {
+    cursor: pointer;
+    align-items: center; /* Центрирование содержимого по вертикали */
+    transition: background-color 0.2s ease; 
+}
+
+#table-body .grid:hover {
+    background-color: rgb(243, 244, 246);
+}
+
+
+/* Анимация пульсации */
+.animate-pulse {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        background-color: #e5e7eb; /* Светло-серый */
+    }
+    50% {
+        background-color: #f3f4f6; /* Чуть светлее */
+    }
+}
+
+/* Стили скелетона */
+#table-skeleton div {
+    background-color: #e5e7eb;
+    border-radius: 4px;
+    height: 20px; /* Высота ячейки */
+}
+
+#table-skeleton {
+    margin-bottom: 16px;
+}
+
+#table-skeleton .grid {
+    gap: 8px; /* Расстояние между элементами */
+}
+
+.hidden {
+    display: none !important; /* Скрываем элементы */
+}
+
+/* Анимация плавного появления */
+.fade-in {
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+}
+
+.fade-in.show {
+    opacity: 1;
+}
+
+#columnsMenuButton{
+    position: relative;
+}
+
+#columnsMenu {
+    min-width: 200px;
+    /* top: 100%; */
+    /* right: 0; */
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#columnsMenu label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}

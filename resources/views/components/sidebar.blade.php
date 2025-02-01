@@ -1,0 +1,97 @@
+<aside class="w-60 bg-gray-800 text-white flex-shrink-0 transform transition-transform duration-300"
+    :class="{ '-translate-x-full': !open, 'translate-x-0': open }" x-data="{ open: true }">
+    <!-- Logo -->
+    <?php
+    $logo = \App\Models\Setting::where('setting_name', 'company_logo')->value('setting_value');
+    ?>
+
+    <div class="shrink-0 flex items-center p-4 justify-center">
+        <a href="{{ route('admin.dashboard') }}">
+            {{-- @if ($logo) --}}
+                <img src="{{asset('logo.png')}}" alt="Company Logo" class="h-24 w-auto">
+            {{-- @else --}}
+                {{-- <x-application-logo class="block h-9 w-auto fill-current text-gray-800" /> --}}
+            {{-- @endif --}}
+        </a>
+    </div>
+
+    <div class="p-4">
+        <h2 class="text-lg font-semibold mb-4 p-2">
+            {{ \App\Models\Setting::where('setting_name', 'company_name')->value('setting_value') ?? 'Laravel' }}</h2>
+        <ul>
+
+            <li class="mb-2">
+                <a href="{{ route('admin.dashboard') }}" class="flex items-center p-2 hover:bg-gray-700 rounded">
+                    <i class="fas fa-building mr-2"></i> Моя компания
+                </a>
+            </li>
+
+            @if (Auth::user()->hasPermission('view_warehouses'))
+                <li class="mb-2">
+                    <a href="{{ route('admin.warehouse.operations') }}"
+                        class="flex items-center p-2 hover:bg-gray-700 rounded">
+                        <i class="fa-solid fa-warehouse mr-2"></i> Склады
+                    </a>
+                </li>
+            @endif
+            @if (Auth::user()->hasPermission('view_clients'))
+                <li class="mb-2">
+                    <a href="{{ route('admin.clients.index') }}"
+                        class="flex items-center p-2 hover:bg-gray-700 rounded">
+                        <i class="fas fa-user-friends mr-2"></i> Клиенты
+                    </a>
+                </li>
+            @endif
+            @if (Auth::user()->hasPermission('view_cash_registers'))
+                <li class="mb-2">
+                    <a href="{{ route('admin.cash.index') }}" class="flex items-center p-2 hover:bg-gray-700 rounded">
+                        <i class="fas fa-cash-register mr-2"></i> Финансы
+                    </a>
+                </li>
+            @endif
+            @if (Auth::user()->hasPermission('view_products'))
+                <li class="mb-2">
+                    <a href="{{ route('admin.products.index') }}"
+                        class="flex items-center p-2 hover:bg-gray-700 rounded">
+                        <i class="fas fa-box mr-2"></i> Товары
+                    </a>
+                </li>
+            @endif
+            {{-- @if (Auth::user()->hasPermission('view_services')) --}}
+                <li class="mb-2">
+                    <a href="{{ route('admin.services.index') }}" class="flex items-center p-2 hover:bg-gray-700 rounded">
+                        <i class="fas fa-concierge-bell mr-2"></i> Услуги
+                    </a>
+                </li>
+            {{-- @endif --}}
+            <li class="mb-2">
+                <a href="{{ route('admin.orders') }}" class="flex items-center p-2 hover:bg-gray-700 rounded">
+                    <i class="fas fa-shopping-bag mr-2"></i> Заказы
+                </a>
+            </li>
+            @if (Auth::user()->hasPermission('view_sales'))
+                <li class="mb-2">
+                    <a href="{{ route('admin.sales.index') }}" class="flex items-center p-2 hover:bg-gray-700 rounded">
+                        <i class="fas fa-shopping-cart mr-2"></i> Продажи
+                    </a>
+                </li>
+            @endif
+            @if (Auth::user()->hasPermission('view_projects'))
+                <li class="mb-2">
+                    <a href="{{ route('admin.projects.index') }}"
+                        class="flex items-center p-2 hover:bg-gray-700 rounded">
+                        <i class="fas fa-briefcase mr-2"></i> Проекты
+                    </a>
+                </li>
+            @endif
+
+            <li class="mb-2">
+                <a href="#" id="settings-button" @click="settingsOpen = !settingsOpen"
+                    class="flex items-center p-2 hover:bg-gray-700 rounded">
+                    <i class="fas fa-cogs mr-2"></i> Настройки
+                </a>
+            </li>
+
+        </ul>
+    </div>
+</aside>

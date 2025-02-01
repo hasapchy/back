@@ -1,0 +1,99 @@
+@section('page-title', 'Трансферы по кассам')
+<div class="mx-auto p-4 container">
+
+    @include('components.alert')
+    <div class="flex space-x-4 mb-4">
+        @if (Auth::user()->hasPermission('create_transfers'))
+            <button wire:click="openForm" class="mb-4 bg-green-500 text-white px-4 py-2 rounded">
+                <i class="fas fa-plus"></i>
+            </button>
+        @endif
+        @include('components.finance-accordion')
+    </div>
+    <table class="min-w-full bg-white shadow-md rounded mb-6">
+        <thead class="bg-gray-100">
+            <tr>
+                <th class="p-2 border border-gray-200">Касса-отправитель</th>
+                <th class="p-2 border border-gray-200">Касса-получатель</th>
+                <th class="p-2 border border-gray-200">Сумма</th>
+
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($transfers as $transfer)
+                @if (Auth::user()->hasPermission('edit_transfers'))
+                    <tr wire:click="selectTransfer({{ $transfer->id }})"
+                        class="cursor-pointer mb-2 p-2 border rounded {{ $selectedTransferId == $transfer->id ? 'bg-gray-200' : '' }}">
+                @endif
+                <td class="p-2 border border-gray-200">{{ $transfer->fromCashRegister->name }}</td>
+                <td class="p-2 border border-gray-200">{{ $transfer->toCashRegister->name }}</td>
+                <td class="p-2 border border-gray-200">{{ $transfer->amount }}</td>
+
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+
+    <div id="modalBackground"
+        class="fixed overflow-y-auto inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
+        wire:click="closeForm">
+        <div id="form"
+            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
+            style="transform: {{ $showForm ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
+            <button wire:click="closeForm" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
+                style="right: 1rem;">
+                &times;
+            </button>
+            <h2 class="text-xl font-bold mb-4">Трансфер</h2>
+            @include('components.confirmation-modal')
+            <div class="mb-4">
+                <label class="block mb-1">От кассы</label>
+                <select wire:model.change="from_cash_register_id" class="w-full p-2 border rounded">
+                    <option value="">Выберите кассу</option>
+                    @foreach ($cashRegisters as $register)
+                        <option value="{{ $register->id }}" @if ($register->id == $to_cash_register_id) disabled @endif>
+                            {{ $register->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label class="block mb-1">Кому касса</label>
+                <select wire:model.change="to_cash_register_id" class="w-full p-2 border rounded">
+                    <option value="">Выберите кассу</option>
+                    @foreach ($cashRegisters as $register)
+                        <option value="{{ $register->id }}" @if ($register->id == $from_cash_register_id) disabled @endif>
+                            {{ $register->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label class="block mb-1">Сумма</label>
+                <input type="text" wire:model="amount" placeholder="Сумма" class="w-full p-2 border rounded">
+            </div>
+
+            <div class="mb-4">
+                <label class="block mb-1">Примечание</label>
+                <textarea wire:model="note" placeholder="Примечание" class="w-full p-2 border rounded"></textarea>
+            </div>
+
+            <div class="flex space-x-2">
+                <button wire:click="saveTransfer" class="bg-green-500 text-white px-4 py-2 rounded">
+                    <i class="fas fa-save"></i>
+                </button>
+                @if (Auth::user()->hasPermission('delete_transfer'))
+                    @if ($selectedTransferId)
+                        <button wire:click="deleteForm" class="bg-red-500 text-white px-4 py-2 rounded">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    @endif
+                @endif
+
+            </div>
+        </div>
+    </div>
+</div>
