@@ -17,7 +17,7 @@ class Services extends Component
     use WithPagination;
     use WithFileUploads;
 
-    public $name, $description, $sku, $articul, $status = true, $productId, $images = [], $newImages = [], $retail_price, $wholesale_price, $purchase_price, $category_id;
+    public $name, $description, $sku, $status = true, $productId, $images = [], $newImages = [], $retail_price, $wholesale_price, $purchase_price, $category_id;
     public $defaultCurrencyId;
     public $showForm = false;
     public $showCategoryForm = false;
@@ -29,7 +29,7 @@ class Services extends Component
         'sku'
     ];
 
-    public $isDirty = false; 
+    public $isDirty = false;
     public $searchTerm;
     public $type = 0;
 
@@ -131,7 +131,6 @@ class Services extends Component
             'name' => 'required|string|max:255',
             'category_id' => 'required|exists:categories,id',
             'sku' => 'required|string|unique:products,sku,' . ($this->productId ?? 'NULL'),
-            'articul' => 'nullable|string|max:255',
             'newImages.*' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
             'retail_price' => 'nullable|numeric|min:0',
             'wholesale_price' => 'nullable|numeric|min:0',
@@ -155,7 +154,6 @@ class Services extends Component
                     'category_id' => $this->category_id,
                     'description' => $this->description,
                     'sku' => $this->sku,
-                    'articul' => $this->articul,
                     'status_id' => $this->status ? 1 : 0,
                     'images' => json_encode($photoPaths),
                     'type' => $this->type,
@@ -169,7 +167,7 @@ class Services extends Component
                     'retail_price' => $this->retail_price ?? 0.0,
                     'wholesale_price' => $this->wholesale_price ?? 0.0,
                     'purchase_price' => $this->purchase_price ?? 0.0,
-                    'currency_id' => $this->defaultCurrencyId ?? 1, 
+                    'currency_id' => $this->defaultCurrencyId ?? 1,
                 ]
             );
 
@@ -195,7 +193,6 @@ class Services extends Component
         $this->name = $product->name;
         $this->description = $product->description;
         $this->sku = $product->sku;
-        $this->articul = $product->articul;
         $this->showForm = true;
         $this->images = $product->images ? json_decode($product->images, true) : [];
         $this->category_id = $product->category_id;
@@ -207,7 +204,7 @@ class Services extends Component
             $this->purchase_price = $price->purchase_price;
         }
 
-        $this->isDirty = false; 
+        $this->isDirty = false;
     }
 
     public function update()
@@ -220,8 +217,6 @@ class Services extends Component
             'name' => $this->name,
             'description' => $this->description,
             'sku' => $this->sku,
-            'articul' => $this->articul,
-
         ]);
 
         session()->flash('success', 'Товар успешно обновлен.');
@@ -240,10 +235,10 @@ class Services extends Component
     public function removeImage($index)
     {
         unset($this->images[$index]);
-        $this->images = array_values($this->images); 
+        $this->images = array_values($this->images);
     }
 
-    
+
     public function createCategory()
     {
         $this->resetCategoryForm();

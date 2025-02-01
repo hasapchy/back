@@ -18,7 +18,7 @@ class Products extends Component
     use WithPagination;
     use WithFileUploads;
 
-    public $name, $description, $sku, $articul, $stock_quantity, $status = true, $productId, $images = [], $newImages = [], $retail_price, $wholesale_price, $purchase_price, $barcode, $category_id;
+    public $name, $description, $sku, $stock_quantity, $status = true, $productId, $images = [], $newImages = [], $retail_price, $wholesale_price, $purchase_price, $barcode, $category_id;
     public $defaultCurrencyId;
     public $showForm = false;
     public $showCategoryForm = false;
@@ -69,7 +69,6 @@ class Products extends Component
         $this->name = '';
         $this->description = '';
         $this->sku = '';
-        $this->articul = '';
         $this->images = [];
         $this->barcode = null;
         $this->category_id = null;
@@ -137,8 +136,6 @@ class Products extends Component
             'name' => 'required|string|max:255',
             'category_id' => 'required|exists:categories,id',
             'sku' => 'required|string|unique:products,sku,' . ($this->productId ?? 'NULL'),
-            'articul' => 'nullable|string|max:255',
-            // 'status' => 'boolean',
             'newImages.*' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
             'retail_price' => 'nullable|numeric|min:0',
             'wholesale_price' => 'nullable|numeric|min:0',
@@ -162,7 +159,6 @@ class Products extends Component
                     'category_id' => $this->category_id,
                     'description' => $this->description,
                     'sku' => $this->sku,
-                    'articul' => $this->articul,
                     'stock_quantity' => 0,
                     'status_id' => $this->status ? 1 : 0,
                     'images' => json_encode($photoPaths),
@@ -204,7 +200,6 @@ class Products extends Component
         $this->name = $product->name;
         $this->description = $product->description;
         $this->sku = $product->sku;
-        $this->articul = $product->articul;
         $this->stock_quantity = $product->stock_quantity;
         $this->showForm = true;
         $this->images = $product->images ? json_decode($product->images, true) : [];
@@ -270,9 +265,7 @@ class Products extends Component
             'name' => $this->name,
             'description' => $this->description,
             'sku' => $this->sku,
-            'articul' => $this->articul,
             'stock_quantity' => $this->stock_quantity,
-            // 'status' => $this->status,
         ]);
 
         session()->flash('success', 'Товар успешно обновлен.');

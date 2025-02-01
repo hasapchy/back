@@ -74,7 +74,7 @@ class Warehouses extends Component
 
     public function render()
     {
-        return view('livewire.admin.warehouses', [
+        return view('livewire.admin.warehouses.warehouses', [
             'warehouses' => Warehouse::with('stocks')->paginate(10),
             'users' => User::all(),
         ]);
