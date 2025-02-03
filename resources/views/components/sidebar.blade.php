@@ -60,8 +60,8 @@
             @endif
             @if (Auth::user()->hasPermission('view_cash_registers'))
                 <li class="mb-2">
-                    <a href="{{ route('admin.cash.index') }}"
-                        class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.cash.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                    <a href="{{ route('admin.finance.index') }}"
+                        class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.finance.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
                         <i class="fas fa-cash-register mr-2"></i> Финансы
                     </a>
                 </li>

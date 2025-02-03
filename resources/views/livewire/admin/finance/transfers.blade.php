@@ -1,6 +1,5 @@
 @section('page-title', 'Трансферы по кассам')
 <div class="mx-auto p-4 container">
-
     @include('components.alert')
     <div class="flex space-x-4 mb-4">
         @if (Auth::user()->hasPermission('create_transfers'))
@@ -16,14 +15,13 @@
                 <th class="p-2 border border-gray-200">Касса-отправитель</th>
                 <th class="p-2 border border-gray-200">Касса-получатель</th>
                 <th class="p-2 border border-gray-200">Сумма</th>
-
             </tr>
         </thead>
         <tbody>
             @foreach ($transfers as $transfer)
                 @if (Auth::user()->hasPermission('edit_transfers'))
-                    <tr wire:click="selectTransfer({{ $transfer->id }})"
-                        class="cursor-pointer mb-2 p-2 border rounded {{ $selectedTransferId == $transfer->id ? 'bg-gray-200' : '' }}">
+                    <tr wire:click="edit({{ $transfer->id }})"
+                        class="cursor-pointer mb-2 p-2 border rounded {{ $transferId == $transfer->id ? 'bg-gray-200' : '' }}">
                 @endif
                 <td class="p-2 border border-gray-200">{{ $transfer->fromCashRegister->name }}</td>
                 <td class="p-2 border border-gray-200">{{ $transfer->toCashRegister->name }}</td>
@@ -33,7 +31,6 @@
             @endforeach
         </tbody>
     </table>
-
 
     <div id="modalBackground"
         class="fixed overflow-y-auto inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
@@ -49,10 +46,10 @@
             @include('components.confirmation-modal')
             <div class="mb-4">
                 <label class="block mb-1">От кассы</label>
-                <select wire:model.change="from_cash_register_id" class="w-full p-2 border rounded">
+                <select wire:model.change="cashFrom" class="w-full p-2 border rounded">
                     <option value="">Выберите кассу</option>
                     @foreach ($cashRegisters as $register)
-                        <option value="{{ $register->id }}" @if ($register->id == $to_cash_register_id) disabled @endif>
+                        <option value="{{ $register->id }}" @if ($register->id == $cashTo) disabled @endif>
                             {{ $register->name }}
                         </option>
                     @endforeach
@@ -61,10 +58,10 @@
 
             <div class="mb-4">
                 <label class="block mb-1">Кому касса</label>
-                <select wire:model.change="to_cash_register_id" class="w-full p-2 border rounded">
+                <select wire:model.change="cashTo" class="w-full p-2 border rounded">
                     <option value="">Выберите кассу</option>
                     @foreach ($cashRegisters as $register)
-                        <option value="{{ $register->id }}" @if ($register->id == $from_cash_register_id) disabled @endif>
+                        <option value="{{ $register->id }}" @if ($register->id == $cashFrom) disabled @endif>
                             {{ $register->name }}
                         </option>
                     @endforeach
@@ -85,14 +82,11 @@
                 <button wire:click="saveTransfer" class="bg-green-500 text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
-                @if (Auth::user()->hasPermission('delete_transfer'))
-                    @if ($selectedTransferId)
-                        <button wire:click="deleteForm" class="bg-red-500 text-white px-4 py-2 rounded">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    @endif
+                @if ($transferId)
+                    <button wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 @endif
-
             </div>
         </div>
     </div>

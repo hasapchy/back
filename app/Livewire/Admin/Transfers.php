@@ -7,26 +7,24 @@ use App\Models\CashTransfer;
 use App\Models\CashRegister;
 use App\Models\FinancialTransaction;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB; // Add this import at the top
+use Illuminate\Support\Facades\DB;
 
 class Transfers extends Component
 {
     public $transfers;
     public $cashRegisters;
-    public $selectedTransferId;
-    public $selectedTransfer;
-    public $showForm = false; // Renamed from $showTransferForm
-    public $showConfirmationModal = false; // Renamed from $showConfirmation
+    public $transferId;
+    public $showForm = false;
     public $isDirty = false;
-
-    public $from_cash_register_id;
-    public $to_cash_register_id;
+    public $cashFrom;
+    public $cashTo;
     public $amount;
     public $note;
+    public $showConfirmationModal;
 
     protected $rules = [
-        'from_cash_register_id' => 'required|exists:cash_registers,id',
-        'to_cash_register_id' => 'required|exists:cash_registers,id|different:from_cash_register_id',
+        'cashFrom' => 'required|exists:cash_registers,id',
+        'cashTo' => 'required|exists:cash_registers,id|different:cashFrom',
         'amount' => 'required|numeric|min:0.01',
         'note' => 'nullable|string',
     ];
@@ -37,11 +35,45 @@ class Transfers extends Component
         $this->transfers = CashTransfer::with('fromCashRegister', 'toCashRegister', 'currency')->get();
     }
 
-    public function openForm() // Renamed from openTransferForm
+    public function render()
+    {
+        return view('livewire.admin.finance.transfers');
+    }
+
+    public function openForm()
     {
         $this->resetForm();
-        $this->showForm = true; // Updated from $showTransferForm
+        $this->showForm = true;
         $this->isDirty = false;
+    }
+
+    public function closeForm()
+    {
+        if ($this->isDirty) {
+            $this->showConfirmationModal = true;
+        } else {
+            $this->resetForm();
+            $this->showForm = false;
+        }
+    }
+
+    public function confirmClose($confirm = false)
+    {
+        if ($confirm) {
+            $this->resetForm();
+            $this->showForm = false;
+            $this->isDirty = false;
+        }
+        $this->showConfirmationModal = false;
+    }
+
+    private function resetForm()
+    {
+        $this->transferId = null;
+        $this->cashFrom = null;
+        $this->cashTo = null;
+        $this->amount = 0;
+        $this->note = '';
     }
 
     public function saveTransfer()
@@ -51,37 +83,12 @@ class Transfers extends Component
         DB::beginTransaction();
 
         try {
-            if ($this->selectedTransferId) {
-                $transfer = CashTransfer::find($this->selectedTransferId);
-                if ($transfer) {
-                    // Update associated transactions
-                    $fromTransaction = $transfer->fromTransaction;
-                    $toTransaction = $transfer->toTransaction;
-
-                    $fromTransaction->amount = $this->amount;
-                    $fromTransaction->save();
-
-                    $toTransaction->amount = $this->amount;
-                    $toTransaction->save();
-
-                    // Update transfer details
-                    $transfer->from_cash_register_id = $this->from_cash_register_id;
-                    $transfer->to_cash_register_id = $this->to_cash_register_id;
-                    $transfer->amount = $this->amount;
-                    $transfer->note = $this->note;
-                    $transfer->save();
-
-                    session()->flash('message', 'Трансфер успешно обновлен.');
-                }
+            if ($this->transferId) {
+                $transfer = CashTransfer::find($this->transferId);
+                $this->update($transfer);
+                session()->flash('message', 'Трансфер успешно обновлен.');
             } else {
-                // Use the transfer logic from CashRegisters
-                $transfer = $this->handleSaveTransferCustom(
-                    $this->from_cash_register_id,
-                    $this->to_cash_register_id,
-                    $this->amount,
-                    $this->note
-                );
-
+                $this->create();
                 session()->flash('message', 'Трансфер успешно создан.');
             }
 
@@ -97,29 +104,17 @@ class Transfers extends Component
         }
     }
 
-    public function handleSaveTransferCustom($fromCashRegisterId, $toCashRegisterId, $amount, $note)
+    private function create()
     {
-        // Validate input
-        $this->validate([
-            'from_cash_register_id' => 'required|exists:cash_registers,id',
-            'to_cash_register_id' => 'required|exists:cash_registers,id|different:from_cash_register_id',
-            'amount' => 'required|numeric|min:0.01',
-            'note' => 'nullable|string',
-        ]);
-
-        $fromCashRegister = CashRegister::find($fromCashRegisterId);
-        $toCashRegister = CashRegister::find($toCashRegisterId);
-
-        if ($amount > $fromCashRegister->balance) {
-            throw new \Exception('Недостаточно средств для перевода.');
-        }
+        $fromCashRegister = CashRegister::find($this->cashFrom);
+        $toCashRegister = CashRegister::find($this->cashTo);
 
         $fromCurrency = $fromCashRegister->currency;
         $toCurrency = $toCashRegister->currency;
-        $amountInDefaultCurrency = $amount / $fromCurrency->exchange_rate;
+        $amountInDefaultCurrency = $this->amount / $fromCurrency->exchange_rate;
         $amountInTargetCurrency = $amountInDefaultCurrency * $toCurrency->exchange_rate;
 
-        $fromCashRegister->balance -= $amount;
+        $fromCashRegister->balance -= $this->amount;
         $toCashRegister->balance += $amountInTargetCurrency;
 
         $fromCashRegister->save();
@@ -129,9 +124,9 @@ class Transfers extends Component
 
         $fromTransaction = FinancialTransaction::create([
             'type' => '0',
-            'amount' => $amount,
-            'cash_register_id' => $fromCashRegisterId,
-            'note' => $note . ' ' . $transferNote,
+            'amount' => $this->amount,
+            'cash_register_id' => $this->cashFrom,
+            'note' => $this->note . ' ' . $transferNote,
             'transaction_date' => now()->toDateString(),
             'currency_id' => $fromCashRegister->currency_id,
             'user_id' => Auth::id(),
@@ -140,97 +135,72 @@ class Transfers extends Component
         $toTransaction = FinancialTransaction::create([
             'type' => '1',
             'amount' => $amountInTargetCurrency,
-            'cash_register_id' => $toCashRegisterId,
-            'note' => $note . ' ' . $transferNote,
+            'cash_register_id' => $this->cashTo,
+            'note' => $this->note . ' ' . $transferNote,
             'transaction_date' => now()->toDateString(),
             'currency_id' => $toCashRegister->currency_id,
             'user_id' => Auth::id(),
         ]);
 
-        return CashTransfer::create([
-            'from_cash_register_id' => $fromCashRegisterId,
-            'to_cash_register_id' => $toCashRegisterId,
+        CashTransfer::create([
+            'from_cash_register_id' => $this->cashFrom,
+            'to_cash_register_id' => $this->cashTo,
             'from_transaction_id' => $fromTransaction->id,
             'to_transaction_id' => $toTransaction->id,
             'user_id' => Auth::id(),
-            'amount' => $amount,
-            'note' => $note,
+            'amount' => $this->amount,
+            'note' => $this->note,
         ]);
     }
 
-    public function deleteTransfer($transferId)
+    private function update($transfer)
     {
-        $transfer = CashTransfer::find($transferId);
-        if ($transfer) {
+        $fromTransaction = $transfer->fromTransaction;
+        $toTransaction = $transfer->toTransaction;
+        $fromTransaction->amount = $this->amount;
+        $fromTransaction->save();
+        $toTransaction->amount = $this->amount;
+        $toTransaction->save();
+        $transfer->cashFrom = $this->cashFrom;
+        $transfer->cashTo = $this->cashTo;
+        $transfer->amount = $this->amount;
+        $transfer->note = $this->note;
+        $transfer->save();
+    }
 
-            $transfer->fromTransaction->delete();
-            $transfer->toTransaction->delete();
-            $transfer->delete();
-            session()->flash('message', 'Трансфер и связанные транзакции успешно удалены.');
-            // $this->mount(); 
+    public function delete()
+    {
+        DB::beginTransaction();
+        try {
+            $transfer = CashTransfer::find($this->transferId);
+            if ($transfer) {
+                $fromTransaction = $transfer->fromTransaction;
+                $toTransaction = $transfer->toTransaction;
+                $transfer->delete();
+                $fromTransaction->delete();
+                $toTransaction->delete();
+                session()->flash('message', 'Трансфер и связанные транзакции успешно удалены.');
+                $this->closeForm();
+            }
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', 'Ошибка удаления трансфера: ' . $e->getMessage());
         }
     }
 
-    public function selectTransfer($transferId)
+    public function edit($transferId)
     {
         $transfer = CashTransfer::with('fromCashRegister', 'toCashRegister')->find($transferId);
-
-        if ($transfer) {
-            $this->selectedTransferId = $transfer->id;
-            $this->from_cash_register_id = $transfer->from_cash_register_id;
-            $this->to_cash_register_id = $transfer->to_cash_register_id;
-            $this->amount = $transfer->amount;
-            $this->note = $transfer->note;
-            $this->showForm = true;
-            $this->isDirty = false;
-        } else {
-            session()->flash('error', 'Трансфер не найден.');
-        }
-    }
-
-    private function resetForm()
-    {
-        $this->selectedTransferId = null;
-        $this->from_cash_register_id = '';
-        $this->to_cash_register_id = '';
-        $this->amount = '';
-        $this->note = '';
-    }
-
-    public function deleteForm()
-    {
-        // Logic to handle form deletion
-        // For example, reset the form and hide it
-        $this->resetForm();
-        $this->showForm = false;
+        $this->transferId = $transfer->id;
+        $this->cashFrom = $transfer->from_cash_register_id;
+        $this->cashTo = $transfer->to_cash_register_id;
+        $this->amount = $transfer->amount;
+        $this->note = $transfer->note;
+        $this->showForm = true;
         $this->isDirty = false;
-        session()->flash('message', 'Форма успешно удалена.');
     }
 
-    public function closeForm()
-    {
-        if ($this->isDirty) {
-            $this->showConfirmationModal = true;
-        } else {
-            $this->resetForm();
-            $this->showForm = false; // Updated from $showTransferForm
-        }
-    }
-
-    public function confirmClose($confirm = false)
-    {
-        if ($confirm) {
-            $this->resetForm();
-            $this->showForm = false; // Updated from $showTransferForm
-            $this->isDirty = false;
-        }
-        $this->showConfirmationModal = false; // Updated from $showConfirmation
-    }
-
-    public function render()
-    {
-        return view('livewire.admin.finance.transfers');
-    }
 
     public function updated($propertyName)
     {

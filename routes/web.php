@@ -1,9 +1,9 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
-use App\Livewire\Admin\CashRegisters;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Livewire\Admin\Finances;
 use App\Livewire\Admin\Products;
 use App\Livewire\Admin\Categories;
 use App\Livewire\Admin\Clients;
@@ -27,6 +27,7 @@ use App\Livewire\Admin\OrderStatusCategories;
 use App\Livewire\Admin\Orders;
 use App\Livewire\Admin\Af;
 use App\Livewire\Admin\Templates;
+use App\Livewire\Admin\Cashes;
 
 Auth::routes();
 
@@ -53,7 +54,8 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/warehouse-reception', WarehouseProductReceipts::class)->name('warehouse.reception')->middleware('permission:view_receipts');
     Route::get('/warehouse-transfers', WarehouseProductMovements::class)->name('warehouse.transfers')->middleware('permission:view_movemenents');
     Route::get('/warehouse-write-offs', WarehouseProductWriteOffs::class)->name('warehouse.write-offs')->middleware('permission:view_write_offs');
-    Route::get('/cash', CashRegisters::class)->name('cash.index')->middleware('permission:view_cash_registers');
+    Route::get('/finance', Finances::class)->name('finance.index')->middleware('permission:view_cash_registers');
+    Route::get('/cashes', Cashes::class)->name('cash.index')->middleware('permission:view_cash_registers');
     Route::get('/transaction_categories', TransactionCategories::class)->name('transaction_categories.create')->middleware('permission:view_expense_items');
     Route::get('/sales', Sales::class)->name('sales.index')->middleware('permission:view_sales');
     Route::get('/transfers', Transfers::class)->name('transfers.index')->middleware('permission:view_transfers');
