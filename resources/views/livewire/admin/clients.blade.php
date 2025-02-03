@@ -2,6 +2,8 @@
 @section('showSearch', true)
 <div class="container mx-auto p-4">
     @include('components.alert')
+ 
+
 
     <div class="flex items-center space-x-4 mb-4">
         @if (Auth::user()->hasPermission('create_clients'))

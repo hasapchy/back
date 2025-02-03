@@ -1,0 +1,18 @@
+[0;1;32m●[0m php8.1-fpm.service - The PHP 8.1 FastCGI Process Manager
+     Loaded: loaded (]8;;file://cv4368653.novalocal/usr/lib/systemd/system/php8.1-fpm.service/usr/lib/systemd/system/php8.1-fpm.service]8;;; [0;1;32menabled[0m; preset: [0;1;32menabled[0m)
+     Active: [0;1;32mactive (running)[0m since Sat 2025-02-01 10:30:25 MSK; 1 day 21h ago
+       Docs: ]8;;man:php-fpm8.1(8)man:php-fpm8.1(8)]8;;
+    Process: 78756 ExecStartPost=/usr/lib/php/php-fpm-socket-helper install /run/php/php-fpm.sock /etc/php/8.1/fpm/pool.d/www.conf 81 (code=exited, status=0/SUCCESS)
+   Main PID: 78753 (php-fpm8.1)
+     Status: "[0;1;36mProcesses active: 0, idle: 3, Requests: 3080, slow: 0, Traffic: 0req/sec[0m"
+      Tasks: 4 (limit: 1126)
+     Memory: 48.7M (peak: 109.2M)
+        CPU: 2min 24.868s
+     CGroup: /system.slice/php8.1-fpm.service
+             ├─[0;38;5;245m 78753 "php-fpm: master process (/etc/php/8.1/fpm/php-fpm.conf)"[0m
+             ├─[0;38;5;245m118038 "php-fpm: pool www"[0m
+             ├─[0;38;5;245m118054 "php-fpm: pool www"[0m
+             └─[0;38;5;245m118067 "php-fpm: pool www"[0m
+
+Feb 01 10:30:25 cv4368653.novalocal systemd[1]: Starting php8.1-fpm.service - The PHP 8.1 FastCGI Process Manager...
+Feb 01 10:30:25 cv4368653.novalocal systemd[1]: Started php8.1-fpm.service - The PHP 8.1 FastCGI Process Manager.
