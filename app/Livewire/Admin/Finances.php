@@ -86,10 +86,21 @@ class Finances extends Component
             return $transaction;
         });
 
+        $currentCashRegister = \App\Models\CashRegister::find($this->cashId);
+        $currentBalance = $currentCashRegister ? $currentCashRegister->balance : 0;
+        $dayBalance = null;
+        if ($this->startDate && $this->endDate && $this->startDate === $this->endDate) {
+            $dayBalance = $this->transactions->reduce(function ($carry, $transaction) {
+                return $carry + ($transaction->type == 1 ? $transaction->amount : -$transaction->amount);
+            }, 0);
+        }
+
         return view('livewire.admin.finance.finances', [
-            'incomeCategories' => $this->categories->where('type', 1),
+            'incomeCategories'  => $this->categories->where('type', 1),
             'expenseCategories' => $this->categories->where('type', 0),
-            'transactions' => $transactions,
+            'transactions'      => $transactions,
+            'currentBalance'    => $currentBalance,
+            'dayBalance'        => $dayBalance,
         ]);
     }
 
@@ -155,11 +166,13 @@ class Finances extends Component
             : $this->amount;
 
         if (!$this->transactionId) {
-            $this->note = sprintf(
-                "Изначальная сумма: %s %s",
+            $initialNote = sprintf(
+                "(Изначальная сумма: %s %s)",
                 number_format($this->amount, 2),
                 Currency::find($this->currency_id)->currency_code ?? ''
             );
+            // If a comment was entered, append the initial note; otherwise, set to initial note
+            $this->note = trim($this->note) ? $this->note . "\n" . $initialNote : $initialNote;
         }
 
         if ($this->transactionId) {

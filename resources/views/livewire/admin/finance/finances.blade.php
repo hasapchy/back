@@ -2,6 +2,66 @@
 <div class="mx-auto p-4 container">
     <x-alert />
 
+    <div x-data="{ open: true }" class="mb-4">
+        <div class="flex justify-between items-center bg-gray-200 px-4 py-2 rounded-t cursor-pointer"
+             x-on:click="open = !open">
+            <div class="font-semibold">
+                @if ($startDate && $endDate)
+                    @if ($startDate === $endDate)
+                        За выбранный день ({{ \Carbon\Carbon::parse($startDate)->format('d.m.Y') }})
+                    @else
+                        с {{ \Carbon\Carbon::parse($startDate)->format('d.m.Y') }} по
+                        {{ \Carbon\Carbon::parse($endDate)->format('d.m.Y') }}
+                    @endif
+                @else
+                    За все время
+                @endif
+            </div>
+            <svg x-bind:class="{'transform transition-transform duration-300': true, 'rotate-0': open, 'rotate-180': !open}"
+                 class="h-6 w-6" fill="none" stroke="currentColor"
+                 viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </div>
+        <div x-show="open"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 transform -translate-y-2"
+             x-transition:enter-end="opacity-100 transform translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 transform translate-y-0"
+             x-transition:leave-end="opacity-0 transform -translate-y-2"
+             class="p-4 border border-t-0 border-gray-200 rounded-b text-lg">
+            <div class="flex items-center">
+                <div class="w-1/4">
+                    <div class="font-semibold text-gray-600">Приход</div>
+                    <div class="text-green-600 font-bold text-lg">
+                        {{ $totalIncome }} {{ $cashRegisters->find($cashId)->currency->currency_code }}
+                    </div>
+                </div>
+                <div class="ml-6 w-1/4">
+                    <div class="font-semibold text-gray-600">Расход</div>
+                    <div class="text-red-600 font-bold">
+                        {{ $totalExpense }} {{ $cashRegisters->find($cashId)->currency->currency_code }}
+                    </div>
+                </div>
+                <div class="ml-6 w-1/4">
+                    <div class="font-semibold text-gray-600">Итоговый баланс</div>
+                    <div class="font-bold {{ $currentBalance < 0 ? 'text-red-600' : 'text-green-600' }}">
+                        {{ $currentBalance }} {{ $cashRegisters->find($cashId)->currency->currency_code }}
+                    </div>
+                </div>
+                @if ($dayBalance !== null)
+                    <div class="ml-6 w-1/4">
+                        <div class="font-semibold text-gray-600">Баланс за выбранный день</div>
+                        <div class="font-bold {{ $dayBalance < 0 ? 'text-red-600' : 'text-green-600' }}">
+                            {{ $dayBalance }} {{ $cashRegisters->find($cashId)->currency->currency_code }}
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
     <div class="flex items-center space-x-4 mb-4">
         <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
             <i class="fas fa-plus"></i>
@@ -19,11 +79,6 @@
                 @endforeach
             </select>
         </div>
-        <!-- Removed cash register edit button -->
-        <div class="text-green-600 font-semibold">Приход: {{ $totalIncome }}
-            {{ $cashRegisters->find($cashId)->currency->currency_code }}</div>
-        <div class="ml-6 text-red-600 font-semibold">Расход: {{ $totalExpense }}
-            {{ $cashRegisters->find($cashId)->currency->currency_code }}</div>
     </div>
 
     <table class="min-w-full bg-white shadow-md rounded mb-6">
