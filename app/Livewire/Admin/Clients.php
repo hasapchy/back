@@ -109,8 +109,6 @@ class Clients extends Component
         $this->isDirty = true;
     }
 
-
-
     public function saveClient()
     {
         $validatedData = $this->validate([
@@ -119,7 +117,7 @@ class Clients extends Component
             'contact_person' => 'nullable|string',
             'client_type' => 'required|string',
             'address' => 'nullable|string',
-            'phones.*.number' => 'required|distinct|min:6',
+            'phones.*.number' => 'required|integer|distinct|min:6',
             'emails.*' => 'nullable|email|distinct',
             'note' => 'nullable|string',
             'status' => 'boolean', // Add this line

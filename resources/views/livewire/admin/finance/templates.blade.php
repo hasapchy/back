@@ -1,8 +1,18 @@
-<div class="mt-6" wire:poll.5000ms>
+@section('page-title', 'Шаблоны')
+<div class="mx-auto p-4 container">
     @include('components.alert')
+
+    <div class="flex items-center space-x-4 mb-4">
+        {{-- @if (Auth::user()->hasPermission('create_clients')) --}}
+        <button wire:click="openTemplateForm" class="bg-green-500 text-white px-4 py-2 rounded">
+            <i class="fas fa-plus"></i>
+        </button>
+        {{-- @endif --}}
+        @include('components.finance-accordion')
+    </div>
     <div class="flex flex-wrap">
         @foreach ($templates as $template)
-            <div class="w-1/6 p-2">
+            <div class="w-1/6">
                 <div class="border rounded px-2 py-1 flex flex-col items-center">
                     <i class="{{ $template->icon }} text-3xl mb-2"></i>
                     <span class="font-semibold">{{ $template->name }}</span>
@@ -23,13 +33,6 @@
                 </div>
             </div>
         @endforeach
-    </div>
-
-    <div class="fixed right-4 flex flex-col space-y-2" style="bottom: 100px; ">
-        <button wire:click="openTemplateForm" class="bg-blue-500 text-white p-4 rounded-full"
-            style="width:50px;height:50px">
-            <i class="fas fa-file-alt"></i>
-        </button>
     </div>
 
     <div id="templateModalBackground"
@@ -103,7 +106,8 @@
 
                 <div class="mb-2">
                     <label class="block mb-1">Примечание</label>
-                    <textarea wire:model.blur="templateNote" placeholder="Примечание" class="w-full p-2 border rounded" wire:dirty.class="border-yellow-500"></textarea>
+                    <textarea wire:model.blur="templateNote" placeholder="Примечание" class="w-full p-2 border rounded"
+                        wire:dirty.class="border-yellow-500"></textarea>
                     <div wire:dirty wire:target="templateNote">Unsaved title...</div>
                 </div>
 
@@ -236,7 +240,7 @@
             </div>
 
             <div class="mt-4 flex justify-start space-x-2">
-                <button wire:click="saveAppliedTemplate" class="bg-green-500 text-white px-4 py-2 rounded" >
+                <button wire:click="saveAppliedTemplate" class="bg-green-500 text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
             </div>

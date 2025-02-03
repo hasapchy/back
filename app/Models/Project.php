@@ -8,7 +8,7 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'start_date', 'end_date', 'user_id', 'users'];
+    protected $fillable = ['name', 'start_date', 'end_date', 'user_id', 'users', 'client_id'];
 
     protected $casts = [
         'users' => 'array',

@@ -1,4 +1,4 @@
-<div class="shadow-lg p-3 mb-5 bg-white rounded">
+<div class="shadow-md p-3 mb-5 bg-white rounded">
     <div class="container mx-auto px-4">
         <div class="flex items-center justify-between">
             <h1 class="text-xl font-bold">@yield('page-title')</h1>

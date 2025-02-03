@@ -2,18 +2,20 @@
 @section('showSearch', true)
 <div class="container mx-auto p-4">
 
-    @include('components.alert')
-    @if (auth()->user()->hasPermission('view_users'))
-        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded mb-4">
-            <i class="fas fa-plus"></i>
+    <div class="flex items-center space-x-4 mb-4">
+        @include('components.alert')
+        @if (auth()->user()->hasPermission('view_users'))
+            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded ">
+                <i class="fas fa-plus"></i>
+            </button>
+        @endif
+        <button id="columnsMenuButton" class="bg-gray-500 text-white px-4 py-2 rounded">
+            <i class="fas fa-cogs"></i>
         </button>
-    @endif
+        @include('components.products-accordion')
+        @include('components.alert')
 
-    @include('components.alert')
-    <button id="columnsMenuButton" class="bg-gray-500 text-white px-4 py-2 rounded">
-        <i class="fas fa-cogs"></i>
-    </button>
-
+    </div>
     <!-- Меню фильтров -->
     <div id="columnsMenu" class="hidden absolute bg-white shadow-md rounded p-4 z-10 mt-2">
         <h2 class="font-bold mb-2">Выберите колонки для отображения:</h2>

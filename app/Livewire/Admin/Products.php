@@ -28,7 +28,9 @@ class Products extends Component
     public $columns = [
         'name',
         'sku',
-        'stock_quantity'
+        'stock_quantity',
+        'description',
+        'barcode'  
     ];
 
     public $stocks = [];

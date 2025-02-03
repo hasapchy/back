@@ -26,6 +26,7 @@ use App\Livewire\Admin\OrderCategories;
 use App\Livewire\Admin\OrderStatusCategories;
 use App\Livewire\Admin\Orders;
 use App\Livewire\Admin\Af;
+use App\Livewire\Admin\Templates;
 
 Auth::routes();
 
@@ -56,6 +57,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/transaction_categories', TransactionCategories::class)->name('transaction_categories.create')->middleware('permission:view_expense_items');
     Route::get('/sales', Sales::class)->name('sales.index')->middleware('permission:view_sales');
     Route::get('/transfers', Transfers::class)->name('transfers.index')->middleware('permission:view_transfers');
+    Route::get('/templates', Templates::class)->name('templates.index');
     Route::get('/projects', Projects::class)->name('projects.index')->middleware('permission:view_projects');
     Route::get('/order-statuses', OrderStatuses::class)->name('order-statuses');
     Route::get('/order-categories', OrderCategories::class)->name('order-categories');

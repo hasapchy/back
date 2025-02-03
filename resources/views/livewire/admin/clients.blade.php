@@ -173,10 +173,12 @@
                                 <input type="checkbox" wire:model="phones.{{ $index }}.sms" class="ml-2">
                                 SMS
                             </label>
-                            <button type="button" wire:click="removePhone({{ $index }})"
-                                class="text-red-500">
-                                <i class="fas fa-minus-circle"></i>
-                            </button>
+                            @if (count($phones) > 1)
+                                <button type="button" wire:click="removePhone({{ $index }})"
+                                    class="text-red-500">
+                                    <i class="fas fa-minus-circle"></i>
+                                </button>
+                            @endif
                         </div>
                     @endforeach
                     <button type="button" wire:click="addPhone" class="bg-green-500 text-white px-2 py-1 rounded">

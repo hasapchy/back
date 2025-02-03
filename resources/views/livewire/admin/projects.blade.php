@@ -4,9 +4,9 @@
     @include('components.alert')
 
 
-    <div class="flex space-x-4 mb-4">
+    <div class="flex items-center space-x-4 mb-4">
         @if (Auth::user()->hasPermission('create_projects'))
-            <button wire:click="openForm" class="mb-4 bg-green-500 text-white px-4 py-2 rounded">
+            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
                 <i class="fas fa-plus"></i>
             </button>
         @endif

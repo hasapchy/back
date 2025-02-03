@@ -20,14 +20,13 @@ class CashRegisters extends Component
     public $name;
     public $balance;
     public $currency_id;
-    public $selectedCashRegisterId;
-    public $showCreateForm = false;
+    public $cashId;
+    public $showForm = false;
     public $showTransactionForm = false;
     public $showTransferForm = false;
     public $amount;
     public $note;
     public $to_cash_register_id;
-    public $cashRegisters;
     public $currencies;
     public $exchange_rate;
     public $category_id;
@@ -40,24 +39,24 @@ class CashRegisters extends Component
     public $transactionId;
     public $startDate;
     public $endDate;
-    public $filteredCategories = [];
     public $editCashRegisterUsers = [];
     public $allUsers = [];
     public $type;
     public $transactions;
     public $isDirty = false;
-    public $showConfirmationModal = false;
-    public $formBeingClosed = null;
-    public $selectedProjectId = null;
+    public $projectId = null;
     public $projects = [];
+    public $isSale = false;
     public $searchTerm;
     public $totalIncome = 0;
     public $totalExpense = 0;
+    public $cashRegisters;
+    public $transferTransactionIds;
+    public $categories;
 
     protected $listeners = [
-        'refreshCashRegisters' => 'refreshCashRegisters',
         'dateFilterUpdated' => 'updateDateFilter',
-        'confirmClose',
+        // 'confirmClose',
     ];
     protected $clientService;
 
@@ -70,20 +69,40 @@ class CashRegisters extends Component
     {
         $this->cashRegisters = CashRegister::whereJsonContains('user_ids', Auth::id())->get();
         $this->currencies = Currency::all();
-        $this->filteredCategories = TransactionCategory::where('type', '1')->get();
         $this->projects = Project::all();
         $this->allUsers = User::all();
-        $this->selectedCashRegisterId = $this->cashRegisters->first()->id ?? null;
+        $this->cashId = optional($this->cashRegisters->first())->id;
         $this->transaction_date = now()->toDateString();
-        $this->startDate = now()->startOfMonth()->toDateString();
-        $this->endDate = now()->endOfMonth()->toDateString();
         $this->clients = [];
-        $this->searchTerm = request('search', '');
+        $this->categories = TransactionCategory::all();
+        $this->transferTransactionIds = CashTransfer::pluck('from_transaction_id')
+            ->merge(CashTransfer::pluck('to_transaction_id'))
+            ->unique();
     }
 
-    public function updatedType($value)
+    public function render()
     {
-        $this->filteredCategories = TransactionCategory::where('type', $value)->get();
+        $this->refreshTransactions();
+        $this->clients = $this->clientService->searchClients($this->clientSearch);
+
+        $transactions = $this->transactions->map(function ($transaction) {
+            $transaction->isOrder = Order::all()->contains(function ($order) use ($transaction) {
+                return in_array($transaction->id, json_decode($order->transaction_ids, true) ?? []);
+            });
+            $transaction->isTransfer = CashTransfer::where('from_transaction_id', $transaction->id)
+                ->orWhere('to_transaction_id', $transaction->id)
+                ->exists();
+            $transaction->isSale = FinancialTransaction::where('id', $transaction->id)
+                ->where('note', 'like', '%Продажа товаров%')
+                ->exists();
+            return $transaction;
+        });
+
+        return view('livewire.admin.finance.cash-register', [
+            'incomeCategories' => $this->categories->where('type', 1),
+            'expenseCategories' => $this->categories->where('type', 0),
+            'transactions' => $transactions,
+        ]);
     }
 
     public function updated($propertyName)
@@ -95,34 +114,21 @@ class CashRegisters extends Component
     {
         $this->resetForm();
 
-        if ($cashRegisterId !== null) {
-            $cashRegister = CashRegister::find($cashRegisterId);
-            if ($cashRegister) {
-                $this->selectedCashRegisterId = $cashRegister->id;
-                $this->name = $cashRegister->name;
-                $this->balance = $cashRegister->balance;
-                $this->currency_id = $cashRegister->currency_id;
-                $this->editCashRegisterUsers = $cashRegister->user_ids ?? [];
-                $this->showCreateForm = true;
-                $this->isDirty = false;
-            }
-        } else {
-            $this->resetForm();
-            $this->selectedCashRegisterId = null;
-            $this->showCreateForm = true;
-            $this->isDirty = false;
+        if ($cashRegisterId && $cashRegister = CashRegister::find($cashRegisterId)) {
+            $this->cashId = $cashRegister->id;
+            $this->name = $cashRegister->name;
+            $this->balance = $cashRegister->balance;
+            $this->currency_id = $cashRegister->currency_id;
+            $this->editCashRegisterUsers = $cashRegister->user_ids ?? [];
         }
+
+        $this->showForm = true;
     }
 
     public function closeCreateForm()
     {
-        if ($this->isDirty) {
-            $this->formBeingClosed = 'create';
-            $this->showConfirmationModal = true;
-        } else {
             $this->resetForm();
-            $this->showCreateForm = false;
-        }
+            $this->showForm = false;
     }
 
     private function resetForm()
@@ -138,79 +144,31 @@ class CashRegisters extends Component
         $this->exchange_rate = '';
         $this->category_id = '';
         $this->transaction_date = now()->toDateString();
-        $this->client_id = null;
         $this->clients = [];
     }
 
-    public function confirmClose($confirm = false)
+
+    public function openTransferForm($fromCashRegisterId)
     {
-        if ($confirm) {
-            switch ($this->formBeingClosed) {
-                case 'create':
-                    $this->resetForm();
-                    $this->showCreateForm = false;
-                    break;
-                case 'transaction':
-                    $this->resetForm();
-                    $this->showTransactionForm = false;
-                    break;
-                case 'transfer':
-                    $this->resetForm();
-                    $this->showTransferForm = false;
-                    break;
-            }
-            $this->isDirty = false;
-        }
-        $this->showConfirmationModal = false;
-        $this->formBeingClosed = null;
+        $this->resetForm();
+        $this->cashId = $fromCashRegisterId;
+        $this->showTransferForm = true;
     }
 
+    public function closeTransferForm()
+    {
+            $this->resetForm();
+            $this->showTransferForm = false;
+    }
 
     public function openTransactionForm($transactionId = null)
     {
         $this->resetForm();
         if ($transactionId) {
-            // Check if the transaction is referenced in orders
-            $orders = Order::all();
-            $isReferencedInOrders = $orders->contains(function ($order) use ($transactionId) {
-                return in_array($transactionId, json_decode($order->transaction_ids, true) ?? []);
-            });
-            if ($isReferencedInOrders) {
-                session()->flash('error', 'Невозможно редактировать транзакцию, связанную с заказом.');
-                return;
-            }
-
-            $isTransfer = CashTransfer::where('from_transaction_id', $transactionId)
-                ->orWhere('to_transaction_id', $transactionId)
-                ->exists();
-
-            if ($isTransfer) {
-                session()->flash('error', 'Невозможно редактировать транзакцию, созданную как трансфер.');
-                return;
-            }
-
-            $isSale = FinancialTransaction::where('id', $transactionId)
-                ->where('note', 'like', '%Продажа товаров%')
-                ->exists();
-
-            if ($isSale) {
-                session()->flash('error', 'Невозможно редактировать транзакцию, созданную как продажа.');
-                return;
-            }
-
             $transaction = FinancialTransaction::find($transactionId);
-
             if ($transaction) {
+                $this->fill($transaction->toArray());
                 $this->transactionId = $transaction->id;
-                $this->type = $transaction->type;
-                $this->amount = $transaction->amount;
-                $this->note = $transaction->note;
-                $this->category_id = $transaction->category_id;
-                $this->transaction_date = $transaction->transaction_date;
-                $this->client_id = $transaction->client_id;
-                $this->selectedProjectId = $transaction->project_id;
-                $this->selectedCashRegisterId = $transaction->cash_register_id;
-                $this->currency_id = $transaction->currency_id;
                 $this->showTransactionForm = true;
             }
         } else {
@@ -220,13 +178,8 @@ class CashRegisters extends Component
 
     public function closeTransactionForm()
     {
-        if ($this->isDirty) {
-            $this->formBeingClosed = 'transaction';
-            $this->showConfirmationModal = true;
-        } else {
             $this->resetForm();
             $this->showTransactionForm = false;
-        }
     }
 
     public function handleSaveCashRegister()
@@ -237,17 +190,16 @@ class CashRegisters extends Component
             'editCashRegisterUsers.*' => 'exists:users,id',
         ];
 
-        if (!$this->selectedCashRegisterId) {
+        if (!$this->cashId) {
             $rules['balance'] = 'required|numeric';
             $rules['currency_id'] = 'required|exists:currencies,id';
         }
 
         $this->validate($rules);
-
         $this->editCashRegisterUsers = array_map('intval', $this->editCashRegisterUsers);
 
-        if ($this->selectedCashRegisterId) {
-            $cashRegister = CashRegister::find($this->selectedCashRegisterId);
+        if ($this->cashId) {
+            $cashRegister = CashRegister::find($this->cashId);
             if ($cashRegister) {
                 $cashRegister->name = $this->name;
                 $cashRegister->user_ids = $this->editCashRegisterUsers;
@@ -265,53 +217,62 @@ class CashRegisters extends Component
 
             session()->flash('message', 'Касса успешно создана.');
         }
-
-        $this->isDirty = false;
         $this->closeCreateForm();
-        $this->refreshCashRegisters();
+    }
+
+    private function convertAmount($amount, $fromCurrencyId, $toCurrencyId)
+    {
+        if ($fromCurrencyId == $toCurrencyId) {
+            return $amount;
+        }
+        $transactionCurrency = Currency::find($fromCurrencyId);
+        $cashRegisterCurrency = Currency::find($toCurrencyId);
+        $transactionExchangeRate = $transactionCurrency->currentExchangeRate()->exchange_rate;
+        $cashRegisterExchangeRate = $cashRegisterCurrency->currentExchangeRate()->exchange_rate;
+        $amountInDefaultCurrency = $amount / $transactionExchangeRate;
+        return $amountInDefaultCurrency * $cashRegisterExchangeRate;
     }
 
     public function handleTransaction()
     {
         $this->validate([
-            'amount' => 'required|numeric',
-            'note' => 'nullable|string',
-            'category_id' => 'nullable|exists:transaction_categories,id',
+            'amount'           => 'required|numeric',
+            'note'             => 'nullable|string',
+            'category_id'      => 'nullable|exists:transaction_categories,id',
             'transaction_date' => 'required|date',
-            'client_id' => 'nullable|exists:clients,id',
-            'type' => 'required|in:1,0',
+            'client_id'        => 'nullable|exists:clients,id',
+            'type'             => 'required|in:1,0',
         ]);
 
-        $cashRegister = CashRegister::find($this->selectedCashRegisterId);
-
+        $cashRegister = CashRegister::find($this->cashId);
         if (!$cashRegister) {
             session()->flash('error', 'Некорректная касса.');
             return;
         }
 
-        if ($this->currency_id && $this->currency_id != $cashRegister->currency_id) {
-            $transactionCurrency = Currency::find($this->currency_id);
-            $cashRegisterCurrency = Currency::find($cashRegister->currency_id);
-            $transactionExchangeRate = $transactionCurrency->currentExchangeRate()->exchange_rate;
-            $cashRegisterExchangeRate = $cashRegisterCurrency->currentExchangeRate()->exchange_rate;
-            $amountInDefaultCurrency = $this->amount / $transactionExchangeRate;
-            $convertedAmount = $amountInDefaultCurrency * $cashRegisterExchangeRate;
-        } else {
-            $convertedAmount = $this->amount;
+        $convertedAmount = isset($this->currency_id)
+            ? $this->convertAmount($this->amount, $this->currency_id, $cashRegister->currency_id)
+            : $this->amount;
+
+        if (!$this->transactionId) {
+            $this->note = sprintf(
+                "Сумма: %s %s",
+                number_format($this->amount, 2),
+                Currency::find($this->currency_id)->currency_code ?? ''
+            );
         }
+
         if ($this->transactionId) {
             $isTransfer = CashTransfer::where('from_transaction_id', $this->transactionId)
                 ->orWhere('to_transaction_id', $this->transactionId)
                 ->exists();
-
             if ($isTransfer) {
                 session()->flash('error', 'Невозможно редактировать транзакцию, созданную как трансфер.');
                 return;
             }
-
             $oldTransaction = FinancialTransaction::find($this->transactionId);
             if ($oldTransaction) {
-                $oldType = $oldTransaction->type;
+                $oldType   = $oldTransaction->type;
                 $oldAmount = $oldTransaction->amount;
             }
         }
@@ -319,73 +280,47 @@ class CashRegisters extends Component
         FinancialTransaction::updateOrCreate(
             ['id' => $this->transactionId],
             [
-                'type' => $this->type,
-                'amount' => $convertedAmount,
-                'cash_register_id' => $this->selectedCashRegisterId,
-                'note' => $this->note,
+                'type'             => $this->type,
+                'amount'           => $convertedAmount,
+                'cash_register_id' => $this->cashId,
+                'note'             => $this->note,
                 'transaction_date' => $this->transaction_date,
-                'currency_id' => $cashRegister->currency_id,
-                'category_id' => $this->category_id,
-                'client_id' => $this->client_id,
-                'project_id' => $this->selectedProjectId,
-                'user_id' => Auth::id(),
+                'currency_id'      => $cashRegister->currency_id,
+                'category_id'      => $this->category_id,
+                'client_id'        => $this->client_id,
+                'project_id'       => $this->projectId,
+                'user_id'          => Auth::id(),
             ]
         );
 
+        // Обновление баланса с использованием early return для упрощения логики
         if ($this->transactionId && isset($oldType) && isset($oldAmount)) {
             $balanceDifference = ($this->type == 1 ? $convertedAmount : -$convertedAmount) -
-                ($oldType == 1 ? $oldAmount : -$oldAmount);
+                                 ($oldType == 1 ? $oldAmount : -$oldAmount);
             $cashRegister->balance += $balanceDifference;
         } else {
             $cashRegister->balance += $this->type == 1 ? $convertedAmount : -$convertedAmount;
         }
         $cashRegister->save();
 
-        session()->flash('message', $this->transactionId ? ($this->type == 1 ? 'Приход успешно обновлен.' : 'Расход успешно обновлен.') : ($this->type == 1 ? 'Приход успешно записан.' : 'Расход успешно записан.'));
-        $this->isDirty = false;
+        session()->flash('message',
+            $this->transactionId
+                ? ($this->type == 1 ? 'Приход успешно обновлен.' : 'Расход успешно обновлен.')
+                : ($this->type == 1 ? 'Приход успешно записан.' : 'Расход успешно записан.')
+        );
         $this->closeTransactionForm();
-        $this->refreshCashRegisters();
     }
 
     public function deleteTransaction()
     {
         $transaction = FinancialTransaction::find($this->transactionId);
         if ($transaction) {
-            // Check if the transaction is referenced in orders
-            $orders = Order::all();
-            $isReferencedInOrders = $orders->contains(function ($order) use ($transaction) {
-                return in_array($transaction->id, json_decode($order->transaction_ids, true) ?? []);
-            });
-            if ($isReferencedInOrders) {
-                session()->flash('error', 'Невозможно удалить транзакцию, связанную с заказом.');
-                return;
-            }
-
-            $isTransfer = CashTransfer::where('from_transaction_id', $this->transactionId)
-                ->orWhere('to_transaction_id', $this->transactionId)
-                ->exists();
-
-            if ($isTransfer) {
-                session()->flash('error', 'Невозможно удалить транзакцию, созданную как трансфер.');
-                return;
-            }
-
-            $isSale = FinancialTransaction::where('id', $this->transactionId)
-                ->where('note', 'like', '%Продажа товаров%')
-                ->exists();
-
-            if ($isSale) {
-                session()->flash('error', 'Невозможно удалить транзакцию, созданную как продажа.');
-                return;
-            }
-
             $cashRegister = CashRegister::find($transaction->cash_register_id);
             $cashRegister->balance += $transaction->type == 1 ? -$transaction->amount : $transaction->amount;
             $cashRegister->save();
             $transaction->delete();
             session()->flash('message', $transaction->type == 1 ? 'Приход успешно удален.' : 'Расход успешно удален.');
             $this->closeTransactionForm();
-            $this->refreshCashRegisters();
         }
     }
 
@@ -398,7 +333,7 @@ class CashRegisters extends Component
             'transaction_date' => 'required|date',
         ]);
 
-        $fromCashRegister = CashRegister::find($this->selectedCashRegisterId);
+        $fromCashRegister = CashRegister::find($this->cashId);
         $toCashRegister = CashRegister::find($this->to_cash_register_id);
 
         if ($this->amount > $fromCashRegister->balance) {
@@ -419,7 +354,7 @@ class CashRegisters extends Component
         $fromTransaction = FinancialTransaction::create([
             'type' => '0',
             'amount' => $this->amount,
-            'cash_register_id' => $this->selectedCashRegisterId,
+            'cash_register_id' => $this->cashId,
             'note' => $this->note . ' ' . $transferNote,
             'transaction_date' => $this->transaction_date,
             'currency_id' => $fromCashRegister->currency_id,
@@ -437,7 +372,7 @@ class CashRegisters extends Component
         ]);
 
         CashTransfer::create([
-            'from_cash_register_id' => $this->selectedCashRegisterId,
+            'from_cash_register_id' => $this->cashId,
             'to_cash_register_id' => $this->to_cash_register_id,
             'from_transaction_id' => $fromTransaction->id,
             'to_transaction_id' => $toTransaction->id,
@@ -446,9 +381,8 @@ class CashRegisters extends Component
             'note' => $this->note,
         ]);
         session()->flash('message', 'Трансфер успешно сохранен');
-        $this->isDirty = false;
+        // $this->isDirty = false;
         $this->closeTransferForm();
-        $this->refreshCashRegisters();
     }
 
     public function handleDeleteTransfer($transferId)
@@ -467,9 +401,7 @@ class CashRegisters extends Component
             $fromTransaction->delete();
             $toTransaction->delete();
             $transfer->delete();
-
             session()->flash('message', 'Трансфер успешно удален.');
-            $this->refreshCashRegisters();
         } else {
             session()->flash('error', 'Трансфер не найден.');
         }
@@ -484,16 +416,11 @@ class CashRegisters extends Component
                 $cashRegister->delete();
             }
             session()->flash('message', 'Касса успешно удалена.');
-            $this->refreshCashRegisters();
         } else {
             session()->flash('error', 'Невозможно удалить кассу с транзакциями.');
         }
     }
 
-    public function selectCashRegister($cashRegisterId)
-    {
-        $this->selectedCashRegisterId = $cashRegisterId;
-    }
 
     public function updateDateFilter($startDate, $endDate)
     {
@@ -504,19 +431,20 @@ class CashRegisters extends Component
 
     private function refreshTransactions()
     {
-        $transactionsQuery = FinancialTransaction::where('cash_register_id', $this->selectedCashRegisterId);
+        $transactionsQuery = FinancialTransaction::where('cash_register_id', $this->cashId);
 
         if ($this->startDate && $this->endDate) {
             $transactionsQuery->whereBetween('transaction_date', [$this->startDate, $this->endDate]);
         }
 
-        $this->transactions = $transactionsQuery->with('user', 'currency')->get();
-
-        // Calculate totals
+        $this->transactions = $transactionsQuery->with('user', 'currency')
+            ->orderBy('transaction_date', 'desc')
+            ->get();
         $this->totalIncome = $this->transactions->where('type', 1)->sum('amount');
         $this->totalExpense = $this->transactions->where('type', 0)->sum('amount');
     }
 
+    //поиск клиента начало
     public function updatedClientSearch()
     {
         $this->clientResults = $this->clientService->searchClients($this->clientSearch);
@@ -541,51 +469,5 @@ class CashRegisters extends Component
     {
         $this->clientResults = $this->clientService->getAllClients();
     }
-
-    public function render()
-    {
-        $this->refreshTransactions();
-        $this->clients = $this->clientService->searchClients($this->clientSearch);
-        $transferTransactionIds = CashTransfer::pluck('from_transaction_id')
-            ->merge(CashTransfer::pluck('to_transaction_id'))
-            ->unique();
-
-        return view('livewire.admin.finance.cash-register', [
-            'cashRegisters' => $this->cashRegisters,
-            'currencies' => $this->currencies,
-            'transactions' => $this->transactions,
-            'incomeCategories' => TransactionCategory::where('type', 1)->get(),
-            'expenseCategories' => TransactionCategory::where('type', 0)->get(),
-            'filteredCategories' => $this->filteredCategories,
-            'allUsers' => $this->allUsers,
-            'transferTransactionIds' => $transferTransactionIds,
-            'projects' => $this->projects,
-            'clientResults' => $this->clientResults,
-            'selectedClient' => $this->selectedClient
-        ]);
-    }
-
-    private function refreshCashRegisters()
-    {
-
-        $this->cashRegisters = CashRegister::whereJsonContains('user_ids', Auth::id())->get();
-    }
-
-    public function openTransferForm($fromCashRegisterId)
-    {
-        $this->resetForm();
-        $this->selectedCashRegisterId = $fromCashRegisterId;
-        $this->showTransferForm = true;
-    }
-
-    public function closeTransferForm()
-    {
-        if ($this->isDirty) {
-            $this->formBeingClosed = 'transfer';
-            $this->showConfirmationModal = true;
-        } else {
-            $this->resetForm();
-            $this->showTransferForm = false;
-        }
-    }
+    //поиск клиента конец
 }
