@@ -11,6 +11,7 @@ use App\Models\FinancialTransaction;
 use App\Models\ClientBalance;
 use App\Models\WarehouseProductReceipt;
 use Illuminate\Support\Facades\DB;
+use App\Models\Project; // Add this line
 
 class Clients extends Component
 {
@@ -48,11 +49,21 @@ class Clients extends Component
     public $status = false;
     public $isDirty = false;
     public $searchTerm;
+    public $clientProjects = []; // Add this line
 
     public function mount()
     {
         $this->searchTerm = request('search', '');
         $this->loadClients();
+    }
+
+    public function render()
+    {
+        if ($this->clientId) {
+            $this->loadClientProjects($this->clientId);
+        }
+
+        return view('livewire.admin.clients');
     }
 
     public function openForm($clientId = null)
@@ -80,6 +91,7 @@ class Clients extends Component
             $this->emails = $client->emails->pluck('email')->toArray();
             $this->clientBalance = ClientBalance::where('client_id', $clientId)->value('balance');
             $this->transactions = FinancialTransaction::where('client_id', $clientId)->get();
+            $this->loadClientProjects($clientId); // Add this line
         }
     }
 
@@ -380,8 +392,21 @@ class Clients extends Component
         }
     }
 
-    public function render()
+    private function loadClientProjects($clientId) // Add this method
     {
-        return view('livewire.admin.clients');
+        $projects = Project::where('client_id', $clientId)->get();
+
+        $this->clientProjects = $projects->map(function ($project) {
+            $transactions = FinancialTransaction::where('project_id', $project->id)->get();
+            $income = $transactions->where('type', 1)->sum('amount');
+            $expense = $transactions->where('type', 0)->sum('amount');
+            $balance = $income - $expense;
+            return [
+                'name' => $project->name,
+                'income' => $income,
+                'expense' => $expense,
+                'balance' => $balance,
+            ];
+        })->toArray();
     }
 }

@@ -18,7 +18,9 @@ class Products extends Component
     use WithPagination;
     use WithFileUploads;
 
-    public $name, $description, $sku, $stock_quantity, $status = true, $productId, $images = [], $newImages = [], $retail_price, $wholesale_price, $purchase_price, $barcode, $category_id;
+    public $name, $description, $sku, $stock_quantity, $status = true, $productId;
+    public $image;
+    public $retail_price, $wholesale_price, $purchase_price, $barcode, $category_id;
     public $defaultCurrencyId;
     public $showForm = false;
     public $showCategoryForm = false;
@@ -26,11 +28,12 @@ class Products extends Component
     public $categoryName;
     public $parentCategoryId;
     public $columns = [
+        'thumbnail',
         'name',
         'sku',
         'stock_quantity',
         'description',
-        'barcode'  
+        'barcode'
     ];
 
     public $stocks = [];
@@ -46,6 +49,23 @@ class Products extends Component
         $this->searchTerm = request('search', '');
         $defaultCurrency = Currency::where('is_default', true)->first();
         $this->defaultCurrencyId = $defaultCurrency ? $defaultCurrency->id : null;
+    }
+
+    public function render()
+    {
+        if (strlen($this->searchTerm) < 3 && strlen($this->searchTerm) > 0) {
+            $products = Product::where('type', 1)->paginate(10);
+        } else {
+            $products = Product::where('type', 1)
+                ->where('name', 'like', '%' . $this->searchTerm . '%')
+                ->paginate(10);
+        }
+
+        return view('livewire.admin.products', [
+            'products' => $products,
+            'categories' => Category::all(),
+
+        ]);
     }
 
     public function saveCategory()
@@ -71,21 +91,21 @@ class Products extends Component
         $this->name = '';
         $this->description = '';
         $this->sku = '';
-        $this->images = [];
+        $this->image = null;
         $this->barcode = null;
         $this->category_id = null;
         $this->retail_price = null;
         $this->wholesale_price = null;
         $this->purchase_price = null;
         $this->showForm = false;
-        $this->isDirty = false; // Reset dirty status
+        $this->isDirty = false;
     }
 
     public function openForm()
     {
         $this->reset();
         $this->showForm = true;
-        $this->isDirty = false; // Reset dirty status when opening form
+        $this->isDirty = false;
     }
 
     public function closeForm()
@@ -109,15 +129,14 @@ class Products extends Component
     {
         if ($confirm) {
             $this->resetForm();
-            $this->isDirty = false; // Reset dirty status
-            $this->showForm = false; // Ensure the form is hidden
+            $this->isDirty = false;
+            $this->showForm = false; 
         }
         $this->showConfirmationModal = false;
     }
 
     public function updated($propertyName)
     {
-        // Whenever any bound property changes, mark the form as dirty
         $this->isDirty = true;
     }
 
@@ -138,22 +157,27 @@ class Products extends Component
             'name' => 'required|string|max:255',
             'category_id' => 'required|exists:categories,id',
             'sku' => 'required|string|unique:products,sku,' . ($this->productId ?? 'NULL'),
-            'newImages.*' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
             'retail_price' => 'nullable|numeric|min:0',
             'wholesale_price' => 'nullable|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
         ]);
 
-        $photoPaths = $this->images;
-
-        foreach ($this->newImages as $image) {
-            if ($image instanceof UploadedFile) {
-                $photoPaths[] = $image->store('products', 'public');
-            }
+        if ($this->productId) {
+            $existingProduct = Product::find($this->productId);
+            $oldImagePath = $existingProduct->image ?? null;
+        } else {
+            $oldImagePath = null;
         }
 
+        if ($this->image instanceof UploadedFile) {
+            $photoPath = $this->image->store('products', 'public');
+        } elseif ($this->image === null) {
+            $photoPath = null;
+        } else {
+            $photoPath = $oldImagePath;
+        }
         try {
-
             $product = Product::updateOrCreate(
                 ['id' => $this->productId],
                 [
@@ -163,7 +187,7 @@ class Products extends Component
                     'sku' => $this->sku,
                     'stock_quantity' => 0,
                     'status_id' => $this->status ? 1 : 0,
-                    'images' => json_encode($photoPaths),
+                    'image' => $photoPath,
                     'barcode' => $this->barcode,
                     'type' => $this->type,
 
@@ -176,14 +200,14 @@ class Products extends Component
                     'retail_price' => $this->retail_price ?? 0.0,
                     'wholesale_price' => $this->wholesale_price ?? 0.0,
                     'purchase_price' => $this->purchase_price ?? 0.0,
-                    'currency_id' => $this->defaultCurrencyId ?? 1, // Set a default currency ID if not set
+                    'currency_id' => $this->defaultCurrencyId ?? 1, 
                 ]
             );
 
             session()->flash('success', $this->productId ? 'Товар успешно обновлен.' : 'Товар успешно добавлен.');
             $this->dispatch('updated');
             $this->resetForm();
-            $this->isDirty = false; // Reset dirty status after saving
+            $this->isDirty = false; 
         } catch (QueryException $e) {
             if ($e->errorInfo[1] == 1062) {
                 session()->flash('error', 'Штрих-код уже существует. Пожалуйста, используйте другой.');
@@ -204,7 +228,7 @@ class Products extends Component
         $this->sku = $product->sku;
         $this->stock_quantity = $product->stock_quantity;
         $this->showForm = true;
-        $this->images = $product->images ? json_decode($product->images, true) : [];
+        $this->image = $product->image;
         $this->barcode = $product->barcode;
         $this->category_id = $product->category_id;
 
@@ -248,9 +272,11 @@ class Products extends Component
             $product->salesProducts->map(function ($salesProduct) {
                 return [
                     'type' => 'Продажа',
-                    'date' => $salesProduct->sale->created_at->format('Y-m-d'),
+                    // 'date' => $salesProduct->sale->created_at->format('Y-m-d'),
+                    'date' => now(),
                     'quantity' => $salesProduct->quantity,
-                    'note' => $salesProduct->sale->note,
+                    // 'note' => $salesProduct->sale->note,
+                    'note'=> '',
                 ];
             })->toArray()
         ))->sortByDesc('date')->toArray();
@@ -283,10 +309,9 @@ class Products extends Component
         session()->flash('success', 'Товар успешно удален.');
     }
 
-    public function removeImage($index)
+    public function removeImage()
     {
-        unset($this->images[$index]);
-        $this->images = array_values($this->images); // Переиндексация массива
+        $this->image = null;
     }
 
     public function generateBarcode()
@@ -322,21 +347,5 @@ class Products extends Component
         $this->categoryName = '';
         $this->parentCategoryId = null;
         $this->showCategoryForm = false;
-    }
-
-    public function render()
-    {
-        if (strlen($this->searchTerm) < 3 && strlen($this->searchTerm) > 0) {
-            $products = Product::where('type', 1)->paginate(10);
-        } else {
-            $products = Product::where('type', 1)
-                ->where('name', 'like', '%' . $this->searchTerm . '%')
-                ->paginate(10);
-        }
-
-        return view('livewire.admin.products', [
-            'products' => $products,
-            'categories' => Category::all(),
-        ]);
     }
 }

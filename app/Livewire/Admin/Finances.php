@@ -56,9 +56,9 @@ class Finances extends Component
 
     public function mount()
     {
-        $this->cashRegisters = CashRegister::whereJsonContains('user_ids', Auth::id())->get();
+        $this->cashRegisters = CashRegister::whereJsonContains('users', Auth::id())->get();
         $this->currencies = Currency::all();
-        $this->projects = Project::all();
+        $this->projects = Project::whereJsonContains('users', (string) Auth::id())->get();
         $this->cashId = optional($this->cashRegisters->first())->id;
         $this->transaction_date = now()->toDateString();
         $this->clients = [];
@@ -70,6 +70,7 @@ class Finances extends Component
 
     public function render()
     {
+        $this->updatedClientId();
         $this->refreshTransactions();
         $this->clients = $this->clientService->searchClients($this->clientSearch);
 
@@ -122,6 +123,7 @@ class Finances extends Component
     }
 
 
+
     public function openForm($transactionId = null)
     {
         $this->resetForm();
@@ -144,7 +146,7 @@ class Finances extends Component
         $this->showForm = false;
     }
 
-    public function handleTransaction()
+    public function save()
     {
         $this->validate([
             'amount'           => 'required|numeric',
@@ -153,6 +155,7 @@ class Finances extends Component
             'transaction_date' => 'required|date',
             'client_id'        => 'nullable|exists:clients,id',
             'type'             => 'required|in:1,0',
+            'projectId'        => 'nullable|exists:projects,id', // Add this line
         ]);
 
         $cashRegister = CashRegister::find($this->cashId);
@@ -195,7 +198,7 @@ class Finances extends Component
                 'currency_id'      => $cashRegister->currency_id,
                 'category_id'      => $this->category_id,
                 'client_id'        => $this->client_id,
-                'project_id'       => $this->projectId,
+                'project_id'       => $this->projectId, // Add this line
                 'user_id'          => Auth::id(),
             ]
         );
@@ -219,7 +222,7 @@ class Finances extends Component
         $this->closeForm();
     }
 
-    public function deleteTransaction()
+    public function delete()
     {
         $transaction = FinancialTransaction::find($this->transactionId);
         if ($transaction) {
@@ -294,5 +297,12 @@ class Finances extends Component
 
         $convertedAmount = $amount / $fromCurrency->exchange_rate * $defaultCurrency->exchange_rate * $toCurrency->exchange_rate;
         return $convertedAmount;
+    }
+
+    public function updatedClientId()
+    {
+        $this->projects = Project::whereJsonContains('users', (string) Auth::id())
+            ->where('client_id', $this->client_id)
+            ->get();
     }
 }

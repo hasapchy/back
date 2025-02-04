@@ -8,11 +8,9 @@
                 <i class="fas fa-plus"></i>
             </button>
         @endif
-    </div>
 
-    {{-- @php
-        $displayCurrency = \App\Models\Currency::where('is_currency_display', true)->first();
-    @endphp --}}
+
+    </div>
 
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
@@ -22,7 +20,7 @@
                 <th class="p-2 border border-gray-200">Склад</th>
                 <th class="p-2 border border-gray-200">Товары</th>
                 <th class="p-2 border border-gray-200">Цена продажи</th>
-                <th class="p-2 border border-gray-200">Комментарий</th>
+                <th class="p-2 border border-gray-200">Примечание</th>
             </tr>
         </thead>
         <tbody>
@@ -35,7 +33,7 @@
                 <td class="p-2 border border-gray-200">{{ $sale->warehouse->name }}</td>
                 <td class="p-2 border border-gray-200">
                     @foreach ($sale->products as $product)
-                        <div>{{ $product->name }} ({{ $product->pivot->quantity }})</div>
+                        <div>{{ $product->name }}: {{ $product->pivot->quantity }}шт</div>
                     @endforeach
                 </td>
                 <td class="p-2 border border-gray-200">{{ $sale->total_amount }} {{ $displayCurrency->symbol }}</td>
@@ -45,30 +43,30 @@
         </tbody>
     </table>
 
+    <!-- Форма создания/редактирования продажи -->
     <div id="modalBackground"
-        class="fixed overflow-y-auto inset-0 bg-gray-900 bg-opacity-50 z-40 overflow-y-auto transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
+        class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
         wire:click="closeForm">
         <div id="form"
-            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
+            class="fixed top-0 overflow-y-auto right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
             style="transform: {{ $showForm ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
-            <button wire:click="closeForm" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
-                style="right: 1rem;">
-                &times;
-            </button>
+            <button wire:click="closeForm"
+                class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
             <h2 class="text-xl font-bold mb-4">Добавить продажу</h2>
 
-            <form wire:submit.prevent="saveSale">
+            <form wire:submit.prevent="save">
                 <div class="mb-4">
                     <label for="date" class="block text-sm font-medium text-gray-700">Дата</label>
-                    <input type="date" id="date" wire:model="sale.date" value="{{ now()->format('Y-m-d') }}"
+                    <input type="date" id="date" wire:model="date" value="{{ now()->format('Y-m-d') }}"
                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                         @if ($saleId) disabled @endif>
                 </div>
                 <div class="mb-4">
                     <label for="warehouse" class="block text-sm font-medium text-gray-700">Склад</label>
+                    <!-- Отключаем выбор склада, если выбран хотя бы один товар -->
                     <select id="warehouse" wire:model="warehouseId"
                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                        @if ($saleId) disabled @endif>
+                        @if ($saleId || count($selectedProducts) > 0) disabled @endif>
                         <option value="">Выберите склад</option>
                         @foreach ($warehouses as $warehouse)
                             <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
@@ -103,24 +101,24 @@
                     </select>
                 </div>
                 <div class="mb-4">
-                    <label for="note" class="block text-sm font-medium text-gray-700">Комментарий</label>
+                    <label for="note" class="block text-sm font-medium text-gray-700">Примечание</label>
                     <textarea id="note" wire:model="note" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                         @if ($saleId) disabled @endif></textarea>
                 </div>
                 <div class="flex justify-start mt-4">
-                    <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded mr-2">
+                    <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded mr-2" @if ($saleId) disabled @endif>
                         <i class="fas fa-save"></i>
                     </button>
                     @if (Auth::user()->hasPermission('delete_sales'))
                         @if ($saleId)
-                            <button type="button" wire:click="deleteSale"
-                                class="bg-red-500 text-white px-4 py-2 rounded">
+                            <button type="button" wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
                                 <i class="fas fa-trash"></i>
                             </button>
                         @endif
                     @endif
                 </div>
             </form>
+
             <h3 class="text-lg font-bold mb-4">Выбранные товары</h3>
             <table class="w-full border-collapse border border-gray-200 shadow-md rounded">
                 <thead class="bg-gray-100">
@@ -128,7 +126,6 @@
                         <th class="p-2 border border-gray-200">Товар</th>
                         <th class="p-2 border border-gray-200">Количество</th>
                         <th class="p-2 border border-gray-200">Цена</th>
-                        <th class="p-2 border border-gray-200">Скидка</th>
                         <th class="p-2 border border-gray-200">Действия</th>
                     </tr>
                 </thead>
@@ -140,46 +137,105 @@
                         @endphp
                         @foreach ($selectedProducts as $productId => $details)
                             @php
-                                $price = isset($details['price_with_discount'])
-                                    ? $details['price_with_discount']
-                                    : $details['price'];
-                                $discountAmount = isset($details['price_with_discount'])
-                                    ? $details['price'] - $details['price_with_discount']
-                                    : 0;
+                                $price = $details['price'];
                                 $totalQuantity += $details['quantity'];
                                 $totalPrice += $price * $details['quantity'];
                             @endphp
                             <tr>
-                                <td class="p-2 border border-gray-200">{{ $details['name'] }}</td>
+                                <td class="p-2 border border-gray-200">
+                                    <div class="flex items-center">
+                                        @if (!$details['image'])
+                                            <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
+                                        @else
+                                            <img src="{{ Storage::url($details['image']) }}"
+                                                class="w-16 h-16 object-cover">
+                                        @endif
+                                        <span class="ml-2">{{ $details['name'] }}</span>
+                                    </div>
+                                </td>
                                 <td class="p-2 border border-gray-200">{{ $details['quantity'] }}</td>
-                                <td class="p-2 border border-gray-200">
-                                    {{ $price }}
-                                </td>
-                                <td class="p-2 border border-gray-200">
-                                    {{ $discountAmount }}
-                                </td>
-                                <td class="p-2 border border-gray-200">
-                                    <button wire:click="openPForm({{ $productId }})" class="text-blue-500">
+                                <td class="p-2 border border-gray-200">{{ $price }}</td>
+                                <td class="p-2 border border-gray-200" >
+                                    <button wire:click="openPForm({{ $productId }})" class="text-yellow-500 mr-3"  @if ($saleId) disabled @endif>
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button wire:click="removeProduct({{ $productId }})" class="text-red-500">
-                                        <i class="fas fa-trash"></i>
+                                    <button wire:click="removeProduct({{ $productId }})" class="text-red-500" @if ($saleId) disabled @endif>
+                                        <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
+                    @php
+                        // Расчет скидки в реальном времени
+                        $discountValue =
+                            $totalDiscountType === 'percent' ? $totalPrice * ($totalDiscount / 100) : $totalDiscount;
+                        $finalTotal = $totalPrice - $discountValue;
+                    @endphp
+                    <tfoot class="bg-gray-100">
+                        <tr>
+                            <td class="p-2 border border-gray-200 font-bold" colspan="2">Всего:</td>
+                            <td class="p-2 border border-gray-200 font-bold">{{ number_format($totalPrice, 2) }}</td>
+                            <td class="p-2 border border-gray-200"></td>
+                        </tr>
+                        <tr>
+                            <td class="p-2 border border-gray-200 font-bold" colspan="2">
+                                <button type="button" wire:click="openDiscountModal" class="underline"
+                                    @if ($saleId) disabled @endif>
+                                    Скидка <i class="fas fa-plus"></i>
+                                </button>
+                            </td>
+                            <td class="p-2 border border-gray-200 font-bold">
+                                {{ number_format($discountValue, 2) }}
+                                @if ($totalDiscountType === 'percent')
+                                    ({{ $totalDiscount }}%)
+                                @endif
+                            </td>
+                            <td class="p-2 border border-gray-200"></td>
+                        </tr>
+                        <tr>
+                            <td class="p-2 border border-gray-200 font-bold" colspan="2">Итоговая цена:</td>
+                            <td class="p-2 border border-gray-200 font-bold">{{ number_format($finalTotal, 2) }}</td>
+                            <td class="p-2 border border-gray-200"></td>
+                        </tr>
+                    </tfoot>
                 @endif
             </table>
-            @if ($selectedProducts)
-                <div class="mt-2 text-sm text-gray-600">
-                    <strong>Итого количество:</strong> {{ $totalQuantity }}<br>
-                    <strong>Итого сумма:</strong> {{ $totalPrice }} {{ $displayCurrency->symbol }}
-                </div>
-            @endif
-            @include('components.confirmation-modal')
+            <!-- Кнопка для открытия модального окна скидки -->
+
         </div>
     </div>
-    @include('components.product-quantity-modal')
 
+    <!-- Модальное окно для указания скидки -->
+    <div id="modalBackground"
+        class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showDiscountModal ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
+        wire:click="closeDiscountModal">
+        <div id="form"
+            class="fixed top-0 overflow-y-auto right-0 w-1/4 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
+            style="transform: {{ $showDiscountModal ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
+            <button wire:click="closeDiscountModal"
+                class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            <h3 class="text-xl font-bold mb-4">Указать скидку на заказ</h3>
+            <div class="mb-4">
+                <label for="total_discount" class="block text-sm font-medium text-gray-700">
+                    Значение скидки
+                </label>
+                <input type="number" step="0.01" id="total_discount" wire:model="totalDiscount"
+                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">Тип скидки</label>
+                <select wire:model="totalDiscountType" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                    <option value="fixed">Фиксированная</option>
+                    <option value="percent">Процентная</option>
+                </select>
+            </div>
+            <button wire:click="closeDiscountModal" class="bg-green-500 text-white px-4 py-2 rounded" >
+                <i class="fas fa-save"></i>
+            </button>
+        </div>
+    </div>
+
+
+    @include('components.product-quantity-modal')
 </div>

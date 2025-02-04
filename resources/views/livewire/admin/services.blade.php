@@ -2,17 +2,19 @@
 @section('showSearch', true)
 <div class="container mx-auto p-4">
 
-    @include('components.alert')
-    @if (auth()->user()->hasPermission('view_users'))
-        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded mb-4">
-            <i class="fas fa-plus"></i>
+    <div class="flex items-center space-x-4 mb-4">
+        @include('components.alert')
+        {{-- @if (Auth::user()->hasPermission('create_services')) --}}
+            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded ">
+                <i class="fas fa-plus"></i>
+            </button>
+        {{-- @endif --}}
+        <button id="columnsMenuButton" class="bg-gray-500 text-white px-4 py-2 rounded">
+            <i class="fas fa-cogs"></i>
         </button>
-    @endif
-
-    @include('components.alert')
-    <button id="columnsMenuButton" class="bg-gray-500 text-white px-4 py-2 rounded">
-        <i class="fas fa-cogs"></i>
-    </button>
+        @include('components.products-accordion')
+        @include('components.alert')
+    </div>
 
     <!-- Меню фильтров -->
     <div id="columnsMenu" class="hidden absolute bg-white shadow-md rounded p-4 z-10 mt-2">
@@ -154,14 +156,9 @@
                         @endif
                     </div>
                 </div>
-
-
-
-                
             </div>
 
-            @component('components.confirmation-modal', ['showConfirmationModal' => $showConfirmationModal])
-            @endcomponent
+
 
             <div id="categoryModal"
                 class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-500 {{ $showCategoryForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}">

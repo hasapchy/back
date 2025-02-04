@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('warehouses', function (Blueprint $table) {
             $table->id(); 
             $table->string('name');
-            $table->json('access_users')->nullable();
+            $table->json('users')->nullable();
             $table->timestamps(); 
         });
     }

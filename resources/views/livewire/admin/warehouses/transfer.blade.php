@@ -15,6 +15,7 @@
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
+                <th class="p-2 border border-gray-200">ID</th>
                 <th class="p-2 border border-gray-200">Дата</th>
                 <th class="p-2 border border-gray-200">Склад-отправитель</th>
                 <th class="p-2 border border-gray-200">Склад-получатель</th>
@@ -27,7 +28,8 @@
                 @if (Auth::user()->hasPermission('edit_movemenents'))
                     <tr wire:click="edit({{ $movement->id }})" class="cursor-pointer">
                 @endif
-                <td class="p-2 border border-gray-200">{{ $movement->created_at->format('d.m.Y H:i') }}</td>
+                <td class="p-2 border border-gray-200">{{ $movement->id}}</td>
+                <td class="p-2 border border-gray-200">{{ $movement->created_at->format('d.m.Y') }}</td>
                 <td class="p-2 border border-gray-200">{{ $movement->warehouseFrom->name }}</td>
                 <td class="p-2 border border-gray-200">{{ $movement->warehouseTo->name }}</td>
                 <td class="p-2 border border-gray-200">
@@ -41,7 +43,6 @@
         </tbody>
     </table>
 
-
     <div id="modalBackground"
         class="fixed overflow-y-auto inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
         wire:click="closeForm">
@@ -52,7 +53,6 @@
                 style="right: 1rem;">&times;</button>
             <h2 class="text-xl font-bold mb-4">{{ $transferId ? 'Редактировать перемещение' : 'Новое перемещение' }}
             </h2>
-
 
             <div class="mb-4">
                 <label>Склад-отправитель</label>
@@ -78,7 +78,7 @@
             </div>
 
             <div class="mb-4">
-                @include('components.product-search')
+                @include('components.product-search', ['disabled' => count($selectedProducts) > 0])
             </div>
 
             <div class="mb-4">
@@ -99,13 +99,22 @@
                     <tbody>
                         @foreach ($selectedProducts as $productId => $details)
                             <tr>
-                                {{-- <td class="p-2 border border-gray-200">{{ $details['name'] }}</td> --}}
+                                <td class="p-2 border border-gray-200">
+                                    <div class="flex items-center">
+                                        @if (!$details['image'])
+                                            <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
+                                        @else
+                                            <img src="{{ Storage::url($details['image']) }}"
+                                                class="w-16 h-16 object-cover">
+                                        @endif
+                                        <span class="ml-2">{{ $details['name'] }}</span>
+                                    </div>
+                                </td>
                                 <td class="p-2 border border-gray-200">{{ $details['quantity'] }}</td>
                                 <td class="p-2 border border-gray-200">
                                     <button wire:click="openPForm({{ $productId }})" class="text-yellow-500 mr-3">
                                         <i class="fas fa-edit"></i>
                                     </button>
-
                                     <button wire:click="removeProduct({{ $productId }})" class="text-red-500">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
@@ -113,16 +122,29 @@
                             </tr>
                         @endforeach
                     </tbody>
+                    <tfoot class="bg-gray-100">
+                        @php
+                            $totalQuantity = 0;
+                            foreach ($selectedProducts as $details) {
+                                $totalQuantity += $details['quantity'];
+                            }
+                        @endphp
+                        <tr>
+                            <td class="p-2 border border-gray-200 font-bold" colspan="1">Итого:</td>
+                            <td class="p-2 border border-gray-200 font-bold">{{ $totalQuantity }}</td>
+                            <td class="p-2 border border-gray-200"></td>
+                        </tr>
+                    </tfoot>
                 @endif
             </table>
 
             <div class="flex justify-start mt-4">
-                <button wire:click="saveTransfer" class="bg-green-500 text-white px-4 py-2 rounded mr-2">
+                <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded mr-2">
                     <i class="fas fa-save"></i>
                 </button>
                 @if (Auth::user()->hasPermission('delete_movemenents'))
                     @if ($transferId)
-                        <button wire:click="deleteTransfer" class="bg-red-500 text-white px-4 py-2 rounded">
+                        <button wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-trash"></i>
                         </button>
                     @endif

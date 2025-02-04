@@ -13,17 +13,16 @@
             <label>Количество</label>
             <input type="number" wire:model="productQuantity" class="w-full border rounded mb-4">
             @if (isset($productPrice))
-                <label>Цена</label>
-                <input type="number" wire:model="productPrice" class="w-full border rounded mb-4">
-            @endif
-            @if (isset($productDiscount))
-                <label>Тип скидки</label>
-                <select wire:model="discountType" class="w-full border rounded mb-4">
-                    <option value="fixed">Фиксированная</option>
-                    <option value="percent">Процент</option>
+                <label>Тип цены</label>
+                <select wire:model.change="productPriceType" wire:change="updatePriceType"
+                    class="w-full border rounded mb-4">
+                    <option value="retail_price">Розничная цена</option>
+                    <option value="wholesale_price">Оптовая цена</option>
+                    <option value="custom">Произвольное</option>
                 </select>
-                <label>Скидка</label>
-                <input type="number" wire:model="productDiscount" class="w-full border rounded mb-4">
+                <label>Цена</label>
+                <input type="number" wire:model="productPrice" wire:change="updateProductPrice($event.target.value)"
+                    class="w-full border rounded mb-4">
             @endif
         </div>
         <div>

@@ -188,7 +188,7 @@
                         <table class="min-w-full bg-white shadow-md rounded mb-6">
                             <thead class="bg-gray-100">
                                 <tr>
-                                    <th class="p-2 border border-gray-200">Комментарий</th>
+                                    <th class="p-2 border border-gray-200">Примечание</th>
                                     <th class="p-2 border border-gray-200">Сумма</th>
                                     <th class="p-2 border border-gray-200">Дата</th>
                                     <th class="p-2 border border-gray-200">Статья прихода</th>
@@ -288,8 +288,8 @@
                 </select>
             </div>
             <div class="mb-4">
-                <label class="block mb-1">Комментарий</label>
-                <textarea wire:model="transaction_note" placeholder="Комментарий" class="w-full p-2 border rounded"></textarea>
+                <label class="block mb-1">Примечание</label>
+                <textarea wire:model="transaction_note" placeholder="Примечание" class="w-full p-2 border rounded"></textarea>
             </div>
             <div class="flex space-x-2">
                 <button wire:click="createTransaction" class="bg-green-500 text-white px-4 py-2 rounded">

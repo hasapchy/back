@@ -20,6 +20,7 @@ class Sale extends Model
         'currency_id',
         'user_id',
         'warehouse_id',
+        'discount_price',
     ];
 
     public function client()

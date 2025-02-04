@@ -31,7 +31,7 @@ class Transfers extends Component
 
     public function mount()
     {
-        $this->cashRegisters = CashRegister::all();
+        $this->cashRegisters = CashRegister::whereJsonContains('users', Auth::id())->get();
         $this->transfers = CashTransfer::with('fromCashRegister', 'toCashRegister', 'currency')->get();
     }
 

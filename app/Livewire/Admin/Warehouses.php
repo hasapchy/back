@@ -8,55 +8,66 @@ use App\Models\User;
 
 class Warehouses extends Component
 {
-    public $name, $warehouseId, $accessUsers = [], $showForm = false;
+    public $warehouseId, $name, $users, $selectedUsers = [], $showForm = false;
 
-    public function resetForm()
+    protected $rules = [
+        'name' => 'required|string|max:255',
+        'selectedUsers' => 'nullable|array',
+        'selectedUsers.*' => 'exists:users,id',
+    ];
+
+    public function mount()
     {
-        $this->warehouseId = null;
-        $this->name = '';
-        $this->accessUsers = [];
-        $this->showForm = false;
+        $this->users = User::all();
     }
 
-    public function createWarehouse()
+    public function render()
+    {
+        return view('livewire.admin.warehouses.warehouses', [
+            'warehouses' => Warehouse::with('stocks')->paginate(20),
+        ]);
+    }
+
+    public function openForm()
     {
         $this->resetForm();
         $this->showForm = true;
     }
 
-    public function saveWarehouse()
+    public function closeForm()
     {
-        $this->validate([
-            'name' => 'required|string|max:255',
-            'accessUsers' => 'nullable|array',
-            'accessUsers.*' => 'exists:users,id',
-        ]);
+        $this->resetForm();
+    }
+
+    public function resetForm()
+    {
+        $this->reset(['warehouseId', 'name', 'selectedUsers', 'showForm']);
+    }
+
+    public function save()
+    {
+        $this->validate();
 
         $warehouse = Warehouse::updateOrCreate(
             ['id' => $this->warehouseId],
-            [
-                'name' => $this->name,
-                'access_users' => $this->accessUsers,
-            ]
+            ['name' => $this->name]
         );
 
+        $warehouse->update(['users' => $this->selectedUsers]);
         session()->flash('success', $this->warehouseId ? 'Склад обновлён.' : 'Склад создан.');
         $this->resetForm();
     }
 
-    public function editWarehouse($id)
+    public function edit(Warehouse $warehouse)
     {
-        $warehouse = Warehouse::findOrFail($id);
         $this->warehouseId = $warehouse->id;
         $this->name = $warehouse->name;
-        $this->accessUsers = $warehouse->access_users ?? [];
+        $this->selectedUsers = $warehouse->users ?: [];
         $this->showForm = true;
     }
 
-    public function deleteWarehouse($id)
+    public function delete(Warehouse $warehouse)
     {
-        $warehouse = Warehouse::findOrFail($id);
-        
         if ($warehouse->stocks()->exists()) {
             session()->flash('error', 'Нельзя удалить склад, так как он используется в запасах.');
             return;
@@ -65,18 +76,5 @@ class Warehouses extends Component
         $warehouse->delete();
         session()->flash('success', 'Склад удалён.');
         $this->resetForm();
-    }
-
-    public function closeForm()
-    {
-        $this->resetForm();
-    }
-
-    public function render()
-    {
-        return view('livewire.admin.warehouses.warehouses', [
-            'warehouses' => Warehouse::with('stocks')->paginate(10),
-            'users' => User::all(),
-        ]);
     }
 }

@@ -16,17 +16,17 @@ use Illuminate\Support\Facades\Cache;
 use App\Services\ClientService;
 
 
-#[Lazy]
+// #[Lazy]
 class Templates extends Component
 {
     public $templateName;
     public $templateIcon;
     public $templates;
     public $templateId;
-    public $showTemplateForm = false;
+    public $showForm = false;
     public $templateAmount;
     public $type = '1';
-    public $templateCategoryId;
+    public $categoryId;
     public $templateTransactionDate;
     public $templateNote;
     public $client_id;
@@ -35,18 +35,18 @@ class Templates extends Component
     public $templateClients = [];
     public $currencies = [];
     public $cashRegisters = [];
-    public $selectedCashRegisterId = null;
-    public $showApplyTemplateForm = false;
+    public $cashId = null;
+    public $showTForm = false;
     public $applyTemplateId;
     public $showConfirmationModal = false;
-    public $selectedProjectId = null;
+    public $projectId = null;
     public $projects = [];
     public $isDirty = false;
-    public $clientSearch = ''; // Added for client search
-    public $clientResults = []; // Added for client search results
-    public $selectedClient; // Added for selected client
+    public $clientSearch = ''; 
+    public $clientResults = [];
+    public $selectedClient; 
     public $clients = [];
-    protected $listeners = ['openTemplateForm', 'confirmClose'];
+    protected $listeners = ['confirmClose'];
     protected $clientService;
 
     public function boot(ClientService $clientService)
@@ -57,20 +57,20 @@ class Templates extends Component
     public function mount()
     {
         $this->loadTemplates();
-        $this->filteredCategories = Cache::remember('transaction_categories_type_1', 60, function () {
-            return TransactionCategory::where('type', '1')->get();
-        });
-        $this->currencies = Cache::remember('currencies_all', 60, function () {
-            return Currency::all();
-        });
-        $this->cashRegisters = Cache::remember('cash_registers_all', 60, function () {
-            return CashRegister::all();
-        });
-        $this->projects = Cache::remember(Auth::user()->is_admin ? 'projects_all' : 'projects_user_' . Auth::id(), 60, function () {
-            return Auth::user()->is_admin
-                ? Project::with('users')->get()
-                : Project::whereJsonContains('users', Auth::id())->with('users')->get();
-        });
+        $this->filteredCategories = TransactionCategory::where('type', '1')->get();
+        $this->currencies = Currency::all();
+        $this->cashRegisters = Auth::user()->is_admin
+            ? CashRegister::all()
+            : CashRegister::whereJsonContains('users', Auth::id())->get();
+        $this->projects = Auth::user()->is_admin
+            ? Project::all()
+            : Project::whereJsonContains('users', Auth::id())->get();
+    }
+
+    public function render()
+    {
+        $this->clients = $this->clientService->searchClients($this->clientSearch);
+        return view('livewire.admin.finance.templates');
     }
 
     public function loadTemplates()
@@ -80,44 +80,47 @@ class Templates extends Component
             ->get();
     }
 
-
-
-
-    public function openTemplateForm()
+    public function openForm()
     {
-        $this->resetTemplateForm();
-        $this->showTemplateForm = true;
-        $this->isDirty = false; // Reset dirty status when opening form
+        $this->resetForm();
+        $this->showForm = true;
+        $this->isDirty = false;
     }
 
-    public function closeTemplateForm()
+    public function closeForm()
     {
         if ($this->isDirty) {
             $this->showConfirmationModal = true;
         } else {
-            $this->resetTemplateForm();
-            $this->showTemplateForm = false;
+            $this->resetForm();
+            $this->showForm = false;
         }
     }
+
+    public function closeTForm()
+    {
+        $this->showTForm = false;
+    }
+
 
     public function confirmClose($confirm = false)
     {
         if ($confirm) {
-            $this->resetTemplateForm();
-            $this->isDirty = false; // Reset dirty status
-            $this->showTemplateForm = false; // Ensure the form is hidden
+            $this->resetForm();
+            $this->isDirty = false;
+            $this->showForm = false;
         }
         $this->showConfirmationModal = false;
     }
 
-    private function resetTemplateForm()
+    private function resetForm()
     {
         $this->templateName = '';
         $this->templateIcon = '';
         $this->templateId = null;
         $this->templateAmount = '';
         $this->type = '1';
-        $this->templateCategoryId = '';
+        $this->categoryId = '';
         $this->templateTransactionDate = now()->toDateString();
         $this->templateNote = '';
         $this->client_id = null;
@@ -127,7 +130,6 @@ class Templates extends Component
 
     public function updated($propertyName)
     {
-        // Whenever any bound property changes, mark the form as dirty
         $this->isDirty = true;
     }
 
@@ -138,11 +140,11 @@ class Templates extends Component
             'templateIcon' => 'required|string|max:255',
             'templateAmount' => 'required|numeric',
             'type' => 'required|in:1,0',
-            'templateCategoryId' => 'nullable|exists:transaction_categories,id',
+            'categoryId' => 'nullable|exists:transaction_categories,id',
             'templateTransactionDate' => 'nullable|date',
             'templateNote' => 'nullable|string',
             'client_id' => 'nullable|exists:clients,id',
-            'selectedProjectId' => 'nullable|exists:projects,id',
+            'projectId' => 'nullable|exists:projects,id',
         ]);
 
         Template::updateOrCreate(
@@ -152,23 +154,23 @@ class Templates extends Component
                 'icon' => $this->templateIcon,
                 'amount' => $this->templateAmount,
                 'type' => $this->type,
-                'category_id' => $this->templateCategoryId,
+                'category_id' => $this->categoryId,
                 'transaction_date' => $this->templateTransactionDate,
                 'note' => $this->templateNote,
                 'client_id' => $this->client_id,
                 'user_id' => Auth::id(),
-                'cash_register_id' => $this->selectedCashRegisterId,
-                'project_id' => $this->selectedProjectId,
+                'cash_register_id' => $this->cashId,
+                'project_id' => $this->projectId,
             ]
         );
 
         session()->flash('message', $this->templateId ? 'Шаблон успешно обновлен.' : 'Шаблон успешно создан.');
         $this->isDirty = false; // Reset dirty status after saving
-        $this->closeTemplateForm();
+        $this->closeForm();
         $this->loadTemplates();
     }
 
-    public function editTemplate($id)
+    public function edit($id)
     {
         $template = Template::with(['category', 'client', 'cashRegister', 'project'])
             ->where('id', $id)
@@ -179,18 +181,18 @@ class Templates extends Component
             $this->templateName = $template->name;
             $this->templateIcon = $template->icon;
             $this->templateAmount = $template->amount;
-            $this->templateCategoryId = $template->category_id;
+            $this->categoryId = $template->category_id;
             $this->templateTransactionDate = $template->transaction_date;
             $this->templateNote = $template->note;
             $this->client_id = $template->client_id;
-            $this->selectedCashRegisterId = $template->cash_register_id;
-            $this->selectedProjectId = $template->project_id;
-            $this->showTemplateForm = true;
-            $this->isDirty = false; // Reset dirty status when editing
+            $this->cashId = $template->cash_register_id;
+            $this->projectId = $template->project_id;
+            $this->showForm = true;
+            $this->isDirty = false;
         }
     }
 
-    public function deleteTemplate($id)
+    public function delete($id)
     {
         $template = Template::where('id', $id)
             ->where('user_id', Auth::id())
@@ -241,19 +243,17 @@ class Templates extends Component
             ->first();
         if (!$template) return;
 
-        // Pre-fill form values from the template
         $this->applyTemplateId = $template->id;
         $this->templateName = $template->name;
         $this->templateIcon = $template->icon;
         $this->templateAmount = $template->amount;
         $this->type = $template->type;
-        $this->templateCategoryId = $template->category_id;
+        $this->categoryId = $template->category_id;
         $this->templateTransactionDate = $template->transaction_date;
         $this->templateNote = $template->note;
         $this->client_id = $template->client_id;
-        $this->selectedCashRegisterId = $template->cash_register_id;
-
-        $this->showApplyTemplateForm = true;
+        $this->cashId = $template->cash_register_id;
+        $this->showTForm = true;
         $this->isDirty = true;
     }
 
@@ -264,29 +264,37 @@ class Templates extends Component
             'templateTransactionDate' => 'required|date',
             'templateNote' => 'nullable|string',
             'client_id' => 'nullable|exists:clients,id',
-            'selectedCashRegisterId' => 'required|exists:cash_registers,id',
+            'cashId' => 'required|exists:cash_registers,id',
         ]);
 
-        $cashRegister = CashRegister::find($this->selectedCashRegisterId);
+        $cashRegister = CashRegister::find($this->cashId);
         if (!$cashRegister) return;
 
         $currency = $cashRegister->currency;
+        // Append initial amount note
+        $initialNote = sprintf(
+            "(Изначальная сумма: %s %s)",
+            number_format($this->templateAmount, 2),
+            $currency->currency_code ?? ''
+        );
+        $this->templateNote = trim($this->templateNote)
+            ? $this->templateNote . "\n" . $initialNote
+            : $initialNote;
+            
         $exchangeRate = $currency->currentExchangeRate()->exchange_rate;
 
         $transaction = new FinancialTransaction();
         $transaction->cash_register_id = $cashRegister->id;
         $transaction->type = $this->type;
-        $transaction->category_id = $this->templateCategoryId;
+        $transaction->category_id = $this->categoryId;
         $transaction->client_id = $this->client_id;
         $transaction->user_id = Auth::id();
         $transaction->amount = $this->templateAmount;
         $transaction->transaction_date = $this->templateTransactionDate;
         $transaction->note = $this->templateNote;
         $transaction->currency_id = $currency->id;
-        // $transaction->exchange_rate = $exchangeRate;
         $transaction->save();
 
-        // Update the cash register balance
         if ($this->type == 1) {
             $cashRegister->balance += $this->templateAmount;
         } else {
@@ -295,27 +303,8 @@ class Templates extends Component
         $cashRegister->save();
 
         session()->flash('message', 'Транзакция успешно создана из шаблона.');
-        $this->isDirty = false; // Reset dirty status after saving
-        $this->showApplyTemplateForm = false;
-        // $this->dispatch('refreshPage');
+        $this->isDirty = false; 
+        $this->showTForm = false;
     }
 
-    public function closeApplyTemplateForm()
-    {
-        $this->showApplyTemplateForm = false;
-    }
-
-    public function render()
-    {
-
-        $this->clients = $this->clientService->searchClients($this->clientSearch);
-        return view('livewire.admin.finance.templates', [
-            // 'templates' => $this->templates,
-            // 'filteredCategories' => $this->filteredCategories,
-            // 'templateClients' => $this->templateClients,
-            // 'currencies' => $this->currencies,
-            // 'cashRegisters' => $this->cashRegisters,
-           
-        ]);
-    }
 }

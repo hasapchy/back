@@ -46,7 +46,7 @@ class Users extends Component
     {
         $this->resetForm();
         $this->showForm = true;
-        $this->isDirty = false; // Reset dirty status when opening form
+        $this->isDirty = false; 
     }
 
     public function closeForm()

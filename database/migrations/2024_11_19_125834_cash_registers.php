@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('name'); 
             $table->decimal('balance', 15, 2)->default(0.00); 
             $table->foreignId('currency_id')->constrained('currencies')->onDelete('cascade'); 
-            $table->json('user_ids')->nullable();
+            $table->json('users')->nullable();
             $table->timestamps(); 
         });
         

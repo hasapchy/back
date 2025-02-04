@@ -99,6 +99,11 @@ class FinancialTransaction extends Model
         return $this->belongsToMany(Order::class, 'order_transaction', 'transaction_id', 'order_id');
     }
 
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
+    }
+
     public function getExchangeRateAttribute()
     {
         $currency = $this->currency;

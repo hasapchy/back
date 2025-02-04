@@ -14,43 +14,25 @@ use App\Models\Currency;
 use Illuminate\Support\Facades\DB;
 use App\Services\ClientService;
 use App\Services\ProductService;
-
+use Illuminate\Support\Facades\Auth;
 
 class WarehouseProductReceipts extends Component
 {
     public $selectedProducts = [];
-    public $clientId;
-    public $warehouseId;
-    public $date;
-    public $note;
-    public $productQuantity = 1;
-    public $productPrice;
-    public $showPForm = false;
-    public $productId;
-    public $products = [];
-    public $showForm = false;
-    public $receptionId = null;
-    public $currency_id;
-    public $clientSearch = '';
-    public $clientResults = [];
-    public $selectedClient = null;
-    public $clients = [];
-    public $productResults = [];
-    public $selectedProduct = null;
-    public $productSearch = '';
-    public $startDate;
-    public $endDate;
-    public $stockReceptions = [];
-    public $isDirty = false;
-    public $showConfirmationModal = false;
-    public $displayCurrency;
-    public $currencies;
-    public $warehouses = [];
-    protected $clientService;
-    protected $productService;
+    public $clientId, $warehouseId, $date, $note;
+    public $productQuantity = 1, $productPrice;
+    public $showPForm = false, $productId, $products = [];
+    public $showForm = false, $receptionId = null, $currency_id;
+    public $clientSearch = '', $clientResults = [], $selectedClient = null, $clients = [];
+    public $productResults = [], $selectedProduct = null, $productSearch = '';
+    public $startDate, $endDate, $stockReceptions = [];
+    public $isDirty = false, $showConfirmationModal = false;
+    public $displayCurrency, $currencies, $warehouses = [];
+
+    protected $clientService, $productService;
     protected $listeners = [
         'dateFilterUpdated' => 'updateDateFilter',
-        'confirmClose',
+        'confirmClose'
     ];
 
     public function boot(ClientService $clientService, ProductService $productService)
@@ -64,7 +46,7 @@ class WarehouseProductReceipts extends Component
         $this->date = now()->format('Y-m-d');
         $this->displayCurrency = Currency::where('is_currency_display', true)->first();
         $this->currencies = Currency::all();
-        $this->warehouses = Warehouse::all();
+        $this->warehouses = Warehouse::whereJsonContains('users', (string) Auth::id())->get();
     }
 
     public function render()
@@ -72,6 +54,24 @@ class WarehouseProductReceipts extends Component
         $this->clients = $this->clientService->searchClients($this->clientSearch);
         $this->load();
         return view('livewire.admin.warehouses.reception');
+    }
+
+    public function updateDateFilter($startDate, $endDate)
+    {
+        $this->startDate = $startDate;
+        $this->endDate   = $endDate;
+        $this->load();
+    }
+
+    public function load()
+    {
+        $query = WarehouseProductReceipt::with(['supplier', 'warehouse']);
+
+        if ($this->startDate && $this->endDate) {
+            $query->whereBetween('created_at', [$this->startDate, $this->endDate]);
+        }
+
+        $this->stockReceptions = $query->latest()->get();
     }
 
     public function openForm()
@@ -82,9 +82,7 @@ class WarehouseProductReceipts extends Component
 
     public function closeForm()
     {
-        if ($this->showPForm) {
-            return;
-        }
+        if ($this->showPForm) return;
         if ($this->isDirty) {
             $this->showConfirmationModal = true;
         } else {
@@ -113,26 +111,40 @@ class WarehouseProductReceipts extends Component
 
     public function closePForm()
     {
-        $this->showPForm = false;
-        $this->productId = null;
-        $this->productQuantity = 1;
-        $this->productPrice = null;
+        $this->reset(['productId', 'productQuantity', 'productPrice', 'showPForm']);
+    }
+
+    public function resetForm()
+    {
+        $this->reset([
+            'clientId',
+            'warehouseId',
+            'selectedProducts',
+            'note',
+            'products',
+            'currency_id',
+            'selectedClient',
+            'clientSearch',
+            'showForm',
+            'showPForm',
+            'productQuantity',
+            'productPrice',
+            'receptionId'
+        ]);
     }
 
 
     public function addProduct($productId)
     {
-        $stock = WarehouseStock::where('warehouse_id', $this->warehouseId)
-            ->where('product_id', $productId)
-            ->with('product')
-            ->first();
-
-        $this->selectedProducts[$productId] = [
-            'name' => $stock->product->name,
-            'quantity' => 1,
-        ];
-
-        $this->openPForm($productId);
+        $product = Product::find($productId);
+        if ($product) {
+            $this->selectedProducts[$productId] = [
+                'name'     => $product->name,
+                'quantity' => 1,
+                'image'    => $product->image ?? null,
+            ];
+            $this->openPForm($productId);
+        }
     }
 
     public function removeProduct($productId)
@@ -145,18 +157,22 @@ class WarehouseProductReceipts extends Component
     {
         $this->validate([
             'productQuantity' => 'required|integer|min:1',
-            'productPrice' => 'required|numeric|min:0,01',
+            'productPrice'    => 'required|numeric|min:0.01',
         ]);
 
         if ($this->productQuantity <= 0) {
             session()->flash('error', 'Количество товара должно быть больше нуля.');
             return;
         }
-        $quantity = $this->productQuantity;
+
+        $product = Product::find($this->productId);
+        if (!$product) return;
+
         $this->selectedProducts[$this->productId] = [
-            'name' => Product::find($this->productId)->name,
-            'quantity' => $quantity,
-            'price' => $this->productPrice,
+            'name'     => $product->name,
+            'quantity' => $this->productQuantity,
+            'price'    => $this->productPrice,
+            'image'    => $product->image ?? null,
         ];
 
         $this->closePForm();
@@ -165,102 +181,81 @@ class WarehouseProductReceipts extends Component
     public function saveReception()
     {
         $this->validate([
-            'clientId' => 'required|exists:clients,id',
-            'warehouseId' => 'required|exists:warehouses,id',
+            'clientId'         => 'required|exists:clients,id',
+            'warehouseId'      => 'required|exists:warehouses,id',
             'selectedProducts' => 'required|array|min:1',
-            'note' => 'nullable|string|max:255',
-            'currency_id' => 'required|exists:currencies,id',
+            'note'             => 'nullable|string|max:255',
+            'currency_id'      => 'required|exists:currencies,id',
         ]);
 
-        $totalAmount = 0;
-        $displayCurrency = Currency::where('is_currency_display', true)->first();
         $defaultCurrency = Currency::where('is_default', true)->first();
-
-        $oldTotalAmount = 0;
-        if ($this->receptionId) {
-            $oldTotalAmount = WarehouseProductReceipt::where('id', $this->receptionId)->value('converted_total') ?? 0;
-        }
+        $displayCurrency = Currency::where('is_currency_display', true)->first();
+        $oldTotalAmount  = $this->receptionId
+            ? (WarehouseProductReceipt::where('id', $this->receptionId)->value('converted_total') ?? 0)
+            : 0;
 
         $reception = WarehouseProductReceipt::updateOrCreate(
             ['id' => $this->receptionId],
             [
                 'supplier_id' => $this->clientId,
                 'warehouse_id' => $this->warehouseId,
-                'note' => $this->note,
+                'note'        => $this->note,
                 'currency_id' => $this->currency_id,
             ]
         );
+
         $existingProducts = WarehouseProductReceiptProduct::where('receipt_id', $reception->id)
             ->pluck('product_id')
             ->toArray();
-
         $productsToDelete = array_diff($existingProducts, array_keys($this->selectedProducts));
         foreach ($productsToDelete as $productId) {
-            $productReceipt = WarehouseProductReceiptProduct::where('receipt_id', $reception->id)
+            $receiptProduct = WarehouseProductReceiptProduct::where('receipt_id', $reception->id)
                 ->where('product_id', $productId)
                 ->first();
-
-            if ($productReceipt) {
-                // Уменьшаем количество на складе
+            if ($receiptProduct) {
                 WarehouseStock::where('warehouse_id', $this->warehouseId)
-                    ->where('product_id', $productId)
-                    ->decrement('quantity', $productReceipt->quantity);
-
-                // Удаляем запись о товаре
-                $productReceipt->delete();
+                    ->decrement('quantity', $receiptProduct->quantity);
+                $receiptProduct->delete();
             }
         }
 
-        // Обновляем или добавляем товары
+        // Обрабатываем продукты
+        $totalAmount = 0;
         foreach ($this->selectedProducts as $productId => $details) {
-            $previousProductReceipt = null;
-            $oldQuantity = 0;
+            $prevReceipt = WarehouseProductReceiptProduct::where('receipt_id', $this->receptionId)
+                ->where('product_id', $productId)
+                ->first();
 
-            if ($this->receptionId) {
-                $previousProductReceipt = WarehouseProductReceiptProduct::where('receipt_id', $this->receptionId)
-                    ->where('product_id', $productId)
-                    ->first();
-                $oldQuantity = $previousProductReceipt ? $previousProductReceipt->quantity : 0;
-            }
-
-            $productReceipt = WarehouseProductReceiptProduct::updateOrCreate(
+            $oldQuantity = $prevReceipt ? $prevReceipt->quantity : 0;
+            WarehouseProductReceiptProduct::updateOrCreate(
                 [
                     'receipt_id' => $reception->id,
                     'product_id' => $productId,
                 ],
-                [
-                    'quantity' => $details['quantity'],
-                ]
             );
 
-            if ($previousProductReceipt) {
-                $difference = $details['quantity'] - $oldQuantity;
+            if ($prevReceipt) {
+                $diff = $details['quantity'] - $oldQuantity;
                 WarehouseStock::where('warehouse_id', $this->warehouseId)
-                    ->where('product_id', $productId)
-                    ->increment('quantity', $difference);
+                    ->increment('quantity', $diff);
             } else {
                 WarehouseStock::updateOrCreate(
                     [
                         'warehouse_id' => $this->warehouseId,
-                        'product_id' => $productId,
+                        'product_id'   => $productId,
                     ],
                     [
-                        'quantity' => DB::raw('quantity + ' . $details['quantity']),
+                        'quantity'     => $details['quantity']
                     ]
                 );
             }
 
             $currency = Currency::find($this->currency_id);
-            $convertedPrice = $details['price'] / $currency->exchange_rate * $defaultCurrency->exchange_rate * $displayCurrency->exchange_rate;
-
+            $convertedPrice = ($details['price'] / $currency->exchange_rate)
+                * $defaultCurrency->exchange_rate
+                * $displayCurrency->exchange_rate;
             ProductPrice::updateOrCreate(
-                [
-                    'product_id' => $productId,
-                ],
-                [
-                    'purchase_price' => $details['price'],
-                    'currency_id' => $this->currency_id,
-                ]
+                ['product_id' => $productId],
             );
 
             $totalAmount += $convertedPrice * $details['quantity'];
@@ -268,17 +263,16 @@ class WarehouseProductReceipts extends Component
 
         $reception->converted_total = $totalAmount;
         $reception->save();
-
         if ($this->receptionId) {
             $difference = $totalAmount - $oldTotalAmount;
             ClientBalance::updateOrCreate(
                 ['client_id' => $this->clientId],
-                ['balance' => DB::raw("balance - {$difference}")]
+                ['balance'   => DB::raw("balance - {$difference}")]
             );
         } else {
             ClientBalance::updateOrCreate(
                 ['client_id' => $this->clientId],
-                ['balance' => DB::raw('balance - ' . $totalAmount)]
+                ['balance'   => DB::raw('balance - ' . $totalAmount)]
             );
         }
 
@@ -290,21 +284,21 @@ class WarehouseProductReceipts extends Component
 
     public function edit($receptionId)
     {
-        $reception = WarehouseProductReceipt::findOrFail($receptionId);
+        $reception = WarehouseProductReceipt::with('products.product')->findOrFail($receptionId);
 
-        $this->receptionId = $receptionId;
-        $this->clientId = $reception->supplier_id;
-        $this->warehouseId = $reception->warehouse_id;
-        $this->note = $reception->note;
-        $this->currency_id = $reception->currency_id;
+        $this->receptionId  = $receptionId;
+        $this->clientId     = $reception->supplier_id;
+        $this->warehouseId  = $reception->warehouse_id;
+        $this->note         = $reception->note;
+        $this->currency_id  = $reception->currency_id;
         $this->selectedClient = $this->clientService->getClientById($this->clientId);
         $this->selectedProducts = [];
         foreach ($reception->products as $product) {
-            $productPrice = ProductPrice::where('product_id', $product->product_id)->first();
             $this->selectedProducts[$product->product_id] = [
-                'name' => $product->product->name,
+                'name'     => $product->product->name,
                 'quantity' => $product->quantity,
-                'price' => $productPrice ? $productPrice->purchase_price : 0,
+                'price'    => optional(ProductPrice::where('product_id', $product->product_id)->first())->purchase_price ?? 0,
+                'image'    => $product->product->image ?? null,
             ];
         }
         $this->showForm = true;
@@ -314,20 +308,18 @@ class WarehouseProductReceipts extends Component
     {
         if ($this->receptionId) {
             $reception = WarehouseProductReceipt::findOrFail($this->receptionId);
+
             foreach ($reception->products as $product) {
                 WarehouseStock::where('warehouse_id', $reception->warehouse_id)
-                    ->where('product_id', $product->product_id)
                     ->decrement('quantity', $product->quantity);
             }
 
-            $supplierBalance = ClientBalance::where('client_id', $reception->supplier_id)->first();
-            if ($supplierBalance) {
-                $supplierBalance->balance += $reception->converted_total;
-                $supplierBalance->save();
-            }
+            ClientBalance::updateOrCreate(
+                ['client_id' => $reception->supplier_id],
+                ['balance' => DB::raw("balance + {$reception->converted_total}")]
+            );
 
             $reception->delete();
-
             session()->flash('success', 'Оприходование успешно удалено.');
             $this->resetForm();
             $this->closeForm();
@@ -335,7 +327,6 @@ class WarehouseProductReceipts extends Component
     }
 
     //поиск клиента
-
     public function showAllClients()
     {
         $this->clientResults = $this->clientService->getAllClients();
@@ -355,12 +346,8 @@ class WarehouseProductReceipts extends Component
 
     public function deselectClient()
     {
-        $this->selectedClient = null;
-        $this->clientId = null;
-        $this->clientSearch = '';
-        $this->clientResults = [];
+        $this->reset(['selectedClient', 'clientId', 'clientSearch', 'clientResults']);
     }
-
     //поиск клиента конец
 
     //поиск товара начало
@@ -377,9 +364,9 @@ class WarehouseProductReceipts extends Component
     public function selectProduct($productId)
     {
         $this->selectedProduct = $this->productService->getProductById($productId);
-        $this->productSearch = ''; // Очищаем поле поиска
-        $this->productResults = []; // Очищаем результаты поиска
-        $this->openPForm($productId); // Добавляем товар в выбранные
+        $this->productSearch = '';
+        $this->productResults = [];
+        $this->openPForm($productId);
     }
 
     public function deselectProduct()
@@ -387,41 +374,6 @@ class WarehouseProductReceipts extends Component
         $this->selectedProduct = null;
     }
     //поиск товара конец
-
-    public function updateDateFilter($startDate, $endDate)
-    {
-        $this->startDate = $startDate;
-        $this->endDate = $endDate;
-        $this->load();
-    }
-
-    public function load()
-    {
-        $query = WarehouseProductReceipt::with(['supplier', 'warehouse']);
-
-        if ($this->startDate && $this->endDate) {
-            $query->whereBetween('created_at', [$this->startDate, $this->endDate]);
-        }
-
-        $this->stockReceptions = $query->latest()->get();
-    }
-
-    public function resetForm()
-    {
-        $this->clientId = null;
-        $this->warehouseId = null;
-        $this->selectedProducts = [];
-        $this->note = null;
-        $this->products = [];
-        $this->currency_id = null;
-        $this->selectedClient = null;
-        $this->clientSearch = '';
-        $this->showForm = false;
-        $this->showPForm = false;
-        $this->productQuantity = 1;
-        $this->productPrice = null;
-        $this->receptionId = null;
-    }
 
     public function updated($propertyName)
     {

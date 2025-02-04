@@ -10,7 +10,7 @@
         @include('components.warehouse-accordion')
 
         <div>
-            <select wire:model.live="selectedWarehouse" class="w-64 p-2 border rounded">
+            <select wire:model.live="warehouseId" class="w-64 p-2 border rounded">
                 <option value="">Выберите склад</option>
                 @foreach ($warehouses as $warehouse)
                     <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
@@ -18,7 +18,7 @@
             </select>
         </div>
         <div>
-            <select wire:model.live="categoryFilter" class="w-64 p-2 border rounded">
+            <select wire:model.change="categoryFilter" class="w-64 p-2 border rounded">
                 <option value="">Все категории</option>
                 @foreach ($categories as $category)
                     <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -41,7 +41,16 @@
             @foreach ($stockData as $stock)
                 <tr>
                     <td class="py-2 px-4 border">{{ $stock['warehouse'] }}</td>
-                    <td class="py-2 px-4 border">{{ $stock['name'] }}</td>
+                    <td class="py-2 px-4 border">
+                        <div class="flex items-center">
+                            @if (!$stock['image'])
+                                <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
+                            @else
+                                <img src="{{ Storage::url($stock['image']) }}" class="w-16 h-16 object-cover">
+                            @endif
+                            <span class="ml-2">{{ $stock['name'] }}</span>
+                        </div>
+                    </td>
                     <td class="py-2 px-4 border">{{ $stock['quantity'] }} шт</td>
                     <td class="py-2 px-4 border">{{ $stock['category'] }}</td>
 

@@ -13,7 +13,7 @@ class Product extends Model
         'name',
         'description',
         'sku',
-        'images',
+        'image',
         'category_id',
         'stock_quantity',
         'status_id',
@@ -22,8 +22,7 @@ class Product extends Model
         'type',
     ];
 
-    protected $casts = [
-        'images' => 'array',
+    protected $casts = [    
         'is_serialized' => 'boolean',
         'type' => 'boolean',
     ];

@@ -13,4 +13,14 @@ class Project extends Model
     protected $casts = [
         'users' => 'array',
     ];
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(FinancialTransaction::class);
+    }
 }

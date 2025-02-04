@@ -3,7 +3,7 @@
 <div class="container mx-auto p-4">
     <div class="flex items-center space-x-4 mb-4">
         @if (Auth::user()->hasPermission('create_warehouses'))
-            <button wire:click="createWarehouse" class="bg-green-500 text-white px-4 py-2 rounded mb-4">
+            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded mb-4">
                 <i class="fas fa-plus"></i>
             </button>
             @include('components.warehouse-accordion')
@@ -19,11 +19,10 @@
         <tbody>
             @foreach ($warehouses as $warehouse)
                 @if (Auth::user()->hasPermission('edit_warehouses'))
-                    <tr wire:click="editWarehouse({{ $warehouse->id }})" class="cursor-pointer">
+                    <tr wire:click="edit({{ $warehouse->id }})" class="cursor-pointer">
                 @endif
                 <td class="py-2 px-4 border-b">{{ $warehouse->name }}</td>
                 <td class="py-2 px-4 border-b">{{ $warehouse->created_at->format('d.m.Y') }}</td>
-
                 </tr>
             @endforeach
         </tbody>
@@ -44,9 +43,6 @@
             <div>
                 <label>Название</label>
                 <input type="text" wire:model="name" class="w-full p-2 border rounded">
-                @error('name')
-                    <span class="text-red-500">{{ $message }}</span>
-                @enderror
             </div>
 
             <div class="mt-4">
@@ -54,7 +50,7 @@
                 <div class="flex flex-wrap gap-2">
                     @foreach ($users as $user)
                         <label class="flex items-center space-x-2">
-                            <input type="checkbox" wire:model="accessUsers" value="{{ $user->id }}">
+                            <input type="checkbox" wire:model="selectedUsers" value="{{ (string) $user->id }}">
                             <span>{{ $user->name }}</span>
                         </label>
                     @endforeach
@@ -62,12 +58,12 @@
             </div>
 
             <div class="mt-4 flex space-x-2">
-                <button wire:click="saveWarehouse" class="bg-green-500 text-white px-4 py-2 rounded">
+                <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
                 @if (Auth::user()->hasPermission('delete_warehouses'))
                     @if ($warehouseId)
-                        <button wire:click="deleteWarehouse({{ $warehouseId }})"
+                        <button wire:click="delete({{ $warehouseId }})"
                             class="bg-red-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-trash-alt"></i>
                         </button>

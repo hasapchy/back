@@ -2,7 +2,7 @@
 @section('showSearch', true)
 <div class="container mx-auto p-4">
     @include('components.alert')
- 
+
 
 
     <div class="flex items-center space-x-4 mb-4">
@@ -124,6 +124,12 @@
                                 @click.prevent="activeTab = 2"
                                 class="bg-white inline-block py-2 px-4 text-blue-500 hover:text-blue-800 font-semibold"
                                 href="#">Баланс</a>
+                        </li>
+                        <li class="-mb-px mr-1">
+                            <a :class="{ 'border-l border-t border-r rounded-t text-blue-700': activeTab === 3 }"
+                                @click.prevent="activeTab = 3"
+                                class="bg-white inline-block py-2 px-4 text-blue-500 hover:text-blue-800 font-semibold"
+                                href="#">Проекты</a>
                         </li>
                     @endif
                 </ul>
@@ -269,6 +275,34 @@
 
 
                     </table>
+                </div>
+                <div x-show="activeTab === 3">
+                    @if(empty($clientProjects))
+                        <p>Нет проектов для отображения.</p>
+                    @else
+                        <table class="min-w-full bg-white shadow-md rounded mb-6">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="p-2 border border-gray-200">Название</th>
+                                    <th class="p-2 border border-gray-200">Приход</th>
+                                    <th class="p-2 border border-gray-200">Расход</th>
+                                    <th class="p-2 border border-gray-200">Баланс</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($clientProjects as $project)
+                                    <tr>
+                                        <td class="p-2 border border-gray-200">{{ $project['name'] }}</td>
+                                        <td class="p-2 border border-gray-200 text-green-500">{{ $project['income'] }}</td>
+                                        <td class="p-2 border border-gray-200 text-red-500">{{ $project['expense'] }}</td>
+                                        <td class="p-2 border border-gray-200 {{ $project['balance'] >= 0 ? 'text-green-500' : 'text-red-500' }}">
+                                            {{ $project['balance'] }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    @endif
                 </div>
             </div>
         </div>

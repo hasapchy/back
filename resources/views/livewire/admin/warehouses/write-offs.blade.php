@@ -41,7 +41,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="4" class="p-4 text-center text-gray-500">Данные отсутствуют</td>
+                    <td colspan="5" class="p-4 text-center text-gray-500">Данные отсутствуют</td>
                 </tr>
             @endforelse
         </tbody>
@@ -60,7 +60,8 @@
             <h2 class="text-xl font-bold mb-4">{{ $writeOffId ? 'Редактировать списание' : 'Новое списание' }}</h2>
             <div class="mb-4">
                 <label>Склад</label>
-                <select wire:model.change="selectedWarehouse" class="w-full border rounded">
+                <select wire:model.change="warehouseId" class="w-full border rounded"
+                    @if (count($selectedProducts) > 0) disabled @endif>
                     <option value="">Выберите склад</option>
                     @foreach ($warehouses as $warehouse)
                         <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
@@ -91,12 +92,18 @@
                         @foreach ($selectedProducts as $productId => $details)
                             <tr>
                                 <td class="p-2 border border-gray-200">
-                                    {{ $details['name'] }}
+                                    <div class="flex items-center">
+                                        @if (!$details['image'])
+                                            <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
+                                        @else
+                                            <img src="{{ Storage::url($details['image']) }}"
+                                                class="w-16 h-16 object-cover">
+                                        @endif
+                                        <span class="ml-2">{{ $details['name'] }}</span>
+                                    </div>
                                 </td>
                                 <td class="p-2 border border-gray-200">
-
-                                    <input type="number" wire:model="selectedProducts.{{ $productId }}.quantity"
-                                        class="w-full border rounded">
+                                    {{ $details['quantity'] }}
                                 </td>
                                 <td class="p-2 border border-gray-200">
                                     <button wire:click="openPForm({{ $productId }})" class="text-blue-500">
@@ -109,16 +116,29 @@
                             </tr>
                         @endforeach
                     </tbody>
+                    <tfoot class="bg-gray-100">
+                        @php
+                            $totalQuantity = 0;
+                            foreach ($selectedProducts as $details) {
+                                $totalQuantity += $details['quantity'];
+                            }
+                        @endphp
+                        <tr>
+                            <td class="p-2 border border-gray-200 font-bold" colspan="1">Итого:</td>
+                            <td class="p-2 border border-gray-200 font-bold">{{ $totalQuantity }}</td>
+                            <td class="p-2 border border-gray-200"></td>
+                        </tr>
+                    </tfoot>
                 @endif
             </table>
 
             <div class="flex justify-start mt-4">
-                <button wire:click="saveWriteOff" class="bg-green-500 text-white px-4 py-2 rounded mr-2">
+                <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded mr-2">
                     <i class="fas fa-save"></i>
                 </button>
                 @if (Auth::user()->hasPermission('delete_write_offs'))
                     @if ($writeOffId)
-                        <button wire:click="deleteWriteOff" class="bg-red-500 text-white px-4 py-2 rounded">
+                        <button wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-trash"></i>
                         </button>
                     @endif

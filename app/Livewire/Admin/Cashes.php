@@ -41,7 +41,7 @@ class Cashes extends Component
             $this->name = $cashRegister->name;
             $this->balance = $cashRegister->balance;
             $this->currencyId = $cashRegister->currency_id;
-            $this->cashUsers = $cashRegister->user_ids ?? [];
+            $this->cashUsers = $cashRegister->users ?? [];
         }
         $this->showForm = true;
     }
@@ -77,7 +77,7 @@ class Cashes extends Component
             'name' => $this->name,
             'balance' => $this->balance,
             'currency_id' => $this->currencyId,
-            'user_ids' => $this->cashUsers,
+            'users' => $this->cashUsers,
         ]);
         session()->flash('message', 'Касса успешно создана.');
         $this->closeForm();
@@ -94,7 +94,7 @@ class Cashes extends Component
         $this->cashUsers = array_map('intval', $this->cashUsers);
         if ($cashRegister = CashRegister::find($this->cashId)) {
             $cashRegister->name = $this->name;
-            $cashRegister->user_ids = $this->cashUsers;
+            $cashRegister->users = $this->cashUsers;
             $cashRegister->save();
             session()->flash('message', 'Касса успешно обновлена.');
         }

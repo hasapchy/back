@@ -4,7 +4,7 @@
 
     <div class="flex items-center space-x-4 mb-4">
         @include('components.alert')
-        @if (auth()->user()->hasPermission('view_users'))
+        @if (Auth::user()->hasPermission('create_products'))
             <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded ">
                 <i class="fas fa-plus"></i>
             </button>
@@ -14,7 +14,6 @@
         </button>
         @include('components.products-accordion')
         @include('components.alert')
-
     </div>
     <!-- Меню фильтров -->
     <div id="columnsMenu" class="hidden absolute bg-white shadow-md rounded p-4 z-10 mt-2">
@@ -29,17 +28,13 @@
         @endforeach
     </div>
     <div id="table-container" wire:ignore>
-        <!-- Скелетон -->
         <div id="table-skeleton" class="animate-pulse">
-            <!-- Шапка таблицы -->
             <div id="skeleton-header-row" class="grid grid-cols-{{ count($columns) }}">
                 @foreach ($columns as $column)
                     <div class="p-2 h-6 bg-gray-300 rounded"></div>
                 @endforeach
             </div>
-
-            <!-- Тело таблицы -->
-            @for ($i = 0; $i < 5; $i++) <!-- Генерируем 5 строк скелетона -->
+            @for ($i = 0; $i < 5; $i++)
                 <div class="grid grid-cols-{{ count($columns) }} gap-4">
                     @foreach ($columns as $column)
                         <div class="p-2 h-6 bg-gray-200 rounded"></div>
@@ -51,7 +46,7 @@
             <div id="header-row" class="grid grid-flow-col auto-cols-auto">
                 @foreach ($columns as $column)
                     <div class="p-2 cursor-move whitespace-nowrap" data-key="{{ $column }}">
-                        {{ str_replace('_', ' ', $column) }}
+                        {{ $column === 'thumbnail' ? 'Изобр.' : str_replace('_', ' ', $column) }}
                     </div>
                 @endforeach
             </div>
@@ -61,7 +56,16 @@
                     <div class="grid grid-flow-col auto-cols-auto" wire:click="editProduct({{ $product->id }})">
                         @foreach ($columns as $column)
                             <div class="p-2 whitespace-nowrap" data-key="{{ $column }}">
-                                {{ $column === 'stock_quantity' ? $product->stocks->sum('quantity') : $product->$column }}
+                                @if ($column === 'thumbnail')
+                                    @if ($product->image)
+                                        <img src="{{ asset('storage/' . $product->image) }}" alt="Thumbnail"
+                                            class="w-12 h-12 object-cover">
+                                    @else
+                                        <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
+                                    @endif
+                                @else
+                                    {{ $column === 'stock_quantity' ? $product->stocks->sum('quantity') : $product->$column }}
+                                @endif
                             </div>
                         @endforeach
                     </div>
@@ -71,10 +75,10 @@
     </div>
 
     <div id="modalBackground"
-        class="fixed overflow-y-auto inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
+        class="fixed  inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
         wire:click="closeForm">
         <div id="form"
-            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
+            class="fixed overflow-y-auto top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
             style="transform: {{ $showForm ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
             <button wire:click="closeForm" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
                 style="right: 1rem;">
@@ -85,20 +89,20 @@
             <div x-data="{ activeTab: 1 }">
                 <ul class="flex border-b mb-4">
                     <li class="-mb-px mr-1">
-                        <a :class="{ 'border-l border-t border-r rounded-t text-blue-700': activeTab === 1 }"
+                        <a :class="{ 'border-l border-t border-r rounded-t-lg text-blue-700': activeTab === 1 }"
                             @click.prevent="activeTab = 1"
                             class="bg-white inline-block py-2 px-4 text-blue-500 hover:text-blue-800 font-semibold"
                             href="#">Общие</a>
                     </li>
                     @if ($productId)
                         <li class="-mb-px mr-1">
-                            <a :class="{ 'border-l border-t border-r rounded-t text-blue-700': activeTab === 2 }"
+                            <a :class="{ 'border-l border-t border-r rounded-t-lg text-blue-700': activeTab === 2 }"
                                 @click.prevent="activeTab = 2"
                                 class="bg-white inline-block py-2 px-4 text-blue-500 hover:text-blue-800 font-semibold"
                                 href="#">Остатки</a>
                         </li>
                         <li class="-mb-px mr-1">
-                            <a :class="{ 'border-l border-t border-r rounded-t text-blue-700': activeTab === 3 }"
+                            <a :class="{ 'border-l border-t border-r rounded-t-lg text-blue-700': activeTab === 3 }"
                                 @click.prevent="activeTab = 3"
                                 class="bg-white inline-block py-2 px-4 text-blue-500 hover:text-blue-800 font-semibold"
                                 href="#">История</a>
@@ -107,6 +111,35 @@
                 </ul>
 
                 <div x-show="activeTab === 1" class="transition-all duration-500 ease-in-out">
+                    <div class="mb-4">
+                        <label class="block mb-1">Фотография</label>
+                        @if ($image)
+                            <div class="relative inline-block">
+                                @if ($image instanceof Livewire\TemporaryUploadedFile)
+                                    <img src="{{ $image->temporaryUrl() }}" class="w-100 h-100 object-cover">
+                                @else
+                                    <img src="{{ asset('storage/' . $image) }}" class="w-100 h-100 object-cover">
+                                @endif
+                                <span class="absolute top-0 right-0 bg-red-500 text-white cursor-pointer px-2"
+                                    wire:click="removeImage">X</span>
+                            </div>
+                        @else
+                            <div class="flex items-center space-x-2">
+                                <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
+                                <div x-data="{ progress: 0, hasFile: false }" x-on:change="hasFile = true"
+                                    x-on:livewire-upload-start="progress = 0"
+                                    x-on:livewire-upload-finish="progress = 100"
+                                    x-on:livewire-upload-error="progress = 0"
+                                    x-on:livewire-upload-progress="progress = $event.detail.progress" class="w-full">
+                                    <input type="file" wire:model="image" class="p-2 border rounded">
+                                    <div x-show="hasFile" class="mt-2">
+                                        <progress max="100" class="w-full" x-bind:value="progress"></progress>
+                                        <span x-text="progress + '%'"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
 
                     <div class="flex items-center space-x-2 mb-2">
                         <select wire:model="category_id" class="w-full p-2 border rounded">
@@ -135,7 +168,8 @@
 
                     <div class="mb-2">
                         <label class="block mb-1">Артикул</label>
-                        <input type="text" wire:model="sku" placeholder="Артикул" class="w-full p-2 border rounded">
+                        <input type="text" wire:model="sku" placeholder="Артикул"
+                            class="w-full p-2 border rounded">
                     </div>
 
                     <div class="mb-2">
@@ -299,14 +333,13 @@
         modal.classList.remove('opacity-100', 'pointer-events-auto')
     }
 
-    document.querySelector('input[wire\\:click="confirmSerialization"]').addEventListener('click', function(event) {
-        event.preventDefault();
-        @this.call('confirmSerialization');
-    });
+    // document.querySelector('input[wire\\:click="confirmSerialization"]').addEventListener('click', function(event) {
+    //     event.preventDefault();
+    //     @this.call('confirmSerialization');
+    // });
 </script>
 
 @push('scripts')
     @vite('resources/js/dragdroptable.js')
-    @vite('resources/js/sortcols.js')
-    @vite('resources/js/cogs.js')
+    @vite('resources/js/sortcols.js') @vite('resources/js/cogs.js')
 @endpush

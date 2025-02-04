@@ -14,11 +14,11 @@ class CashRegister extends Model
         'name',
         'balance',
         'currency_id',
-        'user_ids', 
+        'users', 
     ];
 
     protected $casts = [
-        'user_ids' => 'array',
+        'users' => 'array',
     ];
 
     public static function boot()
@@ -49,7 +49,7 @@ class CashRegister extends Model
 
     public function permittedUsers()
     {
-        return User::whereIn('id', $this->user_ids ?? [])->get();
+        return User::whereIn('id', $this->users ?? [])->get();
     }
 
 }

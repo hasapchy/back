@@ -4,7 +4,7 @@
 
     <div x-data="{ open: true }" class="mb-4">
         <div class="flex justify-between items-center bg-gray-200 px-4 py-2 rounded-t cursor-pointer"
-             x-on:click="open = !open">
+            x-on:click="open = !open">
             <div class="font-semibold">
                 @if ($startDate && $endDate)
                     @if ($startDate === $endDate)
@@ -17,21 +17,18 @@
                     За все время
                 @endif
             </div>
-            <svg x-bind:class="{'transform transition-transform duration-300': true, 'rotate-0': open, 'rotate-180': !open}"
-                 class="h-6 w-6" fill="none" stroke="currentColor"
-                 viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M19 9l-7 7-7-7"></path>
+            <svg x-bind:class="{ 'transform transition-transform duration-300': true, 'rotate-0': open, 'rotate-180': !open }"
+                class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
             </svg>
         </div>
-        <div x-show="open"
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 transform -translate-y-2"
-             x-transition:enter-end="opacity-100 transform translate-y-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 transform translate-y-0"
-             x-transition:leave-end="opacity-0 transform -translate-y-2"
-             class="p-4 border border-t-0 border-gray-200 rounded-b text-lg">
+        <div x-show="open" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 transform -translate-y-2"
+            x-transition:enter-end="opacity-100 transform translate-y-0"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 transform translate-y-0"
+            x-transition:leave-end="opacity-0 transform -translate-y-2"
+            class="p-4 border border-t-0 border-gray-200 rounded-b text-lg">
             <div class="flex items-center">
                 <div class="w-1/4">
                     <div class="font-semibold text-gray-600">Приход</div>
@@ -84,6 +81,7 @@
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
+                <th class="border p-2">ID</th>
                 <th class="border p-2">Тип</th>
                 <th class="border p-2">Сумма</th>
                 <th class="border p-2">Дата</th>
@@ -96,6 +94,7 @@
             @foreach ($transactions as $transaction)
                 <tr wire:click="{{ !$transaction->isTransfer && !$transaction->isOrder && !$transaction->isSale ? 'openForm(' . $transaction->id . ')' : '' }}"
                     class="cursor-pointer {{ $transaction->isTransfer || $transaction->isOrder || $transaction->isSale ? 'opacity-50 cursor-not-allowed' : '' }}">
+                    <td class="border p-2">{{ $transaction->id}}</td>
                     <td class="border p-2 {{ $transaction->type == 1 ? 'bg-green-200' : 'bg-red-200' }}">
                         {{ $transaction->type == 1 ? 'Приход' : 'Расход' }}
                     </td>
@@ -188,7 +187,7 @@
 
             <div class="mb-2">
                 <label class="block mb-1">Проект</label>
-                <select wire:model="projectId" class="w-full p-2 border rounded">
+                <select wire:model="projectId" class="w-full p-2 border rounded" {{ !$client_id ? 'disabled' : '' }}>
                     <option value="">Выберите проект</option>
                     @foreach ($projects as $project)
                         <option value="{{ $project->id }}">{{ $project->name }}</option>
@@ -203,11 +202,11 @@
             </div>
 
             <div class="mt-4 flex justify-start space-x-2">
-                <button wire:click="handleTransaction" class="bg-green-500 text-white px-4 py-2 rounded">
+                <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
                 @if ($transactionId)
-                    <button wire:click="deleteTransaction" class="bg-red-500 text-white px-4 py-2 rounded">
+                    <button wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
                         <i class="fas fa-trash"></i>
                     </button>
                 @endif

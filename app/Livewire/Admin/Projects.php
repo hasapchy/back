@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Models\FinancialTransaction;
 use Illuminate\Support\Facades\Auth;
+use App\Services\ClientService;
 
 class Projects extends Component
 {
@@ -17,35 +18,42 @@ class Projects extends Component
     public $end_date;
     public $user_id;
     public $users = [];
-    public $selectedProjectId;
+    public $projectId;
     public $showForm = false;
     public $allUsers;
     public $isDirty = false;
-    public $activeTab = 'general';
     public $projectTransactions = [];
     public $totalAmount = 0;
-    public $showDeleteConfirmationModal = false;
     public $searchTerm;
+    public $clientResults = [];
+    public $clientSearch;
+    public $selectedClient;
+    public $clientId;
     public $startDate; //это для фильтра
     public $endDate; //это для фильтра
-
+    protected $clientService;
     protected $rules = [
         'name' => 'required|string|max:255',
         'start_date' => 'required|date',
         'end_date' => 'nullable|date|after_or_equal:start_date',
         'users' => 'nullable|array',
+        'clientId' => 'nullable|integer',
     ];
 
-    // Add the listeners property
     protected $listeners = [
         'dateFilterUpdated' => 'updateDateFilter',
     ];
+
+    public function boot(ClientService $clientService)
+    {
+        $this->clientService = $clientService;
+    }
 
     public function mount()
     {
         $this->searchTerm = request('search', '');
         $this->allUsers = User::all();
-        $this->loadProjects();
+        $this->load();
     }
 
     public function openForm()
@@ -59,13 +67,14 @@ class Projects extends Component
         $this->validate();
 
         Project::updateOrCreate(
-            ['id' => $this->selectedProjectId],
+            ['id' => $this->projectId],
             [
                 'name' => $this->name,
                 'start_date' => $this->start_date,
                 'end_date' => $this->end_date,
                 'user_id' => Auth::id(),
                 'users' => $this->users,
+                'client_id' => $this->clientId,
             ]
         );
 
@@ -73,7 +82,7 @@ class Projects extends Component
         $this->resetForm();
         $this->showForm = false;
         $this->isDirty = false;
-        $this->loadProjects();
+        $this->load();
     }
 
     public function selectProject($projectId)
@@ -81,24 +90,25 @@ class Projects extends Component
         $project = Project::find($projectId);
 
         if ($project) {
-            $this->selectedProjectId = $project->id;
+            $this->projectId = $project->id;
             $this->name = $project->name;
             $this->start_date = $project->start_date;
             $this->end_date = $project->end_date;
             $this->users = $project->users;
+            $this->clientId = $project->client_id; // Add this line
             $this->showForm = true;
             $this->isDirty = false;
-            $this->loadProjectTransactions();
+            $this->loadTransactions();
         } else {
             session()->flash('error', 'Проект не найден.');
         }
     }
 
-    public function confirmDeleteProject($projectId)
-    {
-        $this->selectedProjectId = $projectId;
-        $this->showDeleteConfirmationModal = true;
-    }
+    // public function confirmDeleteProject($projectId)
+    // {
+    //     $this->projectId = $projectId;
+    //     $this->showDeleteConfirmationModal = true;
+    // }
 
     public function deleteProject($projectId)
     {
@@ -106,14 +116,14 @@ class Projects extends Component
 
         if ($transactionCount > 0) {
             session()->flash('error', 'Невозможно удалить проект, так как к нему привязаны транзакции.');
-            $this->showDeleteConfirmationModal = false;
+            // $this->showDeleteConfirmationModal = false;
             return;
         }
 
         Project::destroy($projectId);
         session()->flash('message', 'Проект успешно удален.');
-        $this->showDeleteConfirmationModal = false;
-        $this->loadProjects();
+        // $this->showDeleteConfirmationModal = false;
+        $this->load();
     }
 
     public function closeForm()
@@ -152,7 +162,7 @@ class Projects extends Component
         return $query;
     }
 
-    public function loadProjects()
+    public function load()
     {
         $query = Project::query()->orderBy('created_at', 'desc');
         $query = $this->filterByDates($query);
@@ -164,7 +174,7 @@ class Projects extends Component
     {
         $this->startDate = $startDate;
         $this->endDate = $endDate;
-        $this->loadProjects();
+        $this->load();
     }
 
     public function updatedSearchTerm()
@@ -172,13 +182,13 @@ class Projects extends Component
         if (strlen($this->searchTerm) < 3 && strlen($this->searchTerm) > 0) {
             session()->flash('error', 'Поиск должен содержать не менее 3 символов.');
         }
-        $this->loadProjects();
+        $this->load();
         session()->forget('error');
     }
 
     private function resetForm()
     {
-        $this->selectedProjectId = null;
+        $this->projectId = null;
         $this->name = '';
         $this->start_date = '';
         $this->end_date = '';
@@ -192,9 +202,36 @@ class Projects extends Component
         $this->isDirty = true;
     }
 
-    private function loadProjectTransactions()
+    //начало поиск клиент
+    public function updatedClientSearch()
     {
-        $this->projectTransactions = FinancialTransaction::where('project_id', $this->selectedProjectId)->get();
+        $this->clientResults = $this->clientService->searchClients($this->clientSearch);
+    }
+
+    public function showAllClients()
+    {
+        $this->clientResults = $this->clientService->getAllClients();
+    }
+
+    public function selectClient($clientId)
+    {
+        $this->selectedClient = $this->clientService->getClientById($clientId);
+        $this->clientId = $clientId;
+        $this->clientResults = [];
+    }
+
+    public function deselectClient()
+    {
+        $this->selectedClient = null;
+        $this->clientId = null;
+        $this->clientSearch = '';
+        $this->clientResults = [];
+    }
+
+    //конец поиск клиент
+    private function loadTransactions()
+    {
+        $this->projectTransactions = FinancialTransaction::where('project_id', $this->projectId)->get();
         $this->totalAmount = $this->projectTransactions->sum(function ($transaction) {
             return $transaction->type == 1 ? $transaction->amount : -$transaction->amount;
         });
