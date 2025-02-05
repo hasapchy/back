@@ -68,7 +68,7 @@ class Orders extends Component
         $this->currencies = Currency::all();
         $this->incomeCategories = TransactionCategory::where('type', 1)->get();
         $this->cashRegisters = CashRegister::all();
-        $this->displayCurrency = Currency::where('is_currency_display', 1)->first();
+        $this->displayCurrency = Currency::where('is_report', 1)->first();
     }
 
 

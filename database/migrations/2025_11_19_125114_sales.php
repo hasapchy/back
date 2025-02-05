@@ -18,11 +18,13 @@ return new class extends Migration
             $table->foreignId('currency_id')->constrained('currencies')->onDelete('cascade');
             $table->foreignId('warehouse_id')->constrained('warehouses')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('project_id')->nullable()->constrained('projects')->onDelete('cascade');
             $table->foreignId('transaction_id')->nullable()->constrained('financial_transactions')->onDelete('cascade');
-            $table->date('transaction_date');
+            $table->decimal('price', 15, 2);
             $table->decimal('discount_price', 15, 2)->nullable();
             $table->decimal('total_amount', 15, 2);
             $table->text('note')->nullable();
+            $table->date('transaction_date');
             $table->timestamps();
         });
     }

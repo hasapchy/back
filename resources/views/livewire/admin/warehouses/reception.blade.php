@@ -44,7 +44,7 @@
                     @endforeach
                 </td>
                 <td class="p-2 border border-gray-200">
-                    {{ number_format($reception->converted_total, 2) }} {{ $displayCurrency->currency_code }}
+                    {{ number_format($reception->converted_total, 2) }} {{ $displayCurrency->code }}
                 </td>
                 <td class="p-2 border border-gray-200">{{ $reception->note }}</td>
 
@@ -84,7 +84,7 @@
                 <select wire:model="currency_id" class="w-full border rounded" {{ $receptionId ? 'disabled' : '' }}>
                     <option value="">Выберите валюту</option>
                     @foreach ($currencies as $currency)
-                        <option value="{{ $currency->id }}">{{ $currency->currency_name }}</option>
+                        <option value="{{ $currency->id }}">{{ $currency->name }}</option>
                     @endforeach
                 </select>
             </div>

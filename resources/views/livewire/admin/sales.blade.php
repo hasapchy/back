@@ -77,10 +77,9 @@
                     @include('components.client-search')
                     @include('components.product-search')
                 @endif
-
                 <div class="mb-4">
                     <label for="cash_register" class="block text-sm font-medium text-gray-700">Касса</label>
-                    <select id="cash_register" wire:model="cash_register_id"
+                    <select id="cash_register" wire:model="cashId"
                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                         @if ($saleId) disabled @endif>
                         <option value="">Выберите кассу</option>
@@ -90,13 +89,24 @@
                     </select>
                 </div>
                 <div class="mb-4">
+                    <label for="projectId" class="block text-sm font-medium text-gray-700">Касса</label>
+                    <select id="projectId" wire:model="projectId"
+                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                        @if ($saleId) disabled @endif>
+                        <option value="">Выберите проект</option>
+                        @foreach ($projects as $project)
+                            <option value="{{ $project->id }}">{{ $project->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="mb-4">
                     <label for="currency" class="block text-sm font-medium text-gray-700">Валюта</label>
-                    <select id="currency" wire:model="currency_id"
+                    <select id="currency" wire:model="currencyId"
                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                         @if ($saleId) disabled @endif>
                         <option value="">Выберите валюту</option>
                         @foreach ($currencies as $currency)
-                            <option value="{{ $currency->id }}">{{ $currency->currency_name }}</option>
+                            <option value="{{ $currency->id }}">{{ $currency->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -106,7 +116,8 @@
                         @if ($saleId) disabled @endif></textarea>
                 </div>
                 <div class="flex justify-start mt-4">
-                    <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded mr-2" @if ($saleId) disabled @endif>
+                    <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded mr-2"
+                        @if ($saleId) disabled @endif>
                         <i class="fas fa-save"></i>
                     </button>
                     @if (Auth::user()->hasPermission('delete_sales'))
@@ -155,11 +166,13 @@
                                 </td>
                                 <td class="p-2 border border-gray-200">{{ $details['quantity'] }}</td>
                                 <td class="p-2 border border-gray-200">{{ $price }}</td>
-                                <td class="p-2 border border-gray-200" >
-                                    <button wire:click="openPForm({{ $productId }})" class="text-yellow-500 mr-3"  @if ($saleId) disabled @endif>
+                                <td class="p-2 border border-gray-200">
+                                    <button wire:click="openPForm({{ $productId }})" class="text-yellow-500 mr-3"
+                                        @if ($saleId) disabled @endif>
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button wire:click="removeProduct({{ $productId }})" class="text-red-500" @if ($saleId) disabled @endif>
+                                    <button wire:click="removeProduct({{ $productId }})" class="text-red-500"
+                                        @if ($saleId) disabled @endif>
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </td>
@@ -230,7 +243,7 @@
                     <option value="percent">Процентная</option>
                 </select>
             </div>
-            <button wire:click="closeDiscountModal" class="bg-green-500 text-white px-4 py-2 rounded" >
+            <button wire:click="closeDiscountModal" class="bg-green-500 text-white px-4 py-2 rounded">
                 <i class="fas fa-save"></i>
             </button>
         </div>

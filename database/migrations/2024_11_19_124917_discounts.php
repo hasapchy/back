@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('discounts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
-            $table->string('code')->unique();
             $table->enum('discount_type', ['percentage', 'fixed']);
             $table->decimal('discount_value', 15, 2);
             $table->timestamps();

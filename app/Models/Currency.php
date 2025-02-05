@@ -7,13 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class Currency extends Model
 {
     protected $fillable = [
-        'currency_code',
-        'currency_name',
+        'code',
+        'name',
         'symbol',
         'exchange_rate',
         'is_default',
         'status',
-        'is_currency_display'
+        'is_report'
     ];
 
     public function exchangeRateHistories()

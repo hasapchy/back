@@ -153,15 +153,23 @@ class Products extends Component
 
     public function saveProduct()
     {
-        $this->validate([
+        $rules = [
             'name' => 'required|string|max:255',
             'category_id' => 'required|exists:categories,id',
             'sku' => 'required|string|unique:products,sku,' . ($this->productId ?? 'NULL'),
-            'image' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
+            // Если новое изображение загружено, то проверяем как файл, иначе пропускаем проверку:
             'retail_price' => 'nullable|numeric|min:0',
             'wholesale_price' => 'nullable|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
-        ]);
+        ];
+    
+        if ($this->image instanceof \Livewire\TemporaryUploadedFile) {
+            $rules['image'] = 'file|mimes:jpeg,png,jpg,gif|max:2048';
+        } else {
+            $rules['image'] = 'nullable';
+        }
+    
+        $this->validate($rules);
 
         if ($this->productId) {
             $existingProduct = Product::find($this->productId);

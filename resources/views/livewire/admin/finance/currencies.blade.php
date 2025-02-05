@@ -31,13 +31,13 @@
                         <tr wire:click="editCurrency({{ $currency->id }})">
                     @endif
                     <td class="p-2 border">{{ $currency->id }}</td>
-                    <td class="p-2 border">{{ $currency->currency_name }}</td>
-                    <td class="p-2 border">{{ $currency->currency_code }}</td>
+                    <td class="p-2 border">{{ $currency->name }}</td>
+                    <td class="p-2 border">{{ $currency->code }}</td>
                     <td class="p-2 border">{{ $currency->currentExchangeRate()->exchange_rate ?? '-' }}</td>
                     <td class="p-2 border">{{ $currency->created_at }}</td>
                     <td class="p-2 border">{{ $currency->updated_at }}</td>
                     <td class="p-2 border">{{ $currency->is_default ? 'Да' : 'Нет' }}</td>
-                    <td class="p-2 border">{{ $currency->is_currency_display ? 'Да' : 'Нет' }}</td>
+                    <td class="p-2 border">{{ $currency->is_report ? 'Да' : 'Нет' }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -70,11 +70,11 @@
                 <div x-show="openTab === 1" class="transition-all duration-500 ease-in-out">
                     <div>
                         <label class="block mb-1">Название валюты</label>
-                        <input type="text" wire:model="currency_name" placeholder="Название валюты"
+                        <input type="text" wire:model="name" placeholder="Название валюты"
                             class="w-full p-2 mb-2 border rounded">
 
                         <label class="block mb-1">Код валюты</label>
-                        <input type="text" wire:model="currency_code" placeholder="Код валюты"
+                        <input type="text" wire:model="code" placeholder="Код валюты"
                             class="w-full p-2 mb-2 border rounded">
 
                         <label class="block mb-1">Курс</label>

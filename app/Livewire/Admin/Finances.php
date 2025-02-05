@@ -172,7 +172,7 @@ class Finances extends Component
             $initialNote = sprintf(
                 "(Изначальная сумма: %s %s)",
                 number_format($this->amount, 2),
-                Currency::find($this->currency_id)->currency_code ?? ''
+                Currency::find($this->currency_id)->code ?? ''
             );
             // If a comment was entered, append the initial note; otherwise, set to initial note
             $this->note = trim($this->note) ? $this->note . "\n" . $initialNote : $initialNote;

@@ -14,13 +14,15 @@ class Sale extends Model
         'warehouse_id',
         'total_amount',
         'note',
-        'currency_id',
         'cash_register_id',
         'transaction_date',
+        'transaction_id',
         'currency_id',
         'user_id',
         'warehouse_id',
         'discount_price',
+        'price',
+        'project_id'
     ];
 
     public function client()
@@ -36,7 +38,7 @@ class Sale extends Model
     public function products()
     {
         return $this->belongsToMany(Product::class, 'sales_products')
-                    ->withPivot('quantity', 'price', 'price_with_discount',);
+            ->withPivot('quantity', 'price', 'price_with_discount',);
     }
 
     public function cashRegister()

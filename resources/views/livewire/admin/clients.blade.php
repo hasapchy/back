@@ -3,45 +3,34 @@
 <div class="container mx-auto p-4">
     @include('components.alert')
 
-
-
     <div class="flex items-center space-x-4 mb-4">
         @if (Auth::user()->hasPermission('create_clients'))
             <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
                 <i class="fas fa-user-plus"></i>
             </button>
         @endif
-        <button id="columnsMenuButton" class="bg-gray-500 text-white px-4 py-2 rounded">
-            <i class="fa fa-cogs"></i>
-        </button>
-        <div id="columnsMenu" class="hidden absolute bg-white shadow-md rounded p-4 z-10 mt-2">
-            <h2 class="font-bold mb-2">Выберите колонки для отображения:</h2>
-            @foreach ($columns as $column)
-                <div class="mb-2">
-                    <label>
-                        <input type="checkbox" class="column-toggle" data-column="{{ $column }}" checked>
-                        {{ str_replace('_', ' ', $column) }}
-                    </label>
+        {{-- <div class="flex space-x-2">
+            <div class="relative">
+                <select wire:model.change="clientTypeFilter" class="border rounded p-2 appearance-none">
+                    <option value="all">Все типы клиентов</option>
+                    <option value="individual">Физ. лица</option>
+                    <option value="company">Компании</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                    <i class="fas fa-chevron-down"></i>
                 </div>
-            @endforeach
-        </div>
-        <div class="flex space-x-2">
-            <button class="filter-button client-type px-4 py-2 rounded bg-blue-500 text-white" data-filter="all">
-                Все
-            </button>
-            <button class="filter-button client-type px-4 py-2 rounded bg-gray-200" data-filter="individual">
-                Физ. лица
-            </button>
-            <button class="filter-button client-type px-4 py-2 rounded bg-gray-200" data-filter="company">
-                Компании
-            </button>
-            <button class="filter-button supplier-type px-4 py-2 rounded bg-gray-200" data-filter="supplier">
-                Поставщики
-            </button>
-            <button class="filter-button supplier-type px-4 py-2 rounded bg-gray-200" data-filter="client">
-                Покупатели
-            </button>
-        </div>
+            </div>
+            <div class="relative">
+                <select wire:model.change="supplierFilter" class="border rounded p-2 appearance-none">
+                    <option value="all">Все</option>
+                    <option value="supplier">Поставщики</option>
+                    <option value="client">Покупатели</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            </div>
+        </div> --}}
     </div>
 
     <div id="table-container" wire:ignore>
@@ -73,7 +62,7 @@
                 @foreach ($clients as $client)
                     <div class="grid grid-cols-{{ count($columns) }}" data-client-type="{{ $client->client_type }}"
                         data-is-supplier="{{ $client->is_supplier ? 'supplier' : 'client' }}"
-                        wire:click="editClient({{ $client->id }})">
+                        wire:click="edit({{ $client->id }})">
                         @foreach ($columns as $column)
                             <div class="p-2" data-key="{{ $column }}">
                                 @if ($column === 'first_name')
@@ -136,98 +125,128 @@
 
                 <div x-show="activeTab === 1" class="transition-all duration-500 ease-in-out">
 
-                    <div>
+                    <div class="mb-2">
                         <label class="block mb-1">Тип клиента:</label>
                         <label class="inline-flex items-center">
                             <input type="radio" wire:model.change="client_type" value="individual" name="client_type"
                                 class="form-radio"> Индивидуальный
                         </label>
+
                         <label class="inline-flex items-center ml-4">
                             <input type="radio" wire:model.change="client_type" value="company" name="client_type"
                                 class="form-radio"> Компания
                         </label>
                     </div>
 
-                    <input type="checkbox" wire:model="isConflict"> Конфликтный
-                    <input type="checkbox" wire:model="isSupplier" class="ml-2"> Поставщик
+                    <div class="mb-2">
+                        <input type="checkbox" wire:model="isConflict"> Конфликтный
+                        <input type="checkbox" wire:model="isSupplier" class="ml-2"> Поставщик
+                    </div>
 
-                    <label class="block mb-1">Имя</label>
-                    <input type="text" wire:model="first_name" placeholder="Имя"
-                        class="w-full p-2 mb-2 border rounded">
+                    <div class="mb-2">
+                        <label class="block mb-1">Имя</label>
+                        <input type="text" wire:model="first_name" placeholder="Имя"
+                            class="w-full p-2 border rounded">
+                    </div>
 
                     @if ($client_type === 'individual')
-                        <label class="block mb-1">Фамилия</label>
-                        <input type="text" wire:model="last_name" placeholder="Фамилия"
-                            class="w-full p-2 mb-2 border rounded">
+                        <div class="mb-2">
+                            <label class="block mb-1">Фамилия</label>
+                            <input type="text" wire:model="last_name" placeholder="Фамилия"
+                                class="w-full p-2 border rounded">
+                        </div>
                     @endif
 
                     @if ($client_type === 'company')
-                        <label class="block mb-1">Контактное лицо</label>
-                        <input type="text" wire:model="contact_person" placeholder="Контактное лицо"
-                            class="w-full p-2 mb-2 border rounded">
+                        <div class="mb-2">
+                            <label class="block mb-1">Контактное лицо</label>
+                            <input type="text" wire:model="contact_person" placeholder="Контактное лицо"
+                                class="w-full p-2 border rounded">
+                        </div>
                     @endif
 
+                    <div class="mb-2">
+                        <label class="block mb-1">Адрес</label>
+                        <input type="text" wire:model="address" value="" placeholder="Адрес"
+                            class="w-full p-2 border rounded">
+                    </div>
 
-                    <label class="block mb-1">Адрес</label>
-                    <input type="text" wire:model="address" value="" placeholder="Адрес"
-                        class="w-full p-2 mb-2 border rounded">
+                    <div class="mb-2">
+                        <label class="block mb-1">Телефоны:</label>
+                        @foreach ($phones as $index => $phone)
+                            <div class="flex space-x-2 items-center mb-2">
+                                <input type="text" wire:model="phones.{{ $index }}.number"
+                                    placeholder="Введите номер телефона" class="w-full p-2 border rounded">
+                                <label class="flex items-center">
+                                    <input type="checkbox" wire:model="phones.{{ $index }}.sms"
+                                        class="ml-2">
+                                    SMS
+                                </label>
+                                @if (count($phones) > 1)
+                                    <button type="button" wire:click="removePhone({{ $index }})"
+                                        class="text-red-500">
+                                        <i class="fas fa-minus-circle"></i>
+                                    </button>
+                                @endif
+                            </div>
+                        @endforeach
 
-                    <label class="block mt-4">Телефоны:</label>
-                    @foreach ($phones as $index => $phone)
-                        <div class="flex space-x-2 items-center mb-2">
-                            <input type="text" wire:model="phones.{{ $index }}.number"
-                                placeholder="Введите номер телефона" class="w-full p-2 border rounded">
-                            <label class="flex items-center">
-                                <input type="checkbox" wire:model="phones.{{ $index }}.sms" class="ml-2">
-                                SMS
-                            </label>
-                            @if (count($phones) > 1)
-                                <button type="button" wire:click="removePhone({{ $index }})"
+                        <button type="button" wire:click="addPhone"
+                            class="bg-green-500 text-white px-2 py-1 rounded">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="block mb-1">Emails:</label>
+                        @foreach ($emails as $index => $email)
+                            <div class="flex space-x-2 items-center mb-2">
+                                <input type="text" wire:model="emails.{{ $index }}"
+                                    placeholder="Введите email" class="w-full p-2 border rounded">
+                                <button type="button" wire:click="removeEmail({{ $index }})"
                                     class="text-red-500">
                                     <i class="fas fa-minus-circle"></i>
                                 </button>
-                            @endif
+                            </div>
+                        @endforeach
+                        <button type="button" wire:click="addEmail"
+                            class="bg-green-500 text-white px-2 py-1 rounded">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="block mb-1">Заметки</label>
+                        <input type="text" wire:model="note" value="" placeholder="Заметки"
+                            class="w-full p-2 border rounded">
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="block mb-1">Статус</label>
+                        <input type="checkbox" wire:model="status"> Активный
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="block font-medium mb-1">Скидка</label>
+                        <div class="flex items-center space-x-2">
+                            <select wire:model="discount_type" class="border rounded p-2">
+                                <option value="fixed">Фиксированная</option>
+                                <option value="percentage">Процентная</option>
+                            </select>
+                            <input type="number" step="0.01" wire:model="discount_value"
+                                placeholder="Значение скидки" class="border rounded p-2">
                         </div>
-                    @endforeach
-                    <button type="button" wire:click="addPhone" class="bg-green-500 text-white px-2 py-1 rounded">
-                        <i class="fas fa-plus"></i>
-                    </button>
+                    </div>
 
-                    <label class="block mt-4">Emails:</label>
-                    @foreach ($emails as $index => $email)
-                        <div class="flex space-x-2 items-center mb-2">
-                            <input type="text" wire:model="emails.{{ $index }}"
-                                placeholder="Введите email" class="w-full p-2 border rounded">
-                            <button type="button" wire:click="removeEmail({{ $index }})"
-                                class="text-red-500">
-                                <i class="fas fa-minus-circle"></i>
-                            </button>
-                        </div>
-                    @endforeach
-                    <button type="button" wire:click="addEmail" class="bg-green-500 text-white px-2 py-1 rounded">
-                        <i class="fas fa-plus"></i>
-                    </button>
-
-                    <label class="block mb-1">Заметки</label>
-                    <input type="text" wire:model="note" value="" placeholder="Заметки"
-                        class="w-full p-2 mb-2 border rounded">
-                    <label class="block mb-1">Статус</label>
-                    <input type="checkbox" wire:model="status"> Активный
-
-
-                    <div class="mt-4 flex justify-start space-x-2">
-                        <button wire:click="saveClient" class="bg-green-500 text-white px-4 py-2 rounded">
+                    <div class="mb-4 flex justify-start space-x-2">
+                        <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-save"></i>
                         </button>
                     </div>
 
-                    @component('components.confirmation-modal', ['showConfirmationModal' => $showConfirmationModal])
-                    @endcomponent
                 </div>
 
                 <div x-show="activeTab === 2">
-
-                    <h3 class="text-lg font-bold mb-2">Баланс</h3>
                     <p class="mb-4">
                         Текущий баланс:
                         <span class="{{ $clientBalance < 0 ? 'text-red-500' : 'text-green-500' }}">
@@ -245,39 +264,23 @@
                         </thead>
                         <tbody>
                             @foreach ($transactions as $transaction)
-                                @php
-                                    $eventType = $transaction['event_type'];
-                                    $isIncome = $eventType === 1;
-                                    $isExpense = $eventType === 0;
-                                    $isInventory = $eventType === 'Оприходование';
-                                    $isRed = $isIncome || $isInventory;
-                                @endphp
-                                <tr>
-                                    <td class="border p-2">{{ $transaction['transaction_date'] }}</td>
-                                    <td class="border p-2">
-                                        @if ($isIncome)
-                                            Приход
-                                        @elseif ($isExpense)
-                                            Расход
-                                        @elseif ($isInventory)
-                                            Оприходование
-                                        @else
-                                            {{ $eventType }}
-                                        @endif
-                                    </td>
-                                    <td class="border p-2 {{ $isRed ? 'text-red-500' : 'text-green-500' }}">
-                                        {{ $isRed ? '-' : '' }}{{ $transaction['amount'] }}
-                                    </td>
-                                    <td class="border p-2">{{ $transaction['note'] }}</td>
-                                </tr>
-                            @endforeach
+                            @php
+                                $date = $transaction['transaction_date'] ?? ($transaction['created_at'] ?? null);
+                                $dateFormatted = $date ? \Carbon\Carbon::parse($date)->format('d-m-Y') : '-';
+                                $typeStr = $transaction['event_type'] ?? 'Неизвестно';
+                            @endphp
+                            <tr>
+                                <td class="border p-2">{{ $dateFormatted }}</td>
+                                <td class="border p-2">{{ $typeStr }}</td>
+                                <td class="border p-2">{{ $transaction['amount'] ?? '-' }}</td>
+                                <td class="border p-2">{{ $transaction['note'] ?? '-' }}</td>
+                            </tr>
+                        @endforeach
                         </tbody>
-
-
                     </table>
                 </div>
                 <div x-show="activeTab === 3">
-                    @if(empty($clientProjects))
+                    @if (empty($clientProjects))
                         <p>Нет проектов для отображения.</p>
                     @else
                         <table class="min-w-full bg-white shadow-md rounded mb-6">
@@ -293,10 +296,13 @@
                                 @foreach ($clientProjects as $project)
                                     <tr>
                                         <td class="p-2 border border-gray-200">{{ $project['name'] }}</td>
-                                        <td class="p-2 border border-gray-200 text-green-500">{{ $project['income'] }}</td>
-                                        <td class="p-2 border border-gray-200 text-red-500">{{ $project['expense'] }}</td>
-                                        <td class="p-2 border border-gray-200 {{ $project['balance'] >= 0 ? 'text-green-500' : 'text-red-500' }}">
-                                            {{ $project['balance'] }}
+                                        <td class="p-2 border border-gray-200 text-green-500">
+                                            {{ $project['income'] ?? '-' }}</td>
+                                        <td class="p-2 border border-gray-200 text-red-500">
+                                            {{ $project['expense'] ?? '-' }}</td>
+                                        <td
+                                            class="p-2 border border-gray-200 {{ $project['balance'] >= 0 ? 'text-green-500' : 'text-red-500' }}">
+                                            {{ $project['balance'] ?? '-' }}
                                         </td>
                                     </tr>
                                 @endforeach
@@ -308,87 +314,12 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+    {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script> --}}
     @push('scripts')
-        @vite('resources/js/modal.js')
-        @vite('resources/js/dragdroptable.js')
         @vite('resources/js/sortcols.js')
+        @vite('resources/js/dragdroptable.js')
+        @vite('resources/js/modal.js')
         @vite('resources/js/cogs.js')
     @endpush
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-
-            setTimeout(() => {
-                Livewire.on('refreshPage', () => {
-                    location.reload();
-                });
-            }, 2000)
-        });
-
-        function confirmDelete(clientId) {
-            document.getElementById('deleteConfirmationModal').style.display = 'flex';
-
-
-        }
-
-        function cancelDelete() {
-            document.getElementById('deleteConfirmationModal').style.display = 'none';
-        }
-    </script>
-    <script>
-        function resetForm() {
-            @this.resetForm();
-        }
-    </script>
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const filterButtons = document.querySelectorAll(".filter-button");
-            const rows = document.querySelectorAll("#table-body > div");
-
-            function applyFilters() {
-                const clientTypeFilter = document.querySelector(
-                    ".filter-button.client-type.active"
-                )?.dataset.filter || "all";
-                const supplierFilter = document.querySelector(
-                    ".filter-button.supplier-type.active"
-                )?.dataset.filter || "all";
-
-                rows.forEach((row) => {
-                    const clientType = row.getAttribute("data-client-type");
-                    const isSupplier = row.getAttribute("data-is-supplier");
-                    const matchesClientType =
-                        clientTypeFilter === "all" || clientType === clientTypeFilter;
-                    const matchesSupplierFilter =
-                        supplierFilter === "all" || isSupplier === supplierFilter;
-
-
-                    row.style.display =
-                        matchesClientType && matchesSupplierFilter ? "grid" : "none";
-                });
-            }
-            filterButtons.forEach((button) => {
-                button.addEventListener("click", () => {
-                    const group = button.classList.contains("client-type") ?
-                        ".client-type" :
-                        ".supplier-type";
-
-
-                    document.querySelectorAll(`.filter-button${group}`).forEach((btn) => {
-                        btn.classList.remove("bg-blue-500", "text-white", "active");
-                        btn.classList.add("bg-gray-200");
-                    });
-
-
-                    button.classList.add("bg-blue-500", "text-white", "active");
-                    button.classList.remove("bg-gray-200");
-
-
-                    applyFilters();
-                });
-            });
-
-            applyFilters();
-        });
-    </script>
 </div>

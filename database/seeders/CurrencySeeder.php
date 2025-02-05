@@ -11,31 +11,31 @@ class CurrencySeeder extends Seeder
     {
         $currencies = [
             [
-                'currency_code' => 'TMT',
-                'currency_name' => 'Turkmen Manat',
+                'code' => 'TMT',
+                'name' => 'Turkmen Manat',
                 'symbol' => 'm',
                 'is_default' => false,
-                'is_currency_display' => true,
+                'is_report' => true,
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
             ],
             [
-                'currency_code' => 'CNY',
-                'currency_name' => 'Yuan',
+                'code' => 'CNY',
+                'name' => 'Yuan',
                 'symbol' => '¥',
                 'is_default' => false,
-                'is_currency_display' => false,
+                'is_report' => false,
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
             ],
             [
-                'currency_code' => 'USD',
-                'currency_name' => 'US Dollar',
+                'code' => 'USD',
+                'name' => 'US Dollar',
                 'symbol' => '$',
                 'is_default' => true,
-                'is_currency_display' => false,
+                'is_report' => false,
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
@@ -47,7 +47,7 @@ class CurrencySeeder extends Seeder
 
             DB::table('currency_histories')->insert([
                 'currency_id' => $currencyId,
-                'exchange_rate' => $currency['currency_code'] == 'TMT' ? 19.65 : ($currency['currency_code'] == 'CNY' ? 7.10 : 1.00),
+                'exchange_rate' => $currency['code'] == 'TMT' ? 19.65 : ($currency['code'] == 'CNY' ? 7.10 : 1.00),
                 'start_date' => now()->toDateString(),
                 'created_at' => now(),
                 'updated_at' => now()

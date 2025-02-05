@@ -13,9 +13,9 @@ class Currencies extends Component
     public $exchangeRates = [];
     public $showForm = false;
     public $currencyId;
-    public $currency_name;
+    public $name;
     public $exchange_rate;
-    public $currency_code;
+    public $code;
     public $exchangeRateHistories = []; 
 
     public function mount()
@@ -40,24 +40,24 @@ class Currencies extends Component
     public function resetForm()
     {
         $this->currencyId = null;
-        $this->currency_name = '';
+        $this->name = '';
         $this->exchange_rate = '';
-        $this->currency_code = '';
+        $this->code = '';
     }
 
     public function saveCurrency()
     {
         $this->validate([
-            'currency_name' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'exchange_rate' => 'required|numeric|min:0.000001',
-            'currency_code' => 'required|string|max:10',
+            'code' => 'required|string|max:10',
         ]);
 
         DB::transaction(function () {
             if ($this->currencyId) {
                 $currency = Currency::findOrFail($this->currencyId);
-                $currency->currency_name = $this->currency_name;
-                $currency->currency_code = $this->currency_code;
+                $currency->name = $this->name;
+                $currency->code = $this->code;
                 $currency->save();
 
                 $currentRate = $currency->currentExchangeRate();
@@ -68,8 +68,8 @@ class Currencies extends Component
                 }
             } else {
                 $currency = Currency::create([
-                    'currency_name' => $this->currency_name,
-                    'currency_code' => $this->currency_code,
+                    'name' => $this->name,
+                    'code' => $this->code,
                 ]);
             }
 
@@ -117,9 +117,9 @@ class Currencies extends Component
     {
         $currency = Currency::findOrFail($currencyId);
         $this->currencyId = $currency->id;
-        $this->currency_name = $currency->currency_name;
+        $this->name = $currency->name;
         $this->exchange_rate = $currency->currentExchangeRate()->exchange_rate ?? 0;
-        $this->currency_code = $currency->currency_code;
+        $this->code = $currency->code;
         $this->showForm = true;
         $this->exchangeRateHistories = $currency->exchangeRateHistories()->orderBy('start_date', 'desc')->get();
     }

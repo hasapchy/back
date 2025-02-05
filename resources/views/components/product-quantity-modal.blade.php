@@ -21,7 +21,9 @@
                     <option value="custom">Произвольное</option>
                 </select>
                 <label>Цена</label>
-                <input type="number" wire:model="productPrice" wire:change="updateProductPrice($event.target.value)"
+                {{-- <input type="number" wire:model="productPrice" wire:change="updateProductPrice($event.target.value)"
+                    class="w-full border rounded mb-4"> --}}
+                    <input type="number" wire:model="productPrice"
                     class="w-full border rounded mb-4">
             @endif
         </div>

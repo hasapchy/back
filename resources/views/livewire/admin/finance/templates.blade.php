@@ -94,7 +94,7 @@
                     <select wire:model="currency_id" class="w-full p-2 border rounded">
                         <option value="">Выберите валюту</option>
                         @foreach ($currencies as $currency)
-                            <option value="{{ $currency->id }}">{{ $currency->currency_name }}</option>
+                            <option value="{{ $currency->id }}">{{ $currency->name }}</option>
                         @endforeach
                     </select>
                 </div>

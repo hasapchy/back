@@ -22,7 +22,7 @@
                 <tr wire:click="openForm({{ $cashRegister->id }})" class="cursor-pointer hover:bg-gray-100">
                     <td class="border p-2">{{ $cashRegister->name }}</td>
                     <td class="border p-2">{{ $cashRegister->balance }}</td>
-                    <td class="border p-2">{{ $cashRegister->currency->currency_code }}</td>
+                    <td class="border p-2">{{ $cashRegister->currency->code }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -56,7 +56,7 @@
                     <select wire:model="currencyId" class="w-full p-2 border rounded">
                         <option value="">Выберите валюту</option>
                         @foreach ($currencies as $currency)
-                            <option value="{{ $currency->id }}">{{ $currency->currency_name }}</option>
+                            <option value="{{ $currency->id }}">{{ $currency->name }}</option>
                         @endforeach
                     </select>
                 </div>

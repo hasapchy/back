@@ -275,7 +275,7 @@ class Templates extends Component
         $initialNote = sprintf(
             "(Изначальная сумма: %s %s)",
             number_format($this->templateAmount, 2),
-            $currency->currency_code ?? ''
+            $currency->code ?? ''
         );
         $this->templateNote = trim($this->templateNote)
             ? $this->templateNote . "\n" . $initialNote

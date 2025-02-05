@@ -44,7 +44,7 @@ class WarehouseProductReceipts extends Component
     public function mount()
     {
         $this->date = now()->format('Y-m-d');
-        $this->displayCurrency = Currency::where('is_currency_display', true)->first();
+        $this->displayCurrency = Currency::where('is_report', true)->first();
         $this->currencies = Currency::all();
         $this->warehouses = Warehouse::whereJsonContains('users', (string) Auth::id())->get();
     }
@@ -189,7 +189,7 @@ class WarehouseProductReceipts extends Component
         ]);
 
         $defaultCurrency = Currency::where('is_default', true)->first();
-        $displayCurrency = Currency::where('is_currency_display', true)->first();
+        $displayCurrency = Currency::where('is_report', true)->first();
         $oldTotalAmount  = $this->receptionId
             ? (WarehouseProductReceipt::where('id', $this->receptionId)->value('converted_total') ?? 0)
             : 0;

@@ -33,26 +33,26 @@
                 <div class="w-1/4">
                     <div class="font-semibold text-gray-600">Приход</div>
                     <div class="text-green-600 font-bold text-lg">
-                        {{ $totalIncome }} {{ $cashRegisters->find($cashId)->currency->currency_code }}
+                        {{ $totalIncome }} {{ $cashRegisters->find($cashId)->currency->code }}
                     </div>
                 </div>
                 <div class="ml-6 w-1/4">
                     <div class="font-semibold text-gray-600">Расход</div>
                     <div class="text-red-600 font-bold">
-                        {{ $totalExpense }} {{ $cashRegisters->find($cashId)->currency->currency_code }}
+                        {{ $totalExpense }} {{ $cashRegisters->find($cashId)->currency->code }}
                     </div>
                 </div>
                 <div class="ml-6 w-1/4">
                     <div class="font-semibold text-gray-600">Итоговый баланс</div>
                     <div class="font-bold {{ $currentBalance < 0 ? 'text-red-600' : 'text-green-600' }}">
-                        {{ $currentBalance }} {{ $cashRegisters->find($cashId)->currency->currency_code }}
+                        {{ $currentBalance }} {{ $cashRegisters->find($cashId)->currency->code }}
                     </div>
                 </div>
                 @if ($dayBalance !== null)
                     <div class="ml-6 w-1/4">
                         <div class="font-semibold text-gray-600">Баланс за выбранный день</div>
                         <div class="font-bold {{ $dayBalance < 0 ? 'text-red-600' : 'text-green-600' }}">
-                            {{ $dayBalance }} {{ $cashRegisters->find($cashId)->currency->currency_code }}
+                            {{ $dayBalance }} {{ $cashRegisters->find($cashId)->currency->code }}
                         </div>
                     </div>
                 @endif
@@ -71,7 +71,7 @@
             <select wire:model.change="cashId" class="w-full pl-10 pr-2 p-2 border rounded">
                 @foreach ($cashRegisters as $cashRegister)
                     <option value="{{ $cashRegister->id }}">
-                        {{ $cashRegister->name }} ({{ $cashRegister->currency->currency_code }})
+                        {{ $cashRegister->name }} ({{ $cashRegister->currency->code }})
                     </option>
                 @endforeach
             </select>
@@ -99,7 +99,7 @@
                         {{ $transaction->type == 1 ? 'Приход' : 'Расход' }}
                     </td>
                     <td class="border p-2">
-                        {{ $transaction->amount }}{{ $transaction->currency->currency_code }}</td>
+                        {{ $transaction->amount }}{{ $transaction->currency->code }}</td>
                     <td class="border p-2">{{ $transaction->transaction_date }}</td>
                     <td class="border p-2">{{ $transaction->note }}</td>
                     <td class="border p-2">{{ $transaction->user->name }}</td>
@@ -145,7 +145,7 @@
                     {{ $transactionId ? 'disabled' : '' }}>
                     <option value="">Выберите валюту</option>
                     @foreach ($currencies as $currency)
-                        <option value="{{ $currency->id }}">{{ $currency->currency_name }}</option>
+                        <option value="{{ $currency->id }}">{{ $currency->name }}</option>
                     @endforeach
                 </select>
             </div>
