@@ -5,24 +5,31 @@ namespace App\Livewire\Admin;
 use Livewire\Component;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 
 class Categories extends Component
 {
-    public $name, $parent_id, $categoryId;
-    public $showForm = false;
-    public $showConfirmationModal = false;
+    public $name, $parent_id, $categories, $allCategories, $categoryId, $users, $allUsers;
+    public $showForm = false, $showConfirmationModal = false, $isDirty = false;
     public $columns = [
-        'name',             // Название
-        'parent'   // Родительская категория
+        'name',
+        'parent'
     ];
-    public $isDirty = false;          
 
+    public function mount()
+    {
+        $this->allUsers = User::all();
+        $this->categories = Category::with('parent')->whereJsonContains('users', (string) Auth::id())->get();
+        $this->allCategories = Category::whereJsonContains('users', (string) Auth::id())->get();
+    }
 
     public function resetForm()
     {
         $this->categoryId = null;
         $this->name = '';
         $this->parent_id = null;
+        $this->users = [];
         $this->showForm = false;
     }
 
@@ -51,8 +58,8 @@ class Categories extends Component
     {
         if ($confirm) {
             $this->resetForm();
-            $this->isDirty = false;    // Reset dirty status
-            $this->showForm = false;   // Ensure the form is hidden
+            $this->isDirty = false;
+            $this->showForm = false;
         }
         $this->showConfirmationModal = false;
     }
@@ -65,13 +72,7 @@ class Categories extends Component
         $this->showConfirmationModal = false;
     }
 
-    public function isFormChanged()
-    {
-        $category = Category::find($this->categoryId);
-        return $this->name !== ($category->name ?? '') || $this->parent_id !== ($category->parent_id ?? null);
-    }
-
-    public function saveCategory()
+    public function save()
     {
         $rules = [
             'name' => 'required|string|max:255',
@@ -85,6 +86,8 @@ class Categories extends Component
             [
                 'name' => $this->name,
                 'parent_id' => $this->parent_id,
+                'users' => $this->users,
+                'user_id' => Auth::id(),
             ]
         );
 
@@ -94,12 +97,13 @@ class Categories extends Component
         $this->resetForm();
     }
 
-    public function editCategory($id)
+    public function edit($id)
     {
         $category = Category::findOrFail($id);
         $this->categoryId = $category->id;
         $this->name = $category->name;
         $this->parent_id = $category->parent_id;
+        $this->users = $category->users;
         $this->showForm = true;
     }
 
@@ -108,7 +112,7 @@ class Categories extends Component
         return Product::where('category_id', $categoryId)->exists();
     }
 
-    public function deleteCategory($id)
+    public function delete($id)
     {
         if ($this->hasProducts($id)) {
             session()->flash('error', 'Невозможно удалить категорию, так как к ней привязаны товары.');
@@ -123,9 +127,6 @@ class Categories extends Component
 
     public function render()
     {
-        return view('livewire.admin.categories', [
-            'categories' => Category::with('parent')->get(),
-            'allCategories' => Category::all(),
-        ]);
+        return view('livewire.admin.categories');
     }
 }

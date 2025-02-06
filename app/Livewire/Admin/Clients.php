@@ -236,11 +236,9 @@ class Clients extends Component
         $salesAndExpenses = FinancialTransaction::where('client_id', $client->id)
             ->get()
             ->map(function ($transaction) {
-                // Определяем, является ли эта транзакция заказом
                 $transaction->isOrder = Order::where('client_id', $transaction->client_id)
                     ->whereJsonContains('transaction_ids', $transaction->id)
                     ->exists();
-                // Определяем, является ли транзакция продажей по наличию "Продажа товаров" в note
                 $transaction->isSale = stripos($transaction->note, 'Продажа товаров') !== false;
 
                 if ($transaction->isSale) {
@@ -265,16 +263,13 @@ class Clients extends Component
                 $receipt->event_type = 'Оприходование';
                 $receipt->amount = $receipt->converted_total ?? $receipt->total ?? 0;
                 $receipt->note = $receipt->note ?? '';
-                // Присваиваем дату из поля receipt_date или другого, если transaction_date отсутствует
                 $receipt->transaction_date = $receipt->receipt_date ?? $receipt->created_at;
                 return $receipt->toArray();
             })
             ->toArray();
 
-        // Объединяем все записи транзакций:
-        $this->transactions = array_merge($salesAndExpenses, $receipts); // , $orders
+        $this->transactions = array_merge($salesAndExpenses, $receipts); 
 
-        // Сортируем по дате (учитываем, что дата может храниться в transaction_date, created_at или другом поле)
         usort($this->transactions, function ($a, $b) {
             $dateA = strtotime($a['transaction_date'] ?? $a['created_at'] ?? '');
             $dateB = strtotime($b['transaction_date'] ?? $b['created_at'] ?? '');

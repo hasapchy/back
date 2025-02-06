@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use App\Services\ClientService;
 use App\Services\ProductService;
 use Illuminate\Support\Facades\Auth;
+use App\Services\CurrencyConverter;
 
 class WarehouseProductReceipts extends Component
 {
@@ -22,13 +23,12 @@ class WarehouseProductReceipts extends Component
     public $clientId, $warehouseId, $date, $note;
     public $productQuantity = 1, $productPrice;
     public $showPForm = false, $productId, $products = [];
-    public $showForm = false, $receptionId = null, $currency_id;
+    public $showForm = false, $receptionId = null, $currency_id, $prices;
     public $clientSearch = '', $clientResults = [], $selectedClient = null, $clients = [];
     public $productResults = [], $selectedProduct = null, $productSearch = '';
     public $startDate, $endDate, $stockReceptions = [];
     public $isDirty = false, $showConfirmationModal = false;
     public $displayCurrency, $currencies, $warehouses = [];
-
     protected $clientService, $productService;
     protected $listeners = [
         'dateFilterUpdated' => 'updateDateFilter',
@@ -44,9 +44,10 @@ class WarehouseProductReceipts extends Component
     public function mount()
     {
         $this->date = now()->format('Y-m-d');
-        $this->displayCurrency = Currency::where('is_report', true)->first();
         $this->currencies = Currency::all();
+        $this->displayCurrency = $this->currencies->firstWhere('is_report', true);
         $this->warehouses = Warehouse::whereJsonContains('users', (string) Auth::id())->get();
+        $this->prices = ProductPrice::all()->keyBy('product_id');
     }
 
     public function render()
@@ -129,10 +130,14 @@ class WarehouseProductReceipts extends Component
             'showPForm',
             'productQuantity',
             'productPrice',
-            'receptionId'
+            'receptionId',
         ]);
     }
 
+    public function updated($propertyName)
+    {
+        $this->isDirty = true;
+    }
 
     public function addProduct($productId)
     {
@@ -178,7 +183,7 @@ class WarehouseProductReceipts extends Component
         $this->closePForm();
     }
 
-    public function saveReception()
+    public function save()
     {
         $this->validate([
             'clientId'         => 'required|exists:clients,id',
@@ -188,8 +193,8 @@ class WarehouseProductReceipts extends Component
             'currency_id'      => 'required|exists:currencies,id',
         ]);
 
-        $defaultCurrency = Currency::where('is_default', true)->first();
-        $displayCurrency = Currency::where('is_report', true)->first();
+        $defaultCurrency = $this->currencies->firstWhere('is_default', true);
+        $displayCurrency = $this->currencies->firstWhere('is_report', true);
         $oldTotalAmount  = $this->receptionId
             ? (WarehouseProductReceipt::where('id', $this->receptionId)->value('converted_total') ?? 0)
             : 0;
@@ -250,10 +255,8 @@ class WarehouseProductReceipts extends Component
                 );
             }
 
-            $currency = Currency::find($this->currency_id);
-            $convertedPrice = ($details['price'] / $currency->exchange_rate)
-                * $defaultCurrency->exchange_rate
-                * $displayCurrency->exchange_rate;
+            $currency = $this->currencies->firstWhere('id', $this->currency_id);
+            $convertedPrice = CurrencyConverter::convert($details['price'], $currency, $displayCurrency);
             ProductPrice::updateOrCreate(
                 ['product_id' => $productId],
             );
@@ -277,16 +280,15 @@ class WarehouseProductReceipts extends Component
         }
 
         session()->flash('success', 'Оприходование успешно сохранено.');
-        $this->resetForm();
         $this->isDirty = false;
         $this->closeForm();
     }
 
-    public function edit($receptionId)
+    public function edit($id)
     {
-        $reception = WarehouseProductReceipt::with('products.product')->findOrFail($receptionId);
+        $reception = WarehouseProductReceipt::with('products.product')->findOrFail($id);
 
-        $this->receptionId  = $receptionId;
+        $this->receptionId  = $reception->id;
         $this->clientId     = $reception->supplier_id;
         $this->warehouseId  = $reception->warehouse_id;
         $this->note         = $reception->note;
@@ -297,14 +299,14 @@ class WarehouseProductReceipts extends Component
             $this->selectedProducts[$product->product_id] = [
                 'name'     => $product->product->name,
                 'quantity' => $product->quantity,
-                'price'    => optional(ProductPrice::where('product_id', $product->product_id)->first())->purchase_price ?? 0,
+                'price' => optional($this->prices->get($product->product_id))->purchase_price ?? 0,
                 'image'    => $product->product->image ?? null,
             ];
         }
         $this->showForm = true;
     }
 
-    public function deleteReception()
+    public function delete()
     {
         if ($this->receptionId) {
             $reception = WarehouseProductReceipt::findOrFail($this->receptionId);
@@ -375,8 +377,4 @@ class WarehouseProductReceipts extends Component
     }
     //поиск товара конец
 
-    public function updated($propertyName)
-    {
-        $this->isDirty = true;
-    }
 }

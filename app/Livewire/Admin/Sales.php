@@ -20,6 +20,7 @@ use App\Services\ProductService;
 use App\Services\CurrencyConverter;
 use App\Models\Project;
 
+
 class Sales extends Component
 {
 
@@ -32,7 +33,7 @@ class Sales extends Component
     public $cashId, $currencyId, $productPriceType = 'retail_price', $currentRetailPrice = 0, $currentWholesalePrice = 0;
     public $currencies, $displayCurrency, $sales, $warehouses, $cashRegisters, $projects, $projectId;
     public $totalDiscount = 0, $totalDiscountType = 'fixed', $totalDiscountAmount = 0, $totalPrice = 0;
-    public $isDirty = false, $selectedProduct, $clients, $showTotalDiscountForm, $showDiscountModal = false;
+    public $isDirty = false, $selectedProduct, $clients, $showDiscountModal = false;
     protected $clientService, $productService;
 
     public function boot(ClientService $clientService, ProductService $productService)
@@ -46,7 +47,7 @@ class Sales extends Component
         $this->date = now()->format('Y-m-d');
         $this->currencies     = Currency::all();
         $this->displayCurrency = Currency::where('is_report', true)->first();
-        $this->cashRegisters  = CashRegister::whereJsonContains('users',  Auth::id())->get();
+        $this->cashRegisters  = CashRegister::whereJsonContains('users', (string) Auth::id())->get();
         $this->sales          = Sale::with(['client', 'warehouse'])->latest()->get();
         $this->warehouses = Warehouse::whereJsonContains('users', (string) Auth::id())->get();
         $this->projects = Project::whereJsonContains('users', (string) Auth::id())->get();
@@ -182,7 +183,6 @@ class Sales extends Component
             return;
         }
 
-        // Скидка на товар отключена – обновляем данные товара без скидки
         $product = Product::find($this->productId);
         $this->selectedProducts[$this->productId] = [
             'name'     => $product->name,
@@ -194,9 +194,6 @@ class Sales extends Component
         $this->closePForm();
     }
 
-    // В методе save() внесены следующие изменения:  
-    // 1. Все поля price, discount_price, total_amount теперь записываются в валюте кассы (то есть сконвертированы).  
-    // 2. В поле note, если валюта продажи отличается и если скидка была применена, добавляется информация о скидке в оригинальной валюте.
     public function save()
     {
         $this->validate([
@@ -215,8 +212,6 @@ class Sales extends Component
         $oldTotalAmount  = $this->saleId ? Sale::where('id', $this->saleId)->value('total_amount') ?? 0 : 0;
         $totalAmount     = 0;
 
-        // Создаём или обновляем продажу (sale)
-        // Задаём временное значение для price (оно будет пересчитано ниже)
         $sale = Sale::updateOrCreate(
             ['id' => $this->saleId],
             [
@@ -333,15 +328,16 @@ class Sales extends Component
             FinancialTransaction::where('id', $sale->transaction_id)->update($transactionData);
         }
 
+
         session()->flash('success', 'Продажа успешно сохранена.');
-        $this->resetForm();
+        $this->closeForm();
         $this->showForm = false;
     }
 
-    public function edit($saleId)
+    public function edit($id)
     {
-        $sale = Sale::with('products')->findOrFail($saleId);
-        $this->saleId           = $saleId;
+        $sale = Sale::with('products')->findOrFail($id);
+        $this->saleId           = $sale->id;
         $this->clientId         = $sale->client_id;
         $this->warehouseId      = $sale->warehouse_id;
         $this->note             = $sale->note;
@@ -361,11 +357,10 @@ class Sales extends Component
             ];
         }
 
-        session()->flash('message', 'Продажа загружена для редактирования.');
+        session()->flash('message', 'Нельзя редактировать, только удалить.');
         $this->showForm = true;
     }
 
-    // Обновите метод delete() так, чтобы после удаления продажи пересчитывался баланс клиента корректно:
     public function delete()
     {
         if (!$this->saleId) {
@@ -376,7 +371,6 @@ class Sales extends Component
         $sale = Sale::with('products')->findOrFail($this->saleId);
         $clientId = $sale->client_id;
 
-        // Восстанавливаем остатки товаров на складе
         foreach ($sale->products as $product) {
             $prodId = $product->pivot->product_id;
             WarehouseStock::updateOrCreate(
@@ -428,7 +422,6 @@ class Sales extends Component
         $this->clientSearch = '';
         $this->clientResults = [];
     }
-
     //конец поиск клиент
 
     //поиск товара начало
@@ -474,39 +467,5 @@ class Sales extends Component
     {
         $this->productPrice = $price;
         $this->productPriceType = 'custom';
-    }
-
-    public function updatedTotalDiscount()
-    {
-        $this->calculateTotalDiscount();
-    }
-
-    public function updatedTotalDiscountType()
-    {
-        $this->calculateTotalDiscount();
-    }
-
-    public function openTotalDiscountForm()
-    {
-        $this->showTotalDiscountForm = true;
-    }
-
-    public function closeTotalDiscountForm()
-    {
-        $this->showTotalDiscountForm = false;
-    }
-
-    public function applyTotalDiscount()
-    {
-        $this->calculateTotalDiscount();
-        $this->showTotalDiscountForm = false;
-    }
-
-    public function calculateTotalDiscount()
-    {
-        $this->totalDiscountAmount = 0;
-        foreach ($this->selectedProducts as $details) {
-            $this->totalDiscountAmount += ($details['discount'] ?? 0) * $details['quantity'];
-        }
     }
 }

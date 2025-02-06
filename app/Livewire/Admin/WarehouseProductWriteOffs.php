@@ -25,7 +25,6 @@ class WarehouseProductWriteOffs extends Component
 
     public function boot(ProductService $productService)
     {
-
         $this->productService = $productService;
     }
 
@@ -164,7 +163,6 @@ class WarehouseProductWriteOffs extends Component
             'selectedProducts'  => 'required|array|min:1',
         ]);
 
-        // Проверка наличия достаточного количества товара на складе
         foreach ($this->selectedProducts as $productId => $details) {
             $stock = WarehouseStock::where('warehouse_id', $this->warehouseId)
                 ->where('product_id', $productId)
@@ -215,19 +213,20 @@ class WarehouseProductWriteOffs extends Component
 
             DB::commit();
             session()->flash('success', 'Списание успешно выполнено.');
-            $this->resetForm();
             $this->isDirty = false;
             $this->showForm = false;
             $this->loadWriteOffs();
+            $this->closeForm();
         } catch (\Exception $e) {
             DB::rollBack();
             session()->flash('error', 'Ошибка при списании: ' . $e->getMessage());
         }
     }
 
-    public function edit($writeOffId)
+    public function edit($id)
     {
-        $writeOff = WarehouseProductWriteOff::with('writeOffProducts.product')->findOrFail($writeOffId);
+        $writeOff = WarehouseProductWriteOff::with('writeOffProducts.product')->findOrFail($id);
+        $this->writeOffId = $writeOff->id;
         $this->warehouseId = $writeOff->warehouse_id;
         $this->note = $writeOff->note;
         $this->selectedProducts = [];
@@ -238,7 +237,7 @@ class WarehouseProductWriteOffs extends Component
                 'image'    => $product->product->image ?? null,
             ];
         }
-        $this->writeOffId = $writeOffId;
+
         $this->showForm = true;
     }
     public function delete()
@@ -256,7 +255,7 @@ class WarehouseProductWriteOffs extends Component
         }
         $writeOff->delete();
         session()->flash('success', 'Списание успешно удалено.');
-        $this->resetForm();
+        $this->closeForm();
         $this->loadWriteOffs();
     }
 
@@ -294,8 +293,6 @@ class WarehouseProductWriteOffs extends Component
 
     public function resetForm()
     {
-        $this->reset(['warehouseId', 'selectedProducts', 'note', 'productSearch', 'warehouseProducts']);
-        $this->writeOffId = null;
-        $this->showForm = false;
+        $this->reset(['warehouseId', 'selectedProducts', 'note', 'productSearch', 'warehouseProducts', 'writeOffId']);
     }
 }

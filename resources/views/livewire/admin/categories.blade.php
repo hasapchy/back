@@ -51,7 +51,7 @@
             <div id="table-body">
                 @foreach ($categories as $category)
                     @if (Auth::user()->hasPermission('edit_categories'))
-                        <div class="grid grid-flow-col auto-cols-auto" wire:click="editCategory({{ $category->id }})">
+                        <div class="grid grid-flow-col auto-cols-auto" wire:click="edit({{ $category->id }})">
                     @endif
                     @foreach ($columns as $column)
                         <div class="p-2 whitespace-nowrap" data-key="{{ $column }}">
@@ -97,13 +97,25 @@
             </select>
         </div>
 
+        <div class="mb-2">
+            <label class="block mb-1">Пользователи с доступом</label>
+            <div class="flex flex-wrap gap-2">
+                @foreach ($allUsers as $user)
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" wire:model="users" value="{{ $user->id }}" class="form-checkbox">
+                        <span class="ml-1">{{ $user->name }}</span>
+                    </label>
+                @endforeach
+            </div>
+        </div>
+
         <div class="mt-4 flex justify-start space-x-2">
-            <button wire:click="saveCategory" class="bg-green-500 text-white px-4 py-2 rounded">
+            <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                 <i class="fas fa-save"></i>
             </button>
             @if (Auth::user()->hasPermission('delete_categories'))
                 @if ($categoryId)
-                    <button onclick="confirmDelete({{ $category->id }})"
+                    <button onclick="confirmDelete({{ $categoryId }})"
                         class="bg-red-500 text-white px-4 py-2 rounded">
                         <i class="fas fa-trash-alt"></i>
                     </button>
@@ -116,7 +128,7 @@
                     <h2 class="text-xl font-bold mb-4">Вы уверены, что хотите удалить?</h2>
                     <p>Это действие нельзя отменить.</p>
                     <div class="mt-4 flex justify-end space-x-2">
-                        <button wire:click="deleteCategory({{ $category->id }})" id="confirmDeleteButton"
+                        <button wire:click="delete({{ $categoryId }})" id="confirmDeleteButton"
                             class="bg-red-500 text-white px-4 py-2 rounded">Да</button>
                         <button onclick="cancelDelete()" class="bg-gray-500 text-white px-4 py-2 rounded">Нет</button>
                     </div>

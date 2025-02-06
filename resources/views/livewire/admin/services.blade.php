@@ -5,9 +5,9 @@
     <div class="flex items-center space-x-4 mb-4">
         @include('components.alert')
         {{-- @if (Auth::user()->hasPermission('create_services')) --}}
-            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded ">
-                <i class="fas fa-plus"></i>
-            </button>
+        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded ">
+            <i class="fas fa-plus"></i>
+        </button>
         {{-- @endif --}}
         <button id="columnsMenuButton" class="bg-gray-500 text-white px-4 py-2 rounded">
             <i class="fas fa-cogs"></i>
@@ -58,7 +58,7 @@
 
             <div id="table-body">
                 @foreach ($products as $product)
-                    <div class="grid grid-flow-col auto-cols-auto" wire:click="editProduct({{ $product->id }})">
+                    <div class="grid grid-flow-col auto-cols-auto" wire:click="edit({{ $product->id }})">
                         @foreach ($columns as $column)
                             <div class="p-2 whitespace-nowrap" data-key="{{ $column }}">
                                 {{ $column === 'stock_quantity' ? $product->stocks->sum('quantity') : $product->$column }}
@@ -103,7 +103,7 @@
                 <div x-show="activeTab === 1" class="transition-all duration-500 ease-in-out">
 
                     <div class="flex items-center space-x-2 mb-2">
-                        <select wire:model="category_id" class="w-full p-2 border rounded">
+                        <select wire:model="categoryId" class="w-full p-2 border rounded">
                             <option value="">Выберите категорию</option>
                             @foreach ($categories as $category)
                                 <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -133,6 +133,21 @@
                     </div>
 
                     <div class="mb-2">
+                        <label class="block mb-1">Валюта</label>
+                        <select wire:model="currencyId" class="w-full p-2 border rounded">
+                            <option value="">Выберите валюту</option>
+                            @foreach ($currencies as $currency)
+                                <option value="{{ $currency->id }}">{{ $currency->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="block mb-1">Себестоимость</label>
+                        <input type="text" wire:model="purchase_price" placeholder="Себестоимость"
+                            class="w-full p-2 border rounded">
+                    </div>
+                    <div class="mb-2">
                         <label class="block mb-1">Розничная цена</label>
                         <input type="text" wire:model="retail_price" placeholder="Розничная цена"
                             class="w-full p-2 border rounded">
@@ -145,7 +160,7 @@
                     </div>
 
                     <div class="mt-4 flex justify-start space-x-2">
-                        <button wire:click="saveProduct" class="bg-green-500 text-white px-4 py-2 rounded">
+                        <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-save"></i>
                         </button>
                         @if ($productId && auth()->user()->hasPermission('view_clients'))
@@ -168,9 +183,6 @@
                         <label class="block mb-1">Название категории</label>
                         <input type="text" wire:model="categoryName" placeholder="Название категории"
                             class="w-full p-2 border rounded">
-                        @error('categoryName')
-                            <span class="text-red-500">{{ $message }}</span>
-                        @enderror
                     </div>
                     <div>
                         <label class="block mb-1">Родительская категория</label>
@@ -180,9 +192,6 @@
                                 <option value="{{ $category->id }}">{{ $category->name }}</option>
                             @endforeach
                         </select>
-                        @error('parentCategoryId')
-                            <span class="text-red-500">{{ $message }}</span>
-                        @enderror
                     </div>
                     <div class="mt-4 flex justify-end space-x-2">
                         <button wire:click="saveCategory"
@@ -201,7 +210,7 @@
                     <h2 class="text-xl font-bold mb-4">Вы уверены, что хотите удалить?</h2>
                     <p>Это действие нельзя отменить.</p>
                     <div class="mt-4 flex justify-end space-x-2">
-                        <button wire:click="deleteProduct({{ $productId }})" id="confirmDeleteButton"
+                        <button wire:click="delete({{ $productId }})" id="confirmDeleteButton"
                             class="bg-red-500 text-white px-4 py-2 rounded">Да</button>
                         <button onclick="cancelDelete()" class="bg-gray-500 text-white px-4 py-2 rounded">Нет</button>
                     </div>

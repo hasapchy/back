@@ -52,7 +52,9 @@
             style="transform: {{ $showForm ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
             <button wire:click="closeForm"
                 class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-            <h2 class="text-xl font-bold mb-4">Добавить продажу</h2>
+            <h2 class="text-xl font-bold mb-4">
+                {{ $saleId ? 'Редактировать продажу' : 'Добавить продажу' }}
+            </h2>
 
             <form wire:submit.prevent="save">
                 <div class="mb-4">
@@ -115,6 +117,99 @@
                     <textarea id="note" wire:model="note" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                         @if ($saleId) disabled @endif></textarea>
                 </div>
+                <h3 class="text-lg font-bold mb-4">Выбранные товары</h3>
+                <table class="w-full border-collapse border border-gray-200 shadow-md rounded">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="p-2 border border-gray-200">Товар</th>
+                            <th class="p-2 border border-gray-200">Количество</th>
+                            <th class="p-2 border border-gray-200">Цена</th>
+                            <th class="p-2 border border-gray-200">Действия</th>
+                        </tr>
+                    </thead>
+                    @if ($selectedProducts)
+                        <tbody>
+                            @php
+                                $totalQuantity = 0;
+                                $totalPrice = 0;
+                            @endphp
+                            @foreach ($selectedProducts as $productId => $details)
+                                @php
+                                    $price = $details['price'];
+                                    $totalQuantity += $details['quantity'];
+                                    $totalPrice += $price * $details['quantity'];
+                                @endphp
+                                <tr>
+                                    <td class="p-2 border border-gray-200">
+                                        <div class="flex items-center">
+                                            @if (!$details['image'])
+                                                <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
+                                            @else
+                                                <img src="{{ Storage::url($details['image']) }}"
+                                                    class="w-16 h-16 object-cover">
+                                            @endif
+                                            <span class="ml-2">{{ $details['name'] }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="p-2 border border-gray-200">{{ $details['quantity'] }}</td>
+                                    <td class="p-2 border border-gray-200">{{ $price }}</td>
+                                    <td class="p-2 border border-gray-200">
+                                        <button wire:click="openPForm({{ $productId }})"
+                                            class="text-yellow-500 mr-3"
+                                            @if ($saleId) disabled @endif>
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button wire:click="removeProduct({{ $productId }})" class="text-red-500"
+                                            @if ($saleId) disabled @endif>
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        @php
+                            // Расчет скидки в реальном времени
+                            $discountValue =
+                                $totalDiscountType === 'percent'
+                                    ? $totalPrice * ($totalDiscount / 100)
+                                    : $totalDiscount;
+                            $finalTotal = $totalPrice - $discountValue;
+                        @endphp
+                        <tfoot class="bg-gray-100">
+                            <tr>
+                                <td class="p-2 border border-gray-200 font-bold" colspan="2">Всего:</td>
+                                <td class="p-2 border border-gray-200 font-bold">{{ number_format($totalPrice, 2) }}
+                                </td>
+                                <td class="p-2 border border-gray-200"></td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border border-gray-200 font-bold" colspan="2">
+                                    <button type="button" wire:click="openDiscountModal" 
+                                        @if ($saleId) disabled @endif>
+                                        @if ($totalDiscount == 0)
+                                            Добавить скидку <i class="fas fa-plus"></i>
+                                        @else
+                                            Скидка
+                                        @endif
+                                    </button>
+                                </td>
+                                <td class="p-2 border border-gray-200 font-bold">
+                                    {{ number_format($discountValue, 2) }}
+                                    @if ($totalDiscountType === 'percent')
+                                        ({{ $totalDiscount }}%)
+                                    @endif
+                                </td>
+                                <td class="p-2 border border-gray-200"></td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border border-gray-200 font-bold" colspan="2">Итоговая цена:</td>
+                                <td class="p-2 border border-gray-200 font-bold">{{ number_format($finalTotal, 2) }}
+                                </td>
+                                <td class="p-2 border border-gray-200"></td>
+                            </tr>
+                        </tfoot>
+                    @endif
+                </table>
                 <div class="flex justify-start mt-4">
                     <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded mr-2"
                         @if ($saleId) disabled @endif>
@@ -122,7 +217,8 @@
                     </button>
                     @if (Auth::user()->hasPermission('delete_sales'))
                         @if ($saleId)
-                            <button type="button" wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
+                            <button type="button" wire:click="delete"
+                                class="bg-red-500 text-white px-4 py-2 rounded">
                                 <i class="fas fa-trash"></i>
                             </button>
                         @endif
@@ -130,91 +226,6 @@
                 </div>
             </form>
 
-            <h3 class="text-lg font-bold mb-4">Выбранные товары</h3>
-            <table class="w-full border-collapse border border-gray-200 shadow-md rounded">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th class="p-2 border border-gray-200">Товар</th>
-                        <th class="p-2 border border-gray-200">Количество</th>
-                        <th class="p-2 border border-gray-200">Цена</th>
-                        <th class="p-2 border border-gray-200">Действия</th>
-                    </tr>
-                </thead>
-                @if ($selectedProducts)
-                    <tbody>
-                        @php
-                            $totalQuantity = 0;
-                            $totalPrice = 0;
-                        @endphp
-                        @foreach ($selectedProducts as $productId => $details)
-                            @php
-                                $price = $details['price'];
-                                $totalQuantity += $details['quantity'];
-                                $totalPrice += $price * $details['quantity'];
-                            @endphp
-                            <tr>
-                                <td class="p-2 border border-gray-200">
-                                    <div class="flex items-center">
-                                        @if (!$details['image'])
-                                            <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
-                                        @else
-                                            <img src="{{ Storage::url($details['image']) }}"
-                                                class="w-16 h-16 object-cover">
-                                        @endif
-                                        <span class="ml-2">{{ $details['name'] }}</span>
-                                    </div>
-                                </td>
-                                <td class="p-2 border border-gray-200">{{ $details['quantity'] }}</td>
-                                <td class="p-2 border border-gray-200">{{ $price }}</td>
-                                <td class="p-2 border border-gray-200">
-                                    <button wire:click="openPForm({{ $productId }})" class="text-yellow-500 mr-3"
-                                        @if ($saleId) disabled @endif>
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button wire:click="removeProduct({{ $productId }})" class="text-red-500"
-                                        @if ($saleId) disabled @endif>
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                    @php
-                        // Расчет скидки в реальном времени
-                        $discountValue =
-                            $totalDiscountType === 'percent' ? $totalPrice * ($totalDiscount / 100) : $totalDiscount;
-                        $finalTotal = $totalPrice - $discountValue;
-                    @endphp
-                    <tfoot class="bg-gray-100">
-                        <tr>
-                            <td class="p-2 border border-gray-200 font-bold" colspan="2">Всего:</td>
-                            <td class="p-2 border border-gray-200 font-bold">{{ number_format($totalPrice, 2) }}</td>
-                            <td class="p-2 border border-gray-200"></td>
-                        </tr>
-                        <tr>
-                            <td class="p-2 border border-gray-200 font-bold" colspan="2">
-                                <button type="button" wire:click="openDiscountModal" class="underline"
-                                    @if ($saleId) disabled @endif>
-                                    Скидка <i class="fas fa-plus"></i>
-                                </button>
-                            </td>
-                            <td class="p-2 border border-gray-200 font-bold">
-                                {{ number_format($discountValue, 2) }}
-                                @if ($totalDiscountType === 'percent')
-                                    ({{ $totalDiscount }}%)
-                                @endif
-                            </td>
-                            <td class="p-2 border border-gray-200"></td>
-                        </tr>
-                        <tr>
-                            <td class="p-2 border border-gray-200 font-bold" colspan="2">Итоговая цена:</td>
-                            <td class="p-2 border border-gray-200 font-bold">{{ number_format($finalTotal, 2) }}</td>
-                            <td class="p-2 border border-gray-200"></td>
-                        </tr>
-                    </tfoot>
-                @endif
-            </table>
-            <!-- Кнопка для открытия модального окна скидки -->
 
         </div>
     </div>

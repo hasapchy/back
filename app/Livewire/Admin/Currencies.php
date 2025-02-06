@@ -45,7 +45,7 @@ class Currencies extends Component
         $this->code = '';
     }
 
-    public function saveCurrency()
+    public function save()
     {
         $this->validate([
             'name' => 'required|string|max:255',
@@ -62,7 +62,6 @@ class Currencies extends Component
 
                 $currentRate = $currency->currentExchangeRate();
                 if ($currentRate) {
-                    // Set end_date of the existing exchange rate
                     $currentRate->end_date = now()->toDateString();
                     $currentRate->save();
                 }
@@ -91,7 +90,7 @@ class Currencies extends Component
             "exchangeRates.$currencyId" => 'required|numeric|min:0.000001',
         ]);
 
-        DB::transaction(function () use ($currencyId) { // Start transaction
+        DB::transaction(function () use ($currencyId) { 
             $currency = Currency::findOrFail($currencyId);
 
             $currentRate = $currency->currentExchangeRate();
@@ -113,7 +112,7 @@ class Currencies extends Component
     }
 
 
-    public function editCurrency($currencyId)
+    public function edit($currencyId)
     {
         $currency = Currency::findOrFail($currencyId);
         $this->currencyId = $currency->id;

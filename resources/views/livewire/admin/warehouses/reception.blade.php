@@ -63,7 +63,7 @@
                 style="right: 1rem;">
                 &times;
             </button>
-            <h2 class="text-xl font-bold mb-4">Новое оприходование</h2>
+            <h2 class="text-xl font-bold mb-4">{{ $receptionId ? 'Редактировать' : 'Создать' }} оприходование</h2>
 
             <div class="mb-4">
                 @include('components.client-search')
@@ -164,7 +164,7 @@
                 </button>
                 @if (Auth::user()->hasPermission('delete_receipts'))
                     @if ($receptionId)
-                        <button wire:click="deleteReception" class="bg-red-500 text-white px-4 py-2 rounded">
+                        <button wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-trash"></i>
                         </button>
                     @endif
