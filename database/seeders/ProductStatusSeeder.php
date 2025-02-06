@@ -12,10 +12,19 @@ class ProductStatusSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::table('product_statuses')->insert([
-            ['id' => 1, 'name' => 'в наличии'],
-            ['id' => 2, 'name' => 'продано'],
-            ['id' => 3, 'name' => 'списан'],
-        ]);
+        DB::table('product_statuses')->updateOrInsert(
+            ['id' => 1],
+            ['name' => 'в наличии']
+        );
+
+        DB::table('product_statuses')->updateOrInsert(
+            ['id' => 2],
+            ['name' => 'продано']
+        );
+
+        DB::table('product_statuses')->updateOrInsert(
+            ['id' => 3],
+            ['name' => 'списан']
+        );
     }
 }
