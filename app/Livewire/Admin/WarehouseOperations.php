@@ -7,7 +7,6 @@ use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Models\Category;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 
 class WarehouseOperations extends Component
 {
@@ -19,14 +18,8 @@ class WarehouseOperations extends Component
 
     public function mount()
     {
-        $this->warehouses = Cache::remember("user:warehouses:" . Auth::id(), now()->addMinutes(5), function () {
-            return Warehouse::whereJsonContains('users', (string) Auth::id())->get();
-        });
-
-        $this->categories = Cache::remember('categories', now()->addMinutes(5), function () {
-            return Category::all();
-        });
-
+        $this->warehouses = Warehouse::whereJsonContains('users', (string) Auth::id())->get();
+        $this->categories = Category::whereJsonContains('users', (string) Auth::id())->get();
         $this->loadStockData();
     }
 

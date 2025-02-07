@@ -8,9 +8,9 @@ use Illuminate\Support\Facades\Auth;
 
 class OrderCategories extends Component
 {
-    public $categories, $name, $user_id, $category_id;
+    public $categories, $name, $userId, $categoryId;
     public $showForm = false;
-    public $showConfirmationModal = false;
+    // public $showConfirmationModal = false;
 
     public function render()
     {
@@ -18,14 +18,10 @@ class OrderCategories extends Component
         return view('livewire.admin.orders.order-categories');
     }
 
-    public function create()
-    {
-        $this->resetInputFields();
-        $this->openForm();
-    }
 
     public function openForm()
     {
+        $this->resetForm();
         $this->showForm = true;
     }
 
@@ -34,16 +30,16 @@ class OrderCategories extends Component
         $this->showForm = false;
     }
 
-    private function resetInputFields()
+    private function resetForm()
     {
         $this->name = '';
-        $this->category_id = null;
+        $this->categoryId = null;
     }
 
-    public function store()
+    public function save()
     {
         $this->validate([
-            'name' => 'required',
+            'name' => 'required|string|max:255',
         ]);
 
         OrderCategory::updateOrCreate(['id' => $this->category_id], [
@@ -51,44 +47,38 @@ class OrderCategories extends Component
             'user_id' => Auth::id(),
         ]);
 
-        session()->flash('message', 
-            $this->category_id ? 'Категория успешно обновлена.' : 'Категория успешно создана.');
+        session()->flash(
+            'message',
+            $this->categoryIid ? 'Категория успешно обновлена.' : 'Категория успешно создана.'
+        );
 
         $this->closeForm();
-        $this->resetInputFields();
+        $this->resetForm();
     }
 
     public function edit($id)
     {
         $category = OrderCategory::findOrFail($id);
-        $this->category_id = $id;
+        $this->categoryId = $id;
         $this->name = $category->name;
-        $this->user_id = $category->user_id;
-
-        $this->openForm();
+        $this->userId = $category->user_id;
+        $this->showForm = true;
     }
 
-    public function deleteCategoryForm($id)
+    public function delete($id)
     {
-        $this->category_id = $id;
-        $this->openConfirmationModal();
-    }
-
-    public function confirmDelete()
-    {
-        OrderCategory::find($this->category_id)->delete();
+        OrderCategory::find($id)->delete();
         session()->flash('message', 'Категория успешно удалена.');
-        $this->closeConfirmationModal();
-        $this->resetInputFields();
+        $this->resetForm();
     }
 
-    public function openConfirmationModal()
-    {
-        $this->showConfirmationModal = true;
-    }
+    // public function openConfirmationModal()
+    // {
+    //     $this->showConfirmationModal = true;
+    // }
 
-    public function closeConfirmationModal()
-    {
-        $this->showConfirmationModal = false;
-    }
+    // public function closeConfirmationModal()
+    // {
+    //     $this->showConfirmationModal = false;
+    // }
 }

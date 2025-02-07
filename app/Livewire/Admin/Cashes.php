@@ -16,14 +16,14 @@ class Cashes extends Component
     public $balance;
     public $currencyId;
     public $showForm = false;
-    public $cashUsers = [];
+    public $users = [];
     public $cashRegisters;
     public $currencies;
     public $allUsers = [];
 
     public function mount()
     {
-        $this->cashRegisters = CashRegister::all();
+        $this->cashRegisters = CashRegister::whereJsonContains('users', (string) Auth::id())->get();
         $this->currencies = Currency::all();
         $this->allUsers = User::all();
     }
@@ -41,7 +41,7 @@ class Cashes extends Component
             $this->name = $cashRegister->name;
             $this->balance = $cashRegister->balance;
             $this->currencyId = $cashRegister->currency_id;
-            $this->cashUsers = $cashRegister->users ?? [];
+            $this->users = $cashRegister->users ?? [];
         }
         $this->showForm = true;
     }
@@ -58,7 +58,7 @@ class Cashes extends Component
         $this->name = '';
         $this->balance = '';
         $this->currencyId = null;
-        $this->cashUsers = [];
+        $this->users = [];
     }
 
     public function create()
@@ -67,17 +67,15 @@ class Cashes extends Component
             'name' => 'required|string|max:255',
             'balance' => 'required|numeric',
             'currencyId' => 'required|exists:currencies,id',
-            'cashUsers' => 'required|array',
-            'cashUsers.*' => 'exists:users,id',
         ];
         $this->validate($rules);
-        $this->cashUsers = array_map('intval', $this->cashUsers);
+        // $this->users = array_map('intval', $this->users);
 
         CashRegister::create([
             'name' => $this->name,
             'balance' => $this->balance,
             'currency_id' => $this->currencyId,
-            'users' => $this->cashUsers,
+            'users' => $this->users,
         ]);
         session()->flash('message', 'Касса успешно создана.');
         $this->closeForm();
@@ -87,14 +85,13 @@ class Cashes extends Component
     {
         $rules = [
             'name' => 'required|string|max:255',
-            'cashUsers' => 'required|array',
-            'cashUsers.*' => 'exists:users,id',
+      
         ];
         $this->validate($rules);
-        $this->cashUsers = array_map('intval', $this->cashUsers);
+        // $this->users = array_map('intval', $this->users);
         if ($cashRegister = CashRegister::find($this->cashId)) {
             $cashRegister->name = $this->name;
-            $cashRegister->users = $this->cashUsers;
+            $cashRegister->users = $this->users;
             $cashRegister->save();
             session()->flash('message', 'Касса успешно обновлена.');
         }

@@ -246,6 +246,7 @@
 
                 </div>
 
+                <!-- filepath: /d:/OSPanel/domains/rem-online/resources/views/livewire/admin/clients.blade.php -->
                 <div x-show="activeTab === 2">
                     <p class="mb-4">
                         Текущий баланс:
@@ -264,18 +265,24 @@
                         </thead>
                         <tbody>
                             @foreach ($transactions as $transaction)
-                            @php
-                                $date = $transaction['transaction_date'] ?? ($transaction['created_at'] ?? null);
-                                $dateFormatted = $date ? \Carbon\Carbon::parse($date)->format('d-m-Y') : '-';
-                                $typeStr = $transaction['event_type'] ?? 'Неизвестно';
-                            @endphp
-                            <tr>
-                                <td class="border p-2">{{ $dateFormatted }}</td>
-                                <td class="border p-2">{{ $typeStr }}</td>
-                                <td class="border p-2">{{ $transaction['amount'] ?? '-' }}</td>
-                                <td class="border p-2">{{ $transaction['note'] ?? '-' }}</td>
-                            </tr>
-                        @endforeach
+                                @php
+                                    $date = $transaction['transaction_date'] ?? ($transaction['created_at'] ?? null);
+                                    $dateFormatted = $date ? \Carbon\Carbon::parse($date)->format('d-m-Y') : '-';
+                                    $typeStr = $transaction['event_type'] ?? 'Неизвестно';
+                                    $amount = $transaction['amount'] ?? 0;
+                                    $isIncome = in_array($typeStr, ['Приход', 'Продажа', 'Оприходование']);
+                                    $amountFormatted = $isIncome
+                                        ? '-' . number_format($amount, 2)
+                                        : '+' . number_format($amount, 2);
+                                    $amountClass = $isIncome ? 'text-red-500' : 'text-green-500';
+                                @endphp
+                                <tr>
+                                    <td class="border p-2">{{ $dateFormatted }}</td>
+                                    <td class="border p-2">{{ $typeStr }}</td>
+                                    <td class="border p-2 {{ $amountClass }}">{{ $amountFormatted }}</td>
+                                    <td class="border p-2">{{ $transaction['note'] ?? '-' }}</td>
+                                </tr>
+                            @endforeach
                         </tbody>
                     </table>
                 </div>

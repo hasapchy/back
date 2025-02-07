@@ -11,33 +11,18 @@ use App\Services\ClientService;
 
 class Projects extends Component
 {
-    public $projects;
-    public $name;
-    public $showConfirmationModal = false;
-    public $start_date;
-    public $end_date;
-    public $user_id;
-    public $users = [];
-    public $projectId;
-    public $showForm = false;
-    public $allUsers;
-    public $isDirty = false;
-    public $projectTransactions = [];
-    public $totalAmount = 0;
-    public $searchTerm;
-    public $clientResults = [];
-    public $clientSearch;
-    public $selectedClient;
-    public $clientId;
-    public $startDate; //это для фильтра
-    public $endDate; //это для фильтра
+    public $projects, $projectTransactions, $totalAmount = 0;
+    public $name, $users = [], $projectId;
+    public $showForm = false, $isDirty = false, $showConfirmationModal = false, $allUsers;
+    public $clientResults = [], $clientSearch, $selectedClient, $clientId;
+    public $searchTerm, $startDate, $endDate;
     protected $clientService;
     protected $rules = [
         'name' => 'required|string|max:255',
-        'start_date' => 'required|date',
-        'end_date' => 'nullable|date|after_or_equal:start_date',
-        'users' => 'nullable|array',
-        'clientId' => 'nullable|integer',
+        'start_date' => 'nullable|date',
+        'end_date'   => 'nullable|date',
+        'users'      => 'nullable|array',
+        'clientId'   => 'required|integer',
     ];
 
     protected $listeners = [
@@ -62,70 +47,6 @@ class Projects extends Component
         $this->showForm = true;
     }
 
-    public function saveProject()
-    {
-        $this->validate();
-
-        Project::updateOrCreate(
-            ['id' => $this->projectId],
-            [
-                'name' => $this->name,
-                'start_date' => $this->start_date,
-                'end_date' => $this->end_date,
-                'user_id' => Auth::id(),
-                'users' => $this->users,
-                'client_id' => $this->clientId,
-            ]
-        );
-
-        session()->flash('message', 'Проект успешно сохранен.');
-        $this->resetForm();
-        $this->showForm = false;
-        $this->isDirty = false;
-        $this->load();
-    }
-
-    public function selectProject($projectId)
-    {
-        $project = Project::find($projectId);
-
-        if ($project) {
-            $this->projectId = $project->id;
-            $this->name = $project->name;
-            $this->start_date = $project->start_date;
-            $this->end_date = $project->end_date;
-            $this->users = $project->users;
-            $this->clientId = $project->client_id; // Add this line
-            $this->showForm = true;
-            $this->isDirty = false;
-            $this->loadTransactions();
-        } else {
-            session()->flash('error', 'Проект не найден.');
-        }
-    }
-
-    // public function confirmDeleteProject($projectId)
-    // {
-    //     $this->projectId = $projectId;
-    //     $this->showDeleteConfirmationModal = true;
-    // }
-
-    public function deleteProject($projectId)
-    {
-        $transactionCount = FinancialTransaction::where('project_id', $projectId)->count();
-
-        if ($transactionCount > 0) {
-            session()->flash('error', 'Невозможно удалить проект, так как к нему привязаны транзакции.');
-            // $this->showDeleteConfirmationModal = false;
-            return;
-        }
-
-        Project::destroy($projectId);
-        session()->flash('message', 'Проект успешно удален.');
-        // $this->showDeleteConfirmationModal = false;
-        $this->load();
-    }
-
     public function closeForm()
     {
         if ($this->isDirty) {
@@ -146,6 +67,66 @@ class Projects extends Component
         $this->showConfirmationModal = false;
     }
 
+    public function updated($propertyName)
+    {
+        $this->isDirty = true;
+    }
+
+    public function render()
+    {
+        return view('livewire.admin.projects');
+    }
+
+    public function save()
+    {
+        $this->validate();
+
+        Project::updateOrCreate(
+            ['id' => $this->projectId],
+            [
+                'name' => $this->name,
+                'user_id' => Auth::id(),
+                'users' => $this->users,
+                'client_id' => $this->clientId,
+            ]
+        );
+
+        session()->flash('message', 'Проект успешно сохранен.');
+        $this->resetForm();
+        $this->showForm = false;
+        $this->isDirty = false;
+        $this->load();
+    }
+
+    public function edit($id)
+    {
+        $project = Project::find($id);
+        $this->projectId = $project->id;
+        $this->name = $project->name;
+        $this->users = $project->users;
+        $this->selectedClient = $project->client;
+        $this->showForm = true;
+        $this->isDirty = false;
+        $this->loadTransactions();
+    }
+
+    // public function confirmDeleteProject($projectId)
+    // {
+    //     $this->projectId = $projectId;
+    //     $this->showDeleteConfirmationModal = true;
+    // }
+
+    public function delete($id)
+    {
+        if (FinancialTransaction::where('project_id', $id)->exists()) {
+            session()->flash('error', 'Невозможно удалить проект, так как к нему привязаны транзакции.');
+            return;
+        }
+        Project::destroy($id);
+        session()->flash('message', 'Проект успешно удален.');
+        $this->closeForm();
+    }
+
     private function filterByDates($query)
     {
         if ($this->startDate && $this->endDate) {
@@ -164,7 +145,7 @@ class Projects extends Component
 
     public function load()
     {
-        $query = Project::query()->orderBy('created_at', 'desc');
+        $query = Project::orderBy('created_at', 'desc');
         $query = $this->filterByDates($query);
         $query = $this->applySearch($query);
         $this->projects = $query->get();
@@ -188,18 +169,12 @@ class Projects extends Component
 
     private function resetForm()
     {
-        $this->projectId = null;
-        $this->name = '';
-        $this->start_date = '';
-        $this->end_date = '';
-        $this->users = [];
+        $this->projectId   = null;
+        $this->name        = '';
+        $this->users       = [];
+        $this->selectedClient    = null;
         $this->projectTransactions = [];
         $this->totalAmount = 0;
-    }
-
-    public function updated($propertyName)
-    {
-        $this->isDirty = true;
     }
 
     //начало поиск клиент
@@ -232,13 +207,8 @@ class Projects extends Component
     private function loadTransactions()
     {
         $this->projectTransactions = FinancialTransaction::where('project_id', $this->projectId)->get();
-        $this->totalAmount = $this->projectTransactions->sum(function ($transaction) {
-            return $transaction->type == 1 ? $transaction->amount : -$transaction->amount;
-        });
-    }
-
-    public function render()
-    {
-        return view('livewire.admin.projects');
+        $this->totalAmount = $this->projectTransactions->sum(
+            fn($t) => $t->type == 1 ? $t->amount : -$t->amount
+        );
     }
 }

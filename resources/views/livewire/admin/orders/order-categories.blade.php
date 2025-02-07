@@ -12,18 +12,17 @@
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
+                               <th class="p-2 border border-gray-200">Название</th>
                 <th class="p-2 border border-gray-200">Дата создания</th>
-                <th class="p-2 border border-gray-200">Название</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($categories as $category)
                 {{-- @if (Auth::user()->hasPermission('edit_order_categories')) --}}
-                <tr wire:click="edit({{ $category->id }})"
-                    class="cursor-pointer mb-2 p-2 border rounded {{ $category_id == $category->id ? 'bg-gray-200' : '' }}">
+                <tr wire:click="edit({{ $category->id }})" class="cursor-pointer mb-2 p-2 border rounded">
                     {{-- @endif --}}
-                    <td class="p-2 border border-gray-200">{{ $category->created_at}}</td>
                     <td class="p-2 border border-gray-200">{{ $category->name }}</td>
+                    <td class="p-2 border border-gray-200">{{ $category->created_at }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -40,19 +39,19 @@
                 &times;
             </button>
             <h2 class="text-xl font-bold mb-4">Категория заказа</h2>
-            @include('components.confirmation-modal')
+            {{-- @include('components.confirmation-modal') --}}
             <div class="mb-4">
                 <label class="block mb-1">Название</label>
                 <input type="text" wire:model="name" placeholder="Название" class="w-full p-2 border rounded">
             </div>
 
             <div class="flex space-x-2">
-                <button wire:click="store" class="bg-green-500 text-white px-4 py-2 rounded">
+                <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
                 @if (Auth::user()->hasPermission('delete_order_categories'))
-                    @if ($category_id)
-                        <button wire:click="deleteCategoryForm({{ $category_id }})"
+                    @if ($categoryId)
+                        <button wire:click="delete({{ $categoryId }})"
                             class="bg-red-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -63,7 +62,7 @@
     </div>
 
     <!-- Confirmation Modal -->
-    <div id="confirmationModal"
+    {{-- <div id="confirmationModal"
         class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 transition-opacity duration-500 {{ $showConfirmationModal ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
         wire:click="closeConfirmationModal">
         <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded shadow-lg"
@@ -79,5 +78,5 @@
                 </button>
             </div>
         </div>
-    </div>
+    </div> --}}
 </div>

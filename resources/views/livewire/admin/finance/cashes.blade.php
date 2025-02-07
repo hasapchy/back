@@ -65,7 +65,7 @@
                 <label>Пользователи</label>
                 @foreach ($allUsers as $user)
                     <div>
-                        <input type="checkbox" wire:model="cashUsers" value="{{ $user->id }}">
+                        <input type="checkbox" wire:model="users" value="{{ $user->id }}">
                         <label>{{ $user->name }}</label>
                     </div>
                 @endforeach

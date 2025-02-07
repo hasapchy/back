@@ -9,37 +9,40 @@ use App\Models\ProductPrice;
 use App\Models\Currency;
 use App\Models\Category;
 use Livewire\WithFileUploads;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Database\QueryException;
+use App\Models\WarehouseStock;
+use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 class Services extends Component
 {
-    use WithPagination;
-    use WithFileUploads;
+    use WithPagination, WithFileUploads;
 
-    public $name, $description, $sku, $status = true, $productId, $images = [], $newImages = [], $retail_price, $wholesale_price, $purchase_price, $category_id;
-    public $defaultCurrencyId;
-    public $showForm = false;
-    public $showCategoryForm = false;
-    public $showConfirmationModal = false;
-    public $categoryName;
-    public $parentCategoryId;
-    public $columns = [
-        'name',
-        'sku'
-    ];
+    public $name, $description, $sku,  $status = true, $productId;
+    public $retail_price, $wholesale_price, $purchase_price, $categoryId;
+    public $currencies = [], $currencyId, $showForm = false, $showCategoryForm = false, $showConfirmationModal = false;
+    public $categoryName, $users = [], $allUsers, $parentCategoryId;
+    public $columns = ['name', 'sku',  'description',];
+    public $stocks = [], $isDirty = false, $history = [], $searchTerm, $type = 0;
 
-    public $isDirty = false;
-    public $searchTerm;
-    public $type = 0;
-
-    protected $listeners = ['editProduct', 'confirmClose'];
+    protected $listeners = ['confirmClose'];
 
     public function mount()
     {
         $this->searchTerm = request('search', '');
-        $defaultCurrency = Currency::where('is_default', true)->first();
-        $this->defaultCurrencyId = $defaultCurrency ? $defaultCurrency->id : null;
+        $this->currencies = Currency::all();
+        $this->allUsers = User::all();
+    }
+
+    public function render()
+    {
+        $products = strlen($this->searchTerm) < 3 && strlen($this->searchTerm) > 0
+            ? Product::where('type', 0)->paginate(10)
+            : Product::where('type', 0)->where('name', 'like', '%' . $this->searchTerm . '%')->paginate(10);
+
+        return view('livewire.admin.services', [
+            'products' => $products,
+            'categories' => Category::whereJsonContains('users', (string) Auth::id())->get(),
+        ]);
     }
 
     public function saveCategory()
@@ -52,141 +55,91 @@ class Services extends Component
         Category::create([
             'name' => $this->categoryName,
             'parent_id' => $this->parentCategoryId,
+            'user_id' => Auth::id(),
+            'users' => $this->users,
         ]);
 
         session()->flash('success', 'Категория успешно добавлена.');
         $this->resetCategoryForm();
-        $this->dispatch('updated');
     }
 
     public function resetForm()
     {
-        $this->productId = null;
-        $this->name = '';
-        $this->description = '';
-        $this->sku = '';
-        $this->images = [];
-        $this->category_id = null;
-        $this->retail_price = null;
-        $this->wholesale_price = null;
-        $this->purchase_price = null;
-        $this->showForm = false;
-        $this->isDirty = false; // Reset dirty status
+        $this->reset('productId', 'name', 'description', 'sku',  'retail_price', 'wholesale_price', 'purchase_price', 'currencyId');
     }
 
     public function openForm()
     {
-        $this->reset();
+        $this->resetForm();
         $this->showForm = true;
-        $this->isDirty = false; // Reset dirty status when opening form
     }
 
     public function closeForm()
     {
-        if ($this->isDirty) {
-            $this->showConfirmationModal = true;
-        } else {
-            $this->resetForm();
-        }
-    }
-
-    public function closeModal($confirm = false)
-    {
-        if ($confirm) {
-            $this->resetForm();
-        }
-        $this->showConfirmationModal = false;
+        $this->resetForm();
+        $this->showForm = false;
     }
 
     public function confirmClose($confirm = false)
     {
         if ($confirm) {
-            $this->resetForm();
-            $this->isDirty = false; // Reset dirty status
-            $this->showForm = false; // Ensure the form is hidden
+            $this->showForm = false;
         }
         $this->showConfirmationModal = false;
     }
 
-    public function updated($propertyName)
-    {
-        // Whenever any bound property changes, mark the form as dirty
-        $this->isDirty = true;
-    }
 
     public function updatedSearchTerm()
     {
         if (strlen($this->searchTerm) < 3 && strlen($this->searchTerm) > 0) {
             session()->flash('error', 'Поиск должен содержать не менее 3 символов.');
-            $this->resetPage();
         } else {
             session()->forget('error');
-            $this->resetPage();
         }
     }
 
-    public function saveProduct()
+    public function save()
     {
-        $this->validate([
+        $rules = [
             'name' => 'required|string|max:255',
-            'category_id' => 'required|exists:categories,id',
-            'sku' => 'required|string|unique:products,sku,' . ($this->productId ?? 'NULL'),
-            'newImages.*' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
-            'retail_price' => 'nullable|numeric|min:0',
-            'wholesale_price' => 'nullable|numeric|min:0',
-            'purchase_price' => 'nullable|numeric|min:0',
-        ]);
+            'categoryId' => 'required|exists:categories,id',
+            'sku' => 'required|string|unique:products,sku,' . $this->productId,
+            'retail_price' => 'nullable|numeric|min:0,01',
+            'wholesale_price' => 'nullable|numeric|min:0,01',
+            'purchase_price' => 'nullable|numeric|min:0,01',
+        ];
 
-        $photoPaths = $this->images;
+        $this->validate($rules);
 
-        foreach ($this->newImages as $image) {
-            if ($image instanceof UploadedFile) {
-                $photoPaths[] = $image->store('products', 'public');
-            }
-        }
+        $product = Product::updateOrCreate(
+            ['id' => $this->productId],
+            [
+                'name' => $this->name,
+                'category_id' => $this->categoryId,
+                'description' => $this->description,
+                'sku' => $this->sku,
+                'status_id' => $this->status ? 1 : 0,
+                'type' => $this->type,
+            ]
+        );
 
-        try {
+        ProductPrice::updateOrCreate(
+            ['product_id' => $product->id],
+            [
+                'retail_price' => $this->retail_price ?? 0.0,
+                'wholesale_price' => $this->wholesale_price ?? 0.0,
+                'purchase_price' => $this->purchase_price ?? 0.0,
+                'currency_id' => $this->currencyId,
+            ]
+        );
 
-            $product = Product::updateOrCreate(
-                ['id' => $this->productId],
-                [
-                    'name' => $this->name,
-                    'category_id' => $this->category_id,
-                    'description' => $this->description,
-                    'sku' => $this->sku,
-                    'status_id' => $this->status ? 1 : 0,
-                    'images' => json_encode($photoPaths),
-                    'type' => $this->type,
+        session()->flash('success', $this->productId ? 'Услуга успешно обновлена.' : 'Услуга успешно добавлена.');
 
-                ]
-            );
-
-            ProductPrice::updateOrCreate(
-                ['product_id' => $product->id],
-                [
-                    'retail_price' => $this->retail_price ?? 0.0,
-                    'wholesale_price' => $this->wholesale_price ?? 0.0,
-                    'purchase_price' => $this->purchase_price ?? 0.0,
-                    'currency_id' => $this->defaultCurrencyId ?? 1,
-                ]
-            );
-
-            session()->flash('success', $this->productId ? 'Товар успешно обновлен.' : 'Товар успешно добавлен.');
-            $this->dispatch('updated');
-            $this->resetForm();
-            $this->isDirty = false; // Reset dirty status after saving
-        } catch (QueryException $e) {
-            if ($e->errorInfo[1] == 1062) {
-                session()->flash('error', 'Штрих-код уже существует. Пожалуйста, используйте другой.');
-            } else {
-                session()->flash('error', 'Произошла ошибка при сохранении товара: ' . $e->getMessage());
-            }
-        } catch (\Exception $e) {
-            session()->flash('error', 'Произошла ошибка при сохранении товара: ' . $e->getMessage());
-        }
+        $this->closeForm();
+        $this->dispatch('updated');
     }
 
-    public function editProduct($id)
+    public function edit($id)
     {
         $product = Product::findOrFail($id);
         $this->productId = $product->id;
@@ -194,50 +147,38 @@ class Services extends Component
         $this->description = $product->description;
         $this->sku = $product->sku;
         $this->showForm = true;
-        $this->images = $product->images ? json_decode($product->images, true) : [];
-        $this->category_id = $product->category_id;
+        $this->categoryId  = $product->category_id;
 
         $price = ProductPrice::where('product_id', $product->id)->first();
         if ($price) {
             $this->retail_price = $price->retail_price;
             $this->wholesale_price = $price->wholesale_price;
             $this->purchase_price = $price->purchase_price;
+            $this->currencyId = $price->currency_id;
         }
 
-        $this->isDirty = false;
+        $this->stocks = WarehouseStock::where('product_id', $id)->get();
+        $this->history = collect(array_merge(
+
+            $product->salesProducts->map(function ($salesProduct) {
+                $sale = $salesProduct->sale;
+                return [
+                    'type' => 'Продажа',
+                    'date' => $sale ? $sale->created_at->format('Y-m-d') : '-',
+                    'note' => $sale ? $sale->note : '',
+                ];
+            })->toArray()
+        ))->sortByDesc('date')->toArray();
+        $this->showForm = true;
     }
 
-    public function update()
-    {
-        $this->validate();
 
-        $product = Product::findOrFail($this->productId);
-
-        $product->update([
-            'name' => $this->name,
-            'description' => $this->description,
-            'sku' => $this->sku,
-        ]);
-
-        session()->flash('success', 'Товар успешно обновлен.');
-
-        $this->reset();
-    }
-
-    public function deleteProduct($id)
+    public function delete($id)
     {
         Product::findOrFail($id)->delete();
-        $this->dispatch('deleted');
-        $this->showForm = false;
-        session()->flash('success', 'Товар успешно удален.');
+        $this->closeForm();
+        session()->flash('success', 'услуга успешно удален.');
     }
-
-    public function removeImage($index)
-    {
-        unset($this->images[$index]);
-        $this->images = array_values($this->images);
-    }
-
 
     public function createCategory()
     {
@@ -249,24 +190,7 @@ class Services extends Component
     {
         $this->categoryName = '';
         $this->parentCategoryId = null;
+        $this->users = [];
         $this->showCategoryForm = false;
-    }
-
-    public function render()
-    {
-        if (strlen($this->searchTerm) < 3 && strlen($this->searchTerm) > 0) {
-            $products = Product::where('type', 0)->paginate(10);
-        } else {
-            $products = Product::where('type', 0)
-                ->where(function ($query) {
-                    $query->where('name', 'like', '%' . $this->searchTerm . '%');
-                })
-                ->paginate(10);
-        }
-
-        return view('livewire.admin.services', [
-            'products' => $products,
-            'categories' => Category::all(),
-        ]);
     }
 }

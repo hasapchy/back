@@ -10,6 +10,7 @@ use App\Models\WarehouseProductMovement;
 use App\Models\WarehouseProductMovementProduct;
 use App\Services\ProductService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class WarehouseProductMovements extends Component
 {
@@ -30,7 +31,6 @@ class WarehouseProductMovements extends Component
 
     public function boot(ProductService $productService)
     {
-
         $this->productService = $productService;
     }
 
@@ -89,7 +89,6 @@ class WarehouseProductMovements extends Component
 
     public function updated($propertyName)
     {
-
         $this->isDirty = true;
     }
 
@@ -103,10 +102,9 @@ class WarehouseProductMovements extends Component
             'productId',
             'productQuantity',
             'selectedProduct',
-            'productSearch'
+            'productSearch',
+            'transferId'
         ]);
-        $this->transferId = null;
-        $this->showForm = false;
     }
 
     public function addProduct($productId)
@@ -207,7 +205,6 @@ class WarehouseProductMovements extends Component
         }
 
         session()->flash('success', $this->transferId ? 'Перемещение успешно обновлено.' : 'Перемещение успешно выполнено.');
-        $this->resetForm();
         $this->closeForm();
     }
 
@@ -236,9 +233,10 @@ class WarehouseProductMovements extends Component
         }
     }
 
-    public function edit($transferId)
+    public function edit($id)
     {
-        $movement = WarehouseProductMovement::with('products')->findOrFail($transferId);
+        $movement = WarehouseProductMovement::with('products')->findOrFail($id);
+        $this->transferId = $movement->id;
         $this->whFrom = $movement->warehouse_from;
         $this->whTo = $movement->warehouse_to;
         $this->note = $movement->note;
@@ -256,7 +254,7 @@ class WarehouseProductMovements extends Component
                 session()->flash('error', "Товар с ID {$movementProduct->product_id} не найден.");
             }
         }
-        $this->transferId = $transferId;
+
         $this->showForm = true;
     }
 

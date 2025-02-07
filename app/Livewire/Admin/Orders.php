@@ -67,7 +67,7 @@ class Orders extends Component
         $this->transaction_date = now()->toDateString();
         $this->currencies = Currency::all();
         $this->incomeCategories = TransactionCategory::where('type', 1)->get();
-        $this->cashRegisters = CashRegister::all();
+        $this->cashRegisters = CashRegister::whereJsonContains('users', (string) Auth::id())->get();
         $this->displayCurrency = Currency::where('is_report', 1)->first();
     }
 

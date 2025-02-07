@@ -57,10 +57,10 @@
             <div class="mb-4">
                 <label>Склад-отправитель</label>
                 <select wire:model.change="whFrom" class="w-full border rounded"
-                    @if ($selectedProducts && !$transferId) disabled @endif>
+                    @if ($selectedProducts || $transferId ) disabled @endif>
                     <option value="">Выберите склад</option>
                     @foreach ($warehouses as $warehouse)
-                        <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                        <option value="{{ $warehouse->id }}"  @if ($warehouse->id == $whTo) disabled @endif>{{ $warehouse->name }}</option>
                     @endforeach
                 </select>
             </div>

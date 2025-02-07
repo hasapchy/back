@@ -61,10 +61,10 @@ class Templates extends Component
         $this->currencies = Currency::all();
         $this->cashRegisters = Auth::user()->is_admin
             ? CashRegister::all()
-            : CashRegister::whereJsonContains('users', Auth::id())->get();
+            : CashRegister::whereJsonContains('users', (string) Auth::id())->get();
         $this->projects = Auth::user()->is_admin
             ? Project::all()
-            : Project::whereJsonContains('users', Auth::id())->get();
+            : Project::whereJsonContains('users', (string) Auth::id())->get();
     }
 
     public function render()

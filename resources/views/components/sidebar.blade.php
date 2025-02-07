@@ -29,21 +29,7 @@
 
            
 
-            @if (Auth::user()->hasPermission('view_products'))
-                <li class="mb-2">
-                    <a href="{{ route('admin.products.index') }}"
-                        class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.products.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
-                        <i class="fas fa-box mr-2"></i> Товары
-                    </a>
-                </li>
-            @endif
-            {{-- @if (Auth::user()->hasPermission('view_services')) --}}
-            {{-- <li class="mb-2">
-                    <a href="{{ route('admin.services.index') }}" class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.services.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
-                        <i class="fas fa-concierge-bell mr-2"></i> Услуги
-                    </a>
-                </li> --}}
-            {{-- @endif --}}
+  
             <li class="mb-2">
                 <a href="{{ route('admin.orders') }}"
                     class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.orders') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">

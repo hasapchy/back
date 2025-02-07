@@ -28,7 +28,7 @@
             <tbody>
                 @foreach ($currencies as $currency)
                     @if (Auth::user()->hasPermission('edit_currencies'))
-                        <tr wire:click="editCurrency({{ $currency->id }})">
+                        <tr wire:click="edit({{ $currency->id }})">
                     @endif
                     <td class="p-2 border">{{ $currency->id }}</td>
                     <td class="p-2 border">{{ $currency->name }}</td>
@@ -82,7 +82,7 @@
                             class="w-full p-2 mb-2 border rounded">
 
                         <div class="mt-4 flex justify-start space-x-2">
-                            <button wire:click="saveCurrency" class="bg-green-500 text-white px-4 py-2 rounded">
+                            <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                                 <i class="fas fa-save"></i>
                             </button>
                         </div>

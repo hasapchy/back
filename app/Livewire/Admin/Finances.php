@@ -9,9 +9,11 @@ use App\Models\FinancialTransaction;
 use App\Models\TransactionCategory;
 use App\Models\CashTransfer;
 use App\Models\Project;
+use App\Models\ClientBalance;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Order;
 use App\Services\ClientService;
+use App\Services\CurrencyConverter;
 
 class Finances extends Component
 {
@@ -56,7 +58,7 @@ class Finances extends Component
 
     public function mount()
     {
-        $this->cashRegisters = CashRegister::whereJsonContains('users', Auth::id())->get();
+        $this->cashRegisters = CashRegister::whereJsonContains('users', (string) Auth::id())->get();
         $this->currencies = Currency::all();
         $this->projects = Project::whereJsonContains('users', (string) Auth::id())->get();
         $this->cashId = optional($this->cashRegisters->first())->id;
@@ -82,12 +84,12 @@ class Finances extends Component
                 ->orWhere('to_transaction_id', $transaction->id)
                 ->exists();
             $transaction->isSale = FinancialTransaction::where('id', $transaction->id)
-                ->where('note', 'like', '%Продажа товаров%')
+                ->where('note', 'like', '%Продажа%')
                 ->exists();
             return $transaction;
         });
 
-        $currentCashRegister = \App\Models\CashRegister::find($this->cashId);
+        $currentCashRegister = CashRegister::find($this->cashId);
         $currentBalance = $currentCashRegister ? $currentCashRegister->balance : 0;
         $dayBalance = null;
         if ($this->startDate && $this->endDate && $this->startDate === $this->endDate) {
@@ -112,17 +114,9 @@ class Finances extends Component
 
     private function resetForm()
     {
-        $this->transactionId = null;
-        $this->projectId = null;
-        $this->amount = '';
-        $this->note = '';
-        $this->exchange_rate = '';
-        $this->category_id = '';
+        $this->reset('transactionId', 'projectId', 'amount', 'note', 'exchange_rate', 'selectedClient', 'category_id', 'type', 'currency_id');
         $this->transaction_date = now()->toDateString();
-        $this->clients = [];
     }
-
-
 
     public function openForm($transactionId = null)
     {
@@ -155,17 +149,21 @@ class Finances extends Component
             'transaction_date' => 'required|date',
             'client_id'        => 'nullable|exists:clients,id',
             'type'             => 'required|in:1,0',
-            'projectId'        => 'nullable|exists:projects,id', // Add this line
+            'projectId'        => 'nullable|exists:projects,id',
         ]);
 
-        $cashRegister = CashRegister::find($this->cashId);
+        $cashRegister = $this->cashRegisters->firstWhere('id', $this->cashId);
         if (!$cashRegister) {
             session()->flash('error', 'Некорректная касса.');
             return;
         }
 
         $convertedAmount = isset($this->currency_id)
-            ? $this->convertAmount($this->amount, $this->currency_id, $cashRegister->currency_id)
+            ? CurrencyConverter::convert(
+                $this->amount,
+                Currency::find($this->currency_id),
+                Currency::find($cashRegister->currency_id)
+            )
             : $this->amount;
 
         if (!$this->transactionId) {
@@ -174,12 +172,13 @@ class Finances extends Component
                 number_format($this->amount, 2),
                 Currency::find($this->currency_id)->code ?? ''
             );
-            // If a comment was entered, append the initial note; otherwise, set to initial note
             $this->note = trim($this->note) ? $this->note . "\n" . $initialNote : $initialNote;
         }
 
+        // Получаем старые значения, если транзакция уже существует
+        $oldType = null;
+        $oldAmount = null;
         if ($this->transactionId) {
-
             $oldTransaction = FinancialTransaction::find($this->transactionId);
             if ($oldTransaction) {
                 $oldType   = $oldTransaction->type;
@@ -198,26 +197,47 @@ class Finances extends Component
                 'currency_id'      => $cashRegister->currency_id,
                 'category_id'      => $this->category_id,
                 'client_id'        => $this->client_id,
-                'project_id'       => $this->projectId, // Add this line
+                'project_id'       => $this->projectId,
                 'user_id'          => Auth::id(),
             ]
         );
 
-        // Обновление баланса с использованием early return для упрощения логики
-        if ($this->transactionId && isset($oldType) && isset($oldAmount)) {
-            $balanceDifference = ($this->type == 1 ? $convertedAmount : -$convertedAmount) -
-                ($oldType == 1 ? $oldAmount : -$oldAmount);
-            $cashRegister->balance += $balanceDifference;
-        } else {
-            $cashRegister->balance += $this->type == 1 ? $convertedAmount : -$convertedAmount;
+        // Обновляем баланс клиента только один раз.
+        // Логика: если транзакция - РАСХОД (type == 0), баланс клиента увеличивается,
+        // если транзакция - ПРИХОД (type == 1), баланс клиента уменьшается.
+        if ($this->client_id) {
+            $clientBalance = ClientBalance::firstOrCreate(
+                ['client_id' => $this->client_id],
+                ['balance' => 0]
+            );
+
+            // Новое изменение: расход (0) дает +convertedAmount, приход (1) дает -convertedAmount.
+            $newValue = $this->type == 0 ? $convertedAmount : -$convertedAmount;
+
+            if ($this->transactionId && $oldType !== null && $oldAmount !== null) {
+                $oldValue = $oldType == 0 ? $oldAmount : -$oldAmount;
+                $balanceDifference = $newValue - $oldValue;
+                if ($balanceDifference > 0) {
+                    $clientBalance->increment('balance', $balanceDifference);
+                } elseif ($balanceDifference < 0) {
+                    $clientBalance->decrement('balance', abs($balanceDifference));
+                }
+            } else {
+                // Новая транзакция: применяем изменение напрямую.
+                if ($this->type == 0) {
+                    $clientBalance->increment('balance', $convertedAmount);
+                } else {
+                    $clientBalance->decrement('balance', $convertedAmount);
+                }
+            }
         }
-        $cashRegister->save();
 
         session()->flash(
             'message',
-            $this->transactionId
+            ($this->transactionId
                 ? ($this->type == 1 ? 'Приход успешно обновлен.' : 'Расход успешно обновлен.')
                 : ($this->type == 1 ? 'Приход успешно записан.' : 'Расход успешно записан.')
+            )
         );
         $this->closeForm();
     }
@@ -226,7 +246,11 @@ class Finances extends Component
     {
         $transaction = FinancialTransaction::find($this->transactionId);
         if ($transaction) {
-            $cashRegister = CashRegister::find($transaction->cash_register_id);
+            if ($transaction->isSale) {
+                session()->flash('error', 'Нельзя удалить транзакцию продажи.');
+                return;
+            }
+            $cashRegister = $this->cashRegisters->firstWhere('id', $this->cashId);
             $cashRegister->balance += $transaction->type == 1 ? -$transaction->amount : $transaction->amount;
             $cashRegister->save();
             $transaction->delete();
@@ -234,7 +258,6 @@ class Finances extends Component
             $this->closeForm();
         }
     }
-
 
     public function updateDateFilter($startDate, $endDate)
     {
@@ -284,20 +307,6 @@ class Finances extends Component
         $this->clientResults = $this->clientService->getAllClients();
     }
     //поиск клиента конец
-
-    private function convertAmount($amount, $fromCurrencyId, $toCurrencyId)
-    {
-        $fromCurrency = Currency::find($fromCurrencyId);
-        $toCurrency = Currency::find($toCurrencyId);
-        $defaultCurrency = Currency::where('is_default', true)->first();
-
-        if (!$fromCurrency || !$toCurrency || !$defaultCurrency) {
-            return $amount;
-        }
-
-        $convertedAmount = $amount / $fromCurrency->exchange_rate * $defaultCurrency->exchange_rate * $toCurrency->exchange_rate;
-        return $convertedAmount;
-    }
 
     public function updatedClientId()
     {

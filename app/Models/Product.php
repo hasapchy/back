@@ -22,7 +22,7 @@ class Product extends Model
         'type',
     ];
 
-    protected $casts = [    
+    protected $casts = [
         'is_serialized' => 'boolean',
         'type' => 'boolean',
     ];
