@@ -15,6 +15,7 @@
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
+                <th class="p-2 border border-gray-200">ID</th>
                 <th class="p-2 border border-gray-200">Дата</th>
                 <th class="p-2 border border-gray-200">Клиент</th>
                 <th class="p-2 border border-gray-200">Склад</th>
@@ -28,6 +29,7 @@
                 @if (Auth::user()->hasPermission('edit_sales'))
                     <tr wire:click="edit({{ $sale->id }})" class="cursor-pointer hover:bg-gray-100">
                 @endif
+                <td class="p-2 border border-gray-200">{{ $sale->id }}</td>
                 <td class="p-2 border border-gray-200">{{ $sale->transaction_date }}</td>
                 <td class="p-2 border border-gray-200">{{ $sale->client->first_name }}</td>
                 <td class="p-2 border border-gray-200">{{ $sale->warehouse->name }}</td>
@@ -80,6 +82,23 @@
                     @include('components.product-search')
                 @endif
                 <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Тип оплаты</label>
+                    <div class="mt-1 flex items-center">
+                        <label class="mr-4">
+                            <input type="radio" wire:model.change="paymentType" value="0" class="mr-1"
+                                @if ($saleId) disabled @endif>
+                            С баланса
+                        </label>
+                        <label>
+                            <input type="radio" wire:model.change="paymentType" value="1" class="mr-1"
+                                @if ($saleId) disabled @endif>
+                            С кассы
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Модифицируем выбор кассы для отображения только, если выбран тип оплаты "С кассы" -->
+                <div class="mb-4" @if ($paymentType != 1) style="display: none;" @endif>
                     <label for="cash_register" class="block text-sm font-medium text-gray-700">Касса</label>
                     <select id="cash_register" wire:model="cashId"
                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
@@ -184,7 +203,7 @@
                             </tr>
                             <tr>
                                 <td class="p-2 border border-gray-200 font-bold" colspan="2">
-                                    <button type="button" wire:click="openDiscountModal" 
+                                    <button type="button" wire:click="openDiscountModal"
                                         @if ($saleId) disabled @endif>
                                         @if ($totalDiscount == 0)
                                             Добавить скидку <i class="fas fa-plus"></i>

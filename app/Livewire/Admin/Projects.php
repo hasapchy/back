@@ -11,7 +11,7 @@ use App\Services\ClientService;
 
 class Projects extends Component
 {
-    public $projects, $projectTransactions = [], $totalAmount = 0;
+    public $projects, $projectTransactions, $totalAmount = 0;
     public $name, $users = [], $projectId;
     public $showForm = false, $isDirty = false, $showConfirmationModal = false, $allUsers;
     public $clientResults = [], $clientSearch, $selectedClient, $clientId;

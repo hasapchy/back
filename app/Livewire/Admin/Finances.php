@@ -9,6 +9,7 @@ use App\Models\FinancialTransaction;
 use App\Models\TransactionCategory;
 use App\Models\CashTransfer;
 use App\Models\Project;
+use App\Models\ClientBalance;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Order;
 use App\Services\ClientService;
@@ -113,17 +114,9 @@ class Finances extends Component
 
     private function resetForm()
     {
-        $this->transactionId = null;
-        $this->projectId = null;
-        $this->amount = '';
-        $this->note = '';
-        $this->exchange_rate = '';
-        $this->category_id = '';
+        $this->reset('transactionId', 'projectId', 'amount', 'note', 'exchange_rate', 'selectedClient', 'category_id', 'type', 'currency_id');
         $this->transaction_date = now()->toDateString();
-        $this->clients = [];
     }
-
-
 
     public function openForm($transactionId = null)
     {
@@ -166,7 +159,11 @@ class Finances extends Component
         }
 
         $convertedAmount = isset($this->currency_id)
-            ? CurrencyConverter::convert($this->amount, Currency::find($this->currency_id), Currency::find($cashRegister->currency_id))
+            ? CurrencyConverter::convert(
+                $this->amount,
+                Currency::find($this->currency_id),
+                Currency::find($cashRegister->currency_id)
+            )
             : $this->amount;
 
         if (!$this->transactionId) {
@@ -178,6 +175,9 @@ class Finances extends Component
             $this->note = trim($this->note) ? $this->note . "\n" . $initialNote : $initialNote;
         }
 
+        // Получаем старые значения, если транзакция уже существует
+        $oldType = null;
+        $oldAmount = null;
         if ($this->transactionId) {
             $oldTransaction = FinancialTransaction::find($this->transactionId);
             if ($oldTransaction) {
@@ -202,20 +202,42 @@ class Finances extends Component
             ]
         );
 
-        if ($this->transactionId && isset($oldType) && isset($oldAmount)) {
-            $balanceDifference = ($this->type == 1 ? $convertedAmount : -$convertedAmount) -
-                ($oldType == 1 ? $oldAmount : -$oldAmount);
-            $cashRegister->balance += $balanceDifference;
-        } else {
-            $cashRegister->balance += $this->type == 1 ? $convertedAmount : -$convertedAmount;
+        // Обновляем баланс клиента только один раз.
+        // Логика: если транзакция - РАСХОД (type == 0), баланс клиента увеличивается,
+        // если транзакция - ПРИХОД (type == 1), баланс клиента уменьшается.
+        if ($this->client_id) {
+            $clientBalance = ClientBalance::firstOrCreate(
+                ['client_id' => $this->client_id],
+                ['balance' => 0]
+            );
+
+            // Новое изменение: расход (0) дает +convertedAmount, приход (1) дает -convertedAmount.
+            $newValue = $this->type == 0 ? $convertedAmount : -$convertedAmount;
+
+            if ($this->transactionId && $oldType !== null && $oldAmount !== null) {
+                $oldValue = $oldType == 0 ? $oldAmount : -$oldAmount;
+                $balanceDifference = $newValue - $oldValue;
+                if ($balanceDifference > 0) {
+                    $clientBalance->increment('balance', $balanceDifference);
+                } elseif ($balanceDifference < 0) {
+                    $clientBalance->decrement('balance', abs($balanceDifference));
+                }
+            } else {
+                // Новая транзакция: применяем изменение напрямую.
+                if ($this->type == 0) {
+                    $clientBalance->increment('balance', $convertedAmount);
+                } else {
+                    $clientBalance->decrement('balance', $convertedAmount);
+                }
+            }
         }
-        $cashRegister->save();
 
         session()->flash(
             'message',
-            $this->transactionId
+            ($this->transactionId
                 ? ($this->type == 1 ? 'Приход успешно обновлен.' : 'Расход успешно обновлен.')
                 : ($this->type == 1 ? 'Приход успешно записан.' : 'Расход успешно записан.')
+            )
         );
         $this->closeForm();
     }
