@@ -9,28 +9,6 @@
                 <i class="fas fa-user-plus"></i>
             </button>
         @endif
-        {{-- <div class="flex space-x-2">
-            <div class="relative">
-                <select wire:model.change="clientTypeFilter" class="border rounded p-2 appearance-none">
-                    <option value="all">Все типы клиентов</option>
-                    <option value="individual">Физ. лица</option>
-                    <option value="company">Компании</option>
-                </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-            </div>
-            <div class="relative">
-                <select wire:model.change="supplierFilter" class="border rounded p-2 appearance-none">
-                    <option value="all">Все</option>
-                    <option value="supplier">Поставщики</option>
-                    <option value="client">Покупатели</option>
-                </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-            </div>
-        </div> --}}
     </div>
 
     <div id="table-container" wire:ignore>
@@ -88,11 +66,11 @@
     </div>
 
     <div id="modalBackground"
-        class="fixed overflow-y-auto inset-0 bg-gray-900 bg-opacity-50 z-40 
+        class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 
         transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
         wire:click="closeForm">
         <div id="form"
-            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
+            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4 overflow-y-auto"
             style="transform: {{ $showForm ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
             <button wire:click="closeForm" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
                 style="right: 1rem;">
@@ -229,12 +207,12 @@
                     <div class="mb-2">
                         <label class="block font-medium mb-1">Скидка</label>
                         <div class="flex items-center space-x-2">
-                            <select wire:model="discount_type" class="border rounded p-2">
+                            <input type="number" step="0.01" wire:model="discount_value"
+                                placeholder="Значение скидки" class="border rounded p-2 w-24">
+                            <select wire:model="discount_type" class="border rounded p-2 w-36">
                                 <option value="fixed">Фиксированная</option>
                                 <option value="percentage">Процентная</option>
                             </select>
-                            <input type="number" step="0.01" wire:model="discount_value"
-                                placeholder="Значение скидки" class="border rounded p-2">
                         </div>
                     </div>
 
@@ -243,16 +221,24 @@
                             <i class="fas fa-save"></i>
                         </button>
                     </div>
-
                 </div>
 
-                <!-- filepath: /d:/OSPanel/domains/rem-online/resources/views/livewire/admin/clients.blade.php -->
                 <div x-show="activeTab === 2">
                     <p class="mb-4">
                         Текущий баланс:
-                        <span class="{{ $clientBalance < 0 ? 'text-red-500' : 'text-green-500' }}">
-                            {{ $clientBalance }}
-                        </span>
+                        @if ($clientBalance < 0)
+                            <span class="text-red-500">
+                                -{{ number_format(abs($clientBalance), 2) }} Мы должны клиенту эту сумму
+                            </span>
+                        @elseif($clientBalance > 0)
+                            <span class="text-green-500">
+                                +{{ number_format($clientBalance, 2) }} Клиент должен нам эту сумму
+                            </span>
+                        @else
+                            <span class="text-gray-500">
+                                {{ number_format($clientBalance, 2) }} Мы в расчете с клиентом
+                            </span>
+                        @endif
                     </p>
                     <table class="w-full border-collapse">
                         <thead>
@@ -264,23 +250,13 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($transactions as $transaction)
-                                @php
-                                    $date = $transaction['transaction_date'] ?? ($transaction['created_at'] ?? null);
-                                    $dateFormatted = $date ? \Carbon\Carbon::parse($date)->format('d-m-Y') : '-';
-                                    $typeStr = $transaction['event_type'] ?? 'Неизвестно';
-                                    $amount = $transaction['amount'] ?? 0;
-                                    $isIncome = in_array($typeStr, ['Приход', 'Продажа', 'Оприходование']);
-                                    $amountFormatted = $isIncome
-                                        ? '-' . number_format($amount, 2)
-                                        : '+' . number_format($amount, 2);
-                                    $amountClass = $isIncome ? 'text-red-500' : 'text-green-500';
-                                @endphp
+                            @foreach ($this->formattedTransactions as $transaction)
                                 <tr>
-                                    <td class="border p-2">{{ $dateFormatted }}</td>
-                                    <td class="border p-2">{{ $typeStr }}</td>
-                                    <td class="border p-2 {{ $amountClass }}">{{ $amountFormatted }}</td>
-                                    <td class="border p-2">{{ $transaction['note'] ?? '-' }}</td>
+                                    <td class="border p-2">{{ $transaction['dateFormatted'] }}</td>
+                                    <td class="border p-2">{{ $transaction['typeStr'] }}</td>
+                                    <td class="border p-2 {{ $transaction['amountClass'] }}">
+                                        {{ $transaction['amountFormatted'] }}</td>
+                                    <td class="border p-2">{{ $transaction['note'] }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

@@ -5,14 +5,13 @@ namespace App\Livewire\Admin;
 use Livewire\Component;
 use App\Models\Client;
 use App\Models\ClientsPhone;
-use App\Models\ClientsEmail;
-use Illuminate\Support\Facades\Auth;
 use App\Models\FinancialTransaction;
 use App\Models\ClientBalance;
 use App\Models\WarehouseProductReceipt;
 use App\Models\Discount;
 use App\Models\Project;
 use App\Models\Order;
+use Carbon\Carbon;
 
 class Clients extends Component
 {
@@ -233,15 +232,15 @@ class Clients extends Component
         $this->phones = $client->phones->map(fn($phone) => ['number' => $phone->phone, 'sms' => $phone->is_sms])->toArray();
         $this->emails = $client->emails->pluck('email')->toArray();
         $this->clientBalance = ClientBalance::where('client_id', $client->id)->value('balance') ?? 0;
+
+        // Загружаем транзакции из FinancialTransaction
         $salesAndExpenses = FinancialTransaction::where('client_id', $client->id)
             ->get()
             ->map(function ($transaction) {
                 $transaction->isOrder = Order::where('client_id', $transaction->client_id)
                     ->whereJsonContains('transaction_ids', $transaction->id)
                     ->exists();
-                $transaction->isSale = stripos($transaction->note, 'Продажа товаров') !== false;
-
-                if ($transaction->isSale) {
+                if (stripos($transaction->note, 'Продажа товаров') !== false) {
                     $transaction->event_type = 'Продажа';
                 } elseif ($transaction->isOrder) {
                     $transaction->event_type = 'Заказ';
@@ -256,7 +255,7 @@ class Clients extends Component
             })
             ->toArray();
 
-        // Получаем оприходования (WarehouseProductReceipt)
+        // Загружаем оприходования из WarehouseProductReceipt
         $receipts = WarehouseProductReceipt::where('supplier_id', $client->id)
             ->get()
             ->map(function ($receipt) {
@@ -268,16 +267,32 @@ class Clients extends Component
             })
             ->toArray();
 
-        $this->transactions = array_merge($salesAndExpenses, $receipts); 
+        // Загружаем продажи с баланса из таблицы sales (без cash_register_id)
+        $salesFromBalance = \App\Models\Sale::where('client_id', $client->id)
+            ->whereNull('cash_register_id')
+            ->get()
+            ->map(function ($sale) {
+                $saleArray = $sale->toArray();
+                // Устанавливаем event_type как 'Продажа'
+                $saleArray['event_type'] = 'Продажа';
+                // Берем сумму продажи из total_amount (предполагается, что там итоговая сумма)
+                $saleArray['amount'] = $sale->total_amount;
+                $saleArray['transaction_date'] = $sale->transaction_date ?? $sale->created_at;
+                return $saleArray;
+            })
+            ->toArray();
 
+        // Объединяем все транзакции
+        $this->transactions = array_merge($salesAndExpenses, $receipts, $salesFromBalance);
+
+        // Сортируем по дате (самое последнее действие сверху)
         usort($this->transactions, function ($a, $b) {
-            $dateA = strtotime($a['transaction_date'] ?? $a['created_at'] ?? '');
-            $dateB = strtotime($b['transaction_date'] ?? $b['created_at'] ?? '');
-            return $dateB - $dateA;
+            $aDate = isset($a['created_at']) ? strtotime($a['created_at']) : strtotime($a['transaction_date'] ?? '0');
+            $bDate = isset($b['created_at']) ? strtotime($b['created_at']) : strtotime($b['transaction_date'] ?? '0');
+            return $bDate - $aDate;
         });
-        $stockReceptions = WarehouseProductReceipt::where('supplier_id', $client->id)->get()->toArray();
-        $this->transactions = array_merge($this->transactions, $stockReceptions);
-        usort($this->transactions, fn($a, $b) => strtotime($b['transaction_date'] ?? $b['created_at']) - strtotime($a['transaction_date'] ?? $a['created_at']));
+
+        // Загружаем скидку
         $discount = Discount::where('client_id', $client->id)->first();
         if ($discount) {
             $this->discount_type = $discount->discount_type;
@@ -355,5 +370,48 @@ class Clients extends Component
                 ]
             );
         }
+    }
+    public function getFormattedTransactionsProperty()
+    {
+        return collect($this->transactions)->map(function ($transaction) {
+            $date = $transaction['transaction_date'] ?? ($transaction['created_at'] ?? null);
+            $dateFormatted = $date ? Carbon::parse($date)->format('d-m-Y') : '-';
+            $typeStr = $transaction['event_type'] ?? 'Неизвестно';
+            $amount = $transaction['amount'] ?? 0;
+
+            // Если это продажа – отображаем с плюсом и зелёным цветом (без лишних уточнений)
+            if ($typeStr === 'Продажа') {
+                return [
+                    'dateFormatted'   => $dateFormatted,
+                    'typeStr'         => 'Продажа',
+                    'amount'          => $amount,
+                    'amountFormatted' => '+' . number_format($amount, 2),
+                    'amountClass'     => 'text-green-500',
+                    'note'            => $transaction['note'] ?? '-'
+                ];
+            }
+
+            // Если событие "Приход", всегда отображаем со знаком минус (красным)
+            if ($typeStr === 'Приход') {
+                return [
+                    'dateFormatted'   => $dateFormatted,
+                    'typeStr'         => 'Приход',
+                    'amount'          => -$amount,
+                    'amountFormatted' => '-' . number_format($amount, 2),
+                    'amountClass'     => 'text-red-500',
+                    'note'            => $transaction['note'] ?? '-'
+                ];
+            }
+
+            // Для остальных событий (например, "Расход", "Оприходование") – значение минус
+            return [
+                'dateFormatted'   => $dateFormatted,
+                'typeStr'         => $typeStr,
+                'amount'          => -$amount,
+                'amountFormatted' => '-' . number_format($amount, 2),
+                'amountClass'     => 'text-red-500',
+                'note'            => $transaction['note'] ?? '-'
+            ];
+        })->toArray();
     }
 }

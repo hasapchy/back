@@ -94,7 +94,7 @@
             @foreach ($transactions as $transaction)
                 <tr wire:click="{{ !$transaction->isTransfer && !$transaction->isOrder && !$transaction->isSale ? 'openForm(' . $transaction->id . ')' : '' }}"
                     class="cursor-pointer {{ $transaction->isTransfer || $transaction->isOrder || $transaction->isSale ? 'opacity-50 cursor-not-allowed' : '' }}">
-                    <td class="border p-2">{{ $transaction->id}}</td>
+                    <td class="border p-2">{{ $transaction->id }}</td>
                     <td class="border p-2 {{ $transaction->type == 1 ? 'bg-green-200' : 'bg-red-200' }}">
                         {{ $transaction->type == 1 ? 'Приход' : 'Расход' }}
                     </td>
@@ -109,11 +109,10 @@
         </tbody>
     </table>
 
-    <!-- Модальное окно для транзакций -->
+
     <div id="transactionModalBackground"
         class="fixed overflow-y-auto inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
         wire:click="closeForm">
-
         <div id="transactionForm"
             class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
             style="transform: {{ $showForm ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
@@ -121,17 +120,15 @@
                 style="right: 1rem;">
                 &times;
             </button>
-            {{-- @include('components.confirmation-modal') --}}
             <h2 class="text-xl font-bold mb-4">
                 {{ $transactionId ? 'Редактировать транзакцию' : 'Создать транзакцию' }}</h2>
             <div class="mb-2">
                 <label class="block mb-1">Тип транзакции</label>
-                <select wire:model.change="type" class="w-full p-2 border rounded">
+                <select wire:model.change="type" class="w-full p-2 border rounded" {{ $transactionId ? 'disabled' : '' }}>
                     <option value="">Выберите тип транзакции</option>
                     <option value="1">Приход</option>
                     <option value="0">Расход</option>
                 </select>
-
             </div>
 
             <div class="mb-2">

@@ -12,6 +12,6 @@ class Discount extends Model
     protected $fillable = [
         'client_id',
         'discount_type',
-         'discount_value'
+        'discount_value'
     ];
 }
