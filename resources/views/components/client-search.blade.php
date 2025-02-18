@@ -8,9 +8,18 @@
         <ul x-show="showDropdown" class="absolute bg-white border rounded shadow-lg max-h-40 overflow-y-auto w-full mt-1 z-10">
             @foreach ($clientResults as $client)
                 <li wire:click="selectClient({{ $client->id }})" @click="showDropdown = false"
-                    class="cursor-pointer p-2 border-b hover:bg-gray-100">{{ $client->first_name }}
-                    {{ $client->phones->first()->phone }} <span
-                        class="{{ optional($client->balance)->balance > 0 ? 'text-green-500' : 'text-red-500' }}">{{ $client->balance->balance ?? 0 }}<span>
+                    class="cursor-pointer p-2 border-b hover:bg-gray-100">
+                    {{ $client->first_name }} {{ $client->phones->first()->phone }} 
+                    <span class="{{ optional($client->balance)->balance > 0 ? 'text-green-500' : 'text-red-500' }}">
+                        {{ $client->balance->balance ?? 0 }}
+                        @if(optional($client->balance)->balance > 0)
+                            (Клиент должен нам)
+                        @elseif(optional($client->balance)->balance < 0)
+                            (Мы должны клиенту)
+                        @else
+                            (0)
+                        @endif
+                    </span>
                 </li>
             @endforeach
         </ul>
@@ -26,9 +35,15 @@
                     <p><strong>Имя:</strong> {{ $selectedClient->first_name }}</p>
                     <p><strong>Номер:</strong> {{ $selectedClient->phones->first()->phone }}</p>
                     <p><strong>Баланс:</strong>
-                        <span
-                            class="{{ optional($selectedClient->balance)->balance > 0 ? 'text-green-500' : 'text-red-500' }}">
-                            {{ optional($selectedClient->balance)->balance }}
+                        <span class="{{ optional($selectedClient->balance)->balance > 0 ? 'text-green-500' : 'text-red-500' }}">
+                            {{ $selectedClient->balance->balance ?? 0 }}
+                            @if (optional($selectedClient->balance)->balance > 0)
+                                (Клиент должен нам)
+                            @elseif(optional($selectedClient->balance)->balance < 0)
+                                (Мы должны клиенту)
+                            @else
+                                (0)
+                            @endif
                         </span>
                     </p>
                 </div>

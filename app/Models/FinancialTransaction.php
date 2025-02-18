@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class FinancialTransaction extends Model
 {
     use HasFactory;
-
+    protected $skipClientBalanceUpdate = false;
     protected $fillable = [
         'type',
         'amount',
@@ -22,42 +22,56 @@ class FinancialTransaction extends Model
         'project_id',
     ];
 
+    protected $hidden = [
+        'skipClientBalanceUpdate',
+    ];
+
+    public function setSkipClientBalanceUpdate($value)
+    {
+        $this->skipClientBalanceUpdate = $value;
+    }
+
+    public function getSkipClientBalanceUpdate()
+    {
+        return $this->skipClientBalanceUpdate;
+    }
+
     protected static function booted()
     {
         static::created(function ($transaction) {
-            if ($transaction->client_id) {
+            if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
-                if ($transaction->type == 1) { // 1 for income
-                    $clientBalance->balance -= $transaction->amount; // Client gave money, decrease balance
-                } else { // 0 for expense
-                    $clientBalance->balance += $transaction->amount; // Client received money, increase balance
+                if ($transaction->type == 1) {
+                    $clientBalance->balance += $transaction->amount;
+                } else {
+                    $clientBalance->balance -= $transaction->amount;
                 }
                 $clientBalance->save();
             }
         });
 
         static::updated(function ($transaction) {
-            if ($transaction->client_id) {
+            if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
                 $originalAmount = $transaction->getOriginal('amount');
-                if ($transaction->type == 1) { // 1 for income
-                    $clientBalance->balance += $originalAmount; // Revert original amount
-                    $clientBalance->balance -= $transaction->amount; // Apply new amount
-                } else { // 0 for expense
-                    $clientBalance->balance -= $originalAmount; // Revert original amount
-                    $clientBalance->balance += $transaction->amount; // Apply new amount
+                if ($transaction->type == 1) {
+                    $clientBalance->balance -= $originalAmount;
+                    $clientBalance->balance += $transaction->amount;
+                } else {
+                    $clientBalance->balance += $originalAmount;
+                    $clientBalance->balance -= $transaction->amount;
                 }
                 $clientBalance->save();
             }
         });
 
         static::deleted(function ($transaction) {
-            if ($transaction->client_id) {
+            if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
-                if ($transaction->type == 1) { // 1 for income
-                    $clientBalance->balance += $transaction->amount; // Revert income
-                } else { // 0 for expense
-                    $clientBalance->balance -= $transaction->amount; // Revert expense
+                if ($transaction->type == 1) {
+                    $clientBalance->balance -= $transaction->amount;
+                } else {
+                    $clientBalance->balance += $transaction->amount;
                 }
                 $clientBalance->save();
             }

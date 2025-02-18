@@ -121,16 +121,16 @@ class Finances extends Component
     public function openForm($transactionId = null)
     {
         $this->resetForm();
-        if ($transactionId && $transaction = FinancialTransaction::find($transactionId)) {
+
+        if ($transactionId && ($transaction = FinancialTransaction::find($transactionId))) {
             $this->fill($transaction->toArray());
-            $this->projectId = $transaction->project_id;
-            $this->category_id = $transaction->category_id;
             if ($transaction->client_id) {
                 $this->client_id = $transaction->client_id;
                 $this->selectedClient = $this->clientService->getClientById($transaction->client_id);
             }
             $this->transactionId = $transaction->id;
         }
+
         $this->showForm = true;
     }
 
@@ -158,35 +158,31 @@ class Finances extends Component
             return;
         }
 
-        $convertedAmount = isset($this->currency_id)
-            ? CurrencyConverter::convert(
-                $this->amount,
-                Currency::find($this->currency_id),
-                Currency::find($cashRegister->currency_id)
-            )
+        $fromCurrency = $this->currency_id ? Currency::find($this->currency_id) : null;
+        $toCurrency   = Currency::find($cashRegister->currency_id);
+        $convertedAmount = $fromCurrency
+            ? CurrencyConverter::convert($this->amount, $fromCurrency, $toCurrency)
             : $this->amount;
 
         if (!$this->transactionId) {
-            $initialNote = sprintf(
-                "(Изначальная сумма: %s %s)",
-                number_format($this->amount, 2),
-                Currency::find($this->currency_id)->code ?? ''
-            );
-            $this->note = trim($this->note) ? $this->note . "\n" . $initialNote : $initialNote;
+            $code = $fromCurrency ? $fromCurrency->code : '';
+            $initialNote = sprintf("(Изначальная сумма: %s %s)", number_format($this->amount, 2), $code);
+            $this->note = trim($this->note)
+                ? $this->note . "\n" . $initialNote
+                : $initialNote;
         }
 
-        // Получаем старые значения, если транзакция уже существует
-        $oldType = null;
-        $oldAmount = null;
-        if ($this->transactionId) {
-            $oldTransaction = FinancialTransaction::find($this->transactionId);
-            if ($oldTransaction) {
-                $oldType   = $oldTransaction->type;
-                $oldAmount = $oldTransaction->amount;
+        $oldTransaction = FinancialTransaction::find($this->transactionId);
+
+        if ($oldTransaction) {
+            if ($oldTransaction->type == 1) {
+                $cashRegister->balance += $oldTransaction->amount;
+            } else {
+                $cashRegister->balance -= $oldTransaction->amount;
             }
         }
 
-        FinancialTransaction::updateOrCreate(
+        $transaction = FinancialTransaction::updateOrCreate(
             ['id' => $this->transactionId],
             [
                 'type'             => $this->type,
@@ -194,7 +190,7 @@ class Finances extends Component
                 'cash_register_id' => $this->cashId,
                 'note'             => $this->note,
                 'transaction_date' => $this->transaction_date,
-                'currency_id'      => $cashRegister->currency_id,
+                'currency_id'      => $toCurrency->id,
                 'category_id'      => $this->category_id,
                 'client_id'        => $this->client_id,
                 'project_id'       => $this->projectId,
@@ -202,42 +198,18 @@ class Finances extends Component
             ]
         );
 
-        // Обновляем баланс клиента только один раз.
-        // Логика: если транзакция - РАСХОД (type == 0), баланс клиента увеличивается,
-        // если транзакция - ПРИХОД (type == 1), баланс клиента уменьшается.
-        if ($this->client_id) {
-            $clientBalance = ClientBalance::firstOrCreate(
-                ['client_id' => $this->client_id],
-                ['balance' => 0]
-            );
-
-            // Новое изменение: расход (0) дает +convertedAmount, приход (1) дает -convertedAmount.
-            $newValue = $this->type == 0 ? $convertedAmount : -$convertedAmount;
-
-            if ($this->transactionId && $oldType !== null && $oldAmount !== null) {
-                $oldValue = $oldType == 0 ? $oldAmount : -$oldAmount;
-                $balanceDifference = $newValue - $oldValue;
-                if ($balanceDifference > 0) {
-                    $clientBalance->increment('balance', $balanceDifference);
-                } elseif ($balanceDifference < 0) {
-                    $clientBalance->decrement('balance', abs($balanceDifference));
-                }
-            } else {
-                // Новая транзакция: применяем изменение напрямую.
-                if ($this->type == 0) {
-                    $clientBalance->increment('balance', $convertedAmount);
-                } else {
-                    $clientBalance->decrement('balance', $convertedAmount);
-                }
-            }
+        if ($this->type == 0) {
+            $cashRegister->balance -= $convertedAmount;
+        } else {
+            $cashRegister->balance += $convertedAmount;
         }
+        $cashRegister->save();
 
         session()->flash(
             'message',
-            ($this->transactionId
+            $oldTransaction
                 ? ($this->type == 1 ? 'Приход успешно обновлен.' : 'Расход успешно обновлен.')
                 : ($this->type == 1 ? 'Приход успешно записан.' : 'Расход успешно записан.')
-            )
         );
         $this->closeForm();
     }
@@ -251,10 +223,17 @@ class Finances extends Component
                 return;
             }
             $cashRegister = $this->cashRegisters->firstWhere('id', $this->cashId);
-            $cashRegister->balance += $transaction->type == 1 ? -$transaction->amount : $transaction->amount;
+            if ($transaction->type == 0) {
+                $cashRegister->balance += $transaction->amount;
+            } else {
+                $cashRegister->balance -= $transaction->amount;
+            }
             $cashRegister->save();
             $transaction->delete();
-            session()->flash('message', $transaction->type == 1 ? 'Приход успешно удален.' : 'Расход успешно удален.');
+            session()->flash(
+                'message',
+                $transaction->type == 1 ? 'Приход успешно удален.' : 'Расход успешно удален.'
+            );
             $this->closeForm();
         }
     }
@@ -276,7 +255,9 @@ class Finances extends Component
 
         $this->transactions = $transactionsQuery->with('user', 'currency')
             ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc')
             ->get();
+
         $this->totalIncome = $this->transactions->where('type', 1)->sum('amount');
         $this->totalExpense = $this->transactions->where('type', 0)->sum('amount');
     }
