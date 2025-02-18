@@ -159,7 +159,7 @@
 
 
             <div class="flex justify-start mt-4">
-                <button wire:click="saveReception" class="bg-green-500 text-white px-4 py-2 rounded mr-2">
+                <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded mr-2">
                     <i class="fas fa-save"></i>
                 </button>
                 @if (Auth::user()->hasPermission('delete_receipts'))
