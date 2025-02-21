@@ -47,12 +47,12 @@ class Order extends Model
 
     public function transaction()
     {
-        return $this->belongsTo(FinancialTransaction::class);
+        return $this->belongsTo(Transaction::class);
     }
 
     public function transactions()
     {
-        return $this->hasMany(FinancialTransaction::class, 'id', 'transaction_ids');
+        return $this->hasMany(Transaction::class, 'id', 'transaction_ids');
     }
 
     public function orderProducts()

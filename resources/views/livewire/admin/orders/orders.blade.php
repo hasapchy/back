@@ -71,19 +71,18 @@
                 </li>
                 @if ($order_id)
                     <li class="-mb-px mr-1">
+                        <a :class="{ 'border-l border-t border-r rounded-t text-blue-700': activeTab === 'products' }"
+                            @click.prevent="activeTab = 'products'"
+                            class="bg-white inline-block py-2 px-4 text-blue-500 hover:text-blue-800 font-semibold"
+                            href="#">Товары и Услуги</a>
+                    </li>
+                    <li class="-mb-px mr-1">
                         <a :class="{ 'border-l border-t border-r rounded-t text-blue-700': activeTab === 'transaction' }"
                             @click.prevent="activeTab = 'transaction'"
                             class="bg-white inline-block py-2 px-4 text-blue-500 hover:text-blue-800 font-semibold"
                             href="#">Транзакции</a>
                     </li>
                 @endif
-                <!-- Новая вкладка для товаров и услуг -->
-                <li class="-mb-px mr-1">
-                    <a :class="{ 'border-l border-t border-r rounded-t text-blue-700': activeTab === 'products' }"
-                        @click.prevent="activeTab = 'products'"
-                        class="bg-white inline-block py-2 px-4 text-blue-500 hover:text-blue-800 font-semibold"
-                        href="#">Товары и Услуги</a>
-                </li>
             </ul>
 
             <div x-show="activeTab === 'order'">
@@ -124,7 +123,7 @@
                 </div>
 
                 <div class="flex space-x-2">
-                    <button wire:click="store" class="bg-green-500 text-white px-4 py-2 rounded">
+                    <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                         <i class="fas fa-save"></i>
                     </button>
                     {{-- @if (Auth::user()->hasPermission('delete_order')) --}}
@@ -201,7 +200,7 @@
                                         <td class="p-2 border border-gray-200">{{ $transaction->note }}</td>
                                         <td class="p-2 border border-gray-200">{{ $transaction->amount }}
                                             {{ $transaction->currency->symbol }}</td>
-                                        <td class="p-2 border border-gray-200">{{ $transaction->transaction_date }}
+                                        <td class="p-2 border border-gray-200">{{ $transaction->tr_date }}
                                         </td>
                                         <td class="p-2 border border-gray-200">{{ $transaction->category->name }}</td>
                                         <td class="p-2 border border-gray-200">
@@ -250,37 +249,59 @@
             <h2 class="text-xl font-bold mb-4">Создать Транзакцию</h2>
             <div class="mb-4">
                 <label class="block mb-1">Дата</label>
-                <input type="date" wire:model="transaction_date" class="w-full p-2 border rounded">
+                <input type="date" wire:model="tr_date" class="w-full p-2 border rounded">
             </div>
             <div class="mb-4">
                 <label class="block mb-1">Сумма</label>
-                <input type="number" wire:model="transaction_amount" placeholder="Сумма"
+                <input type="number" wire:model="tr_amount" placeholder="Сумма"
                     class="w-full p-2 border rounded">
             </div>
-
+            <!-- Новое поле для выбора типа транзакции -->
+            <div class="mb-4">
+                <label class="block mb-1">Тип транзакции</label>
+                <select wire:model="tr_type" class="w-full p-2 border rounded">
+                    <option value="">Выберите тип</option>
+                    <option value="1">Приход</option>
+                    <option value="0">Расход</option>
+                </select>
+            </div>
             <div class="mb-4">
                 <label class="block mb-1">Валюта</label>
-                <select wire:model="transaction_currency_id" class="w-full p-2 border rounded">
+                <select wire:model="tr_currency_id" class="w-full p-2 border rounded">
                     <option value="">Выберите валюту</option>
                     @foreach ($currencies as $currency)
                         <option value="{{ $currency->id }}">{{ $currency->name }}</option>
                     @endforeach
                 </select>
             </div>
-
-            <div class="mb-4">
-                <label class="block mb-1">Статья прихода</label>
-                <select wire:model="transaction_category_id" class="w-full p-2 border rounded">
-                    <option value="">Выберите статью</option>
-                    @foreach ($incomeCategories as $category)
-                        <option value="{{ $category->id }}">{{ $category->name }}</option>
-                    @endforeach
-                </select>
+            <!-- Обновлённое поле для выбора статьи транзакции -->
+            <div class="mb-4" x-data="{ type: @entangle('tr_type') }">
+                <template x-if="type == '0'">
+                    <div>
+                        <label class="block mb-1">Статья расхода</label>
+                        <select wire:model="tr_category_id" class="w-full p-2 border rounded">
+                            <option value="">Выберите статью</option>
+                            @foreach ($expenseCategories as $category)
+                                <option value="{{ $category->id }}">{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </template>
+                <template x-if="type == '1' || type == ''">
+                    <div>
+                        <label class="block mb-1">Статья прихода</label>
+                        <select wire:model="tr_category_id" class="w-full p-2 border rounded">
+                            <option value="">Выберите статью</option>
+                            @foreach ($incomeCategories as $category)
+                                <option value="{{ $category->id }}">{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </template>
             </div>
-
             <div class="mb-4">
                 <label class="block mb-1">Касса</label>
-                <select wire:model="transaction_cash_register_id" class="w-full p-2 border rounded">
+                <select wire:model="tr_cash_id" class="w-full p-2 border rounded">
                     <option value="">Выберите кассу</option>
                     @foreach ($cashRegisters as $cashRegister)
                         <option value="{{ $cashRegister->id }}">{{ $cashRegister->name }}</option>
@@ -289,14 +310,13 @@
             </div>
             <div class="mb-4">
                 <label class="block mb-1">Примечание</label>
-                <textarea wire:model="transaction_note" placeholder="Примечание" class="w-full p-2 border rounded"></textarea>
+                <textarea wire:model="tr_note" placeholder="Примечание" class="w-full p-2 border rounded"></textarea>
             </div>
             <div class="flex space-x-2">
-                <button wire:click="createTransaction" class="bg-green-500 text-white px-4 py-2 rounded">
+                <button wire:click="saveTransaction" class="bg-green-500 text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
             </div>
         </div>
-       
     </div>
 </div>

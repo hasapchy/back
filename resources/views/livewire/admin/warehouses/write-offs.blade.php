@@ -58,6 +58,12 @@
                 &times;
             </button>
             <h2 class="text-xl font-bold mb-4">{{ $writeOffId ? 'Редактировать списание' : 'Новое списание' }}</h2>
+
+            <div class="mb-4">
+                <label>Дата списания</label>
+                <input type="datetime-local" wire:model="date" class="w-full border rounded">
+            </div>
+            
             <div class="mb-4">
                 <label>Склад</label>
                 <select wire:model.change="warehouseId" class="w-full border rounded"
@@ -77,6 +83,8 @@
                 <label>Причина списания</label>
                 <textarea wire:model="note" class="w-full border rounded"></textarea>
             </div>
+
+
 
             <h3 class="text-lg font-bold mb-4">Выбранные товары</h3>
             <table class="min-w-full bg-white shadow-md rounded mb-6">

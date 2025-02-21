@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class WarehouseProductWriteOff extends Model
+class WhWriteoff extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['warehouse_id', 'note'];
+    protected $fillable = ['warehouse_id', 'note', 'date'];
 
     public function warehouse()
     {
@@ -18,7 +18,7 @@ class WarehouseProductWriteOff extends Model
 
     public function writeOffProducts()
     {
-        return $this->hasMany(WarehouseProductWriteOffProduct::class, 'write_off_id');
+        return $this->hasMany(WhWriteoffProduct::class, 'write_off_id');
     }
 
     public function product()

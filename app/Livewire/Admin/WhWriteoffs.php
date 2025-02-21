@@ -6,13 +6,13 @@ use Livewire\Component;
 use App\Models\Warehouse;
 use App\Models\Product;
 use App\Models\WarehouseStock;
-use App\Models\WarehouseProductWriteOff;
-use App\Models\WarehouseProductWriteOffProduct;
+use App\Models\WhWriteoff;
+use App\Models\WhWriteoffProduct;
 use App\Services\ProductService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
-class WarehouseProductWriteOffs extends Component
+class WhWriteoffs extends Component
 {
     public $warehouseId, $selectedProducts = [], $note, $date, $stockWriteOffs, $showPForm = false, $productQuantity = 1;
     public $productId, $warehouseProducts = [], $warehouses = [], $showForm = false, $showConfirmationModal = false;
@@ -30,7 +30,7 @@ class WarehouseProductWriteOffs extends Component
 
     public function mount()
     {
-        $this->date = now()->format('Y-m-d');
+        $this->date = now()->format('Y-m-d\TH:i');
         $this->warehouses = Warehouse::whereJsonContains('users', (string) Auth::id())->get();
         $this->loadWriteOffs();
         $this->loadProducts();
@@ -43,7 +43,7 @@ class WarehouseProductWriteOffs extends Component
 
     public function loadWriteOffs()
     {
-        $query = WarehouseProductWriteOff::with(['warehouse', 'writeOffProducts.product'])
+        $query = WhWriteoff::with(['warehouse', 'writeOffProducts.product'])
             ->orderBy('created_at', 'desc');
 
         if ($this->startDate && $this->endDate) {
@@ -161,6 +161,7 @@ class WarehouseProductWriteOffs extends Component
             'warehouseId' => 'required|exists:warehouses,id',
             'note'              => 'required|string|max:255',
             'selectedProducts'  => 'required|array|min:1',
+            'date'             => 'required|date',
         ]);
 
         foreach ($this->selectedProducts as $productId => $details) {
@@ -177,7 +178,7 @@ class WarehouseProductWriteOffs extends Component
         try {
             // Если редактируем списание - возвращаем товар на склад
             if ($this->writeOffId) {
-                $original = WarehouseProductWriteOff::with('writeOffProducts')->findOrFail($this->writeOffId);
+                $original = WhWriteoff::with('writeOffProducts')->findOrFail($this->writeOffId);
                 foreach ($original->writeOffProducts as $origProduct) {
                     WarehouseStock::where('warehouse_id', $original->warehouse_id)
                         ->where('product_id', $origProduct->product_id)
@@ -185,11 +186,12 @@ class WarehouseProductWriteOffs extends Component
                 }
             }
 
-            $writeOff = WarehouseProductWriteOff::updateOrCreate(
+            $writeOff = WhWriteoff::updateOrCreate(
                 ['id' => $this->writeOffId],
                 [
                     'warehouse_id' => $this->warehouseId,
                     'note'         => $this->note,
+                    'date'         => $this->date,
                 ]
             );
 
@@ -200,7 +202,7 @@ class WarehouseProductWriteOffs extends Component
 
             // Создаем новые записи и обновляем остатки
             foreach ($this->selectedProducts as $productId => $details) {
-                WarehouseProductWriteOffProduct::create([
+                WhWriteoffProduct::create([
                     'write_off_id' => $writeOff->id,
                     'product_id'   => $productId,
                     'quantity'     => $details['quantity'],
@@ -225,7 +227,7 @@ class WarehouseProductWriteOffs extends Component
 
     public function edit($id)
     {
-        $writeOff = WarehouseProductWriteOff::with('writeOffProducts.product')->findOrFail($id);
+        $writeOff = WhWriteoff::with('writeOffProducts.product')->findOrFail($id);
         $this->writeOffId = $writeOff->id;
         $this->warehouseId = $writeOff->warehouse_id;
         $this->note = $writeOff->note;
@@ -247,7 +249,7 @@ class WarehouseProductWriteOffs extends Component
             return;
         }
 
-        $writeOff = WarehouseProductWriteOff::with('writeOffProducts')->findOrFail($this->writeOffId);
+        $writeOff = WhWriteoff::with('writeOffProducts')->findOrFail($this->writeOffId);
         foreach ($writeOff->writeOffProducts as $product) {
             WarehouseStock::where('warehouse_id', $writeOff->warehouse_id)
                 ->where('product_id', $product->product_id)

@@ -21,6 +21,6 @@ class Project extends Model
 
     public function transactions()
     {
-        return $this->hasMany(FinancialTransaction::class);
+        return $this->hasMany(Transaction::class);
     }
 }

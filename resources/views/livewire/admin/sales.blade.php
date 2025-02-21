@@ -39,7 +39,7 @@
                     <tr wire:click="edit({{ $sale->id }})" class="cursor-pointer hover:bg-gray-100">
                 @endif
                 <td class="p-2 border border-gray-200">{{ $sale->id }}</td>
-                <td class="p-2 border border-gray-200">{{ $sale->transaction_date }}</td>
+                <td class="p-2 border border-gray-200">{{ $sale->date }}</td>
                 <td class="p-2 border border-gray-200">{{ $sale->client->first_name }}</td>
                 <td class="p-2 border border-gray-200">{{ $sale->warehouse->name }}</td>
                 <td class="p-2 border border-gray-200">
@@ -47,7 +47,7 @@
                         <div>{{ $product->name }}: {{ $product->pivot->quantity }}шт</div>
                     @endforeach
                 </td>
-                <td class="p-2 border border-gray-200">{{ $sale->total_amount }} {{ $displayCurrency->symbol }}</td>
+                <td class="p-2 border border-gray-200">{{ $sale->total_price }} {{ $displayCurrency->symbol }}</td>
                 <td class="p-2 border border-gray-200">{{ $sale->note }}</td>
                 </tr>
             @endforeach
@@ -114,7 +114,10 @@
                         @if ($saleId) disabled @endif>
                         <option value="">Выберите кассу</option>
                         @foreach ($cashRegisters as $cashRegister)
-                            <option value="{{ $cashRegister->id }}">{{ $cashRegister->name }}</option>
+                            <option value="{{ $cashRegister->id }}">
+                                {{ $cashRegister->name }}
+                                ({{ optional($currencies->firstWhere('id', $cashRegister->currency_id))->symbol }})
+                            </option>
                         @endforeach
                     </select>
                 </div>
@@ -131,7 +134,7 @@
                 </div>
                 <div class="mb-4">
                     <label for="currency" class="block text-sm font-medium text-gray-700">Валюта</label>
-                    <select id="currency" wire:model="currencyId"
+                    <select id="currency" wire:model.change="currencyId"
                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                         @if ($saleId) disabled @endif>
                         <option value="">Выберите валюту</option>
@@ -140,6 +143,9 @@
                         @endforeach
                     </select>
                 </div>
+
+
+
                 <div class="mb-4">
                     <label for="note" class="block text-sm font-medium text-gray-700">Примечание</label>
                     <textarea id="note" wire:model="note" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
@@ -207,7 +213,9 @@
                         <tfoot class="bg-gray-100">
                             <tr>
                                 <td class="p-2 border border-gray-200 font-bold" colspan="2">Всего:</td>
-                                <td class="p-2 border border-gray-200 font-bold">{{ number_format($totalPrice, 2) }}
+                                <td class="p-2 border border-gray-200 font-bold">
+                                    {{ number_format($totalPrice, 2) }}
+                                    {{ optional($currencies->firstWhere('id', $currencyId))->symbol }}
                                 </td>
                                 <td class="p-2 border border-gray-200"></td>
                             </tr>
@@ -232,7 +240,9 @@
                             </tr>
                             <tr>
                                 <td class="p-2 border border-gray-200 font-bold" colspan="2">Итоговая цена:</td>
-                                <td class="p-2 border border-gray-200 font-bold">{{ number_format($finalTotal, 2) }}
+                                <td class="p-2 border border-gray-200 font-bold">
+                                    {{ number_format($finalTotal, 2) }}
+                                    {{ optional($currencies->firstWhere('id', $currencyId))->symbol }}
                                 </td>
                                 <td class="p-2 border border-gray-200"></td>
                             </tr>
@@ -288,7 +298,5 @@
             </button>
         </div>
     </div>
-
-
     @include('components.product-quantity-modal')
 </div>

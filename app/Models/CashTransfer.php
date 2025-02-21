@@ -31,12 +31,12 @@ class CashTransfer extends Model
 
     public function fromTransaction()
     {
-        return $this->belongsTo(FinancialTransaction::class, 'from_transaction_id');
+        return $this->belongsTo(Transaction::class, 'from_transaction_id');
     }
 
     public function toTransaction()
     {
-        return $this->belongsTo(FinancialTransaction::class, 'to_transaction_id');
+        return $this->belongsTo(Transaction::class, 'to_transaction_id');
     }
 
     public function user()

@@ -21,7 +21,7 @@ class ProductController extends Controller
     public function products(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
-        if(!$userUuid){
+        if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
         // Получаем склад с пагинацией
@@ -39,7 +39,7 @@ class ProductController extends Controller
     public function services(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
-        if(!$userUuid){
+        if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
         // Получаем склад с пагинацией
@@ -63,7 +63,7 @@ class ProductController extends Controller
         }
 
         $data = $request->validate([
-            'type' => 'required|integer',
+            'type' => 'required',
             'image' => 'nullable|sometimes|file|mimes:jpeg,png,jpg,gif|max:2048',
             'name' => 'required|string|max:255',
             'description' => 'nullable|sometimes|string|max:255',
@@ -98,7 +98,8 @@ class ProductController extends Controller
         $product_exist = Product::where('id', $id)->first();
         if (!$product_exist) {
             return response()->json(['message' => 'Product not found'], 404);
-        }        
+        }
+
 
         $data = $request->validate([
             'type' => 'nullable|integer',
@@ -117,6 +118,7 @@ class ProductController extends Controller
         $data = array_filter($data, function ($value) {
             return !is_null($value);
         });
+
 
         $product = $this->itemsRepository->updateItem($id, $data);
 

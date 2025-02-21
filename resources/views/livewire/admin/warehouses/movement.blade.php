@@ -51,13 +51,18 @@
             style="transform: {{ $showForm ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
             <button wire:click="closeForm" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
                 style="right: 1rem;">&times;</button>
-            <h2 class="text-xl font-bold mb-4">{{ $transferId ? 'Редактировать перемещение' : 'Новое перемещение' }}
+            <h2 class="text-xl font-bold mb-4">{{ $movementId ? 'Редактировать перемещение' : 'Новое перемещение' }}
             </h2>
+            
+            <div class="mb-4">
+                <label>Дата перемещения</label>
+                <input type="datetime-local" wire:model="date" class="w-full border rounded">
+            </div>
 
             <div class="mb-4">
                 <label>Склад-отправитель</label>
                 <select wire:model.change="whFrom" class="w-full border rounded"
-                    @if ($selectedProducts || $transferId ) disabled @endif>
+                    @if ($selectedProducts || $movementId ) disabled @endif>
                     <option value="">Выберите склад</option>
                     @foreach ($warehouses as $warehouse)
                         <option value="{{ $warehouse->id }}"  @if ($warehouse->id == $whTo) disabled @endif>{{ $warehouse->name }}</option>
@@ -143,7 +148,7 @@
                     <i class="fas fa-save"></i>
                 </button>
                 @if (Auth::user()->hasPermission('delete_movemenents'))
-                    @if ($transferId)
+                    @if ($movementId)
                         <button wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-trash"></i>
                         </button>

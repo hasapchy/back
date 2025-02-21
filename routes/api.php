@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AppController;
 use App\Http\Controllers\Api\CategoriesController;
+use App\Http\Controllers\api\ClientController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UsersController;
@@ -54,5 +55,10 @@ Route::middleware('auth:api')->group(function () {
     Route::get('products', [ProductController::class, 'products']);
     Route::get('services', [ProductController::class, 'services']);
     Route::post('products', [ProductController::class, 'store']);
-    Route::put('products/{id}', [ProductController::class, 'update']);
+    Route::post('products/{id}', [ProductController::class, 'update']);
+
+    //clients
+    Route::get('clients', [ClientController::class, 'getClients']);
+    Route::post('clients', [ClientController::class, 'createClient']);
+    Route::put('clients/{id}', [ClientController::class, 'updateClient']);
 });

@@ -49,7 +49,7 @@ class ProductsRepository
     {
         $product = new Product();
         $product->type = $data['type'];
-        $product->image = $data['image'];
+        $product->image = isset($data['image']) ? $data['image'] : null;
         $product->name = $data['name'];
         $product->description = $data['description'];
         $product->sku = $data['sku'];

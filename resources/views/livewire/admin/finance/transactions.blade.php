@@ -92,15 +92,15 @@
         </thead>
         <tbody>
             @foreach ($transactions as $transaction)
-                <tr wire:click="{{ !$transaction->isTransfer && !$transaction->isOrder && !$transaction->isSale ? 'openForm(' . $transaction->id . ')' : '' }}"
-                    class="cursor-pointer {{ $transaction->isTransfer || $transaction->isOrder || $transaction->isSale ? 'opacity-50 cursor-not-allowed' : '' }}">
+                <tr wire:click="openForm({{ $transaction->id }})" class="cursor-pointer">
                     <td class="border p-2">{{ $transaction->id }}</td>
                     <td class="border p-2 {{ $transaction->type == 1 ? 'bg-green-200' : 'bg-red-200' }}">
                         {{ $transaction->type == 1 ? 'Приход' : 'Расход' }}
                     </td>
                     <td class="border p-2">
-                        {{ $transaction->amount }}{{ $transaction->currency->code }}</td>
-                    <td class="border p-2">{{ $transaction->transaction_date }}</td>
+                        {{ $transaction->amount }}{{ $transaction->currency->code }}
+                    </td>
+                    <td class="border p-2">{{ $transaction->date }}</td>
                     <td class="border p-2">{{ $transaction->note }}</td>
                     <td class="border p-2">{{ $transaction->user->name }}</td>
                     <td class="border p-2">{{ $transaction->client->first_name ?? '' }}</td>
@@ -124,37 +124,56 @@
                 {{ $transactionId ? 'Редактировать транзакцию' : 'Создать транзакцию' }}</h2>
             <div class="mb-2">
                 <label class="block mb-1">Тип транзакции</label>
-                <select wire:model.change="type" class="w-full p-2 border rounded" {{ $transactionId ? 'disabled' : '' }}>
+                <select wire:model.change="type" class="w-full p-2 border rounded"
+                    {{ $transactionId ? 'disabled' : '' }}>
                     <option value="">Выберите тип транзакции</option>
                     <option value="1">Приход</option>
                     <option value="0">Расход</option>
                 </select>
             </div>
 
-            <div class="mb-2">
-                <label class="block mb-1">Сумма</label>
-                <input type="text" wire:model="amount" placeholder="Сумма" class="w-full p-2 border rounded">
+            <!-- Исходная сумма и валюта (редактируемые) -->
+            <div class="mb-2 flex space-x-4">
+                <div class="w-1/2">
+                    <label class="block mb-1">Исходная сумма</label>
+                    <input type="text" wire:model="orig_amount" placeholder="Сумма" class="w-full p-2 border rounded"
+                        {{ $readOnly ? 'disabled' : '' }}>
+                </div>
+                <div class="w-1/2">
+                    <label class="block mb-1">Валюта транзакции</label>
+                    <select wire:model="orig_currency_id" class="w-full p-2 border rounded"
+                        {{ $transactionId ? 'disabled' : '' }}>
+                        <option value="">Выберите валюту</option>
+                        @foreach ($currencies as $currency)
+                            <option value="{{ $currency->id }}">{{ $currency->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
 
-            <div class="mb-2">
-                <label class="block mb-1">Валюта</label>
-                <select wire:model="currency_id" class="w-full p-2 border rounded"
-                    {{ $transactionId ? 'disabled' : '' }}>
-                    <option value="">Выберите валюту</option>
-                    @foreach ($currencies as $currency)
-                        <option value="{{ $currency->id }}">{{ $currency->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="mb-2">
-                <label class="block mb-1">Дата транзакции</label>
-                <input type="date" wire:model="transaction_date" class="w-full p-2 border rounded">
+            @if ($transactionId)
+                <div class="mb-2 flex space-x-4">
+                    <div class="w-1/2">
+                        <label class="block mb-1">Сконвертированная сумма</label>
+                        <input type="text" value="{{ $amount }}" disabled
+                            class="w-full p-2 border rounded bg-gray-100">
+                    </div>
+                    <div class="w-1/2">
+                        <label class="block mb-1">Валюта кассы</label>
+                        <input type="text" value="{{ optional($cashRegisters->find($cashId))->currency->name }}"
+                            disabled class="w-full p-2 border rounded bg-gray-100">
+                    </div>
+                </div>
+            @endif
+            <div class="mb-4">
+                <label>Дата</label>
+                <input type="datetime-local" wire:model="date" class="w-full border rounded">
             </div>
 
             <div class="mb-2">
                 <label class="block mb-1">Категория</label>
-                <select wire:model="category_id" class="w-full p-2 border rounded">
+                <select wire:model="category_id" class="w-full p-2 border rounded"
+                    {{ $readOnly ? 'disabled' : '' }}>>
                     <option value="">Выберите категорию</option>
                     @if ($type === '1' || $type === 1)
                         @foreach ($incomeCategories as $category)
@@ -174,7 +193,7 @@
 
             <div class="mb-2">
                 <label class="block mb-1">Выберите кассу</label>
-                <select wire:model="cashId" class="w-full p-2 border rounded">
+                <select wire:model="cashId" class="w-full p-2 border rounded" {{ $readOnly ? 'disabled' : '' }}>>
                     <option value="">-- выбрать кассу --</option>
                     @foreach ($cashRegisters as $register)
                         <option value="{{ $register->id }}">{{ $register->name }}</option>
@@ -184,7 +203,7 @@
 
             <div class="mb-2">
                 <label class="block mb-1">Проект</label>
-                <select wire:model="projectId" class="w-full p-2 border rounded" {{ !$client_id ? 'disabled' : '' }}>
+                <select wire:model="projectId" class="w-full p-2 border rounded" {{ $readOnly ? 'disabled' : '' }}>>
                     <option value="">Выберите проект</option>
                     @foreach ($projects as $project)
                         <option value="{{ $project->id }}">{{ $project->name }}</option>
