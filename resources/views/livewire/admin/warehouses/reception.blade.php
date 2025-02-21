@@ -3,6 +3,8 @@
 <div class="container mx-auto p-4">
     @include('components.alert')
 
+
+
     <div class="flex items-center space-x-4 mb-4">
         @if (Auth::user()->hasPermission('create_receipts'))
             <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
@@ -43,15 +45,23 @@
                         </div>
                     @endforeach
                 </td>
-                <td class="p-2 border border-gray-200">
-                    {{ number_format($reception->amount, 2) }}  {{ $defaultCurrency->symbol }}
-                </td>
+                @php
+                $sessionCurrencyCode = session('currency', 'USD');
+                $conversionService = app(\App\Services\CurrencySwitcherService::class);
+                $conversionRate = $conversionService->getConversionRate($sessionCurrencyCode, $reception->created_at);
+                $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
+            @endphp
+            
+            <td class="p-2 border border-gray-200">
+                {{ number_format($reception->amount * $conversionRate, 2) }} {{ $selectedCurrency->symbol }}
+            </td>
                 <td class="p-2 border border-gray-200">{{ $reception->note }}</td>
 
                 </tr>
             @endforeach
         </tbody>
     </table>
+
 
     <div id="modalBackground"
         class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
@@ -104,8 +114,8 @@
             </div>
 
             <h3 class="text-lg font-bold mb-4">Выбранные товары</h3>
-            @if(!$receptionId)
-            <small>Все цены будут переведены в валюту расчета  {{ $defaultCurrency->name }}</small>
+            @if (!$receptionId)
+                <small>Все цены будут переведены в валюту расчета {{ $defaultCurrency->name }}</small>
             @endif
             <table class="w-full border-collapse border border-gray-200 shadow-md rounded">
                 <thead class="bg-gray-100">

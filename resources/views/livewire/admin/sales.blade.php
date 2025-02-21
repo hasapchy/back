@@ -2,6 +2,13 @@
 <div class="container mx-auto p-4">
     @include('components.alert')
 
+    @php
+        $sessionCurrencyCode = session('currency', 'USD');
+        $conversionService = app(\App\Services\CurrencySwitcherService::class);
+        $displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
+        $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
+    @endphp
+
     {{-- @if (session()->has('message'))
         <div class="fixed top-4 right-4 bg-green-500 text-white p-4 rounded shadow-lg z-50 alert" role="alert"
             x-data="{ show: true }" x-init="setTimeout(() => show = false, 10000)" x-show="show" x-transition>
@@ -47,7 +54,9 @@
                         <div>{{ $product->name }}: {{ $product->pivot->quantity }}шт</div>
                     @endforeach
                 </td>
-                <td class="p-2 border border-gray-200">{{ $sale->total_price }} {{ $displayCurrency->symbol }}</td>
+                <td class="p-2 border border-gray-200">
+                    {{ number_format($sale->total_price * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
+                </td>
                 <td class="p-2 border border-gray-200">{{ $sale->note }}</td>
                 </tr>
             @endforeach
@@ -69,14 +78,13 @@
 
             <form wire:submit.prevent="save">
                 <div class="mb-4">
-                    <label for="date" class="block text-sm font-medium text-gray-700">Дата</label>
-                    <input type="date" id="date" wire:model="date" value="{{ now()->format('Y-m-d') }}"
-                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                    <label>Дата</label>
+                    <input type="datetime-local" wire:model="date" class="w-full border rounded"
                         @if ($saleId) disabled @endif>
                 </div>
                 <div class="mb-4">
                     <label for="warehouse" class="block text-sm font-medium text-gray-700">Склад</label>
-                    <!-- Отключаем выбор склада, если выбран хотя бы один товар -->
+
                     <select id="warehouse" wire:model="warehouseId"
                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                         @if ($saleId || count($selectedProducts) > 0) disabled @endif>
@@ -106,7 +114,6 @@
                     </div>
                 </div>
 
-                <!-- Модифицируем выбор кассы для отображения только, если выбран тип оплаты "С кассы" -->
                 <div class="mb-4" @if ($paymentType != 1) style="display: none;" @endif>
                     <label for="cash_register" class="block text-sm font-medium text-gray-700">Касса</label>
                     <select id="cash_register" wire:model="cashId"
@@ -132,19 +139,6 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="mb-4">
-                    <label for="currency" class="block text-sm font-medium text-gray-700">Валюта</label>
-                    <select id="currency" wire:model.change="currencyId"
-                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                        @if ($saleId) disabled @endif>
-                        <option value="">Выберите валюту</option>
-                        @foreach ($currencies as $currency)
-                            <option value="{{ $currency->id }}">{{ $currency->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-
 
                 <div class="mb-4">
                     <label for="note" class="block text-sm font-medium text-gray-700">Примечание</label>
@@ -177,8 +171,7 @@
                                     <td class="p-2 border border-gray-200">
                                         <div class="flex items-center">
                                             @if (!$details['image'])
-                                                <img src="{{ asset('no-photo.jpeg') }}"
-                                                    class="w-16 h-16 object-cover">
+                                                <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
                                             @else
                                                 <img src="{{ Storage::url($details['image']) }}"
                                                     class="w-16 h-16 object-cover">
@@ -187,15 +180,17 @@
                                         </div>
                                     </td>
                                     <td class="p-2 border border-gray-200">{{ $details['quantity'] }}</td>
-                                    <td class="p-2 border border-gray-200">{{ $price }}</td>
                                     <td class="p-2 border border-gray-200">
-                                        <button wire:click="openPForm({{ $productId }})"
+                                        {{ number_format($price * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
+                                    </td>
+                                    <td class="p-2 border border-gray-200">
+                                        <button type="button" wire:click="openPForm({{ $productId }})"
                                             class="text-yellow-500 mr-3"
                                             @if ($saleId) disabled @endif>
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button wire:click="removeProduct({{ $productId }})" class="text-red-500"
-                                            @if ($saleId) disabled @endif>
+                                        <button type="button" wire:click="removeProduct({{ $productId }})"
+                                            class="text-red-500" @if ($saleId) disabled @endif>
                                             <i class="fas fa-trash-alt"></i>
                                         </button>
                                     </td>
@@ -203,19 +198,18 @@
                             @endforeach
                         </tbody>
                         @php
-                            // Расчет скидки в реальном времени
-                            $discountValue =
-                                $totalDiscountType === 'percent'
-                                    ? $totalPrice * ($totalDiscount / 100)
-                                    : $totalDiscount;
+                            if ($totalDiscountType === 'fixed') {
+                                $discountValue = $totalDiscount / $displayRate;
+                            } else {
+                                $discountValue = $totalPrice * ($totalDiscount / 100);
+                            }
                             $finalTotal = $totalPrice - $discountValue;
                         @endphp
                         <tfoot class="bg-gray-100">
                             <tr>
                                 <td class="p-2 border border-gray-200 font-bold" colspan="2">Всего:</td>
                                 <td class="p-2 border border-gray-200 font-bold">
-                                    {{ number_format($totalPrice, 2) }}
-                                    {{ optional($currencies->firstWhere('id', $currencyId))->symbol }}
+                                    {{ number_format($totalPrice * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
                                 </td>
                                 <td class="p-2 border border-gray-200"></td>
                             </tr>
@@ -231,7 +225,7 @@
                                     </button>
                                 </td>
                                 <td class="p-2 border border-gray-200 font-bold">
-                                    {{ number_format($discountValue, 2) }}
+                                    {{ number_format($totalDiscountType === 'fixed' ? $totalDiscount : $discountValue * $displayRate, 2) }}
                                     @if ($totalDiscountType === 'percent')
                                         ({{ $totalDiscount }}%)
                                     @endif
@@ -241,8 +235,7 @@
                             <tr>
                                 <td class="p-2 border border-gray-200 font-bold" colspan="2">Итоговая цена:</td>
                                 <td class="p-2 border border-gray-200 font-bold">
-                                    {{ number_format($finalTotal, 2) }}
-                                    {{ optional($currencies->firstWhere('id', $currencyId))->symbol }}
+                                    {{ number_format($finalTotal * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
                                 </td>
                                 <td class="p-2 border border-gray-200"></td>
                             </tr>
@@ -264,8 +257,6 @@
                     @endif
                 </div>
             </form>
-
-
         </div>
     </div>
 

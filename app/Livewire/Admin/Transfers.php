@@ -8,6 +8,8 @@ use App\Models\CashRegister;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Services\CurrencyConverter;
+use App\Models\Currency;
 
 class Transfers extends Component
 {
@@ -21,18 +23,21 @@ class Transfers extends Component
     public $amount;
     public $note;
     public $showConfirmationModal;
+    public $date;
 
     protected $rules = [
         'cashFrom' => 'required|exists:cash_registers,id',
         'cashTo' => 'required|exists:cash_registers,id|different:cashFrom',
         'amount' => 'required|numeric|min:0.01',
         'note' => 'nullable|string',
+        'date' => 'required|date',
     ];
 
     public function mount()
     {
-        $this->cashRegisters = CashRegister::whereJsonContains('users', Auth::id())->get();
+        $this->cashRegisters = CashRegister::whereJsonContains('users', (string) Auth::id())->get();
         $this->transfers = CashTransfer::with('fromCashRegister', 'toCashRegister', 'currency')->get();
+        $this->date = now()->format('Y-m-d H:i:s');
     }
 
     public function render()
@@ -111,9 +116,15 @@ class Transfers extends Component
 
         $fromCurrency = $fromCashRegister->currency;
         $toCurrency = $toCashRegister->currency;
-        $amountInDefaultCurrency = $this->amount / $fromCurrency->exchange_rate;
-        $amountInTargetCurrency = $amountInDefaultCurrency * $toCurrency->exchange_rate;
 
+        // Если валюты касс отличаются, конвертируем сумму:
+        if ($fromCurrency->id !== $toCurrency->id) {
+            $amountInTargetCurrency = CurrencyConverter::convert($this->amount, $fromCurrency, $toCurrency);
+        } else {
+            $amountInTargetCurrency = $this->amount;
+        }
+
+        // Обновляем балансы касс:
         $fromCashRegister->balance -= $this->amount;
         $toCashRegister->balance += $amountInTargetCurrency;
 
@@ -123,33 +134,42 @@ class Transfers extends Component
         $transferNote = "Трансфер из кассы '{$fromCashRegister->name}' в кассу '{$toCashRegister->name}'.";
 
         $fromTransaction = Transaction::create([
-            'type' => '0',
-            'amount' => $this->amount,
-            'cash_register_id' => $this->cashFrom,
-            'note' => $this->note . ' ' . $transferNote,
-            'transaction_date' => now()->toDateString(),
-            'currency_id' => $fromCashRegister->currency_id,
-            'user_id' => Auth::id(),
+            'type'             => '0',
+            'amount'           => $this->amount,
+            'orig_amount'      => $this->amount,
+            'cash_id'          => $this->cashFrom,
+            'note'             => $this->note . ' ' . $transferNote,
+            'date' => now()->toDateString(),
+            'date'             => $this->date,
+            'currency_id'      => $fromCashRegister->currency_id,
+            'orig_currency_id' => $fromCashRegister->currency_id,
+            'user_id'          => Auth::id(),
         ]);
 
+        // Создаем транзакцию для кассы-получателя
         $toTransaction = Transaction::create([
-            'type' => '1',
-            'amount' => $amountInTargetCurrency,
-            'cash_register_id' => $this->cashTo,
-            'note' => $this->note . ' ' . $transferNote,
-            'transaction_date' => now()->toDateString(),
-            'currency_id' => $toCashRegister->currency_id,
-            'user_id' => Auth::id(),
+            'type'             => '1',
+            'amount'           => $amountInTargetCurrency,
+            'orig_amount'      => $this->amount,
+            'cash_id'          => $this->cashTo,
+            'note'             => $this->note . ' ' . $transferNote,
+            'date' => now()->toDateString(),
+            'date'             => $this->date,
+            'currency_id'      => $toCashRegister->currency_id,
+            'orig_currency_id' => $fromCashRegister->currency_id,
+            'user_id'          => Auth::id(),
         ]);
 
+        // Создаем запись трансфера
         CashTransfer::create([
-            'from_cash_register_id' => $this->cashFrom,
-            'to_cash_register_id' => $this->cashTo,
-            'from_transaction_id' => $fromTransaction->id,
-            'to_transaction_id' => $toTransaction->id,
-            'user_id' => Auth::id(),
-            'amount' => $this->amount,
-            'note' => $this->note,
+            'cash_id_from' => $this->cashFrom,
+            'cash_id_to'   => $this->cashTo,
+            'tr_id_from'   => $fromTransaction->id,
+            'tr_id_to'     => $toTransaction->id,
+            'user_id'      => Auth::id(),
+            'amount'       => $this->amount,
+            'note'         => $this->note,
+            'date'         => now(),
         ]);
     }
 
@@ -193,8 +213,8 @@ class Transfers extends Component
     {
         $transfer = CashTransfer::with('fromCashRegister', 'toCashRegister')->find($transferId);
         $this->transferId = $transfer->id;
-        $this->cashFrom = $transfer->from_cash_register_id;
-        $this->cashTo = $transfer->to_cash_register_id;
+        $this->cashFrom = $transfer->cashFrom;
+        $this->cashTo = $transfer->cash_id_to;
         $this->amount = $transfer->amount;
         $this->note = $transfer->note;
         $this->showForm = true;

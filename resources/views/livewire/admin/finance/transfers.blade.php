@@ -44,13 +44,18 @@
             </button>
             <h2 class="text-xl font-bold mb-4">Трансфер</h2>
             @include('components.confirmation-modal')
+
+            <div class="mb-4">
+                <label class="block mb-1">Дата списания</label>
+                <input type="datetime-local" wire:model="date" class="w-full p-2 border rounded">
+            </div>
             <div class="mb-4">
                 <label class="block mb-1">От кассы</label>
                 <select wire:model.change="cashFrom" class="w-full p-2 border rounded">
                     <option value="">Выберите кассу</option>
                     @foreach ($cashRegisters as $register)
                         <option value="{{ $register->id }}" @if ($register->id == $cashTo) disabled @endif>
-                            {{ $register->name }}
+                            {{ $register->name }} ({{ $register->currency->symbol }})
                         </option>
                     @endforeach
                 </select>
@@ -62,7 +67,7 @@
                     <option value="">Выберите кассу</option>
                     @foreach ($cashRegisters as $register)
                         <option value="{{ $register->id }}" @if ($register->id == $cashFrom) disabled @endif>
-                            {{ $register->name }}
+                            {{ $register->name }} ({{ $register->currency->symbol }})
                         </option>
                     @endforeach
                 </select>

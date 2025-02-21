@@ -17,6 +17,7 @@ use App\Models\CashRegister;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Product;
 use App\Services\ProductService;
+use App\Models\ProductPrice;
 
 class Orders extends Component
 {
@@ -35,7 +36,11 @@ class Orders extends Component
     public $incomeCategories = [], $transactions, $cashRegisters = [];
     public $isDirty = false;
     public $totalSum = 0;
-    public $displayCurrency;
+    public $totalDiscount = 0;
+    public $totalDiscountType = 'fixed';
+    public $showDiscountModal = false;
+    public $productPriceConverted;
+    public $productPriceType = 'custom';
     public $selectedProducts = [];
     public $productId;
     public $productQuantity = 1;
@@ -45,6 +50,9 @@ class Orders extends Component
     public $productSearch = '';
     public $productResults = [];
     public $selectedProduct;
+    public $currentRetailPrice = 0;
+    public $currentWholesalePrice = 0;
+
     protected $clientService;
     protected $productService;
     public $tr_type = 1;
@@ -66,11 +74,11 @@ class Orders extends Component
     {
         $this->afFields = collect();
         $this->tr_date = now()->toDateString();
+        $this->date = now()->format('Y-m-d\TH:i');
         $this->currencies = Currency::all();
         $this->incomeCategories = TransactionCategory::where('type', 1)->get();
         $this->expenseCategories = TransactionCategory::where('type', 0)->get();
         $this->cashRegisters = CashRegister::whereJsonContains('users', (string) Auth::id())->get();
-        $this->displayCurrency = Currency::where('is_report', 1)->first();
     }
 
 
@@ -83,9 +91,7 @@ class Orders extends Component
         $this->categories = OrderCategory::all();
         $this->loadAfFields();
 
-        if ($this->transactions) {
-            $this->calculateTotalSum();
-        }
+
         return view('livewire.admin.orders.orders');
     }
 
@@ -238,7 +244,7 @@ class Orders extends Component
         $this->selectedClient = $this->clientService->getClientById($order->client_id);
         $this->loadAfFields();
         $this->transactions = Transaction::whereIn('id', json_decode($order->tr_ids) ?? [])->get();
-        $this->calculateTotalSum();
+
         $this->showForm = true;
 
         // Загрузка товаров заказа
@@ -254,31 +260,8 @@ class Orders extends Component
         })->toArray();
     }
 
-    private function calculateTotalSum()
-    {
-        if (!$this->displayCurrency) {
-            $this->totalSum = $this->transactions->sum('amount');
-            return;
-        }
 
-        $this->totalSum = $this->transactions->sum(function ($transaction) {
-            if ($transaction->currency_id == $this->displayCurrency->id) {
-                return $transaction->amount;
-            } else {
-                // Предполагается, что у вас есть методы для получения курса обмена
-                $transactionCurrency = $transaction->currency;
-                $cashRegisterCurrency = $this->displayCurrency;
 
-                $transactionExchangeRate = $transactionCurrency->currentExchangeRate()->exchange_rate;
-                $cashRegisterExchangeRate = $cashRegisterCurrency->currentExchangeRate()->exchange_rate;
-
-                if ($transactionExchangeRate && $cashRegisterExchangeRate) {
-                    return ($transaction->amount / $transactionExchangeRate) * $cashRegisterExchangeRate;
-                }
-                return 0;
-            }
-        });
-    }
     public function deleteOrderForm()
     {
 
@@ -498,7 +481,19 @@ class Orders extends Component
             'incomeCategories',
             'transactions',
             'cashRegisters',
+            'totalDiscount',
+            'totalDiscountType',
         ]);
+    }
+
+    public function openDiscountModal()
+    {
+        $this->showDiscountModal = true;
+    }
+
+    public function closeDiscountModal()
+    {
+        $this->showDiscountModal = false;
     }
 
     public function addProduct()
@@ -533,6 +528,30 @@ class Orders extends Component
         ];
 
         $this->closePForm();
+    }
+
+    public function saveOrderProducts()
+    {
+        if (!$this->order_id) {
+            session()->flash('error', 'Сначала сохраните заказ.');
+            return;
+        }
+
+        $order = Order::findOrFail($this->order_id);
+        // Удаляем старые записи
+        $order->orderProducts()->delete();
+
+        // Добавляем новые записи из $selectedProducts
+        foreach ($this->selectedProducts as $productId => $details) {
+            $order->orderProducts()->create([
+                'product_id' => $productId,
+                'quantity' => $details['quantity'],
+                'price' => $details['price'],
+                'discount' => isset($details['discount']) ? $details['discount'] : 0,
+            ]);
+        }
+
+        session()->flash('message', 'Товары успешно сохранены.');
     }
 
     public function saveOrder()
@@ -584,10 +603,41 @@ class Orders extends Component
     public function openPForm($productId)
     {
         $this->productId = $productId;
+        $product = Product::findOrFail($productId);
+        $productPriceObj = ProductPrice::where('product_id', $productId)->first();
+        $this->productQuantity = $this->selectedProducts[$productId]['quantity'] ?? 1;
+        $this->productPrice = $this->selectedProducts[$productId]['price'] ?? $productPriceObj->retail_price;
+        $this->productPriceType = 'custom';
+        $this->currentRetailPrice = $productPriceObj->retail_price;
+        $this->currentWholesalePrice = $productPriceObj->wholesale_price;
         $this->showPForm = true;
+    }
+    public function updatePriceType()
+    {
+        if ($this->productPriceType === 'custom') {
+            return;
+        }
+        $sessionCurrencyCode = session('currency', 'USD');
+        $conversionService = app(\App\Services\CurrencySwitcherService::class);
+        $displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
 
-        $product = Product::find($productId);
-        $this->productPrice = $product->price;
+        if ($this->productPriceType === 'retail_price') {
+            $this->productPrice = $this->currentRetailPrice;
+            $this->productPriceConverted = $this->currentRetailPrice * $displayRate;
+        } elseif ($this->productPriceType === 'wholesale_price') {
+            $this->productPrice = $this->currentWholesalePrice;
+            $this->productPriceConverted = $this->currentWholesalePrice * $displayRate;
+        }
+    }
+
+    public function updateProductPrice($price)
+    {
+        $sessionCurrencyCode = session('currency', 'USD');
+        $conversionService = app(\App\Services\CurrencySwitcherService::class);
+        $displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
+        $this->productPrice = $price / $displayRate;
+        $this->productPriceConverted = $price;
+        $this->productPriceType = 'custom';
     }
 
 
