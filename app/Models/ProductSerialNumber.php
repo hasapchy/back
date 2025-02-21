@@ -30,7 +30,7 @@ class ProductSerialNumber extends Model
     // Remove the receiptProduct relationship
     // public function receiptProduct()
     // {
-    //     return $this->belongsTo(WarehouseProductReceiptProduct::class, 'warehouse_product_receipt_product_id');
+    //     return $this->belongsTo(WhReceiptProduct::class, 'warehouse_product_receipt_product_id');
     // }
 
 }

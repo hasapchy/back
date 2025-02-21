@@ -5,7 +5,7 @@ namespace App\Livewire\Admin;
 use Livewire\Component;
 use App\Models\Project;
 use App\Models\User;
-use App\Models\FinancialTransaction;
+use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
 use App\Services\ClientService;
 
@@ -118,7 +118,7 @@ class Projects extends Component
 
     public function delete($id)
     {
-        if (FinancialTransaction::where('project_id', $id)->exists()) {
+        if (Transaction::where('project_id', $id)->exists()) {
             session()->flash('error', 'Невозможно удалить проект, так как к нему привязаны транзакции.');
             return;
         }
@@ -206,7 +206,7 @@ class Projects extends Component
     //конец поиск клиент
     private function loadTransactions()
     {
-        $this->projectTransactions = FinancialTransaction::where('project_id', $this->projectId)->get();
+        $this->projectTransactions = Transaction::where('project_id', $this->projectId)->get();
         $this->totalAmount = $this->projectTransactions->sum(
             fn($t) => $t->type == 1 ? $t->amount : -$t->amount
         );

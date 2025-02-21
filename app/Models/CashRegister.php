@@ -37,9 +37,9 @@ class CashRegister extends Model
         return $this->belongsTo(Currency::class);
     }
 
-    public function financialTransactions()
+    public function Transactions()
     {
-        return $this->hasMany(FinancialTransaction::class);
+        return $this->hasMany(Transaction::class);
     }
 
     public function templates()

@@ -7,7 +7,7 @@ use App\Models\CashRegister;
 use App\Models\Currency;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
-use App\Models\FinancialTransaction;
+use App\Models\Transaction;
 
 class Cashes extends Component
 {
@@ -85,7 +85,7 @@ class Cashes extends Component
     {
         $rules = [
             'name' => 'required|string|max:255',
-      
+
         ];
         $this->validate($rules);
         // $this->users = array_map('intval', $this->users);
@@ -100,7 +100,7 @@ class Cashes extends Component
 
     public function delete($cashId)
     {
-        $transactionExists = FinancialTransaction::where('cash_register_id', $cashId)->exists();
+        $transactionExists = Transaction::where('cash_register_id', $cashId)->exists();
         if (!$transactionExists) {
             $cashRegister = CashRegister::find($cashId);
             if ($cashRegister) {

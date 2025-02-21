@@ -23,6 +23,6 @@ class WarehouseStock extends Model
 
     public function writeOffs()
     {
-        return $this->hasMany(WarehouseProductWriteOff::class, 'warehouse_id', 'warehouse_id');
+        return $this->hasMany(WhWriteoff::class, 'warehouse_id', 'warehouse_id');
     }
 }

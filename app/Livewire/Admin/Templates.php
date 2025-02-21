@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\TransactionCategory;
 use App\Models\Client;
 use App\Models\CashRegister;
-use App\Models\FinancialTransaction;
+use App\Models\Transaction;
 use Livewire\Attributes\Lazy;
 use Illuminate\Support\Facades\Cache;
 use App\Services\ClientService;
@@ -283,7 +283,7 @@ class Templates extends Component
             
         $exchangeRate = $currency->currentExchangeRate()->exchange_rate;
 
-        $transaction = new FinancialTransaction();
+        $transaction = new Transaction();
         $transaction->cash_register_id = $cashRegister->id;
         $transaction->type = $this->type;
         $transaction->category_id = $this->categoryId;

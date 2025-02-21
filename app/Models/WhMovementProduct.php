@@ -5,15 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class WarehouseProductWriteOffProduct extends Model
+class WhMovementProduct extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['write_off_id', 'product_id', 'quantity', 'serial_number_id'];
+    protected $fillable = [
+        'movement_id',
+        'product_id',
+        'quantity',
+        'serial_number_id',
+    ];
 
-    public function writeOff()
+    public function movement()
     {
-        return $this->belongsTo(WarehouseProductWriteOff::class, 'write_off_id');
+        return $this->belongsTo(WhMovement::class, 'movement_id');
     }
 
     public function product()

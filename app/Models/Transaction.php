@@ -5,21 +5,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class FinancialTransaction extends Model
+class Transaction extends Model
 {
     use HasFactory;
     protected $skipClientBalanceUpdate = false;
     protected $fillable = [
-        'type',
         'amount',
-        'cash_register_id',
-        'note',
-        'transaction_date',
-        'currency_id',
+        'cash_id',
         'category_id',
-        'user_id',
         'client_id',
+        'currency_id',
+        'date',
+        'note',
+        'orig_amount',
+        'orig_currency_id',
         'project_id',
+        'type',
+        'user_id',
     ];
 
     protected $hidden = [
@@ -41,10 +43,22 @@ class FinancialTransaction extends Model
         static::created(function ($transaction) {
             if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
-                if ($transaction->type == 1) {
-                    $clientBalance->balance += $transaction->amount;
+                $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
+                // Если валюта транзакции не дефолтная, конвертируем сумму
+                if ($transaction->currency_id != $defaultCurrency->id) {
+                    $convertedAmount = \App\Services\CurrencyConverter::convert(
+                        $transaction->amount,
+                        $transaction->currency,
+                        $defaultCurrency
+                    );
                 } else {
-                    $clientBalance->balance -= $transaction->amount;
+                    $convertedAmount = $transaction->amount;
+                }
+
+                if ($transaction->type == 1) {
+                    $clientBalance->balance += $convertedAmount;
+                } else {
+                    $clientBalance->balance -= $convertedAmount;
                 }
                 $clientBalance->save();
             }
@@ -53,13 +67,37 @@ class FinancialTransaction extends Model
         static::updated(function ($transaction) {
             if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
+                $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
+
+                // Старая сумма и старая валюта
                 $originalAmount = $transaction->getOriginal('amount');
-                if ($transaction->type == 1) {
-                    $clientBalance->balance -= $originalAmount;
-                    $clientBalance->balance += $transaction->amount;
+                $originalCurrency = \App\Models\Currency::find($transaction->getOriginal('currency_id'));
+                if ($transaction->getOriginal('currency_id') != $defaultCurrency->id) {
+                    $originalConverted = \App\Services\CurrencyConverter::convert(
+                        $originalAmount,
+                        $originalCurrency,
+                        $defaultCurrency
+                    );
                 } else {
-                    $clientBalance->balance += $originalAmount;
-                    $clientBalance->balance -= $transaction->amount;
+                    $originalConverted = $originalAmount;
+                }
+
+                // Текущая сумма и валюта
+                if ($transaction->currency_id != $defaultCurrency->id) {
+                    $currentConverted = \App\Services\CurrencyConverter::convert(
+                        $transaction->amount,
+                        $transaction->currency,
+                        $defaultCurrency
+                    );
+                } else {
+                    $currentConverted = $transaction->amount;
+                }
+
+                // Корректировка баланса: отменяем эффект старой транзакции и применяем новый
+                if ($transaction->type == 1) {
+                    $clientBalance->balance = $clientBalance->balance - $originalConverted + $currentConverted;
+                } else {
+                    $clientBalance->balance = $clientBalance->balance + $originalConverted - $currentConverted;
                 }
                 $clientBalance->save();
             }
@@ -68,10 +106,21 @@ class FinancialTransaction extends Model
         static::deleted(function ($transaction) {
             if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
-                if ($transaction->type == 1) {
-                    $clientBalance->balance -= $transaction->amount;
+                $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
+                if ($transaction->currency_id != $defaultCurrency->id) {
+                    $convertedAmount = \App\Services\CurrencyConverter::convert(
+                        $transaction->amount,
+                        $transaction->currency,
+                        $defaultCurrency
+                    );
                 } else {
-                    $clientBalance->balance += $transaction->amount;
+                    $convertedAmount = $transaction->amount;
+                }
+
+                if ($transaction->type == 1) {
+                    $clientBalance->balance -= $convertedAmount;
+                } else {
+                    $clientBalance->balance += $convertedAmount;
                 }
                 $clientBalance->save();
             }

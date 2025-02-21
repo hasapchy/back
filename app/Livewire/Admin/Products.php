@@ -6,11 +6,11 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\Product;
 use App\Models\ProductPrice;
-use App\Models\Currency;
+
 use App\Models\Category;
 use Livewire\WithFileUploads;
-use Illuminate\Http\UploadedFile;
 use Livewire\TemporaryUploadedFile;
+use Illuminate\Http\UploadedFile;
 use App\Models\WarehouseStock;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
@@ -21,7 +21,7 @@ class Products extends Component
 
     public $name, $description, $sku, $stock_quantity, $status = true, $productId;
     public $image, $retail_price, $wholesale_price, $purchase_price, $barcode, $categoryId;
-    public $currencies, $currencyId, $showForm = false, $showCategoryForm = false, $showConfirmationModal = false;
+    public $showForm = false, $showCategoryForm = false, $showConfirmationModal = false;
     public $categoryName, $users = [], $allUsers, $parentCategoryId;
     public $columns = ['thumbnail', 'name', 'sku', 'stock_quantity', 'description', 'barcode'];
     public $stocks = [], $isDirty = false, $history = [], $searchTerm, $type = 1;
@@ -31,7 +31,7 @@ class Products extends Component
     public function mount()
     {
         $this->searchTerm = request('search', '');
-        $this->currencies = Currency::all();
+
         $this->allUsers = User::all();
     }
 
@@ -163,7 +163,6 @@ class Products extends Component
                 'retail_price' => $this->retail_price ?? 0.0,
                 'wholesale_price' => $this->wholesale_price ?? 0.0,
                 'purchase_price' => $this->purchase_price ?? 0.0,
-                'currency_id' => $this->currencyId,
             ]
         );
 

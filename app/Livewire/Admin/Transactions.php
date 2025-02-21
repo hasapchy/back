@@ -5,17 +5,16 @@ namespace App\Livewire\Admin;
 use Livewire\Component;
 use App\Models\CashRegister;
 use App\Models\Currency;
-use App\Models\FinancialTransaction;
+use App\Models\Transaction;
 use App\Models\TransactionCategory;
 use App\Models\CashTransfer;
 use App\Models\Project;
-use App\Models\ClientBalance;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Order;
 use App\Services\ClientService;
 use App\Services\CurrencyConverter;
 
-class Finances extends Component
+class Transactions extends Component
 {
     public $cashId;
     public $showForm = false;
@@ -24,7 +23,7 @@ class Finances extends Component
     public $currencies;
     public $exchange_rate;
     public $category_id;
-    public $transaction_date;
+    public $date;
     public $client_id;
     public $clientSearch = '';
     public $clientResults = [];
@@ -45,6 +44,9 @@ class Finances extends Component
     public $categories;
     public $type;
     public $currency_id;
+    public $orig_amount;
+    public $orig_currency_id;
+    public $readOnly = false;
 
     protected $listeners = [
         'dateFilterUpdated' => 'updateDateFilter',
@@ -62,7 +64,7 @@ class Finances extends Component
         $this->currencies = Currency::all();
         $this->projects = Project::whereJsonContains('users', (string) Auth::id())->get();
         $this->cashId = optional($this->cashRegisters->first())->id;
-        $this->transaction_date = now()->toDateString();
+        $this->date = now()->format('Y-m-d H:i:s');
         $this->clients = [];
         $this->categories = TransactionCategory::all();
         $this->transferTransactionIds = CashTransfer::pluck('from_transaction_id')
@@ -83,7 +85,7 @@ class Finances extends Component
             $transaction->isTransfer = CashTransfer::where('from_transaction_id', $transaction->id)
                 ->orWhere('to_transaction_id', $transaction->id)
                 ->exists();
-            $transaction->isSale = FinancialTransaction::where('id', $transaction->id)
+            $transaction->isSale = Transaction::where('id', $transaction->id)
                 ->where('note', 'like', '%Продажа%')
                 ->exists();
             return $transaction;
@@ -98,7 +100,7 @@ class Finances extends Component
             }, 0);
         }
 
-        return view('livewire.admin.finance.finances', [
+        return view('livewire.admin.finance.transactions', [
             'incomeCategories'  => $this->categories->where('type', 1),
             'expenseCategories' => $this->categories->where('type', 0),
             'transactions'      => $transactions,
@@ -114,16 +116,36 @@ class Finances extends Component
 
     private function resetForm()
     {
-        $this->reset('transactionId', 'projectId', 'amount', 'note', 'exchange_rate', 'selectedClient', 'category_id', 'type', 'currency_id');
-        $this->transaction_date = now()->toDateString();
+        $this->reset(['transactionId', 'projectId', 'note', 'selectedClient', 'category_id', 'type', 'orig_amount', 'orig_currency_id']);
+        $this->date = now()->format('Y-m-d\TH:i');
     }
 
     public function openForm($transactionId = null)
     {
         $this->resetForm();
+        $this->readOnly = false; // по умолчанию форма редактируемая
 
-        if ($transactionId && ($transaction = FinancialTransaction::find($transactionId))) {
+        if ($transactionId && ($transaction = Transaction::find($transactionId))) {
+            // Проверяем, является ли транзакция трансфером или продажей
+            $isTransfer = \App\Models\CashTransfer::where('from_transaction_id', $transaction->id)
+                ->orWhere('to_transaction_id', $transaction->id)
+                ->exists();
+            $isSale = Transaction::where('id', $transaction->id)
+                ->where('note', 'like', '%Продажа%')
+                ->exists();
+
+            if ($isTransfer || $isSale) {
+                // Устанавливаем режим только для просмотра
+                $this->readOnly = true;
+                session()->flash('message', 'Транзакция трансфера или продажи доступна для просмотра, редактирование отключено.');
+            }
+
             $this->fill($transaction->toArray());
+            $this->date = \Carbon\Carbon::parse($transaction->date)->format('Y-m-d\TH:i');
+            // Явно задаём категорию и тип транзакции
+            $this->category_id = $transaction->category_id;
+            $this->type = $transaction->type;
+
             if ($transaction->client_id) {
                 $this->client_id = $transaction->client_id;
                 $this->selectedClient = $this->clientService->getClientById($transaction->client_id);
@@ -143,61 +165,73 @@ class Finances extends Component
     public function save()
     {
         $this->validate([
-            'amount'           => 'required|numeric',
-            'note'             => 'nullable|string',
-            'category_id'      => 'nullable|exists:transaction_categories,id',
-            'transaction_date' => 'required|date',
-            'client_id'        => 'nullable|exists:clients,id',
-            'type'             => 'required|in:1,0',
-            'projectId'        => 'nullable|exists:projects,id',
+            'orig_amount'        => 'required|numeric',
+            'note'               => 'nullable|string',
+            'category_id'        => 'nullable|exists:transaction_categories,id',
+            'date'               => 'required|date',
+            'client_id'          => 'nullable|exists:clients,id',
+            'type'               => 'required|in:1,0',
+            'projectId'          => 'nullable|exists:projects,id',
+            'orig_currency_id'   => 'required|exists:currencies,id',
         ]);
 
         $cashRegister = $this->cashRegisters->firstWhere('id', $this->cashId);
         if (!$cashRegister) {
-            session()->flash('error', 'Некорректная касса.');
+            session()->flash('message', 'Некорректная касса.');
             return;
         }
 
-        $fromCurrency = $this->currency_id ? Currency::find($this->currency_id) : null;
-        $toCurrency   = Currency::find($cashRegister->currency_id);
-        $convertedAmount = $fromCurrency
-            ? CurrencyConverter::convert($this->amount, $fromCurrency, $toCurrency)
-            : $this->amount;
-
+        // Если создаём новую транзакцию, присваиваем текущий timestamp
         if (!$this->transactionId) {
-            $code = $fromCurrency ? $fromCurrency->code : '';
-            $initialNote = sprintf("(Изначальная сумма: %s %s)", number_format($this->amount, 2), $code);
-            $this->note = trim($this->note)
-                ? $this->note . "\n" . $initialNote
-                : $initialNote;
+            $dateToSave = now()->format('Y-m-d H:i:s');
+        } else {
+            // При редактировании сохраняем выбранную дату с добавлением времени (она может быть изменена вручную, если требуется)
+            $dateToSave = \Carbon\Carbon::parse($this->date)->format('Y-m-d H:i:s');
         }
 
-        $oldTransaction = FinancialTransaction::find($this->transactionId);
+        // Используем оригинальные данные из формы
+        $originalAmount = $this->orig_amount;
+        $fromCurrency = Currency::find($this->orig_currency_id);
+        $toCurrency   = Currency::find($cashRegister->currency_id);
+
+        // Конвертируем введённую оригинальную сумму в валюту кассы
+        $convertedAmount = $fromCurrency
+            ? CurrencyConverter::convert($originalAmount, $fromCurrency, $toCurrency)
+            : $originalAmount;
+
+        $oldTransaction = Transaction::find($this->transactionId);
 
         if ($oldTransaction) {
+            // Отменяем старый эффект
             if ($oldTransaction->type == 1) {
-                $cashRegister->balance += $oldTransaction->amount;
-            } else {
                 $cashRegister->balance -= $oldTransaction->amount;
+            } else {
+                $cashRegister->balance += $oldTransaction->amount;
             }
         }
 
-        $transaction = FinancialTransaction::updateOrCreate(
+        // Обновляем запись, сохраняем итоговую сумму и оригинальные данные
+        $data = [
+            'type'             => $this->type,
+            'amount'           => $convertedAmount,
+            'cash_id'          => $this->cashId,
+            'note'             => $this->note,
+            'date'             => $dateToSave,
+            'currency_id'      => $toCurrency->id,
+            'category_id'      => $this->category_id,
+            'client_id'        => $this->client_id,
+            'project_id'       => $this->projectId,
+            'user_id'          => Auth::id(),
+            'orig_amount'      => $originalAmount,
+            'orig_currency_id' => $fromCurrency ? $fromCurrency->id : null,
+        ];
+
+        $transaction = Transaction::updateOrCreate(
             ['id' => $this->transactionId],
-            [
-                'type'             => $this->type,
-                'amount'           => $convertedAmount,
-                'cash_register_id' => $this->cashId,
-                'note'             => $this->note,
-                'transaction_date' => $this->transaction_date,
-                'currency_id'      => $toCurrency->id,
-                'category_id'      => $this->category_id,
-                'client_id'        => $this->client_id,
-                'project_id'       => $this->projectId,
-                'user_id'          => Auth::id(),
-            ]
+            $data
         );
 
+        // Применяем эффект транзакции на баланс кассы
         if ($this->type == 0) {
             $cashRegister->balance -= $convertedAmount;
         } else {
@@ -216,12 +250,21 @@ class Finances extends Component
 
     public function delete()
     {
-        $transaction = FinancialTransaction::find($this->transactionId);
+        $transaction = Transaction::find($this->transactionId);
         if ($transaction) {
-            if ($transaction->isSale) {
-                session()->flash('error', 'Нельзя удалить транзакцию продажи.');
+            // Проверяем, является ли транзакция трансфером или продажей
+            $isTransfer = \App\Models\CashTransfer::where('from_transaction_id', $transaction->id)
+                ->orWhere('to_transaction_id', $transaction->id)
+                ->exists();
+            $isSale = Transaction::where('id', $transaction->id)
+                ->where('note', 'like', '%Продажа%')
+                ->exists();
+
+            if ($isTransfer || $isSale) {
+                session()->flash('message', 'Нельзя удалить транзакцию трансфера или продажи.');
                 return;
             }
+
             $cashRegister = $this->cashRegisters->firstWhere('id', $this->cashId);
             if ($transaction->type == 0) {
                 $cashRegister->balance += $transaction->amount;
@@ -247,15 +290,13 @@ class Finances extends Component
 
     private function refreshTransactions()
     {
-        $transactionsQuery = FinancialTransaction::where('cash_register_id', $this->cashId);
+        $transactionsQuery = Transaction::where('cash_id', $this->cashId);
 
         if ($this->startDate && $this->endDate) {
-            $transactionsQuery->whereBetween('transaction_date', [$this->startDate, $this->endDate]);
+            $transactionsQuery->whereBetween('date', [$this->startDate, $this->endDate]);
         }
-
         $this->transactions = $transactionsQuery->with('user', 'currency')
-            ->orderBy('transaction_date', 'desc')
-            ->orderBy('id', 'desc')
+            ->orderBy('date', 'desc')
             ->get();
 
         $this->totalIncome = $this->transactions->where('type', 1)->sum('amount');

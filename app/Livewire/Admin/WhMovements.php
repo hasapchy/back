@@ -6,22 +6,22 @@ use Livewire\Component;
 use App\Models\Product;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
-use App\Models\WarehouseProductMovement;
-use App\Models\WarehouseProductMovementProduct;
+use App\Models\WhMovement;
+use App\Models\WhMovementProduct;
 use App\Services\ProductService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class WarehouseProductMovements extends Component
+class WhMovements extends Component
 {
 
-    public $whFrom, $whTo, $note, $transferId;
+    public $whFrom, $whTo, $note, $movementId;
     public $selectedProducts = [];
     public $warehouses, $stockMovements = [];
     public $showForm = false, $showPForm = false, $showConfirmationModal = false;
     public $productId, $productQuantity = 1, $selectedProduct = null;
     public $productSearch = '', $productResults = [];
-    public $startDate, $endDate;
+    public $startDate, $endDate, $date;
     public $isDirty = false;
     protected $productService;
     protected $listeners = [
@@ -36,6 +36,7 @@ class WarehouseProductMovements extends Component
 
     public function mount()
     {
+        $this->date = now()->format('Y-m-d\TH:i');
         $this->warehouses = Warehouse::whereJsonContains('users', (string) Auth::id())->get();
         $this->load();
     }
@@ -43,7 +44,7 @@ class WarehouseProductMovements extends Component
     public function render()
     {
         $this->load();
-        return view('livewire.admin.warehouses.transfer');
+        return view('livewire.admin.warehouses.movement');
     }
 
     public function openForm()
@@ -103,7 +104,7 @@ class WarehouseProductMovements extends Component
             'productQuantity',
             'selectedProduct',
             'productSearch',
-            'transferId'
+            'movementId'
         ]);
     }
 
@@ -155,23 +156,26 @@ class WarehouseProductMovements extends Component
             'whFrom'           => 'required|exists:warehouses,id',
             'whTo'             => 'required|exists:warehouses,id|different:whFrom',
             'selectedProducts' => 'required|array|min:1',
+            'date'             => 'required|date',
         ]);
 
         // Если идет редактирование, сначала отменяем предыдущее перемещение
-        if ($this->transferId) {
+        if ($this->movementId) {
             $this->reverseMovement();
-            $movement = WarehouseProductMovement::findOrFail($this->transferId);
+            $movement = WhMovement::findOrFail($this->movementId);
             $movement->update([
-                'warehouse_from' => $this->whFrom,
-                'warehouse_to'   => $this->whTo,
+                'wh_from' => $this->whFrom,
+                'wh_to'   => $this->whTo,
                 'note'           => $this->note,
+                'date'    => $this->date,
             ]);
         } else {
             // Создаем новое перемещение
-            $movement = WarehouseProductMovement::create([
-                'warehouse_from' => $this->whFrom,
-                'warehouse_to'   => $this->whTo,
+            $movement = WhMovement::create([
+                'wh_from' => $this->whFrom,
+                'wh_to'   => $this->whTo,
                 'note'           => $this->note,
+                'date'    => $this->date,
             ]);
         }
 
@@ -197,32 +201,32 @@ class WarehouseProductMovements extends Component
             $stockTo->increment('quantity', $details['quantity']);
 
             // Записываем перемещение для данного товара
-            WarehouseProductMovementProduct::create([
+            WhMovementProduct::create([
                 'movement_id' => $movement->id,
                 'product_id'  => $productId,
                 'quantity'    => $details['quantity'],
             ]);
         }
 
-        session()->flash('success', $this->transferId ? 'Перемещение успешно обновлено.' : 'Перемещение успешно выполнено.');
+        session()->flash('success', $this->movementId ? 'Перемещение успешно обновлено.' : 'Перемещение успешно выполнено.');
         $this->closeForm();
     }
 
     protected function reverseMovement()
     {
-        $movement = WarehouseProductMovement::with('products')->findOrFail($this->transferId);
+        $movement = WhMovement::with('products')->findOrFail($this->movementId);
         foreach ($movement->products as $movementProduct) {
             $productId = $movementProduct->product_id;
             $quantity = $movementProduct->quantity;
 
             // Восстанавливаем остаток на складе отправления
             WarehouseStock::updateOrCreate(
-                ['warehouse_id' => $movement->warehouse_from, 'product_id' => $productId],
+                ['warehouse_id' => $movement->wh_from, 'product_id' => $productId],
                 ['quantity' => DB::raw("quantity + {$quantity}")]
             );
 
             // Снимаем остаток со склада получения
-            $stockTo = WarehouseStock::where('warehouse_id', $movement->warehouse_to)
+            $stockTo = WarehouseStock::where('warehouse_id', $movement->wh_to)
                 ->where('product_id', $productId)
                 ->first();
             if ($stockTo && $stockTo->quantity >= $quantity) {
@@ -235,10 +239,10 @@ class WarehouseProductMovements extends Component
 
     public function edit($id)
     {
-        $movement = WarehouseProductMovement::with('products')->findOrFail($id);
-        $this->transferId = $movement->id;
-        $this->whFrom = $movement->warehouse_from;
-        $this->whTo = $movement->warehouse_to;
+        $movement = WhMovement::with('products')->findOrFail($id);
+        $this->movementId = $movement->id;
+        $this->whFrom = $movement->wh_from;
+        $this->whTo = $movement->wh_to;
         $this->note = $movement->note;
         $this->selectedProducts = [];
 
@@ -260,21 +264,21 @@ class WarehouseProductMovements extends Component
 
     public function delete()
     {
-        if (!$this->transferId) {
+        if (!$this->movementId) {
             session()->flash('error', 'Перемещение не найдено.');
             return;
         }
 
-        $movement = WarehouseProductMovement::with('products')->findOrFail($this->transferId);
+        $movement = WhMovement::with('products')->findOrFail($this->movementId);
         foreach ($movement->products as $movementProduct) {
             $productId = $movementProduct->product_id;
             // Восстанавливаем остатки
             WarehouseStock::updateOrCreate(
-                ['warehouse_id' => $movement->warehouse_from, 'product_id' => $productId],
+                ['warehouse_id' => $movement->wh_from, 'product_id' => $productId],
                 ['quantity' => DB::raw("quantity + {$movementProduct->quantity}")]
             );
 
-            $stockTo = WarehouseStock::where('warehouse_id', $movement->warehouse_to)
+            $stockTo = WarehouseStock::where('warehouse_id', $movement->wh_to)
                 ->where('product_id', $productId)
                 ->first();
             if ($stockTo && $stockTo->quantity >= $movementProduct->quantity) {
@@ -320,7 +324,7 @@ class WarehouseProductMovements extends Component
 
     public function load()
     {
-        $query = WarehouseProductMovement::with(['warehouseFrom', 'warehouseTo', 'products.product']);
+        $query = WhMovement::with(['warehouseFrom', 'warehouseTo', 'products.product']);
 
         if ($this->startDate && $this->endDate) {
             $query->whereBetween('created_at', [$this->startDate, $this->endDate]);

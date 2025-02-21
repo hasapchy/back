@@ -5,17 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class WarehouseProductReceipt extends Model
+class WhReceipt extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'invoice',
         'supplier_id',
         'warehouse_id',
         'note',
         'currency_id',
-        'converted_total',
+        'amount',
+        'date',
     ];
 
     public function supplier()
@@ -35,18 +35,16 @@ class WarehouseProductReceipt extends Model
 
     public function products()
     {
-        return $this->hasMany(WarehouseProductReceiptProduct::class, 'receipt_id');
+        return $this->hasMany(WhReceiptProduct::class, 'receipt_id');
     }
 
     public function productsPivot()
     {
         return $this->belongsToMany(
             Product::class,
-            'warehouse_product_receipt_products',
+            'wh_receipt_products',
             'receipt_id',
             'product_id'
         )->withPivot('quantity');
     }
 }
-
-

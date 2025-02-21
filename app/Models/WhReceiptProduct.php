@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class WarehouseProductReceiptProduct extends Model
+class WhReceiptProduct extends Model
 {
     use HasFactory;
 
@@ -14,11 +14,12 @@ class WarehouseProductReceiptProduct extends Model
         'product_id',
         'quantity',
         'serial_number_id',
+        'price',
     ];
 
     public function receipt()
     {
-        return $this->belongsTo(WarehouseProductReceipt::class, 'receipt_id');
+        return $this->belongsTo(WhReceipt::class, 'receipt_id');
     }
 
     public function product()
@@ -28,6 +29,6 @@ class WarehouseProductReceiptProduct extends Model
 
     public function serialNumbers()
     {
-        return $this->hasMany(ProductSerialNumber::class, 'serial_number_id'); // Updated foreign key
+        return $this->hasMany(ProductSerialNumber::class, 'serial_number_id');
     }
 }
