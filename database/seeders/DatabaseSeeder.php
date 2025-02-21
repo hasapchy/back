@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             TransactionCategorySeeder::class,
             OrderStatusSeeder::class,
             CashRegisterSeeder::class,
+            UnitsSeeder::class,
         ]);
 
     }

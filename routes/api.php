@@ -1,5 +1,11 @@
 <?php
 
+use App\Http\Controllers\Api\AppController;
+use App\Http\Controllers\Api\CategoriesController;
+use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\UsersController;
+use App\Http\Controllers\Api\WarehouseController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TableOrderController;
@@ -15,12 +21,38 @@ use App\Http\Controllers\TableOrderController;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+Route::post('user/login', [UserController::class, 'login']);
+Route::post('user/refresh', [UserController::class, 'refresh']);
+
+Route::middleware('auth:api')->group(function () {
+    // app
+    Route::get('app/currency', [AppController::class, 'getCurrencyList']);
+    Route::get('app/units', [AppController::class, 'getUnitsList']);
+    Route::get('app/product_statuses', [AppController::class, 'getProductStatuses']);
+
+    // user
+    Route::post('user/logout', [UserController::class, 'logout']);
+    Route::get('user/me', [UserController::class, 'me']);
+    
+    // users
+    Route::get('admin/users', [UsersController::class, 'getAllUsers']);
+    
+    // warehouses
+    Route::get('warehouses', [WarehouseController::class, 'index']);
+    Route::post('warehouses', [WarehouseController::class, 'store']);
+    Route::put('warehouses/{id}', [WarehouseController::class, 'update']);
+    Route::delete('warehouses/{id}', [WarehouseController::class, 'destroy']);
+    
+    // categories
+    Route::get('categories', [CategoriesController::class, 'index']);
+    Route::get('categories/all', [CategoriesController::class, 'all']);
+    Route::post('categories', [CategoriesController::class, 'store']);
+    Route::put('categories/{id}', [CategoriesController::class, 'update']);
+    Route::delete('categories/{id}', [CategoriesController::class, 'destroy']);
+
+    // products
+    Route::get('products', [ProductController::class, 'products']);
+    Route::get('services', [ProductController::class, 'services']);
+    Route::post('products', [ProductController::class, 'store']);
+    Route::post('products/{id}', [ProductController::class, 'update']);
 });
-
-Route::middleware('auth:sanctum')->get('/get-table-order', [TableOrderController::class, 'getOrder']);
-
-
-Route::post('/save-table-order', [TableOrderController::class, 'saveOrder']);
-Route::get('/get-table-order', [TableOrderController::class, 'getOrder']);

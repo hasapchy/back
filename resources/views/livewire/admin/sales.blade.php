@@ -2,14 +2,23 @@
 <div class="container mx-auto p-4">
     @include('components.alert')
 
+    {{-- @if (session()->has('message'))
+        <div class="fixed top-4 right-4 bg-green-500 text-white p-4 rounded shadow-lg z-50 alert" role="alert"
+            x-data="{ show: true }" x-init="setTimeout(() => show = false, 10000)" x-show="show" x-transition>
+            <button type="button" class="absolute top-0 right-0 mt-2 mr-2 text-white"
+                onclick="this.parentElement.style.display='none';">
+                &times;
+            </button>
+            {{ session('message') }}
+        </div>
+    @endif --}}
+
     <div class="flex space-x-4 mb-4">
         @if (Auth::user()->hasPermission('create_sales'))
             <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
                 <i class="fas fa-plus"></i>
             </button>
         @endif
-
-
     </div>
 
     <table class="min-w-full bg-white shadow-md rounded mb-6">

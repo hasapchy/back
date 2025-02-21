@@ -16,6 +16,7 @@ class Product extends Model
         'image',
         'category_id',
         'stock_quantity',
+        'unit_id',
         'status_id',
         'barcode',
         'is_serialized',
