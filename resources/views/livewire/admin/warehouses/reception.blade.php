@@ -44,7 +44,7 @@
                     @endforeach
                 </td>
                 <td class="p-2 border border-gray-200">
-                    {{ number_format($reception->converted_total, 2) }} {{ $displayCurrency->code }}
+                    {{ number_format($reception->amount, 2) }}  {{ $defaultCurrency->symbol }}
                 </td>
                 <td class="p-2 border border-gray-200">{{ $reception->note }}</td>
 
@@ -67,6 +67,11 @@
 
             <div class="mb-4">
                 @include('components.client-search')
+            </div>
+
+            <div class="mb-4">
+                <label>Дата списания</label>
+                <input type="datetime-local" wire:model="date" class="w-full border rounded">
             </div>
 
             <div class="mb-4">
@@ -99,6 +104,9 @@
             </div>
 
             <h3 class="text-lg font-bold mb-4">Выбранные товары</h3>
+            @if(!$receptionId)
+            <small>Все цены будут переведены в валюту расчета  {{ $defaultCurrency->name }}</small>
+            @endif
             <table class="w-full border-collapse border border-gray-200 shadow-md rounded">
                 <thead class="bg-gray-100">
                     <tr>

@@ -11,8 +11,6 @@ class ProductPrice extends Model
         'retail_price',
         'wholesale_price',
         'purchase_price',
-        'currency_id',
-        // 'effective_date',
     ];
 
     protected $attributes = [
@@ -21,8 +19,4 @@ class ProductPrice extends Model
         'purchase_price' => 0.0,
     ];
 
-    public function currency()
-    {
-        return $this->belongsTo(Currency::class);
-    }
 }

@@ -5,7 +5,7 @@ namespace App\Livewire\Admin;
 use Livewire\Component;
 use App\Models\CashTransfer;
 use App\Models\CashRegister;
-use App\Models\FinancialTransaction;
+use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -122,7 +122,7 @@ class Transfers extends Component
 
         $transferNote = "Трансфер из кассы '{$fromCashRegister->name}' в кассу '{$toCashRegister->name}'.";
 
-        $fromTransaction = FinancialTransaction::create([
+        $fromTransaction = Transaction::create([
             'type' => '0',
             'amount' => $this->amount,
             'cash_register_id' => $this->cashFrom,
@@ -132,7 +132,7 @@ class Transfers extends Component
             'user_id' => Auth::id(),
         ]);
 
-        $toTransaction = FinancialTransaction::create([
+        $toTransaction = Transaction::create([
             'type' => '1',
             'amount' => $amountInTargetCurrency,
             'cash_register_id' => $this->cashTo,

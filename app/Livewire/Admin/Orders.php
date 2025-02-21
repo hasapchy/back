@@ -10,12 +10,11 @@ use App\Models\OrderCategory;
 use App\Services\ClientService;
 use App\Models\OrderAf;
 use App\Models\OrderAfValue;
-use App\Models\FinancialTransaction;
+use App\Models\Transaction;
 use App\Models\Currency;
 use App\Models\TransactionCategory;
 use App\Models\CashRegister;
 use Illuminate\Support\Facades\Auth;
-use App\Models\OrderProduct;
 use App\Models\Product;
 use App\Services\ProductService;
 
@@ -27,12 +26,12 @@ class Orders extends Component
     public $showForm = false;
     public $showTrForm = false;
     public $showConfirmationModal = false;
-    public $clientSearch = ''; // Added for client search
-    public $clientResults = []; // Added for client search results
-    public $selectedClient; // Added for selected client
+    public $clientSearch = '';
+    public $clientResults = [];
+    public $selectedClient;
     public $afFields;
     public $afValues = [];
-    public $transaction_note, $transaction_amount, $transaction_date, $transaction_category_id, $transaction_currency_id, $transaction_cash_register_id;
+    public $tr_note, $tr_amount, $tr_date, $tr_category_id, $tr_currency_id, $tr_cash_id;
     public $incomeCategories = [], $transactions, $cashRegisters = [];
     public $isDirty = false;
     public $totalSum = 0;
@@ -48,6 +47,8 @@ class Orders extends Component
     public $selectedProduct;
     protected $clientService;
     protected $productService;
+    public $tr_type = 1;
+    public $expenseCategories = [];
 
     protected $listeners = [
         'productSelected' => 'selectProduct',
@@ -64,9 +65,10 @@ class Orders extends Component
     public function mount()
     {
         $this->afFields = collect();
-        $this->transaction_date = now()->toDateString();
+        $this->tr_date = now()->toDateString();
         $this->currencies = Currency::all();
         $this->incomeCategories = TransactionCategory::where('type', 1)->get();
+        $this->expenseCategories = TransactionCategory::where('type', 0)->get();
         $this->cashRegisters = CashRegister::whereJsonContains('users', (string) Auth::id())->get();
         $this->displayCurrency = Currency::where('is_report', 1)->first();
     }
@@ -136,11 +138,7 @@ class Orders extends Component
         $this->clientSearch = '';
         $this->clientResults = [];
     }
-    //конец поиск клиент
 
-    //начало поиск товар
-
-    //поиск товара начало
     public function showAllProducts()
     {
         $this->productResults = $this->productService->getAllProductsServices();
@@ -185,13 +183,7 @@ class Orders extends Component
         }
     }
 
-    public function create()
-    {
-        $this->resetForm();
-        $this->showForm = true;
-    }
-
-    public function store()
+    public function save()
     {
         $this->validate([
             'client_id' => 'required|exists:clients,id',
@@ -245,7 +237,7 @@ class Orders extends Component
         $this->date = $order->date;
         $this->selectedClient = $this->clientService->getClientById($order->client_id);
         $this->loadAfFields();
-        $this->transactions = FinancialTransaction::whereIn('id', json_decode($order->transaction_ids) ?? [])->get();
+        $this->transactions = Transaction::whereIn('id', json_decode($order->tr_ids) ?? [])->get();
         $this->calculateTotalSum();
         $this->showForm = true;
 
@@ -291,9 +283,9 @@ class Orders extends Component
     {
 
         $order = Order::find($this->order_id);
-        if ($order && $order->transaction_ids) {
-            $transactionIds = json_decode($order->transaction_ids, true);
-            FinancialTransaction::whereIn('id', $transactionIds)->delete();
+        if ($order && $order->tr_ids) {
+            $transactionIds = json_decode($order->tr_ids, true);
+            Transaction::whereIn('id', $transactionIds)->delete();
         }
 
         Order::find($this->order_id)->delete();
@@ -306,16 +298,16 @@ class Orders extends Component
     public function deleteTransaction($transactionId)
     {
         $order = Order::find($this->order_id);
-        if ($order && $order->transaction_ids) {
-            $transactionIds = json_decode($order->transaction_ids, true);
+        if ($order && $order->tr_ids) {
+            $transactionIds = json_decode($order->tr_ids, true);
             $updatedTransactionIds = array_filter($transactionIds, function ($id) use ($transactionId) {
                 return $id != $transactionId;
             });
-            $order->transaction_ids = json_encode(array_values($updatedTransactionIds));
+            $order->tr_ids = json_encode(array_values($updatedTransactionIds));
             $order->save();
         }
 
-        $transaction = FinancialTransaction::find($transactionId);
+        $transaction = Transaction::find($transactionId);
         if ($transaction) {
             $cashRegister = $transaction->cashRegister;
             if ($cashRegister) {
@@ -391,74 +383,81 @@ class Orders extends Component
         }
     }
 
-    public function createTransaction()
+    public function saveTransaction()
     {
         $this->validate([
-            'transaction_note' => 'nullable|string|max:255',
-            'transaction_amount' => 'required|numeric',
-            'transaction_date' => 'required|date',
-            'transaction_category_id' => 'required|exists:transaction_categories,id',
-            'transaction_currency_id' => 'required|exists:currencies,id',
-            'transaction_cash_register_id' => 'required|exists:cash_registers,id',
+            'tr_note' => 'nullable|string|max:255',
+            'tr_amount' => 'required|numeric',
+            'tr_date' => 'required|date',
+            'tr_category_id' => 'required|exists:transaction_categories,id',
+            'tr_currency_id' => 'required|exists:currencies,id',
+            'tr_cash_id' => 'required|exists:cash_registers,id',
+            'tr_type' => 'required|in:0,1',
         ]);
 
-        $transaction = FinancialTransaction::create([
-            'type' => 1,
-            'amount' => $this->transaction_amount,
-            'note' => 'Заказ номер ' . $this->order_id . ': ' . $this->transaction_note,
-            'transaction_date' => $this->transaction_date,
-            'category_id' => $this->transaction_category_id,
-            'currency_id' => $this->transaction_currency_id,
-            'client_id' => $this->client_id,
-            'user_id' => Auth::id(),
-            'cash_register_id' => $this->transaction_cash_register_id,
+        $transaction = Transaction::create([
+            'type'            => $this->tr_type,
+            'amount'          => $this->tr_amount,
+            'note'            => 'Заказ номер ' . $this->order_id . ': ' . $this->tr_note,
+            'date' => $this->tr_date,
+            'category_id'     => $this->tr_category_id,
+            'orig_currency_id'     => $this->tr_currency_id,
+            'currency_id'     => $this->tr_currency_id,
+            'client_id'       => $this->client_id,
+            'user_id'         => Auth::id(),
+            'cash_id' => $this->tr_cash_id,
         ]);
 
-        $cashRegister = CashRegister::find($this->transaction_cash_register_id);
+        $cashRegister = CashRegister::find($this->tr_cash_id);
         if ($cashRegister) {
-            if ($this->transaction_currency_id && $this->transaction_currency_id != $cashRegister->currency_id) {
-                $transactionCurrency = Currency::find($this->transaction_currency_id);
+            if ($this->tr_currency_id && $this->tr_currency_id != $cashRegister->currency_id) {
+                $transactionCurrency = Currency::find($this->tr_currency_id);
                 $cashRegisterCurrency = Currency::find($cashRegister->currency_id);
                 $transactionExchangeRate = $transactionCurrency->currentExchangeRate()->exchange_rate;
                 $cashRegisterExchangeRate = $cashRegisterCurrency->currentExchangeRate()->exchange_rate;
-                $amountInDefaultCurrency = $this->transaction_amount / $transactionExchangeRate;
+                $amountInDefaultCurrency = $this->tr_amount / $transactionExchangeRate;
                 $convertedAmount = $amountInDefaultCurrency * $cashRegisterExchangeRate;
 
-                $transaction->note .= " // Original Amount: {$this->transaction_amount} {$transactionCurrency->symbol}";
+                $transaction->note .= " // Original Amount: {$this->tr_amount} {$transactionCurrency->symbol}";
 
                 $transaction->update([
-                    'amount' => $convertedAmount,
+                    'amount'     => $convertedAmount,
                     'currency_id' => $cashRegister->currency_id,
                 ]);
             } else {
-                $convertedAmount = $this->transaction_amount;
+                $convertedAmount = $this->tr_amount;
             }
-            $cashRegister->balance += $convertedAmount;
+
+            // Если расход (0) - убавляем сумму из баланса, иначе прибавляем
+            if ($this->tr_type == 0) {
+                $cashRegister->balance -= $convertedAmount;
+            } else {
+                $cashRegister->balance += $convertedAmount;
+            }
             $cashRegister->save();
         }
 
         $order = Order::find($this->order_id);
-        $transactionIds = json_decode($order->transaction_ids, true) ?? [];
+        $transactionIds = json_decode($order->tr_ids, true) ?? [];
         $transactionIds[] = $transaction->id;
-        $order->update(['transaction_ids' => json_encode($transactionIds)]);
+        $order->update(['tr_ids' => json_encode($transactionIds)]);
 
         session()->flash('message', 'Транзакция успешно создана.');
         $this->resetTrForm();
         $this->showTrForm = false;
     }
 
-
     public function editTransaction($transactionId)
     {
-        $transaction = FinancialTransaction::find($transactionId);
+        $transaction = Transaction::find($transactionId);
         if ($transaction) {
 
-            $this->transaction_note = $transaction->note;
-            $this->transaction_amount = $transaction->amount;
-            $this->transaction_date = $transaction->transaction_date;
-            $this->transaction_category_id = $transaction->category_id;
-            $this->transaction_currency_id = $transaction->currency_id;
-            $this->transaction_cash_register_id = $transaction->cash_register_id;
+            $this->tr_note = $transaction->note;
+            $this->tr_amount = $transaction->amount;
+            $this->tr_date = $transaction->tr_date;
+            $this->tr_category_id = $transaction->category_id;
+            $this->tr_currency_id = $transaction->currency_id;
+            $this->tr_cash_id = $transaction->cash_id;
             $this->order_id = $transaction->order_id ?? $this->order_id;
             $this->showTrForm = true;
         }
@@ -466,12 +465,13 @@ class Orders extends Component
 
     private function resetTrForm()
     {
-        $this->transaction_note = '';
-        $this->transaction_amount = '';
-        $this->transaction_date = now()->toDateString();
-        $this->transaction_category_id = '';
-        $this->transaction_currency_id = '';
-        $this->transaction_cash_register_id = '';
+        $this->tr_note = '';
+        $this->tr_amount = '';
+        $this->tr_date = now()->toDateString();
+        $this->tr_category_id = '';
+        $this->tr_currency_id = '';
+        $this->tr_cash_id = '';
+        $this->tr_type = 1;
     }
 
     public function resetForm()
@@ -489,12 +489,12 @@ class Orders extends Component
             'selectedClient',
             'afFields',
             'afValues',
-            'transaction_note',
-            'transaction_amount',
-            'transaction_date',
-            'transaction_category_id',
-            'transaction_currency_id',
-            'transaction_cash_register_id',
+            'tr_note',
+            'tr_amount',
+            'tr_date',
+            'tr_category_id',
+            'tr_currency_id',
+            'tr_cash_id',
             'incomeCategories',
             'transactions',
             'cashRegisters',
@@ -508,7 +508,6 @@ class Orders extends Component
             'name' => '',
             'quantity' => 1,
             'price' => 0,
-            'discount' => 0,
         ];
     }
 
@@ -531,7 +530,6 @@ class Orders extends Component
             'name' => $product->name,
             'quantity' => $this->productQuantity,
             'price' => $this->productPrice, // Использование 'productPrice'
-            'discount' => $this->productDiscount,
         ];
 
         $this->closePForm();
@@ -544,7 +542,6 @@ class Orders extends Component
             'category_id' => 'required|exists:order_categories,id',
             'date' => 'required|date',
             'selectedProducts' => 'required|array|min:1',
-            // ...other validations...
         ]);
 
         $order = Order::updateOrCreate(
@@ -559,8 +556,7 @@ class Orders extends Component
             ]
         );
 
-        // Обработка товаров в заказе
-        $order->orderProducts()->delete(); // Удаляем старые позиции
+        $order->orderProducts()->delete();
 
         foreach ($this->selectedProducts as $productId => $details) {
             $order->orderProducts()->create([
@@ -585,24 +581,22 @@ class Orders extends Component
         unset($this->selectedProducts[$productId]);
     }
 
-  
     public function openPForm($productId)
     {
         $this->productId = $productId;
         $this->showPForm = true;
 
-        // Инициализация productPrice при открытии модального окна
         $product = Product::find($productId);
-        $this->productPrice = $product->price; // Предполагается, что у модели Product есть поле 'price'
+        $this->productPrice = $product->price;
     }
 
-  
+
     public function closePForm()
     {
         $this->showPForm = false;
         $this->productId = null;
         $this->productQuantity = 1;
-        $this->productPrice = null; // Сброс 'productPrice'
+        $this->productPrice = null;
         $this->productDiscount = 0;
     }
 }

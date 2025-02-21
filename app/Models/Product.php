@@ -52,17 +52,17 @@ class Product extends Model
 
     public function receiptProducts()
     {
-        return $this->hasMany(WarehouseProductReceiptProduct::class);
+        return $this->hasMany(WhReceiptProduct::class);
     }
 
     public function writeOffProducts()
     {
-        return $this->hasMany(WarehouseProductWriteOffProduct::class);
+        return $this->hasMany(WhWriteoffProduct::class);
     }
 
     public function movementProducts()
     {
-        return $this->hasMany(WarehouseProductMovementProduct::class);
+        return $this->hasMany(WhMovementProduct::class);
     }
 
     public function salesProducts()

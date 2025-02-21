@@ -41,17 +41,17 @@ class OrderCategories extends Component
         $this->validate([
             'name' => 'required|string|max:255',
         ]);
-
-        OrderCategory::updateOrCreate(['id' => $this->category_id], [
+    
+        OrderCategory::updateOrCreate(['id' => $this->categoryId], [
             'name' => $this->name,
             'user_id' => Auth::id(),
         ]);
-
+    
         session()->flash(
             'message',
-            $this->categoryIid ? 'Категория успешно обновлена.' : 'Категория успешно создана.'
+            $this->categoryId ? 'Категория успешно обновлена.' : 'Категория успешно создана.'
         );
-
+    
         $this->closeForm();
         $this->resetForm();
     }

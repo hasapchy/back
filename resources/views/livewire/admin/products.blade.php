@@ -173,16 +173,6 @@
                     </div>
 
                     <div class="mb-2">
-                        <label class="block mb-1">Валюта</label>
-                        <select wire:model="currencyId" class="w-full p-2 border rounded">
-                            <option value="">Выберите валюту</option>
-                            @foreach ($currencies as $currency)
-                                <option value="{{ $currency->id }}">{{ $currency->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="mb-2">
                         <label class="block mb-1">Розничная цена</label>
                         <input type="text" wire:model="retail_price" placeholder="Розничная цена"
                             class="w-full p-2 border rounded">

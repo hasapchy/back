@@ -10,19 +10,20 @@ class Sale extends Model
     use HasFactory;
 
     protected $fillable = [
+        'cash_id',
         'client_id',
-        'warehouse_id',
-        'total_amount',
-        'note',
-        'cash_register_id',
-        'transaction_date',
-        'transaction_id',
         'currency_id',
-        'user_id',
-        'warehouse_id',
-        'discount_price',
+        'date',
+        'discount',
+        'note',
+        'orig_currency_id',
+        'orig_price',
         'price',
-        'project_id'
+        'project_id',
+        'total_price',
+        'transaction_id',
+        'user_id',
+        'warehouse_id'
     ];
 
     public function client()

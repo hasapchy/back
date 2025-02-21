@@ -5,9 +5,9 @@ namespace App\Livewire\Admin;
 use Livewire\Component;
 use App\Models\Client;
 use App\Models\ClientsPhone;
-use App\Models\FinancialTransaction;
+use App\Models\Transaction;
 use App\Models\ClientBalance;
-use App\Models\WarehouseProductReceipt;
+use App\Models\WhReceipt;
 use App\Models\Discount;
 use App\Models\Project;
 use App\Models\Order;
@@ -200,7 +200,7 @@ class Clients extends Component
     {
         $projects = Project::where('client_id', $clientId)->get();
         $this->clientProjects = $projects->map(function ($project) {
-            $transactions = FinancialTransaction::where('project_id', $project->id)->get();
+            $transactions = Transaction::where('project_id', $project->id)->get();
             $income = $transactions->where('type', 1)->sum('amount');
             $expense = $transactions->where('type', 0)->sum('amount');
             $balance = $income - $expense;
@@ -233,8 +233,8 @@ class Clients extends Component
         $this->emails = $client->emails->pluck('email')->toArray();
         $this->clientBalance = ClientBalance::where('client_id', $client->id)->value('balance') ?? 0;
 
-        // Загружаем транзакции из FinancialTransaction
-        $salesAndExpenses = FinancialTransaction::where('client_id', $client->id)
+        // Загружаем транзакции из Transaction
+        $salesAndExpenses = Transaction::where('client_id', $client->id)
             ->get()
             ->map(function ($transaction) {
                 $transaction->isOrder = Order::where('client_id', $transaction->client_id)
@@ -255,19 +255,19 @@ class Clients extends Component
             })
             ->toArray();
 
-        // Загружаем оприходования из WarehouseProductReceipt
-        $receipts = WarehouseProductReceipt::where('supplier_id', $client->id)
+        // Загружаем оприходования из WhReceipt
+        $receipts = WhReceipt::where('supplier_id', $client->id)
             ->get()
             ->map(function ($receipt) {
                 $receipt->event_type = 'Оприходование';
-                $receipt->amount = $receipt->converted_total ?? $receipt->total ?? 0;
+                $receipt->amount = $receipt->amount ?? $receipt->total ?? 0;
                 $receipt->note = $receipt->note ?? '';
                 $receipt->transaction_date = $receipt->receipt_date ?? $receipt->created_at;
                 return $receipt->toArray();
             })
             ->toArray();
 
-        // Загружаем продажи с баланса из таблицы sales (без cash_register_id)
+      
         $salesFromBalance = \App\Models\Sale::where('client_id', $client->id)
             ->whereNull('cash_register_id')
             ->get()
@@ -276,7 +276,7 @@ class Clients extends Component
                 // Устанавливаем event_type как 'Продажа'
                 $saleArray['event_type'] = 'Продажа';
                 // Берем сумму продажи из total_amount (предполагается, что там итоговая сумма)
-                $saleArray['amount'] = $sale->total_amount;
+                $saleArray['amount'] = $sale->total_price;
                 $saleArray['transaction_date'] = $sale->transaction_date ?? $sale->created_at;
                 return $saleArray;
             })
