@@ -11,32 +11,44 @@ return new class extends Migration
      */
     public function up(): void
     {
-     
-        Schema::rename('warehouse_product_write_offs', 'wh_writeoffs');
+
+        if (Schema::hasTable('warehouse_product_write_offs')) {
+            Schema::rename('warehouse_product_write_offs', 'wh_writeoffs');
+        }
         Schema::table('wh_writeoffs', function (Blueprint $table) {
             $table->timestamp('date')->nullable()->after('note');
         });
 
-     
-        Schema::rename('warehouse_product_write_off_products', 'wh_writeoff_products');
 
-    
-        Schema::rename('warehouse_product_movements', 'wh_movements');
+        if (Schema::hasTable('warehouse_product_write_off_products')) {
+            Schema::rename('warehouse_product_write_off_products', 'wh_writeoff_products');
+        }
+
+
+        if (Schema::hasTable('warehouse_product_movements')) {
+            Schema::rename('warehouse_product_movements', 'wh_movements');
+        }
         Schema::table('wh_movements', function (Blueprint $table) {
             $table->timestamp('date')->nullable()->after('note');
-            $table->renameColumn('warehouse_from', 'wh_from');
-            $table->renameColumn('warehouse_to', 'wh_to');
+            if (Schema::hasColumn('wh_movements', 'warehouse_from')) {
+                $table->renameColumn('warehouse_from', 'wh_from');
+            }
+            if (Schema::hasColumn('wh_movements', 'warehouse_to')) {
+                $table->renameColumn('warehouse_to', 'wh_to');
+            }
         });
 
-    
-        Schema::rename('warehouse_product_movement_products', 'wh_movement_products');
 
-       
+        if (Schema::hasTable('warehouse_product_movement_products')) {
+            Schema::rename('warehouse_product_movement_products', 'wh_movement_products');
+        }
+
+
         Schema::table('wh_writeoff_products', function (Blueprint $table) {
             $table->unsignedInteger('quantity')->default(1)->change();
         });
 
-      
+
         Schema::table('wh_movement_products', function (Blueprint $table) {
             $table->unsignedInteger('quantity')->default(1)->change();
         });
@@ -49,7 +61,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        
+
         Schema::table('wh_movement_products', function (Blueprint $table) {
             $table->integer('quantity')->default(1)->change();
         });

@@ -10,9 +10,12 @@ return new class extends Migration
     {
 
         Schema::table('financial_transactions', function (Blueprint $table) {
-
-            $table->renameColumn('cash_register_id', 'cash_id');
-            $table->renameColumn('transaction_date', 'date');
+            if (Schema::hasColumn('financial_transactions', 'cash_register_id')) {
+                $table->renameColumn('cash_register_id', 'cash_id');
+            }
+            if (Schema::hasColumn('financial_transactions', 'transaction_date')) {
+                $table->renameColumn('transaction_date', 'date');
+            }
         });
 
 
@@ -25,12 +28,11 @@ return new class extends Migration
             $table->foreignId('orig_currency_id')->constrained('currencies')->onDelete('cascade');
             $table->decimal('orig_amount', 15, 2)->nullable();
         });
-  
     }
 
     public function down(): void
     {
-       
+
 
         Schema::table('financial_transactions', function (Blueprint $table) {
             $table->dropForeign(['orig_currency_id']);
