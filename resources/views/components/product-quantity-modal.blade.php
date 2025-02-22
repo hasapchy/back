@@ -1,3 +1,9 @@
+@php
+    $sessionCurrencyCode = session('currency', 'USD');
+    $conversionService = app(\App\Services\CurrencySwitcherService::class);
+    $displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
+    $displayCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
+@endphp
 <div id="modalBackground"
     class="fixed overflow-y-auto inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showPForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
     wire:click="closePForm">
@@ -14,17 +20,17 @@
             <input type="number" wire:model="productQuantity" class="w-full border rounded mb-4">
             @if (isset($productPrice))
                 <label>Тип цены</label>
-                <select wire:model.change="productPriceType" wire:change="updatePriceType"
+                <select wire:model.live="productPriceType" wire:change="updatePriceType"
                     class="w-full border rounded mb-4">
+                    <option value="custom">Произвольное</option>
                     <option value="retail_price">Розничная цена</option>
                     <option value="wholesale_price">Оптовая цена</option>
-                    <option value="custom">Произвольное</option>
                 </select>
-                <label>Цена</label>
-                {{-- <input type="number" wire:model="productPrice" wire:change="updateProductPrice($event.target.value)"
-                    class="w-full border rounded mb-4"> --}}
-                    <input type="number" wire:model="productPrice"
-                    class="w-full border rounded mb-4">
+
+                <label>Цена </label>
+
+                <input type="number" wire:model="productPriceConverted"
+                    wire:change="updateProductPrice($event.target.value)" class="w-full border rounded mb-4">
             @endif
         </div>
         <div>

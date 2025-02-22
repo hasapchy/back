@@ -69,9 +69,10 @@
         <div class="w-1/6 relative">
             <i class="fas fa-cash-register absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
             <select wire:model.change="cashId" class="w-full pl-10 pr-2 p-2 border rounded">
+                <option value="">-- выбрать кассу --</option>
                 @foreach ($cashRegisters as $cashRegister)
                     <option value="{{ $cashRegister->id }}">
-                        {{ $cashRegister->name }} ({{ $cashRegister->currency->code }})
+                        {{ $cashRegister->name }} ({{ optional($cashRegister->currency)->symbol }})
                     </option>
                 @endforeach
             </select>

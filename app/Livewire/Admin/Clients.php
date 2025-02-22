@@ -11,7 +11,10 @@ use App\Models\WhReceipt;
 use App\Models\Discount;
 use App\Models\Project;
 use App\Models\Order;
+use App\Models\Sale;
 use Carbon\Carbon;
+use App\Models\Currency;
+
 
 class Clients extends Component
 {
@@ -234,16 +237,15 @@ class Clients extends Component
         $this->clientBalance = ClientBalance::where('client_id', $client->id)->value('balance') ?? 0;
 
         // Загружаем транзакции из Transaction
+
         $salesAndExpenses = Transaction::where('client_id', $client->id)
+            ->with('currency') // <-- добавляем загрузку отношений
             ->get()
             ->map(function ($transaction) {
-                $transaction->isOrder = Order::where('client_id', $transaction->client_id)
-                    ->whereJsonContains('transaction_ids', $transaction->id)
-                    ->exists();
+                // Ваша логика присвоения event_type...
+                // Например:
                 if (stripos($transaction->note, 'Продажа товаров') !== false) {
                     $transaction->event_type = 'Продажа';
-                } elseif ($transaction->isOrder) {
-                    $transaction->event_type = 'Заказ';
                 } elseif ($transaction->type === 1) {
                     $transaction->event_type = 'Приход';
                 } elseif ($transaction->type === 0) {
@@ -262,33 +264,31 @@ class Clients extends Component
                 $receipt->event_type = 'Оприходование';
                 $receipt->amount = $receipt->amount ?? $receipt->total ?? 0;
                 $receipt->note = $receipt->note ?? '';
-                $receipt->transaction_date = $receipt->receipt_date ?? $receipt->created_at;
+                $receipt->date = $receipt->receipt_date ?? $receipt->created_at;
                 return $receipt->toArray();
             })
             ->toArray();
 
-      
-        $salesFromBalance = \App\Models\Sale::where('client_id', $client->id)
-            ->whereNull('cash_register_id')
+
+        $salesFromCash = Sale::where('client_id', $client->id)
+            ->whereNotNull('cash_id')
             ->get()
             ->map(function ($sale) {
                 $saleArray = $sale->toArray();
-                // Устанавливаем event_type как 'Продажа'
                 $saleArray['event_type'] = 'Продажа';
-                // Берем сумму продажи из total_amount (предполагается, что там итоговая сумма)
                 $saleArray['amount'] = $sale->total_price;
-                $saleArray['transaction_date'] = $sale->transaction_date ?? $sale->created_at;
+                $saleArray['date'] = $sale->date ?? $sale->created_at;
                 return $saleArray;
             })
             ->toArray();
 
         // Объединяем все транзакции
-        $this->transactions = array_merge($salesAndExpenses, $receipts, $salesFromBalance);
+        $this->transactions = array_merge($salesAndExpenses, $receipts, $salesFromCash);
 
         // Сортируем по дате (самое последнее действие сверху)
         usort($this->transactions, function ($a, $b) {
-            $aDate = isset($a['created_at']) ? strtotime($a['created_at']) : strtotime($a['transaction_date'] ?? '0');
-            $bDate = isset($b['created_at']) ? strtotime($b['created_at']) : strtotime($b['transaction_date'] ?? '0');
+            $aDate = isset($a['created_at']) ? strtotime($a['created_at']) : strtotime($a['date'] ?? '0');
+            $bDate = isset($b['created_at']) ? strtotime($b['created_at']) : strtotime($b['date'] ?? '0');
             return $bDate - $aDate;
         });
 
@@ -371,45 +371,55 @@ class Clients extends Component
             );
         }
     }
+
+
     public function getFormattedTransactionsProperty()
     {
-        return collect($this->transactions)->map(function ($transaction) {
+        // Загружаем валюту по умолчанию и выбранную пользователем
+        $defaultCurrency = Currency::where('is_default', true)->first();
+        $selectedCurrency = Currency::where('code', session('currency', 'USD'))->first();
+
+        return collect($this->transactions)->map(function ($transaction) use ($defaultCurrency, $selectedCurrency) {
             $date = $transaction['transaction_date'] ?? ($transaction['created_at'] ?? null);
             $dateFormatted = $date ? Carbon::parse($date)->format('d-m-Y') : '-';
             $typeStr = $transaction['event_type'] ?? 'Неизвестно';
             $amount = $transaction['amount'] ?? 0;
 
-            // Если это продажа – отображаем с плюсом и зелёным цветом (без лишних уточнений)
-            if ($typeStr === 'Продажа') {
-                return [
-                    'dateFormatted'   => $dateFormatted,
-                    'typeStr'         => 'Продажа',
-                    'amount'          => $amount,
-                    'amountFormatted' => '+' . number_format($amount, 2),
-                    'amountClass'     => 'text-green-500',
-                    'note'            => $transaction['note'] ?? '-'
-                ];
+            // Если транзакция типа "Продажа" или "Оприходование" – она хранится в валюте по умолчанию.
+            if (in_array($typeStr, ['Продажа', 'Оприходование'])) {
+                $origCurrency = $defaultCurrency;
+            } else {
+                // Для остальных пытаемся получить валюту из транзакции
+                if (isset($transaction['currency']) && isset($transaction['currency']['id'])) {
+                    $origCurrency = Currency::find($transaction['currency']['id']);
+                } else {
+                    $origCurrency = $defaultCurrency; // Фолдбэк
+                }
             }
 
-            // Если событие "Приход", всегда отображаем со знаком минус (красным)
-            if ($typeStr === 'Приход') {
-                return [
-                    'dateFormatted'   => $dateFormatted,
-                    'typeStr'         => 'Приход',
-                    'amount'          => -$amount,
-                    'amountFormatted' => '-' . number_format($amount, 2),
-                    'amountClass'     => 'text-red-500',
-                    'note'            => $transaction['note'] ?? '-'
-                ];
+            // Конвертируем сумму из исходной валюты в выбранную, если они отличаются
+            if ($origCurrency->id !== $selectedCurrency->id) {
+                $amountConverted = $amount / $origCurrency->exchange_rate * $selectedCurrency->exchange_rate;
+            } else {
+                $amountConverted = $amount;
             }
 
-            // Для остальных событий (например, "Расход", "Оприходование") – значение минус
+            // Форматирование знака и класса для вывода
+            if ($typeStr === 'Продажа' || $typeStr === 'Приход') {
+                $sign = $typeStr === 'Приход' ? '-' : '+';
+                $amountFormatted = $sign . number_format($amountConverted, 2) . " " . $selectedCurrency->symbol;
+                $amountClass = $typeStr === 'Приход' ? 'text-red-500' : 'text-green-500';
+            } else {
+                $amountFormatted = '-' . number_format($amountConverted, 2) . " " . $selectedCurrency->symbol;
+                $amountClass = 'text-red-500';
+            }
+
             return [
                 'dateFormatted'   => $dateFormatted,
                 'typeStr'         => $typeStr,
-                'amount'          => -$amount,
-                'amountFormatted' => '-' . number_format($amount, 2),
-                'amountClass'     => 'text-red-500',
+                'amount'          => $amountConverted,
+                'amountFormatted' => $amountFormatted,
+                'amountClass'     => $amountClass,
                 'note'            => $transaction['note'] ?? '-'
             ];
         })->toArray();

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Services\CurrencyConverter;
 
 class Transaction extends Model
 {
@@ -40,13 +41,20 @@ class Transaction extends Model
 
     protected static function booted()
     {
+        // Автоматически устанавливаем skipClientBalanceUpdate, если указана касса
+        static::creating(function ($transaction) {
+            if (!empty($transaction->cash_id)) {
+                $transaction->setSkipClientBalanceUpdate(true);
+            }
+        });
+
         static::created(function ($transaction) {
             if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
-                $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
-                // Если валюта транзакции не дефолтная, конвертируем сумму
+                $defaultCurrency = Currency::where('is_default', true)->first();
+
                 if ($transaction->currency_id != $defaultCurrency->id) {
-                    $convertedAmount = \App\Services\CurrencyConverter::convert(
+                    $convertedAmount = CurrencyConverter::convert(
                         $transaction->amount,
                         $transaction->currency,
                         $defaultCurrency
@@ -56,9 +64,9 @@ class Transaction extends Model
                 }
 
                 if ($transaction->type == 1) {
-                    $clientBalance->balance += $convertedAmount;
-                } else {
                     $clientBalance->balance -= $convertedAmount;
+                } else {
+                    $clientBalance->balance += $convertedAmount;
                 }
                 $clientBalance->save();
             }
@@ -67,13 +75,12 @@ class Transaction extends Model
         static::updated(function ($transaction) {
             if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
-                $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
+                $defaultCurrency = Currency::where('is_default', true)->first();
 
-                // Старая сумма и старая валюта
                 $originalAmount = $transaction->getOriginal('amount');
-                $originalCurrency = \App\Models\Currency::find($transaction->getOriginal('currency_id'));
+                $originalCurrency = Currency::find($transaction->getOriginal('currency_id'));
                 if ($transaction->getOriginal('currency_id') != $defaultCurrency->id) {
-                    $originalConverted = \App\Services\CurrencyConverter::convert(
+                    $originalConverted = CurrencyConverter::convert(
                         $originalAmount,
                         $originalCurrency,
                         $defaultCurrency
@@ -82,9 +89,8 @@ class Transaction extends Model
                     $originalConverted = $originalAmount;
                 }
 
-                // Текущая сумма и валюта
                 if ($transaction->currency_id != $defaultCurrency->id) {
-                    $currentConverted = \App\Services\CurrencyConverter::convert(
+                    $currentConverted = CurrencyConverter::convert(
                         $transaction->amount,
                         $transaction->currency,
                         $defaultCurrency
@@ -93,7 +99,6 @@ class Transaction extends Model
                     $currentConverted = $transaction->amount;
                 }
 
-                // Корректировка баланса: отменяем эффект старой транзакции и применяем новый
                 if ($transaction->type == 1) {
                     $clientBalance->balance = $clientBalance->balance - $originalConverted + $currentConverted;
                 } else {
@@ -107,8 +112,9 @@ class Transaction extends Model
             if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
                 $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
+
                 if ($transaction->currency_id != $defaultCurrency->id) {
-                    $convertedAmount = \App\Services\CurrencyConverter::convert(
+                    $convertedAmount = CurrencyConverter::convert(
                         $transaction->amount,
                         $transaction->currency,
                         $defaultCurrency
@@ -175,10 +181,10 @@ class Transaction extends Model
         }
 
         $rateHistory = $currency->exchangeRateHistories()
-            ->where('start_date', '<=', $this->transaction_date)
+            ->where('start_date', '<=', $this->date)
             ->where(function ($query) {
                 $query->whereNull('end_date')
-                    ->orWhere('end_date', '>=', $this->transaction_date);
+                    ->orWhere('end_date', '>=', $this->date);
             })
             ->orderBy('start_date', 'desc')
             ->first();

@@ -29,11 +29,12 @@ class Sales extends Component
     public $showPForm = false, $productId = null, $showForm = false, $showConfirmationModal = false;
     public $clientSearch = '', $clientResults = [], $selectedClient = null;
     public $productSearch = '', $productResults = [];
-    public $cashId, $currencyId, $productPriceType = 'retail_price', $currentRetailPrice = 0, $currentWholesalePrice = 0;
-    public $currencies, $displayCurrency, $sales, $warehouses, $cashRegisters, $projects, $projectId;
+    public $cashId, $currencyId, $productPriceType = 'custom', $currentRetailPrice = 0, $currentWholesalePrice = 0;
+    public $currencies, $sales, $warehouses, $cashRegisters, $projects, $projectId;
     public $totalDiscount = 0, $totalDiscountType = 'fixed', $totalDiscountAmount = 0, $totalPrice = 0, $paymentType;
     public $selectedProduct, $clients, $showDiscountModal = false;
-    public $origPrice;
+    public $cash_price;
+    public $productPriceConverted;
 
     // Сервисы, внедряемые через boot()
     protected $clientService, $productService;
@@ -46,9 +47,8 @@ class Sales extends Component
 
     public function mount()
     {
-        $this->date = now()->format('Y-m-d H:i:s');
+        $this->date = now()->format('Y-m-d\TH:i');
         $this->currencies     = Currency::all();
-        $this->displayCurrency = Currency::where('is_report', true)->first();
         $this->cashRegisters  = CashRegister::whereJsonContains('users', (string) Auth::id())->get();
         $this->sales          = Sale::with(['client', 'warehouse'])->latest()->get();
         $this->warehouses     = Warehouse::whereJsonContains('users', (string) Auth::id())->get();
@@ -96,7 +96,7 @@ class Sales extends Component
         $productPriceObj = ProductPrice::where('product_id', $productId)->first();
         $this->productQuantity = $this->selectedProducts[$productId]['quantity'] ?? 1;
         $this->productPrice = $this->selectedProducts[$productId]['price'] ?? $productPriceObj->retail_price;
-        $this->productPriceType = 'retail_price';
+        $this->productPriceType = 'custom';
         $this->currentRetailPrice = $productPriceObj->retail_price;
         $this->currentWholesalePrice = $productPriceObj->wholesale_price;
         $this->showPForm = true;
@@ -200,7 +200,6 @@ class Sales extends Component
             'warehouseId'      => 'required|exists:warehouses,id',
             'selectedProducts' => 'required|array|min:1',
             'note'             => 'nullable|string|max:255',
-            'currencyId'       => 'required|exists:currencies,id',
         ];
 
         if ($this->paymentType == 1) {
@@ -241,18 +240,19 @@ class Sales extends Component
     {
         $sale = Sale::firstOrNew(['id' => $this->saleId]);
         $sale->fill([
-            'client_id'        => $this->clientId,
-            'warehouse_id'     => $this->warehouseId,
-            'currency_id'      => $this->currencyId,
-            'orig_currency_id' => $this->currencyId,
-            'cash_id'          => $this->cashId,
-            'user_id'          => Auth::id(),
-            'date'             => now(),
-            'project_id'       => $this->projectId,
-            'price'            => $sale->exists ? $sale->price : 0,
-            'orig_price'       => $sale->exists ? $sale->orig_price : 0,
-            'total_price'      => $sale->exists ? $sale->total_price : 0,
-            'discount'         => $sale->exists ? $sale->discount : 0,
+            'client_id'    => $this->clientId,
+            'warehouse_id' => $this->warehouseId,
+            'currency_id'  => $this->cashId
+                ? $this->currencies->firstWhere('id', $this->cashRegisters->firstWhere('id', $this->cashId)->currency_id)->id
+                : $this->currencies->firstWhere('is_default', true)->id,
+            'cash_id'      => $this->cashId,
+            'user_id'      => Auth::id(),
+            'date'         => now(),
+            'project_id'   => $this->projectId,
+            'price'        => $sale->exists ? $sale->price : 0,
+            'cash_price'   => $sale->exists ? $sale->cash_price : 0,
+            'total_price'  => $sale->exists ? $sale->total_price : 0,
+            'discount'     => $sale->exists ? $sale->discount : 0,
         ]);
         $sale->save();
         $this->saleId = $sale->id;
@@ -308,29 +308,62 @@ class Sales extends Component
     private function calculateTotals($totalAmount)
     {
         $initialSum = $totalAmount;
+        $conversionService = app(\App\Services\CurrencySwitcherService::class);
+        $displayRate = $conversionService->getConversionRate(session('currency', 'USD'), now());
+
+        // Проверка на отрицательную скидку
+        if ($this->totalDiscount < 0) {
+            session()->flash('message', 'Скидка не может быть отрицательной.');
+            // Сбрасываем скидку и возвращаем исходную сумму
+            $this->totalDiscount = 0;
+            return [$initialSum, $initialSum];
+        }
+
         if ($this->totalDiscount > 0) {
             if ($this->totalDiscountType === 'fixed') {
-                $finalSum = $initialSum - $this->totalDiscount;
-            } else { // скидка в процентах
-                $finalSum = $initialSum - ($initialSum * $this->totalDiscount / 100);
+                // Переводим введённую скидку в базовую валюту
+                $discountConverted = $this->totalDiscount / $displayRate;
+                if ($discountConverted >= $initialSum) {
+                    session()->flash('message', 'Фиксированная скидка не может быть больше или равна сумме продажи.');
+                    // Ограничим скидку, чтобы итоговая сумма была минимально положительной (0.01)
+                    $discountConverted = $initialSum - 0.01;
+                }
+                $finalSum = $initialSum - $discountConverted;
+            } else { // процентная скидка
+                if ($this->totalDiscount >= 100) {
+                    session()->flash('message', 'Процент скидки не может быть 100% или больше.');
+                    $finalSum = 0.01;
+                } else {
+                    $discountAmount = $initialSum * ($this->totalDiscount / 100);
+                    if ($discountAmount >= $initialSum) {
+                        session()->flash('message', 'Скидка не может быть больше или равна сумме продажи.');
+                        $discountAmount = $initialSum - 0.01;
+                    }
+                    $finalSum = $initialSum - $discountAmount;
+                }
             }
         } else {
             $finalSum = $initialSum;
         }
+
         return [$initialSum, $finalSum];
     }
 
-    /**
-     * Конвертирует суммы в валюту кассы (если задана и отличается от валюты продажи).
-     */
+
+
     private function convertSums($initialSum, $finalSum)
     {
-        $saleCurrency = $this->currencies->firstWhere('id', $this->currencyId);
+
+        $saleCurrency = $this->currencyId
+            ? $this->currencies->firstWhere('id', $this->currencyId)
+            : $this->currencies->firstWhere('is_default', true);
+
         $cashRegisterCurrency = null;
         if ($this->cashId) {
             $cashRegister = $this->cashRegisters->firstWhere('id', $this->cashId);
             $cashRegisterCurrency = $this->currencies->firstWhere('id', $cashRegister->currency_id);
         }
+
         if ($cashRegisterCurrency && $saleCurrency->id !== $cashRegisterCurrency->id) {
             $convertedInitialSum = CurrencyConverter::convert($initialSum, $saleCurrency, $cashRegisterCurrency);
             $convertedFinalSum   = CurrencyConverter::convert($finalSum, $saleCurrency, $cashRegisterCurrency);
@@ -351,20 +384,24 @@ class Sales extends Component
      */
     private function updateSaleRecord($sale, $convertedSums, $initialSum, $finalSum)
     {
+        // Определяем валюту кассы: если касса выбрана, берём её валюту, иначе – базовую (доллар)
+        $saleCurrencyId = $this->cashId
+            ? $this->currencies->firstWhere('id', $this->cashRegisters->firstWhere('id', $this->cashId)->currency_id)->id
+            : $this->currencies->firstWhere('is_default', true)->id;
+
         $sale->update([
-            'client_id'         => $this->clientId,
-            'warehouse_id'      => $this->warehouseId,
-            'note'              => $this->note,
-            'currency_id'       => $this->currencyId,
-            'orig_currency_id'  => $this->currencyId,
-            'total_price'       => $convertedSums['finalSum'],
-            'cash_id'           => $this->cashId,
-            'user_id'           => Auth::id(),
-            'date'              => now(),
-            'price'             => $convertedSums['initialSum'],
-            'orig_price'        => $initialSum,
-            'project_id'        => $this->projectId,
-            'discount'          => $initialSum - $finalSum,
+            'client_id'    => $this->clientId,
+            'warehouse_id' => $this->warehouseId,
+            'note'         => $this->note,
+            'currency_id'  => $saleCurrencyId,
+            'total_price'  => $finalSum,
+            'cash_id'      => $this->cashId,
+            'user_id'      => Auth::id(),
+            'date'         => now(),
+            'price'        => $initialSum,
+            'cash_price'   => $convertedSums['initialSum'],
+            'project_id'   => $this->projectId,
+            'discount'     => $initialSum - $finalSum,
         ]);
     }
 
@@ -381,6 +418,16 @@ class Sales extends Component
             $this->updateClientBalance($sale, $finalConvertedSum);
         }
     }
+    private function updateClientBalance($sale, $finalConvertedSum)
+    {
+        // Обновляем только, если запись баланса существует
+        $clientBalance = ClientBalance::where('client_id', $this->clientId)->first();
+
+
+        // При оплате через баланс клиент платит, поэтому баланс уменьшается
+        $clientBalance->balance += $finalConvertedSum;
+        $clientBalance->save();
+    }
 
     /**
      * Регистрирует финансовую транзакцию для оплаты через кассу.
@@ -389,14 +436,15 @@ class Sales extends Component
     {
         $cashRegister = $this->cashRegisters->firstWhere('id', $this->cashId);
         $cashRegisterCurrency = $this->currencies->firstWhere('id', $cashRegister->currency_id);
-        $saleCurrency = $this->currencies->firstWhere('id', $this->currencyId);
 
         $transactionData = [
             'client_id'         => $this->clientId,
-            'orig_amount'       => $initialSum,
+            // Используем значение cash_price, которое уже содержит сумму в валюте кассы
+            'orig_amount'       => $sale->cash_price,
             'amount'            => $finalConvertedSum,
             'currency_id'       => $cashRegisterCurrency->id,
-            'orig_currency_id'  => $saleCurrency->id,
+            // Здесь обе валюты транзакции – в валюте кассы
+            'orig_currency_id'  => $cashRegisterCurrency->id,
             'date'              => $sale->date,
             'note'              => $this->note . ' Продажа',
             'sale_id'           => $sale->id,
@@ -430,7 +478,7 @@ class Sales extends Component
         $this->totalPrice    = $sale->total_price;
         $this->totalDiscount = $sale->discount;
         $this->cashId        = $sale->cash_id;
-        $this->origPrice     = $sale->orig_price;
+        $this->cash_price     = $sale->cash_price;
 
         $this->selectedProducts = collect($sale->products)
             ->mapWithKeys(function ($product) {
@@ -481,16 +529,16 @@ class Sales extends Component
 
             $saleAmount = $sale->total_price;
 
-       
+
             $saleCurrency   = $this->currencies->firstWhere('id', $sale->currency_id);
             $defaultCurrency = $this->currencies->firstWhere('is_default', true);
-    
+
             if ($saleCurrency->id != $defaultCurrency->id) {
                 $convertedSaleAmount = CurrencyConverter::convert($saleAmount, $saleCurrency, $defaultCurrency);
             } else {
                 $convertedSaleAmount = $saleAmount;
             }
-            
+
             if (empty($sale->cash_id)) {
                 ClientBalance::where('client_id', $clientId)
                     ->decrement('balance', $convertedSaleAmount);
@@ -557,16 +605,31 @@ class Sales extends Component
 
     public function updatePriceType()
     {
+
+        if ($this->productPriceType === 'custom') {
+            return;
+        }
+
+        $sessionCurrencyCode = session('currency', 'USD');
+        $conversionService = app(\App\Services\CurrencySwitcherService::class);
+        $displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
+
         if ($this->productPriceType === 'retail_price') {
             $this->productPrice = $this->currentRetailPrice;
+            $this->productPriceConverted = $this->currentRetailPrice * $displayRate;
         } elseif ($this->productPriceType === 'wholesale_price') {
             $this->productPrice = $this->currentWholesalePrice;
+            $this->productPriceConverted = $this->currentWholesalePrice * $displayRate;
         }
     }
 
     public function updateProductPrice($price)
     {
-        $this->productPrice = $price;
+        $sessionCurrencyCode = session('currency', 'USD');
+        $conversionService = app(\App\Services\CurrencySwitcherService::class);
+        $displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
+        $this->productPrice = $price / $displayRate;
+        $this->productPriceConverted = $price;
         $this->productPriceType = 'custom';
     }
 }

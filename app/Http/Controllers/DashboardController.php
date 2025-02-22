@@ -12,7 +12,7 @@ class DashboardController extends Controller
     {
         $totalSalesToday = Sale::whereDate('created_at', today())->sum('total_price');
         $totalExpensesToday = Transaction::where('type', 0) // 0 for expense
-            ->whereDate('transaction_date', today())
+            ->whereDate('date', today())
             ->sum('amount');
         $cashRegisters = CashRegister::all();
 

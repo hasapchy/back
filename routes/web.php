@@ -66,4 +66,5 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/order-status-categories', OrderStatusCategories::class)->name('order-status-categories');
     Route::get('/orders', Orders::class)->name('orders');
     Route::get('/orders-af', Af::class)->name('orders.af');
+
 });

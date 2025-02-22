@@ -8,8 +8,8 @@
                         <div class="mr-5">
                             <form action="{{ request()->url() }}" method="GET" class="flex items-center">
                                 <div class="relative">
-                                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Поиск..."
-                                        class="border rounded px-2 pl-8">
+                                    <input type="text" name="search" value="{{ request('search') }}"
+                                        placeholder="Поиск..." class="border rounded px-2 pl-8">
                                     <button type="submit" class="absolute left-0 top-0 mt-2 ml-2 text-gray-600">
                                         <i class="fas fa-search"></i>
                                     </button>
@@ -18,6 +18,7 @@
                         </div>
                     @endif
                     <span>{{ Auth::user()->name }}</span>
+
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button type="submit" class="ml-1 text-red-600 flex items-center">
@@ -30,6 +31,7 @@
                         </button>
                     </form>
                 </div>
+                @livewire('admin.currency-switcher')
             @endif
         </div>
     </div>

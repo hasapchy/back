@@ -21,6 +21,7 @@ return new class extends Migration
 
         Schema::table('financial_transactions', function (Blueprint $table) {
             $table->dateTime('date')->change();
+            
         });
 
 

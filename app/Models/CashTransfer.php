@@ -10,33 +10,34 @@ class CashTransfer extends Model
     use HasFactory;
 
     protected $fillable = [
-        'from_cash_register_id',
-        'to_cash_register_id',
-        'from_transaction_id',
-        'to_transaction_id',
+        'cash_id_from',
+        'cash_id_to',
+        'tr_id_from',
+        'tr_id_to',
         'user_id',
         'amount',
         'note',
+        'date',
     ];
 
     public function fromCashRegister()
     {
-        return $this->belongsTo(CashRegister::class, 'from_cash_register_id');
+        return $this->belongsTo(CashRegister::class, 'cash_id_from');
     }
 
     public function toCashRegister()
     {
-        return $this->belongsTo(CashRegister::class, 'to_cash_register_id');
+        return $this->belongsTo(CashRegister::class, 'cash_id_to');
     }
 
     public function fromTransaction()
     {
-        return $this->belongsTo(Transaction::class, 'from_transaction_id');
+        return $this->belongsTo(Transaction::class, 'tr_id_from');
     }
 
     public function toTransaction()
     {
-        return $this->belongsTo(Transaction::class, 'to_transaction_id');
+        return $this->belongsTo(Transaction::class, 'tr_id_to');
     }
 
     public function user()

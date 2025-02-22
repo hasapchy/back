@@ -1,8 +1,12 @@
 @section('page-title', 'Заказы')
 
-{{-- <div class="mx-auto p-4 container" x-data="{ clientSelected: false, showDropdown: false, clientSearch: '', showForm: false, activeTab: 'order', showTransactionModal: false }" @click.away="showDropdown = false"
-    x-on:formClosed.window="showForm = false" x-on:transactionClosed.window="showTransactionModal = false"> --}}
 <div class="container mx-auto p-4">
+    @php
+        $sessionCurrencyCode = session('currency', 'USD');
+        $conversionService = app(\App\Services\CurrencySwitcherService::class);
+        $displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
+        $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
+    @endphp
     @include('components.alert')
     <div class="flex space-x-4 mb-4">
         <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
@@ -98,10 +102,9 @@
                     </select>
                 </div>
                 <div class="mb-4">
-                    <label class="block mb-1">Дата</label>
-                    <input type="date" wire:model="date" class="w-full p-2 border rounded">
+                    <label>Дата</label>
+                    <input type="datetime-local" wire:model="date" class="w-full border rounded">
                 </div>
-
                 @if ($afFields->isNotEmpty())
                     @foreach ($afFields as $field)
                         <div class="mb-4">
@@ -141,38 +144,142 @@
             <div x-show="activeTab === 'products'">
                 <div class="mb-4">
                     @include('components.product-search')
-
                 </div>
                 @if (!empty($selectedProducts))
-                    <table class="min-w-full bg-white shadow-md rounded mb-6">
+                    <table class="w-full border-collapse border border-gray-200 shadow-md rounded">
                         <thead class="bg-gray-100">
                             <tr>
-                                <th class="p-2 border border-gray-200">Название</th>
+                                <th class="p-2 border border-gray-200">Товар</th>
                                 <th class="p-2 border border-gray-200">Количество</th>
                                 <th class="p-2 border border-gray-200">Цена</th>
-                                <th class="p-2 border border-gray-200">Скидка</th>
                                 <th class="p-2 border border-gray-200">Действия</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($selectedProducts as $productId => $product)
+                            @php
+                                $totalQuantity = 0;
+                                $totalPrice = 0;
+                            @endphp
+                            @foreach ($selectedProducts as $productId => $details)
+                                @php
+                                    $price = $details['price'];
+                                    $totalQuantity += $details['quantity'];
+                                    $totalPrice += $price * $details['quantity'];
+                                @endphp
                                 <tr>
-                                    <td class="p-2 border border-gray-200">{{ $product['name'] }}</td>
-                                    <td class="p-2 border border-gray-200">{{ $product['quantity'] }}</td>
-                                    <td class="p-2 border border-gray-200">{{ $product['price'] }}</td>
-                                    <td class="p-2 border border-gray-200">{{ $product['discount'] }}</td>
                                     <td class="p-2 border border-gray-200">
-                                        <button wire:click="removeProduct({{ $productId }})" class="text-red-500">
-                                            Удалить
+                                        <div class="flex items-center">
+                                            @if (empty($details['image']))
+                                                <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
+                                            @else
+                                                <img src="{{ Storage::url($details['image']) }}"
+                                                    class="w-16 h-16 object-cover">
+                                            @endif
+                                            <span class="ml-2">{{ $details['name'] }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="p-2 border border-gray-200">{{ $details['quantity'] }}</td>
+                                    <td class="p-2 border border-gray-200">
+                                        {{ number_format($price * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
+                                    </td>
+                                    <td class="p-2 border border-gray-200">
+                                        <button type="button" wire:click="openPForm({{ $productId }})"
+                                            class="text-yellow-500 mr-3">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" wire:click="removeProduct({{ $productId }})"
+                                            class="text-red-500">
+                                            <i class="fas fa-trash-alt"></i>
                                         </button>
                                     </td>
                                 </tr>
                             @endforeach
                         </tbody>
+                        @php
+                            if ($totalDiscountType === 'fixed') {
+                                $discountValue = $totalDiscount / $displayRate;
+                            } else {
+                                $discountValue = $totalPrice * ($totalDiscount / 100);
+                            }
+                            $finalTotal = $totalPrice - $discountValue;
+                        @endphp
+                        <tfoot class="bg-gray-100">
+                            <tr>
+                                <td class="p-2 border border-gray-200 font-bold" colspan="2">Всего:</td>
+                                <td class="p-2 border border-gray-200 font-bold">
+                                    {{ number_format($totalPrice * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
+                                </td>
+                                <td class="p-2 border border-gray-200"></td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border border-gray-200 font-bold" colspan="2">
+                                    <button type="button" wire:click="openDiscountModal">
+                                        @if ($totalDiscount == 0)
+                                            Добавить скидку <i class="fas fa-plus"></i>
+                                        @else
+                                            Скидка
+                                        @endif
+                                    </button>
+                                </td>
+                                <td class="p-2 border border-gray-200 font-bold">
+                                    {{ number_format($totalDiscountType === 'fixed' ? $totalDiscount : $discountValue * $displayRate, 2) }}
+                                    @if ($totalDiscountType === 'percent')
+                                        ({{ $totalDiscount }}%)
+                                    @endif
+                                </td>
+                                <td class="p-2 border border-gray-200"></td>
+                            </tr>
+                            <tr>
+                                <td class="p-2 border border-gray-200 font-bold" colspan="2">Итоговая цена:</td>
+                                <td class="p-2 border border-gray-200 font-bold">
+                                    {{ number_format($finalTotal * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
+                                </td>
+                                <td class="p-2 border border-gray-200"></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 @else
                     <p>Нет добавленных товаров или услуг.</p>
                 @endif
+
+                <!-- Модальное окно для указания скидки -->
+                <div id="modalBackground"
+                    class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showDiscountModal ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
+                    wire:click="closeDiscountModal">
+                    <div id="form"
+                        class="fixed top-0 overflow-y-auto right-0 w-1/4 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
+                        style="transform: {{ $showDiscountModal ? 'translateX(0)' : 'translateX(100%)' }};"
+                        wire:click.stop>
+                        <button wire:click="closeDiscountModal"
+                            class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                        <h3 class="text-xl font-bold mb-4">Указать скидку на заказ</h3>
+                        <div class="mb-4">
+                            <label for="total_discount" class="block text-sm font-medium text-gray-700">
+                                Значение скидки
+                            </label>
+                            <input type="number" step="0.01" id="total_discount" wire:model="totalDiscount"
+                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700">Тип скидки</label>
+                            <select wire:model="totalDiscountType"
+                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                                <option value="fixed">Фиксированная</option>
+                                <option value="percent">Процентная</option>
+                            </select>
+                        </div>
+                        <button wire:click="closeDiscountModal" class="bg-green-500 text-white px-4 py-2 rounded">
+                            <i class="fas fa-save"></i>
+                        </button>
+                    </div>
+
+                </div>
+                <div class="mt-4">
+                    <button type="button" wire:click="saveOrderProducts"
+                        class="bg-blue-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-save"></i> Сохранить товары
+                    </button>
+                </div>
             </div>
 
             @if ($order_id)
@@ -218,13 +325,13 @@
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colspan="5" class="p-2 border border-gray-200 text-right font-bold">
+                                    {{-- <td colspan="5" class="p-2 border border-gray-200 text-right font-bold">
                                         <small>Итого: {{ number_format($totalSum, 2) }}
                                             @if ($displayCurrency)
                                                 {{ $displayCurrency->symbol }}
                                             @endif
                                         </small>
-                                    </td>
+                                    </td> --}}
 
                                 </tr>
                             </tfoot>
@@ -233,6 +340,7 @@
                 </div>
             @endif
         </div>
+
     </div>
 
     <div id="modalBackground"
@@ -253,10 +361,9 @@
             </div>
             <div class="mb-4">
                 <label class="block mb-1">Сумма</label>
-                <input type="number" wire:model="tr_amount" placeholder="Сумма"
-                    class="w-full p-2 border rounded">
+                <input type="number" wire:model="tr_amount" placeholder="Сумма" class="w-full p-2 border rounded">
             </div>
-            <!-- Новое поле для выбора типа транзакции -->
+
             <div class="mb-4">
                 <label class="block mb-1">Тип транзакции</label>
                 <select wire:model="tr_type" class="w-full p-2 border rounded">

@@ -2,6 +2,18 @@
 @section('showSearch', true)
 <div class="container mx-auto p-4">
     @include('components.alert')
+    @php
+        // Получаем валюту по умолчанию (например, в БД стоит is_default = true)
+        $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
+        // Выбранная пользователем валюта (код хранится в сессии)
+        $selectedCurrency = \App\Models\Currency::where('code', session('currency', 'USD'))->first();
+        // Конвертируем баланс, если валюты отличаются
+        if ($defaultCurrency->id !== $selectedCurrency->id) {
+            $balanceConverted = ($clientBalance / $defaultCurrency->exchange_rate) * $selectedCurrency->exchange_rate;
+        } else {
+            $balanceConverted = $clientBalance;
+        }
+    @endphp
 
     <div class="flex items-center space-x-4 mb-4">
         @if (Auth::user()->hasPermission('create_clients'))
@@ -228,15 +240,15 @@
                         Текущий баланс:
                         @if ($clientBalance < 0)
                             <span class="text-red-500">
-                                -{{ number_format(abs($clientBalance), 2) }} Мы должны клиенту эту сумму
+                                -{{ number_format(abs($balanceConverted), 2) }} Мы должны клиенту эту сумму
                             </span>
                         @elseif($clientBalance > 0)
                             <span class="text-green-500">
-                                +{{ number_format($clientBalance, 2) }} Клиент должен нам эту сумму
+                                +{{ number_format($balanceConverted, 2) }} Клиент должен нам эту сумму
                             </span>
                         @else
                             <span class="text-gray-500">
-                                {{ number_format($clientBalance, 2) }} Мы в расчете с клиентом
+                                {{ number_format($balanceConverted, 2) }} Мы в расчете с клиентом
                             </span>
                         @endif
                     </p>

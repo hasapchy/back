@@ -67,8 +67,8 @@ class Transactions extends Component
         $this->date = now()->format('Y-m-d H:i:s');
         $this->clients = [];
         $this->categories = TransactionCategory::all();
-        $this->transferTransactionIds = CashTransfer::pluck('from_transaction_id')
-            ->merge(CashTransfer::pluck('to_transaction_id'))
+        $this->transferTransactionIds = CashTransfer::pluck('tr_id_from')
+            ->merge(CashTransfer::pluck('tr_id_to'))
             ->unique();
     }
 
@@ -82,8 +82,8 @@ class Transactions extends Component
             $transaction->isOrder = Order::all()->contains(function ($order) use ($transaction) {
                 return in_array($transaction->id, json_decode($order->transaction_ids, true) ?? []);
             });
-            $transaction->isTransfer = CashTransfer::where('from_transaction_id', $transaction->id)
-                ->orWhere('to_transaction_id', $transaction->id)
+            $transaction->isTransfer = CashTransfer::where('tr_id_from', $transaction->id)
+                ->orWhere('tr_id_to', $transaction->id)
                 ->exists();
             $transaction->isSale = Transaction::where('id', $transaction->id)
                 ->where('note', 'like', '%Продажа%')
@@ -127,8 +127,8 @@ class Transactions extends Component
 
         if ($transactionId && ($transaction = Transaction::find($transactionId))) {
             // Проверяем, является ли транзакция трансфером или продажей
-            $isTransfer = \App\Models\CashTransfer::where('from_transaction_id', $transaction->id)
-                ->orWhere('to_transaction_id', $transaction->id)
+            $isTransfer = \App\Models\CashTransfer::where('tr_id_from', $transaction->id)
+                ->orWhere('tr_id_to', $transaction->id)
                 ->exists();
             $isSale = Transaction::where('id', $transaction->id)
                 ->where('note', 'like', '%Продажа%')
@@ -253,8 +253,8 @@ class Transactions extends Component
         $transaction = Transaction::find($this->transactionId);
         if ($transaction) {
             // Проверяем, является ли транзакция трансфером или продажей
-            $isTransfer = \App\Models\CashTransfer::where('from_transaction_id', $transaction->id)
-                ->orWhere('to_transaction_id', $transaction->id)
+            $isTransfer = \App\Models\CashTransfer::where('tr_id_from', $transaction->id)
+                ->orWhere('tr_id_to', $transaction->id)
                 ->exists();
             $isSale = Transaction::where('id', $transaction->id)
                 ->where('note', 'like', '%Продажа%')

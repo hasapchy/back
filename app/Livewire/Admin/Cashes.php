@@ -69,7 +69,7 @@ class Cashes extends Component
             'currencyId' => 'required|exists:currencies,id',
         ];
         $this->validate($rules);
-        // $this->users = array_map('intval', $this->users);
+
 
         CashRegister::create([
             'name' => $this->name,
@@ -88,7 +88,6 @@ class Cashes extends Component
 
         ];
         $this->validate($rules);
-        // $this->users = array_map('intval', $this->users);
         if ($cashRegister = CashRegister::find($this->cashId)) {
             $cashRegister->name = $this->name;
             $cashRegister->users = $this->users;
@@ -100,7 +99,7 @@ class Cashes extends Component
 
     public function delete($cashId)
     {
-        $transactionExists = Transaction::where('cash_register_id', $cashId)->exists();
+        $transactionExists = Transaction::where('cash_id', $cashId)->exists();
         if (!$transactionExists) {
             $cashRegister = CashRegister::find($cashId);
             if ($cashRegister) {
