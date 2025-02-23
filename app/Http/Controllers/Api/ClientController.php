@@ -30,6 +30,20 @@ class ClientController extends Controller
         ]);
     }
 
+    public function search(Request $request)
+    {
+        $search_request = $request->input('search_request');
+
+        if (!$search_request || empty($search_request)) {
+            $items = [];
+            // $items = $this->itemsRepository->getImemsPaginated(20);
+        } else {
+            $items = $this->itemsRepository->searchClient($search_request);
+        }
+
+        return response()->json($items);
+    }
+
 
     public function createClient(Request $request)
     {

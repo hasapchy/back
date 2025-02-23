@@ -36,6 +36,46 @@ class ClientsRepository {
         return $clients;
     }
 
+    function searchClient(string $search_request){
+        $searchTerms = explode(' ', $search_request);
+
+        $query = DB::table('clients');
+
+        foreach ($searchTerms as $term) {
+            $query->orWhere(function ($q) use ($term) {
+                $q->where('first_name', 'like', "%{$term}%")
+                  ->orWhere('last_name', 'like', "%{$term}%")
+                  ->orWhere('contact_person', 'like', "%{$term}%");
+            });
+        }
+
+        $clientIds = $query->pluck('id')->toArray();
+
+        $phoneClientIds = DB::table('clients_phones')
+            ->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->orWhere('phone', 'like', "%{$term}%");
+                }
+            })
+            ->pluck('client_id')
+            ->toArray();
+
+        $emailClientIds = DB::table('clients_emails')
+            ->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->orWhere('email', 'like', "%{$term}%");
+                }
+            })
+            ->pluck('client_id')
+            ->toArray();
+
+        $allClientIds = array_unique(array_merge($clientIds, $phoneClientIds, $emailClientIds));
+        $allClientIds = array_unique($allClientIds);
+
+        $clients = $this->getItemsByIds($allClientIds);
+        return $clients;
+    }
+
     public function create(array $data)
     {
         $client = DB::transaction(function () use ($data) {
@@ -137,5 +177,34 @@ class ClientsRepository {
         });
 
         return $client;
+    }
+
+    function getItemsByIds(array $ids) {
+        
+        $clients = DB::table('clients')
+            ->select('id', 'client_type', 'is_supplier', 'is_conflict', 'first_name', 'last_name', 'contact_person', 'address', 'note', 'status', 'order', 'created_at', 'updated_at')
+            ->whereIn('id', $ids)
+            ->get();
+
+        $clientIds = $clients->pluck('id');
+
+        $emails = DB::table('clients_emails')
+            ->whereIn('client_id', $clientIds)
+            ->select('id', 'client_id', 'email')
+            ->get()
+            ->groupBy('client_id');
+
+        $phones = DB::table('clients_phones')
+            ->whereIn('client_id', $clientIds)
+            ->select('id', 'client_id', 'phone')
+            ->get()
+            ->groupBy('client_id');
+
+        foreach ($clients as $client) {
+            $client->emails = $emails->get($client->id, collect());
+            $client->phones = $phones->get($client->id, collect());
+        }
+
+        return $clients;
     }
 }

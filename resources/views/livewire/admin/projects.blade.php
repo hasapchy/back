@@ -124,21 +124,23 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($projectTransactions as $transaction)
-                                <tr>
-                                    <td
-                                        class="p-2 border border-gray-200 {{ $transaction->type == 1 ? 'bg-green-200' : 'bg-red-200' }}">
-                                        {{ $transaction->type == 1 ? 'Приход' : 'Расход' }}
-                                    </td>
-                                    <td class="p-2 border border-gray-200">{{ $transaction->date }}
-                                    </td>
-                                    <td
-                                        class="p-2 border border-gray-200 {{ $transaction->type == 1 ? 'text-green-500' : 'text-red-500' }}">
-                                        {{ $transaction->amount }}
-                                    </td>
-                                    <td class="p-2 border border-gray-200">{{ $transaction->note }}</td>
-                                </tr>
-                            @endforeach
+                            @if ($projectTransactions && count($projectTransactions) !== 0)
+                                @foreach ($projectTransactions as $transaction)
+                                    <tr>
+                                        <td
+                                            class="p-2 border border-gray-200 {{ $transaction->type == 1 ? 'bg-green-200' : 'bg-red-200' }}">
+                                            {{ $transaction->type == 1 ? 'Приход' : 'Расход' }}
+                                        </td>
+                                        <td class="p-2 border border-gray-200">{{ $transaction->date }}
+                                        </td>
+                                        <td
+                                            class="p-2 border border-gray-200 {{ $transaction->type == 1 ? 'text-green-500' : 'text-red-500' }}">
+                                            {{ $transaction->amount }}
+                                        </td>
+                                        <td class="p-2 border border-gray-200">{{ $transaction->note }}</td>
+                                    </tr>
+                                @endforeach
+                            @endif
                         </tbody>
                     </table>
                 </div>

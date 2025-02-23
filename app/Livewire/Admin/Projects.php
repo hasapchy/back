@@ -19,8 +19,8 @@ class Projects extends Component
     protected $clientService;
     protected $rules = [
         'name' => 'required|string|max:255',
-        'start_date' => 'nullable|date',
-        'end_date'   => 'nullable|date',
+        // 'start_date' => 'sometimes|nullable|date',
+        // 'end_date'   => 'sometimes|nullable|date',
         'users'      => 'nullable|array',
         'clientId'   => 'required|integer',
     ];

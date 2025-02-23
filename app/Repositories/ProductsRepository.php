@@ -14,21 +14,22 @@ class ProductsRepository
         $items = Product::leftJoin('categories as cats', 'products.category_id', '=', 'cats.id')
             ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
             ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-            ->leftJoin('currencies', 'product_prices.currency_id', '=', 'currencies.id')
+            // ->leftJoin('currencies', 'product_prices.currency_id', '=', 'currencies.id')
             ->where('products.type', $type)
             ->select(
                 'products.*', 
                 'product_prices.retail_price as retail_price', 
                 'product_prices.wholesale_price as wholesale_price', 
                 'product_prices.purchase_price as purchase_price', 
-                'product_prices.currency_id as currency_id', 
+                // 'product_prices.currency_id as currency_id', 
                 'cats.name as category_name', 
                 'units.name as unit_name', 
                 'units.short_name as unit_short_name',
                 'units.calc_area as unit_calc_area',
-                'currencies.name as currency_name',
-                'currencies.code as currency_code',
-                'currencies.symbol as currency_symbol')
+                // 'currencies.name as currency_name',
+                // 'currencies.code as currency_code',
+                // 'currencies.symbol as currency_symbol',
+                )
             ->paginate($perPage);
         return $items;
     }
