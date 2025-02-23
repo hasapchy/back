@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('transaction_categories', function (Blueprint $table) {
             $table->id(); 
             $table->string('name'); 
-            $table->boolean('type'); // 0 for expense, 1 for income
+            $table->boolean('type'); 
             $table->timestamps(); 
         });
         

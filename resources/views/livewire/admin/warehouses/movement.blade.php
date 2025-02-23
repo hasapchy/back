@@ -3,11 +3,11 @@
     @include('components.alert')
 
     <div class="flex items-center space-x-4 mb-4">
-        @if (Auth::user()->hasPermission('create_movemenents'))
-            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
-                <i class="fas fa-plus"></i>
-            </button>
-        @endif
+
+        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
+            <i class="fas fa-plus"></i>
+        </button>
+
         @include('components.warehouse-accordion')
         @livewire('admin.date-filter')
     </div>
@@ -25,19 +25,18 @@
         </thead>
         <tbody>
             @foreach ($stockMovements as $movement)
-                @if (Auth::user()->hasPermission('edit_movemenents'))
-                    <tr wire:click="edit({{ $movement->id }})" class="cursor-pointer">
-                @endif
-                <td class="p-2 border border-gray-200">{{ $movement->id}}</td>
-                <td class="p-2 border border-gray-200">{{ $movement->created_at->format('d.m.Y') }}</td>
-                <td class="p-2 border border-gray-200">{{ $movement->warehouseFrom->name }}</td>
-                <td class="p-2 border border-gray-200">{{ $movement->warehouseTo->name }}</td>
-                <td class="p-2 border border-gray-200">
-                    @foreach ($movement->products as $movementProduct)
-                        {{ $movementProduct->product->name }}: {{ $movementProduct->quantity }} шт.<br>
-                    @endforeach
-                </td>
-                <td class="p-2 border border-gray-200">{{ $movement->note }}</td>
+                <tr wire:click="edit({{ $movement->id }})" class="cursor-pointer">
+
+                    <td class="p-2 border border-gray-200">{{ $movement->id }}</td>
+                    <td class="p-2 border border-gray-200">{{ $movement->created_at->format('d.m.Y') }}</td>
+                    <td class="p-2 border border-gray-200">{{ $movement->warehouseFrom->name }}</td>
+                    <td class="p-2 border border-gray-200">{{ $movement->warehouseTo->name }}</td>
+                    <td class="p-2 border border-gray-200">
+                        @foreach ($movement->products as $movementProduct)
+                            {{ $movementProduct->product->name }}: {{ $movementProduct->quantity }} шт.<br>
+                        @endforeach
+                    </td>
+                    <td class="p-2 border border-gray-200">{{ $movement->note }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -53,7 +52,7 @@
                 style="right: 1rem;">&times;</button>
             <h2 class="text-xl font-bold mb-4">{{ $movementId ? 'Редактировать перемещение' : 'Новое перемещение' }}
             </h2>
-            
+
             <div class="mb-4">
                 <label>Дата перемещения</label>
                 <input type="datetime-local" wire:model="date" class="w-full border rounded">
@@ -62,10 +61,11 @@
             <div class="mb-4">
                 <label>Склад-отправитель</label>
                 <select wire:model.change="whFrom" class="w-full border rounded"
-                    @if ($selectedProducts || $movementId ) disabled @endif>
+                    @if ($selectedProducts || $movementId) disabled @endif>
                     <option value="">Выберите склад</option>
                     @foreach ($warehouses as $warehouse)
-                        <option value="{{ $warehouse->id }}"  @if ($warehouse->id == $whTo) disabled @endif>{{ $warehouse->name }}</option>
+                        <option value="{{ $warehouse->id }}" @if ($warehouse->id == $whTo) disabled @endif>
+                            {{ $warehouse->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -147,12 +147,11 @@
                 <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded mr-2">
                     <i class="fas fa-save"></i>
                 </button>
-                @if (Auth::user()->hasPermission('delete_movemenents'))
-                    @if ($movementId)
-                        <button wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    @endif
+
+                @if ($movementId)
+                    <button wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 @endif
             </div>
             @include('components.confirmation-modal')

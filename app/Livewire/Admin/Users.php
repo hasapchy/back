@@ -4,23 +4,23 @@ namespace App\Livewire\Admin;
 
 use Livewire\Component;
 use App\Models\User;
-use App\Models\Role;
+use Spatie\Permission\Models\Role;
+
 
 class Users extends Component
 {
     public $users;
-    public $roles;
     public $userId;
     public $showForm = false;
     public $showConfirmationModal = false;
     public $name;
     public $email;
     public $password;
-    public $roleId;
     public $hire_date;
     public $position;
-
-    public $isDirty = false; // Track if form fields were changed
+    public $roleId; // Новое свойство для роли
+    public $availableRoles = []; // Список доступных ролей
+    public $isDirty = false; 
 
     protected $listeners = ['editUser', 'confirmClose'];
     public $columns = [
@@ -29,24 +29,22 @@ class Users extends Component
         'email',
         'hire_date',
         'position',
-        'role',
         'is_active',
         'created_at',
         'updated_at',
     ];
 
-
     public function mount()
     {
-        $this->users = User::with('roles')->get();
-        $this->roles = Role::all();
+        $this->users = User::all();
+        $this->availableRoles = Role::all(); // Загружаем роли для селекта
     }
 
     public function openForm()
     {
         $this->resetForm();
         $this->showForm = true;
-        $this->isDirty = false; 
+        $this->isDirty = false;
     }
 
     public function closeForm()
@@ -63,15 +61,14 @@ class Users extends Component
     {
         if ($confirm) {
             $this->resetForm();
-            $this->isDirty = false; // Reset dirty status
-            $this->showForm = false; // Ensure the form is hidden
+            $this->isDirty = false;
+            $this->showForm = false;
         }
         $this->showConfirmationModal = false;
     }
 
     public function updated($propertyName)
     {
-        // Whenever any bound property changes, mark the form as dirty
         $this->isDirty = true;
     }
 
@@ -81,66 +78,61 @@ class Users extends Component
         $this->userId = $user->id;
         $this->name = $user->name;
         $this->email = $user->email;
-        $this->roleId = $user->roles->first()->id ?? null; // Получаем ID первой роли
         $this->hire_date = $user->hire_date;
         $this->position = $user->position;
+        // Если у пользователя есть назначенная роль, берем первую
+        $this->roleId = optional($user->roles->first())->id;
         $this->showForm = true;
-        $this->isDirty = false; // Reset dirty status when editing
+        $this->isDirty = false;
     }
 
     public function saveUser()
     {
         $data = $this->validate([
-            'name' => 'required',
-            'email' => 'required|email|unique:users,email,' . $this->userId,
-            'password' => 'nullable|min:8',
+            'name'      => 'required',
+            'email'     => 'required|email|unique:users,email,' . $this->userId,
+            'password'  => 'nullable|min:8',
             'hire_date' => 'nullable|date',
-            'position' => 'nullable|string',
-            'roleId' => 'required|exists:roles,id',
+            'position'  => 'nullable|string',
+            'roleId'    => 'nullable|exists:roles,id',
         ]);
 
-        $data['password'] = $this->password ? bcrypt($this->password) : User::find($this->userId)->password;
+        // Если значение password не задано, берем старый пароль
+        $data['password'] = $this->password 
+                              ? bcrypt($this->password) 
+                              : optional(User::find($this->userId))->password;
 
         $user = User::updateOrCreate(
             ['id' => $this->userId],
             [
-                'name' => $this->name,
-                'email' => $this->email,
-                'password' => $data['password'],
+                'name'      => $this->name,
+                'email'     => $this->email,
+                'password'  => $data['password'],
                 'hire_date' => $this->hire_date,
-                'position' => $this->position,
+                'position'  => $this->position,
             ]
         );
 
+        // Назначаем пользователю выбранную роль, если выбрано значение
+        if ($this->roleId) {
+            $role = \Spatie\Permission\Models\Role::find($this->roleId);
+            if ($role) {
+                $user->syncRoles($role);
+            }
+        }
+
         $this->dispatch('updated');
-        $user->roles()->sync([$this->roleId]); // Синхронизируем с одной ролью
         $this->resetForm();
-        $this->users = User::with('roles')->get(); // Обновляем список пользователей
-        $this->isDirty = false; // Reset dirty status after saving
+        $this->users = User::all();
+        $this->isDirty = false;
     }
 
     public function deleteUser($userId)
     {
-        if (!auth()->user()->hasPermission('delete_users')) {
-            session()->flash('error', 'У вас нет прав для удаления пользователей.');
-            return;
-        }
-
         User::findOrFail($userId)->delete();
-        $this->users = User::with('roles')->get(); // Обновляем список
+        $this->users = User::all();
         session()->flash('success', 'Пользователь успешно удален.');
-        $this->dispatch('deleted');
-
-        $this->dispatch('refreshPage');
     }
-
-    // public function toggleUserStatus($userId)
-    // {
-    //     $user = User::findOrFail($userId);
-    //     $user->is_active = !$user->is_active;
-    //     $user->save();
-    //     $this->users = User::with('roles')->get(); 
-    // }
 
     public function resetForm()
     {
@@ -148,11 +140,11 @@ class Users extends Component
         $this->name = '';
         $this->email = '';
         $this->password = '';
-        $this->roleId = null; 
         $this->hire_date = null;
         $this->position = null;
+        $this->roleId = null; // Сбрасываем выбранную роль
         $this->showForm = false;
-        $this->isDirty = false; // Reset dirty status
+        $this->isDirty = false;
     }
 
     public function render()

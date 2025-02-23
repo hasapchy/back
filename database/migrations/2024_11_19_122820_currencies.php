@@ -17,7 +17,6 @@ return new class extends Migration
             $table->string('name');
             $table->string('symbol')->nullable();
             $table->boolean('is_default')->default(false);
-            $table->boolean('is_report')->default(false);
             $table->boolean('status')->default(true);
             $table->timestamps();
         });

@@ -4,11 +4,9 @@
 
     <div class="flex items-center space-x-4 mb-4">
         @include('components.alert')
-        {{-- @if (Auth::user()->hasPermission('create_services')) --}}
         <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded ">
             <i class="fas fa-plus"></i>
         </button>
-        {{-- @endif --}}
         <button id="columnsMenuButton" class="bg-gray-500 text-white px-4 py-2 rounded">
             <i class="fas fa-cogs"></i>
         </button>
@@ -16,7 +14,6 @@
         @include('components.alert')
     </div>
 
-    <!-- Меню фильтров -->
     <div id="columnsMenu" class="hidden absolute bg-white shadow-md rounded p-4 z-10 mt-2">
         <h2 class="font-bold mb-2">Выберите колонки для отображения:</h2>
         @foreach ($columns as $column)
@@ -29,17 +26,16 @@
         @endforeach
     </div>
     <div id="table-container" wire:ignore>
-        <!-- Скелетон -->
+     
         <div id="table-skeleton" class="animate-pulse">
-            <!-- Шапка таблицы -->
+    
             <div id="skeleton-header-row" class="grid grid-cols-{{ count($columns) }}">
                 @foreach ($columns as $column)
                     <div class="p-2 h-6 bg-gray-300 rounded"></div>
                 @endforeach
             </div>
 
-            <!-- Тело таблицы -->
-            @for ($i = 0; $i < 5; $i++) <!-- Генерируем 5 строк скелетона -->
+            @for ($i = 0; $i < 5; $i++) 
                 <div class="grid grid-cols-{{ count($columns) }} gap-4">
                     @foreach ($columns as $column)
                         <div class="p-2 h-6 bg-gray-200 rounded"></div>
@@ -61,7 +57,7 @@
                     <div class="grid grid-flow-col auto-cols-auto" wire:click="edit({{ $product->id }})">
                         @foreach ($columns as $column)
                             <div class="p-2 whitespace-nowrap" data-key="{{ $column }}">
-                                {{ $column === 'stock_quantity' ? $product->stocks->sum('quantity') : $product->$column }}
+                                {{ $product->$column }}
                             </div>
                         @endforeach
                     </div>
@@ -163,7 +159,7 @@
                         <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-save"></i>
                         </button>
-                        @if ($productId && auth()->user()->hasPermission('view_clients'))
+                        @if ($productId)
                             <button onclick="confirmDelete({{ $productId }})"
                                 class="bg-red-500 text-white px-4 py-2 rounded">
                                 <i class="fas fa-trash-alt"></i>

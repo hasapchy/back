@@ -13,7 +13,7 @@ class WhMovementProduct extends Model
         'movement_id',
         'product_id',
         'quantity',
-        'serial_number_id',
+        'sn_id',
     ];
 
     public function movement()
@@ -28,6 +28,6 @@ class WhMovementProduct extends Model
 
     public function serialNumber()
     {
-        return $this->belongsTo(ProductSerialNumber::class, 'serial_number_id');
+        return $this->belongsTo(ProductSerialNumber::class, 'sn_id');
     }
 }

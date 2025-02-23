@@ -27,55 +27,54 @@
                 </a>
             </li>
 
-           
 
-  
+
             <li class="mb-2">
                 <a href="{{ route('admin.orders') }}"
                     class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.orders') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
                     <i class="fas fa-shopping-bag mr-2"></i> Заказы
                 </a>
             </li>
-            @if (Auth::user()->hasPermission('view_sales'))
-                <li class="mb-2">
-                    <a href="{{ route('admin.sales.index') }}"
-                        class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.sales.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
-                        <i class="fas fa-shopping-cart mr-2"></i> Продажи
-                    </a>
-                </li>
-            @endif
-            @if (Auth::user()->hasPermission('view_cash_registers'))
-                <li class="mb-2">
-                    <a href="{{ route('admin.finance.index') }}"
-                        class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.finance.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
-                        <i class="fas fa-cash-register mr-2"></i> Финансы
-                    </a>
-                </li>
-            @endif
-            @if (Auth::user()->hasPermission('view_warehouses'))
+
+            <li class="mb-2">
+                <a href="{{ route('admin.sales.index') }}"
+                    class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.sales.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                    <i class="fas fa-shopping-cart mr-2"></i> Продажи
+                </a>
+            </li>
+
+
+            <li class="mb-2">
+                <a href="{{ route('admin.finance.index') }}"
+                    class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.finance.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                    <i class="fas fa-cash-register mr-2"></i> Финансы
+                </a>
+            </li>
+
+
             <li class="mb-2">
                 <a href="{{ route('admin.warehouse.operations') }}"
                     class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.warehouse.operations') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
                     <i class="fa-solid fa-warehouse mr-2"></i> Склады
                 </a>
             </li>
-        @endif
-        @if (Auth::user()->hasPermission('view_clients'))
+
+
             <li class="mb-2">
                 <a href="{{ route('admin.clients.index') }}"
                     class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.clients.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
                     <i class="fas fa-user-friends mr-2"></i> Клиенты
                 </a>
             </li>
-        @endif
-            @if (Auth::user()->hasPermission('view_projects'))
-                <li class="mb-2">
-                    <a href="{{ route('admin.projects.index') }}"
-                        class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.projects.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
-                        <i class="fas fa-briefcase mr-2"></i> Проекты
-                    </a>
-                </li>
-            @endif
+
+
+            <li class="mb-2">
+                <a href="{{ route('admin.projects.index') }}"
+                    class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.projects.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                    <i class="fas fa-briefcase mr-2"></i> Проекты
+                </a>
+            </li>
+
 
             <li class="mb-2">
                 <a href="#" id="settings-button" @click="settingsOpen = !settingsOpen"

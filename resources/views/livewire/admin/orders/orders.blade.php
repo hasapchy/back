@@ -13,6 +13,7 @@
             <i class="fas fa-plus"></i>
         </button>
     </div>
+    <!-- filepath: /d:/OSPanel/domains/rem-online/resources/views/livewire/admin/orders/orders.blade.php -->
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
@@ -23,10 +24,19 @@
                 <th class="p-2 border border-gray-200">Категория</th>
                 <th class="p-2 border border-gray-200">Примечание</th>
                 <th class="p-2 border border-gray-200">Дата</th>
+                <th class="p-2 border border-gray-200">Итоговая цена</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($orders as $order)
+                @php
+                    $finalTotal = 0;
+                    foreach ($order->orderProducts as $product) {
+                        $finalTotal += $product->price * $product->quantity;
+                    }
+                    // Конвертация цены
+                    $convertedTotal = $finalTotal * $displayRate;
+                @endphp
                 <tr wire:click="edit({{ $order->id }})" class="cursor-pointer">
                     <td class="p-2 border border-gray-200">LT{{ $order->id }}</td>
                     <td class="p-2 border border-gray-200">{{ $order->client->first_name }}</td>
@@ -46,9 +56,11 @@
                         </select>
                     </td>
                     <td class="p-2 border border-gray-200">{{ $order->category->name }}</td>
-
                     <td class="p-2 border border-gray-200">{{ $order->note }}</td>
                     <td class="p-2 border border-gray-200">{{ $order->date }}</td>
+                    <td class="p-2 border border-gray-200">
+                        {{ number_format($convertedTotal, 2) }} {{ $selectedCurrency->symbol }}
+                    </td>
                 </tr>
             @endforeach
         </tbody>
@@ -129,18 +141,18 @@
                     <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                         <i class="fas fa-save"></i>
                     </button>
-                    {{-- @if (Auth::user()->hasPermission('delete_order')) --}}
+            
                     @if ($order_id)
                         <button wire:click="deleteOrderForm" @click=" showForm = false;resetForm();"
                             class="bg-red-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-trash"></i>
                         </button>
-                        {{-- @endif --}}
+                  
                     @endif
                 </div>
             </div>
             @include('components.product-quantity-modal')
-            <!-- Вкладка для товаров и услуг -->
+  
             <div x-show="activeTab === 'products'">
                 <div class="mb-4">
                     @include('components.product-search')
@@ -170,7 +182,8 @@
                                     <td class="p-2 border border-gray-200">
                                         <div class="flex items-center">
                                             @if (empty($details['image']))
-                                                <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
+                                                <img src="{{ asset('no-photo.jpeg') }}"
+                                                    class="w-16 h-16 object-cover">
                                             @else
                                                 <img src="{{ Storage::url($details['image']) }}"
                                                     class="w-16 h-16 object-cover">

@@ -7,7 +7,6 @@ use App\Livewire\Admin\Transactions;
 use App\Livewire\Admin\Products;
 use App\Livewire\Admin\Categories;
 use App\Livewire\Admin\Clients;
-use App\Livewire\Admin\Roles;
 use App\Livewire\Admin\Users;
 use App\Livewire\Admin\Settings;
 use App\Livewire\Admin\Services;
@@ -28,6 +27,7 @@ use App\Livewire\Admin\Orders;
 use App\Livewire\Admin\Af;
 use App\Livewire\Admin\Templates;
 use App\Livewire\Admin\Cashes;
+use App\Livewire\Admin\Roles;
 
 Auth::routes();
 
@@ -41,30 +41,29 @@ Route::get('/dashboard', function () {
 
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/roles', Roles::class)->name('roles.index')->middleware('permission:view_roles');
-    Route::get('/users', Users::class)->name('users.index')->middleware('permission:view_users');
-    Route::get('/clients', Clients::class)->name('clients.index')->middleware('permission:view_clients');
-    Route::get('/settings', Settings::class)->name('settings.index')->middleware('permission:view_general_settings');
-    Route::get('/products', Products::class)->name('products.index')->middleware('permission:view_products');
-    Route::get('/categories', Categories::class)->name('categories.index')->middleware('permission:view_categories');
+    Route::get('/users', Users::class)->name('users.index');
+    Route::get('/clients', Clients::class)->name('clients.index');
+    Route::get('/settings', Settings::class)->name('settings.index');
+    Route::get('/products', Products::class)->name('products.index');
+    Route::get('/categories', Categories::class)->name('categories.index');
     Route::get('/services', Services::class)->name('services.index');
-    Route::get('/currencies', Currencies::class)->name('currencies.index')->middleware('permission:view_currencies');
-    Route::get('/warehouses', Warehouses::class)->name('warehouses.index')->middleware('permission:view_warehouses');
-    Route::get('/warehouse-operations', WarehouseOperations::class)->name('warehouse.operations')->middleware('permission:view_warehouses');
-    Route::get('/warehouse-reception', WhReceipts::class)->name('warehouse.reception')->middleware('permission:view_receipts');
-    Route::get('/warehouse-transfers', WhMovements::class)->name('warehouse.transfers')->middleware('permission:view_movemenents');
-    Route::get('/warehouse-write-offs', WhWriteoffs::class)->name('warehouse.write-offs')->middleware('permission:view_write_offs');
-    Route::get('/finance', Transactions::class)->name('finance.index')->middleware('permission:view_cash_registers');
-    Route::get('/cashes', Cashes::class)->name('cash.index')->middleware('permission:view_cash_registers');
-    Route::get('/transaction_categories', TransactionCategories::class)->name('transaction_categories.create')->middleware('permission:view_expense_items');
-    Route::get('/sales', Sales::class)->name('sales.index')->middleware('permission:view_sales');
-    Route::get('/transfers', Transfers::class)->name('transfers.index')->middleware('permission:view_transfers');
+    Route::get('/currencies', Currencies::class)->name('currencies.index');
+    Route::get('/warehouses', Warehouses::class)->name('warehouses.index');
+    Route::get('/warehouse-operations', WarehouseOperations::class)->name('warehouse.operations');
+    Route::get('/warehouse-reception', WhReceipts::class)->name('warehouse.reception');
+    Route::get('/warehouse-transfers', WhMovements::class)->name('warehouse.transfers');
+    Route::get('/warehouse-write-offs', WhWriteoffs::class)->name('warehouse.write-offs');
+    Route::get('/finance', Transactions::class)->name('finance.index');
+    Route::get('/cashes', Cashes::class)->name('cash.index');
+    Route::get('/transaction_categories', TransactionCategories::class)->name('transaction_categories.create');
+    Route::get('/sales', Sales::class)->name('sales.index');
+    Route::get('/transfers', Transfers::class)->name('transfers.index');
     Route::get('/templates', Templates::class)->name('templates.index');
-    Route::get('/projects', Projects::class)->name('projects.index')->middleware('permission:view_projects');
+    Route::get('/projects', Projects::class)->name('projects.index');
     Route::get('/order-statuses', OrderStatuses::class)->name('order-statuses');
     Route::get('/order-categories', OrderCategories::class)->name('order-categories');
     Route::get('/order-status-categories', OrderStatusCategories::class)->name('order-status-categories');
     Route::get('/orders', Orders::class)->name('orders');
     Route::get('/orders-af', Af::class)->name('orders.af');
-
+    Route::get('/roles', Roles::class)->name('roles');
 });

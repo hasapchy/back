@@ -63,7 +63,34 @@
         <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
             <i class="fas fa-plus"></i>
         </button>
-
+      
+        <div class="relative" x-data="{ openFilters: false }">
+            <button x-on:click="openFilters = !openFilters" class="bg-blue-500 text-white px-4 py-2 rounded">
+                Фильтры
+            </button>
+            <div x-show="openFilters" class="absolute bg-white border shadow p-4 mt-2 z-10">
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" wire:model.live="filters" value="all">
+                    <span>Все</span>
+                </label>
+                <label class="flex items-center space-x-2 mt-2">
+                    <input type="checkbox" wire:model.live="filters" value="projects">
+                    <span>Проекты</span>
+                </label>
+                <label class="flex items-center space-x-2 mt-2">
+                    <input type="checkbox" wire:model.live="filters" value="sales">
+                    <span>Продажи</span>
+                </label>
+                <label class="flex items-center space-x-2 mt-2">
+                    <input type="checkbox" wire:model.live="filters" value="orders">
+                    <span>Заказы</span>
+                </label>
+                <label class="flex items-center space-x-2 mt-2">
+                    <input type="checkbox" wire:model.live="filters" value="normal">
+                    <span>Обычные</span>
+                </label>
+            </div>
+        </div>
         @include('components.finance-accordion')
         @livewire('admin.date-filter')
         <div class="w-1/6 relative">
@@ -137,8 +164,8 @@
             <div class="mb-2 flex space-x-4">
                 <div class="w-1/2">
                     <label class="block mb-1">Исходная сумма</label>
-                    <input type="text" wire:model="orig_amount" placeholder="Сумма" class="w-full p-2 border rounded"
-                        {{ $readOnly ? 'disabled' : '' }}>
+                    <input type="text" wire:model="orig_amount" placeholder="Сумма"
+                        class="w-full p-2 border rounded" {{ $readOnly ? 'disabled' : '' }}>
                 </div>
                 <div class="w-1/2">
                     <label class="block mb-1">Валюта транзакции</label>

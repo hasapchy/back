@@ -11,12 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('warehouse_product_write_off_products', function (Blueprint $table) {
+        Schema::create('wh_movement_products', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('write_off_id')->constrained('warehouse_product_write_offs')->onDelete('cascade');
+            $table->foreignId('movement_id')->constrained('wh_movements')->onDelete('cascade');
             $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
-            $table->integer('quantity')->default(1);
-            $table->foreignId('serial_number_id')->nullable()->constrained('product_serial_numbers')->onDelete('set null');
+            $table->unsignedBigInteger('quantity')->default(1);
+            $table->foreignId('sn_id')->nullable()->constrained('product_serial_numbers')->onDelete('set null');
             $table->timestamps();
         });
     }
@@ -26,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('warehouse_product_write_off_products');
+       Schema::dropIfExists('wh_movement_products');
     }
 };

@@ -6,12 +6,10 @@
 
 
     <div class="flex items-center space-x-4 mb-4">
-        @if (Auth::user()->hasPermission('create_receipts'))
-            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
+                 <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
                 <i class="fas fa-plus"></i>
             </button>
-        @endif
-        @include('components.warehouse-accordion')
+             @include('components.warehouse-accordion')
         @livewire('admin.date-filter')
     </div>
 
@@ -31,31 +29,32 @@
         </thead>
         <tbody>
             @foreach ($stockReceptions as $reception)
-                @if (Auth::user()->hasPermission('edit_receipts'))
-                    <tr wire:click="edit({{ $reception->id }})" class="cursor-pointer">
-                @endif
-                <td class="p-2 border border-gray-200">{{ $reception->id }}</td>
-                <td class="p-2 border border-gray-200">{{ $reception->created_at->format('d.m.Y') }}</td>
-                <td class="p-2 border border-gray-200">{{ $reception->supplier->first_name }}</td>
-                <td class="p-2 border border-gray-200">{{ $reception->warehouse->name }}</td>
-                <td class="p-2 border border-gray-200">
-                    @foreach ($reception->products as $product)
-                        <div>
-                            {{ $product->product->name }}
-                        </div>
-                    @endforeach
-                </td>
-                @php
-                $sessionCurrencyCode = session('currency', 'USD');
-                $conversionService = app(\App\Services\CurrencySwitcherService::class);
-                $conversionRate = $conversionService->getConversionRate($sessionCurrencyCode, $reception->created_at);
-                $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
-            @endphp
-            
-            <td class="p-2 border border-gray-200">
-                {{ number_format($reception->amount * $conversionRate, 2) }} {{ $selectedCurrency->symbol }}
-            </td>
-                <td class="p-2 border border-gray-200">{{ $reception->note }}</td>
+                <tr wire:click="edit({{ $reception->id }})" class="cursor-pointer">
+                    <td class="p-2 border border-gray-200">{{ $reception->id }}</td>
+                    <td class="p-2 border border-gray-200">{{ $reception->created_at->format('d.m.Y') }}</td>
+                    <td class="p-2 border border-gray-200">{{ $reception->supplier->first_name }}</td>
+                    <td class="p-2 border border-gray-200">{{ $reception->warehouse->name }}</td>
+                    <td class="p-2 border border-gray-200">
+                        @foreach ($reception->products as $product)
+                            <div>
+                                {{ $product->product->name }}
+                            </div>
+                        @endforeach
+                    </td>
+                    @php
+                        $sessionCurrencyCode = session('currency', 'USD');
+                        $conversionService = app(\App\Services\CurrencySwitcherService::class);
+                        $conversionRate = $conversionService->getConversionRate(
+                            $sessionCurrencyCode,
+                            $reception->created_at,
+                        );
+                        $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
+                    @endphp
+
+                    <td class="p-2 border border-gray-200">
+                        {{ number_format($reception->amount * $conversionRate, 2) }} {{ $selectedCurrency->symbol }}
+                    </td>
+                    <td class="p-2 border border-gray-200">{{ $reception->note }}</td>
 
                 </tr>
             @endforeach
@@ -180,12 +179,12 @@
                 <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded mr-2">
                     <i class="fas fa-save"></i>
                 </button>
-                @if (Auth::user()->hasPermission('delete_receipts'))
+        
                     @if ($receptionId)
                         <button wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-trash"></i>
                         </button>
-                    @endif
+                 
                 @endif
             </div>
             @include('components.confirmation-modal')

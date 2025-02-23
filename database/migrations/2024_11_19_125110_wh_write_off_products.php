@@ -11,16 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('product_prices', function (Blueprint $table) {
+        Schema::create('wh_write_off_products', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('write_off_id')->constrained('wh_write_offs')->onDelete('cascade');
             $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
-            $table->decimal('retail_price', 15, 2);
-            $table->decimal('wholesale_price', 15, 2);
-            $table->decimal('purchase_price', 15, 2);
-            $table->foreignId('currency_id')->constrained('currencies')->onDelete('cascade');
-            // $table->timestamp('effective_date')->useCurrent();
+            $table->unsignedBigInteger('quantity')->default(1);
+            $table->foreignId('sn_id')->nullable()->constrained('product_serial_numbers')->onDelete('set null');
             $table->timestamps();
-
         });
     }
 
@@ -29,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('product_prices');
+        Schema::dropIfExists('wh_write_off_products');
     }
 };

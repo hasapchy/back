@@ -26,7 +26,9 @@
                     <td class="p-2 border border-gray-200">{{ $field->type }}</td>
                     <td class="p-2 border border-gray-200">
                         @foreach ($field->category_ids as $category_id)
-                            {{ $categories->find($category_id)->name }}@if (!$loop->last), @endif
+                            {{ $categories->find($category_id)->name }}@if (!$loop->last)
+                                ,
+                            @endif
                         @endforeach
                     </td>
                     <td class="p-2 border border-gray-200">{{ $field->required ? 'Да' : 'Нет' }}</td>
@@ -81,13 +83,12 @@
                 <button wire:click="store" class="bg-green-500 text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
-                @if (Auth::user()->hasPermission('delete_order_categories'))
-                    @if ($field_id)
-                        <button wire:click="deleteField({{ $field_id }})"
-                            class="bg-red-500 text-white px-4 py-2 rounded">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    @endif
+
+                @if ($field_id)
+                    <button wire:click="deleteField({{ $field_id }})"
+                        class="bg-red-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 @endif
             </div>
         </div>

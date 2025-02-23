@@ -9,7 +9,7 @@ class WhWriteoffProduct extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['write_off_id', 'product_id', 'quantity', 'serial_number_id'];
+    protected $fillable = ['write_off_id', 'product_id', 'quantity', 'sn_id'];
 
     public function writeOff()
     {
@@ -23,6 +23,6 @@ class WhWriteoffProduct extends Model
 
     public function serialNumber()
     {
-        return $this->belongsTo(ProductSerialNumber::class, 'serial_number_id');
+        return $this->belongsTo(ProductSerialNumber::class, 'sn_id');
     }
 }

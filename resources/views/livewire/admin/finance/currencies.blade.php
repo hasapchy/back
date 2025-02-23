@@ -3,11 +3,9 @@
 <div class="container mx-auto p-4">
     @include('components.alert')
     <div class="flex items-center space-x-4 mb-4">
-        @if (Auth::user()->hasPermission('create_currencies'))
-            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
-                <i class="fas fa-plus"></i>
-            </button>
-        @endif
+        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
+            <i class="fas fa-plus"></i>
+        </button>
         @include('components.finance-accordion')
     </div>
 
@@ -27,17 +25,15 @@
             </thead>
             <tbody>
                 @foreach ($currencies as $currency)
-                    @if (Auth::user()->hasPermission('edit_currencies'))
-                        <tr wire:click="edit({{ $currency->id }})">
-                    @endif
-                    <td class="p-2 border">{{ $currency->id }}</td>
-                    <td class="p-2 border">{{ $currency->name }}</td>
-                    <td class="p-2 border">{{ $currency->code }}</td>
-                    <td class="p-2 border">{{ $currency->currentExchangeRate()->exchange_rate ?? '-' }}</td>
-                    <td class="p-2 border">{{ $currency->created_at }}</td>
-                    <td class="p-2 border">{{ $currency->updated_at }}</td>
-                    <td class="p-2 border">{{ $currency->is_default ? 'Да' : 'Нет' }}</td>
-                    <td class="p-2 border">{{ $currency->is_report ? 'Да' : 'Нет' }}</td>
+                    <tr wire:click="edit({{ $currency->id }})">
+                        <td class="p-2 border">{{ $currency->id }}</td>
+                        <td class="p-2 border">{{ $currency->name }}</td>
+                        <td class="p-2 border">{{ $currency->code }}</td>
+                        <td class="p-2 border">{{ $currency->currentExchangeRate()->exchange_rate ?? '-' }}</td>
+                        <td class="p-2 border">{{ $currency->created_at }}</td>
+                        <td class="p-2 border">{{ $currency->updated_at }}</td>
+                        <td class="p-2 border">{{ $currency->is_default ? 'Да' : 'Нет' }}</td>
+                        <td class="p-2 border">{{ $currency->is_report ? 'Да' : 'Нет' }}</td>
                     </tr>
                 @endforeach
             </tbody>

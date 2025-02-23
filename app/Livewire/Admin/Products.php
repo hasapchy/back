@@ -19,11 +19,11 @@ class Products extends Component
 {
     use WithPagination, WithFileUploads;
 
-    public $name, $description, $sku, $stock_quantity, $status = true, $productId;
+    public $name, $description, $sku,$status = true, $productId;
     public $image, $retail_price, $wholesale_price, $purchase_price, $barcode, $categoryId;
     public $showForm = false, $showCategoryForm = false, $showConfirmationModal = false;
     public $categoryName, $users = [], $allUsers, $parentCategoryId;
-    public $columns = ['thumbnail', 'name', 'sku', 'stock_quantity', 'description', 'barcode'];
+    public $columns = ['thumbnail', 'name', 'sku', 'description', 'barcode'];
     public $stocks = [], $isDirty = false, $history = [], $searchTerm, $type = 1;
 
     protected $listeners = ['confirmClose'];
@@ -149,7 +149,6 @@ class Products extends Component
                 'category_id' => $this->categoryId,
                 'description' => $this->description,
                 'sku' => $this->sku,
-                'stock_quantity' => 0,
                 'status_id' => $this->status ? 1 : 0,
                 'image' => $photoPath,
                 'barcode' => $this->barcode,
@@ -179,7 +178,7 @@ class Products extends Component
         $this->name = $product->name;
         $this->description = $product->description;
         $this->sku = $product->sku;
-        $this->stock_quantity = $product->stock_quantity;
+   
         $this->showForm = true;
         $this->image = $product->image;
         $this->barcode = $product->barcode;

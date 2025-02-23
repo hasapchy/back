@@ -13,7 +13,7 @@ class WhReceiptProduct extends Model
         'receipt_id',
         'product_id',
         'quantity',
-        'serial_number_id',
+        'sn_id',
         'price',
     ];
 
@@ -29,6 +29,6 @@ class WhReceiptProduct extends Model
 
     public function serialNumbers()
     {
-        return $this->hasMany(ProductSerialNumber::class, 'serial_number_id');
+        return $this->hasMany(ProductSerialNumber::class, 'sn_id');
     }
 }

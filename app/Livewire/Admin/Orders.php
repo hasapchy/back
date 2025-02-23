@@ -84,14 +84,13 @@ class Orders extends Component
 
     public function render()
     {
-        $this->orders = Order::with(['client', 'user', 'status', 'category'])->get();
+        $this->orders = Order::with(['client', 'user', 'status', 'category', 'orderProducts'])->get();
         $this->clients = $this->clientService->searchClients($this->clientSearch);
         $this->users = User::all();
         $this->statuses = OrderStatus::all();
         $this->categories = OrderCategory::all();
         $this->loadAfFields();
-
-
+    
         return view('livewire.admin.orders.orders');
     }
 
@@ -243,7 +242,7 @@ class Orders extends Component
         $this->date = $order->date;
         $this->selectedClient = $this->clientService->getClientById($order->client_id);
         $this->loadAfFields();
-        $this->transactions = Transaction::whereIn('id', json_decode($order->tr_ids) ?? [])->get();
+        $this->transactions = Transaction::whereIn('id', json_decode($order->transaction_ids) ?? [])->get();
 
         $this->showForm = true;
 
@@ -266,8 +265,8 @@ class Orders extends Component
     {
 
         $order = Order::find($this->order_id);
-        if ($order && $order->tr_ids) {
-            $transactionIds = json_decode($order->tr_ids, true);
+        if ($order && $order->transaction_ids) {
+            $transactionIds = json_decode($order->transaction_ids, true);
             Transaction::whereIn('id', $transactionIds)->delete();
         }
 
@@ -281,12 +280,12 @@ class Orders extends Component
     public function deleteTransaction($transactionId)
     {
         $order = Order::find($this->order_id);
-        if ($order && $order->tr_ids) {
-            $transactionIds = json_decode($order->tr_ids, true);
+        if ($order && $order->transaction_ids) {
+            $transactionIds = json_decode($order->transaction_ids, true);
             $updatedTransactionIds = array_filter($transactionIds, function ($id) use ($transactionId) {
                 return $id != $transactionId;
             });
-            $order->tr_ids = json_encode(array_values($updatedTransactionIds));
+            $order->transaction_ids = json_encode(array_values($updatedTransactionIds));
             $order->save();
         }
 
@@ -419,11 +418,11 @@ class Orders extends Component
             }
             $cashRegister->save();
         }
-
+        
         $order = Order::find($this->order_id);
-        $transactionIds = json_decode($order->tr_ids, true) ?? [];
+        $transactionIds = json_decode($order->transaction_ids, true) ?? [];
         $transactionIds[] = $transaction->id;
-        $order->update(['tr_ids' => json_encode($transactionIds)]);
+        $order->update(['transaction_ids' => json_encode($transactionIds)]);
 
         session()->flash('message', 'Транзакция успешно создана.');
         $this->resetTrForm();

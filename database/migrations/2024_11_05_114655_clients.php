@@ -14,12 +14,11 @@ return new class extends Migration
             $table->boolean('is_supplier')->default(false);
             $table->boolean('is_conflict')->default(false);
             $table->string('first_name');
-            $table->string('last_name');
+            $table->string('last_name')->nullable();
             $table->string('contact_person')->nullable();
             $table->text('address')->nullable();
             $table->text('note')->nullable();
-            $table->string('status')->default('active');
-            $table->integer('order')->default(0);
+            $table->boolean('status')->default(true);
             $table->timestamps();
         });
     }

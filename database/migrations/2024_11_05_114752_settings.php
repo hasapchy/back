@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('settings', function (Blueprint $table) {
             $table->id();
-            $table->string('setting_name')->unique(); // Идентификатор настройки
-            $table->text('setting_value'); //
+            $table->string('setting_name')->unique();
+            $table->text('setting_value'); 
             $table->timestamps();
         });
     }

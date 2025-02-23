@@ -13,7 +13,8 @@ class CurrencySwitcher extends Component
     public function mount()
     {
         $this->currencies = Currency::all();
-        $this->selectedCurrency = session('currency', 'USD');
+        $this->selectedCurrency = session('currency') 
+            ?? optional(Currency::where('is_default', true)->first())->code;
     }
 
     public function updatedSelectedCurrency()

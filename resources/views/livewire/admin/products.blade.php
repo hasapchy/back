@@ -4,11 +4,11 @@
 
     <div class="flex items-center space-x-4 mb-4">
         @include('components.alert')
-        @if (Auth::user()->hasPermission('create_products'))
+    
             <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded ">
                 <i class="fas fa-plus"></i>
             </button>
-        @endif
+     
         <button id="columnsMenuButton" class="bg-gray-500 text-white px-4 py-2 rounded">
             <i class="fas fa-cogs"></i>
         </button>
@@ -63,8 +63,7 @@
                                     @else
                                         <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
                                     @endif
-                                @else
-                                    {{ $column === 'stock_quantity' ? $product->stocks->sum('quantity') : $product->$column }}
+                               
                                 @endif
                             </div>
                         @endforeach
@@ -202,7 +201,7 @@
                         <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-save"></i>
                         </button>
-                        @if ($productId && auth()->user()->hasPermission('view_clients'))
+                        @if ($productId )
                             <button onclick="confirmDelete({{ $productId }})"
                                 class="bg-red-500 text-white px-4 py-2 rounded">
                                 <i class="fas fa-trash-alt"></i>

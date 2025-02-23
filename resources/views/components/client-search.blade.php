@@ -1,5 +1,6 @@
 @php
-    $sessionCurrencyCode = session('currency', 'USD');
+    $sessionCurrencyCode = session('currency') 
+        ?? optional(\App\Models\Currency::where('is_default', true)->first())->code;
     $conversionService = app(\App\Services\CurrencySwitcherService::class);
     $conversionRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
 @endphp

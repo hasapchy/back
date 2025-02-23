@@ -5,11 +5,11 @@
 
 
     <div class="flex items-center space-x-4 mb-4">
-        @if (Auth::user()->hasPermission('create_projects'))
-            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
-                <i class="fas fa-plus"></i>
-            </button>
-        @endif
+
+        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
+            <i class="fas fa-plus"></i>
+        </button>
+
         @livewire('admin.date-filter')
     </div>
 
@@ -23,11 +23,10 @@
         </thead>
         <tbody>
             @foreach ($projects as $project)
-                @if (Auth::user()->hasPermission('edit_projects'))
-                    <tr wire:click="edit({{ $project->id }})" class="cursor-pointer mb-2 p-2 border rounded ">
-                @endif
-                <td class="p-2 border border-gray-200">{{ $project->name }}</td>
-                <td class="p-2 border border-gray-200">{{ $project->client->first_name ?? 'N/A' }}</td>
+                <tr wire:click="edit({{ $project->id }})" class="cursor-pointer mb-2 p-2 border rounded ">
+
+                    <td class="p-2 border border-gray-200">{{ $project->name }}</td>
+                    <td class="p-2 border border-gray-200">{{ $project->client->first_name ?? 'N/A' }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -72,15 +71,7 @@
                     <div class="mb-4">
                         @include('components.client-search')
                     </div>
-                    {{-- <div class="mb-4">
-                        <label class="block mb-1">Дата начала</label>
-                        <input type="date" wire:model="start_date" class="w-full p-2 border rounded">
-                    </div>
 
-                    <div class="mb-4">
-                        <label class="block mb-1">Дата конца</label>
-                        <input type="date" wire:model="end_date" class="w-full p-2 border rounded">
-                    </div> --}}
 
                     <div class="mb-4">
                         <label class="block mb-1">Пользователи</label>
@@ -96,13 +87,12 @@
                         <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-save"></i>
                         </button>
-                        @if (Auth::user()->hasPermission('delete_projects'))
-                            @if ($projectId)
-                                <button wire:click="delete({{ $project->id }})"
-                                    class="bg-red-500 text-white px-4 py-2 rounded">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            @endif
+
+                        @if ($projectId)
+                            <button wire:click="delete({{ $project->id }})"
+                                class="bg-red-500 text-white px-4 py-2 rounded">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         @endif
                     </div>
                 </div>

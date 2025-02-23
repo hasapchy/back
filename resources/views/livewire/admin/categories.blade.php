@@ -2,11 +2,11 @@
 <div class="container mx-auto p-4">
     @include('components.alert')
     <div class="flex items-center space-x-4 mb-4">
-        @if (Auth::user()->hasPermission('create_categories'))
+
             <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
                 <i class="fas fa-plus"></i>
             </button>
-        @endif
+  
         <button id="columnsMenuButton" class="bg-gray-500 text-white px-4 py-2 rounded">
             <i class="fa fa-cogs"></i>
         </button>
@@ -50,9 +50,9 @@
 
             <div id="table-body">
                 @foreach ($categories as $category)
-                    @if (Auth::user()->hasPermission('edit_categories'))
+       
                         <div class="grid grid-flow-col auto-cols-auto" wire:click="edit({{ $category->id }})">
-                    @endif
+               
                     @foreach ($columns as $column)
                         <div class="p-2 whitespace-nowrap" data-key="{{ $column }}">
                             @if ($column == 'parent')
@@ -113,13 +113,13 @@
             <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                 <i class="fas fa-save"></i>
             </button>
-            @if (Auth::user()->hasPermission('delete_categories'))
+     
                 @if ($categoryId)
                     <button onclick="confirmDelete({{ $categoryId }})"
                         class="bg-red-500 text-white px-4 py-2 rounded">
                         <i class="fas fa-trash-alt"></i>
                     </button>
-                @endif
+              
             @endif
             <div id="deleteConfirmationModal"
                 class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-500"

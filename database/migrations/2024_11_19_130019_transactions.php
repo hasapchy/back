@@ -11,18 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('financial_transactions', function (Blueprint $table) {
+        Schema::create('transactions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->boolean('type');
-            $table->decimal('amount', 15, 2);
-            $table->foreignId('cash_register_id')->constrained('cash_registers')->onDelete('cascade');
+            $table->unsignedDecimal('amount', 15, 2);
+            $table->unsignedDecimal('orig_amount', 15, 2)->nullable();
+            $table->foreignId('cash_id')->constrained('cash_registers')->onDelete('cascade');
             $table->foreignId('category_id')->nullable()->constrained('transaction_categories')->onDelete('set null');
             $table->foreignId('client_id')->nullable()->constrained('clients')->onDelete('set null');
             $table->foreignId('currency_id')->constrained('currencies')->onDelete('cascade');
             $table->foreignId('project_id')->nullable()->constrained('projects')->onDelete('cascade');
             $table->text('note')->nullable();
-            $table->date('transaction_date');
+            $table->timestamp('date');
             $table->timestamps();
         });
     }
@@ -32,6 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('financial_transactions');
+        Schema::dropIfExists('transactions');
     }
 };

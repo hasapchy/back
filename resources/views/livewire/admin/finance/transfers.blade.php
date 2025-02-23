@@ -2,11 +2,11 @@
 <div class="mx-auto p-4 container">
     @include('components.alert')
     <div class="flex space-x-4 mb-4">
-        @if (Auth::user()->hasPermission('create_transfers'))
-            <button wire:click="openForm" class="mb-4 bg-green-500 text-white px-4 py-2 rounded">
-                <i class="fas fa-plus"></i>
-            </button>
-        @endif
+
+        <button wire:click="openForm" class="mb-4 bg-green-500 text-white px-4 py-2 rounded">
+            <i class="fas fa-plus"></i>
+        </button>
+
         @include('components.finance-accordion')
     </div>
     <table class="min-w-full bg-white shadow-md rounded mb-6">
@@ -19,13 +19,11 @@
         </thead>
         <tbody>
             @foreach ($transfers as $transfer)
-                @if (Auth::user()->hasPermission('edit_transfers'))
-                    <tr wire:click="edit({{ $transfer->id }})"
-                        class="cursor-pointer mb-2 p-2 border rounded {{ $transferId == $transfer->id ? 'bg-gray-200' : '' }}">
-                @endif
-                <td class="p-2 border border-gray-200">{{ $transfer->fromCashRegister->name }}</td>
-                <td class="p-2 border border-gray-200">{{ $transfer->toCashRegister->name }}</td>
-                <td class="p-2 border border-gray-200">{{ $transfer->amount }}</td>
+                <tr wire:click="edit({{ $transfer->id }})"
+                    class="cursor-pointer mb-2 p-2 border rounded {{ $transferId == $transfer->id ? 'bg-gray-200' : '' }}">
+                    <td class="p-2 border border-gray-200">{{ $transfer->fromCashRegister->name }}</td>
+                    <td class="p-2 border border-gray-200">{{ $transfer->toCashRegister->name }}</td>
+                    <td class="p-2 border border-gray-200">{{ $transfer->amount }}</td>
 
                 </tr>
             @endforeach

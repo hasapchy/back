@@ -3,11 +3,11 @@
     @include('components.alert')
 
     <div class="flex items-center space-x-4 mb-4">
-        {{-- @if (Auth::user()->hasPermission('create_clients')) --}}
+      
         <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
             <i class="fas fa-plus"></i>
         </button>
-        {{-- @endif --}}
+    
         @include('components.finance-accordion')
     </div>
     <div class="flex flex-wrap">

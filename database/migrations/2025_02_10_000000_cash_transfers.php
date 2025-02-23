@@ -10,13 +10,14 @@ return new class extends Migration
     {
         Schema::create('cash_transfers', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('from_cash_register_id')->constrained('cash_registers');
-            $table->foreignId('to_cash_register_id')->constrained('cash_registers');
-            $table->foreignId('from_transaction_id')->constrained('financial_transactions');
-            $table->foreignId('to_transaction_id')->constrained('financial_transactions');
+            $table->foreignId('cash_id_from')->constrained('cash_registers');
+            $table->foreignId('cash_id_to')->constrained('cash_registers');
+            $table->foreignId('tr_id_from')->constrained('transactions');
+            $table->foreignId('tr_id_to')->constrained('transactions');
             $table->foreignId('user_id')->constrained('users');
-            $table->decimal('amount', 15, 2);
+            $table->unsignedDecimal('amount', 15, 2);
             $table->text('note')->nullable();
+            $table->timestamp('date');
             $table->timestamps();
         });
     }

@@ -9,14 +9,14 @@ return new class extends Migration
 
     public function up(): void
     {
-        Schema::create('warehouse_product_receipts', function (Blueprint $table) {
+        Schema::create('wh_receipts', function (Blueprint $table) {
             $table->id();
-            $table->string('invoice')->nullable();
             $table->foreignId('supplier_id')->constrained('clients')->onDelete('cascade');
             $table->foreignId('warehouse_id')->constrained('warehouses')->onDelete('cascade');
             $table->text('note')->nullable();
-            $table->decimal('converted_total', 15, 2)->nullable();
+            $table->unsignedDecimal('amount', 15, 2);
             $table->foreignId('currency_id')->constrained('currencies')->onDelete('cascade');
+            $table->timestamp('date');
             $table->timestamps();
         });
     }
@@ -24,6 +24,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('warehouse_product_receipts');
+        Schema::dropIfExists('wh_receipts');
     }
 };

@@ -19,6 +19,7 @@ return new class extends Migration
             $table->date('hire_date')->nullable();
             $table->string('position')->nullable(); 
             $table->boolean('is_active')->default(true);
+            $table->boolean('is_admin')->default(true);
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();

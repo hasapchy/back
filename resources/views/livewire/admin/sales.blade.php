@@ -9,23 +9,14 @@
         $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
     @endphp
 
-    {{-- @if (session()->has('message'))
-        <div class="fixed top-4 right-4 bg-green-500 text-white p-4 rounded shadow-lg z-50 alert" role="alert"
-            x-data="{ show: true }" x-init="setTimeout(() => show = false, 10000)" x-show="show" x-transition>
-            <button type="button" class="absolute top-0 right-0 mt-2 mr-2 text-white"
-                onclick="this.parentElement.style.display='none';">
-                &times;
-            </button>
-            {{ session('message') }}
-        </div>
-    @endif --}}
+
 
     <div class="flex space-x-4 mb-4">
-        @if (Auth::user()->hasPermission('create_sales'))
+ 
             <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
                 <i class="fas fa-plus"></i>
             </button>
-        @endif
+   
     </div>
 
     <table class="min-w-full bg-white shadow-md rounded mb-6">
@@ -42,9 +33,8 @@
         </thead>
         <tbody>
             @foreach ($sales as $sale)
-                @if (Auth::user()->hasPermission('edit_sales'))
-                    <tr wire:click="edit({{ $sale->id }})" class="cursor-pointer hover:bg-gray-100">
-                @endif
+                                 <tr wire:click="edit({{ $sale->id }})" class="cursor-pointer hover:bg-gray-100">
+          
                 <td class="p-2 border border-gray-200">{{ $sale->id }}</td>
                 <td class="p-2 border border-gray-200">{{ $sale->date }}</td>
                 <td class="p-2 border border-gray-200">{{ $sale->client->first_name }}</td>
@@ -247,14 +237,13 @@
                         @if ($saleId) disabled @endif>
                         <i class="fas fa-save"></i>
                     </button>
-                    @if (Auth::user()->hasPermission('delete_sales'))
-                        @if ($saleId)
-                            <button type="button" wire:click="delete"
-                                class="bg-red-500 text-white px-4 py-2 rounded">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        @endif
+
+                    @if ($saleId)
+                        <button type="button" wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     @endif
+
                 </div>
             </form>
         </div>

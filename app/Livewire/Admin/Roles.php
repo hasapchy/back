@@ -3,109 +3,76 @@
 namespace App\Livewire\Admin;
 
 use Livewire\Component;
-use App\Models\Role;
-use App\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
+use App\Models\User;
 
 class Roles extends Component
 {
-    public $roles;
-    public $permissions;
-    public $roleId;
-    public $name;
+    public $roleName;
     public $selectedPermissions = [];
+    public $userId;
+    public $selectedRoleId;
     public $showForm = false;
-    public $showConfirmationModal = false;
-    protected $listeners = ['editRole'];
 
-    public function mount()
+    // Для хранения состояния мастер-чекбокса по группам (ключ – префикс разрешения)
+    public $groupChecks = [];
+
+    protected $rules = [
+        'roleName'           => 'required|string|unique:roles,name',
+        'selectedPermissions' => 'array',
+        'userId'             => 'nullable|exists:users,id',
+        'selectedRoleId'     => 'nullable|exists:roles,id',
+    ];
+
+    public function render()
     {
-        $this->roles = Role::with('permissions')->get();
-        $this->permissions = Permission::all();
+        $roles = Role::with('permissions')->get();
+        $permissions = Permission::all();
+        $users = User::all();
+
+        return view('livewire.admin.roles', compact('roles', 'permissions', 'users'));
     }
 
     public function openForm()
     {
-        $this->resetForm();
+        $this->resetValidation();
+        $this->reset(['roleName', 'selectedPermissions', 'groupChecks']);
         $this->showForm = true;
     }
 
     public function closeForm()
     {
-        if ($this->isDirty()) {
-            $this->showConfirmationModal = true;
-        } else {
-            $this->resetForm();
-        }
-    }
-
-    public function confirmClose($confirm = false)
-    {
-        if ($confirm) {
-            $this->resetForm();
-        }
-        $this->showConfirmationModal = false;
-    }
-
-    public function isDirty()
-    {
-        return !empty($this->name) || !empty($this->selectedPermissions);
-    }
-
-    public function editRole($id)
-    {
-        $role = Role::with('permissions')->findOrFail($id);
-        $this->roleId = $role->id;
-        $this->name = $role->name;
-        $this->selectedPermissions = $role->permissions->pluck('id')->toArray();
-        $this->showForm = true;
-    }
-
-    public function saveRole()
-    {
-        $validatedData = $this->validate([
-            'name' => 'required|string|unique:roles,name,' . $this->roleId,
-            'selectedPermissions' => 'array',
-        ]);
-
-        $role = Role::updateOrCreate(
-            ['id' => $this->roleId],
-            ['name' => $this->name]
-        );
-
-        $role->permissions()->sync($this->selectedPermissions);
-        $this->resetForm();
-        $this->roles = Role::with('permissions')->get();
-        session()->flash('message', 'Роль успешно сохранена.');
-        session()->flash('type', 'success');
-        $this->dispatch('updated');
-        $this->dispatch('refreshPage');
-    }
-
-    public function deleteRole($id)
-    {
-        $role = Role::findOrFail($id);
-        $role->permissions()->detach();
-        $role->delete();
-        $this->roles = Role::with('permissions')->get();
-
-        if ($this->roleId == $id) {
-            $this->resetForm();
-        }
-
-        $this->dispatch('deleted');
-        $this->dispatch('refreshPage');
-    }
-
-    public function resetForm()
-    {
-        $this->roleId = null;
-        $this->name = '';
-        $this->selectedPermissions = [];
         $this->showForm = false;
     }
 
-    public function render()
+    public function save()
     {
-        return view('livewire.admin.roles');
+        $this->validateOnly('roleName');
+
+        $role = Role::create(['name' => $this->roleName]);
+
+        if (!empty($this->selectedPermissions)) {
+            $permissions = Permission::whereIn('id', $this->selectedPermissions)->get();
+            $role->syncPermissions($permissions);
+        }
+
+        session()->flash('success', 'Роль успешно создана.');
+        $this->closeForm();
     }
+
+    // При клике на мастер-чекбокс группы выбираем/снимаем все права в группе
+    public function toggleGroup($group)
+    {
+        // Получаем все разрешения, имя которых начинается с префикса группы (например, "users_")
+        $groupPermissions = Permission::where('name', 'like', $group.'_%')->pluck('id')->toArray();
+
+        // Если мастер-чекбокс включен – добавляем в выбранные, иначе удаляем
+        if (!empty($this->groupChecks[$group])) {
+            $this->selectedPermissions = array_unique(array_merge($this->selectedPermissions, $groupPermissions));
+        } else {
+            $this->selectedPermissions = array_values(array_diff($this->selectedPermissions, $groupPermissions));
+        }
+    }
+
 }

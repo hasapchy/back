@@ -15,7 +15,7 @@ class CurrencySeeder extends Seeder
                 'name' => 'Turkmen Manat',
                 'symbol' => 'm',
                 'is_default' => false,
-                'is_report' => true,
+            
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
@@ -25,7 +25,7 @@ class CurrencySeeder extends Seeder
                 'name' => 'Yuan',
                 'symbol' => '¥',
                 'is_default' => false,
-                'is_report' => false,
+             
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
@@ -35,21 +35,21 @@ class CurrencySeeder extends Seeder
                 'name' => 'US Dollar',
                 'symbol' => '$',
                 'is_default' => true,
-                'is_report' => false,
+
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
             ],
         ];
 
-        // Вставка или обновление валют
+      
         DB::table('currencies')->upsert(
-            $currencies, // Данные для вставки или обновления
-            ['code'], // Поле для проверки уникальности
-            ['name', 'symbol', 'is_default', 'is_report', 'status', 'updated_at'] // Поля для обновления
+            $currencies, 
+            ['code'],
+            ['name', 'symbol', 'is_default',  'status', 'updated_at'] 
         );
 
-        // Получаем ID всех валют
+     
         $currencyIds = DB::table('currencies')->pluck('id', 'code');
 
         // Подготовка истории валют
@@ -67,8 +67,8 @@ class CurrencySeeder extends Seeder
         // Вставка или обновление истории валют
         DB::table('currency_histories')->upsert(
             $currencyHistories,
-            ['currency_id', 'start_date'], // Проверка на существование
-            ['exchange_rate', 'updated_at'] // Поля для обновления
+            ['currency_id', 'start_date'], 
+            ['exchange_rate', 'updated_at'] 
         );
     }
 }

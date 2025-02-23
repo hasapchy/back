@@ -9,21 +9,20 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up()
+    public function up(): void
     {
-        Schema::create('roles', function (Blueprint $table) {
-            $table->id();
-            $table->string('name')->unique();
+        Schema::create('wh_write_offs', function (Blueprint $table) {
+            $table->id(); 
+            $table->foreignId('warehouse_id')->constrained('warehouses')->onDelete('cascade'); 
+            $table->text('note');
             $table->timestamps();
         });
-    }
-    
 
-    /**
-     * Reverse the migrations.
-     */
+    }
+
+  
     public function down(): void
     {
-        Schema::dropIfExists('roles');
+        Schema::dropIfExists('wh_write_offs');
     }
 };

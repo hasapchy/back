@@ -13,7 +13,6 @@ class SalesProduct extends Model
         'sale_id',
         'product_id',
         'price',
-        'price_with_discount',
         'quantity',
     ];
 

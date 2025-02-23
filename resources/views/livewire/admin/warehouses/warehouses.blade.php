@@ -2,12 +2,10 @@
 @section('showSearch', false)
 <div class="container mx-auto p-4">
     <div class="flex items-center space-x-4 mb-4">
-        @if (Auth::user()->hasPermission('create_warehouses'))
-            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded mb-4">
-                <i class="fas fa-plus"></i>
-            </button>
-            @include('components.warehouse-accordion')
-        @endif
+        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded mb-4">
+            <i class="fas fa-plus"></i>
+        </button>
+        @include('components.warehouse-accordion')
     </div>
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
@@ -18,11 +16,10 @@
         </thead>
         <tbody>
             @foreach ($warehouses as $warehouse)
-                @if (Auth::user()->hasPermission('edit_warehouses'))
-                    <tr wire:click="edit({{ $warehouse->id }})" class="cursor-pointer">
-                @endif
-                <td class="py-2 px-4 border-b">{{ $warehouse->name }}</td>
-                <td class="py-2 px-4 border-b">{{ $warehouse->created_at->format('d.m.Y') }}</td>
+                <tr wire:click="edit({{ $warehouse->id }})" class="cursor-pointer">
+
+                    <td class="py-2 px-4 border-b">{{ $warehouse->name }}</td>
+                    <td class="py-2 px-4 border-b">{{ $warehouse->created_at->format('d.m.Y') }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -61,16 +58,12 @@
                 <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
-                @if (Auth::user()->hasPermission('delete_warehouses'))
-                    @if ($warehouseId)
-                        <button wire:click="delete({{ $warehouseId }})"
-                            class="bg-red-500 text-white px-4 py-2 rounded">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    @endif
+                @if ($warehouseId)
+                    <button wire:click="delete({{ $warehouseId }})" class="bg-red-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
                 @endif
             </div>
         </div>
     </div>
-
 </div>

@@ -58,9 +58,6 @@ class ProductsRepository
         $product->category_id = $data['category_id'];
         $product->unit_id = $data['unit_id'];
         $product->status_id = $data['status_id'];
-
-        $product->stock_quantity = 0;
-        $product->stock_quantity = 0;
         $product->save();
 
         ProductPrice::updateOrCreate([

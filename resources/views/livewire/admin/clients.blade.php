@@ -6,7 +6,7 @@
         // Получаем валюту по умолчанию (например, в БД стоит is_default = true)
         $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
         // Выбранная пользователем валюта (код хранится в сессии)
-        $selectedCurrency = \App\Models\Currency::where('code', session('currency', 'USD'))->first();
+        $selectedCurrency = \App\Models\Currency::where('code', session('currency'))->first() ?? $defaultCurrency;
         // Конвертируем баланс, если валюты отличаются
         if ($defaultCurrency->id !== $selectedCurrency->id) {
             $balanceConverted = ($clientBalance / $defaultCurrency->exchange_rate) * $selectedCurrency->exchange_rate;
@@ -16,11 +16,11 @@
     @endphp
 
     <div class="flex items-center space-x-4 mb-4">
-        @if (Auth::user()->hasPermission('create_clients'))
+      
             <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
                 <i class="fas fa-user-plus"></i>
             </button>
-        @endif
+      
     </div>
 
     <div id="table-container" wire:ignore>

@@ -1,143 +1,91 @@
-@section('page-title', 'Роли')
-
 <div class="container mx-auto p-4">
-    @include('components.alert')
-    @if (Auth::user()->hasPermission('create_roles'))
-        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded mb-4">
-            <i class="fas fa-plus"></i>
-        </button>
+    @if (session()->has('success'))
+        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded mb-4">
+            {{ session('success') }}
+        </div>
     @endif
 
-    <table class="min-w-full bg-white shadow-md rounded mb-6">
-        <thead class="bg-gray-100">
-            <tr>
-                <th class="p-2 border border-gray-200 ">Дата создания</th>
-                <th class="p-2 border border-gray-200 ">Название роли</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach ($roles as $role)
-                @if (Auth::user()->hasPermission('edit_roles'))
-                    <tr data-role-id="{{ $role->id }}" wire:click="editRole({{ $role->id }})">
-                @endif
-                <td class="p-2 border border-gray-200">{{ $role->created_at }}</td>
-                <td class="p-2 border border-gray-200">{{ $role->name }}</td>
-
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
-
-    <div id="modalBackground"
-        class="fixed overflow-y-auto inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
-        wire:click="closeForm">
-        <div id="form"
-            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
-            style="transform: {{ $showForm ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
-            <button wire:click="closeForm" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
-                style="right: 1rem;">
-                &times;
-            </button>
-            <h2 class="text-xl font-bold mb-4">{{ $roleId ? 'Редактировать' : 'Создать' }} роль</h2>
-
-            <label class="block mb-1">Название роли</label>
-            <input type="text" wire:model="name" placeholder="Название роли" class="w-full p-2 mb-2 border rounded">
-
-            <label class="block mb-1">Пермишены</label>
-            <div class="mb-2">
-                <label class="font-bold">
-                    <input type="checkbox" id="selectAll">
-                    Отметить все
-                </label>
-            </div>
-            @php
-                $groupedPermissions = $permissions->groupBy(function ($item) {
-                    return explode('_', $item->name)[1];
-                });
-            @endphp
-            @foreach ($groupedPermissions as $group => $groupPermissions)
-                <div class="mb-2">
-                    <div class=" inline-flex items-center">
-                        <label class="font-bold">
-                            <input type="checkbox" class="group-toggle" data-group="{{ $group }}">
-                            {{ ucfirst($group) }}
-                        </label>
-                        @foreach ($groupPermissions as $permission)
-                            <label class="flex items-center ml-3">
-
-                                @if (strpos($permission->name, 'view') !== false)
-                                    <i class="fas fa-eye text-blue-500"></i>
-                                @elseif (strpos($permission->name, 'create') !== false)
-                                    <i class="fas fa-plus text-green-500"></i>
-                                @elseif (strpos($permission->name, 'edit') !== false)
-                                    <i class="fas fa-edit text-yellow-500"></i>
-                                @elseif (strpos($permission->name, 'delete') !== false)
-                                    <i class="fas fa-trash text-red-500"></i>
-                                @endif
-                                <input type="checkbox" wire:model="selectedPermissions" value="{{ $permission->id }}"
-                                    class="form-checkbox ml-1" data-group="{{ $group }}">
-                            </label>
-                        @endforeach
-                    </div>
-                </div>
-                <hr class="py-1">
-            @endforeach
-
-            <div class="mt-4 flex justify-start space-x-2">
-                <button wire:click="saveRole" class="bg-green-500 text-white px-4 py-2 rounded">
-                    <i class="fas fa-save"></i>
-                </button>
-            </div>
-            @component('components.confirmation-modal', ['showConfirmationModal' => $showConfirmationModal])
-            @endcomponent
-        </div>
+    <div class="flex items-center mb-4">
+        <button wire:click="openForm" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded mr-4">
+            Создать роль
+        </button>
     </div>
+
+    {{-- Таблица ролей --}}
+    <div class="shadow w-full rounded-md overflow-hidden mb-8">
+        <div class="bg-gray-200 p-2 grid grid-cols-2">
+            <div>Роль</div>
+            <div>Пермишены</div>
+        </div>
+        @foreach ($roles as $role)
+            <div class="grid grid-cols-2 p-2 border-b">
+                <div>{{ $role->name }}</div>
+                <div>
+                    @foreach ($role->permissions as $permission)
+                        <span class="inline-block bg-gray-300 rounded-full px-2 py-1 text-sm mr-1 mb-1">
+                            {!! permission_icon($permission->name) !!} {{ $permission->name }}
+                        </span>
+                    @endforeach
+                </div>
+            </div>
+        @endforeach
+    </div>
+
+    {{-- Модальное окно для создания роли --}}
+    @if ($showForm)
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50"
+            wire:click="closeForm">
+            <div class="bg-white p-6 rounded shadow-lg w-1/3" wire:click.stop>
+                <h2 class="text-xl font-bold mb-4">Создать роль</h2>
+                <input type="text" wire:model="roleName" placeholder="Название роли"
+                    class="w-full p-2 border rounded mb-4">
+
+                <div class="mb-4">
+                    <h3 class="font-semibold mb-2">Выберите пермишены:</h3>
+                    @php
+                        // Группируем разрешения по части до первого символа "_"
+                        $grouped = $permissions->groupBy(function ($perm) {
+                            return explode('_', $perm->name)[0];
+                        });
+                    @endphp
+
+                    @foreach ($grouped as $group => $perms)
+                        <div class="mb-4 border p-2 rounded">
+                            <div class="flex items-center mb-2">
+                                <input type="checkbox" id="group_{{ $group }}"
+                                    wire:model="groupChecks.{{ $group }}"
+                                    wire:click="toggleGroup('{{ $group }}')" />
+                                <label for="group_{{ $group }}" class="ml-2 font-bold">
+                                    {{ __("permissions.$group.title") ?? ucfirst($group) }}
+                                </label>
+                            </div>
+                            <div class="ml-6 flex flex-wrap gap-2">
+                                @foreach ($perms as $perm)
+                                    <div class="flex items-center">
+                                        <input type="checkbox" wire:model="selectedPermissions"
+                                            value="{{ $perm->id }}" id="perm_{{ $perm->id }}">
+                                        <label for="perm_{{ $perm->id }}" class="ml-2 flex items-center">
+                                            {!! permission_icon($perm->name) !!}
+                                            <span class="ml-1">
+                                                {{ __('permissions.' . explode('_', $perm->name)[1]) ?? $perm->name }}
+                                            </span>
+                                        </label>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="flex justify-end">
+                    <button wire:click="closeForm" class="mr-4 bg-gray-500 text-white px-4 py-2 rounded">
+                        Отмена
+                    </button>
+                    <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
+                        Создать
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
-
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        document.getElementById('selectAll').addEventListener('change', function() {
-            const checkboxes = document.querySelectorAll('input.form-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-                checkbox.dispatchEvent(new Event('change'));
-            });
-        });
-
-        document.querySelectorAll('.group-toggle').forEach(groupToggle => {
-            groupToggle.addEventListener('change', function() {
-                const group = this.dataset.group;
-                const checkboxes = document.querySelectorAll(
-                    `input.form-checkbox[data-group="${group}"]`);
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
-                    checkbox.dispatchEvent(new Event('change'));
-                });
-            });
-        });
-    });
-</script>
-
-<script>
-    //перезагрузка страницы
-    document.addEventListener('DOMContentLoaded', () => {
-
-        setTimeout(() => {
-            Livewire.on('refreshPage', () => {
-                location.reload()
-            })
-        }, 2000)
-    })
-
-    //закрытие модального окна
-    function confirmDelete(clientId) {
-        document.getElementById('deleteConfirmationModal').style.display = 'flex'
-    }
-
-    function cancelDelete() {
-        document.getElementById('deleteConfirmationModal').style.display = 'none'
-    }
-</script>
-@push('scripts')
-    @vite('resources/js/modal.js')
-@endpush

@@ -11,11 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('warehouse_product_movements', function (Blueprint $table) {
+        Schema::create('wh_movements', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('warehouse_from')->nullable()->constrained('warehouses')->onDelete('set null');
-            $table->foreignId('warehouse_to')->nullable()->constrained('warehouses')->onDelete('set null');
+            $table->foreignId('wh_from')->constrained('warehouses')->onDelete('cascade');
+            $table->foreignId('wh_to')->constrained('warehouses')->onDelete('cascade');
             $table->text('note')->nullable();
+            $table->timestamp('date');
             $table->timestamps();
         });
     }
@@ -25,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('warehouse_product_movements');
+        Schema::dropIfExists('wh_movements');
     }
 };

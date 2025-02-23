@@ -47,6 +47,8 @@ class Transactions extends Component
     public $orig_amount;
     public $orig_currency_id;
     public $readOnly = false;
+    public $filters = [];
+
 
     protected $listeners = [
         'dateFilterUpdated' => 'updateDateFilter',
@@ -298,6 +300,52 @@ class Transactions extends Component
         $this->transactions = $transactionsQuery->with('user', 'currency')
             ->orderBy('date', 'desc')
             ->get();
+
+
+        $this->transactions = $this->transactions->map(function ($transaction) {
+            $transaction->isOrder = Order::all()->contains(function ($order) use ($transaction) {
+                return in_array($transaction->id, json_decode($order->transaction_ids, true) ?? []);
+            });
+            $transaction->isSale = Transaction::where('id', $transaction->id)
+                ->where('note', 'like', '%Продажа%')
+                ->exists();
+            return $transaction;
+        });
+
+
+        if (!empty($this->filters)) {
+
+            if (in_array('all', $this->filters)) {
+                $selectedFilters = ['orders', 'sales', 'projects', 'normal'];
+            } else {
+                $selectedFilters = $this->filters;
+            }
+            $this->transactions = $this->transactions->filter(function ($transaction) use ($selectedFilters) {
+                $match = false;
+
+                if (in_array('orders', $selectedFilters) && $transaction->isOrder) {
+                    $match = true;
+                }
+
+                if (in_array('sales', $selectedFilters) && $transaction->isSale) {
+                    $match = true;
+                }
+
+                if (in_array('projects', $selectedFilters) && !empty($transaction->project_id)) {
+                    $match = true;
+                }
+
+                if (
+                    in_array('normal', $selectedFilters) &&
+                    !$transaction->isSale &&
+                    !$transaction->isOrder &&
+                    empty($transaction->project_id)
+                ) {
+                    $match = true;
+                }
+                return $match;
+            })->values();
+        }
 
         $this->totalIncome = $this->transactions->where('type', 1)->sum('amount');
         $this->totalExpense = $this->transactions->where('type', 0)->sum('amount');

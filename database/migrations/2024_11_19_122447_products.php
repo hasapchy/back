@@ -15,11 +15,12 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->string('sku')->unique();
             $table->string('image')->nullable();
+            $table->boolean('type')->default('1');
             $table->foreignId('category_id')->constrained()->onDelete('cascade');
-            $table->integer('stock_quantity')->default(0);
             $table->foreignId('status_id')->constrained('product_statuses')->onDelete('cascade');
             $table->string('barcode')->unique()->nullable();
             $table->boolean('is_serialized')->default(false);
+            $table->foreignId('unit_id')->default(null)->nullable()->constrained('units')->nullOnDelete();
             $table->timestamps();
         });
     }

@@ -10,11 +10,12 @@ return new class extends Migration
         Schema::create('projects', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->date('start_date');
-            $table->date('end_date')->nullable();
+            $table->text('description')->nullable();
+            $table->unsignedDecimal('budget', 15, 2);
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('client_id')->constrained()->onDelete('cascade');
             $table->json('users')->nullable();
+            $table->timestamp('date');
             $table->timestamps();
         });
     }

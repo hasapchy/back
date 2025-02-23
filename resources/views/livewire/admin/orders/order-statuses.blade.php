@@ -3,11 +3,10 @@
 
     @include('components.alert')
     <div class="flex space-x-4 mb-4">
-        {{-- @if (Auth::user()->hasPermission('create_order_statuses')) --}}
         <button wire:click="openForm" class="mb-4 bg-green-500 text-white px-4 py-2 rounded">
             <i class="fas fa-plus"></i>
         </button>
-        {{-- @endif --}}
+
     </div>
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
@@ -19,9 +18,8 @@
         </thead>
         <tbody>
             @foreach ($statuses as $status)
-                {{-- @if (Auth::user()->hasPermission('edit_order_statuses')) --}}
                 <tr wire:click="edit({{ $status->id }})" class="cursor-pointer mb-2 p-2 border rounded">
-                    {{-- @endif --}}
+
                     <td class="p-2 border border-gray-200">{{ $status->name }}</td>
                     <td class="p-2 border border-gray-200">{{ $status->category->name }}</td>
                     </td>
@@ -41,7 +39,7 @@
                 &times;
             </button>
             <h2 class="text-xl font-bold mb-4">Статус заказа</h2>
-            {{-- @include('components.confirmation-modal') --}}
+
             <div class="mb-4">
                 <label class="block mb-1">Название</label>
                 <input type="text" wire:model="name" placeholder="Название" class="w-full p-2 border rounded">
@@ -61,34 +59,12 @@
                 <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
-                @if (Auth::user()->hasPermission('delete_order_statuses'))
-                    @if ($status_id)
-                        <button wire:click="delete({{ $status_id }})"
-                            class="bg-red-500 text-white px-4 py-2 rounded">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    @endif
+                @if ($status_id)
+                    <button wire:click="delete({{ $status_id }})" class="bg-red-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 @endif
             </div>
         </div>
     </div>
-
-    <!-- Confirmation Modal -->
-    {{-- <div id="confirmationModal"
-        class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 transition-opacity duration-500 {{ $showConfirmationModal ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
-        wire:click="closeConfirmationModal">
-        <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded shadow-lg"
-            wire:click.stop>
-            <h3 class="text-lg font-bold mb-4">Подтверждение удаления</h3>
-            <p>Вы уверены, что хотите удалить этот статус заказа?</p>
-            <div class="flex justify-end space-x-4 mt-4">
-                <button wire:click="closeConfirmationModal" class="bg-gray-500 text-white px-4 py-2 rounded">
-                    Отмена
-                </button>
-                <button wire:click="confirmDelete" class="bg-red-500 text-white px-4 py-2 rounded">
-                    Удалить
-                </button>
-            </div>
-        </div>
-    </div> --}}
 </div>

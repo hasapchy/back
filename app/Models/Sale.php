@@ -39,7 +39,7 @@ class Sale extends Model
     public function products()
     {
         return $this->belongsToMany(Product::class, 'sales_products')
-            ->withPivot('quantity', 'price', 'price_with_discount',);
+            ->withPivot('quantity', 'price',);
     }
 
     public function cashRegister()

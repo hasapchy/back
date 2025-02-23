@@ -83,6 +83,6 @@ class TransactionCategories extends Component
 
     public function render()
     {
-        return view('livewire.admin.transaction-category-create');
+        return view('livewire.admin.transaction-category');
     }
 }

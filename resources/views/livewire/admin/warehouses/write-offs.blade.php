@@ -3,11 +3,11 @@
     @include('components.alert')
 
     <div class="flex items-center space-x-4 mb-4">
-        @if (Auth::user()->hasPermission('create_write_offs'))
+     
             <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
                 <i class="fas fa-plus"></i>
             </button>
-        @endif
+      
         @include('components.warehouse-accordion')
         @livewire('admin.date-filter')
     </div>
@@ -24,9 +24,9 @@
         </thead>
         <tbody>
             @forelse ($stockWriteOffs as $writeOff)
-                @if (Auth::user()->hasPermission('edit_write_offs'))
+           
                     <tr wire:click="edit({{ $writeOff->id }})" class="cursor-pointer">
-                @endif
+             
                 <td class="p-2 border border-gray-200">{{ $writeOff->id }}</td>
                 <td class="p-2 border border-gray-200">{{ $writeOff->created_at->format('d.m.Y') }}</td>
                 <td class="p-2 border border-gray-200">{{ $writeOff->warehouse->name }}</td>
@@ -144,13 +144,13 @@
                 <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded mr-2">
                     <i class="fas fa-save"></i>
                 </button>
-                @if (Auth::user()->hasPermission('delete_write_offs'))
+            
                     @if ($writeOffId)
                         <button wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-trash"></i>
                         </button>
                     @endif
-                @endif
+             
             </div>
 
             @include('components.confirmation-modal')

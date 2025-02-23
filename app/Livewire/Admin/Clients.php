@@ -377,7 +377,10 @@ class Clients extends Component
     {
         // Загружаем валюту по умолчанию и выбранную пользователем
         $defaultCurrency = Currency::where('is_default', true)->first();
-        $selectedCurrency = Currency::where('code', session('currency', 'USD'))->first();
+        $selectedCurrency = Currency::where('code', session('currency'))->first();
+        if (!$selectedCurrency) {
+            $selectedCurrency = Currency::where('is_default', true)->first();
+        }
 
         return collect($this->transactions)->map(function ($transaction) use ($defaultCurrency, $selectedCurrency) {
             $date = $transaction['transaction_date'] ?? ($transaction['created_at'] ?? null);
