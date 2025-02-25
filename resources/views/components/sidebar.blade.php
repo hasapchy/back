@@ -20,12 +20,12 @@
             {{ \App\Models\Setting::where('setting_name', 'company_name')->value('setting_value') ?? 'Laravel' }}</h2>
         <ul>
 
-            <li class="mb-2">
+            {{-- <li class="mb-2">
                 <a href="{{ route('admin.dashboard') }}"
                     class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.dashboard') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
                     <i class="fas fa-building mr-2"></i> Моя компания
                 </a>
-            </li>
+            </li> --}}
 
 
 
