@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             OrderStatusSeeder::class,
             CashRegisterSeeder::class,
             UnitsSeeder::class,
+            PermissionSeeder::class,
         ]);
 
     }

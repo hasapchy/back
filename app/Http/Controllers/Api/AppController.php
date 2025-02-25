@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Currency;
 use App\Models\ProductStatus;
+use App\Models\TransactionCategory;
 use App\Models\Unit;
 use Illuminate\Http\Request;
 
@@ -31,6 +32,13 @@ class AppController extends Controller
     {
         $items = ProductStatus::all();
 
+        return response()->json($items);
+    }
+
+    // получение категорий транзакций 
+    public function getTransactionCategories()
+    {
+        $items = TransactionCategory::select('id', 'name', 'type')->get();
         return response()->json($items);
     }
     

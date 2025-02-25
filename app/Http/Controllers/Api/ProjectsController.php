@@ -14,14 +14,14 @@ class ProjectsController extends Controller
     {
         $this->itemsRepository = $itemsRepository;
     }
-    // Метод для получения касс с пагинацией
+    // Метод для получения проектов с пагинацией
     public function index(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
         if(!$userUuid){
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
-        // Получаем склад с пагинацией
+        // Получаем с пагинацией
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20);
 
         return response()->json([
@@ -33,18 +33,18 @@ class ProjectsController extends Controller
         ]);
     }
 
-    // // Метод для получения всех касс
-    // public function all(Request $request)
-    // {
-    //     $userUuid = optional(auth('api')->user())->id;
-    //     if(!$userUuid){
-    //         return response()->json(array('message' => 'Unauthorized'), 401);
-    //     }
-    //     // Получаем склад с пагинацией
-    //     $items = $this->itemsRepository->getAllItems($userUuid);
+    // Метод для получения всех проектов
+    public function all(Request $request)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if(!$userUuid){
+            return response()->json(array('message' => 'Unauthorized'), 401);
+        }
+        
+        $items = $this->itemsRepository->getAllItems($userUuid);
 
-    //     return response()->json($items);
-    // }
+        return response()->json($items);
+    }
 
     // Метод для создания проекта
     public function store(Request $request)
@@ -56,6 +56,8 @@ class ProjectsController extends Controller
         // Валидация данных
         $request->validate([
             'name' => 'required|string',
+            'budget' => 'required|numeric',
+            'date' => 'nullable|sometimes|date',
             'client_id' => 'required|exists:clients,id',
             'users' => 'required|array',
             'users.*' => 'exists:users,id'
@@ -64,6 +66,8 @@ class ProjectsController extends Controller
         // Создаем категорию
         $item_created = $this->itemsRepository->createItem([
             'name' => $request->name,
+            'budget' => $request->budget,
+            'date' => $request->date,
             'user_id' => $userUuid,
             'client_id' => $request->client_id,
             'users' => $request->users
@@ -89,6 +93,8 @@ class ProjectsController extends Controller
         // Валидация данных
         $request->validate([
             'name' => 'required|string',
+            'budget' => 'required|numeric',
+            'date' => 'nullable|sometimes|date',
             'client_id' => 'required|exists:clients,id',
             'users' => 'required|array',
             'users.*' => 'exists:users,id'
@@ -97,6 +103,8 @@ class ProjectsController extends Controller
         // Обновляем проект
         $category_updated = $this->itemsRepository->updateItem($id, [
             'name' => $request->name,
+            'budget' => $request->budget,
+            'date' => $request->date,
             'user_id' => $userUuid,
             'client_id' => $request->client_id,
             'users' => $request->users
