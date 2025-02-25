@@ -11,7 +11,7 @@ class ClientsRepository {
     function getImemsPaginated($perPage = 20) {
         
         $clients = DB::table('clients')
-            ->select('id', 'client_type', 'is_supplier', 'is_conflict', 'first_name', 'last_name', 'contact_person', 'address', 'note', 'status', 'order', 'created_at', 'updated_at')
+            ->select('id', 'client_type', 'is_supplier', 'is_conflict', 'first_name', 'last_name', 'contact_person', 'address', 'note', 'status','created_at', 'updated_at')
             ->paginate($perPage);
 
         $clientIds = $clients->pluck('id');
@@ -182,7 +182,7 @@ class ClientsRepository {
     function getItemsByIds(array $ids) {
         
         $clients = DB::table('clients')
-            ->select('id', 'client_type', 'is_supplier', 'is_conflict', 'first_name', 'last_name', 'contact_person', 'address', 'note', 'status', 'order', 'created_at', 'updated_at')
+            ->select('id', 'client_type', 'is_supplier', 'is_conflict', 'first_name', 'last_name', 'contact_person', 'address', 'note', 'status', 'created_at', 'updated_at')
             ->whereIn('id', $ids)
             ->get();
 

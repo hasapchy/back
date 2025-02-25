@@ -7,6 +7,7 @@ use App\Http\Controllers\api\ClientController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProjectsController;
 use App\Http\Controllers\Api\TransactionsController;
+use App\Http\Controllers\Api\TransfersController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UsersController;
 use App\Http\Controllers\Api\WarehouseController;
@@ -33,6 +34,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
     Route::get('app/units', [AppController::class, 'getUnitsList']);
     Route::get('app/product_statuses', [AppController::class, 'getProductStatuses']);
+    Route::get('app/transaction_categories', [AppController::class, 'getTransactionCategories']);
 
     // user
     Route::post('user/logout', [UserController::class, 'logout']);
@@ -69,21 +71,29 @@ Route::middleware('auth:api')->group(function () {
     // cash registers
     Route::get('cash_registers', [CashRegistersController::class, 'index']);
     Route::get('cash_registers/all', [CashRegistersController::class, 'all']);
+    Route::get('cash_registers/balance', [CashRegistersController::class, 'getCashBalance']);
     Route::post('cash_registers', [CashRegistersController::class, 'store']);
     Route::put('cash_registers/{id}', [CashRegistersController::class, 'update']);
     Route::delete('cash_registers/{id}', [CashRegistersController::class, 'destroy']);
 
     // projects
     Route::get('projects', [ProjectsController::class, 'index']);
-    // Route::get('projects/all', [ProjectsController::class, 'all']);
+    Route::get('projects/all', [ProjectsController::class, 'all']);
     Route::post('projects', [ProjectsController::class, 'store']);
     Route::put('projects/{id}', [ProjectsController::class, 'update']);
     // Route::delete('projects/{id}', [ProjectsController::class, 'destroy']);
 
     // transactions
-    // Route::get('cash_registers', [CashRegistersController::class, 'index']);
-    Route::get('transactions/all', [TransactionsController::class, 'all']);
-    // Route::post('cash_registers', [CashRegistersController::class, 'store']);
-    // Route::put('cash_registers/{id}', [CashRegistersController::class, 'update']);
-    // Route::delete('cash_registers/{id}', [CashRegistersController::class, 'destroy']);
+    Route::get('transactions', [TransactionsController::class, 'index']);
+    // Route::get('transactions/all', [TransactionsController::class, 'all']);
+    Route::post('transactions', [TransactionsController::class, 'store']);
+    Route::put('transactions/{id}', [TransactionsController::class, 'update']);
+    // Route::delete('transactions/{id}', [TransactionsController::class, 'destroy']);
+    
+    // transfers
+    Route::get('transfers', [TransfersController::class, 'index']);
+    // Route::get('transactions/all', [TransactionsController::class, 'all']);
+    Route::post('transfers', [TransfersController::class, 'store']);
+    // Route::put('transactions/{id}', [TransactionsController::class, 'update']);
+    // Route::delete('transactions/{id}', [TransactionsController::class, 'destroy']);
 });

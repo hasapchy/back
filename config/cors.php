@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://app.ltm.studio'],
+    'allowed_origins' => [env('API_ALLOWED_ORIGINS', 'http://app.ltm.studio')],
 
     'allowed_origins_patterns' => [],
 

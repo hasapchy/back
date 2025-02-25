@@ -66,7 +66,7 @@ class ProductsRepository
             'retail_price' => $data['retail_price'] ?? 0.0,
             'wholesale_price' => $data['wholesale_price'] ?? 0.0,
             'purchase_price' => $data['purchase_price'] ?? 0.0,
-            'currency_id' => $data['currency_id'],
+            // 'currency_id' => $data['currency_id'],
         ]);
 
         return $product;
@@ -109,9 +109,9 @@ class ProductsRepository
         if (isset($data['purchase_price'])) {
             $prices_data['purchase_price'] = $data['purchase_price'];
         }
-        if (isset($data['currency_id'])) {
-            $prices_data['currency_id'] = $data['currency_id'];
-        }
+        // if (isset($data['currency_id'])) {
+        //     $prices_data['currency_id'] = $data['currency_id'];
+        // }
 
         ProductPrice::updateOrCreate(
             ['product_id' => $product->id],

@@ -46,6 +46,24 @@ class CashRegistersController extends Controller
         return response()->json($items);
     }
 
+    // Получение баланса касс
+    public function getCashBalance(Request $request)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if(!$userUuid){
+            return response()->json(array('message' => 'Unauthorized'), 401);
+        }
+
+        $cashRegisterIds = $request->query('cash_register_ids', '');
+        $all = empty($cashRegisterIds);
+        $cashRegisterIds = array_map('intval', explode(',', $cashRegisterIds));
+        // return response()->json($all);
+
+        $balances = $this->itemsRepository->getCashBalance($userUuid, $cashRegisterIds, $all);
+
+        return response()->json($balances);
+    }
+
     // Метод для создания кассы
     public function store(Request $request)
     {
