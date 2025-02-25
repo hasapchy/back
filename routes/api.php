@@ -3,7 +3,7 @@
 use App\Http\Controllers\Api\AppController;
 use App\Http\Controllers\Api\CashRegistersController;
 use App\Http\Controllers\Api\CategoriesController;
-use App\Http\Controllers\api\ClientController;
+use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProjectsController;
 use App\Http\Controllers\Api\TransactionsController;
