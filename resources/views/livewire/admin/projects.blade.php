@@ -18,15 +18,17 @@
             <tr>
                 <th class="p-2 border border-gray-200">Название</th>
                 <th class="p-2 border border-gray-200">Клиент</th>
-
+                <th class="p-2 border border-gray-200">Бюджет</th>
+            
             </tr>
         </thead>
         <tbody>
             @foreach ($projects as $project)
-                <tr wire:click="edit({{ $project->id }})" class="cursor-pointer mb-2 p-2 border rounded ">
-
+                <tr wire:click="edit({{ $project->id }})" class="cursor-pointer mb-2 p-2 border rounded">
                     <td class="p-2 border border-gray-200">{{ $project->name }}</td>
                     <td class="p-2 border border-gray-200">{{ $project->client->first_name ?? 'N/A' }}</td>
+                    <td class="p-2 border border-gray-200">{{ $project->budget }}</td>
+                   
                 </tr>
             @endforeach
         </tbody>
@@ -60,12 +62,23 @@
                                 class="bg-white inline-block py-2 px-4 text-blue-500 hover:text-blue-800 font-semibold"
                                 href="#">Баланс</a>
                         </li>
+                        <li class="-mb-px mr-1">
+                            <a :class="{ 'border-l border-t border-r rounded-t-lg text-blue-700': activeTab === 3 }"
+                                @click.prevent="activeTab = 3"
+                                class="bg-white inline-block py-2 px-4 text-blue-500 hover:text-blue-800 font-semibold"
+                                href="#">Файлы</a>
+                        </li>
                     @endif
                 </ul>
                 <div x-show="activeTab === 1">
                     <div class="mb-4">
                         <label class="block mb-1">Название</label>
                         <input type="text" wire:model="name" placeholder="Название"
+                            class="w-full p-2 border rounded">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block mb-1">Бюджет</label>
+                        <input type="text" wire:model="budget" placeholder="Бюджет"
                             class="w-full p-2 border rounded">
                     </div>
                     <div class="mb-4">
@@ -134,21 +147,35 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
-        </div>
-
-        {{-- @if ($showDeleteConfirmationModal)
-        <div class="fixed inset-0 bg-gray-900 bg-opacity-50 з-40 flex items-center justify-center">
-            <div class="bg-white p-4 rounded shadow-lg">
-                <h2 class="text-xl font-bold mb-4">Подтверждение удаления</h2>
-                <p>Вы уверены, что хотите удалить этот проект? Это действие нельзя отменить.</p>
-                <div class="flex space-x-2 mt-4">
-                    <button wire:click="deleteProject({{ $projectId }})"
-                        class="bg-red-500 text-white px-4 py-2 rounded">Удалить</button>
-                    <button wire:click="$set('showDeleteConfirmationModal', false)"
-                        class="bg-gray-500 text-white px-4 py-2 rounded">Отмена</button>
+                <div x-show="activeTab === 3">
+                    <div class="mb-4">
+                        <label class="block mb-1">Загрузить файлы</label>
+                        <input type="file" wire:model="fileAttachments" multiple class="w-full p-2 border rounded">
+                        @error('fileAttachments.*')
+                            <span class="text-red-500">{{ $message }}</span>
+                        @enderror
+                    </div>
+                    @if (count($attachments ?? []) > 0)
+                        <div class="mb-4">
+                            <h4 class="font-semibold">Загруженные файлы:</h4>
+                            <ul class="list-disc pl-5">
+                                @foreach ($attachments as $index => $file)
+                                    <li class="flex items-center">
+                                        <a href="{{ asset('storage/' . $file['file_path']) }}" target="_blank" class="text-blue-500 hover:underline">
+                                            {{ $file['file_name'] }}
+                                        </a>
+                                        <button wire:click="removeFile({{ $index }})" class="ml-2 text-red-500" title="Удалить файл">
+                                            &times;
+                                        </button>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+                    <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-save"></i>
+                    </button>
                 </div>
             </div>
         </div>
-    @endif --}}
     </div>

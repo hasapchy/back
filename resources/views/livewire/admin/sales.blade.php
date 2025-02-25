@@ -9,8 +9,6 @@
         $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
     @endphp
 
-
-
     <div class="flex space-x-4 mb-4">
  
             <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">

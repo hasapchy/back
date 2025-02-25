@@ -79,7 +79,7 @@
             </div>
 
             <div class="mb-4">
-                <label>Дата списания</label>
+                <label>Дата</label>
                 <input type="datetime-local" wire:model="date" class="w-full border rounded">
             </div>
 

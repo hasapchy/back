@@ -4,74 +4,64 @@
 
     <div class="flex items-center space-x-4 mb-4">
         @include('components.alert')
-    
-            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded ">
-                <i class="fas fa-plus"></i>
-            </button>
-     
-        <button id="columnsMenuButton" class="bg-gray-500 text-white px-4 py-2 rounded">
-            <i class="fas fa-cogs"></i>
+
+        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded ">
+            <i class="fas fa-plus"></i>
         </button>
+        @php
+            $sessionCurrencyCode = session('currency', 'USD');
+            $conversionService = app(\App\Services\CurrencySwitcherService::class);
+            $displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
+            $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
+        @endphp
+
         @include('components.products-accordion')
         @include('components.alert')
     </div>
-    <!-- Меню фильтров -->
-    <div id="columnsMenu" class="hidden absolute bg-white shadow-md rounded p-4 z-10 mt-2">
-        <h2 class="font-bold mb-2">Выберите колонки для отображения:</h2>
-        @foreach ($columns as $column)
-            <div class="mb-2">
-                <label>
-                    <input type="checkbox" class="column-toggle" data-column="{{ $column }}" checked>
-                    {{ str_replace('_', ' ', $column) }}
-                </label>
-            </div>
-        @endforeach
-    </div>
-    <div id="table-container" wire:ignore>
-        <div id="table-skeleton" class="animate-pulse">
-            <div id="skeleton-header-row" class="grid grid-cols-{{ count($columns) }}">
-                @foreach ($columns as $column)
-                    <div class="p-2 h-6 bg-gray-300 rounded"></div>
-                @endforeach
-            </div>
-            @for ($i = 0; $i < 5; $i++)
-                <div class="grid grid-cols-{{ count($columns) }} gap-4">
-                    @foreach ($columns as $column)
-                        <div class="p-2 h-6 bg-gray-200 rounded"></div>
-                    @endforeach
-                </div>
-            @endfor
-        </div>
-        <div id="table" class="fade-in shadow w-full rounded-md overflow-hidden">
-            <div id="header-row" class="grid grid-flow-col auto-cols-auto">
-                @foreach ($columns as $column)
-                    <div class="p-2 cursor-move whitespace-nowrap" data-key="{{ $column }}">
-                        {{ $column === 'thumbnail' ? 'Изобр.' : str_replace('_', ' ', $column) }}
-                    </div>
-                @endforeach
-            </div>
 
-            <div id="table-body">
-                @foreach ($products as $product)
-                    <div class="grid grid-flow-col auto-cols-auto" wire:click="edit({{ $product->id }})">
-                        @foreach ($columns as $column)
-                            <div class="p-2 whitespace-nowrap" data-key="{{ $column }}">
-                                @if ($column === 'thumbnail')
-                                    @if ($product->image)
-                                        <img src="{{ asset('storage/' . $product->image) }}" alt="Thumbnail"
-                                            class="w-12 h-12 object-cover">
-                                    @else
-                                        <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
-                                    @endif
-                               
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    </div>
+    <table class="min-w-full bg-white shadow-md rounded mb-6">
+        <thead class="bg-gray-100">
+            <tr>
+                <th class="p-2 border border-gray-200">ID</th>
+                <th class="p-2 border border-gray-200">Фото</th>
+                <th class="p-2 border border-gray-200">Название</th>
+                <th class="p-2 border border-gray-200">Розничная цена</th>
+                <th class="p-2 border border-gray-200">Оптовая цена</th>
+                <th class="p-2 border border-gray-200">Описание</th>
+                <th class="p-2 border border-gray-200">Категория</th>
+                <th class="p-2 border border-gray-200">Артикул</th>
+
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($products as $product)
+                <tr wire:click="edit({{ $product->id }})" class="cursor-pointer mb-2 p-2 border rounded">
+                    <td class="p-2 border border-gray-200">{{ $product->id }}</td>
+                    <td class="p-2 border border-gray-200">
+                        @if (!$product->image)
+                            <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
+                        @else
+                            <img src="{{ Storage::url($product->image) }}" class="w-16 h-16 object-cover">
+                        @endif
+                    </td>
+                    <td class="p-2 border border-gray-200">{{ $product->name }}</td>
+                    <td class="p-2 border border-gray-200">
+                        {{ number_format(($product->prices->last()->retail_price ?? 0) * $displayRate, 2) }}
+                        {{ $selectedCurrency->symbol }}
+                    </td>
+                    <td class="p-2 border border-gray-200">
+                        {{ number_format(($product->prices->last()->wholesale_price ?? 0) * $displayRate, 2) }}
+                        {{ $selectedCurrency->symbol }}
+                    </td>
+                    <td class="p-2 border border-gray-200">{{ $product->description }}</td>
+                    <td class="p-2 border border-gray-200">
+                        {{ $product->category->name ?? 'N/A' }}
+                    </td>
+                    <td class="p-2 border border-gray-200">{{ $product->sku }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
 
     <div id="modalBackground"
         class="fixed  inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
@@ -201,7 +191,7 @@
                         <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-save"></i>
                         </button>
-                        @if ($productId )
+                        @if ($productId)
                             <button onclick="confirmDelete({{ $productId }})"
                                 class="bg-red-500 text-white px-4 py-2 rounded">
                                 <i class="fas fa-trash-alt"></i>
@@ -338,14 +328,4 @@
         modal.classList.add('opacity-0', 'pointer-events-none')
         modal.classList.remove('opacity-100', 'pointer-events-auto')
     }
-
-    // document.querySelector('input[wire\\:click="confirmSerialization"]').addEventListener('click', function(event) {
-    //     event.preventDefault();
-    //     @this.call('confirmSerialization');
-    // });
 </script>
-
-@push('scripts')
-    @vite('resources/js/dragdroptable.js')
-    @vite('resources/js/sortcols.js') @vite('resources/js/cogs.js')
-@endpush

@@ -19,7 +19,6 @@ class Transaction extends Model
         'date',
         'note',
         'orig_amount',
-        'orig_currency_id',
         'project_id',
         'type',
         'user_id',

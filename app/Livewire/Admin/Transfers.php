@@ -139,10 +139,8 @@ class Transfers extends Component
             'orig_amount'      => $this->amount,
             'cash_id'          => $this->cashFrom,
             'note'             => $this->note . ' ' . $transferNote,
-            'date' => now()->toDateString(),
             'date'             => $this->date,
             'currency_id'      => $fromCashRegister->currency_id,
-            'orig_currency_id' => $fromCashRegister->currency_id,
             'user_id'          => Auth::id(),
         ]);
 
@@ -153,10 +151,8 @@ class Transfers extends Component
             'orig_amount'      => $this->amount,
             'cash_id'          => $this->cashTo,
             'note'             => $this->note . ' ' . $transferNote,
-            'date' => now()->toDateString(),
             'date'             => $this->date,
             'currency_id'      => $toCashRegister->currency_id,
-            'orig_currency_id' => $fromCashRegister->currency_id,
             'user_id'          => Auth::id(),
         ]);
 

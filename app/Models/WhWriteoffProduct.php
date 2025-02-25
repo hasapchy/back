@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class WhWriteoffProduct extends Model
 {
     use HasFactory;
-
+    protected $table = 'wh_write_off_products';
     protected $fillable = ['write_off_id', 'product_id', 'quantity', 'sn_id'];
 
     public function writeOff()

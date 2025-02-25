@@ -14,43 +14,38 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="min-w-full bg-white border">
-                <thead>
+            <table class="min-w-full bg-white shadow-md rounded mb-6">
+                <thead class="bg-gray-100">
                     <tr>
-                        @foreach ($columns as $column)
-                            <th class="py-2 px-4 border bg-gray-200">
-                                {{ str_replace('_', ' ', $column) }}
-                            </th>
-                        @endforeach
-                        <th class="py-2 px-4 border bg-gray-200">Действия</th>
+                        <th class="p-2 border border-gray-200">ID</th>
+                        <th class="p-2 border border-gray-200">Имя</th>
+                        <th class="p-2 border border-gray-200">Email</th>
+                        <th class="p-2 border border-gray-200">Дата приема</th>
+                        <th class="p-2 border border-gray-200">Должность</th>
+                        <th class="p-2 border border-gray-200">Роль</th>
+                        <th class="p-2 border border-gray-200">Статус</th>
+                  
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($users as $user)
-                        <tr class="hover:bg-gray-100 cursor-pointer" wire:click="editUser({{ $user->id }})">
-                            @foreach ($columns as $column)
-                                <td class="py-2 px-4 border">
-                                    @if ($column === 'is_active')
-                                        {{ $user->is_active ? 'Активен' : 'Неактивен' }}
-                                    @else
-                                        {{ $user->$column }}
-                                    @endif
-                                </td>
-                            @endforeach
-                            <td class="py-2 px-4 border whitespace-nowrap">
-                                @can('users_edit')
-                                    <button wire:click.stop="editUser({{ $user->id }})"
-                                        class="bg-blue-500 text-white px-3 py-1 rounded mr-2">
-                                        <i class="fas fa-pencil-alt"></i>
-                                    </button>
-                                @endcan
-                                @can('users_delete')
-                                    <button onclick="confirmDeletion({{ $user->id }})"
-                                        wire:click.stop="deleteUser({{ $user->id }})"
-                                        class="bg-red-500 text-white px-3 py-1 rounded">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
-                                @endcan
+                        <tr wire:click="editUser({{ $user->id }})" class="cursor-pointer mb-2 p-2 border rounded">
+                            <td class="p-2 border border-gray-200">{{ $user->id }}</td>
+                            <td class="p-2 border border-gray-200">{{ $user->name }}</td>
+                            <td class="p-2 border border-gray-200">{{ $user->email }}</td>
+                            <td class="p-2 border border-gray-200">
+                                {{ \Carbon\Carbon::parse($user->hire_date)->format('d-m-Y') }}
+                            </td>
+                            <td class="p-2 border border-gray-200">{{ $user->position }}</td>
+                            <td class="p-2 border border-gray-200">
+                                {{ $user->role->name ?? '-' }}
+                            </td>
+                            <td class="p-2 border border-gray-200">
+                                @if ($user->is_active)
+                                    <span class="text-green-500">Активен</span>
+                                @else
+                                    <span class="text-red-500">Неактивен</span>
+                                @endif
                             </td>
                         </tr>
                     @endforeach

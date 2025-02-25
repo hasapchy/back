@@ -28,6 +28,7 @@ use App\Livewire\Admin\Af;
 use App\Livewire\Admin\Templates;
 use App\Livewire\Admin\Cashes;
 use App\Livewire\Admin\Roles;
+use App\Livewire\Admin\Reports;
 
 Auth::routes();
 
@@ -66,4 +67,5 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/orders', Orders::class)->name('orders');
     Route::get('/orders-af', Af::class)->name('orders.af');
     Route::get('/roles', Roles::class)->name('roles');
+    Route::get('/reports', Reports::class)->name('reports.index');
 });

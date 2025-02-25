@@ -83,6 +83,13 @@
                 </a>
             </li>
 
+            <li class="mb-2">
+                <a href="{{ route('admin.reports.index') }}"
+                    class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.reports.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                    <i class="fas fa-chart-line mr-2"></i> Отчеты
+                </a>
+            </li>
+
         </ul>
     </div>
 </aside>

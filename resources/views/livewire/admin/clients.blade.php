@@ -3,11 +3,8 @@
 <div class="container mx-auto p-4">
     @include('components.alert')
     @php
-        // Получаем валюту по умолчанию (например, в БД стоит is_default = true)
         $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
-        // Выбранная пользователем валюта (код хранится в сессии)
         $selectedCurrency = \App\Models\Currency::where('code', session('currency'))->first() ?? $defaultCurrency;
-        // Конвертируем баланс, если валюты отличаются
         if ($defaultCurrency->id !== $selectedCurrency->id) {
             $balanceConverted = ($clientBalance / $defaultCurrency->exchange_rate) * $selectedCurrency->exchange_rate;
         } else {
@@ -15,67 +12,76 @@
         }
     @endphp
 
+@php
+$sessionCurrencyCode = session('currency', 'USD');
+$conversionService = app(\App\Services\CurrencySwitcherService::class);
+$displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
+$selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
+@endphp
+
     <div class="flex items-center space-x-4 mb-4">
-      
-            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
-                <i class="fas fa-user-plus"></i>
-            </button>
-      
+        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
+            <i class="fas fa-user-plus"></i>
+        </button>
     </div>
 
-    <div id="table-container" wire:ignore>
-        <div id="table-skeleton" class="animate-pulse">
-            <div id="skeleton-header-row" class="grid grid-cols-{{ count($columns) }}">
-                @foreach ($columns as $column)
-                    <div class="p-2 h-6 bg-gray-300 rounded"></div>
-                @endforeach
-            </div>
-            @for ($i = 0; $i < 5; $i++)
-                <div class="grid grid-cols-{{ count($columns) }} gap-4">
-                    @foreach ($columns as $column)
-                        <div class="p-2 h-6 bg-gray-200 rounded"></div>
-                    @endforeach
-                </div>
-            @endfor
-        </div>
-
-        <div id="table" class="fade-in shadow w-full rounded-md overflow-hidden">
-            <div id="header-row" class="grid grid-cols-{{ count($columns) }}">
-                @foreach ($columns as $column)
-                    <div class="p-2 uppercase cursor-move" data-key="{{ $column }}">
-                        {{ str_replace('_', ' ', $column) }}
-                    </div>
-                @endforeach
-            </div>
-
-            <div id="table-body">
-                @foreach ($clients as $client)
-                    <div class="grid grid-cols-{{ count($columns) }}" data-client-type="{{ $client->client_type }}"
-                        data-is-supplier="{{ $client->is_supplier ? 'supplier' : 'client' }}"
-                        wire:click="edit({{ $client->id }})">
-                        @foreach ($columns as $column)
-                            <div class="p-2" data-key="{{ $column }}">
-                                @if ($column === 'first_name')
-                                    @if ($client->client_type === 'company')
-                                        <i class="fas fa-building"></i>
-                                    @else
-                                        <i class="fas fa-user"></i>
-                                    @endif
-                                    @if ($client->is_conflict)
-                                        <i class="fas fa-angry text-red-500"></i>
-                                    @endif
-                                    @if ($client->is_supplier)
-                                        <i class="fas fa-truck text-blue-500"></i>
-                                    @endif
-                                @endif
-                                {{ $client->$column ?? '-' }}
-                            </div>
-                        @endforeach
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    </div>
+    <table class="min-w-full bg-white shadow-md rounded mb-6">
+        <thead class="bg-gray-100">
+            <tr>
+                <th class="p-2 border border-gray-200">ID</th>
+                <th class="p-2 border border-gray-200">ФИО</th>
+                <th class="p-2 border border-gray-200">Контактное лицо</th>
+                <th class="p-2 border border-gray-200">Адрес</th>
+                <th class="p-2 border border-gray-200">Телефоны</th>
+                <th class="p-2 border border-gray-200">Email</th>
+                <th class="p-2 border border-gray-200">Баланс</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($clients as $client)
+                <tr wire:click="edit({{ $client->id }})" class="cursor-pointer mb-2 p-2 border rounded">
+                    <td class="p-2 border border-gray-200">{{ $client->id }}</td>
+                    <td class="p-2 border border-gray-200">
+                        @if ($client->isConflict)
+                            <i class="fas fa-exclamation-triangle text-red-500" title="Конфликтный"></i>
+                        @endif
+                        @if ($client->isSupplier)
+                            <i class="fas fa-truck text-blue-500" title="Поставщик"></i>
+                        @endif
+                        @if ($client->client_type === 'company')
+                            <i class="fas fa-building text-gray-600" title="Компания"></i>
+                        @else
+                            <i class="fas fa-user text-gray-600" title="Частное лицо"></i>
+                        @endif
+                        {{ $client->first_name }} {{ $client->last_name ?? '-' }}
+                    </td>
+                    <td class="p-2 border border-gray-200">{{ $client->contact_person ?? '-' }}</td>
+                    <td class="p-2 border border-gray-200">{{ $client->address ?? '-' }}</td>
+                    <td class="p-2 border border-gray-200">
+                        @if (!empty($client->phones))
+                            @foreach ($client->phones as $phone)
+                                <i class="fas fa-phone"></i> {{ $phone->phone }}<br>
+                            @endforeach
+                        @else
+                            -
+                        @endif
+                    </td>
+                    <td class="p-2 border border-gray-200">
+                        @if (!empty($client->emails))
+                            @foreach ($client->emails as $email)
+                                <i class="fas fa-envelope"></i> {{ $email->email }}<br>
+                            @endforeach
+                        @else
+                            -
+                        @endif
+                    </td>
+                    <td class="p-2 border border-gray-200">
+                        {{ number_format(($client->balance->balance ?? 0) * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
+                    </td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
 
     <div id="modalBackground"
         class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 
@@ -308,13 +314,4 @@
             </div>
         </div>
     </div>
-
-    {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script> --}}
-    @push('scripts')
-        @vite('resources/js/sortcols.js')
-        @vite('resources/js/dragdroptable.js')
-        @vite('resources/js/modal.js')
-        @vite('resources/js/cogs.js')
-    @endpush
-
 </div>

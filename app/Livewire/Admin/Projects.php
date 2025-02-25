@@ -8,21 +8,28 @@ use App\Models\User;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
 use App\Services\ClientService;
+use Livewire\WithFileUploads;
+use Illuminate\Support\Facades\Storage;
 
 class Projects extends Component
 {
+    use WithFileUploads;
     public $projects, $projectTransactions, $totalAmount = 0;
     public $name, $users = [], $projectId;
     public $showForm = false, $isDirty = false, $showConfirmationModal = false, $allUsers;
     public $clientResults = [], $clientSearch, $selectedClient, $clientId;
     public $searchTerm, $startDate, $endDate;
+    public $fileAttachments = [];
+    public $attachments = [];
+    public $budget;
     protected $clientService;
     protected $rules = [
         'name' => 'required|string|max:255',
-        // 'start_date' => 'sometimes|nullable|date',
-        // 'end_date'   => 'sometimes|nullable|date',
+
         'users'      => 'nullable|array',
         'clientId'   => 'required|integer',
+        'budget'            => 'nullable|numeric',
+        'fileAttachments.*' => 'file|mimes:jpeg,png,pdf,doc,docx,xls,xlsx|max:2048',
     ];
 
     protected $listeners = [
@@ -81,15 +88,28 @@ class Projects extends Component
     {
         $this->validate();
 
-        Project::updateOrCreate(
+        $project = Project::updateOrCreate(
             ['id' => $this->projectId],
             [
                 'name' => $this->name,
                 'user_id' => Auth::id(),
                 'users' => $this->users,
                 'client_id' => $this->clientId,
+                'budget'    => $this->budget,
             ]
         );
+        if ($this->fileAttachments) {
+            $filePaths = [];
+            foreach ($this->fileAttachments as $file) {
+                $path = $file->store('project_files', 'public');
+                $filePaths[] = [
+                    'file_path' => $path,
+                    'file_name' => $file->getClientOriginalName(),
+                ];
+            }
+            // Сохраняем пути в поле files проекта (предварительно настройте миграцию)
+            $project->update(['files' => json_encode($filePaths)]);
+        }
 
         session()->flash('message', 'Проект успешно сохранен.');
         $this->resetForm();
@@ -101,20 +121,17 @@ class Projects extends Component
     public function edit($id)
     {
         $project = Project::find($id);
-        $this->projectId = $project->id;
-        $this->name = $project->name;
-        $this->users = $project->users;
+        $this->projectId     = $project->id;
+        $this->name          = $project->name;
+        $this->users         = $project->users;
         $this->selectedClient = $project->client;
-        $this->showForm = true;
-        $this->isDirty = false;
+        $this->clientId      = $project->client_id; 
+        $this->showForm      = true;
+        $this->isDirty       = false;
+        $this->budget        = $project->budget;
+        $this->attachments   = $project->files ? json_decode($project->files, true) : [];
         $this->loadTransactions();
     }
-
-    // public function confirmDeleteProject($projectId)
-    // {
-    //     $this->projectId = $projectId;
-    //     $this->showDeleteConfirmationModal = true;
-    // }
 
     public function delete($id)
     {
@@ -125,6 +142,21 @@ class Projects extends Component
         Project::destroy($id);
         session()->flash('message', 'Проект успешно удален.');
         $this->closeForm();
+    }
+
+    public function removeFile($index)
+    {
+        if (!isset($this->attachments[$index])) {
+            return;
+        }
+        $file = $this->attachments[$index];
+        Storage::disk('public')->delete($file['file_path']);
+        unset($this->attachments[$index]);
+        $this->attachments = array_values($this->attachments);
+        if ($this->projectId) {
+            $project = Project::find($this->projectId);
+            $project->update(['files' => json_encode($this->attachments)]);
+        }
     }
 
     private function filterByDates($query)
@@ -172,9 +204,10 @@ class Projects extends Component
         $this->projectId   = null;
         $this->name        = '';
         $this->users       = [];
-        $this->selectedClient    = null;
+        $this->selectedClient = null;
         $this->projectTransactions = [];
         $this->totalAmount = 0;
+        $this->budget      = null;
     }
 
     //начало поиск клиент

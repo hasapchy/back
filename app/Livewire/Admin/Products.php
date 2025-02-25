@@ -23,7 +23,6 @@ class Products extends Component
     public $image, $retail_price, $wholesale_price, $purchase_price, $barcode, $categoryId;
     public $showForm = false, $showCategoryForm = false, $showConfirmationModal = false;
     public $categoryName, $users = [], $allUsers, $parentCategoryId;
-    public $columns = ['thumbnail', 'name', 'sku', 'description', 'barcode'];
     public $stocks = [], $isDirty = false, $history = [], $searchTerm, $type = 1;
 
     protected $listeners = ['confirmClose'];

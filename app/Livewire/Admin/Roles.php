@@ -6,6 +6,7 @@ use Livewire\Component;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class Roles extends Component
 {
@@ -61,11 +62,43 @@ class Roles extends Component
         $this->closeForm();
     }
 
+    public function edit($roleId)
+    {
+        $role = Role::with('permissions')->findOrFail($roleId);
+
+        $this->selectedRoleId = $role->id;
+        $this->roleName = $role->name;
+        $this->selectedPermissions = $role->permissions->pluck('id')->toArray();
+
+        // При необходимости можно сбросить состояние мастер-чекбоксов
+        $this->groupChecks = [];
+
+        $this->showForm = true;
+    }
+    public function delete ($roleId)
+    {
+        $role = Role::findOrFail($roleId);
+
+        // Проверяем наличие привязанных пользователей через таблицу model_has_roles
+        $attached = \DB::table('model_has_roles')
+            ->where('role_id', $roleId)
+            ->exists();
+
+        if ($attached) {
+            session()->flash('error', 'Невозможно удалить роль, к ней привязаны пользователи.');
+            return;
+        }
+
+        $role->delete();
+        session()->flash('success', 'Роль успешно удалена.');
+    }
+
+
     // При клике на мастер-чекбокс группы выбираем/снимаем все права в группе
     public function toggleGroup($group)
     {
         // Получаем все разрешения, имя которых начинается с префикса группы (например, "users_")
-        $groupPermissions = Permission::where('name', 'like', $group.'_%')->pluck('id')->toArray();
+        $groupPermissions = Permission::where('name', 'like', $group . '_%')->pluck('id')->toArray();
 
         // Если мастер-чекбокс включен – добавляем в выбранные, иначе удаляем
         if (!empty($this->groupChecks[$group])) {
@@ -74,5 +107,4 @@ class Roles extends Component
             $this->selectedPermissions = array_values(array_diff($this->selectedPermissions, $groupPermissions));
         }
     }
-
 }

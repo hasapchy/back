@@ -25,25 +25,13 @@ class Clients extends Component
     public $discount_type = 'fixed', $discount_value = 0;
     public $showForm = false;
     public $clientBalance, $transactions = [], $clientProjects = [];
-    public $columns = [
-        'id',
-        'first_name',
-        'last_name',
-        'client_type',
-        'contact_person',
-        'address',
-        'note',
-        'is_supplier',
-        'is_conflict',
-        'status',
-    ];
     protected $rules = [
         'first_name'       => 'required|string',
         'last_name'        => 'nullable|string',
         'contact_person'   => 'nullable|string',
         'client_type'      => 'required|string',
         'address'          => 'nullable|string',
-        'phones.*.number'  => 'required|integer|distinct|min:6',
+        'phones.*.number'  => 'required|digits:8|distinct', 
         'emails.*'         => 'nullable|email|distinct',
         'note'             => 'nullable|string',
         'status'           => 'boolean',
@@ -62,7 +50,7 @@ class Clients extends Component
         if ($this->clientId) {
             $this->loadClientProjects($this->clientId);
         }
-
+        $this->loadClients();
         return view('livewire.admin.clients');
     }
 
@@ -95,6 +83,13 @@ class Clients extends Component
             ['id' => $this->clientId],
             $this->getClientData()
         );
+
+        if (!ClientBalance::where('client_id', $client->id)->exists()) {
+            ClientBalance::create([
+                'client_id' => $client->id,
+                'balance'   => 0,
+            ]);
+        }
 
         $this->savePhones($client);
         $this->saveEmails($client);
@@ -235,15 +230,10 @@ class Clients extends Component
         $this->phones = $client->phones->map(fn($phone) => ['number' => $phone->phone, 'sms' => $phone->is_sms])->toArray();
         $this->emails = $client->emails->pluck('email')->toArray();
         $this->clientBalance = ClientBalance::where('client_id', $client->id)->value('balance') ?? 0;
-
-        // Загружаем транзакции из Transaction
-
         $salesAndExpenses = Transaction::where('client_id', $client->id)
-            ->with('currency') // <-- добавляем загрузку отношений
+            ->with('currency')
             ->get()
             ->map(function ($transaction) {
-                // Ваша логика присвоения event_type...
-                // Например:
                 if (stripos($transaction->note, 'Продажа товаров') !== false) {
                     $transaction->event_type = 'Продажа';
                 } elseif ($transaction->type === 1) {
@@ -257,7 +247,6 @@ class Clients extends Component
             })
             ->toArray();
 
-        // Загружаем оприходования из WhReceipt
         $receipts = WhReceipt::where('supplier_id', $client->id)
             ->get()
             ->map(function ($receipt) {
@@ -282,17 +271,14 @@ class Clients extends Component
             })
             ->toArray();
 
-        // Объединяем все транзакции
         $this->transactions = array_merge($salesAndExpenses, $receipts, $salesFromCash);
 
-        // Сортируем по дате (самое последнее действие сверху)
         usort($this->transactions, function ($a, $b) {
             $aDate = isset($a['created_at']) ? strtotime($a['created_at']) : strtotime($a['date'] ?? '0');
             $bDate = isset($b['created_at']) ? strtotime($b['created_at']) : strtotime($b['date'] ?? '0');
             return $bDate - $aDate;
         });
 
-        // Загружаем скидку
         $discount = Discount::where('client_id', $client->id)->first();
         if ($discount) {
             $this->discount_type = $discount->discount_type;
@@ -375,7 +361,6 @@ class Clients extends Component
 
     public function getFormattedTransactionsProperty()
     {
-        // Загружаем валюту по умолчанию и выбранную пользователем
         $defaultCurrency = Currency::where('is_default', true)->first();
         $selectedCurrency = Currency::where('code', session('currency'))->first();
         if (!$selectedCurrency) {
@@ -388,26 +373,24 @@ class Clients extends Component
             $typeStr = $transaction['event_type'] ?? 'Неизвестно';
             $amount = $transaction['amount'] ?? 0;
 
-            // Если транзакция типа "Продажа" или "Оприходование" – она хранится в валюте по умолчанию.
             if (in_array($typeStr, ['Продажа', 'Оприходование'])) {
                 $origCurrency = $defaultCurrency;
             } else {
-                // Для остальных пытаемся получить валюту из транзакции
+
                 if (isset($transaction['currency']) && isset($transaction['currency']['id'])) {
                     $origCurrency = Currency::find($transaction['currency']['id']);
                 } else {
-                    $origCurrency = $defaultCurrency; // Фолдбэк
+                    $origCurrency = $defaultCurrency;
                 }
             }
 
-            // Конвертируем сумму из исходной валюты в выбранную, если они отличаются
             if ($origCurrency->id !== $selectedCurrency->id) {
                 $amountConverted = $amount / $origCurrency->exchange_rate * $selectedCurrency->exchange_rate;
             } else {
                 $amountConverted = $amount;
             }
 
-            // Форматирование знака и класса для вывода
+
             if ($typeStr === 'Продажа' || $typeStr === 'Приход') {
                 $sign = $typeStr === 'Приход' ? '-' : '+';
                 $amountFormatted = $sign . number_format($amountConverted, 2) . " " . $selectedCurrency->symbol;

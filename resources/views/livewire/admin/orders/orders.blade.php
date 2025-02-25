@@ -8,12 +8,30 @@
         $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
     @endphp
     @include('components.alert')
-    <div class="flex space-x-4 mb-4">
+    @php
+        $waitingPaymentTotal = 0;
+        foreach ($orders as $order) {
+            // Assuming the related category id is accessible as $order->status->category->id
+            if ($order->status->category->id == 3) {
+                $finalTotal = 0;
+                foreach ($order->orderProducts as $product) {
+                    $finalTotal += $product->price * $product->quantity;
+                }
+                $waitingPaymentTotal += $finalTotal * $displayRate;
+            }
+        }
+    @endphp
+
+
+    <div class="flex justify-between mb-4">
         <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
             <i class="fas fa-plus"></i>
         </button>
+        <div class="p-4 bg-black text-white rounded flex items-center">
+            <i class="fas fa-shopping-basket mr-2"></i>
+            <span>Ждут оплаты: {{ number_format($waitingPaymentTotal, 2) }} {{ $selectedCurrency->symbol }}</span>
+        </div>
     </div>
-    <!-- filepath: /d:/OSPanel/domains/rem-online/resources/views/livewire/admin/orders/orders.blade.php -->
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
@@ -34,7 +52,7 @@
                     foreach ($order->orderProducts as $product) {
                         $finalTotal += $product->price * $product->quantity;
                     }
-                    // Конвертация цены
+
                     $convertedTotal = $finalTotal * $displayRate;
                 @endphp
                 <tr wire:click="edit({{ $order->id }})" class="cursor-pointer">
@@ -141,18 +159,17 @@
                     <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                         <i class="fas fa-save"></i>
                     </button>
-            
+
                     @if ($order_id)
                         <button wire:click="deleteOrderForm" @click=" showForm = false;resetForm();"
                             class="bg-red-500 text-white px-4 py-2 rounded">
                             <i class="fas fa-trash"></i>
                         </button>
-                  
                     @endif
                 </div>
             </div>
-            @include('components.product-quantity-modal')
-  
+
+
             <div x-show="activeTab === 'products'">
                 <div class="mb-4">
                     @include('components.product-search')
@@ -255,38 +272,6 @@
                     <p>Нет добавленных товаров или услуг.</p>
                 @endif
 
-                <!-- Модальное окно для указания скидки -->
-                <div id="modalBackground"
-                    class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showDiscountModal ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
-                    wire:click="closeDiscountModal">
-                    <div id="form"
-                        class="fixed top-0 overflow-y-auto right-0 w-1/4 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
-                        style="transform: {{ $showDiscountModal ? 'translateX(0)' : 'translateX(100%)' }};"
-                        wire:click.stop>
-                        <button wire:click="closeDiscountModal"
-                            class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-                        <h3 class="text-xl font-bold mb-4">Указать скидку на заказ</h3>
-                        <div class="mb-4">
-                            <label for="total_discount" class="block text-sm font-medium text-gray-700">
-                                Значение скидки
-                            </label>
-                            <input type="number" step="0.01" id="total_discount" wire:model="totalDiscount"
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700">Тип скидки</label>
-                            <select wire:model="totalDiscountType"
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
-                                <option value="fixed">Фиксированная</option>
-                                <option value="percent">Процентная</option>
-                            </select>
-                        </div>
-                        <button wire:click="closeDiscountModal" class="bg-green-500 text-white px-4 py-2 rounded">
-                            <i class="fas fa-save"></i>
-                        </button>
-                    </div>
-
-                </div>
                 <div class="mt-4">
                     <button type="button" wire:click="saveOrderProducts"
                         class="bg-blue-500 text-white px-4 py-2 rounded">
@@ -353,7 +338,36 @@
                 </div>
             @endif
         </div>
-
+    </div>
+    @include('components.product-quantity-modal')
+    <!-- Модальное окно для указания скидки -->
+    <div id="modalBackground"
+        class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showDiscountModal ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
+        wire:click="closeDiscountModal">
+        <div id="form"
+            class="fixed top-0 overflow-y-auto right-0 w-1/4 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
+            style="transform: {{ $showDiscountModal ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
+            <button wire:click="closeDiscountModal"
+                class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            <h3 class="text-xl font-bold mb-4">Указать скидку на заказ</h3>
+            <div class="mb-4">
+                <label for="total_discount" class="block text-sm font-medium text-gray-700">
+                    Значение скидки
+                </label>
+                <input type="number" step="0.01" id="total_discount" wire:model="totalDiscount"
+                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">Тип скидки</label>
+                <select wire:model="totalDiscountType" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                    <option value="fixed">Фиксированная</option>
+                    <option value="percent">Процентная</option>
+                </select>
+            </div>
+            <button wire:click="closeDiscountModal" class="bg-green-500 text-white px-4 py-2 rounded">
+                <i class="fas fa-save"></i>
+            </button>
+        </div>
     </div>
 
     <div id="modalBackground"

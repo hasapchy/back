@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -8,10 +9,11 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'start_date', 'end_date', 'user_id', 'users', 'client_id'];
+    protected $fillable = ['name',  'user_id', 'users', 'client_id', 'files', 'budget'];
 
     protected $casts = [
         'users' => 'array',
+        'files' => 'array',
     ];
 
     public function client()

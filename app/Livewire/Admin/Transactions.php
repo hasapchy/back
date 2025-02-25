@@ -118,7 +118,7 @@ class Transactions extends Component
 
     private function resetForm()
     {
-        $this->reset(['transactionId', 'projectId', 'note', 'selectedClient', 'category_id', 'type', 'orig_amount', 'orig_currency_id']);
+        $this->reset(['transactionId', 'projectId', 'note', 'selectedClient', 'category_id', 'type', 'orig_amount', ]);
         $this->date = now()->format('Y-m-d\TH:i');
     }
 
@@ -174,7 +174,6 @@ class Transactions extends Component
             'client_id'          => 'nullable|exists:clients,id',
             'type'               => 'required|in:1,0',
             'projectId'          => 'nullable|exists:projects,id',
-            'orig_currency_id'   => 'required|exists:currencies,id',
         ]);
 
         $cashRegister = $this->cashRegisters->firstWhere('id', $this->cashId);
@@ -193,7 +192,7 @@ class Transactions extends Component
 
         // Используем оригинальные данные из формы
         $originalAmount = $this->orig_amount;
-        $fromCurrency = Currency::find($this->orig_currency_id);
+        $fromCurrency = Currency::find($cashRegister->currency_id);
         $toCurrency   = Currency::find($cashRegister->currency_id);
 
         // Конвертируем введённую оригинальную сумму в валюту кассы
@@ -225,7 +224,6 @@ class Transactions extends Component
             'project_id'       => $this->projectId,
             'user_id'          => Auth::id(),
             'orig_amount'      => $originalAmount,
-            'orig_currency_id' => $fromCurrency ? $fromCurrency->id : null,
         ];
 
         $transaction = Transaction::updateOrCreate(

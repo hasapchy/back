@@ -1,70 +1,55 @@
 @section('page-title', 'Услуги')
 @section('showSearch', true)
 <div class="container mx-auto p-4">
-
+    @php
+    $sessionCurrencyCode = session('currency', 'USD');
+    $conversionService = app(\App\Services\CurrencySwitcherService::class);
+    $displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
+    $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
+@endphp
     <div class="flex items-center space-x-4 mb-4">
         @include('components.alert')
         <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded ">
             <i class="fas fa-plus"></i>
         </button>
-        <button id="columnsMenuButton" class="bg-gray-500 text-white px-4 py-2 rounded">
-            <i class="fas fa-cogs"></i>
-        </button>
+
         @include('components.products-accordion')
         @include('components.alert')
     </div>
 
-    <div id="columnsMenu" class="hidden absolute bg-white shadow-md rounded p-4 z-10 mt-2">
-        <h2 class="font-bold mb-2">Выберите колонки для отображения:</h2>
-        @foreach ($columns as $column)
-            <div class="mb-2">
-                <label>
-                    <input type="checkbox" class="column-toggle" data-column="{{ $column }}" checked>
-                    {{ str_replace('_', ' ', $column) }}
-                </label>
-            </div>
-        @endforeach
-    </div>
-    <div id="table-container" wire:ignore>
-     
-        <div id="table-skeleton" class="animate-pulse">
-    
-            <div id="skeleton-header-row" class="grid grid-cols-{{ count($columns) }}">
-                @foreach ($columns as $column)
-                    <div class="p-2 h-6 bg-gray-300 rounded"></div>
-                @endforeach
-            </div>
+    <table class="min-w-full bg-white shadow-md rounded mb-6">
+        <thead class="bg-gray-100">
+            <tr>
+                <th class="p-2 border border-gray-200">ID</th>
+                <th class="p-2 border border-gray-200">Название</th>
+                <th class="p-2 border border-gray-200">Розничная цена</th>
+                <th class="p-2 border border-gray-200">Оптовая цена</th>
+                <th class="p-2 border border-gray-200">Описание</th>
+                <th class="p-2 border border-gray-200">Категория</th>
+                <th class="p-2 border border-gray-200">Артикул</th>
 
-            @for ($i = 0; $i < 5; $i++) 
-                <div class="grid grid-cols-{{ count($columns) }} gap-4">
-                    @foreach ($columns as $column)
-                        <div class="p-2 h-6 bg-gray-200 rounded"></div>
-                    @endforeach
-                </div>
-            @endfor
-        </div>
-        <div id="table" class="fade-in shadow w-full rounded-md overflow-hidden">
-            <div id="header-row" class="grid grid-flow-col auto-cols-auto">
-                @foreach ($columns as $column)
-                    <div class="p-2 cursor-move whitespace-nowrap" data-key="{{ $column }}">
-                        {{ str_replace('_', ' ', $column) }}
-                    </div>
-                @endforeach
-            </div>
-
-            <div id="table-body">
-                @foreach ($products as $product)
-                    <div class="grid grid-flow-col auto-cols-auto" wire:click="edit({{ $product->id }})">
-                        @foreach ($columns as $column)
-                            <div class="p-2 whitespace-nowrap" data-key="{{ $column }}">
-                                {{ $product->$column }}
-                            </div>
-                        @endforeach
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    </div>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($products as $product)
+                <tr wire:click="edit({{ $product->id }})" class="cursor-pointer mb-2 p-2 border rounded">
+                    <td class="p-2 border border-gray-200">{{ $product->id }}</td>
+                    <td class="p-2 border border-gray-200">{{ $product->name }}</td>
+                    <td class="p-2 border border-gray-200">
+                        {{ number_format(($product->prices->last()->retail_price ?? 0) * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
+                    </td>
+                    <td class="p-2 border border-gray-200">
+                        {{ number_format(($product->prices->last()->wholesale_price ?? 0) * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
+                    </td>
+                    <td class="p-2 border border-gray-200">{{ $product->description }}</td>
+                    <td class="p-2 border border-gray-200">
+                        {{ $product->category->name ?? 'N/A' }}
+                    </td>
+                    <td class="p-2 border border-gray-200">{{ $product->sku }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
 
     <div id="modalBackground"
         class="fixed overflow-y-auto inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
@@ -126,16 +111,6 @@
                     <div class="mb-2">
                         <label class="block mb-1">Артикул</label>
                         <input type="text" wire:model="sku" placeholder="Артикул" class="w-full p-2 border rounded">
-                    </div>
-
-                    <div class="mb-2">
-                        <label class="block mb-1">Валюта</label>
-                        <select wire:model="currencyId" class="w-full p-2 border rounded">
-                            <option value="">Выберите валюту</option>
-                            @foreach ($currencies as $currency)
-                                <option value="{{ $currency->id }}">{{ $currency->name }}</option>
-                            @endforeach
-                        </select>
                     </div>
 
                     <div class="mb-2">
@@ -230,14 +205,4 @@
         modal.classList.remove('opacity-100', 'pointer-events-auto')
     }
 
-    document.querySelector('input[wire\\:click="confirmSerialization"]').addEventListener('click', function(event) {
-        event.preventDefault();
-        @this.call('confirmSerialization');
-    });
 </script>
-
-@push('scripts')
-    @vite('resources/js/dragdroptable.js')
-    @vite('resources/js/sortcols.js')
-    @vite('resources/js/cogs.js')
-@endpush

@@ -30,6 +30,7 @@ class WhReceipts extends Component
     public $isDirty = false, $showConfirmationModal = false;
     public  $currencies, $warehouses = [];
     protected $clientService, $productService;
+    
     protected $listeners = [
         'dateFilterUpdated' => 'updateDateFilter',
         'confirmClose'
@@ -205,6 +206,8 @@ class WhReceipts extends Component
                 'warehouse_id' => $this->warehouseId,
                 'note'         => $this->note,
                 'currency_id'  => $this->currency_id,
+                'date'         => $this->date,
+                'amount'       => 0,
             ]
         );
 
@@ -280,10 +283,7 @@ class WhReceipts extends Component
             $totalOriginal += $details['price'] * $details['quantity'];
         }
 
-        if ($this->currency_id != $defaultCurrency->id) {
-            $this->note = ($this->note ? $this->note . ' ' : '')
-                . 'Оригинальная сумма: ' . number_format($totalOriginal, 2) . ' ' . $currency->code;
-        }
+      
 
         $reception->amount = $totalAmount;
         $reception->note   = $this->note;

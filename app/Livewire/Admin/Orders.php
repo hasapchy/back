@@ -383,7 +383,6 @@ class Orders extends Component
             'note'            => 'Заказ номер ' . $this->order_id . ': ' . $this->tr_note,
             'date' => $this->tr_date,
             'category_id'     => $this->tr_category_id,
-            'orig_currency_id'     => $this->tr_currency_id,
             'currency_id'     => $this->tr_currency_id,
             'client_id'       => $this->client_id,
             'user_id'         => Auth::id(),

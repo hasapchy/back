@@ -444,7 +444,7 @@ class Sales extends Component
             'amount'            => $finalConvertedSum,
             'currency_id'       => $cashRegisterCurrency->id,
             // Здесь обе валюты транзакции – в валюте кассы
-            'orig_currency_id'  => $cashRegisterCurrency->id,
+     
             'date'              => $sale->date,
             'note'              => $this->note . ' Продажа',
             'sale_id'           => $sale->id,

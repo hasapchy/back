@@ -18,7 +18,7 @@
         <div class="mb-4">
             <label>Количество</label>
             <input type="number" wire:model="productQuantity" class="w-full border rounded mb-4">
-            @if (isset($productPrice))
+            @if (method_exists($this, 'updateProductPrice'))
                 <label>Тип цены</label>
                 <select wire:model.live="productPriceType" wire:change="updatePriceType"
                     class="w-full border rounded mb-4">
@@ -31,6 +31,10 @@
 
                 <input type="number" wire:model="productPriceConverted"
                     wire:change="updateProductPrice($event.target.value)" class="w-full border rounded mb-4">
+            @else
+            <label>Цена </label>
+                <input type="number" wire:model="productPrice" class="w-full border rounded mb-4">
+        
             @endif
         </div>
         <div>

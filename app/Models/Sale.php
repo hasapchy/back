@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+
 class Sale extends Model
 {
     use HasFactory;
@@ -16,8 +17,6 @@ class Sale extends Model
         'date',
         'discount',
         'note',
-        'orig_currency_id',
-        'orig_price',
         'price',
         'project_id',
         'total_price',
@@ -45,5 +44,9 @@ class Sale extends Model
     public function cashRegister()
     {
         return $this->belongsTo(CashRegister::class);
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }
