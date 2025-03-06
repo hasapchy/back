@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\TransfersController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UsersController;
 use App\Http\Controllers\Api\WarehouseController;
+use App\Http\Controllers\Api\WarehouseReceiptController;
+use App\Http\Controllers\Api\WarehouseStockController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TableOrderController;
@@ -45,9 +47,22 @@ Route::middleware('auth:api')->group(function () {
     
     // warehouses
     Route::get('warehouses', [WarehouseController::class, 'index']);
+    Route::get('warehouses/all', [WarehouseController::class, 'all']);
     Route::post('warehouses', [WarehouseController::class, 'store']);
     Route::put('warehouses/{id}', [WarehouseController::class, 'update']);
     Route::delete('warehouses/{id}', [WarehouseController::class, 'destroy']);
+    
+    // warehouse stock
+    Route::get('warehouse_stocks', [WarehouseStockController::class, 'index']);
+    // Route::post('warehouses', [WarehouseController::class, 'store']);
+    // Route::put('warehouses/{id}', [WarehouseController::class, 'update']);
+    // Route::delete('warehouses/{id}', [WarehouseController::class, 'destroy']);
+
+    // warehouse receipt
+    Route::get('warehouse_receipts', [WarehouseReceiptController::class, 'index']);
+    // Route::post('warehouses', [WarehouseController::class, 'store']);
+    // Route::put('warehouses/{id}', [WarehouseController::class, 'update']);
+    // Route::delete('warehouses/{id}', [WarehouseController::class, 'destroy']);
     
     // categories
     Route::get('categories', [CategoriesController::class, 'index']);
@@ -59,6 +74,7 @@ Route::middleware('auth:api')->group(function () {
     // products
     Route::get('products', [ProductController::class, 'products']);
     Route::get('services', [ProductController::class, 'services']);
+    Route::get('products/search', [ProductController::class, 'search']);
     Route::post('products', [ProductController::class, 'store']);
     Route::post('products/{id}', [ProductController::class, 'update']);
     

@@ -36,6 +36,21 @@ class ProductController extends Controller
         ]);
     }
 
+    // Поиск
+    public function search(Request $request)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(array('message' => 'Unauthorized'), 401);
+        }
+
+        $search = $request->query('search');
+
+        $items = $this->itemsRepository->searchItems($userUuid, $search);
+
+        return response()->json($items);
+    }
+
     public function services(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;

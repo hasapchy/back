@@ -5,13 +5,30 @@ namespace App\Repositories;
 use App\Models\Client;
 use Illuminate\Support\Facades\DB;
 
-class ClientsRepository {
-    
+class ClientsRepository
+{
 
-    function getImemsPaginated($perPage = 20) {
-        
+
+    function getImemsPaginated($perPage = 20)
+    {
+
         $clients = DB::table('clients')
-            ->select('id', 'client_type', 'is_supplier', 'is_conflict', 'first_name', 'last_name', 'contact_person', 'address', 'note', 'status','created_at', 'updated_at')
+            ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
+            ->select(
+                'clients.id as id',
+                'clients.client_type as client_type',
+                'client_balances.balance as balance',
+                'clients.is_supplier as is_supplier',
+                'clients.is_conflict as is_conflict',
+                'clients.first_name as first_name',
+                'clients.last_name as last_name',
+                'clients.contact_person as contact_person',
+                'clients.address as address',
+                'clients.note as note',
+                'clients.status as status',
+                'clients.created_at as created_at',
+                'clients.updated_at as updated_at'
+            )
             ->paginate($perPage);
 
         $clientIds = $clients->pluck('id');
@@ -36,7 +53,8 @@ class ClientsRepository {
         return $clients;
     }
 
-    function searchClient(string $search_request){
+    function searchClient(string $search_request)
+    {
         $searchTerms = explode(' ', $search_request);
 
         $query = DB::table('clients');
@@ -44,8 +62,8 @@ class ClientsRepository {
         foreach ($searchTerms as $term) {
             $query->orWhere(function ($q) use ($term) {
                 $q->where('first_name', 'like', "%{$term}%")
-                  ->orWhere('last_name', 'like', "%{$term}%")
-                  ->orWhere('contact_person', 'like', "%{$term}%");
+                    ->orWhere('last_name', 'like', "%{$term}%")
+                    ->orWhere('contact_person', 'like', "%{$term}%");
             });
         }
 
@@ -179,11 +197,27 @@ class ClientsRepository {
         return $client;
     }
 
-    function getItemsByIds(array $ids) {
-        
+    function getItemsByIds(array $ids)
+    {
+
         $clients = DB::table('clients')
-            ->select('id', 'client_type', 'is_supplier', 'is_conflict', 'first_name', 'last_name', 'contact_person', 'address', 'note', 'status', 'created_at', 'updated_at')
-            ->whereIn('id', $ids)
+            ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
+            ->select(
+                'clients.id as id',
+                'clients.client_type as client_type',
+                'client_balances.balance as balance',
+                'clients.is_supplier as is_supplier',
+                'clients.is_conflict as is_conflict',
+                'clients.first_name as first_name',
+                'clients.last_name as last_name',
+                'clients.contact_person as contact_person',
+                'clients.address as address',
+                'clients.note as note',
+                'clients.status as status',
+                'clients.created_at as created_at',
+                'clients.updated_at as updated_at'
+            )
+            ->whereIn('clients.id', $ids)
             ->get();
 
         $clientIds = $clients->pluck('id');

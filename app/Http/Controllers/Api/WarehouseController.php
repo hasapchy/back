@@ -18,8 +18,12 @@ class WarehouseController extends Controller
     // Метод для получения складов с пагинацией
     public function index(Request $request)
     {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(array('message' => 'Unauthorized'), 401);
+        }
         // Получаем склад с пагинацией
-        $warehouses = $this->warehouseRepository->getWarehousesWithPagination(20);
+        $warehouses = $this->warehouseRepository->getWarehousesWithPagination($userUuid, 20);
 
         return response()->json([
             'items' => $warehouses->items(),  // Список складов
@@ -28,6 +32,18 @@ class WarehouseController extends Controller
             'last_page' => $warehouses->lastPage(),  // Общее количество страниц
             'total' => $warehouses->total()  // Общее количество складов
         ]);
+    }
+    // Метод для получения всех складов
+    public function all(Request $request)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(array('message' => 'Unauthorized'), 401);
+        }
+        // Получаем склады
+        $warehouses = $this->warehouseRepository->getAllWarehouses($userUuid);
+
+        return response()->json($warehouses);
     }
 
     // Метод для создания склада
