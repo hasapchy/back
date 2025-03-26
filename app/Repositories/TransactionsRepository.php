@@ -3,6 +3,8 @@
 namespace App\Repositories;
 
 use App\Models\CashRegister;
+use App\Models\Client;
+use App\Models\ClientBalance;
 use App\Models\Currency;
 use App\Models\Transaction;
 use App\Services\CurrencyConverter;
@@ -64,7 +66,7 @@ class TransactionsRepository
     //     return $items;
     // }
 
-   
+
     // Создание
     public function createItem($data, $return_id = false)
     {
@@ -76,12 +78,21 @@ class TransactionsRepository
         $fromCurrency = Currency::find($data['currency_id']);
         // Валюта кассы
         $toCurrency   = Currency::find($cashRegister->currency_id);
+        // Валюта по умолчанию
+        $defaultCurrency = Currency::where('is_default', true)->first();
 
         // Конвертируем сумму в валюту кассы
         if ($fromCurrency->id === $toCurrency->id) {
             $convertedAmount = $originalAmount;
         } else {
             $convertedAmount = CurrencyConverter::convert($originalAmount, $fromCurrency, $toCurrency);
+        }
+
+        // Конвертируем сумму в валюту по умолчанию
+        if ($fromCurrency->id !== $defaultCurrency->id) {
+            $convertedAmountDefault = CurrencyConverter::convert($originalAmount, $fromCurrency, $defaultCurrency);
+        } else {
+            $convertedAmountDefault = $originalAmount;
         }
 
         // Начинаем транзакцию
@@ -102,6 +113,10 @@ class TransactionsRepository
             $transaction->note = $data['note'];
             $transaction->date = $data['date'];
 
+            // Пропускаем обновление баланса клиента
+            $transaction->setSkipClientBalanceUpdate(true);
+
+
             $transaction->save();
 
             // Вычитаем сумму из кассы
@@ -110,7 +125,23 @@ class TransactionsRepository
             } else {
                 $cashRegister->balance -= $convertedAmount;
             }
+
             $cashRegister->save();
+
+            $client = Client::find($data['client_id']);
+            if ($client) {
+                // Вычитаем сумму из баланса клиента
+                $client_balance = ClientBalance::firstOrCreate(
+                    ['client_id' => $client->id],
+                    ['balance' => 0]
+                );
+                if ($data['type'] === 1) {
+                    $client_balance->balance -= $convertedAmountDefault;
+                } else {
+                    $client_balance->balance += $convertedAmountDefault;
+                }
+                $client_balance->save();
+            }
 
             // Фиксируем транзакцию
             DB::commit();

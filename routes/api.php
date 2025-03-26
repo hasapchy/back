@@ -6,13 +6,16 @@ use App\Http\Controllers\Api\CategoriesController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProjectsController;
+use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\TransactionsController;
 use App\Http\Controllers\Api\TransfersController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UsersController;
 use App\Http\Controllers\Api\WarehouseController;
+use App\Http\Controllers\Api\WarehouseMovementController;
 use App\Http\Controllers\Api\WarehouseReceiptController;
 use App\Http\Controllers\Api\WarehouseStockController;
+use App\Http\Controllers\Api\WarehouseWriteoffController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TableOrderController;
@@ -60,9 +63,22 @@ Route::middleware('auth:api')->group(function () {
 
     // warehouse receipt
     Route::get('warehouse_receipts', [WarehouseReceiptController::class, 'index']);
-    // Route::post('warehouses', [WarehouseController::class, 'store']);
-    // Route::put('warehouses/{id}', [WarehouseController::class, 'update']);
-    // Route::delete('warehouses/{id}', [WarehouseController::class, 'destroy']);
+    Route::post('warehouse_receipts', [WarehouseReceiptController::class, 'store']);
+    Route::put('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'update']);
+    Route::delete('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'destroy']);
+
+    // warehouse writeoff
+    Route::get('warehouse_writeoffs', [WarehouseWriteoffController::class, 'index']);
+    Route::post('warehouse_writeoffs', [WarehouseWriteoffController::class, 'store']);
+    Route::put('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'update']);
+    Route::delete('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'destroy']);
+
+    // warehouse movement
+    Route::get('warehouse_movements', [WarehouseMovementController::class, 'index']);
+    Route::post('warehouse_movements', [WarehouseMovementController::class, 'store']);
+    Route::put('warehouse_movements/{id}', [WarehouseMovementController::class, 'update']);
+    Route::delete('warehouse_movements/{id}', [WarehouseMovementController::class, 'destroy']);
+    
     
     // categories
     Route::get('categories', [CategoriesController::class, 'index']);
@@ -98,6 +114,12 @@ Route::middleware('auth:api')->group(function () {
     Route::post('projects', [ProjectsController::class, 'store']);
     Route::put('projects/{id}', [ProjectsController::class, 'update']);
     // Route::delete('projects/{id}', [ProjectsController::class, 'destroy']);
+
+    // sales
+    Route::get('sales', [SaleController::class, 'index']);
+    // Route::get('projects/all', [ProjectsController::class, 'all']);
+    Route::post('sales', [SaleController::class, 'store']);
+    // Route::put('projects/{id}', [ProjectsController::class, 'update']);
 
     // transactions
     Route::get('transactions', [TransactionsController::class, 'index']);

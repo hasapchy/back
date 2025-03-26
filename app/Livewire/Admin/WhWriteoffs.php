@@ -161,7 +161,6 @@ class WhWriteoffs extends Component
             'warehouseId' => 'required|exists:warehouses,id',
             'note'              => 'required|string|max:255',
             'selectedProducts'  => 'required|array|min:1',
-            'date'             => 'required|date',
         ]);
 
         foreach ($this->selectedProducts as $productId => $details) {
@@ -191,7 +190,6 @@ class WhWriteoffs extends Component
                 [
                     'warehouse_id' => $this->warehouseId,
                     'note'         => $this->note,
-                    'date'         => $this->date,
                 ]
             );
 

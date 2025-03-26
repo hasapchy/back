@@ -3,19 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Repositories\WarehouseReceiptRepository;
+use App\Repositories\WarehouseMovementRepository;
 use Illuminate\Http\Request;
 
-class WarehouseReceiptController extends Controller
+class WarehouseMovementController extends Controller
 {
     protected $warehouseRepository;
 
-    public function __construct(WarehouseReceiptRepository $warehouseRepository)
+    public function __construct(WarehouseMovementRepository $warehouseRepository)
     {
         $this->warehouseRepository = $warehouseRepository;
     }
 
-    // Метод для получения оприходований с пагинацией
+    // Метод для получения списаний с пагинацией
     public function index(Request $request)
     {
 
@@ -36,8 +36,7 @@ class WarehouseReceiptController extends Controller
         ]);
     }
 
-    // Метод оприходования товара
-
+    // Метод перемещения товара
     public function store(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
@@ -46,51 +45,47 @@ class WarehouseReceiptController extends Controller
         }
         // Валидация данных
         $request->validate([
-            'client_id' => 'required|integer|exists:clients,id',
-            'warehouse_id' => 'required|integer|exists:warehouses,id',
-            'currency_id' => 'required|integer|exists:currencies,id',
+            'warehouse_from_id' => 'required|integer|exists:warehouses,id',
+            'warehouse_to_id' => 'required|integer|exists:warehouses,id',
             'date' => 'nullable|date',
             'note' => 'nullable|string',
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:0',
-            'products.*.price' => 'required|numeric|min:0'
+            'products.*.quantity' => 'required|numeric|min:0'
         ]);
 
         $data = array(
-            'client_id' => $request->client_id,
-            'warehouse_id' => $request->warehouse_id,
-            'currency_id' => $request->currency_id,
+            'warehouse_from_id' => $request->warehouse_from_id,
+            'warehouse_to_id' => $request->warehouse_to_id,
             'date' => $request->date ?? now(),
             'note' => $request->note ?? '',
             'products' => array_map(function ($product) {
                 return [
                     'product_id' => $product['product_id'],
-                    'quantity' => $product['quantity'],
-                    'price' => $product['price']
+                    'quantity' => $product['quantity']
                 ];
             }, $request->products)
         );
 
-        // Оприходуем
+        // Перемещаем
         try {
-            $warehouse_created = $this->warehouseRepository->createReceipt($data);
+            $warehouse_created = $this->warehouseRepository->createMovement($data);
             if (!$warehouse_created) {
                 return response()->json([
-                    'message' => 'Ошибка оприходования'
+                    'message' => 'Ошибка перемещения'
                 ], 400);
             }
             return response()->json([
-                'message' => 'Оприходование создано'
+                'message' => 'Перемещение создано'
             ]);
         } catch (\Throwable $th) {
             return response()->json([
-                'message' => 'Ошибка оприходования' . $th->getMessage()
+                'message' => 'Ошибка перемещения' . $th->getMessage()
             ], 400);
         }
     }
 
-    // // Метод для обновления оприходования
+    // Метод обновления перемещения
     public function update(Request $request, $id)
     {
         $userUuid = optional(auth('api')->user())->id;
@@ -99,64 +94,59 @@ class WarehouseReceiptController extends Controller
         }
         // Валидация данных
         $request->validate([
-            'client_id' => 'required|integer|exists:clients,id',
-            'warehouse_id' => 'required|integer|exists:warehouses,id',
-            'currency_id' => 'required|integer|exists:currencies,id',
+            'warehouse_from_id' => 'required|integer|exists:warehouses,id',
+            'warehouse_to_id' => 'required|integer|exists:warehouses,id',
             'date' => 'nullable|date',
             'note' => 'nullable|string',
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:0',
-            'products.*.price' => 'required|numeric|min:0'
+            'products.*.quantity' => 'required|numeric|min:0'
         ]);
 
         $data = array(
-            'client_id' => $request->client_id,
-            'warehouse_id' => $request->warehouse_id,
-            'currency_id' => $request->currency_id,
+            'warehouse_from_id' => $request->warehouse_from_id,
+            'warehouse_to_id' => $request->warehouse_to_id,
             'date' => $request->date ?? now(),
             'note' => $request->note ?? '',
             'products' => array_map(function ($product) {
                 return [
                     'product_id' => $product['product_id'],
-                    'quantity' => $product['quantity'],
-                    'price' => $product['price']
+                    'quantity' => $product['quantity']
                 ];
             }, $request->products)
         );
 
-        // Оприходуем с обновлением
+        // Обновляем перемещение
         try {
-            $warehouse_created = $this->warehouseRepository->updateReceipt($id, $data);
+            $warehouse_created = $this->warehouseRepository->updateMovement($id, $data);
             if (!$warehouse_created) {
                 return response()->json([
-                    'message' => 'Ошибка обновления оприходования'
+                    'message' => 'Ошибка обновления перемещения'
                 ], 400);
             }
             return response()->json([
-                'message' => 'Оприходование обновлено'
+                'message' => 'Перемещение обновлено'
             ]);
         } catch (\Throwable $th) {
             return response()->json([
-                'message' => 'Ошибка обновления оприходования' . $th->getMessage()
+                'message' => 'Ошибка обновления перемещения' . $th->getMessage()
             ], 400);
         }
     }
 
-
-    // Метод для удаления склада
+    // Метод для удаления перемещения
     public function destroy($id)
     {
-        // Удаляем склад
-        $warehouse_deleted = $this->warehouseRepository->deleteReceipt($id);
+        // Удаляем перемещение
+        $warehouse_deleted = $this->warehouseRepository->deleteMovement($id);
 
         if (!$warehouse_deleted) {
             return response()->json([
-                'message' => 'Ошибка удаления склада'
+                'message' => 'Ошибка удаления перемещения'
             ], 400);
         }
         return response()->json([
-            'message' => 'Склад удален'
+            'message' => 'Перемещение удалено'
         ]);
     }
 }
