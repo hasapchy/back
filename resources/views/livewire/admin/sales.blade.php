@@ -10,13 +10,16 @@
     @endphp
 
     <div class="flex space-x-4 mb-4">
- 
-            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
-                <i class="fas fa-plus"></i>
-            </button>
-   
-    </div>
 
+        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
+            <i class="fas fa-plus"></i>
+        </button>
+
+    </div>
+    <div class="container mx-auto p-4">
+        <div wire:mingle>123213s</div>
+
+    </div>
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
@@ -31,21 +34,22 @@
         </thead>
         <tbody>
             @foreach ($sales as $sale)
-                                 <tr wire:click="edit({{ $sale->id }})" class="cursor-pointer hover:bg-gray-100">
-          
-                <td class="p-2 border border-gray-200">{{ $sale->id }}</td>
-                <td class="p-2 border border-gray-200">{{ $sale->date }}</td>
-                <td class="p-2 border border-gray-200">{{ $sale->client->first_name }}</td>
-                <td class="p-2 border border-gray-200">{{ $sale->warehouse->name }}</td>
-                <td class="p-2 border border-gray-200">
-                    @foreach ($sale->products as $product)
-                        <div>{{ $product->name }}: {{ $product->pivot->quantity }}шт</div>
-                    @endforeach
-                </td>
-                <td class="p-2 border border-gray-200">
-                    {{ number_format($sale->total_price * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
-                </td>
-                <td class="p-2 border border-gray-200">{{ $sale->note }}</td>
+                <tr wire:click="edit({{ $sale->id }})" class="cursor-pointer hover:bg-gray-100">
+
+                    <td class="p-2 border border-gray-200">{{ $sale->id }}</td>
+                    <td class="p-2 border border-gray-200">{{ \Carbon\Carbon::parse($sale->date)->format('d.m.Y') }}
+                    </td>
+                    <td class="p-2 border border-gray-200">{{ $sale->client->first_name }}</td>
+                    <td class="p-2 border border-gray-200">{{ $sale->warehouse->name }}</td>
+                    <td class="p-2 border border-gray-200">
+                        @foreach ($sale->products as $product)
+                            <div>{{ $product->name }}: {{ $product->pivot->quantity }}шт</div>
+                        @endforeach
+                    </td>
+                    <td class="p-2 border border-gray-200">
+                        {{ number_format($sale->total_price * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
+                    </td>
+                    <td class="p-2 border border-gray-200">{{ $sale->note }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -67,11 +71,11 @@
             <form wire:submit.prevent="save">
                 <div class="mb-4">
                     <label>Дата</label>
-                    <input type="datetime-local" wire:model="date" class="w-full border rounded"
+                    <input type="date" wire:model="date" class="w-full border rounded"
                         @if ($saleId) disabled @endif>
                 </div>
                 <div class="mb-4">
-                    <label for="warehouse" class="block text-sm font-medium text-gray-700">Склад</label>
+                    <label for="warehouse" class="block">Склад</label>
 
                     <select id="warehouse" wire:model="warehouseId"
                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
@@ -87,7 +91,7 @@
                     @include('components.product-search')
                 @endif
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700">Тип оплаты</label>
+                    <label class="block ">Тип оплаты</label>
                     <div class="mt-1 flex items-center">
                         <label class="mr-4">
                             <input type="radio" wire:model.change="paymentType" value="0" class="mr-1"
@@ -103,7 +107,7 @@
                 </div>
 
                 <div class="mb-4" @if ($paymentType != 1) style="display: none;" @endif>
-                    <label for="cash_register" class="block text-sm font-medium text-gray-700">Касса</label>
+                    <label for="cash_register" class="block ">Касса</label>
                     <select id="cash_register" wire:model="cashId"
                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                         @if ($saleId) disabled @endif>
@@ -117,7 +121,7 @@
                     </select>
                 </div>
                 <div class="mb-4">
-                    <label for="projectId" class="block text-sm font-medium text-gray-700">Проект</label>
+                    <label for="projectId" class="block ">Проект</label>
                     <select id="projectId" wire:model="projectId"
                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                         @if ($saleId) disabled @endif>
@@ -129,7 +133,7 @@
                 </div>
 
                 <div class="mb-4">
-                    <label for="note" class="block text-sm font-medium text-gray-700">Примечание</label>
+                    <label for="note" class="block ">Примечание</label>
                     <textarea id="note" wire:model="note" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                         @if ($saleId) disabled @endif></textarea>
                 </div>
@@ -145,16 +149,7 @@
                     </thead>
                     @if ($selectedProducts)
                         <tbody>
-                            @php
-                                $totalQuantity = 0;
-                                $totalPrice = 0;
-                            @endphp
                             @foreach ($selectedProducts as $productId => $details)
-                                @php
-                                    $price = $details['price'];
-                                    $totalQuantity += $details['quantity'];
-                                    $totalPrice += $price * $details['quantity'];
-                                @endphp
                                 <tr>
                                     <td class="p-2 border border-gray-200">
                                         <div class="flex items-center">
@@ -167,18 +162,19 @@
                                             <span class="ml-2">{{ $details['name'] }}</span>
                                         </div>
                                     </td>
-                                    <td class="p-2 border border-gray-200">{{ $details['quantity'] }}</td>
                                     <td class="p-2 border border-gray-200">
-                                        {{ number_format($price * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
+                                        <input type="number"
+                                            wire:model.live="selectedProducts.{{ $productId }}.quantity"
+                                            class="w-full border rounded" min="1">
                                     </td>
                                     <td class="p-2 border border-gray-200">
-                                        <button type="button" wire:click="openPForm({{ $productId }})"
-                                            class="text-yellow-500 mr-3"
-                                            @if ($saleId) disabled @endif>
-                                            <i class="fas fa-edit"></i>
-                                        </button>
+                                        <input type="number"
+                                            wire:model.live="selectedProducts.{{ $productId }}.price"
+                                            class="w-full border rounded" step="0.01" min="0.01">
+                                    </td>
+                                    <td class="p-2 border border-gray-200">
                                         <button type="button" wire:click="removeProduct({{ $productId }})"
-                                            class="text-red-500" @if ($saleId) disabled @endif>
+                                            class="text-red-500">
                                             <i class="fas fa-trash-alt"></i>
                                         </button>
                                     </td>
@@ -203,23 +199,27 @@
                             </tr>
                             <tr>
                                 <td class="p-2 border border-gray-200 font-bold" colspan="2">
-                                    <button type="button" wire:click="openDiscountModal"
-                                        @if ($saleId) disabled @endif>
-                                        @if ($totalDiscount == 0)
-                                            Добавить скидку <i class="fas fa-plus"></i>
-                                        @else
-                                            Скидка
-                                        @endif
-                                    </button>
+                                    <div class="flex items-center space-x-2">
+                                        <span>Скидка:</span>
+                                        <select wire:model.live="totalDiscountType" class="border rounded">
+                                            <option value="fixed">Фиксированная</option>
+                                            <option value="percent">Процентная</option>
+                                        </select>
+                                    </div>
                                 </td>
-                                <td class="p-2 border border-gray-200 font-bold">
-                                    {{ number_format($totalDiscountType === 'fixed' ? $totalDiscount : $discountValue * $displayRate, 2) }}
-                                    @if ($totalDiscountType === 'percent')
-                                        ({{ $totalDiscount }}%)
-                                    @endif
+                                <td class="p-2 border border-gray-200" colspan="2">
+                                    <input type="number" step="0.01" wire:model.live="totalDiscount"
+                                        class="w-full border rounded" placeholder="Значение скидки">
                                 </td>
-                                <td class="p-2 border border-gray-200"></td>
                             </tr>
+                            @php
+                                if ($totalDiscountType === 'fixed') {
+                                    $discountValue = $totalDiscount / $displayRate;
+                                } else {
+                                    $discountValue = $totalPrice * ($totalDiscount / 100);
+                                }
+                                $finalTotal = $totalPrice - $discountValue;
+                            @endphp
                             <tr>
                                 <td class="p-2 border border-gray-200 font-bold" colspan="2">Итоговая цена:</td>
                                 <td class="p-2 border border-gray-200 font-bold">
@@ -247,34 +247,8 @@
         </div>
     </div>
 
-    <!-- Модальное окно для указания скидки -->
-    <div id="modalBackground"
-        class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showDiscountModal ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
-        wire:click="closeDiscountModal">
-        <div id="form"
-            class="fixed top-0 overflow-y-auto right-0 w-1/4 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
-            style="transform: {{ $showDiscountModal ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
-            <button wire:click="closeDiscountModal"
-                class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-            <h3 class="text-xl font-bold mb-4">Указать скидку на заказ</h3>
-            <div class="mb-4">
-                <label for="total_discount" class="block text-sm font-medium text-gray-700">
-                    Значение скидки
-                </label>
-                <input type="number" step="0.01" id="total_discount" wire:model="totalDiscount"
-                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
-            </div>
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">Тип скидки</label>
-                <select wire:model="totalDiscountType" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
-                    <option value="fixed">Фиксированная</option>
-                    <option value="percent">Процентная</option>
-                </select>
-            </div>
-            <button wire:click="closeDiscountModal" class="bg-green-500 text-white px-4 py-2 rounded">
-                <i class="fas fa-save"></i>
-            </button>
-        </div>
-    </div>
+
     @include('components.product-quantity-modal')
+
+
 </div>

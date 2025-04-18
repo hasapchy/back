@@ -1,15 +1,15 @@
 @php
-    $sessionCurrencyCode = session('currency') 
-        ?? optional(\App\Models\Currency::where('is_default', true)->first())->code;
+    $sessionCurrencyCode =
+        session('currency') ?? optional(\App\Models\Currency::where('is_default', true)->first())->code;
     $conversionService = app(\App\Services\CurrencySwitcherService::class);
     $conversionRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
 @endphp
 @unless ($selectedClient)
     <div class="mb-4 " x-data="{ showDropdown: false }">
         <label class="block mb-1">Поиск клиента</label>
-        <input type="text" x-model="clientSearch" wire:model.live.debounce.250ms="clientSearch"
-            placeholder="Введите имя или номер клиента" class="w-full p-2 border rounded"
-            @focus="showDropdown = true; $wire.call('showAllClients')" @blur="setTimeout(() => showDropdown = false, 200)">
+        <input type="text" wire:model.live.debounce.250ms="clientSearch" placeholder="Введите имя или номер клиента"
+            class="w-full p-2 border rounded" @focus="showDropdown = true; $wire.call('showAllClients')"
+            @blur="setTimeout(() => showDropdown = false, 200)">
         <ul x-show="showDropdown"
             class="absolute bg-white border rounded shadow-lg max-h-40 overflow-y-auto w-full mt-1 z-10">
             @foreach ($clientResults as $client)

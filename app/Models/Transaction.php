@@ -40,15 +40,18 @@ class Transaction extends Model
 
     protected static function booted()
     {
-        // Автоматически устанавливаем skipClientBalanceUpdate, если указана касса
         static::creating(function ($transaction) {
-            if (!empty($transaction->cash_id)) {
+            // Если передали кастомный флаг no_balance_update = true
+            if (!empty($transaction->no_balance_update)) {
                 $transaction->setSkipClientBalanceUpdate(true);
             }
         });
 
         static::created(function ($transaction) {
-            if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
+            if (
+                $transaction->client_id
+                && !$transaction->getSkipClientBalanceUpdate() 
+            ) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
                 $defaultCurrency = Currency::where('is_default', true)->first();
 
@@ -110,7 +113,7 @@ class Transaction extends Model
         static::deleted(function ($transaction) {
             if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
-                $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
+                $defaultCurrency = Currency::where('is_default', true)->first();
 
                 if ($transaction->currency_id != $defaultCurrency->id) {
                     $convertedAmount = CurrencyConverter::convert(

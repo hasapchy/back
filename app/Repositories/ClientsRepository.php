@@ -26,6 +26,8 @@ class ClientsRepository
                 'clients.address as address',
                 'clients.note as note',
                 'clients.status as status',
+                'clients.discount as discount',
+                'clients.discount_type as discount_type',
                 'clients.created_at as created_at',
                 'clients.updated_at as updated_at'
             )
@@ -107,7 +109,7 @@ class ClientsRepository
                 'address'        => $data['address'] ?? null,
                 'note'           => $data['note'] ?? null,
                 'status'         => $data['status'] ?? true,
-                'discount_value' => $data['discount_value'] ?? 0,
+                'discount' => $data['discount'] ?? 0,
                 'discount_type'  => $data['discount_type'] ?? null,
             ]);
 
@@ -149,7 +151,7 @@ class ClientsRepository
                 'address'        => $data['address'] ?? null,
                 'note'           => $data['note'] ?? null,
                 'status'         => $data['status'] ?? true,
-                'discount_value' => $data['discount_value'] ?? 0,
+                'discount' => $data['discount'] ?? 0,
                 'discount_type'  => $data['discount_type'] ?? null,
             ]);
 

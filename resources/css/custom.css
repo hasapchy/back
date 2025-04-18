@@ -160,3 +160,8 @@
     align-items: center;
     gap: 8px;
 }
+label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #373636;
+}

@@ -12,12 +12,12 @@
         }
     @endphp
 
-@php
-$sessionCurrencyCode = session('currency', 'USD');
-$conversionService = app(\App\Services\CurrencySwitcherService::class);
-$displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
-$selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
-@endphp
+    @php
+        $sessionCurrencyCode = session('currency', 'USD');
+        $conversionService = app(\App\Services\CurrencySwitcherService::class);
+        $displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
+        $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
+    @endphp
 
     <div class="flex items-center space-x-4 mb-4">
         <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
@@ -76,7 +76,8 @@ $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode
                         @endif
                     </td>
                     <td class="p-2 border border-gray-200">
-                        {{ number_format(($client->balance->balance ?? 0) * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
+                        {{ number_format(($client->balance->balance ?? 0) * $displayRate, 2) }}
+                        {{ $selectedCurrency->symbol }}
                     </td>
                 </tr>
             @endforeach
@@ -123,20 +124,28 @@ $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode
 
                     <div class="mb-2">
                         <label class="block mb-1">Тип клиента:</label>
-                        <label class="inline-flex items-center">
-                            <input type="radio" wire:model.change="client_type" value="individual" name="client_type"
-                                class="form-radio"> Индивидуальный
-                        </label>
-
-                        <label class="inline-flex items-center ml-4">
-                            <input type="radio" wire:model.change="client_type" value="company" name="client_type"
-                                class="form-radio"> Компания
-                        </label>
+                        <select wire:model="client_type" class="w-full p-2 border rounded">
+                            <option value="individual">Индивидуальный</option>
+                            <option value="company">Компания</option>
+                        </select>
                     </div>
 
                     <div class="mb-2">
-                        <input type="checkbox" wire:model="isConflict"> Конфликтный
-                        <input type="checkbox" wire:model="isSupplier" class="ml-2"> Поставщик
+                        <label class="block mb-1">Характеристика</label>
+                        <div class="flex space-x-4">
+                            <label class="flex items-center">
+                                <input type="checkbox" wire:model="isConflict">
+                                <span class="ml-1">Конфликтный</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" wire:model="isSupplier">
+                                <span class="ml-1">Поставщик</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" wire:model="status">
+                                <span class="ml-1">Активный</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="mb-2">
@@ -175,22 +184,21 @@ $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode
                                     placeholder="Введите номер телефона" class="w-full p-2 border rounded">
                                 <label class="flex items-center">
                                     <input type="checkbox" wire:model="phones.{{ $index }}.sms"
-                                        class="ml-2">
-                                    SMS
+                                        class="ml-2"> SMS
                                 </label>
-                                @if (count($phones) > 1)
+                                @if ($index === count($phones) - 1)
+                                    <button type="button" wire:click="addPhone"
+                                        class="bg-green-500 text-white px-2 py-1 rounded">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                @else
                                     <button type="button" wire:click="removePhone({{ $index }})"
-                                        class="text-red-500">
-                                        <i class="fas fa-minus-circle"></i>
+                                        class="bg-red-500 text-white px-2 py-1 rounded">
+                                        <i class="fas fa-minus"></i>
                                     </button>
                                 @endif
                             </div>
                         @endforeach
-
-                        <button type="button" wire:click="addPhone"
-                            class="bg-green-500 text-white px-2 py-1 rounded">
-                            <i class="fas fa-plus"></i>
-                        </button>
                     </div>
 
                     <div class="mb-2">
@@ -199,16 +207,29 @@ $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode
                             <div class="flex space-x-2 items-center mb-2">
                                 <input type="text" wire:model="emails.{{ $index }}"
                                     placeholder="Введите email" class="w-full p-2 border rounded">
-                                <button type="button" wire:click="removeEmail({{ $index }})"
-                                    class="text-red-500">
-                                    <i class="fas fa-minus-circle"></i>
-                                </button>
+                                @if ($index === count($emails) - 1)
+                                    <button type="button" wire:click="addEmail"
+                                        class="bg-green-500 text-white px-2 py-1 rounded">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                @else
+                                    <button type="button" wire:click="removeEmail({{ $index }})"
+                                        class="bg-red-500 text-white px-2 py-1 rounded">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                @endif
                             </div>
                         @endforeach
-                        <button type="button" wire:click="addEmail"
-                            class="bg-green-500 text-white px-2 py-1 rounded">
-                            <i class="fas fa-plus"></i>
-                        </button>
+                        @if (empty($emails))
+                            <div class="flex space-x-2 items-center mb-2">
+                                <input type="text" wire:model="emails.0" placeholder="Введите email"
+                                    class="w-full p-2 border rounded">
+                                <button type="button" wire:click="addEmail"
+                                    class="bg-green-500 text-white px-2 py-1 rounded">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        @endif
                     </div>
 
                     <div class="mb-2">
@@ -217,20 +238,15 @@ $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode
                             class="w-full p-2 border rounded">
                     </div>
 
-                    <div class="mb-2">
-                        <label class="block mb-1">Статус</label>
-                        <input type="checkbox" wire:model="status"> Активный
-                    </div>
-
-                    <div class="mb-2">
+                    <div class="mb-2 w-full">
                         <label class="block font-medium mb-1">Скидка</label>
-                        <div class="flex items-center space-x-2">
-                            <input type="number" step="0.01" wire:model="discount_value"
-                                placeholder="Значение скидки" class="border rounded p-2 w-24">
-                            <select wire:model="discount_type" class="border rounded p-2 w-36">
+                        <div class="flex w-full space-x-2">
+                            <select wire:model="discount_type" class="border rounded p-2 flex-1">
                                 <option value="fixed">Фиксированная</option>
-                                <option value="percentage">Процентная</option>
+                                <option value="percent">Процентная</option>
                             </select>
+                            <input type="number" step="0.01" wire:model="discount_value"
+                                placeholder="Значение скидки" class="border rounded p-2 flex-1">
                         </div>
                     </div>
 

@@ -22,7 +22,8 @@ class Sale extends Model
         'total_price',
         'transaction_id',
         'user_id',
-        'warehouse_id'
+        'warehouse_id',
+        'no_balance_update',
     ];
 
     public function client()
@@ -48,5 +49,9 @@ class Sale extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+    public function transaction()
+    {
+        return $this->belongsTo(Transaction::class, 'transaction_id');
     }
 }

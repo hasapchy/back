@@ -59,8 +59,8 @@
                 <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
-                @if ($status_id)
-                    <button wire:click="delete({{ $status_id }})" class="bg-red-500 text-white px-4 py-2 rounded">
+                @if ($statusId)
+                    <button wire:click="delete({{ $statusId }})" class="bg-red-500 text-white px-4 py-2 rounded">
                         <i class="fas fa-trash"></i>
                     </button>
                 @endif

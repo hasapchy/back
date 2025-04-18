@@ -13,7 +13,9 @@
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
-    @vite('resources/css/app.css')
+    @mingles
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
 
 </head>
 
@@ -30,7 +32,7 @@
 
             @include('layouts.navigation')
             <main class="p-4 pt-0">
-             
+
 
                 @if (isset($header))
                     <header class="bg-white shadow">
@@ -45,14 +47,14 @@
         </div>
     </div>
 
-    @vite('resources/js/app.js')
+
     @stack('scripts')
-    @rappasoftTableStyles
+    {{-- @rappasoftTableStyles
     @rappasoftTableThirdPartyStyles
     @rappasoftTableScripts
-    @rappasoftTableThirdPartyScripts
+    @rappasoftTableThirdPartyScripts --}}
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+    {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script> --}}
     <script>
         function initializeSidebar() {
             const settingsButton = document.getElementById('settings-button');

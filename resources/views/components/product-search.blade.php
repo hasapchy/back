@@ -1,6 +1,6 @@
 <div class="mb-4" x-data="{ showProductDropdown: false }">
     <label class="block mb-1">Поиск товара</label>
-    <input type="text" x-model="productSearch" wire:model.live.debounce.250ms="productSearch"
+    <input type="text"  wire:model.live.debounce.250ms="productSearch"
         placeholder="Введите название или артикул товара" class="w-full p-2 border rounded"
         @focus="showProductDropdown = true; $wire.call('showAllProducts')"
         @blur="setTimeout(() => showProductDropdown = false, 200)">

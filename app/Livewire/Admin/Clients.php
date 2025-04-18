@@ -36,7 +36,7 @@ class Clients extends Component
         'note'             => 'nullable|string',
         'status'           => 'boolean',
         'discount_value'   => 'nullable|numeric|min:0',
-        'discount_type'    => 'nullable|in:fixed,percentage',
+        'discount_type'    => 'nullable|in:fixed,percent',
     ];
 
     public function mount()
@@ -74,27 +74,25 @@ class Clients extends Component
     public function save()
     {
         $this->validate();
-
+    
         if ($this->hasDuplicatePhoneNumbers()) {
             return;
         }
-
+    
         $client = Client::updateOrCreate(
             ['id' => $this->clientId],
             $this->getClientData()
         );
-
+    
         if (!ClientBalance::where('client_id', $client->id)->exists()) {
             ClientBalance::create([
                 'client_id' => $client->id,
                 'balance'   => 0,
             ]);
         }
-
+    
         $this->savePhones($client);
         $this->saveEmails($client);
-        $this->saveDiscount($client);
-
         $this->closeForm();
     }
 
@@ -229,6 +227,8 @@ class Clients extends Component
         $this->isSupplier = (bool)$client->is_supplier;
         $this->phones = $client->phones->map(fn($phone) => ['number' => $phone->phone, 'sms' => $phone->is_sms])->toArray();
         $this->emails = $client->emails->pluck('email')->toArray();
+        $this->discount_type  = $client->discount_type;
+        $this->discount_value = $client->discount;
         $this->clientBalance = ClientBalance::where('client_id', $client->id)->value('balance') ?? 0;
         $salesAndExpenses = Transaction::where('client_id', $client->id)
             ->with('currency')
@@ -279,14 +279,14 @@ class Clients extends Component
             return $bDate - $aDate;
         });
 
-        $discount = Discount::where('client_id', $client->id)->first();
-        if ($discount) {
-            $this->discount_type = $discount->discount_type;
-            $this->discount_value = $discount->discount_value;
-        } else {
-            $this->discount_type = 'fixed';
-            $this->discount_value = 0;
-        }
+        // $discount = Discount::where('client_id', $client->id)->first();
+        // if ($discount) {
+        //     $this->discount_type = $discount->discount_type;
+        //     $this->discount_value = $discount->discount_value;
+        // } else {
+        //     $this->discount_type = 'fixed';
+        //     $this->discount_value = 0;
+        // }
     }
 
     private function hasDuplicatePhoneNumbers()
@@ -317,6 +317,8 @@ class Clients extends Component
             'status'         => $this->status,
             'is_conflict'    => $this->isConflict,
             'is_supplier'    => $this->isSupplier,
+            'discount_type'  => $this->discount_type,
+            'discount'       => $this->discount_value,
         ];
     }
 
@@ -345,18 +347,18 @@ class Clients extends Component
         }
     }
 
-    private function saveDiscount($client)
-    {
-        if (!empty($this->discount_value) && $this->discount_value > 0) {
-            Discount::updateOrCreate(
-                ['client_id' => $client->id],
-                [
-                    'discount_type' => $this->discount_type,
-                    'discount_value' => $this->discount_value,
-                ]
-            );
-        }
-    }
+    // private function saveDiscount($client)
+    // {
+    //     if (!empty($this->discount_value) && $this->discount_value > 0) {
+    //         Discount::updateOrCreate(
+    //             ['client_id' => $client->id],
+    //             [
+    //                 'discount_type' => $this->discount_type,
+    //                 'discount_value' => $this->discount_value,
+    //             ]
+    //         );
+    //     }
+    // }
 
 
     public function getFormattedTransactionsProperty()

@@ -62,7 +62,7 @@
                     <i class="fas fa-save"></i>
                 </button>
 
-                @if ($category_id)
+                @if ($categoryId)
                     <button wire:click="delete({{ $categoryId }})" class="bg-red-500 text-white px-4 py-2 rounded">
                         <i class="fas fa-trash"></i>
                     </button>

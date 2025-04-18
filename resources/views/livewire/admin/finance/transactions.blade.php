@@ -110,28 +110,39 @@
         <thead class="bg-gray-100">
             <tr>
                 <th class="border p-2">ID</th>
-                <th class="border p-2">Тип</th>
+           
                 <th class="border p-2">Сумма</th>
                 <th class="border p-2">Дата</th>
                 <th class="border p-2">Примечание</th>
                 <th class="border p-2">Создал</th>
                 <th class="border p-2">Клиент</th>
+                <th class="border p-2">Категория</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($transactions as $transaction)
                 <tr wire:click="openForm({{ $transaction->id }})" class="cursor-pointer">
                     <td class="border p-2">{{ $transaction->id }}</td>
-                    <td class="border p-2 {{ $transaction->type == 1 ? 'bg-green-200' : 'bg-red-200' }}">
-                        {{ $transaction->type == 1 ? 'Приход' : 'Расход' }}
-                    </td>
                     <td class="border p-2">
+                        @if ($transaction->isTransfer)
+                            <i class="fas fa-exchange-alt text-blue-500"></i>
+                        @else
+                            @if ($transaction->type == 1)
+                                <i class="fas fa-arrow-up text-green-500"></i>
+                            @else
+                                <i class="fas fa-arrow-down text-red-500"></i>
+                            @endif
+                        @endif
                         {{ $transaction->amount }}{{ $transaction->currency->code }}
                     </td>
-                    <td class="border p-2">{{ $transaction->date }}</td>
+                    
+                    <td class="border p-2">
+                        {{ \Carbon\Carbon::parse($transaction->date)->format('H:i d.m.Y') }}
+                    </td>
                     <td class="border p-2">{{ $transaction->note }}</td>
                     <td class="border p-2">{{ $transaction->user->name }}</td>
                     <td class="border p-2">{{ $transaction->client->first_name ?? '' }}</td>
+                    <td class="border p-2">{{ $transaction->category->name ?? '' }}</td>
                 </tr>
             @endforeach
         </tbody>

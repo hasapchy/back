@@ -18,8 +18,11 @@ class Client extends Model
         'contact_person',
         'address',
         'note',
+        'discount_type',
+        'discount',
         'status',
         'sort',
+  
     ];
 
     // Связь с контактами клиента

@@ -61,8 +61,8 @@ class ClientController extends Controller
             'emails.*'         => 'nullable|email|distinct',
             'note'             => 'nullable|string',
             'status'           => 'boolean',
-            'discount_value'   => 'nullable|numeric|min:0',
-            'discount_type'    => 'nullable|in:fixed,percentage',
+            'discount'         => 'nullable|numeric|min:0',
+            'discount_type'    => 'nullable|in:fixed,percent',
         ]);
 
         $client = $this->itemsRepository->create($validatedData);
@@ -88,8 +88,8 @@ class ClientController extends Controller
             'emails.*'         => 'nullable|email|distinct',
             'note'             => 'nullable|string',
             'status'           => 'boolean',
-            'discount_value'   => 'nullable|numeric|min:0',
-            'discount_type'    => 'nullable|in:fixed,percentage',
+            'discount'         => 'nullable|numeric|min:0', 
+            'discount_type'    => 'nullable|in:fixed,percent',
         ]);
 
         $client = $this->itemsRepository->update($id, $validatedData);
