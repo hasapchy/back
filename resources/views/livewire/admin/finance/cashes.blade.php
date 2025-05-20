@@ -1,12 +1,20 @@
 @section('page-title', 'Кассы')
-<div class="mx-auto p-4 container">
+
+@section('page-links')
+    <a href="{{ route('admin.finance.index') }}" class="text-blue-500 hover:underline mr-4">Финансы</a>
+    <a href="{{ route('admin.transfers.index') }}" class="text-blue-500 hover:underline mr-4">Трансферы</a>
+    <a href="{{ route('admin.templates.index') }}" class="text-blue-500 hover:underline mr-4">Шаблоны</a>
+@endsection
+
+
+<div class="mx-auto p-4">
     <x-alert />
 
     <div class="flex items-center space-x-4 mb-4">
         <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
             <i class="fas fa-plus"></i>
         </button>
-        @include('components.finance-accordion')
+
     </div>
 
     <table class="min-w-full bg-white shadow-md rounded mb-6">
@@ -33,7 +41,7 @@
         wire:click="closeForm">
 
         <div id="form"
-            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
+            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 mx-auto p-4"
             style="transform: {{ $showForm ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
             <button wire:click="closeForm" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
                 style="right: 1rem;">

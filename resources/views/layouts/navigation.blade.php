@@ -1,9 +1,18 @@
-<div class="shadow-md p-3 mb-5 bg-white rounded">
-    <div class="container mx-auto px-4">
+<div class="shadow-md py-3 mb-5 bg-white rounded">
+    <div class="mx-auto px-4">
         <div class="flex items-center justify-between">
-            <h1 class="text-xl font-bold">@yield('page-title')</h1>
+            <div class="flex items-center">
+                <h1 class="text-xl font-bold">@yield('page-title')</h1>
+                @hasSection('page-links')
+                    <div class="ml-4">
+                        @yield('page-links')
+                    </div>
+                @endif
+            </div>
+
             @if (Auth::check())
                 <div class="flex items-center">
+
                     @if (View::hasSection('showSearch') && View::getSection('showSearch'))
                         <div class="mr-5">
                             <form action="{{ request()->url() }}" method="GET" class="flex items-center">
@@ -17,6 +26,7 @@
                             </form>
                         </div>
                     @endif
+                    @livewire('admin.currency-switcher')
                     <span>{{ Auth::user()->name }}</span>
 
                     <form method="POST" action="{{ route('logout') }}">
@@ -30,8 +40,8 @@
                             </svg>
                         </button>
                     </form>
+
                 </div>
-                @livewire('admin.currency-switcher')
             @endif
         </div>
     </div>

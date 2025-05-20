@@ -1,6 +1,6 @@
 @section('page-title', 'Клиенты')
 @section('showSearch', true)
-<div class="container mx-auto p-4">
+<div class="mx-auto p-4">
     @include('components.alert')
     @php
         $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
@@ -89,7 +89,7 @@
         transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
         wire:click="closeForm">
         <div id="form"
-            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4 overflow-y-auto"
+            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 mx-auto p-4 overflow-y-auto"
             style="transform: {{ $showForm ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
             <button wire:click="closeForm" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
                 style="right: 1rem;">

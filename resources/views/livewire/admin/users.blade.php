@@ -1,7 +1,7 @@
 <!-- filepath: /d:/OSPanel/domains/rem-online/resources/views/livewire/admin/users.blade.php -->
 <div>
     @section('page-title', 'Пользователи')
-    <div class="container mx-auto p-4">
+    <div class="mx-auto p-4">
         @include('components.alert')
 
         <div class="flex items-center mb-4">

@@ -7,11 +7,9 @@
 
     <div class="shrink-0 flex items-center p-4 justify-center">
         <a href="{{ route('admin.dashboard') }}">
-            {{-- @if ($logo) --}}
+
             <img src="{{ asset('logo.png') }}" alt="Company Logo" class="h-24 w-auto">
-            {{-- @else --}}
-            {{-- <x-application-logo class="block h-9 w-auto fill-current text-gray-800" /> --}}
-            {{-- @endif --}}
+
         </a>
     </div>
 
@@ -19,14 +17,6 @@
         <h2 class="text-lg font-semibold mb-4 p-2">
             {{ \App\Models\Setting::where('setting_name', 'company_name')->value('setting_value') ?? 'Laravel' }}</h2>
         <ul>
-
-            {{-- <li class="mb-2">
-                <a href="{{ route('admin.dashboard') }}"
-                    class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.dashboard') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
-                    <i class="fas fa-building mr-2"></i> Моя компания
-                </a>
-            </li> --}}
-
 
 
             <li class="mb-2">
@@ -75,18 +65,17 @@
                 </a>
             </li>
 
+            <li class="mb-2">
+                <a href="{{ route('admin.reports.index') }}"
+                    class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.reports.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                    <i class="fas fa-chart-line mr-2"></i> Отчеты
+                </a>
+            </li>
 
             <li class="mb-2">
                 <a href="#" id="settings-button" @click="settingsOpen = !settingsOpen"
                     class="flex items-center p-2  hover:bg-gray-700">
                     <i class="fas fa-cogs mr-2"></i> Настройки
-                </a>
-            </li>
-
-            <li class="mb-2">
-                <a href="{{ route('admin.reports.index') }}"
-                    class="flex items-center p-2  hover:bg-gray-700  {{ request()->routeIs('admin.reports.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
-                    <i class="fas fa-chart-line mr-2"></i> Отчеты
                 </a>
             </li>
 

@@ -1,6 +1,6 @@
 @section('page-title', 'Заказы')
 
-<div class="container mx-auto p-4">
+<div class="mx-auto p-4">
     @php
         $sessionCurrencyCode = session('currency', 'USD');
         $conversionService = app(\App\Services\CurrencySwitcherService::class);
@@ -90,7 +90,7 @@
         class="fixed overflow-y-auto inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
         wire:click="closeForm">
         <div id="form"
-            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
+            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 mx-auto p-4"
             style="transform: {{ $showForm ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
             <button wire:click="closeForm" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
                 style="right: 1rem;">
@@ -356,7 +356,7 @@
         class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500 {{ $showDiscountModal ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}"
         wire:click="closeDiscountModal">
         <div id="form"
-            class="fixed top-0 overflow-y-auto right-0 w-1/4 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
+            class="fixed top-0 overflow-y-auto right-0 w-1/4 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 mx-auto p-4"
             style="transform: {{ $showDiscountModal ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
             <button wire:click="closeDiscountModal"
                 class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
@@ -386,7 +386,7 @@
         wire:click="closeTrForm">
 
         <div id="form"
-            class="fixed top-0 right-0 w-1/4 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 container mx-auto p-4"
+            class="fixed top-0 right-0 w-1/4 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 mx-auto p-4"
             style="transform: {{ $showTrForm ? 'translateX(0)' : 'translateX(100%)' }};" wire:click.stop>
             <button wire:click="closeTrForm" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
                 style="right: 1rem;">

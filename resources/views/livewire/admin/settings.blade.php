@@ -1,6 +1,6 @@
 @section('page-title', 'Настройки')
 @section('showSearch', false)
-<div class="container mx-auto p-4">
+<div class="mx-auto p-4">
     @include('components.alert')
     <div class="mb-4">
         <label for="companyName" class="block text-sm font-medium">Название компании:</label>

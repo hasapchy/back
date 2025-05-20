@@ -1,5 +1,5 @@
 @section('page-title', 'Сток')
-<div class="container mx-auto p-4">
+<div class="mx-auto p-4">
     @include('components.alert')
     <div class="flex items-center space-x-4 mb-4">
     
