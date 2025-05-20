@@ -1,4 +1,4 @@
-<aside id="settings-sidebar"
+{{-- <aside id="settings-sidebar"
     class="w-50 bg-gray-700 text-white flex-shrink-0 transform transition-transform duration-300 {{ request()->routeIs('admin.users.index', 'admin.warehouses.index', 'admin.transaction_categories.create', 'admin.categories.index', 'admin.settings.index', 'admin.currencies.index', 'admin.order-statuses', 'admin.order-categories', 'admin.order-status-categories', 'admin.orders.af') ? '' : 'hidden' }}">
     <div>
         <h2 class="text-lg font-semibold mb-4 p-2">Настройки</h2>
@@ -98,4 +98,4 @@
 
         </ul>
     </div>
-</aside>
+</aside> --}}
