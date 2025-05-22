@@ -19,9 +19,13 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Product;
 use App\Services\ProductService;
 use App\Models\ProductPrice;
+use App\Models\UserTableSettings;
+use Livewire\WithPagination;
 
 class Orders extends Component
 {
+
+    use WithPagination;
     public $orders, $clients, $users, $statuses, $categories, $currencies;
     public $client_id, $user_id, $status_id, $category_id, $note, $date;
     public $order_id;

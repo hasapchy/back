@@ -9,7 +9,12 @@ class UserTableSettings extends Model
     protected $fillable = ['user_id', 'table_name', 'order', 'visibility'];
 
     protected $casts = [
-        'order' => 'array',    
-        'visibility' => 'array', 
+        'order' => 'array',
+        'visibility' => 'array',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

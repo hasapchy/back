@@ -59,4 +59,9 @@ class User extends Authenticatable implements JWTSubject
     {
         return [];
     }
+
+    public function tableSettings()
+    {
+        return $this->hasMany(UserTableSettings::class, 'user_id');
+    }
 }

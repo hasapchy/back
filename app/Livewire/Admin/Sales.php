@@ -19,12 +19,11 @@ use App\Services\ClientService;
 use App\Services\ProductService;
 use App\Services\CurrencyConverter;
 use App\Models\Project;
-use App\Models\UserTableSettings;
-use Livewire\WithPagination;
+use App\Traits\TableTrait;
 
 class Sales extends Component
 {
-    use WithPagination;
+    use TableTrait;
     public $selectedProducts = [];
     public $clientId, $warehouseId, $date, $note, $saleId = null;
     public $productQuantity = 1, $productPrice;
@@ -32,30 +31,18 @@ class Sales extends Component
     public $clientSearch = '', $clientResults = [], $selectedClient = null;
     public $productSearch = '', $productResults = [];
     public $cashId, $currencyId, $productPriceType = 'custom', $currentRetailPrice = 0, $currentWholesalePrice = 0;
-    public $currencies, $sales, $warehouses, $cashRegisters, $projects, $projectId;
+    public $currencies, $warehouses, $cashRegisters, $projects, $projectId;
     public $totalDiscount = 0, $totalDiscountType = 'fixed', $totalDiscountAmount = 0, $totalPrice = 0, $paymentType;
     public $selectedProduct, $clients, $showDiscountModal = false;
     public $cash_price;
     public $productPriceConverted;
-    public $isEditing = false; // Флаг редактирования
-    public $tableName = 'sales'; // Имя таблицы
-    public $columns; // Колонки таблицы
-    private $salesData; // Данные таблицыs
-    public $order = []; // Порядок колонок
-    public $visibility = []; // Видимость колонок
-    public $displayRate; // Курс валюты
-    public $selectedCurrency; // Выбранная валюта
-    public $dateFilter = 'today'; // Значение по умолчанию - "Сегодня"
-    public $customDateRange = ['start' => null, 'end' => null];
-    public $perPage = 10;
-    public $search = '';
-    // New properties for checkboxes and total
+    public $isEditing = false;
+    public $displayRate;
+    public $selectedCurrency;
     public $selectedSaleIds = [];
     public $selectAll = false;
     public $selectedTotal = 0;
 
-
-    // Сервисы, внедряемые через boot()
     protected $clientService, $productService;
     protected $queryString = [
         'search' => ['except' => ''],
@@ -69,7 +56,6 @@ class Sales extends Component
         $this->clientService = $clientService;
         $this->productService = $productService;
     }
-
     public function mount()
     {
         $this->date = now()->format('Y-m-d');
@@ -78,7 +64,6 @@ class Sales extends Component
         $this->warehouses = Warehouse::whereJsonContains('users', (string) Auth::id())->get();
         $this->projects = Project::whereJsonContains('users', (string) Auth::id())->get();
 
-        // Устанавливаем первую кассу и склад по умолчанию, если они есть
         $this->cashId = $this->cashRegisters->isNotEmpty() ? $this->cashRegisters->first()->id : null;
         $this->warehouseId = $this->warehouses->isNotEmpty() ? $this->warehouses->first()->id : null;
 
@@ -87,7 +72,18 @@ class Sales extends Component
         $this->displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
         $this->selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
 
-        $this->columns = collect([
+        // Вызываем отдельный метод для инициализации таблицы
+        $this->initializeTable();
+
+        $this->search = request()->query('search', '');
+        $this->dateFilter = session()->get('sales_date_filter', 'today');
+        $this->customDateRange = session()->get('sales_custom_date_range', ['start' => null, 'end' => null]);
+        $this->perPage = request()->query('perPage', session()->get('sales_per_page', 10));
+    }
+
+    protected function initializeTable()
+    {
+        $columns = [
             ['key' => 'id', 'title' => 'ID'],
             ['key' => 'date', 'title' => 'Дата'],
             ['key' => 'client.first_name', 'title' => 'Клиент'],
@@ -96,16 +92,12 @@ class Sales extends Component
             ['key' => 'total_price', 'title' => 'Цена продажи'],
             ['key' => 'note', 'title' => 'Примечание'],
             ['key' => 'user.name', 'title' => 'Автор'],
-        ]);
+        ];
 
-        $this->loadTableSettings();
-
-        $this->search = request()->query('search', '');
-
-        $this->dateFilter = session()->get('sales_date_filter', 'today');
-        $this->customDateRange = session()->get('sales_custom_date_range', ['start' => null, 'end' => null]);
-        $this->perPage = request()->query('perPage', session()->get('sales_per_page', 10));
+        $this->mountTableTrait('sales', $columns);
     }
+
+   
     public function render()
     {
         $this->totalPrice = collect($this->selectedProducts)
@@ -130,22 +122,19 @@ class Sales extends Component
         $displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
         $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
 
-        $salesData = $this->applyDateFilter();
+        $salesData = $this->applyFilters(Sale::query());
 
         return view('livewire.admin.sales', [
             'salesData' => $salesData,
-            'columns' => $this->columns,
+            'columns' => $this->columns->whereIn('key', array_keys(array_filter($this->visibility))),
             'displayRate' => $displayRate,
             'selectedCurrency' => $selectedCurrency,
         ]);
     }
 
-
-
-    public function applyDateFilter()
+    public function applyFilters($query)
     {
         $query = Sale::with(['client', 'warehouse', 'products', 'user'])->latest();
-
 
         if (strlen($this->search) >= 3) {
             $query->where(function ($q) {
@@ -204,14 +193,84 @@ class Sales extends Component
         }
 
         $paginated = $query->paginate($this->perPage);
-        \Log::info('Paginated Items: ' . json_encode(collect($paginated->items())->pluck('id')));
-        // Защита от пустых страниц
         if ($paginated->isEmpty() && $paginated->currentPage() > 1) {
             $this->resetPage();
             return $query->paginate($this->perPage);
         }
         return $paginated;
     }
+
+
+
+    // public function applyDateFilter()
+    // {
+    //     $query = Sale::with(['client', 'warehouse', 'products', 'user'])->latest();
+
+
+    //     if (strlen($this->search) >= 3) {
+    //         $query->where(function ($q) {
+    //             $q->whereHas('client', function ($clientQuery) {
+    //                 $clientQuery->where('first_name', 'like', '%' . $this->search . '%')
+    //                     ->orWhereHas('phones', function ($phoneQuery) {
+    //                         $phoneQuery->where('phone', 'like', '%' . $this->search . '%');
+    //                     });
+    //             })
+    //                 ->orWhere('note', 'like', '%' . $this->search . '%');
+    //         });
+    //     }
+
+    //     switch ($this->dateFilter) {
+    //         case 'today':
+    //             $query->whereDate('date', today());
+    //             break;
+    //         case 'this_week':
+    //             $query->whereBetween('date', [now()->startOfWeek(), now()->endOfWeek()]);
+    //             break;
+    //         case 'this_month':
+    //             $query->whereBetween('date', [now()->startOfMonth(), now()->endOfMonth()]);
+    //             break;
+    //         case 'this_year':
+    //             $query->whereBetween('date', [now()->startOfYear(), now()->endOfYear()]);
+    //             break;
+    //         case 'yesterday':
+    //             $query->whereDate('date', today()->subDay());
+    //             break;
+    //         case 'last_week':
+    //             $query->whereBetween('date', [
+    //                 now()->subWeek()->startOfWeek(),
+    //                 now()->subWeek()->endOfWeek()
+    //             ]);
+    //             break;
+    //         case 'last_month':
+    //             $query->whereBetween('date', [
+    //                 now()->subMonth()->startOfMonth(),
+    //                 now()->subMonth()->endOfMonth()
+    //             ]);
+    //             break;
+    //         case 'last_year':
+    //             $query->whereBetween('date', [
+    //                 now()->subYear()->startOfYear(),
+    //                 now()->subYear()->endOfYear()
+    //             ]);
+    //             break;
+    //         case 'custom':
+    //             if ($this->customDateRange['start'] && $this->customDateRange['end']) {
+    //                 $query->whereBetween('date', [
+    //                     \Carbon\Carbon::parse($this->customDateRange['start']),
+    //                     \Carbon\Carbon::parse($this->customDateRange['end'])
+    //                 ]);
+    //             }
+    //             break;
+    //     }
+
+    //     $paginated = $query->paginate($this->perPage);
+    //     // Защита от пустых страниц
+    //     if ($paginated->isEmpty() && $paginated->currentPage() > 1) {
+    //         $this->resetPage();
+    //         return $query->paginate($this->perPage);
+    //     }
+    //     return $paginated;
+    // }
 
     public function updatedPerPage()
     {
@@ -251,51 +310,46 @@ class Sales extends Component
         session()->put('sales_custom_date_range', $this->customDateRange);
     }
 
-    private function loadTableSettings()
-    {
-        $settings = UserTableSettings::where('user_id', Auth::id())
-            ->where('table_name', $this->tableName)
-            ->first();
+    // private function loadTableSettings()
+    // {
+    //     $settings = UserTableSettings::where('user_id', Auth::id())
+    //         ->where('table_name', $this->tableName)
+    //         ->first();
 
-        if ($settings) {
-            $this->order = $settings->order;
-            $this->visibility = $settings->visibility;
-        } else {
-            $this->order = array_column($this->columns->toArray(), 'key');
-            $this->visibility = array_fill_keys($this->order, true);
-        }
-    }
+    //     if ($settings) {
+    //         $this->order = $settings->order;
+    //         $this->visibility = $settings->visibility;
+    //     } else {
+    //         $this->order = array_column($this->columns->toArray(), 'key');
+    //         $this->visibility = array_fill_keys($this->order, true);
+    //     }
+    // }
 
-    public function updateTableSettings($order, $visibility)
-    {
-        UserTableSettings::updateOrCreate(
-            ['user_id' => Auth::id(), 'table_name' => $this->tableName],
-            [
-                'order' => $order,
-                'visibility' => $visibility,
-            ]
-        );
+    // public function updateTableSettings($order, $visibility)
+    // {
+    //     UserTableSettings::updateOrCreate(
+    //         ['user_id' => Auth::id(), 'table_name' => $this->tableName],
+    //         [
+    //             'order' => $order,
+    //             'visibility' => $visibility,
+    //         ]
+    //     );
 
-        $this->order = $order;
-        $this->visibility = $visibility;
-        $this->salesData = Sale::with(['client', 'warehouse', 'products'])->latest()->get();
-    }
-
-    // New methods for checkbox functionality
+    //     $this->order = $order;
+    //     $this->visibility = $visibility;
+    //     $this->salesData = Sale::with(['client', 'warehouse', 'products'])->latest()->get();
+    // }
 
     public function updatedSelectAll()
     {
-        $currentPageIds = collect($this->applyDateFilter()->items())->pluck('id')->toArray();
-        \Log::info('Select All: ' . ($this->selectAll ? 'Enabled' : 'Disabled'));
-        \Log::info('Current Page IDs: ' . json_encode($currentPageIds));
+        $currentPageIds = collect($this->applyFilters(Sale::query())->items())->pluck('id')->toArray();
         if ($this->selectAll) {
             $this->selectedSaleIds = array_unique(array_merge($this->selectedSaleIds, $currentPageIds));
-            $this->dispatch('update-checkboxes');
         } else {
             $this->selectedSaleIds = array_diff($this->selectedSaleIds, $currentPageIds);
         }
-        \Log::info('Selected Sale IDs: ' . json_encode($this->selectedSaleIds));
         $this->updateSelectedTotal();
+        $this->dispatch('update-checkboxes');
     }
 
     public function toggleSelectAll()
@@ -306,20 +360,9 @@ class Sales extends Component
     public function updatedSelectedSaleIds()
     {
         $this->updateSelectedTotal();
-        $currentPageIds = collect($this->applyDateFilter()->items())->pluck('id')->toArray();
-        \Log::info('Updated SelectedSaleIds. Current Page IDs: ' . json_encode($currentPageIds));
-        \Log::info('Selected Sale IDs: ' . json_encode($this->selectedSaleIds));
-        if (!$this->selectAll) {
-            $allSelected = !empty($currentPageIds) && empty(array_diff($currentPageIds, $this->selectedSaleIds));
-            $this->selectAll = $allSelected;
-        } else {
-            $missingIds = array_diff($currentPageIds, $this->selectedSaleIds);
-            if (!empty($missingIds)) {
-                $this->selectedSaleIds = array_unique(array_merge($this->selectedSaleIds, $missingIds));
-                \Log::info('Added Missing IDs: ' . json_encode($missingIds));
-                $this->dispatch('update-checkboxes');
-            }
-        }
+        $currentPageIds = collect($this->applyFilters(Sale::query())->items())->pluck('id')->toArray();
+        $allSelected = !empty($currentPageIds) && empty(array_diff($currentPageIds, $this->selectedSaleIds));
+        $this->selectAll = $allSelected;
     }
 
     public function updateSelectedTotal()
@@ -580,9 +623,6 @@ class Sales extends Component
         $sale->fill([
             'client_id'    => $this->clientId,
             'warehouse_id' => $this->warehouseId,
-            // 'currency_id'  => $this->cashId
-            //     ? $this->currencies->firstWhere('id', $this->cashRegisters->firstWhere('id', $this->cashId)->currency_id)->id
-            //     : $this->currencies->firstWhere('is_default', true)->id,
             'cash_id'      => $this->cashId,
             'user_id'      => Auth::id(),
             'date'         => now(),
@@ -592,7 +632,6 @@ class Sales extends Component
             'total_price'  => $sale->exists ? $sale->total_price : 0,
             'discount'     => $sale->exists ? $sale->discount : 0,
         ]);
-        $this->applyDateFilter();
         $sale->save();
         $this->saleId = $sale->id;
         return $sale;

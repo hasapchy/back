@@ -155,23 +155,26 @@ class TransactionsController extends Controller
         ]);
     }
 
-    // // Метод для удаления кассы
-    // public function destroy($id)
-    // {
-    //     $userUuid = optional(auth('api')->user())->id;
-    //     if(!$userUuid){
-    //         return response()->json(array('message' => 'Unauthorized'), 401);
-    //     }
-    //     // Удаляем кассу
-    //     $category_deleted = $this->itemsRepository->deleteItem($id);
+    // Метод для удаления кассы
+    // Метод для удаления транзакции
+    public function destroy($id)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
 
-    //     if (!$category_deleted) {
-    //         return response()->json([
-    //             'message' => 'Ошибка удаления кассы'
-    //         ], 400);
-    //     }
-    //     return response()->json([
-    //         'message' => 'Категория удалена'
-    //     ]);
-    // }
+        // Удаляем транзакцию
+        $transaction_deleted = $this->itemsRepository->deleteItem($id);
+
+        if (!$transaction_deleted) {
+            return response()->json([
+                'message' => 'Ошибка удаления транзакции'
+            ], 400);
+        }
+
+        return response()->json([
+            'message' => 'Транзакция удалена'
+        ]);
+    }
 }

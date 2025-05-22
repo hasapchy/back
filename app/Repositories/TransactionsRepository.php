@@ -168,14 +168,17 @@ class TransactionsRepository
         return true;
     }
 
-    // // Удаление
-    // public function deleteItem($id)
-    // {
-    //     $item = CashRegister::find($id);
-    //     $item->delete();
+    // Удаление
+    public function deleteItem($id)
+    {
+        $item = Transaction::find($id);
+        if (!$item) {
+            return false;
+        }
+        $item->delete();
+        return true;
+    }
 
-    //     return true;
-    // }
 
     public function userHasPermissionToCashRegister($userUuid, $cashRegisterId)
     {

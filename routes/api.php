@@ -44,17 +44,17 @@ Route::middleware('auth:api')->group(function () {
     // user
     Route::post('user/logout', [UserController::class, 'logout']);
     Route::get('user/me', [UserController::class, 'me']);
-    
+
     // users
     Route::get('admin/users', [UsersController::class, 'getAllUsers']);
-    
+
     // warehouses
     Route::get('warehouses', [WarehouseController::class, 'index']);
     Route::get('warehouses/all', [WarehouseController::class, 'all']);
     Route::post('warehouses', [WarehouseController::class, 'store']);
     Route::put('warehouses/{id}', [WarehouseController::class, 'update']);
     Route::delete('warehouses/{id}', [WarehouseController::class, 'destroy']);
-    
+
     // warehouse stock
     Route::get('warehouse_stocks', [WarehouseStockController::class, 'index']);
     // Route::post('warehouses', [WarehouseController::class, 'store']);
@@ -78,28 +78,28 @@ Route::middleware('auth:api')->group(function () {
     Route::post('warehouse_movements', [WarehouseMovementController::class, 'store']);
     Route::put('warehouse_movements/{id}', [WarehouseMovementController::class, 'update']);
     Route::delete('warehouse_movements/{id}', [WarehouseMovementController::class, 'destroy']);
-    
-    
+
+
     // categories
     Route::get('categories', [CategoriesController::class, 'index']);
     Route::get('categories/all', [CategoriesController::class, 'all']);
     Route::post('categories', [CategoriesController::class, 'store']);
     Route::put('categories/{id}', [CategoriesController::class, 'update']);
     Route::delete('categories/{id}', [CategoriesController::class, 'destroy']);
-    
+
     // products
     Route::get('products', [ProductController::class, 'products']);
     Route::get('services', [ProductController::class, 'services']);
     Route::get('products/search', [ProductController::class, 'search']);
     Route::post('products', [ProductController::class, 'store']);
     Route::post('products/{id}', [ProductController::class, 'update']);
-    
+
     //clients
     Route::get('clients', [ClientController::class, 'getClients']);
     Route::get('clients/search', [ClientController::class, 'search']);
     Route::post('clients', [ClientController::class, 'createClient']);
     Route::put('clients/{id}', [ClientController::class, 'updateClient']);
-    
+
     // cash registers
     Route::get('cash_registers', [CashRegistersController::class, 'index']);
     Route::get('cash_registers/all', [CashRegistersController::class, 'all']);
@@ -126,8 +126,8 @@ Route::middleware('auth:api')->group(function () {
     // Route::get('transactions/all', [TransactionsController::class, 'all']);
     Route::post('transactions', [TransactionsController::class, 'store']);
     Route::put('transactions/{id}', [TransactionsController::class, 'update']);
-    // Route::delete('transactions/{id}', [TransactionsController::class, 'destroy']);
-    
+    Route::delete('transactions/{id}', [TransactionsController::class, 'destroy']);
+
     // transfers
     Route::get('transfers', [TransfersController::class, 'index']);
     // Route::get('transactions/all', [TransactionsController::class, 'all']);
