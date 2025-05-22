@@ -1,6 +1,6 @@
 @section('page-title', 'Продажи')
 @section('showSearch', true)
-<div class="mx-auto p-4">
+<div class="mx-auto mb-3">
     @include('components.alert')
 
     @php
@@ -12,12 +12,12 @@
 
     <div class="flex justify-between items-center mb-4">
         <div class="flex items-center space-x-4">
-            <button wire:click="openForm(false)" class="bg-green-500 text-white px-4 py-2 rounded">
+            <button wire:click="openForm(false)" class="bg-[#5CB85C] text-white px-4 py-2 rounded h-10">
                 <i class="fas fa-plus"></i>
             </button>
             <!-- Фильтр по дате -->
             <div class="relative">
-                <select wire:model.live="dateFilter" class="border rounded px-2 py-1">
+                <select wire:model.live="dateFilter" class="border rounded px-2 py-1 h-10">
                     <option value="today">Сегодня</option>
                     <option value="this_week">Эта неделя</option>
                     <option value="this_month">Этот месяц</option>
@@ -31,8 +31,8 @@
             </div>
             <!-- Поля для кастомного диапазона -->
             <div x-show="$wire.dateFilter === 'custom'" class="flex space-x-2">
-                <input type="date" wire:model.live="customDateRange.start" class="border rounded px-2 py-1">
-                <input type="date" wire:model.live="customDateRange.end" class="border rounded px-2 py-1">
+                <input type="date" wire:model.live="customDateRange.start" class="border rounded px-2 py-1 h-10">
+                <input type="date" wire:model.live="customDateRange.end" class="border rounded px-2 py-1 h-10">
             </div>
         </div>
         <div class="flex items-center space-x-2">
@@ -41,7 +41,8 @@
                     <i class="fas fa-cog"></i>
                 </button>
                 <div x-show="open" @click.away="open = false"
-                    class="absolute right-0 mt-2 z-50 bg-white p-4 shadow-md rounded border" style="min-width: 200px;">
+                    class="absolute right-0 mt-2 z-50 bg-white mb-3 shadow-md rounded border"
+                    style="min-width: 200px;">
                     @foreach ($columns as $column)
                         <label class="block">
                             <input type="checkbox" x-model="visibility['{{ $column['key'] }}']"
@@ -52,7 +53,7 @@
                 </div>
             </div>
             <div>
-                <select wire:model.live="perPage" class="appearance-none bg-none border rounded px-2 py-1">
+                <select wire:model.live="perPage" class="appearance-none bg-none border rounded px-2 py-1 h-10">
                     <option value="10">10</option>
                     <option value="25">25</option>
                     <option value="50">50</option>
@@ -62,7 +63,7 @@
     </div>
 
     <!-- Total and Delete Button Above Table -->
-    <div class="mb-4" x-show="$wire.selectedSaleIds.length > 0">
+    <div class="mb-3" x-show="$wire.selectedSaleIds.length > 0">
         <div class="flex justify-between items-center">
             <div>
                 <strong>Общая сумма выбранных продаж:</strong>
@@ -81,12 +82,12 @@
     <table class="min-w-full bg-white shadow-md rounded mb-6" x-data="tableSettings()">
         <thead class="bg-gray-100">
             <tr>
-                <th class="p-2 border border-gray-200">
+                <th class="p-1 border border-gray-200">
                     <input type="checkbox" wire:model.live="selectAll">
                 </th>
                 @foreach ($order as $columnKey)
                     @if ($visibility[$columnKey] ?? true)
-                        <th class="p-2 border border-gray-200" data-column="{{ $columnKey }}">
+                        <th class="p-1 border border-gray-200" data-column="{{ $columnKey }}">
                             {{ $columns->firstWhere('key', $columnKey)['title'] }}
                         </th>
                     @endif
@@ -96,17 +97,17 @@
         <tbody>
             @foreach ($salesData as $sale)
                 <tr class="hover:bg-gray-100 cursor-pointer">
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">
                         <input type="checkbox" wire:model.live="selectedSaleIds" value="{{ $sale->id }}"
                             x-on:change="$wire.updateSelectedTotal()">
                     </td>
                     @foreach ($order as $columnKey)
                         @if ($visibility[$columnKey] ?? true)
-                            <td class="p-2 border border-gray-200" wire:click="edit({{ $sale->id }})">
+                            <td class="p-1 border border-gray-200" wire:click="edit({{ $sale->id }})">
                                 @if ($columnKey === 'id')
                                     {{ $sale->id }}
                                 @elseif ($columnKey === 'date')
-                                    {{ \Carbon\Carbon::parse($sale->date)->format('d.m.Y') }}
+                                    {{ \Carbon\Carbon::parse($sale->date)->format('d.m.Y H:i') }}
                                 @elseif ($columnKey === 'client.first_name')
                                     {{ $sale->client->first_name ?? '-' }}
                                 @elseif ($columnKey === 'warehouse.name')
@@ -120,6 +121,8 @@
                                     {{ $selectedCurrency->symbol }}
                                 @elseif ($columnKey === 'note')
                                     {{ $sale->note ?? '-' }}
+                                @elseif ($columnKey === 'user.name')
+                                    {{ $sale->user->name ?? '-' }}
                                 @else
                                     @php
                                         $keys = explode('.', $columnKey);
@@ -153,180 +156,199 @@
     <!-- Форма создания/редактирования продажи -->
     <div id="modalBackground"
         class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 transition-opacity duration-500
-             {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}">
+         {{ $showForm ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none' }}">
         <div id="form"
-            class="fixed top-0 overflow-y-auto right-0 w-1/3 h-full bg-white shadow-lg
-             transform transition-transform duration-500 ease-in-out z-50 mx-auto p-4"
+            class="fixed top-0 right-0 w-1/3 h-full bg-white shadow-lg transform transition-transform duration-500 ease-in-out z-50 mx-auto
+              flex flex-col overflow-hidden"
             wire:click.stop>
-            <button wire:click="closeForm"
-                class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl">×</button>
-            <h2 class="text-xl font-bold mb-4">
-                {{ $saleId ? 'Редактировать продажу' : 'Добавить продажу' }}
-            </h2>
-            <form wire:submit.prevent="save">
-                <div class="mb-4">
-                    <label>Дата</label>
-                    <input type="date" wire:model="date" class="w-full border rounded"
-                        @if ($saleId) disabled @endif>
-                </div>
-                <div class="mb-4">
-                    <label for="warehouse" class="block">Склад</label>
-                    <select id="warehouse" wire:model="warehouseId"
-                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                        @if ($saleId || count($selectedProducts) > 0) disabled @endif>
-                        <option value="">Выберите склад</option>
-                        @foreach ($warehouses as $warehouse)
-                            <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                @if (!$saleId)
-                    @include('components.client-search')
-                    @include('components.product-search')
-                @endif
-                <div class="mb-4">
-                    <label class="block">Тип оплаты</label>
-                    <div class="mt-1 flex items-center">
-                        <label class="mr-4">
-                            <input type="radio" wire:model.change="paymentType" value="0" class="mr-1"
-                                @if ($saleId) disabled @endif>
-                            С баланса
-                        </label>
-                        <label>
-                            <input type="radio" wire:model.change="paymentType" value="1" class="mr-1"
-                                @if ($saleId) disabled @endif>
-                            С кассы
-                        </label>
+            <div class="border-b border-gray-200 py-4 flex items-center justify-between">
+                <button wire:click="closeForm"
+                    class="absolute topx-4 right-4 text-gray-500 hover:text-gray-700 text-3xl">×</button>
+                <h2 class="text-xl font-bold px-4 flex-shrink-0">
+                    {{ $saleId ? 'Редактировать продажу' : 'Добавить продажу' }}
+                </h2>
+            </div>
+            <div class="flex-1 overflow-y-auto space-y-4 px-4">
+                <form wire:submit.prevent="save">
+                    <div class="mb-3">
+                        <label>Дата</label>
+                        <input type="date" wire:model="date" class="w-full border rounded"
+                            @if ($saleId) disabled @endif>
                     </div>
-                </div>
-                <div class="mb-4" @if ($paymentType != 1) style="display: none;" @endif>
-                    <label for="cash_register" class="block">Касса</label>
-                    <select id="cash_register" wire:model="cashId"
-                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                        @if ($saleId) disabled @endif>
-                        <option value="">Выберите кассу</option>
-                        @foreach ($cashRegisters as $cashRegister)
-                            <option value="{{ $cashRegister->id }}">
-                                {{ $cashRegister->name }}
-                                ({{ optional($currencies->firstWhere('id', $cashRegister->currency_id))->symbol }})
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="mb-4">
-                    <label for="projectId" class="block">Проект</label>
-                    <select id="projectId" wire:model="projectId"
-                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                        @if ($saleId) disabled @endif>
-                        <option value="">Выберите проект</option>
-                        @foreach ($projects as $project)
-                            <option value="{{ $project->id }}">{{ $project->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="mb-4">
-                    <label for="note" class="block">Примечание</label>
-                    <textarea id="note" wire:model="note" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                        @if ($saleId) disabled @endif></textarea>
-                </div>
-                <h3 class="text-lg font-bold mb-4">Выбранные товары</h3>
-                <table class="w-full border-collapse border border-gray-200 shadow-md rounded">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="p-2 border border-gray-200">Товар</th>
-                            <th class="p-2 border border-gray-200">Количество</th>
-                            <th class="p-2 border border-gray-200">Цена</th>
-                            <th class="p-2 border border-gray-200">Действия</th>
-                        </tr>
-                    </thead>
-                    @if ($selectedProducts)
-                        <tbody>
-                            @foreach ($selectedProducts as $productId => $details)
-                                <tr>
-                                    <td class="p-2 border border-gray-200">
-                                        <div class="flex items-center">
-                                            @if (!$details['image'])
-                                                <img src="{{ asset('no-photo.jpeg') }}"
-                                                    class="w-16 h-16 object-cover">
-                                            @else
-                                                <img src="{{ Storage::url($details['image']) }}"
-                                                    class="w-16 h-16 object-cover">
-                                            @endif
-                                            <span class="ml-2">{{ $details['name'] }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="p-2 border border-gray-200">
-                                        <input type="number"
-                                            wire:model.live="selectedProducts.{{ $productId }}.quantity"
-                                            class="w-full border rounded" min="1">
-                                    </td>
-                                    <td class="p-2 border border-gray-200">
-                                        <input type="number"
-                                            wire:model.live="selectedProducts.{{ $productId }}.price"
-                                            class="w-full border rounded" step="0.01" min="0.01">
-                                    </td>
-                                    <td class="p-2 border border-gray-200">
-                                        <button type="button" wire:click="removeProduct({{ $productId }})"
-                                            class="text-red-500">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
-                                    </td>
-                                </tr>
+                    <div class="mb-3">
+                        <label for="warehouse" class="block">Склад</label>
+                        <select id="warehouse" wire:model="warehouseId"
+                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                            @if ($saleId || count($selectedProducts) > 0) disabled @endif>
+                            <option value="">Выберите склад</option>
+                            @foreach ($warehouses as $warehouse)
+                                <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
                             @endforeach
-                        </tbody>
-                        @php
-                            if ($totalDiscountType === 'fixed') {
-                                $discountValue = $totalDiscount / $displayRate;
-                            } else {
-                                $discountValue = $totalPrice * ($totalDiscount / 100);
-                            }
-                            $finalTotal = $totalPrice - $discountValue;
-                        @endphp
-                        <tfoot class="bg-gray-100">
-                            <tr>
-                                <td class="p-2 border border-gray-200 font-bold" colspan="2">Всего:</td>
-                                <td class="p-2 border border-gray-200 font-bold">
-                                    {{ number_format($totalPrice * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
-                                </td>
-                                <td class="p-2 border border-gray-200"></td>
-                            </tr>
-                            <tr>
-                                <td class="p-2 border border-gray-200 font-bold" colspan="2">
-                                    <div class="flex items-center space-x-2">
-                                        <span>Скидка:</span>
-                                        <select wire:model.live="totalDiscountType" class="border rounded">
-                                            <option value="fixed">Фиксированная</option>
-                                            <option value="percent">Процентная</option>
-                                        </select>
-                                    </div>
-                                </td>
-                                <td class="p-2 border border-gray-200" colspan="2">
-                                    <input type="number" step="0.01" wire:model.live="totalDiscount"
-                                        class="w-full border rounded" placeholder="Значение скидки">
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="p-2 border border-gray-200 font-bold" colspan="2">Итоговая цена:</td>
-                                <td class="p-2 border border-gray-200 font-bold">
-                                    {{ number_format($finalTotal * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
-                                </td>
-                                <td class="p-2 border border-gray-200"></td>
-                            </tr>
-                        </tfoot>
+                        </select>
+                    </div>
+                    @if (!$saleId)
+                        @include('components.client-search')
+                        @include('components.product-search')
                     @endif
-                </table>
-                <div class="flex justify-start mt-4">
-                    <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded mr-2"
-                        @if ($saleId) disabled @endif>
-                        <i class="fas fa-save"></i>
+                    <div class="mb-3">
+                        <label class="block">Тип оплаты</label>
+                        <div class="mt-1 flex items-center">
+                            <label class="mr-4">
+                                <input type="radio" wire:model.change="paymentType" value="0" class="mr-1"
+                                    @if ($saleId) disabled @endif>
+                                С баланса
+                            </label>
+                            <label>
+                                <input type="radio" wire:model.change="paymentType" value="1" class="mr-1"
+                                    @if ($saleId) disabled @endif>
+                                С кассы
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3" @if ($paymentType != 1) style="display: none;" @endif>
+                        <label for="cash_register" class="block">Касса</label>
+                        <select id="cash_register" wire:model="cashId"
+                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                            @if ($saleId) disabled @endif>
+                            <option value="">Выберите кассу</option>
+                            @foreach ($cashRegisters as $cashRegister)
+                                <option value="{{ $cashRegister->id }}">
+                                    {{ $cashRegister->name }}
+                                    ({{ optional($currencies->firstWhere('id', $cashRegister->currency_id))->symbol }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="projectId" class="block">Проект</label>
+                        <select id="projectId" wire:model="projectId"
+                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                            @if ($saleId) disabled @endif>
+                            <option value="">Выберите проект</option>
+                            @foreach ($projects as $project)
+                                <option value="{{ $project->id }}">{{ $project->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="note" class="block">Примечание</label>
+                        <textarea id="note" wire:model="note" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                            @if ($saleId) disabled @endif></textarea>
+                    </div>
+                    <div class="mb-3">
+
+                        <h3 class="text-lg font-bold">Выбранные товары</h3>
+                        <table class="w-full border-collapse border border-gray-200 rounded">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="p-1 border border-gray-200">Товар</th>
+                                    <th class="p-1 border border-gray-200">Количество</th>
+                                    <th class="p-1 border border-gray-200">Цена</th>
+                                    <th class="p-1 border border-gray-200">Действия</th>
+                                </tr>
+                            </thead>
+                            @if ($selectedProducts && count($selectedProducts) > 0)
+                                <tbody>
+                                    @foreach ($selectedProducts as $productId => $details)
+                                        <tr>
+                                            <td class="p-1 border border-gray-200">
+                                                <div class="flex items-center">
+                                                    @if (!$details['image'])
+                                                        <img src="{{ asset('no-photo.jpeg') }}"
+                                                            class="w-16 h-16 object-cover">
+                                                    @else
+                                                        <img src="{{ Storage::url($details['image']) }}"
+                                                            class="w-16 h-16 object-cover">
+                                                    @endif
+                                                    <span class="ml-2">{{ $details['name'] }}</span>
+                                                </div>
+                                            </td>
+                                            <td class="p-1 border border-gray-200">
+                                                <input type="number"
+                                                    wire:model.live="selectedProducts.{{ $productId }}.quantity"
+                                                    class="w-full border rounded" min="1">
+                                            </td>
+                                            <td class="p-1 border border-gray-200">
+                                                <input type="number"
+                                                    wire:model.live="selectedProducts.{{ $productId }}.price"
+                                                    class="w-full border rounded" step="0.01" min="0.01">
+                                            </td>
+                                            <td class="p-1 border border-gray-200">
+                                                <button type="button"
+                                                    wire:click="removeProduct({{ $productId }})"
+                                                    class="text-red-500">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                                @php
+                                    if ($totalDiscountType === 'fixed') {
+                                        $discountValue = $totalDiscount / $displayRate;
+                                    } else {
+                                        $discountValue = $totalPrice * ($totalDiscount / 100);
+                                    }
+                                    $finalTotal = $totalPrice - $discountValue;
+                                @endphp
+                                <tfoot class="bg-gray-100">
+                                    <tr>
+                                        <td class="p-1 border border-gray-200 font-bold" colspan="2">Всего:</td>
+                                        <td class="p-1 border border-gray-200 font-bold">
+                                            {{ number_format($totalPrice * $displayRate, 2) }}
+                                            {{ $selectedCurrency->symbol }}
+                                        </td>
+                                        <td class="p-1 border border-gray-200"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-1 border border-gray-200 font-bold" colspan="2">
+                                            <div class="flex items-center space-x-2">
+                                                <span>Скидка:</span>
+                                                <select wire:model.live="totalDiscountType" class="border rounded">
+                                                    <option value="fixed">Фиксированная</option>
+                                                    <option value="percent">Процентная</option>
+                                                </select>
+                                            </div>
+                                        </td>
+                                        <td class="p-1 border border-gray-200" colspan="2">
+                                            <input type="number" step="0.01" wire:model.live="totalDiscount"
+                                                class="w-full border rounded" placeholder="Значение скидки">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-1 border border-gray-200 font-bold" colspan="2">Итоговая цена:
+                                        </td>
+                                        <td class="p-1 border border-gray-200 font-bold">
+                                            {{ number_format($finalTotal * $displayRate, 2) }}
+                                            {{ $selectedCurrency->symbol }}
+                                        </td>
+                                        <td class="p-1 border border-gray-200"></td>
+                                    </tr>
+                                </tfoot>
+                            @else
+                                <tbody>
+                                    <tr>
+                                        <td class="p-1 border border-gray-200 text-center" colspan="4">
+                                            Товаров и услуг пока нет
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            @endif
+                        </table>
+                    </div>
+                </form>
+            </div>
+            <div class="flex justify-start p-4 bg-[#edf4fb]">
+                <button type="submit" class="bg-[#1e79c7] text-white px-4 py-2 rounded mr-2"
+                    @if ($saleId) disabled @endif>
+                    <i class="fas fa-save"></i>
+                </button>
+                @if ($saleId)
+                    <button type="button" wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-trash"></i>
                     </button>
-                    @if ($saleId)
-                        <button type="button" wire:click="delete" class="bg-red-500 text-white px-4 py-2 rounded">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    @endif
-                </div>
-            </form>
+                @endif
+            </div>
         </div>
     </div>
 
@@ -380,16 +402,16 @@
         });
     </script>
 
-  
-        <script>
-            document.addEventListener('livewire:init', () => {
-                Livewire.on('update-checkboxes', () => {
-                    // Форсируем обновление Livewire для синхронизации чекбоксов
-                    Livewire.dispatch('refresh');
-                });
+
+    <script>
+        document.addEventListener('livewire:init', () => {
+            Livewire.on('update-checkboxes', () => {
+                // Форсируем обновление Livewire для синхронизации чекбоксов
+                Livewire.dispatch('refresh');
             });
-        </script>
-  
+        });
+    </script>
+
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 </div>

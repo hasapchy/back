@@ -1,7 +1,7 @@
 @section('page-title', 'Статьи расходов')
 <div class=" mx-auto p-4">
     @include('components.alert')
-    <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded mb-4">
+    <button wire:click="openForm" class="bg-[#5CB85C] text-white px-4 py-2 rounded mb-4">
         <i class="fas fa-plus"></i>
     </button>
     <div id="table-container">
@@ -52,7 +52,7 @@
             </div>
 
             <div class="mt-4 flex justify-start space-x-2">
-                <button wire:click="submit" class="bg-green-500 text-white px-4 py-2 rounded">
+                <button wire:click="submit" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i> Сохранить
                 </button>
                 @if ($categoryId)

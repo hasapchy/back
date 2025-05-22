@@ -55,6 +55,7 @@ class Orders extends Component
     public $currentWholesalePrice = 0;
     public $warehouses;
     public $warehouseId;
+    public $description;
     public $totalPrice = 0;
 
     protected $clientService;
@@ -90,19 +91,19 @@ class Orders extends Component
     public function render()
     {
         $this->totalPrice = collect($this->selectedProducts)
-        ->sum(function ($product) {
-            $price = (float)$product['price'];
-            $quantity = (int)$product['quantity'];
-            $rowTotal = $price * $quantity;
-            $discount = isset($product['discount']) ? (float)$product['discount'] : 0;
-            $discountType = $product['discount_type'] ?? 'fixed';
-            if ($discountType === 'fixed') {
-                $effective = $rowTotal - $discount;
-            } else {
-                $effective = $rowTotal - ($rowTotal * ($discount / 100));
-            }
-            return $effective;
-        });
+            ->sum(function ($product) {
+                $price = (float)$product['price'];
+                $quantity = (int)$product['quantity'];
+                $rowTotal = $price * $quantity;
+                $discount = isset($product['discount']) ? (float)$product['discount'] : 0;
+                $discountType = $product['discount_type'] ?? 'fixed';
+                if ($discountType === 'fixed') {
+                    $effective = $rowTotal - $discount;
+                } else {
+                    $effective = $rowTotal - ($rowTotal * ($discount / 100));
+                }
+                return $effective;
+            });
         $this->orders = Order::with(['client', 'user', 'status', 'category', 'orderProducts'])->get();
         $this->clients = $this->clientService->searchClients($this->clientSearch);
         $this->users = User::all();
@@ -236,6 +237,7 @@ class Orders extends Component
             'status_id' => $this->status_id ?? 1,
             'category_id' => $this->category_id,
             'note' => $this->note,
+            'description' => $this->description,
             'date' => $this->date,
         ]);
 
@@ -272,6 +274,7 @@ class Orders extends Component
         $this->status_id = $order->status_id;
         $this->category_id = $order->category_id;
         $this->note = $order->note;
+        $this->description = $order->description;
         $this->date = $order->date;
         $this->selectedClient = $this->clientService->getClientById($order->client_id);
         $this->loadAfFields();
@@ -396,69 +399,69 @@ class Orders extends Component
     }
 
     public function saveTransaction()
-{
-    $this->validate([
-        'tr_note' => 'nullable|string|max:255',
-        'tr_amount' => 'required|numeric',
-        'tr_date' => 'required|date',
-        'tr_category_id' => 'required|exists:transaction_categories,id',
-        'tr_currency_id' => 'required|exists:currencies,id',
-        'tr_cash_id' => 'required|exists:cash_registers,id',
-        'tr_type' => 'required|in:0,1',
-    ]);
+    {
+        $this->validate([
+            'tr_note' => 'nullable|string|max:255',
+            'tr_amount' => 'required|numeric',
+            'tr_date' => 'required|date',
+            'tr_category_id' => 'required|exists:transaction_categories,id',
+            'tr_currency_id' => 'required|exists:currencies,id',
+            'tr_cash_id' => 'required|exists:cash_registers,id',
+            'tr_type' => 'required|in:0,1',
+        ]);
 
-    $transaction = Transaction::create([
-        'type'            => $this->tr_type,
-        'amount'          => $this->tr_amount,
-        'note'            => 'Заказ номер ' . $this->order_id . ': ' . $this->tr_note,
-        'date'            => $this->tr_date,
-        'category_id'     => $this->tr_category_id,
-        'currency_id'     => $this->tr_currency_id,
-        'client_id'       => $this->client_id,
-        'user_id'         => Auth::id(),
-        'cash_id'         => $this->tr_cash_id,
-    ]);
+        $transaction = Transaction::create([
+            'type'            => $this->tr_type,
+            'amount'          => $this->tr_amount,
+            'note'            => 'Заказ номер ' . $this->order_id . ': ' . $this->tr_note,
+            'date'            => $this->tr_date,
+            'category_id'     => $this->tr_category_id,
+            'currency_id'     => $this->tr_currency_id,
+            'client_id'       => $this->client_id,
+            'user_id'         => Auth::id(),
+            'cash_id'         => $this->tr_cash_id,
+        ]);
 
-    $cashRegister = CashRegister::find($this->tr_cash_id);
-    if ($cashRegister) {
-        if ($this->tr_currency_id && $this->tr_currency_id != $cashRegister->currency_id) {
-            $transactionCurrency = Currency::find($this->tr_currency_id);
-            $cashRegisterCurrency = Currency::find($cashRegister->currency_id);
-            $transactionExchangeRate = $transactionCurrency->currentExchangeRate()->exchange_rate;
-            $cashRegisterExchangeRate = $cashRegisterCurrency->currentExchangeRate()->exchange_rate;
-            $amountInDefaultCurrency = $this->tr_amount / $transactionExchangeRate;
-            $convertedAmount = $amountInDefaultCurrency * $cashRegisterExchangeRate;
+        $cashRegister = CashRegister::find($this->tr_cash_id);
+        if ($cashRegister) {
+            if ($this->tr_currency_id && $this->tr_currency_id != $cashRegister->currency_id) {
+                $transactionCurrency = Currency::find($this->tr_currency_id);
+                $cashRegisterCurrency = Currency::find($cashRegister->currency_id);
+                $transactionExchangeRate = $transactionCurrency->currentExchangeRate()->exchange_rate;
+                $cashRegisterExchangeRate = $cashRegisterCurrency->currentExchangeRate()->exchange_rate;
+                $amountInDefaultCurrency = $this->tr_amount / $transactionExchangeRate;
+                $convertedAmount = $amountInDefaultCurrency * $cashRegisterExchangeRate;
 
-            $transaction->note .= " // Original Amount: {$this->tr_amount} {$transactionCurrency->symbol}";
+                $transaction->note .= " // Original Amount: {$this->tr_amount} {$transactionCurrency->symbol}";
 
-            $transaction->update([
-                'amount'      => $convertedAmount,
-                'currency_id' => $cashRegister->currency_id,
-            ]);
-        } else {
-            $convertedAmount = $this->tr_amount;
+                $transaction->update([
+                    'amount'      => $convertedAmount,
+                    'currency_id' => $cashRegister->currency_id,
+                ]);
+            } else {
+                $convertedAmount = $this->tr_amount;
+            }
+
+            if ($this->tr_type == 0) {
+                $cashRegister->balance -= $convertedAmount;
+            } else {
+                $cashRegister->balance += $convertedAmount;
+            }
+            $cashRegister->save();
         }
 
-        if ($this->tr_type == 0) {
-            $cashRegister->balance -= $convertedAmount;
-        } else {
-            $cashRegister->balance += $convertedAmount;
-        }
-        $cashRegister->save();
+        $order = Order::find($this->order_id);
+        $transactionIds = json_decode($order->transaction_ids, true) ?? [];
+        $transactionIds[] = $transaction->id;
+        $order->update(['transaction_ids' => json_encode($transactionIds)]);
+
+        // Обновляем локальное свойство с транзакциями, чтобы сразу отобразить новую транзакцию
+        $this->transactions = Transaction::whereIn('id', $transactionIds)->get();
+
+        session()->flash('message', 'Транзакция успешно создана.');
+        $this->resetTrForm();
+        $this->showTrForm = false;
     }
-
-    $order = Order::find($this->order_id);
-    $transactionIds = json_decode($order->transaction_ids, true) ?? [];
-    $transactionIds[] = $transaction->id;
-    $order->update(['transaction_ids' => json_encode($transactionIds)]);
-
-    // Обновляем локальное свойство с транзакциями, чтобы сразу отобразить новую транзакцию
-    $this->transactions = Transaction::whereIn('id', $transactionIds)->get();
-
-    session()->flash('message', 'Транзакция успешно создана.');
-    $this->resetTrForm();
-    $this->showTrForm = false;
-}
 
     public function editTransaction($transactionId)
     {
@@ -495,6 +498,7 @@ class Orders extends Component
             'status_id',
             'category_id',
             'note',
+            'description',
             'order_id',
             'clientSearch',
             'clientResults',

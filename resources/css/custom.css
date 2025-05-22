@@ -1,3 +1,18 @@
+body, html {
+    font-family: 'Open Sans', sans-serif;
+    font-size: 12px;
+    background: white;
+}
+
+.sidebar-menu {
+  font-size: 13px;
+}
+
+h1 {
+    font-size: 24px !important;
+    font-weight: 300;
+}
+
 .table {
     border: 1px solid #ccc;
     border-collapse: collapse;
@@ -161,7 +176,7 @@
     gap: 8px;
 }
 label {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
-    color: #373636;
+    color: #282e33;
 }

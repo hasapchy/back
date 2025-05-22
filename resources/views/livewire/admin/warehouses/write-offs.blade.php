@@ -4,7 +4,7 @@
 
     <div class="flex items-center space-x-4 mb-4">
      
-            <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
+            <button wire:click="openForm" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                 <i class="fas fa-plus"></i>
             </button>
       
@@ -15,11 +15,11 @@
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
-                <th class="p-2 border border-gray-200">ID</th>
-                <th class="p-2 border border-gray-200">Дата</th>
-                <th class="p-2 border border-gray-200">Склад</th>
-                <th class="p-2 border border-gray-200">Товары</th>
-                <th class="p-2 border border-gray-200">Причина</th>
+                <th class="p-1 border border-gray-200">ID</th>
+                <th class="p-1 border border-gray-200">Дата</th>
+                <th class="p-1 border border-gray-200">Склад</th>
+                <th class="p-1 border border-gray-200">Товары</th>
+                <th class="p-1 border border-gray-200">Причина</th>
             </tr>
         </thead>
         <tbody>
@@ -27,17 +27,17 @@
            
                     <tr wire:click="edit({{ $writeOff->id }})" class="cursor-pointer">
              
-                <td class="p-2 border border-gray-200">{{ $writeOff->id }}</td>
-                <td class="p-2 border border-gray-200">{{ $writeOff->created_at->format('d.m.Y') }}</td>
-                <td class="p-2 border border-gray-200">{{ $writeOff->warehouse->name }}</td>
-                <td class="p-2 border border-gray-200">
+                <td class="p-1 border border-gray-200">{{ $writeOff->id }}</td>
+                <td class="p-1 border border-gray-200">{{ $writeOff->created_at->format('d.m.Y') }}</td>
+                <td class="p-1 border border-gray-200">{{ $writeOff->warehouse->name }}</td>
+                <td class="p-1 border border-gray-200">
                     @foreach ($writeOff->writeOffProducts as $product)
                         {{ $product->product->name }}:
                         {{ $product->quantity }} шт.
                         <br>
                     @endforeach
                 </td>
-                <td class="p-2 border border-gray-200">{{ $writeOff->note }}</td>
+                <td class="p-1 border border-gray-200">{{ $writeOff->note }}</td>
                 </tr>
             @empty
                 <tr>
@@ -90,16 +90,16 @@
             <table class="min-w-full bg-white shadow-md rounded mb-6">
                 <thead class="bg-gray-100">
                     <tr>
-                        <th class="p-2 border border-gray-200">Товар</th>
-                        <th class="p-2 border border-gray-200">Количество</th>
-                        <th class="p-2 border border-gray-200">Действия</th>
+                        <th class="p-1 border border-gray-200">Товар</th>
+                        <th class="p-1 border border-gray-200">Количество</th>
+                        <th class="p-1 border border-gray-200">Действия</th>
                     </tr>
                 </thead>
                 @if ($selectedProducts)
                     <tbody>
                         @foreach ($selectedProducts as $productId => $details)
                             <tr>
-                                <td class="p-2 border border-gray-200">
+                                <td class="p-1 border border-gray-200">
                                     <div class="flex items-center">
                                         @if (!$details['image'])
                                             <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
@@ -110,10 +110,10 @@
                                         <span class="ml-2">{{ $details['name'] }}</span>
                                     </div>
                                 </td>
-                                <td class="p-2 border border-gray-200">
+                                <td class="p-1 border border-gray-200">
                                     {{ $details['quantity'] }}
                                 </td>
-                                <td class="p-2 border border-gray-200">
+                                <td class="p-1 border border-gray-200">
                                     <button wire:click="openPForm({{ $productId }})" class="text-blue-500">
                                         <i class="fas fa-edit"></i>
                                     </button>
@@ -132,16 +132,16 @@
                             }
                         @endphp
                         <tr>
-                            <td class="p-2 border border-gray-200 font-bold" colspan="1">Итого:</td>
-                            <td class="p-2 border border-gray-200 font-bold">{{ $totalQuantity }}</td>
-                            <td class="p-2 border border-gray-200"></td>
+                            <td class="p-1 border border-gray-200 font-bold" colspan="1">Итого:</td>
+                            <td class="p-1 border border-gray-200 font-bold">{{ $totalQuantity }}</td>
+                            <td class="p-1 border border-gray-200"></td>
                         </tr>
                     </tfoot>
                 @endif
             </table>
 
             <div class="flex justify-start mt-4">
-                <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded mr-2">
+                <button wire:click="save" class="bg-[#5CB85C] text-white px-4 py-2 rounded mr-2">
                     <i class="fas fa-save"></i>
                 </button>
             

@@ -17,30 +17,30 @@
             <table class="min-w-full bg-white shadow-md rounded mb-6">
                 <thead class="bg-gray-100">
                     <tr>
-                        <th class="p-2 border border-gray-200">ID</th>
-                        <th class="p-2 border border-gray-200">Имя</th>
-                        <th class="p-2 border border-gray-200">Email</th>
-                        <th class="p-2 border border-gray-200">Дата приема</th>
-                        <th class="p-2 border border-gray-200">Должность</th>
-                        <th class="p-2 border border-gray-200">Роль</th>
-                        <th class="p-2 border border-gray-200">Статус</th>
+                        <th class="p-1 border border-gray-200">ID</th>
+                        <th class="p-1 border border-gray-200">Имя</th>
+                        <th class="p-1 border border-gray-200">Email</th>
+                        <th class="p-1 border border-gray-200">Дата приема</th>
+                        <th class="p-1 border border-gray-200">Должность</th>
+                        <th class="p-1 border border-gray-200">Роль</th>
+                        <th class="p-1 border border-gray-200">Статус</th>
                   
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($users as $user)
                         <tr wire:click="editUser({{ $user->id }})" class="cursor-pointer mb-2 p-2 border rounded">
-                            <td class="p-2 border border-gray-200">{{ $user->id }}</td>
-                            <td class="p-2 border border-gray-200">{{ $user->name }}</td>
-                            <td class="p-2 border border-gray-200">{{ $user->email }}</td>
-                            <td class="p-2 border border-gray-200">
+                            <td class="p-1 border border-gray-200">{{ $user->id }}</td>
+                            <td class="p-1 border border-gray-200">{{ $user->name }}</td>
+                            <td class="p-1 border border-gray-200">{{ $user->email }}</td>
+                            <td class="p-1 border border-gray-200">
                                 {{ \Carbon\Carbon::parse($user->hire_date)->format('d-m-Y') }}
                             </td>
-                            <td class="p-2 border border-gray-200">{{ $user->position }}</td>
-                            <td class="p-2 border border-gray-200">
+                            <td class="p-1 border border-gray-200">{{ $user->position }}</td>
+                            <td class="p-1 border border-gray-200">
                                 {{ $user->role->name ?? '-' }}
                             </td>
-                            <td class="p-2 border border-gray-200">
+                            <td class="p-1 border border-gray-200">
                                 @if ($user->is_active)
                                     <span class="text-green-500">Активен</span>
                                 @else

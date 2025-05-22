@@ -3,7 +3,7 @@
     @include('components.alert')
     <div class="flex items-center space-x-4 mb-4">
     
-            <a href="{{ route('admin.warehouses.index') }}" class="bg-green-500 text-white px-4 py-2 rounded">
+            <a href="{{ route('admin.warehouses.index') }}" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                 <i class="fas fa-plus"></i>
             </a>
  

@@ -2,37 +2,37 @@
 <div class="mx-auto p-4">
     @include('components.alert')
     <div class="flex space-x-4 mb-4">
-        <button wire:click="openForm" class="mb-4 bg-green-500 text-white px-4 py-2 rounded">
+        <button wire:click="openForm" class="mb-4 bg-[#5CB85C] text-white px-4 py-2 rounded">
             <i class="fas fa-plus"></i>
         </button>
     </div>
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
-                <th class="p-2 border border-gray-200">Дата создания</th>
-                <th class="p-2 border border-gray-200">Название</th>
-                <th class="p-2 border border-gray-200">Тип</th>
-                <th class="p-2 border border-gray-200">Категории</th>
-                <th class="p-2 border border-gray-200">Обязательное</th>
-                <th class="p-2 border border-gray-200">По умолчанию</th>
+                <th class="p-1 border border-gray-200">Дата создания</th>
+                <th class="p-1 border border-gray-200">Название</th>
+                <th class="p-1 border border-gray-200">Тип</th>
+                <th class="p-1 border border-gray-200">Категории</th>
+                <th class="p-1 border border-gray-200">Обязательное</th>
+                <th class="p-1 border border-gray-200">По умолчанию</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($fields as $field)
                 <tr wire:click="edit({{ $field->id }})"
                     class="cursor-pointer mb-2 p-2 border rounded {{ $field_id == $field->id ? 'bg-gray-200' : '' }}">
-                    <td class="p-2 border border-gray-200">{{ $field->created_at }}</td>
-                    <td class="p-2 border border-gray-200">{{ $field->name }}</td>
-                    <td class="p-2 border border-gray-200">{{ $field->type }}</td>
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">{{ $field->created_at }}</td>
+                    <td class="p-1 border border-gray-200">{{ $field->name }}</td>
+                    <td class="p-1 border border-gray-200">{{ $field->type }}</td>
+                    <td class="p-1 border border-gray-200">
                         @foreach ($field->category_ids as $category_id)
                             {{ $categories->find($category_id)->name }}@if (!$loop->last)
                                 ,
                             @endif
                         @endforeach
                     </td>
-                    <td class="p-2 border border-gray-200">{{ $field->required ? 'Да' : 'Нет' }}</td>
-                    <td class="p-2 border border-gray-200">{{ $field->default }}</td>
+                    <td class="p-1 border border-gray-200">{{ $field->required ? 'Да' : 'Нет' }}</td>
+                    <td class="p-1 border border-gray-200">{{ $field->default }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -80,7 +80,7 @@
                 <input type="text" wire:model="default" placeholder="По умолчанию" class="w-full p-2 border rounded">
             </div>
             <div class="flex space-x-2">
-                <button wire:click="store" class="bg-green-500 text-white px-4 py-2 rounded">
+                <button wire:click="store" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
 

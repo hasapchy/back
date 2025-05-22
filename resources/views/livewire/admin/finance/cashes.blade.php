@@ -11,7 +11,7 @@
     <x-alert />
 
     <div class="flex items-center space-x-4 mb-4">
-        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
+        <button wire:click="openForm" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
             <i class="fas fa-plus"></i>
         </button>
 
@@ -80,7 +80,7 @@
             </div>
             <div class="mt-4">
                 <button wire:click="{{ $cashId ? 'update' : 'create' }}"
-                    class="bg-green-500 text-white px-4 py-2 rounded">
+                    class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                     <i class="fas fa-save "></i>
                 </button>
                 @if ($cashId)

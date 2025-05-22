@@ -19,7 +19,7 @@
 
 <body class="font-sans antialiased" onload="initializeSidebar()">
 
-    <div class="flex min-h-screen bg-gray-100">
+    <div class="flex min-h-screen">
         @auth
             <x-sidebar id="main-sidebar" />
             <x-settings-sidebar />

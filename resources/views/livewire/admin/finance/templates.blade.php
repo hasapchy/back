@@ -11,7 +11,7 @@
 
     <div class="flex items-center space-x-4 mb-4">
       
-        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
+        <button wire:click="openForm" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
             <i class="fas fa-plus"></i>
         </button>
     
@@ -142,7 +142,7 @@
                 </div>
 
                 <div class="mt-4 flex justify-start space-x-2">
-                    <button wire:click="saveTemplate" class="bg-green-500 text-white px-4 py-2 rounded">
+                    <button wire:click="saveTemplate" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                         <i class="fas fa-save"></i>
                     </button>
                 </div>
@@ -246,7 +246,7 @@
             </div>
 
             <div class="mt-4 flex justify-start space-x-2">
-                <button wire:click="saveAppliedTemplate" class="bg-green-500 text-white px-4 py-2 rounded">
+                <button wire:click="saveAppliedTemplate" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
             </div>

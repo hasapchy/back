@@ -28,72 +28,72 @@
     }
 }" class="flex h-screen">
     <!-- 1. Главное меню -->
-    <aside class="w-64 bg-gray-800 text-white flex-shrink-0">
+    <aside class="w-48 bg-[#282e33] text-white flex-shrink-0">
         <div class="p-4 flex items-center justify-center">
             <a href="{{ route('admin.dashboard') }}">
                 <img src="{{ $logo ?? asset('logo.png') }}" alt="Company Logo" class="h-16 w-auto">
             </a>
         </div>
         <div class="px-4 mb-4">
-            <h1 class="text-xl font-semibold">
+            <h2 class="text-xl font-semibold">
                 {{ \App\Models\Setting::where('setting_name', 'company_name')->value('setting_value') ?? 'Laravel' }}
-            </h1>
+            </h2>
         </div>
         <nav class="">
-            <ul>
+            <ul class="sidebar-menu">
                 <li class="mb-2">
                     <a href="{{ route('admin.orders') }}"
-                        class="flex items-center p-2 hover:bg-gray-700
-             {{ request()->routeIs('admin.orders') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                        class="flex items-center p-2 hover:bg-[#53585c]
+             {{ request()->routeIs('admin.orders') ? 'bg-[#53585c] border-l-2 border-red-500' : '' }}">
                         <i class="fas fa-shopping-bag mr-2"></i> Заказы
                     </a>
                 </li>
                 <li class="mb-2">
                     <a href="{{ route('admin.sales.index') }}"
-                        class="flex items-center p-2 hover:bg-gray-700
-             {{ request()->routeIs('admin.sales.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                        class="flex items-center p-2 hover:bg-[#53585c]
+             {{ request()->routeIs('admin.sales.index') ? 'bg-[#53585c] border-l-2 border-red-500' : '' }}">
                         <i class="fas fa-shopping-cart mr-2"></i> Продажи
                     </a>
                 </li>
                 <li class="mb-2">
                     <a href="{{ route('admin.finance.index') }}"
-                        class="flex items-center p-2 hover:bg-gray-700
-             {{ request()->routeIs('admin.finance.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                        class="flex items-center p-2 hover:bg-[#53585c]
+             {{ request()->routeIs('admin.finance.index') ? 'bg-[#53585c] border-l-2 border-red-500' : '' }}">
                         <i class="fas fa-cash-register mr-2"></i> Финансы
                     </a>
                 </li>
                 <li class="mb-2">
                     <a href="{{ route('admin.warehouse.operations') }}"
-                        class="flex items-center p-2 hover:bg-gray-700
-             {{ request()->routeIs('admin.warehouse.operations') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                        class="flex items-center p-2 hover:bg-[#53585c]
+             {{ request()->routeIs('admin.warehouse.operations') ? 'bg-[#53585c] border-l-2 border-red-500' : '' }}">
                         <i class="fa-solid fa-warehouse mr-2"></i> Склады
                     </a>
                 </li>
                 <li class="mb-2">
                     <a href="{{ route('admin.clients.index') }}"
-                        class="flex items-center p-2 hover:bg-gray-700
-             {{ request()->routeIs('admin.clients.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                        class="flex items-center p-2 hover:bg-[#53585c]
+             {{ request()->routeIs('admin.clients.index') ? 'bg-[#53585c] border-l-2 border-red-500' : '' }}">
                         <i class="fas fa-user-friends mr-2"></i> Клиенты
                     </a>
                 </li>
                 <li class="mb-2">
                     <a href="{{ route('admin.projects.index') }}"
-                        class="flex items-center p-2 hover:bg-gray-700
-             {{ request()->routeIs('admin.projects.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                        class="flex items-center p-2 hover:bg-[#53585c]
+             {{ request()->routeIs('admin.projects.index') ? 'bg-[#53585c] border-l-2 border-red-500' : '' }}">
                         <i class="fas fa-briefcase mr-2"></i> Проекты
                     </a>
                 </li>
                 <li class="mb-2">
                     <a href="{{ route('admin.reports.index') }}"
-                        class="flex items-center p-2 hover:bg-gray-700
-             {{ request()->routeIs('admin.reports.index') ? 'bg-gray-700 border-l-2 border-red-500' : '' }}">
+                        class="flex items-center p-2 hover:bg-[#53585c]
+             {{ request()->routeIs('admin.reports.index') ? 'bg-[#53585c] border-l-2 border-red-500' : '' }}">
                         <i class="fas fa-chart-line mr-2"></i> Отчеты
                     </a>
                 </li>
 
                 <li class="mt-4 mb-2">
                     <a href="#" @click.prevent="toggleSettings()"
-                        class="flex items-center p-2 hover:bg-gray-700
+                        class="flex items-center p-2 hover:bg-[#53585c]
              {{ request()->routeIs(
                  'admin.users.index',
                  'admin.products.index',
@@ -108,7 +108,7 @@
                  'admin.order-status-categories',
                  'admin.orders.af',
              )
-                 ? 'bg-gray-700 border-l-2 border-red-500'
+                 ? 'bg-[#53585c] border-l-2 border-red-500'
                  : '' }}">
                         <i class="fas fa-cogs mr-2"></i> Настройки
                     </a>
@@ -120,12 +120,12 @@
 
     <!-- 2. Сайдбар «Настройки» -->
     <aside id="settings-sidebar"
-        class="w-64 bg-gray-700 text-white flex-shrink-0 transform transition-transform duration-300"
+        class="w-64 bg-[#53585c] text-white flex-shrink-0 transform transition-transform duration-300"
         x-show="settingsOpen" x-cloak @click.away="settingsOpen = false"
         :class="{ 'translate-x-0': settingsOpen, '-translate-x-full': !settingsOpen }">
         <div class="py-3">
 
-            <ul>
+             <ul class="sidebar-menu">
                 <!-- Пользователи -->
                 <li class="mb-2">
                     <a href="{{ route('admin.users.index') }}"

@@ -6,7 +6,7 @@
 
 
     <div class="flex items-center space-x-4 mb-4">
-                 <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
+                 <button wire:click="openForm" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                 <i class="fas fa-plus"></i>
             </button>
              @include('components.warehouse-accordion')
@@ -17,24 +17,24 @@
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
-                <th class="p-2 border border-gray-200">Invoice</th>
-                <th class="p-2 border border-gray-200">Дата</th>
-                <th class="p-2 border border-gray-200">Поставщик</th>
-                <th class="p-2 border border-gray-200">Склад</th>
-                <th class="p-2 border border-gray-200">Товары</th>
-                <th class="p-2 border border-gray-200">Общая цена</th>
-                <th class="p-2 border border-gray-200">Примечание</th>
+                <th class="p-1 border border-gray-200">Invoice</th>
+                <th class="p-1 border border-gray-200">Дата</th>
+                <th class="p-1 border border-gray-200">Поставщик</th>
+                <th class="p-1 border border-gray-200">Склад</th>
+                <th class="p-1 border border-gray-200">Товары</th>
+                <th class="p-1 border border-gray-200">Общая цена</th>
+                <th class="p-1 border border-gray-200">Примечание</th>
 
             </tr>
         </thead>
         <tbody>
             @foreach ($stockReceptions as $reception)
                 <tr wire:click="edit({{ $reception->id }})" class="cursor-pointer">
-                    <td class="p-2 border border-gray-200">{{ $reception->id }}</td>
-                    <td class="p-2 border border-gray-200">{{ $reception->created_at->format('d.m.Y') }}</td>
-                    <td class="p-2 border border-gray-200">{{ $reception->supplier->first_name }}</td>
-                    <td class="p-2 border border-gray-200">{{ $reception->warehouse->name }}</td>
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">{{ $reception->id }}</td>
+                    <td class="p-1 border border-gray-200">{{ $reception->created_at->format('d.m.Y') }}</td>
+                    <td class="p-1 border border-gray-200">{{ $reception->supplier->first_name }}</td>
+                    <td class="p-1 border border-gray-200">{{ $reception->warehouse->name }}</td>
+                    <td class="p-1 border border-gray-200">
                         @foreach ($reception->products as $product)
                             <div>
                                 {{ $product->product->name }}
@@ -51,10 +51,10 @@
                         $selectedCurrency = $conversionService->getSelectedCurrency($sessionCurrencyCode);
                     @endphp
 
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">
                         {{ number_format($reception->amount * $conversionRate, 2) }} {{ $selectedCurrency->symbol }}
                     </td>
-                    <td class="p-2 border border-gray-200">{{ $reception->note }}</td>
+                    <td class="p-1 border border-gray-200">{{ $reception->note }}</td>
 
                 </tr>
             @endforeach
@@ -119,10 +119,10 @@
             <table class="w-full border-collapse border border-gray-200 shadow-md rounded">
                 <thead class="bg-gray-100">
                     <tr>
-                        <th class="p-2 border border-gray-200">Товар</th>
-                        <th class="p-2 border border-gray-200">Количество</th>
-                        <th class="p-2 border border-gray-200">Цена</th>
-                        <th class="p-2 border border-gray-200">Действия</th>
+                        <th class="p-1 border border-gray-200">Товар</th>
+                        <th class="p-1 border border-gray-200">Количество</th>
+                        <th class="p-1 border border-gray-200">Цена</th>
+                        <th class="p-1 border border-gray-200">Действия</th>
                     </tr>
                 </thead>
                 @if ($selectedProducts)
@@ -130,7 +130,7 @@
                         @foreach ($selectedProducts as $productId => $details)
                             <tr>
 
-                                <td class="p-2 border border-gray-200">
+                                <td class="p-1 border border-gray-200">
                                     <div class="flex items-center">
                                         @if (!$details['image'])
                                             <img src="{{ asset('no-photo.jpeg') }}" class="w-16 h-16 object-cover">
@@ -142,9 +142,9 @@
                                     </div>
                                 </td>
 
-                                <td class="p-2 border border-gray-200">{{ $details['quantity'] }}</td>
-                                <td class="p-2 border border-gray-200">{{ $details['price'] }}</td>
-                                <td class="p-2 border border-gray-200">
+                                <td class="p-1 border border-gray-200">{{ $details['quantity'] }}</td>
+                                <td class="p-1 border border-gray-200">{{ $details['price'] }}</td>
+                                <td class="p-1 border border-gray-200">
                                     <button wire:click="openPForm({{ $productId }})" class="text-blue-500">
                                         <i class="fas fa-edit"></i>
                                     </button>
@@ -165,10 +165,10 @@
                             }
                         @endphp
                         <tr>
-                            <td class="p-2 border border-gray-200 font-bold">Итого:</td>
-                            <td class="p-2 border border-gray-200 font-bold">{{ $totalQuantity }}</td>
-                            <td class="p-2 border border-gray-200 font-bold">{{ number_format($totalSum, 2) }}</td>
-                            <td class="p-2 border border-gray-200"></td>
+                            <td class="p-1 border border-gray-200 font-bold">Итого:</td>
+                            <td class="p-1 border border-gray-200 font-bold">{{ $totalQuantity }}</td>
+                            <td class="p-1 border border-gray-200 font-bold">{{ number_format($totalSum, 2) }}</td>
+                            <td class="p-1 border border-gray-200"></td>
                         </tr>
                     </tfoot>
                 @endif
@@ -176,7 +176,7 @@
 
 
             <div class="flex justify-start mt-4">
-                <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded mr-2">
+                <button wire:click="save" class="bg-[#5CB85C] text-white px-4 py-2 rounded mr-2">
                     <i class="fas fa-save"></i>
                 </button>
         
@@ -193,9 +193,9 @@
     @include('components.product-quantity-modal')
 </div>
 
-@push('scripts')
+{{-- @push('scripts')
     @vite('resources/js/modal.js')
-@endpush
+@endpush --}}
 
 
 <script>

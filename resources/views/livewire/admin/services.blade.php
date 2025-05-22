@@ -9,7 +9,7 @@
 @endphp
     <div class="flex items-center space-x-4 mb-4">
         @include('components.alert')
-        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded ">
+        <button wire:click="openForm" class="bg-[#5CB85C] text-white px-4 py-2 rounded ">
             <i class="fas fa-plus"></i>
         </button>
 
@@ -20,32 +20,32 @@
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
-                <th class="p-2 border border-gray-200">ID</th>
-                <th class="p-2 border border-gray-200">Название</th>
-                <th class="p-2 border border-gray-200">Розничная цена</th>
-                <th class="p-2 border border-gray-200">Оптовая цена</th>
-                <th class="p-2 border border-gray-200">Описание</th>
-                <th class="p-2 border border-gray-200">Категория</th>
-                <th class="p-2 border border-gray-200">Артикул</th>
+                <th class="p-1 border border-gray-200">ID</th>
+                <th class="p-1 border border-gray-200">Название</th>
+                <th class="p-1 border border-gray-200">Розничная цена</th>
+                <th class="p-1 border border-gray-200">Оптовая цена</th>
+                <th class="p-1 border border-gray-200">Описание</th>
+                <th class="p-1 border border-gray-200">Категория</th>
+                <th class="p-1 border border-gray-200">Артикул</th>
 
             </tr>
         </thead>
         <tbody>
             @foreach ($products as $product)
                 <tr wire:click="edit({{ $product->id }})" class="cursor-pointer mb-2 p-2 border rounded">
-                    <td class="p-2 border border-gray-200">{{ $product->id }}</td>
-                    <td class="p-2 border border-gray-200">{{ $product->name }}</td>
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">{{ $product->id }}</td>
+                    <td class="p-1 border border-gray-200">{{ $product->name }}</td>
+                    <td class="p-1 border border-gray-200">
                         {{ number_format(($product->prices->last()->retail_price ?? 0) * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
                     </td>
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">
                         {{ number_format(($product->prices->last()->wholesale_price ?? 0) * $displayRate, 2) }} {{ $selectedCurrency->symbol }}
                     </td>
-                    <td class="p-2 border border-gray-200">{{ $product->description }}</td>
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">{{ $product->description }}</td>
+                    <td class="p-1 border border-gray-200">
                         {{ $product->category->name ?? 'N/A' }}
                     </td>
-                    <td class="p-2 border border-gray-200">{{ $product->sku }}</td>
+                    <td class="p-1 border border-gray-200">{{ $product->sku }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -131,7 +131,7 @@
                     </div>
 
                     <div class="mt-4 flex justify-start space-x-2">
-                        <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
+                        <button wire:click="save" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                             <i class="fas fa-save"></i>
                         </button>
                         @if ($productId)
@@ -166,7 +166,7 @@
                     </div>
                     <div class="mt-4 flex justify-end space-x-2">
                         <button wire:click="saveCategory"
-                            class="bg-green-500 text-white px-4 py-2 rounded">Сохранить</button>
+                            class="bg-[#5CB85C] text-white px-4 py-2 rounded">Сохранить</button>
                         <button wire:click="$set('showCategoryForm', false)"
                             class="bg-gray-500 text-white px-4 py-2 rounded">
                             Отмена

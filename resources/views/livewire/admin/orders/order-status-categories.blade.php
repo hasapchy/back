@@ -3,7 +3,7 @@
 
     @include('components.alert')
     <div class="flex space-x-4 mb-4">
-        <button wire:click="openForm" class="mb-4 bg-green-500 text-white px-4 py-2 rounded">
+        <button wire:click="openForm" class="mb-4 bg-[#5CB85C] text-white px-4 py-2 rounded">
             <i class="fas fa-plus"></i>
         </button>
 
@@ -11,8 +11,8 @@
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
-                <th class="p-2 border border-gray-200">Название</th>
-                <th class="p-2 border border-gray-200">Цвет</th>
+                <th class="p-1 border border-gray-200">Название</th>
+                <th class="p-1 border border-gray-200">Цвет</th>
 
             </tr>
         </thead>
@@ -20,8 +20,8 @@
             @foreach ($categories as $category)
                 <tr wire:click="edit({{ $category->id }})" class="cursor-pointer mb-2 p-2 border rounded ">
 
-                    <td class="p-2 border border-gray-200">{{ $category->name }}</td>
-                    <td class="p-2 border border-gray-200 flex items-center">
+                    <td class="p-1 border border-gray-200">{{ $category->name }}</td>
+                    <td class="p-1 border border-gray-200 flex items-center">
                         {{ $category->color }}
                         <div class="w-4 h-4 rounded-full ml-2" style="background-color: {{ $category->color }}"></div>
                     </td>
@@ -58,7 +58,7 @@
             </div>
 
             <div class="flex space-x-2">
-                <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
+                <button wire:click="save" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
 

@@ -78,6 +78,10 @@ class Sales extends Component
         $this->warehouses = Warehouse::whereJsonContains('users', (string) Auth::id())->get();
         $this->projects = Project::whereJsonContains('users', (string) Auth::id())->get();
 
+        // Устанавливаем первую кассу и склад по умолчанию, если они есть
+        $this->cashId = $this->cashRegisters->isNotEmpty() ? $this->cashRegisters->first()->id : null;
+        $this->warehouseId = $this->warehouses->isNotEmpty() ? $this->warehouses->first()->id : null;
+
         $sessionCurrencyCode = session('currency', 'USD');
         $conversionService = app(\App\Services\CurrencySwitcherService::class);
         $this->displayRate = $conversionService->getConversionRate($sessionCurrencyCode, now());
@@ -91,6 +95,7 @@ class Sales extends Component
             ['key' => 'products', 'title' => 'Товары'],
             ['key' => 'total_price', 'title' => 'Цена продажи'],
             ['key' => 'note', 'title' => 'Примечание'],
+            ['key' => 'user.name', 'title' => 'Автор'],
         ]);
 
         $this->loadTableSettings();
@@ -101,7 +106,6 @@ class Sales extends Component
         $this->customDateRange = session()->get('sales_custom_date_range', ['start' => null, 'end' => null]);
         $this->perPage = request()->query('perPage', session()->get('sales_per_page', 10));
     }
-
     public function render()
     {
         $this->totalPrice = collect($this->selectedProducts)
@@ -136,9 +140,12 @@ class Sales extends Component
         ]);
     }
 
+
+
     public function applyDateFilter()
     {
-        $query = Sale::with(['client', 'warehouse', 'products'])->latest();
+        $query = Sale::with(['client', 'warehouse', 'products', 'user'])->latest();
+
 
         if (strlen($this->search) >= 3) {
             $query->where(function ($q) {
@@ -391,7 +398,9 @@ class Sales extends Component
     public function openForm()
     {
         if ($this->isEditing === false) {
-            // Не очищаем форму при создании, чтобы данные сохранялись между открытиями
+            // Устанавливаем первую кассу и склад по умолчанию, если они не выбраны
+            $this->cashId = $this->cashId ?? ($this->cashRegisters->isNotEmpty() ? $this->cashRegisters->first()->id : null);
+            $this->warehouseId = $this->warehouseId ?? ($this->warehouses->isNotEmpty() ? $this->warehouses->first()->id : null);
         } else {
             $this->resetForm(); // Очистить форму, если мы приходим из редактирования или после сохранения
             $this->isEditing = false; // Сбрасываем флаг редактирования при новом создании

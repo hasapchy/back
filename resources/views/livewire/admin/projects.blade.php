@@ -6,7 +6,7 @@
 
     <div class="flex items-center space-x-4 mb-4">
 
-        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
+        <button wire:click="openForm" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
             <i class="fas fa-plus"></i>
         </button>
 
@@ -16,18 +16,18 @@
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
-                <th class="p-2 border border-gray-200">Название</th>
-                <th class="p-2 border border-gray-200">Клиент</th>
-                <th class="p-2 border border-gray-200">Бюджет</th>
+                <th class="p-1 border border-gray-200">Название</th>
+                <th class="p-1 border border-gray-200">Клиент</th>
+                <th class="p-1 border border-gray-200">Бюджет</th>
             
             </tr>
         </thead>
         <tbody>
             @foreach ($projects as $project)
                 <tr wire:click="edit({{ $project->id }})" class="cursor-pointer mb-2 p-2 border rounded">
-                    <td class="p-2 border border-gray-200">{{ $project->name }}</td>
-                    <td class="p-2 border border-gray-200">{{ $project->client->first_name ?? 'N/A' }}</td>
-                    <td class="p-2 border border-gray-200">{{ $project->budget }}</td>
+                    <td class="p-1 border border-gray-200">{{ $project->name }}</td>
+                    <td class="p-1 border border-gray-200">{{ $project->client->first_name ?? 'N/A' }}</td>
+                    <td class="p-1 border border-gray-200">{{ $project->budget }}</td>
                    
                 </tr>
             @endforeach
@@ -97,7 +97,7 @@
                     </div>
 
                     <div class="flex space-x-2">
-                        <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
+                        <button wire:click="save" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                             <i class="fas fa-save"></i>
                         </button>
 
@@ -120,10 +120,10 @@
                     <table class="min-w-full bg-white shadow-md rounded mb-6">
                         <thead class="bg-gray-100">
                             <tr>
-                                <th class="p-2 border border-gray-200">Тип</th>
-                                <th class="p-2 border border-gray-200">Дата</th>
-                                <th class="p-2 border border-gray-200">Сумма</th>
-                                <th class="p-2 border border-gray-200">Примечание</th>
+                                <th class="p-1 border border-gray-200">Тип</th>
+                                <th class="p-1 border border-gray-200">Дата</th>
+                                <th class="p-1 border border-gray-200">Сумма</th>
+                                <th class="p-1 border border-gray-200">Примечание</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -131,16 +131,16 @@
                                 @foreach ($projectTransactions as $transaction)
                                     <tr>
                                         <td
-                                            class="p-2 border border-gray-200 {{ $transaction->type == 1 ? 'bg-green-200' : 'bg-red-200' }}">
+                                            class="p-1 border border-gray-200 {{ $transaction->type == 1 ? 'bg-green-200' : 'bg-red-200' }}">
                                             {{ $transaction->type == 1 ? 'Приход' : 'Расход' }}
                                         </td>
-                                        <td class="p-2 border border-gray-200">{{ $transaction->date }}
+                                        <td class="p-1 border border-gray-200">{{ $transaction->date }}
                                         </td>
                                         <td
-                                            class="p-2 border border-gray-200 {{ $transaction->type == 1 ? 'text-green-500' : 'text-red-500' }}">
+                                            class="p-1 border border-gray-200 {{ $transaction->type == 1 ? 'text-green-500' : 'text-red-500' }}">
                                             {{ $transaction->amount }}
                                         </td>
-                                        <td class="p-2 border border-gray-200">{{ $transaction->note }}</td>
+                                        <td class="p-1 border border-gray-200">{{ $transaction->note }}</td>
                                     </tr>
                                 @endforeach
                             @endif
@@ -172,7 +172,7 @@
                             </ul>
                         </div>
                     @endif
-                    <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
+                    <button wire:click="save" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                         <i class="fas fa-save"></i>
                     </button>
                 </div>

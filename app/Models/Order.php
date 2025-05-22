@@ -17,6 +17,7 @@ class Order extends Model
         'status_id',
         'category_id',
         'transaction_ids',
+        'description',
         'note',
         'date',
     ];

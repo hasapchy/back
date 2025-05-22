@@ -20,7 +20,7 @@
     @endphp
 
     <div class="flex items-center space-x-4 mb-4">
-        <button wire:click="openForm" class="bg-green-500 text-white px-4 py-2 rounded">
+        <button wire:click="openForm" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
             <i class="fas fa-user-plus"></i>
         </button>
     </div>
@@ -28,20 +28,20 @@
     <table class="min-w-full bg-white shadow-md rounded mb-6">
         <thead class="bg-gray-100">
             <tr>
-                <th class="p-2 border border-gray-200">ID</th>
-                <th class="p-2 border border-gray-200">ФИО</th>
-                <th class="p-2 border border-gray-200">Контактное лицо</th>
-                <th class="p-2 border border-gray-200">Адрес</th>
-                <th class="p-2 border border-gray-200">Телефоны</th>
-                <th class="p-2 border border-gray-200">Email</th>
-                <th class="p-2 border border-gray-200">Баланс</th>
+                <th class="p-1 border border-gray-200">ID</th>
+                <th class="p-1 border border-gray-200">ФИО</th>
+                <th class="p-1 border border-gray-200">Контактное лицо</th>
+                <th class="p-1 border border-gray-200">Адрес</th>
+                <th class="p-1 border border-gray-200">Телефоны</th>
+                <th class="p-1 border border-gray-200">Email</th>
+                <th class="p-1 border border-gray-200">Баланс</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($clients as $client)
                 <tr wire:click="edit({{ $client->id }})" class="cursor-pointer mb-2 p-2 border rounded">
-                    <td class="p-2 border border-gray-200">{{ $client->id }}</td>
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">{{ $client->id }}</td>
+                    <td class="p-1 border border-gray-200">
                         @if ($client->isConflict)
                             <i class="fas fa-exclamation-triangle text-red-500" title="Конфликтный"></i>
                         @endif
@@ -55,9 +55,9 @@
                         @endif
                         {{ $client->first_name }} {{ $client->last_name ?? '-' }}
                     </td>
-                    <td class="p-2 border border-gray-200">{{ $client->contact_person ?? '-' }}</td>
-                    <td class="p-2 border border-gray-200">{{ $client->address ?? '-' }}</td>
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">{{ $client->contact_person ?? '-' }}</td>
+                    <td class="p-1 border border-gray-200">{{ $client->address ?? '-' }}</td>
+                    <td class="p-1 border border-gray-200">
                         @if (!empty($client->phones))
                             @foreach ($client->phones as $phone)
                                 <i class="fas fa-phone"></i> {{ $phone->phone }}<br>
@@ -66,7 +66,7 @@
                             -
                         @endif
                     </td>
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">
                         @if (!empty($client->emails))
                             @foreach ($client->emails as $email)
                                 <i class="fas fa-envelope"></i> {{ $email->email }}<br>
@@ -75,7 +75,7 @@
                             -
                         @endif
                     </td>
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">
                         {{ number_format(($client->balance->balance ?? 0) * $displayRate, 2) }}
                         {{ $selectedCurrency->symbol }}
                     </td>
@@ -251,7 +251,7 @@
                     </div>
 
                     <div class="mb-4 flex justify-start space-x-2">
-                        <button wire:click="save" class="bg-green-500 text-white px-4 py-2 rounded">
+                        <button wire:click="save" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                             <i class="fas fa-save"></i>
                         </button>
                     </div>
@@ -303,22 +303,22 @@
                         <table class="min-w-full bg-white shadow-md rounded mb-6">
                             <thead class="bg-gray-100">
                                 <tr>
-                                    <th class="p-2 border border-gray-200">Название</th>
-                                    <th class="p-2 border border-gray-200">Приход</th>
-                                    <th class="p-2 border border-gray-200">Расход</th>
-                                    <th class="p-2 border border-gray-200">Баланс</th>
+                                    <th class="p-1 border border-gray-200">Название</th>
+                                    <th class="p-1 border border-gray-200">Приход</th>
+                                    <th class="p-1 border border-gray-200">Расход</th>
+                                    <th class="p-1 border border-gray-200">Баланс</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($clientProjects as $project)
                                     <tr>
-                                        <td class="p-2 border border-gray-200">{{ $project['name'] }}</td>
-                                        <td class="p-2 border border-gray-200 text-green-500">
+                                        <td class="p-1 border border-gray-200">{{ $project['name'] }}</td>
+                                        <td class="p-1 border border-gray-200 text-green-500">
                                             {{ $project['income'] ?? '-' }}</td>
-                                        <td class="p-2 border border-gray-200 text-red-500">
+                                        <td class="p-1 border border-gray-200 text-red-500">
                                             {{ $project['expense'] ?? '-' }}</td>
                                         <td
-                                            class="p-2 border border-gray-200 {{ $project['balance'] >= 0 ? 'text-green-500' : 'text-red-500' }}">
+                                            class="p-1 border border-gray-200 {{ $project['balance'] >= 0 ? 'text-green-500' : 'text-red-500' }}">
                                             {{ $project['balance'] ?? '-' }}
                                         </td>
                                     </tr>

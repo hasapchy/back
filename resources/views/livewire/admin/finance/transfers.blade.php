@@ -10,7 +10,7 @@
     @include('components.alert')
     <div class="flex space-x-4 mb-4">
 
-        <button wire:click="openForm" class="mb-4 bg-green-500 text-white px-4 py-2 rounded">
+        <button wire:click="openForm" class="mb-4 bg-[#5CB85C] text-white px-4 py-2 rounded">
             <i class="fas fa-plus"></i>
         </button>
 
@@ -20,12 +20,12 @@
         <thead class="bg-gray-100">
             <tr>
 
-                <th class="p-2 border border-gray-200">Касса-отправитель</th>
-                <th class="p-2 border border-gray-200">Сумма</th>
-                <th class="p-2 border border-gray-200">Касса-получатель</th>
-                <th class="p-2 border border-gray-200">Заметка</th>
-                <th class="p-2 border border-gray-200">Пользователь</th>
-                <th class="p-2 border border-gray-200">Дата</th>
+                <th class="p-1 border border-gray-200">Касса-отправитель</th>
+                <th class="p-1 border border-gray-200">Сумма</th>
+                <th class="p-1 border border-gray-200">Касса-получатель</th>
+                <th class="p-1 border border-gray-200">Заметка</th>
+                <th class="p-1 border border-gray-200">Пользователь</th>
+                <th class="p-1 border border-gray-200">Дата</th>
             </tr>
         </thead>
         <tbody>
@@ -33,16 +33,16 @@
                 <tr wire:click="edit({{ $transfer->id }})"
                     class="cursor-pointer mb-2 p-2 border rounded {{ $transferId == $transfer->id ? 'bg-gray-200' : '' }}">
 
-                    <td class="p-2 border border-gray-200">{{ $transfer->fromCashRegister->name }}</td>
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">{{ $transfer->fromCashRegister->name }}</td>
+                    <td class="p-1 border border-gray-200">
                         <i class="fas fa-arrow-right text-red-500 mr-2"></i>
                         {{ $transfer->amount }}
                         <i class="fas fa-arrow-right text-green-500 ml-2"></i>
                     </td>
-                    <td class="p-2 border border-gray-200">{{ $transfer->toCashRegister->name }}</td>
-                    <td class="p-2 border border-gray-200">{{ $transfer->note }}</td>
-                    <td class="p-2 border border-gray-200">{{ $transfer->user->name ?? '' }}</td>
-                    <td class="p-2 border border-gray-200">
+                    <td class="p-1 border border-gray-200">{{ $transfer->toCashRegister->name }}</td>
+                    <td class="p-1 border border-gray-200">{{ $transfer->note }}</td>
+                    <td class="p-1 border border-gray-200">{{ $transfer->user->name ?? '' }}</td>
+                    <td class="p-1 border border-gray-200">
                         {{ \Carbon\Carbon::parse($transfer->date)->format('d.m.Y') }}
                     </td>
                 </tr>
@@ -102,7 +102,7 @@
             </div>
 
             <div class="flex space-x-2">
-                <button wire:click="saveTransfer" class="bg-green-500 text-white px-4 py-2 rounded">
+                <button wire:click="saveTransfer" class="bg-[#5CB85C] text-white px-4 py-2 rounded">
                     <i class="fas fa-save"></i>
                 </button>
                 @if ($transferId)
