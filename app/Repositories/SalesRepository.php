@@ -130,11 +130,10 @@ class SalesRepository
                 if ($product_object->type == 1) {
                     $warehouse_product = WarehouseStock::where('product_id', $p_id)
                         ->where('warehouse_id', $warehouse_id)
-                        ->select('quantity')
                         ->first();
-                    if ($warehouse_product->quantity < $q) {
-                        // return 'Недостаточно товара на складе';
-                        return false;
+
+                    if (!$warehouse_product || $warehouse_product->quantity < $q) {
+                        throw new \Exception('Товара нет на складе');
                     }
                     // Вычитаем количество
                     WarehouseStock::where('product_id', $p_id)
@@ -142,20 +141,21 @@ class SalesRepository
                         ->update(['quantity' => DB::raw('quantity - ' . $q)]);
                 }
 
-                $converted_price = CurrencyConverter::convert($p, $fromCurrency, $defaultCurrency);
-                $price += $q * $converted_price;
+                $origPrice = $q * $p;                   // исходная валюта (USD)
+                $convPrice = CurrencyConverter::convert($origPrice, $fromCurrency, $defaultCurrency);
+                $price += $convPrice;
             }
             $dicount_calculated = $discount_type == 'percent' ? $price * $discount / 100 : CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
             $total_price = $price - $dicount_calculated;
 
             $transaction_id = null;
-            
+
             // Записываем на баланс клиента
             ClientBalance::updateOrCreate(
                 ['client_id' => $client_id],
                 ['balance'   => DB::raw('balance + ' . $total_price)]
             );
-            
+
             // Если указана касса, создаем транзакцию
             if ($cash_id) {
                 $transactionData = [
@@ -192,15 +192,17 @@ class SalesRepository
             // Добавляем товары
             foreach ($products as $product) {
                 $p_id = $product['product_id'];
-                $q = $product['quantity'];
-                $p = $product['price'];
+                $q    = $product['quantity'];
+                $p    = $product['price'];
 
-                $converted_price = CurrencyConverter::convert($p, $fromCurrency, $defaultCurrency);
-                $sale_product = new SalesProduct();
-                $sale_product->sale_id = $sale->id;
-                $sale_product->product_id = $p_id;
-                $sale_product->quantity = $q;
-                $sale_product->price = $converted_price;
+                // цена за единицу в валюте по-умолчанию
+                $unitPrice = CurrencyConverter::convert($p, $fromCurrency, $defaultCurrency);
+
+                $sale_product              = new SalesProduct();
+                $sale_product->sale_id     = $sale->id;
+                $sale_product->product_id  = $p_id;
+                $sale_product->quantity    = $q;
+                $sale_product->price       = $unitPrice;      // корректная цена
                 $sale_product->save();
             }
 
