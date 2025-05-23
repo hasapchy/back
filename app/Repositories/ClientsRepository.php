@@ -216,6 +216,8 @@ class ClientsRepository
                 'clients.address as address',
                 'clients.note as note',
                 'clients.status as status',
+                'clients.discount_type as discount_type', 
+                'clients.discount      as discount',
                 'clients.created_at as created_at',
                 'clients.updated_at as updated_at'
             )

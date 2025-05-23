@@ -123,19 +123,18 @@ class SalesRepository
 
                 $product_object = Product::find($p_id);
                 if (!$product_object) {
-                    // return 'Товар не найден';
-                    return false;
+                    throw new \Exception("Товар ID {$p_id} не найден");
                 }
-                // Находим товар на стоке если type = 1
+
                 if ($product_object->type == 1) {
                     $warehouse_product = WarehouseStock::where('product_id', $p_id)
                         ->where('warehouse_id', $warehouse_id)
                         ->first();
 
                     if (!$warehouse_product || $warehouse_product->quantity < $q) {
-                        throw new \Exception('Товара нет на складе');
+                        throw new \Exception("На складе {$warehouse_id} недостаточно товара ID {$p_id}");
                     }
-                    // Вычитаем количество
+
                     WarehouseStock::where('product_id', $p_id)
                         ->where('warehouse_id', $warehouse_id)
                         ->update(['quantity' => DB::raw('quantity - ' . $q)]);
