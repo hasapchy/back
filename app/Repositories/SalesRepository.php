@@ -34,6 +34,7 @@ class SalesRepository
         $query = Sale::query();
         // Присоединяем таблицу касс
         $query->leftJoin('cash_registers', 'sales.cash_id', '=', 'cash_registers.id');
+        $query->leftJoin('currencies as cash_currency', 'cash_registers.currency_id', '=', 'cash_currency.id');
         // Присоединяем таблицу складов
         $query->leftJoin('warehouses', 'sales.warehouse_id', '=', 'warehouses.id');
         // Присоединяем таблицу пользователей
@@ -49,6 +50,14 @@ class SalesRepository
             'sales.price as price',
             'sales.discount as discount',
             'sales.total_price as total_price',
+
+            // здесь берём валюту не из sale, а из кассы
+            'cash_registers.id as cash_id',
+            'cash_registers.name as cash_name',
+            'cash_currency.id as currency_id',
+            'cash_currency.name as currency_name',
+            'cash_currency.code as currency_code',
+            'cash_currency.symbol as currency_symbol',
             // Поля из таблицы касс
             'sales.cash_id as cash_id',
             'cash_registers.name as cash_name',

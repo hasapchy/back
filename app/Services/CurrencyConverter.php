@@ -26,6 +26,7 @@ class CurrencyConverter
         if($fromCurrency->id === $toCurrency->id) {
             return $amount;
         }
-        return $amount / $fromCurrency->exchange_rate * $defaultCurrency->exchange_rate * $toCurrency->exchange_rate;
+        // return $amount / $fromCurrency->exchange_rate * $defaultCurrency->exchange_rate * $toCurrency->exchange_rate;
+        return $amount / $fromCurrency->exchange_rate * $toCurrency->exchange_rate;
     }
 }
