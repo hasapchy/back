@@ -61,7 +61,7 @@ class TransactionsController extends Controller
         // Валидация данных
         $request->validate([
             'type' => 'required|integer|in:1,0',
-            'orig_amount' => 'required|numeric',
+            'orig_amount' => 'required|numeric|min:0.01',
             'currency_id' => 'required|exists:currencies,id',
             'cash_id' => 'required|exists:cash_registers,id',
             'category_id' => 'nullable|sometimes|exists:transaction_categories,id',
