@@ -8,6 +8,7 @@ use App\Models\ProductPrice;
 use App\Models\WarehouseStock;
 use App\Models\WhReceipt;
 use App\Models\WhReceiptProduct;
+use App\Models\CashRegister;
 use App\Services\CurrencyConverter;
 use Illuminate\Support\Facades\DB;
 
@@ -55,72 +56,102 @@ class WarehouseReceiptRepository
         return $items;
     }
 
-    public function createReceipt($data)
+    public function createReceipt(array $data)
     {
-        $client_id = $data['client_id'];
+        $client_id    = $data['client_id'];
         $warehouse_id = $data['warehouse_id'];
-        $currency_id = $data['currency_id'];
-        $date = $data['date'];
-        $note = $data['note'];
-        $products = $data['products'];
+        $type         = $data['type'];       // 'cash' или 'balance'
+        $cash_id      = $data['cash_id'] ?? null;
+        $date         = $data['date'] ?? now();
+        $note         = $data['note'] ?? '';
+        $products     = $data['products'];
 
         DB::beginTransaction();
 
         try {
+            // 1) Определяем валюту: из кассы если cash, иначе дефолтная
+            $defaultCurrency = Currency::firstWhere('is_default', true);
+            $currency = $defaultCurrency;
+            if ($type === 'cash' && $cash_id) {
+                $cash = CashRegister::find($cash_id);
+                if ($cash) {
+                    $currency = Currency::find($cash->currency_id) ?? $defaultCurrency;
+                }
+            }
+
+            // 2) Подсчитываем сумму по товарам (без конвертации, предполагаем что цена корректна)
+            $total_amount = 0;
+            foreach ($products as $product) {
+                $total_amount += $product['price'] * $product['quantity'];
+            }
+
+            // 3) Создаем receipt с суммой и валютой
             $receipt = new WhReceipt();
-            $receipt->supplier_id = $client_id;
+            $receipt->supplier_id  = $client_id;
             $receipt->warehouse_id = $warehouse_id;
-            $receipt->currency_id = $currency_id;
-            $receipt->date = $date;
-            $receipt->note = $note;
-            $receipt->amount = 0;
+            $receipt->currency_id  = $currency->id;
+            $receipt->date         = $date;
+            $receipt->note         = $note;
+            $receipt->amount       = $total_amount;
             $receipt->save();
 
-            $total_amount = 0;
-
-            $defaultCurrency = Currency::firstWhere('is_default', true);
-            $fromCurrency = Currency::find($currency_id);
-
+            // 4) Создаем продукты для receipt и обновляем склад
             foreach ($products as $product) {
-                $product_id = $product['product_id'];
-                $quantity = $product['quantity'];
-                $price = $product['price'];
-
-                $converted_price = CurrencyConverter::convert($price, $fromCurrency, $defaultCurrency);
-
                 $receiptProduct = new WhReceiptProduct();
                 $receiptProduct->receipt_id = $receipt->id;
-                $receiptProduct->product_id = $product_id;
-                $receiptProduct->quantity = $quantity;
-                $receiptProduct->price = $converted_price;
+                $receiptProduct->product_id = $product['product_id'];
+                $receiptProduct->quantity   = $product['quantity'];
+                $receiptProduct->price      = $product['price'];
                 $receiptProduct->save();
 
-                $stock_updated = $this->updateStock($warehouse_id, $product_id, $quantity);
-                if (!$stock_updated) {
+                if (!$this->updateStock($warehouse_id, $product['product_id'], $product['quantity'])) {
                     throw new \Exception('Ошибка обновления стоков');
                 }
-                $product_purchase_updated = $this->updateProductPurchasePrice($product_id, $converted_price);
-                if (!$product_purchase_updated) {
+                if (!$this->updateProductPurchasePrice($product['product_id'], $product['price'])) {
                     throw new \Exception('Ошибка обновления цены покупки продукта');
                 }
-                $total_amount += $converted_price * $quantity;
             }
 
-            $receipt->amount = $total_amount;
-            $receipt->save();
+            $transaction_id = null;
 
-            $client_balance_updated =  $this->updateClientBalance($client_id, $total_amount);
-            if (!$client_balance_updated) {
-                throw new \Exception('Ошибка обновления баланса клиента');
+            // 5) Обновляем баланс клиента если тип balance
+            if ($type === 'balance') {
+                ClientBalance::updateOrCreate(
+                    ['client_id' => $client_id],
+                    ['balance' => DB::raw("COALESCE(balance, 0) + {$total_amount}")]
+                );
+            } else {
+                // 6) Если тип cash, создаём расходную транзакцию (не трогаем баланс клиента)
+                $txData = [
+                    'type'        => 0,
+                    'user_id'     => auth('api')->id(),
+                    'orig_amount' => $total_amount,
+                    'currency_id' => $currency->id,
+                    'cash_id'     => $cash_id,
+                    'category_id' => 7,
+                    'project_id'  => null,
+                    'client_id'   => $client_id,
+                    'note'        => $note,
+                    'date'        => $date,
+                ];
+                $txRepo = new TransactionsRepository();
+                $transaction_id = $txRepo->createItem($txData, true, true);
             }
+
+            // 7) Обновляем receipt с id транзакции, если она есть
+            if ($transaction_id) {
+                $receipt->transaction_id = $transaction_id;
+                $receipt->save();
+            }
+
             DB::commit();
+            return true;
         } catch (\Exception $e) {
             DB::rollBack();
             return false;
         }
-
-        return true;
     }
+
 
     public function updateReceipt($receipt_id, $data)
     {
@@ -143,7 +174,8 @@ class WarehouseReceiptRepository
 
             $receipt->supplier_id = $client_id;
             $receipt->warehouse_id = $warehouse_id;
-            $receipt->currency_id = $currency_id;
+            // $receipt->currency_id = $currency_id;
+            $receipt->currency_id = Currency::firstWhere('is_default', true)->id;
             $receipt->date = $date;
             $receipt->note = $note;
             $receipt->amount = 0;
@@ -152,8 +184,8 @@ class WarehouseReceiptRepository
             $total_amount = 0;
 
             $defaultCurrency = Currency::firstWhere('is_default', true);
-            $fromCurrency = Currency::find($currency_id);
-
+            // $fromCurrency = Currency::find($currency_id);
+            $fromCurrency = $defaultCurrency;
             $existingProducts = WhReceiptProduct::where('receipt_id', $receipt_id)->get();
             $existingProductIds = $existingProducts->pluck('product_id')->toArray();
 
@@ -162,7 +194,8 @@ class WarehouseReceiptRepository
                 $quantity = $product['quantity'];
                 $price = $product['price'];
 
-                $converted_price = CurrencyConverter::convert($price, $fromCurrency, $defaultCurrency);
+                // $converted_price = CurrencyConverter::convert($price, $fromCurrency, $defaultCurrency);
+                $converted_price = $price;
 
                 $receiptProduct = WhReceiptProduct::updateOrCreate(
                     ['receipt_id' => $receipt->id, 'product_id' => $product_id],

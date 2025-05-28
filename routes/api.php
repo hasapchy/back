@@ -114,6 +114,9 @@ Route::middleware('auth:api')->group(function () {
     Route::post('projects', [ProjectsController::class, 'store']);
     Route::put('projects/{id}', [ProjectsController::class, 'update']);
     // Route::delete('projects/{id}', [ProjectsController::class, 'destroy']);
+    Route::post('/projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);
+    Route::post('/projects/{id}/delete-file', [ProjectsController::class, 'deleteFile']);
+
 
     // sales
     Route::get('sales', [SaleController::class, 'index']);

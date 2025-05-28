@@ -52,6 +52,7 @@ class ProjectsRepository
         $item->user_id = $data['user_id'];
         $item->client_id = $data['client_id'];
         $item->users = array_map('strval', $data['users']);
+        $item->files = $data['files'] ?? [];
         $item->save();
 
         return true;
@@ -61,15 +62,27 @@ class ProjectsRepository
     public function updateItem($id, $data)
     {
         $item = Project::find($id);
+
+        // Защита: если files переданы, убедись, что это массив с нужной структурой
+        if (isset($data['files']) && is_array($data['files'])) {
+            $item->files = $data['files'];
+        }
+
         $item->name = $data['name'];
         $item->budget = $data['budget'];
         $item->date = $data['date'];
         $item->user_id = $data['user_id'];
         $item->client_id = $data['client_id'];
         $item->users = array_map('strval', $data['users']);
+
         $item->save();
 
         return true;
+    }
+
+    public function findItem($id)
+    {
+        return Project::find($id);
     }
 
     // // Удаление

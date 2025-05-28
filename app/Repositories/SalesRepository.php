@@ -159,9 +159,14 @@ class SalesRepository
             $transaction_id = null;
 
             // Записываем на баланс клиента
+            // ClientBalance::updateOrCreate(
+            //     ['client_id' => $client_id],
+            //     ['balance'   => DB::raw('balance + ' . $total_price)]
+            // );
+            //Паша, сделал так, чтобы не было ошибки при первом создании клиента
             ClientBalance::updateOrCreate(
                 ['client_id' => $client_id],
-                ['balance'   => DB::raw('balance + ' . $total_price)]
+                ['balance'   => DB::raw("COALESCE(balance, 0) + {$total_price}")]
             );
 
             // Если указана касса, создаем транзакцию
