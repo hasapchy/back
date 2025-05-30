@@ -171,12 +171,72 @@ class TransactionsRepository
     // Удаление
     public function deleteItem($id)
     {
-        $item = Transaction::find($id);
-        if (!$item) {
+        $transaction = Transaction::find($id);
+        if (!$transaction) {
             return false;
         }
-        $item->delete();
-        return true;
+
+        // Начинаем транзакцию
+        DB::beginTransaction();
+
+        try {
+            // Касса
+            $cashRegister = CashRegister::find($transaction->cash_id);
+            if (!$cashRegister) {
+                throw new \Exception('Касса не найдена');
+            }
+
+            // Валюта кассы
+            $toCurrency = Currency::find($cashRegister->currency_id);
+            // Валюта транзакции
+            $fromCurrency = Currency::find($transaction->currency_id);
+            // Валюта по умолчанию
+            $defaultCurrency = Currency::where('is_default', true)->first();
+
+            // Конвертируем сумму транзакции в валюту кассы
+            if ($fromCurrency->id !== $toCurrency->id) {
+                $convertedAmount = CurrencyConverter::convert($transaction->amount, $fromCurrency, $toCurrency);
+            } else {
+                $convertedAmount = $transaction->amount;
+            }
+
+            // Конвертируем сумму в валюту по умолчанию для клиента
+            if ($fromCurrency->id !== $defaultCurrency->id) {
+                $convertedAmountDefault = CurrencyConverter::convert($transaction->amount, $fromCurrency, $defaultCurrency);
+            } else {
+                $convertedAmountDefault = $transaction->amount;
+            }
+
+            // Корректируем баланс кассы
+            if ($transaction->type == 1) {
+                $cashRegister->balance -= $convertedAmount;
+            } else {
+                $cashRegister->balance += $convertedAmount;
+            }
+            $cashRegister->save();
+
+            $transaction->setSkipClientBalanceUpdate(true);
+            $transaction->delete();
+
+            if ($transaction->client_id) {
+                $clientBalance = ClientBalance::firstOrCreate(
+                    ['client_id' => $transaction->client_id],
+                    ['balance' => 0]
+                );
+                if ($transaction->type == 1) {
+                    $clientBalance->balance += $convertedAmountDefault;
+                } else {
+                    $clientBalance->balance -= $convertedAmountDefault;
+                }
+                $clientBalance->save();
+            }
+
+            DB::commit();
+            return true;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
     }
 
 
