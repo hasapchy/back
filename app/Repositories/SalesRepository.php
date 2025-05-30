@@ -249,4 +249,54 @@ class SalesRepository
             ->get()
             ->groupBy('sale_id');
     }
+
+    public function delete($id)
+    {
+        return DB::transaction(function () use ($id) {
+            $sale = Sale::findOrFail($id);
+            $products = SalesProduct::where('sale_id', $id)->get();
+
+            // Возвращаем товары на склад
+            foreach ($products as $product) {
+                $productObject = Product::find($product->product_id);
+                if ($productObject && $productObject->type == 1) { // Только для товаров (не услуг)
+                    WarehouseStock::where('product_id', $product->product_id)
+                        ->where('warehouse_id', $sale->warehouse_id)
+                        ->update(['quantity' => DB::raw('quantity + ' . $product->quantity)]);
+                }
+            }
+
+            // Корректируем баланс клиента только для типа balance
+            if ($sale->client_id && $sale->type === 'balance') {
+                ClientBalance::where('client_id', $sale->client_id)
+                    ->update(['balance' => DB::raw('COALESCE(balance, 0) - ' . $sale->total_price)]);
+            }
+
+            // Удаляем транзакцию, если она есть
+            if ($sale->transaction_id) {
+                $transactionRepository = new TransactionsRepository();
+                $transactionRepository->deleteItem($sale->transaction_id);
+            }
+
+            // Удаляем товары продажи
+            SalesProduct::where('sale_id', $id)->delete();
+
+            // Удаляем продажу
+            $sale->delete();
+
+            return [
+                'id' => $sale->id,
+                'client_id' => $sale->client_id,
+                'warehouse_id' => $sale->warehouse_id,
+                'total_price' => $sale->total_price,
+                'products' => $products->map(function ($product) {
+                    return [
+                        'product_id' => $product->product_id,
+                        'quantity' => $product->quantity,
+                        'price' => $product->price
+                    ];
+                })->toArray()
+            ];
+        });
+    }
 }

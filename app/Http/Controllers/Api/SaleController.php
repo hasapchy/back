@@ -157,19 +157,23 @@ class SaleController extends Controller
     // }
 
 
-    // // Метод для удаления склада
-    // public function destroy($id)
-    // {
-    //     // Удаляем склад
-    //     $warehouse_deleted = $this->itemRepository->deleteReceipt($id);
+    public function destroy($id)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
 
-    //     if (!$warehouse_deleted) {
-    //         return response()->json([
-    //             'message' => 'Ошибка удаления склада'
-    //         ], 400);
-    //     }
-    //     return response()->json([
-    //         'message' => 'Склад удален'
-    //     ]);
-    // }
+        try {
+            $sale = $this->itemRepository->delete($id);
+            return response()->json([
+                'message' => 'Продажа удалена успешно',
+                'sale' => $sale
+            ], 200);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'message' => 'Ошибка при удалении продажи: ' . $th->getMessage()
+            ], 400);
+        }
+    }
 }

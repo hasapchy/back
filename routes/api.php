@@ -123,6 +123,7 @@ Route::middleware('auth:api')->group(function () {
     // Route::get('projects/all', [ProjectsController::class, 'all']);
     Route::post('sales', [SaleController::class, 'store']);
     // Route::put('projects/{id}', [ProjectsController::class, 'update']);
+    Route::delete('/sales/{id}', [SaleController::class, 'destroy']);
 
     // transactions
     Route::get('transactions', [TransactionsController::class, 'index']);
