@@ -85,67 +85,84 @@ class TransfersRepository
         $fromCashRegister = CashRegister::find($cash_from_id);
         $toCashRegister = CashRegister::find($cash_to_id);
 
+        if (!$fromCashRegister || !$toCashRegister) {
+            throw new \Exception('Одна из касс не найдена');
+        }
+
+        // Проверка достаточности средств
+        if ($fromCashRegister->balance < $amount) {
+            throw new \Exception('Недостаточно средств на кассе отправителя');
+        }
+
         $fromCurrency = $fromCashRegister->currency;
         $toCurrency = $toCashRegister->currency;
 
-        // Если валюты касс отличаются, конвертируем сумму:
+        // Если валюты касс отличаются, конвертируем сумму
         if ($fromCurrency->id !== $toCurrency->id) {
             $amountInTargetCurrency = CurrencyConverter::convert($amount, $fromCurrency, $toCurrency);
         } else {
             $amountInTargetCurrency = $amount;
         }
 
-        // Обновляем балансы касс:
-        $fromCashRegister->balance -= $amount;
-        $toCashRegister->balance += $amountInTargetCurrency;
+        // Начинаем транзакцию
+        DB::beginTransaction();
 
-        $fromCashRegister->save();
-        $toCashRegister->save();
+        try {
+            $transferNote = "Трансфер из кассы '{$fromCashRegister->name}' в кассу '{$toCashRegister->name}'.";
 
-        $transferNote = "Трансфер из кассы '{$fromCashRegister->name}' в кассу '{$toCashRegister->name}'.";
+            // Данные для транзакции отправителя
+            $fromTransactionData = [
+                'type' => '0', // Расход
+                'user_id' => $userUuid,
+                'orig_amount' => $amount,
+                'currency_id' => $fromCashRegister->currency_id,
+                'cash_id' => $fromCashRegister->id,
+                'category_id' => null,
+                'project_id' => null,
+                'client_id' => null,
+                'note' => $note . ' ' . $transferNote,
+                'date' => $date_of_transfer
+            ];
 
-        $fromTransactionData = [
-            'type' => '0',
-            'user_id' => $userUuid,
-            'orig_amount' => $amount,
-            'currency_id' => $fromCashRegister->currency_id,
-            'cash_id' => $fromCashRegister->id,
-            'category_id' => null,
-            'project_id' => null,
-            'client_id' => null,
-            'note' => $note . ' ' . $transferNote,
-            'date' => $date_of_transfer
-        ];
+            // Данные для транзакции получателя
+            $toTransactionData = [
+                'type' => '1', // Приход
+                'user_id' => $userUuid,
+                'orig_amount' => $amountInTargetCurrency,
+               'currency_id' => $toCashRegister->currency_id,
+                'cash_id' => $toCashRegister->id,
+                'category_id' => null,
+                'project_id' => null,
+                'client_id' => null,
+                'note' => $note . ' ' . $transferNote,
+                'date' => $date_of_transfer
+            ];
 
-        $toTransactionData = [
-            'type' => '1',
-            'user_id' => $userUuid,
-            'orig_amount' => $amount,
-            'currency_id' => $fromCashRegister->currency_id,
-            'cash_id' => $toCashRegister->id,
-            'category_id' => null,
-            'project_id' => null,
-            'client_id' => null,
-            'note' => $note . ' ' . $transferNote,
-            'date' => $date_of_transfer
-        ];
+            // Создаем транзакции
+            $transaction_repository = new TransactionsRepository();
+            $fromTransactionId = $transaction_repository->createItem($fromTransactionData, true);
+            $toTransactionId = $transaction_repository->createItem($toTransactionData, true);
 
-        // Создаем транзакции
-        $transaction_repositiry = new TransactionsRepository();
-        $fromTransactionId = $transaction_repositiry->createItem($fromTransactionData, true);
-        $toTransactionId = $transaction_repositiry->createItem($toTransactionData, true);
+            // Создаем запись трансфера
+            CashTransfer::create([
+                'cash_id_from' => $fromCashRegister->id,
+                'cash_id_to' => $toCashRegister->id,
+                'tr_id_from' => $fromTransactionId,
+                'tr_id_to' => $toTransactionId,
+                'user_id' => $userUuid,
+                'amount' => $amount,
+                'note' => $note,
+                'date' => $date_of_transfer,
+            ]);
 
-        // Создаем запись трансфера
-        CashTransfer::create([
-            'cash_id_from' => $fromCashRegister->id,
-            'cash_id_to'   => $toCashRegister->id,
-            'tr_id_from'   => $fromTransactionId,
-            'tr_id_to'     => $toTransactionId,
-            'user_id'      => $userUuid,
-            'amount'       => $amount,
-            'note'         => $note,
-            'date'         => $date_of_transfer,
-        ]);
+            // Фиксируем транзакцию
+            DB::commit();
+        } catch (\Exception $e) {
+            // Откатываем транзакцию
+            DB::rollBack();
+            \Log::error('Ошибка при создании трансфера: ' . $e->getMessage());
+            throw $e;
+        }
 
         return true;
     }
