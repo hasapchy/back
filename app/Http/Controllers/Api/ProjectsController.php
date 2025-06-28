@@ -170,7 +170,6 @@ class ProjectsController extends Controller
             $storedFiles[] = [
                 'name' => $file->getClientOriginalName(),
                 'path' => $path,
-                'url' => Storage::disk('public')->url($path),
                 'uploaded_at' => now()->toDateTimeString(),
             ];
         }

@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\WarehouseWriteoffController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TableOrderController;
+use App\Http\Controllers\Api\OrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,6 +41,9 @@ Route::middleware('auth:api')->group(function () {
     Route::get('app/units', [AppController::class, 'getUnitsList']);
     Route::get('app/product_statuses', [AppController::class, 'getProductStatuses']);
     Route::get('app/transaction_categories', [AppController::class, 'getTransactionCategories']);
+    Route::get('app/order_categories', [AppController::class, 'getOrderCategories']);
+    Route::get('app/order_statuses', [AppController::class, 'getOrderStatuses']);
+
 
     // user
     Route::post('user/logout', [UserController::class, 'logout']);
@@ -138,4 +142,11 @@ Route::middleware('auth:api')->group(function () {
     Route::post('transfers', [TransfersController::class, 'store']);
     // Route::put('transactions/{id}', [TransactionsController::class, 'update']);
     // Route::delete('transactions/{id}', [TransactionsController::class, 'destroy']);
+
+    // orders
+    Route::get('orders', [OrderController::class, 'index']);
+    Route::post('orders', [OrderController::class, 'store']);
+    Route::put('orders/{id}', [OrderController::class, 'update']);
+    Route::delete('orders/{id}', [OrderController::class, 'destroy']);
+    Route::post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
 });

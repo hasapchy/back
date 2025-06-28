@@ -20,20 +20,27 @@ class TransactionsController extends Controller
     {
         $userUuid = optional(auth('api')->user())->id;
         if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
+            return response()->json(['message' => 'Unauthorized'], 401);
         }
 
         $cash_register_id = $request->query('cash_id');
         $date_filter_type = $request->query('date_filter_type');
+        $order_id = $request->query('order_id'); // Добавляем параметр order_id
 
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $cash_register_id, $date_filter_type);
+        $items = $this->itemsRepository->getItemsWithPagination(
+            $userUuid,
+            20,
+            $cash_register_id,
+            $date_filter_type,
+            $order_id // Передаем order_id в репозиторий
+        );
 
         return response()->json([
-            'items' => $items->items(),  // Список
-            'current_page' => $items->currentPage(),  // Текущая страница
-            'next_page' => $items->nextPageUrl(),  // Следующая страница
-            'last_page' => $items->lastPage(),  // Общее количество страниц
-            'total' => $items->total()  // Общее количество
+            'items' => $items->items(),
+            'current_page' => $items->currentPage(),
+            'next_page' => $items->nextPageUrl(),
+            'last_page' => $items->lastPage(),
+            'total' => $items->total()
         ]);
     }
 
@@ -67,6 +74,7 @@ class TransactionsController extends Controller
             'category_id' => 'nullable|sometimes|exists:transaction_categories,id',
             'project_id' => 'nullable|sometimes|exists:projects,id',
             'client_id' => 'nullable|sometimes|exists:clients,id',
+            'order_id' => 'nullable|integer|exists:orders,id',
             'note' => 'nullable|sometimes|string',
             'date' => 'nullable|sometimes|date'
         ]);
@@ -90,6 +98,7 @@ class TransactionsController extends Controller
             'category_id' => $request->category_id,
             'project_id' => $request->project_id,
             'client_id' => $request->client_id,
+            'order_id' => $request->order_id,
             'note' => $request->note,
             'date' => $request->date ?? now()
         ]);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Repositories\ClientsRepository;
+use Illuminate\Support\Facades\DB;
 
 class ClientController extends Controller
 {
@@ -65,12 +66,27 @@ class ClientController extends Controller
             'discount_type'    => 'nullable|in:fixed,percent',
         ]);
 
-        $client = $this->itemsRepository->create($validatedData);
+        DB::beginTransaction();
+        try {
+            $client = $this->itemsRepository->create($validatedData);
 
-        return response()->json([
-            'message' => 'Client created successfully',
-            'client' => $client
-        ], 200);
+            $client->balance()->create([
+                'balance' => 0,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Client created successfully',
+                'client' => $client->load('balance')
+            ], 200);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Ошибка при создании клиента',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
     public function updateClient(Request $request, $id)
     {
@@ -88,7 +104,7 @@ class ClientController extends Controller
             'emails.*'         => 'nullable|email|distinct',
             'note'             => 'nullable|string',
             'status'           => 'boolean',
-            'discount'         => 'nullable|numeric|min:0', 
+            'discount'         => 'nullable|numeric|min:0',
             'discount_type'    => 'nullable|in:fixed,percent',
         ]);
 

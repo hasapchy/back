@@ -20,10 +20,11 @@ class Order extends Model
         'description',
         'note',
         'date',
+        'order_id',
     ];
 
     protected $casts = [
-        'transaction_ids' => 'array', 
+        'transaction_ids' => 'array',
     ];
 
     public function client()
@@ -51,13 +52,17 @@ class Order extends Model
         return $this->belongsTo(Transaction::class);
     }
 
-    public function transactions()
-    {
-        return $this->hasMany(Transaction::class, 'id', 'transaction_ids');
-    }
+    // public function transactions()
+    // {
+    //     return $this->hasMany(Transaction::class, 'id', 'transaction_ids');
+    // }
 
     public function orderProducts()
     {
         return $this->hasMany(OrderProduct::class);
+    }
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class, 'order_id');
     }
 }

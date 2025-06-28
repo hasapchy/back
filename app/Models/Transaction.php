@@ -50,7 +50,7 @@ class Transaction extends Model
         static::created(function ($transaction) {
             if (
                 $transaction->client_id
-                && !$transaction->getSkipClientBalanceUpdate() 
+                && !$transaction->getSkipClientBalanceUpdate()
             ) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
                 $defaultCurrency = Currency::where('is_default', true)->first();
@@ -165,9 +165,14 @@ class Transaction extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function orders()
+    // public function orders()
+    // {
+    //     return $this->belongsToMany(Order::class, 'order_transaction', 'transaction_id', 'order_id');
+    // }
+
+    public function order()
     {
-        return $this->belongsToMany(Order::class, 'order_transaction', 'transaction_id', 'order_id');
+        return $this->belongsTo(Order::class);
     }
 
     public function project()

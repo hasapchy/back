@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 class TransactionsRepository
 {
     // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20, $cash_id = null, $date_filter_type = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $cash_id = null, $date_filter_type = null, $order_id = null)
     {
         $paginator = Transaction::leftJoin('cash_registers as cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
             ->whereJsonContains('cash_registers.users', (string) $userUuid)
@@ -34,17 +34,17 @@ class TransactionsRepository
                         return $query->whereBetween('transactions.date', [now()->startOfMonth(), now()->endOfMonth()]);
                     case 'last_month':
                         return $query->whereBetween('transactions.date', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()]);
-                        // case 'custom':
-                        //     // Assuming you have 'start_date' and 'end_date' in the request data
-                        //     return $query->whereBetween('transactions.date', [request('start_date'), request('end_date')]);
-                        // case 'all_time':
                     default:
                         return $query;
                 }
             })
+            ->when($order_id, function ($query, $order_id) {
+                return $query->where('transactions.order_id', $order_id); // Фильтрация по order_id
+            })
             ->orderBy('id', 'desc')
             ->select('transactions.id as id')
             ->paginate($perPage);
+
         $items_ids = $paginator->pluck('id')->toArray();
         $items = $this->getItems($items_ids);
         $ordered_items = $items->sortBy(function ($item) use ($items_ids) {
@@ -112,7 +112,7 @@ class TransactionsRepository
             $transaction->client_id = $data['client_id'];
             $transaction->note = $data['note'];
             $transaction->date = $data['date'];
-
+            $transaction->order_id = $data['order_id'] ?? null;
             // Пропускаем обновление баланса клиента
             $transaction->setSkipClientBalanceUpdate(true);
 
@@ -310,6 +310,7 @@ class TransactionsRepository
             // Поля из таблицы транзакций
             'transactions.note as note',
             'transactions.date as date',
+            'transactions.order_id as order_id',
             'transactions.updated_at as updated_at',
             'transactions.created_at as created_at',
         );
