@@ -60,7 +60,7 @@ class WarehouseReceiptRepository
     {
         $client_id    = $data['client_id'];
         $warehouse_id = $data['warehouse_id'];
-        $type         = $data['type'];       // 'cash' или 'balance'
+        $type         = $data['type'];
         $cash_id      = $data['cash_id'] ?? null;
         $date         = $data['date'] ?? now();
         $note         = $data['note'] ?? '';
@@ -118,7 +118,7 @@ class WarehouseReceiptRepository
             if ($type === 'balance') {
                 ClientBalance::updateOrCreate(
                     ['client_id' => $client_id],
-                    ['balance' => DB::raw("COALESCE(balance, 0) + {$total_amount}")]
+                    ['balance' => DB::raw("COALESCE(balance, 0) - {$total_amount}")]
                 );
             } else {
                 // 6) Если тип cash, создаём расходную транзакцию (не трогаем баланс клиента)
@@ -242,41 +242,37 @@ class WarehouseReceiptRepository
     public function deleteReceipt($receipt_id)
     {
         DB::beginTransaction();
-
         try {
-            $receipt = WhReceipt::find($receipt_id);
-            if (!$receipt) {
-                throw new \Exception('Receipt not found');
+            $receipt = WhReceipt::findOrFail($receipt_id);
+
+            // 1) Откатываем стоки
+            foreach (WhReceiptProduct::where('receipt_id', $receipt_id)->get() as $p) {
+                $this->updateStock($receipt->warehouse_id, $p->product_id, -$p->quantity);
+                $p->delete();
             }
 
-            $client_id = $receipt->supplier_id;
-            $warehouse_id = $receipt->warehouse_id;
-            $total_amount = $receipt->amount;
+            // 2) Удаляем транзакцию — пропускаем client-balance корректировку
+            if ($receipt->transaction_id) {
+                $txRepo = new TransactionsRepository();
+                $txRepo->deleteItem($receipt->transaction_id, true);
+            }
 
-            $products = WhReceiptProduct::where('receipt_id', $receipt_id)->get();
-
-            foreach ($products as $product) {
-                $stock_updated = $this->updateStock($warehouse_id, $product->product_id, -$product->quantity);
-                if (!$stock_updated) {
-                    throw new \Exception('Ошибка обновления стоков');
-                }
-                $product->delete();
+            // 3) Если это было зачисление на баланс, откатываем баланс клиента
+            if (! $receipt->transaction_id) {
+                ClientBalance::updateOrCreate(
+                    ['client_id' => $receipt->supplier_id],
+                    ['balance' => DB::raw("COALESCE(balance,0) + {$receipt->amount}")]
+                );
             }
 
             $receipt->delete();
 
-            $client_balance_updated = $this->updateClientBalance($client_id, -$total_amount);
-            if (!$client_balance_updated) {
-                throw new \Exception('Ошибка обновления баланса клиента');
-            }
-
             DB::commit();
+            return true;
         } catch (\Exception $e) {
             DB::rollBack();
             return false;
         }
-
-        return true;
     }
 
 

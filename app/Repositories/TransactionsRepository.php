@@ -68,7 +68,7 @@ class TransactionsRepository
 
 
     // Создание
-    public function createItem($data, $return_id = false)
+    public function createItem($data, $return_id = false, bool $skipClientUpdate = false)
     {
         // Касса
         $cashRegister = CashRegister::find($data['cash_id']);
@@ -120,27 +120,45 @@ class TransactionsRepository
             $transaction->save();
 
             // Вычитаем сумму из кассы
+            // if ($data['type'] === 1) {
+            //     $cashRegister->balance += $convertedAmount;
+            // } else {
+            //     $cashRegister->balance -= $convertedAmount;
+            // }
+
+            // $cashRegister->save();
+
+            // $client = Client::find($data['client_id']);
+            // if ($client) {
+            //     // Вычитаем сумму из баланса клиента
+            //     $client_balance = ClientBalance::firstOrCreate(
+            //         ['client_id' => $client->id],
+            //         ['balance' => 0]
+            //     );
+            //     if ($data['type'] === 1) {
+            //         $client_balance->balance -= $convertedAmountDefault;
+            //     } else {
+            //         $client_balance->balance += $convertedAmountDefault;
+            //     }
+            //     $client_balance->save();
+            // }
+
             if ($data['type'] === 1) {
                 $cashRegister->balance += $convertedAmount;
             } else {
                 $cashRegister->balance -= $convertedAmount;
             }
-
             $cashRegister->save();
 
-            $client = Client::find($data['client_id']);
-            if ($client) {
-                // Вычитаем сумму из баланса клиента
-                $client_balance = ClientBalance::firstOrCreate(
-                    ['client_id' => $client->id],
-                    ['balance' => 0]
-                );
+            // Обновляем баланс клиента только если флаг = false
+            if (! $skipClientUpdate && ! empty($data['client_id'])) {
+                $clientBalance = ClientBalance::firstOrCreate(['client_id' => $data['client_id']]);
                 if ($data['type'] === 1) {
-                    $client_balance->balance -= $convertedAmountDefault;
+                    $clientBalance->balance -= $convertedAmountDefault;
                 } else {
-                    $client_balance->balance += $convertedAmountDefault;
+                    $clientBalance->balance += $convertedAmountDefault;
                 }
-                $client_balance->save();
+                $clientBalance->save();
             }
 
             // Фиксируем транзакцию
@@ -169,7 +187,7 @@ class TransactionsRepository
     }
 
     // Удаление
-    public function deleteItem($id)
+    public function deleteItem(int $id, bool $skipClientUpdate = false): bool
     {
         $transaction = Transaction::find($id);
         if (!$transaction) {
@@ -218,7 +236,7 @@ class TransactionsRepository
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->delete();
 
-            if ($transaction->client_id) {
+            if (! $skipClientUpdate && $transaction->client_id) {
                 $clientBalance = ClientBalance::firstOrCreate(
                     ['client_id' => $transaction->client_id],
                     ['balance' => 0]
