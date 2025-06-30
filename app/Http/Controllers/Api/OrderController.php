@@ -106,7 +106,7 @@ class OrderController extends Controller
             'project_id'           => 'nullable|sometimes|integer|exists:projects,id',
             'cash_id'              => 'required|integer|exists:cash_registers,id',
             'warehouse_id'         => 'required|integer|exists:warehouses,id',
-            'currency_id'  => 'required|integer|exists:currencies,id',
+            'currency_id'  => 'nullable|integer|exists:currencies,id',
             'date'                 => 'nullable|date',
             'note'                 => 'nullable|string',
             'description'          => 'nullable|string',
