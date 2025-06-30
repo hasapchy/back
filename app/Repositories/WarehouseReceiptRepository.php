@@ -56,7 +56,7 @@ class WarehouseReceiptRepository
         return $items;
     }
 
-    public function createReceipt(array $data)
+    public function createItem(array $data)
     {
         $client_id    = $data['client_id'];
         $warehouse_id = $data['warehouse_id'];
@@ -79,7 +79,6 @@ class WarehouseReceiptRepository
                 }
             }
 
-            // 2) Подсчитываем сумму по товарам (без конвертации, предполагаем что цена корректна)
             $total_amount = 0;
             foreach ($products as $product) {
                 $total_amount += $product['price'] * $product['quantity'];
@@ -239,7 +238,7 @@ class WarehouseReceiptRepository
         return true;
     }
 
-    public function deleteReceipt($receipt_id)
+    public function deleteItem($receipt_id)
     {
         DB::beginTransaction();
         try {
