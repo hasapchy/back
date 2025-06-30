@@ -180,14 +180,20 @@ class OrdersRepository
                 }
 
                 $origPrice = $q * $p;
-                $convPrice = CurrencyConverter::convert($origPrice, $fromCurrency, $defaultCurrency);
-                $price += $convPrice;
+                // $convPrice = CurrencyConverter::convert($origPrice, $fromCurrency, $defaultCurrency);
+                // $price += $convPrice;
+                $price += $origPrice; // Без конвертации
             }
 
             // Рассчитываем скидку
-            $discount_calculated = $discount_type == 'percent' ?
-                $price * $discount / 100 :
-                CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
+            // $discount_calculated = $discount_type == 'percent' ?
+            //     $price * $discount / 100 :
+            //     CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
+            if ($discount_type == 'percent') {
+                $discount_calculated = $price * $discount / 100;
+            } else {
+                $discount_calculated = $discount; // Без конвертации
+            }
             $total_price = $price - $discount_calculated;
 
             $order = new Order();
@@ -212,7 +218,8 @@ class OrdersRepository
                 $q = $product['quantity'];
                 $p = $product['price'];
 
-                $unitPrice = CurrencyConverter::convert($p, $fromCurrency, $defaultCurrency);
+                // $unitPrice = CurrencyConverter::convert($p, $fromCurrency, $defaultCurrency);
+                $unitPrice = $p; // Без конвертации
 
                 $order_product = new OrderProduct();
                 $order_product->order_id = $order->id;
@@ -307,14 +314,20 @@ class OrdersRepository
                 }
 
                 $origPrice = $q * $p;
-                $convPrice = CurrencyConverter::convert($origPrice, $fromCurrency, $defaultCurrency);
-                $price += $convPrice;
+                // $convPrice = CurrencyConverter::convert($origPrice, $fromCurrency, $defaultCurrency);
+                // $price += $convPrice;
+                $price += $origPrice; // Без конвертации
             }
 
             // Рассчитываем скидку
-            $discount_calculated = $discount_type == 'percent' ?
-                $price * $discount / 100 :
-                CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
+            // $discount_calculated = $discount_type == 'percent' ?
+            //     $price * $discount / 100 :
+            //     CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
+            if ($discount_type == 'percent') {
+                $discount_calculated = $price * $discount / 100;
+            } else {
+                $discount_calculated = $discount; // Без конвертации
+            }
             $total_price = $price - $discount_calculated;
 
             // 7. Обновляем заказ
@@ -337,7 +350,8 @@ class OrdersRepository
             // 8. Заменяем товары
             OrderProduct::where('order_id', $id)->delete();
             foreach ($products as $product) {
-                $unitPrice = CurrencyConverter::convert($product['price'], $fromCurrency, $defaultCurrency);
+                // $unitPrice = CurrencyConverter::convert($product['price'], $fromCurrency, $defaultCurrency);
+                $unitPrice = $product['price']; // Без конвертации
                 OrderProduct::create([
                     'order_id' => $id,
                     'product_id' => $product['product_id'],
