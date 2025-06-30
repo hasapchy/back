@@ -45,7 +45,7 @@ class OrderController extends Controller
             'project_id' => 'nullable|sometimes|integer|exists:projects,id',
             'cash_id' => 'required|integer|exists:cash_registers,id',
             'warehouse_id' => 'required|integer|exists:warehouses,id',
-            'currency_id' => 'required|integer|exists:currencies,id',
+            'currency_id' => 'nullable|integer|exists:currencies,id',
             'discount'      => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|in:fixed,percent|required_with:discount',
             'category_id' => 'nullable|integer|exists:order_categories,id',
