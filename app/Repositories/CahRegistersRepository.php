@@ -28,35 +28,37 @@ class CahRegistersRepository
     }
 
     // Получение баланса касс
-    public function getCashBalance($userUuid, $cash_register_ids = [], $all = false)
-    {
+    public function getCashBalance(
+        $userUuid,
+        $cash_register_ids = [],
+        $all = false,
+        $startDate = null,
+        $endDate   = null
+    ) {
         $items = CashRegister::when(!$all, function ($query) use ($cash_register_ids) {
             return $query->whereIn('id', $cash_register_ids);
-        })->whereJsonContains('cash_registers.users', (string) $userUuid)->get()->map(function ($cashRegister) {
-                $income = Transaction::where('cash_id', $cashRegister->id)->where('type', 1)->sum('amount');
-                $outcome = Transaction::where('cash_id', $cashRegister->id)->where('type', 0)->sum('amount');
+        })
+            ->whereJsonContains('cash_registers.users', (string) $userUuid)
+            ->get()
+            ->map(function ($cashRegister) use ($startDate, $endDate) {
+                // базовый запрос по транзакциям
+                $txBase = Transaction::where('cash_id', $cashRegister->id)
+                    ->when($startDate && $endDate, function ($q) use ($startDate, $endDate) {
+                        return $q->whereBetween('created_at', [$startDate, $endDate]);
+                    });
+
+                $income  = (clone $txBase)->where('type', 1)->sum('amount');
+                $outcome = (clone $txBase)->where('type', 0)->sum('amount');
 
                 return [
-                    'id' => $cashRegister->id,
-                    'name' => $cashRegister->name,
+                    'id'          => $cashRegister->id,
+                    'name'        => $cashRegister->name,
                     'currency_id' => $cashRegister->currency_id,
-                    'balance' => [
-                        [
-                            'value' => $income,
-                            'title' => 'Приход',
-                            'type' => 'income'
-                        ],
-                        [
-                            'value' => $outcome,
-                            'title' => 'Расход',
-                            'type' => 'outcome'
-                        ],
-                        [
-                            'value' => $cashRegister->balance,
-                            'title' => 'Итого',
-                            'type' => 'default'
-                        ]
-                    ]
+                    'balance'     => [
+                        ['value' => $income,  'title' => 'Приход',  'type' => 'income'],
+                        ['value' => $outcome, 'title' => 'Расход',  'type' => 'outcome'],
+                        ['value' => $income - $outcome,       'title' => 'Итого', 'type' => 'default'],
+                    ],
                 ];
             });
         return $items;

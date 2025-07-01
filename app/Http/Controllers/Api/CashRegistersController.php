@@ -18,7 +18,7 @@ class CashRegistersController extends Controller
     public function index(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
-        if(!$userUuid){
+        if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
         // Получаем склад с пагинацией
@@ -37,7 +37,7 @@ class CashRegistersController extends Controller
     public function all(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
-        if(!$userUuid){
+        if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
         // Получаем склад с пагинацией
@@ -50,16 +50,35 @@ class CashRegistersController extends Controller
     public function getCashBalance(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
-        if(!$userUuid){
-            return response()->json(array('message' => 'Unauthorized'), 401);
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
         }
 
         $cashRegisterIds = $request->query('cash_register_ids', '');
         $all = empty($cashRegisterIds);
         $cashRegisterIds = array_map('intval', explode(',', $cashRegisterIds));
-        // return response()->json($all);
 
-        $balances = $this->itemsRepository->getCashBalance($userUuid, $cashRegisterIds, $all);
+
+        $startRaw = $request->query('start_date');
+        $endRaw   = $request->query('end_date');
+        try {
+            $start = $startRaw
+                ? \Carbon\Carbon::createFromFormat('d.m.Y', $startRaw)->startOfDay()
+                : null;
+            $end   = $endRaw
+                ? \Carbon\Carbon::createFromFormat('d.m.Y', $endRaw)->endOfDay()
+                : null;
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Неверный формат даты'], 422);
+        }
+
+        $balances = $this->itemsRepository->getCashBalance(
+            $userUuid,
+            $cashRegisterIds,
+            $all,
+            $start,
+            $end
+        );
 
         return response()->json($balances);
     }
@@ -68,7 +87,7 @@ class CashRegistersController extends Controller
     public function store(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
-        if(!$userUuid){
+        if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
         // Валидация данных
@@ -102,7 +121,7 @@ class CashRegistersController extends Controller
     public function update(Request $request, $id)
     {
         $userUuid = optional(auth('api')->user())->id;
-        if(!$userUuid){
+        if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
         // Валидация данных
@@ -136,7 +155,7 @@ class CashRegistersController extends Controller
     public function destroy($id)
     {
         $userUuid = optional(auth('api')->user())->id;
-        if(!$userUuid){
+        if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
         // Удаляем кассу
