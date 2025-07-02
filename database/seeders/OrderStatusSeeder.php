@@ -57,6 +57,14 @@ class OrderStatusSeeder extends Seeder
         OrderStatus::updateOrCreate(
             ['id' => 3],
             [
+                'name' => 'Оплачено',
+                'category_id' => 2,
+            ]
+        );
+
+        OrderStatus::updateOrCreate(
+            ['id' => 3],
+            [
                 'name' => 'Готово',
                 'category_id' => 3,
             ]
