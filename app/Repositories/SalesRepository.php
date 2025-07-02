@@ -274,7 +274,7 @@ class SalesRepository
 
             // 4) Обновляем баланс или создаём транзакцию
             $transactionId = null;
-            if ($cashId) {
+            if (!empty($cashId)) {
                 $txRepo = new TransactionsRepository();
                 $transactionId = $txRepo->createItem([
                     'type'        => 1,
@@ -287,13 +287,14 @@ class SalesRepository
                     'client_id'   => $clientId,
                     'note'        => $note,
                     'date'        => $date,
-                ], true);
+                ], true, true);
             } else {
                 ClientBalance::updateOrCreate(
                     ['client_id' => $clientId],
-                    ['balance'   => DB::raw("COALESCE(balance,0) + {$totalPrice}")]
+                    ['balance' => DB::raw("COALESCE(balance, 0) + {$totalPrice}")]
                 );
             }
+
 
             // 5) Сохраняем продажу
             $sale = Sale::create([
@@ -382,10 +383,10 @@ class SalesRepository
             }
 
             // 3) Если это «балансовая» продажа (нет кассы) — уменьшаем баланс клиента
-            if ($sale->client_id && !$sale->cash_id) {
+            if ($sale->client_id && $sale->transaction_id === null) {
                 ClientBalance::updateOrCreate(
                     ['client_id' => $sale->client_id],
-                    ['balance'   => DB::raw("COALESCE(balance, 0) - {$sale->total_price}")]
+                    ['balance' => DB::raw("COALESCE(balance, 0) - {$sale->total_price}")]
                 );
             }
 
