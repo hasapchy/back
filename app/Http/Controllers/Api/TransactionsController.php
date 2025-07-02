@@ -186,4 +186,20 @@ class TransactionsController extends Controller
             'message' => 'Транзакция удалена'
         ]);
     }
+
+    public function getTotalByOrderId(Request $request)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $orderId = $request->query('order_id');
+        if (!$orderId) {
+            return response()->json(['message' => 'order_id is required'], 400);
+        }
+
+        $total = $this->itemsRepository->getTotalByOrderId($userUuid, $orderId);
+        return response()->json(['total' => $total]);
+    }
 }

@@ -12,11 +12,11 @@ class TransactionCategorySeeder extends Seeder
         TransactionCategory::updateOrCreate(['name' => 'Продажа'], ['type' => 1]);
         TransactionCategory::updateOrCreate(['name' => 'Оплата покупателя за услугу, товар'], ['type' => 1]);
         TransactionCategory::updateOrCreate(['name' => 'Предоплата'], ['type' => 1]);
-        TransactionCategory::updateOrCreate(['name' => 'Возврат денег от поставщика'], ['type' => 1]);
+        // TransactionCategory::updateOrCreate(['name' => 'Возврат денег от поставщика'], ['type' => 1]);
         TransactionCategory::updateOrCreate(['name' => 'Прочий приход денег'], ['type' => 1]);
         TransactionCategory::updateOrCreate(['name' => 'Возврат денег покупателю'], ['type' => 0]);
         TransactionCategory::updateOrCreate(['name' => 'Оплата поставщикам товаров, запчастей'], ['type' => 0]);
-        TransactionCategory::updateOrCreate(['name' => 'Выплата'], ['type' => 0]);
+        // TransactionCategory::updateOrCreate(['name' => 'Выплата'], ['type' => 0]);
         TransactionCategory::updateOrCreate(['name' => 'Выплата зарплаты'], ['type' => 0]);
         TransactionCategory::updateOrCreate(['name' => 'Выплата налогов'], ['type' => 0]);
         TransactionCategory::updateOrCreate(['name' => 'Оплата аренды'], ['type' => 0]);

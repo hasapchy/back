@@ -142,6 +142,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('transfers', [TransfersController::class, 'store']);
     // Route::put('transactions/{id}', [TransactionsController::class, 'update']);
     // Route::delete('transactions/{id}', [TransactionsController::class, 'destroy']);
+    Route::get('/transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
 
     // orders
     Route::get('orders', [OrderController::class, 'index']);
@@ -149,4 +150,5 @@ Route::middleware('auth:api')->group(function () {
     Route::put('orders/{id}', [OrderController::class, 'update']);
     Route::delete('orders/{id}', [OrderController::class, 'destroy']);
     Route::post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
+    
 });

@@ -257,6 +257,12 @@ class TransactionsRepository
         }
     }
 
+    public function getTotalByOrderId($userId, $orderId)
+    {
+        return Transaction::where('user_id', $userId)
+            ->where('order_id', $orderId)
+            ->sum('orig_amount');
+    }
 
     public function userHasPermissionToCashRegister($userUuid, $cashRegisterId)
     {
