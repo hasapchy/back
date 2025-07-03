@@ -63,7 +63,7 @@ class OrderStatusSeeder extends Seeder
         );
 
         OrderStatus::updateOrCreate(
-            ['id' => 3],
+            ['id' => 4],
             [
                 'name' => 'Завершено',
                 'category_id' => 3,
