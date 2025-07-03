@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\CashRegister;
 use App\Models\CashTransfer;
+use App\Models\Transaction;
 use App\Services\CurrencyConverter;
 use Illuminate\Support\Facades\DB;
 
@@ -129,7 +130,7 @@ class TransfersRepository
                 'type' => '1', // Приход
                 'user_id' => $userUuid,
                 'orig_amount' => $amountInTargetCurrency,
-               'currency_id' => $toCashRegister->currency_id,
+                'currency_id' => $toCashRegister->currency_id,
                 'cash_id' => $toCashRegister->id,
                 'category_id' => null,
                 'project_id' => null,
@@ -167,27 +168,41 @@ class TransfersRepository
         return true;
     }
 
-    // // Обновление
-    // public function updateItem($id, $data)
-    // {
-    //     $item = Project::find($id);
-    //     $item->name = $data['name'];
-    //     $item->budget = $data['budget'];
-    //     $item->date = $data['date'];
-    //     $item->user_id = $data['user_id'];
-    //     $item->client_id = $data['client_id'];
-    //     $item->users = array_map('strval', $data['users']);
-    //     $item->save();
+    public function updateItem($id, $data)
+    {
+        DB::beginTransaction();
+        try {
+            $this->deleteItem($id);
+            $this->createItem($data);
+            DB::commit();
+            return true;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Ошибка при обновлении трансфера: " . $e->getMessage());
+            return false;
+        }
+    }
 
-    //     return true;
-    // }
 
-    // // Удаление
-    // public function deleteItem($id)
-    // {
-    //     $item = CashRegister::find($id);
-    //     $item->delete();
+    public function deleteItem($id)
+    {
+        DB::beginTransaction();
+        try {
+            $transfer = CashTransfer::findOrFail($id);
 
-    //     return true;
-    // }
+            $fromTransactionId = $transfer->tr_id_from;
+            $toTransactionId = $transfer->tr_id_to;
+
+            $transfer->delete();
+            app(TransactionsRepository::class)->deleteItem($fromTransactionId);
+            app(TransactionsRepository::class)->deleteItem($toTransactionId);
+
+            DB::commit();
+            return true;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Ошибка при удалении трансфера: " . $e->getMessage());
+            return false;
+        }
+    }
 }

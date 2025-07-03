@@ -93,60 +93,58 @@ class TransfersController extends Controller
         ]);
     }
 
-    // // Метод для обновления проекта
-    // public function update(Request $request, $id)
-    // {
-    //     $userUuid = optional(auth('api')->user())->id;
-    //     if(!$userUuid){
-    //         return response()->json(array('message' => 'Unauthorized'), 401);
-    //     }
-    //     // Валидация данных
-    //     $request->validate([
-    //         'name' => 'required|string',
-    //         'budget' => 'required|numeric',
-    //         'date' => 'nullable|sometimes|date',
-    //         'client_id' => 'required|exists:clients,id',
-    //         'users' => 'required|array',
-    //         'users.*' => 'exists:users,id'
-    //     ]);
+    public function update(Request $request, $id)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
 
-    //     // Обновляем проект
-    //     $category_updated = $this->itemsRepository->updateItem($id, [
-    //         'name' => $request->name,
-    //         'budget' => $request->budget,
-    //         'date' => $request->date,
-    //         'user_id' => $userUuid,
-    //         'client_id' => $request->client_id,
-    //         'users' => $request->users
-    //     ]);
+        $request->validate([
+            'cash_id_from' => 'required|exists:cash_registers,id',
+            'cash_id_to' => 'required|exists:cash_registers,id',
+            'amount' => 'required|numeric|min:0.01',
+            'note' => 'nullable|string'
+        ]);
 
-    //     if (!$category_updated) {
-    //         return response()->json([
-    //             'message' => 'Ошибка обновления проекта'
-    //         ], 400);
-    //     }
-    //     return response()->json([
-    //         'message' => 'Проект обновлен'
-    //     ]);
-    // }
+        $transactions_repository = new TransactionsRepository();
 
-    // // Метод для удаления кассы
-    // public function destroy($id)
-    // {
-    //     $userUuid = optional(auth('api')->user())->id;
-    //     if(!$userUuid){
-    //         return response()->json(array('message' => 'Unauthorized'), 401);
-    //     }
-    //     // Удаляем кассу
-    //     $category_deleted = $this->itemsRepository->deleteItem($id);
+        if (
+            !$transactions_repository->userHasPermissionToCashRegister($userUuid, $request->cash_id_from) ||
+            !$transactions_repository->userHasPermissionToCashRegister($userUuid, $request->cash_id_to)
+        ) {
+            return response()->json(['message' => 'Нет прав на кассы'], 403);
+        }
 
-    //     if (!$category_deleted) {
-    //         return response()->json([
-    //             'message' => 'Ошибка удаления кассы'
-    //         ], 400);
-    //     }
-    //     return response()->json([
-    //         'message' => 'Категория удалена'
-    //     ]);
-    // }
+        $updated = $this->itemsRepository->updateItem($id, [
+            'cash_id_from' => $request->cash_id_from,
+            'cash_id_to' => $request->cash_id_to,
+            'amount' => $request->amount,
+            'note' => $request->note,
+            'user_id' => $userUuid,
+        ]);
+
+        if (!$updated) {
+            return response()->json(['message' => 'Ошибка обновления'], 400);
+        }
+
+        return response()->json(['message' => 'Трансфер обновлён']);
+    }
+
+
+    public function destroy($id)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $deleted = $this->itemsRepository->deleteItem($id);
+
+        if (!$deleted) {
+            return response()->json(['message' => 'Ошибка удаления'], 400);
+        }
+
+        return response()->json(['message' => 'Трансфер удалён']);
+    }
 }
