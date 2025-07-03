@@ -88,8 +88,8 @@ class ProductController extends Controller
             // 'currency_id' => 'required|exists:currencies,id',
             'category_id' => 'required|exists:categories,id',
             'unit_id' => 'nullable|sometimes|exists:units,id',
-            'retail_price' => 'nullable|numeric|min:0.01',
-            'wholesale_price' => 'nullable|numeric|min:0.01',
+            'retail_price' => 'nullable|numeric|min:0',
+            'wholesale_price' => 'nullable|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
         ]);
 

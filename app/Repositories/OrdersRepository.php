@@ -9,8 +9,10 @@ use App\Models\WarehouseStock;
 use App\Models\ClientBalance;
 use App\Models\Currency;
 use App\Models\Transaction;
+use App\Models\OrderStatus;
 use App\Services\CurrencyConverter;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrdersRepository
 {
@@ -419,8 +421,44 @@ class OrdersRepository
     }
     public function updateStatusByIds(array $ids, int $statusId, string $userId): int
     {
-        return Order::whereIn('id', $ids)  
-            ->where('user_id', $userId)    
-            ->update(['status_id' => $statusId]);
+        $targetStatus = OrderStatus::findOrFail($statusId);
+        Log::info("Попытка смены статуса на ID={$statusId}, категория статуса: {$targetStatus->category_id}");
+
+        $transactionsRepository = new TransactionsRepository();
+
+        $updatedCount = 0;
+
+        foreach ($ids as $id) {
+            $order = Order::find($id);
+
+            if (!$order) {
+                Log::warning("Заказ ID={$id} не найден");
+                continue;
+            }
+
+            if ($order->user_id != $userId) {
+                Log::warning("Попытка обновить заказ чужого пользователя: order_id={$id}, user_id={$order->user_id}");
+                continue;
+            }
+
+            Log::info("Обработка заказа ID={$id}, текущая сумма к оплате: {$order->total_price}");
+
+            if ($targetStatus->category_id == 3) {
+                $paidTotal = $transactionsRepository->getTotalByOrderId($userId, $order->id);
+                Log::info("Оплачено по заказу ID={$id}: {$paidTotal}");
+
+                if ($paidTotal < $order->total_price) {
+                    Log::warning("ОТКЛОНЕНО: Заказ ID={$id} не полностью оплачен ({$paidTotal} < {$order->total_price})");
+                    throw new \Exception("Невозможно закрыть заказ ID {$order->id}: оплачено {$paidTotal} из {$order->total_price}");
+                }
+            }
+
+            $order->status_id = $statusId;
+            $order->save();
+            Log::info("Статус заказа ID={$id} успешно обновлён на {$statusId}");
+            $updatedCount++;
+        }
+
+        return $updatedCount;
     }
 }

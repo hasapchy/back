@@ -188,11 +188,11 @@ class OrderController extends Controller
                 ->updateStatusByIds($request->ids, $request->status_id, $userUuid);
 
             return response()->json([
-                'message'  => "Статус обновлён у {$affected} заказ(ов)"
+                'message' => "Статус обновлён у {$affected} заказ(ов)"
             ]);
         } catch (\Throwable $th) {
             return response()->json([
-                'message' => 'Ошибка: ' . $th->getMessage()
+                'message' => 'Ошибка смены статуса: ' . $th->getMessage()
             ], 400);
         }
     }
