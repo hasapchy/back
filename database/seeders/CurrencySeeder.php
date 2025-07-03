@@ -14,7 +14,7 @@ class CurrencySeeder extends Seeder
                 'code' => 'TMT',
                 'name' => 'Turkmen Manat',
                 'symbol' => 'm',
-                'is_default' => false,
+                'is_default' => true,
             
                 'status' => true,
                 'created_at' => now(),
@@ -34,7 +34,7 @@ class CurrencySeeder extends Seeder
                 'code' => 'USD',
                 'name' => 'US Dollar',
                 'symbol' => '$',
-                'is_default' => true,
+                'is_default' => false,
 
                 'status' => true,
                 'created_at' => now(),
