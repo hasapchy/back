@@ -21,6 +21,11 @@ class Order extends Model
         'note',
         'date',
         'order_id',
+        'price',
+        'discount',
+        'total_price',
+        'cash_id',
+        'warehouse_id',
     ];
 
     protected $casts = [

@@ -340,6 +340,7 @@ class OrdersRepository
                 'cash_id' => $cash_id,
                 'status_id' => $status_id,
                 'category_id' => $category_id,
+                'currency_id' => $currency_id,
                 'price' => $price,
                 'discount' => $discount_calculated,
                 'total_price' => $total_price,
@@ -369,11 +370,19 @@ class OrdersRepository
             );
 
             DB::commit();
+            \Log::info('💾 Заказ после редактирования:', [
+                'id' => $order->id,
+                'price' => $price,
+                'discount' => $discount_calculated,
+                'total_price' => $total_price,
+            ]);
+
             return $order;
         } catch (\Throwable $th) {
             DB::rollBack();
             throw new \Exception("Ошибка обновления заказа: " . $th->getMessage());
         }
+        Log::info('Полученные товары при update:', $products);
     }
 
     public function deleteItem($id)
