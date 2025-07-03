@@ -143,7 +143,7 @@ class TransactionsRepository
             //     $client_balance->save();
             // }
 
-            if ($data['type'] === 1) {
+            if ((int)$data['type'] === 1) {
                 $cashRegister->balance += $convertedAmount;
             } else {
                 $cashRegister->balance -= $convertedAmount;
