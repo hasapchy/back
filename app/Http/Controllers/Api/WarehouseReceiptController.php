@@ -50,8 +50,6 @@ class WarehouseReceiptController extends Controller
             'warehouse_id' => 'required|integer|exists:warehouses,id',
             'type'         => 'required|in:cash,balance',
             'cash_id'      => 'nullable|integer|exists:cash_registers,id',
-            // currency_id не передаём в баланс-варианте —
-            'currency_id'  => 'nullable|integer|exists:currencies,id',
             'date' => 'nullable|date',
             'note' => 'nullable|string',
             'products' => 'required|array',
@@ -65,7 +63,7 @@ class WarehouseReceiptController extends Controller
             'warehouse_id' => $request->warehouse_id,
             'type'        => $request->type,
             'cash_id'     => $request->cash_id,
-            'currency_id' => $request->currency_id,
+            // 'currency_id' => $request->currency_id,
             'date' => $request->date ?? now(),
             'note' => $request->note ?? '',
             'products' => array_map(function ($product) {

@@ -103,6 +103,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('clients/search', [ClientController::class, 'search']);
     Route::post('clients', [ClientController::class, 'createClient']);
     Route::put('clients/{id}', [ClientController::class, 'updateClient']);
+    Route::get('/clients/{id}/balance-history', [ClientController::class, 'getBalanceHistory']);
 
     // cash registers
     Route::get('cash_registers', [CashRegistersController::class, 'index']);

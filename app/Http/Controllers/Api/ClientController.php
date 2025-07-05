@@ -45,6 +45,21 @@ class ClientController extends Controller
         return response()->json($items);
     }
 
+    public function getBalanceHistory($id)
+    {
+        try {
+            $history = $this->itemsRepository->getBalanceHistory($id);
+
+            return response()->json([
+                'history' => $history
+            ], 200);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Ошибка при получении истории баланса',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
     public function createClient(Request $request)
     {

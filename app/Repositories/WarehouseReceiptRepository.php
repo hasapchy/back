@@ -18,7 +18,8 @@ class WarehouseReceiptRepository
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
         $items = WhReceipt::leftJoin('warehouses', 'wh_receipts.warehouse_id', '=', 'warehouses.id')
-            // ->leftJoin('currencies', 'wh_receipts.currency_id', '=', 'currencies.id')
+            ->leftJoin('cash_registers', 'wh_receipts.cash_id', '=', 'cash_registers.id')
+            ->leftJoin('currencies as cash_currency', 'cash_registers.currency_id', '=', 'cash_currency.id')
             ->whereJsonContains('warehouses.users', (string) $userUuid)
             ->select(
                 'wh_receipts.id as id',
@@ -26,10 +27,12 @@ class WarehouseReceiptRepository
                 'warehouses.name as warehouse_name',
                 'wh_receipts.supplier_id as supplier_id',
                 'wh_receipts.amount as amount',
-                'wh_receipts.currency_id as currency_id',
-                // 'currencies.code as currency_code',
-                // 'currencies.name as currency_name',
-                // 'currencies.symbol as currency_symbol',
+                'wh_receipts.cash_id as cash_id',
+                'cash_registers.name as cash_name',
+                'cash_currency.id as currency_id',
+                'cash_currency.name as currency_name',
+                'cash_currency.code as currency_code',
+                'cash_currency.symbol as currency_symbol',
                 'wh_receipts.note as note',
                 'wh_receipts.date as date',
                 'wh_receipts.created_at as created_at',
@@ -45,16 +48,14 @@ class WarehouseReceiptRepository
         $wh_receipt_ids = $items->pluck('id')->toArray();
         $products = $this->getProducts($wh_receipt_ids);
 
-
         foreach ($items as $item) {
             $item->client = $clients->firstWhere('id', $item->supplier_id);
             $item->products = $products->get($item->id, collect());
         }
 
-
-
         return $items;
     }
+
 
     public function createItem(array $data)
     {
@@ -69,16 +70,18 @@ class WarehouseReceiptRepository
         DB::beginTransaction();
 
         try {
-            // 1) Определяем валюту: из кассы если cash, иначе дефолтная
+            // ✅ Валюта: как в SalesRepository
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $currency = $defaultCurrency;
-            if ($type === 'cash' && $cash_id) {
+
+            if ($cash_id) {
                 $cash = CashRegister::find($cash_id);
-                if ($cash) {
+                if ($cash && $cash->currency_id) {
                     $currency = Currency::find($cash->currency_id) ?? $defaultCurrency;
                 }
             }
 
+            // 👉 Далее логика расчёта суммы и сохранения
             $total_amount = 0;
             foreach ($products as $product) {
                 $total_amount += $product['price'] * $product['quantity'];
@@ -88,7 +91,8 @@ class WarehouseReceiptRepository
             $receipt = new WhReceipt();
             $receipt->supplier_id  = $client_id;
             $receipt->warehouse_id = $warehouse_id;
-            $receipt->currency_id  = $currency->id;
+            // $receipt->currency_id  = $currency->id;
+            $receipt->cash_id      = $cash_id;
             $receipt->date         = $date;
             $receipt->note         = $note;
             $receipt->amount       = $total_amount;
@@ -147,6 +151,7 @@ class WarehouseReceiptRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('❌ Ошибка в createItem', ['error' => $e->getMessage()]);
             return false;
         }
     }
@@ -154,12 +159,12 @@ class WarehouseReceiptRepository
 
     public function updateReceipt($receipt_id, $data)
     {
-        $client_id = $data['client_id'];
+        $client_id    = $data['client_id'];
         $warehouse_id = $data['warehouse_id'];
-        $currency_id = $data['currency_id'];
-        $date = $data['date'];
-        $note = $data['note'];
-        $products = $data['products'];
+        $cash_id      = $data['cash_id'] ?? null;
+        $date         = $data['date'];
+        $note         = $data['note'];
+        $products     = $data['products'];
 
         DB::beginTransaction();
 
@@ -169,22 +174,28 @@ class WarehouseReceiptRepository
                 throw new \Exception('Receipt not found');
             }
 
+            // Получаем валюту из кассы (если есть), иначе дефолт
+            $defaultCurrency = Currency::firstWhere('is_default', true);
+            $currency = $defaultCurrency;
+
+            if ($cash_id) {
+                $cash = \App\Models\CashRegister::find($cash_id);
+                if ($cash && $cash->currency_id) {
+                    $currency = Currency::find($cash->currency_id) ?? $defaultCurrency;
+                }
+            }
+
             $old_total_amount = $receipt->amount;
 
-            $receipt->supplier_id = $client_id;
+            $receipt->supplier_id  = $client_id;
             $receipt->warehouse_id = $warehouse_id;
-            // $receipt->currency_id = $currency_id;
-            $receipt->currency_id = Currency::firstWhere('is_default', true)->id;
-            $receipt->date = $date;
-            $receipt->note = $note;
-            $receipt->amount = 0;
+            $receipt->cash_id      = $cash_id;
+            $receipt->date         = $date;
+            $receipt->note         = $note;
+            $receipt->amount       = 0;
             $receipt->save();
 
             $total_amount = 0;
-
-            $defaultCurrency = Currency::firstWhere('is_default', true);
-            // $fromCurrency = Currency::find($currency_id);
-            $fromCurrency = $defaultCurrency;
             $existingProducts = WhReceiptProduct::where('receipt_id', $receipt_id)->get();
             $existingProductIds = $existingProducts->pluck('product_id')->toArray();
 
@@ -193,33 +204,32 @@ class WarehouseReceiptRepository
                 $quantity = $product['quantity'];
                 $price = $product['price'];
 
-                // $converted_price = CurrencyConverter::convert($price, $fromCurrency, $defaultCurrency);
-                $converted_price = $price;
-
                 $receiptProduct = WhReceiptProduct::updateOrCreate(
                     ['receipt_id' => $receipt->id, 'product_id' => $product_id],
-                    ['quantity' => $quantity, 'price' => $converted_price]
+                    ['quantity' => $quantity, 'price' => $price]
                 );
 
                 $existingProduct = $existingProducts->firstWhere('product_id', $product_id);
                 $quantityDifference = $quantity - ($existingProduct ? $existingProduct->quantity : 0);
-                $stock_updated = $this->updateStock($warehouse_id, $product_id, $quantityDifference);
-                if (!$stock_updated) {
+                if (!$this->updateStock($warehouse_id, $product_id, $quantityDifference)) {
                     throw new \Exception('Ошибка обновления стоков');
                 }
-                $product_purchase_updated = $this->updateProductPurchasePrice($product_id, $converted_price);
-                if (!$product_purchase_updated) {
+                if (!$this->updateProductPurchasePrice($product_id, $price)) {
                     throw new \Exception('Ошибка обновления цены покупки продукта');
                 }
-                $total_amount += $converted_price * $quantity;
+                $total_amount += $price * $quantity;
             }
 
             $receipt->amount = $total_amount;
             $receipt->save();
 
-            $client_balance_updated = $this->updateClientBalance($client_id, $total_amount - $old_total_amount);
-            if (!$client_balance_updated) {
-                throw new \Exception('Ошибка обновления баланса клиента');
+            // Обновляем баланс клиента, если это тип "balance"
+            if ($receipt->transaction_id) {
+                // ничего не делаем — был расход через транзакцию
+            } else {
+                if (!$this->updateClientBalance($client_id, $total_amount - $old_total_amount)) {
+                    throw new \Exception('Ошибка обновления баланса клиента');
+                }
             }
 
             $deletedProducts = array_diff($existingProductIds, array_column($products, 'product_id'));
@@ -237,6 +247,7 @@ class WarehouseReceiptRepository
 
         return true;
     }
+
 
     public function deleteItem($receipt_id)
     {

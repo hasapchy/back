@@ -216,7 +216,7 @@ class ClientsRepository
                 'clients.address as address',
                 'clients.note as note',
                 'clients.status as status',
-                'clients.discount_type as discount_type', 
+                'clients.discount_type as discount_type',
                 'clients.discount      as discount',
                 'clients.created_at as created_at',
                 'clients.updated_at as updated_at'
@@ -244,5 +244,84 @@ class ClientsRepository
         }
 
         return $clients;
+    }
+
+    public function getBalanceHistory($clientId)
+    {
+        $result = [];
+
+        // Продажи
+        $sales = DB::table('sales')
+            ->where('client_id', $clientId)
+            ->select('id', 'created_at', 'total_price', 'cash_id')
+            ->get()
+            ->map(function ($sale) {
+                return [
+                    'source' => 'sale',
+                    'source_id' => $sale->id,
+                    'date' => $sale->created_at,
+                    'amount' => $sale->cash_id +$sale->total_price ,
+                    'description' => $sale->cash_id ? 'Продажа через кассу' : 'Продажа в баланс(долг)'
+                ];
+            });
+
+        // Оприходования
+        $receipts = DB::table('wh_receipts')
+            ->where('supplier_id', $clientId)
+            ->select('id', 'created_at', 'amount', 'cash_id')
+            ->get()
+            ->map(function ($receipt) {
+                return [
+                    'source' => 'receipt',
+                    'source_id' => $receipt->id,
+                    'date' => $receipt->created_at,
+                    'amount' => $receipt->cash_id -$receipt->amount ,
+                    'description' => $receipt->cash_id ? 'Долг за оприходование(в кассу)' : 'Долг за оприходование(в баланс)'
+                ];
+            });
+
+        // Транзакции
+        $transactions = DB::table('transactions')
+            ->where('client_id', $clientId)
+            ->select('id', 'created_at', 'orig_amount', 'type')
+            ->get()
+            ->map(function ($tr) {
+                $isIncome = $tr->type === 1;
+                return [
+                    'source' => 'transaction',
+                    'source_id' => $tr->id,
+                    'date' => $tr->created_at,
+                    'amount' => $isIncome ? -$tr->orig_amount : +$tr->orig_amount,
+                    'description' => $isIncome ? 'Клиент оплатил нам' : 'Мы оплатили клиенту'
+                ];
+            });
+
+
+        // Заказы
+        $orders = DB::table('orders')
+            ->where('client_id', $clientId)
+            ->select('id', 'created_at', 'total_price as amount', 'cash_id')
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'source' => 'order',
+                    'source_id' => $order->id,
+                    'date' => $order->created_at,
+                    'amount' => $order->cash_id ? +$order->amount : 0,
+                    'description' => 'Заказ'
+                ];
+            });
+
+        // Объединение и сортировка
+        $result = collect()
+            ->merge($sales)
+            ->merge($receipts)
+            ->merge($transactions)
+            ->merge($orders)
+            ->sortBy('date')
+            ->values()
+            ->all();
+
+        return $result;
     }
 }

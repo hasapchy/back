@@ -13,7 +13,7 @@ class WhReceipt extends Model
         'supplier_id',
         'warehouse_id',
         'note',
-        'currency_id',
+        'cash_id',
         'amount',
         'date',
     ];
