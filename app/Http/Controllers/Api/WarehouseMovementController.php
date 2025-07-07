@@ -69,7 +69,7 @@ class WarehouseMovementController extends Controller
 
         // Перемещаем
         try {
-            $warehouse_created = $this->warehouseRepository->createMovement($data);
+            $warehouse_created = $this->warehouseRepository->createItem($data);
             if (!$warehouse_created) {
                 return response()->json([
                     'message' => 'Ошибка перемещения'
@@ -118,7 +118,7 @@ class WarehouseMovementController extends Controller
 
         // Обновляем перемещение
         try {
-            $warehouse_created = $this->warehouseRepository->updateMovement($id, $data);
+            $warehouse_created = $this->warehouseRepository->updateItem($id, $data);
             if (!$warehouse_created) {
                 return response()->json([
                     'message' => 'Ошибка обновления перемещения'
@@ -138,7 +138,7 @@ class WarehouseMovementController extends Controller
     public function destroy($id)
     {
         // Удаляем перемещение
-        $warehouse_deleted = $this->warehouseRepository->deleteMovement($id);
+        $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 
         if (!$warehouse_deleted) {
             return response()->json([

@@ -65,7 +65,7 @@ class WarehouseWriteoffController extends Controller
 
         // Списываем
         try {
-            $warehouse_created = $this->warehouseRepository->createWriteoff($data);
+            $warehouse_created = $this->warehouseRepository->createItem($data);
             if (!$warehouse_created) {
                 return response()->json([
                     'message' => 'Ошибка списания'
@@ -109,7 +109,7 @@ class WarehouseWriteoffController extends Controller
 
         // Оприходуем
         try {
-            $warehouse_created = $this->warehouseRepository->updateWriteoff($id, $data);
+            $warehouse_created = $this->warehouseRepository->updateItem($id, $data);
             if (!$warehouse_created) {
                 return response()->json([
                     'message' => 'Ошибка списания'
@@ -130,7 +130,7 @@ class WarehouseWriteoffController extends Controller
     public function destroy($id)
     {
         // Удаляем склад
-        $warehouse_deleted = $this->warehouseRepository->deleteWriteoff($id);
+        $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 
         if (!$warehouse_deleted) {
             return response()->json([

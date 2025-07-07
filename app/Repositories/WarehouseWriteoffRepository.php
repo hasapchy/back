@@ -13,12 +13,15 @@ class WarehouseWriteoffRepository
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
         $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
+            ->leftJoin('users', 'wh_write_offs.user_id', '=', 'users.id')
             ->whereJsonContains('warehouses.users', (string) $userUuid)
             ->select(
                 'wh_write_offs.id as id',
                 'wh_write_offs.warehouse_id as warehouse_id',
                 'warehouses.name as warehouse_name',
                 'wh_write_offs.note as note',
+                'wh_write_offs.user_id as user_id',
+                'users.name as user_name',
                 'wh_write_offs.created_at as created_at',
                 'wh_write_offs.updated_at as updated_at'
             )
@@ -37,7 +40,7 @@ class WarehouseWriteoffRepository
         return $items;
     }
 
-    public function createWriteoff($data)
+    public function createItem($data)
     {
         $warehouse_id = $data['warehouse_id'];
         $note = $data['note'];
@@ -49,6 +52,7 @@ class WarehouseWriteoffRepository
             $writeoff = new WhWriteoff();
             $writeoff->warehouse_id = $warehouse_id;
             $writeoff->note = $note;
+            $writeoff->user_id      = auth('api')->id();
             $writeoff->save();
 
 
@@ -76,7 +80,7 @@ class WarehouseWriteoffRepository
         return true;
     }
 
-    public function updateWriteoff($writeoff_id, $data)
+    public function updateItem($writeoff_id, $data)
     {
         $warehouse_id = $data['warehouse_id'];
         $note = $data['note'];
@@ -130,37 +134,37 @@ class WarehouseWriteoffRepository
         return true;
     }
 
-public function deleteWriteoff($writeoff_id)
-{
-    DB::beginTransaction();
+    public function deleteItem($writeoff_id)
+    {
+        DB::beginTransaction();
 
-    try {
-        $writeoff = WhWriteoff::find($writeoff_id);
-        if (!$writeoff) {
-            throw new \Exception('Writeoff not found');
-        }
-
-        $warehouse_id = $writeoff->warehouse_id;
-        $products = WhWriteoffProduct::where('write_off_id', $writeoff_id)->get();
-
-        foreach ($products as $product) {
-            $stock_updated = $this->updateStock($warehouse_id, $product->product_id, -$product->quantity);
-            if (!$stock_updated) {
-                throw new \Exception('Ошибка обновления стоков');
+        try {
+            $writeoff = WhWriteoff::find($writeoff_id);
+            if (!$writeoff) {
+                throw new \Exception('Writeoff not found');
             }
-            $product->delete();
+
+            $warehouse_id = $writeoff->warehouse_id;
+            $products = WhWriteoffProduct::where('write_off_id', $writeoff_id)->get();
+
+            foreach ($products as $product) {
+                $stock_updated = $this->updateStock($warehouse_id, $product->product_id, -$product->quantity);
+                if (!$stock_updated) {
+                    throw new \Exception('Ошибка обновления стоков');
+                }
+                $product->delete();
+            }
+
+            $writeoff->delete();
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return false;
         }
 
-        $writeoff->delete();
-
-        DB::commit();
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return false;
+        return true;
     }
-
-    return true;
-}
 
 
     // Обновление стоков

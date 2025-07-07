@@ -16,6 +16,7 @@ class WhReceipt extends Model
         'cash_id',
         'amount',
         'date',
+        'user_id',
     ];
 
     public function supplier()

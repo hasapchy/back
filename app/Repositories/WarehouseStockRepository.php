@@ -39,36 +39,4 @@ class WarehouseStockRepository
             ->orderBy('warehouse_stocks.created_at', 'desc')->paginate($perPage);
     }
 
-    // // Создание склада с именем и массивом пользователей
-    // public function createWarehouse($name, array $users)
-    // {
-    //     $warehouse = new Warehouse();
-    //     $warehouse->name = $name;
-    //     $warehouse->users = array_map('strval', $users);
-
-    //     $warehouse->save();
-
-    //     return true;
-    // }
-
-    // //  Обновление склада
-    // public function updateWarehouse($id, $name, array $users)
-    // {
-    //     $warehouse = Warehouse::find($id);
-    //     $warehouse->name = $name;
-    //     $warehouse->users = $users;
-
-    //     $warehouse->save();
-
-    //     return true;
-    // }
-
-    // // Удаление склада
-    // public function deleteWarehouse($id)
-    // {
-    //     $warehouse = Warehouse::find($id);
-    //     $warehouse->delete();
-
-    //     return true;
-    // }
 }

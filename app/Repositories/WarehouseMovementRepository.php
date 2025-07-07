@@ -13,6 +13,7 @@ class WarehouseMovementRepository
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
         $items = WhMovement::leftJoin('warehouses as warehouses_from', 'wh_movements.wh_from', '=', 'warehouses_from.id')
+            ->leftJoin('users', 'wh_movements.user_id', '=', 'users.id')
             ->leftJoin('warehouses as warehouses_to', 'wh_movements.wh_to', '=', 'warehouses_to.id')
             ->whereJsonContains('warehouses_from.users', (string) $userUuid)
             ->whereJsonContains('warehouses_to.users', (string) $userUuid)
@@ -23,6 +24,8 @@ class WarehouseMovementRepository
                 'wh_movements.wh_to as warehouse_to_id',
                 'warehouses_to.name as warehouse_to_name',
                 'wh_movements.note as note',
+                'wh_movements.user_id as user_id',
+                'users.name as user_name',
                 'wh_movements.date as date',
                 'wh_movements.created_at as created_at',
                 'wh_movements.updated_at as updated_at'
@@ -42,7 +45,7 @@ class WarehouseMovementRepository
         return $items;
     }
 
-    public function createMovement($data)
+    public function createItem($data)
     {
         $warehouse_from_id = $data['warehouse_from_id'];
         $warehouse_to_id = $data['warehouse_to_id'];
@@ -58,6 +61,7 @@ class WarehouseMovementRepository
             $movement->wh_to = $warehouse_to_id;
             $movement->date = $date;
             $movement->note = $note;
+            $movement->user_id = auth('api')->id();
             $movement->save();
 
             foreach ($products as $product) {
@@ -85,7 +89,7 @@ class WarehouseMovementRepository
         return true;
     }
 
-    public function updateMovement($movement_id, $data)
+    public function updateItem($movement_id, $data)
     {
         $warehouse_from_id = $data['warehouse_from_id'];
         $warehouse_to_id = $data['warehouse_to_id'];
@@ -145,7 +149,7 @@ class WarehouseMovementRepository
         return true;
     }
 
-    public function deleteMovement($movement_id)
+    public function deleteItem($movement_id)
     {
         DB::beginTransaction();
 

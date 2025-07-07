@@ -58,7 +58,7 @@ class WarehouseController extends Controller
         ]);
 
         // Создаем склад
-        $warehouse_created = $this->warehouseRepository->createWarehouse($request->name, $request->users);
+        $warehouse_created = $this->warehouseRepository->createItem($request->name, $request->users);
 
         if (!$warehouse_created) {
             return response()->json([
@@ -81,7 +81,7 @@ class WarehouseController extends Controller
         ]);
 
         // Обновляем склад
-        $warehouse_updated = $this->warehouseRepository->updateWarehouse($id, $request->name, $request->users);
+        $warehouse_updated = $this->warehouseRepository->updateItem($id, $request->name, $request->users);
 
         if (!$warehouse_updated) {
             return response()->json([
@@ -97,7 +97,7 @@ class WarehouseController extends Controller
     public function destroy($id)
     {
         // Удаляем склад
-        $warehouse_deleted = $this->warehouseRepository->deleteWarehouse($id);
+        $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 
         if (!$warehouse_deleted) {
             return response()->json([

@@ -18,6 +18,7 @@ class WarehouseReceiptRepository
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
         $items = WhReceipt::leftJoin('warehouses', 'wh_receipts.warehouse_id', '=', 'warehouses.id')
+            ->leftJoin('users', 'wh_receipts.user_id', '=', 'users.id')
             ->leftJoin('cash_registers', 'wh_receipts.cash_id', '=', 'cash_registers.id')
             ->leftJoin('currencies as cash_currency', 'cash_registers.currency_id', '=', 'cash_currency.id')
             ->whereJsonContains('warehouses.users', (string) $userUuid)
@@ -34,6 +35,8 @@ class WarehouseReceiptRepository
                 'cash_currency.code as currency_code',
                 'cash_currency.symbol as currency_symbol',
                 'wh_receipts.note as note',
+                'wh_receipts.user_id as user_id',
+                'users.name as user_name',
                 'wh_receipts.date as date',
                 'wh_receipts.created_at as created_at',
                 'wh_receipts.updated_at as updated_at'
@@ -96,6 +99,7 @@ class WarehouseReceiptRepository
             $receipt->date         = $date;
             $receipt->note         = $note;
             $receipt->amount       = $total_amount;
+            $receipt->user_id      = auth('api')->id(); 
             $receipt->save();
 
             // 4) Создаем продукты для receipt и обновляем склад
@@ -345,37 +349,4 @@ class WarehouseReceiptRepository
             ->groupBy('receipt_id');
     }
 
-
-    // // Создание склада с именем и массивом пользователей
-    // public function createWarehouse($name, array $users)
-    // {
-    //     $warehouse = new Warehouse();
-    //     $warehouse->name = $name;
-    //     $warehouse->users = array_map('strval', $users);
-
-    //     $warehouse->save();
-
-    //     return true;
-    // }
-
-    // //  Обновление склада
-    // public function updateWarehouse($id, $name, array $users)
-    // {
-    //     $warehouse = Warehouse::find($id);
-    //     $warehouse->name = $name;
-    //     $warehouse->users = $users;
-
-    //     $warehouse->save();
-
-    //     return true;
-    // }
-
-    // // Удаление склада
-    // public function deleteWarehouse($id)
-    // {
-    //     $warehouse = Warehouse::find($id);
-    //     $warehouse->delete();
-
-    //     return true;
-    // }
 }

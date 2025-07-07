@@ -10,7 +10,7 @@ class WhWriteoff extends Model
     use HasFactory;
     protected $table = 'wh_write_offs';
     
-    protected $fillable = ['warehouse_id', 'note', 'date'];
+    protected $fillable = ['warehouse_id', 'note', 'date', 'user_id'];
   
 
     public function warehouse()

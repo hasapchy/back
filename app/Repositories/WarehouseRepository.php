@@ -21,7 +21,7 @@ class WarehouseRepository
     }
 
     // Создание склада с именем и массивом пользователей
-    public function createWarehouse($name, array $users)
+    public function createItem($name, array $users)
     {
         $warehouse = new Warehouse();
         $warehouse->name = $name;
@@ -33,7 +33,7 @@ class WarehouseRepository
     }
 
     //  Обновление склада
-    public function updateWarehouse($id, $name, array $users)
+    public function updateItem($id, $name, array $users)
     {
         $warehouse = Warehouse::find($id);
         $warehouse->name = $name;
@@ -45,7 +45,7 @@ class WarehouseRepository
     }
 
     // Удаление склада
-    public function deleteWarehouse($id)
+    public function deleteItem($id)
     {
         $warehouse = Warehouse::find($id);
         $warehouse->delete();

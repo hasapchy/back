@@ -14,6 +14,7 @@ class WhMovement extends Model
         'wh_to',
         'note',
         'date',
+        'user_id',
     ];
 
     public function warehouseFrom()
