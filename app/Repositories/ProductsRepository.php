@@ -89,7 +89,6 @@ class ProductsRepository
         $product->barcode = $data['barcode'];
         $product->category_id = $data['category_id'];
         $product->unit_id = $data['unit_id'];
-        $product->status_id = $data['status_id'];
         $product->save();
 
         ProductPrice::updateOrCreate([
@@ -122,9 +121,6 @@ class ProductsRepository
         }
         if (isset($data['category_id'])) {
             $product->category_id = $data['category_id'];
-        }
-        if (isset($data['status_id'])) {
-            $product->status_id = $data['status_id'];
         }
         if (isset($data['unit_id'])) {
             $product->unit_id = $data['unit_id'];

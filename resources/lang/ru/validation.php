@@ -207,6 +207,8 @@ return [
         'password_confirmation'    => 'подтверждение пароля',
         'phone'                    => 'номер телефона',
         'phones' => 'Телефоны',
+        'category_id' => 'категория',
+        'sku' => 'артикул',
         'photo'                    => 'фотография',
         'orig_amount' => 'Сумма',
         'portfolio'                => 'портфолио',
