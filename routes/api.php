@@ -97,6 +97,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('products/search', [ProductController::class, 'search']);
     Route::post('products', [ProductController::class, 'store']);
     Route::post('products/{id}', [ProductController::class, 'update']);
+    Route::delete('products/{id}', [ProductController::class, 'destroy']);
 
     //clients
     Route::get('clients', [ClientController::class, 'getClients']);
