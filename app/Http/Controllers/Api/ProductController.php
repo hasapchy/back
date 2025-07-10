@@ -143,4 +143,20 @@ class ProductController extends Controller
 
         return response()->json(['message' => 'Product successfully updated'], 200);
     }
+
+    public function destroy($id)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $result = $this->itemsRepository->deleteItem($id);
+
+        if (!$result['success']) {
+            return response()->json(['message' => $result['message']], 400);
+        }
+
+        return response()->json(['message' => 'Товар/услуга успешно удалена']);
+    }
 }
