@@ -93,7 +93,7 @@ class ClientController extends Controller
 
             return response()->json([
                 'message' => 'Client created successfully',
-                'client' => $client->load('balance')
+                'item' => $client->load('balance', 'phones', 'emails'),
             ], 200);
         } catch (\Throwable $e) {
             DB::rollBack();
