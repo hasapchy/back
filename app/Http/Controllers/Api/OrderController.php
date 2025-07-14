@@ -192,7 +192,7 @@ class OrderController extends Controller
             ]);
         } catch (\Throwable $th) {
             return response()->json([
-                'message' => 'Ошибка смены статуса: ' . $th->getMessage()
+                'message' => $th->getMessage() ?: 'Ошибка смены статуса'
             ], 400);
         }
     }

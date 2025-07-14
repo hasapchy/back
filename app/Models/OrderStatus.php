@@ -16,7 +16,7 @@ class OrderStatus extends Model
         parent::boot();
 
         static::deleting(function ($category) {
-            $protectedIds = [1, 2, 3];
+            $protectedIds = [1, 2, 3, 4, 5, 6];
             if (in_array($category->id, $protectedIds)) {
                 return false;
             }

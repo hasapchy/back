@@ -431,8 +431,6 @@ class OrdersRepository
     public function updateStatusByIds(array $ids, int $statusId, string $userId): int
     {
         $targetStatus = OrderStatus::findOrFail($statusId);
-        Log::info("Попытка смены статуса на ID={$statusId}, категория статуса: {$targetStatus->category_id}");
-
         $transactionsRepository = new TransactionsRepository();
 
         $updatedCount = 0;
@@ -441,30 +439,24 @@ class OrdersRepository
             $order = Order::find($id);
 
             if (!$order) {
-                Log::warning("Заказ ID={$id} не найден");
-                continue;
+                throw new \Exception("Заказ ID {$id} не найден");
             }
 
             if ($order->user_id != $userId) {
-                Log::warning("Попытка обновить заказ чужого пользователя: order_id={$id}, user_id={$order->user_id}");
-                continue;
+                throw new \Exception("Нет доступа к заказу ID {$id}");
             }
 
-            Log::info("Обработка заказа ID={$id}, текущая сумма к оплате: {$order->total_price}");
-
-            if ($targetStatus->category_id == 3) {
+            // Проверка на категорию "закрытие"
+            if ($targetStatus->category_id == 4) {
                 $paidTotal = $transactionsRepository->getTotalByOrderId($userId, $order->id);
-                Log::info("Оплачено по заказу ID={$id}: {$paidTotal}");
 
                 if ($paidTotal < $order->total_price) {
-                    Log::warning("ОТКЛОНЕНО: Заказ ID={$id} не полностью оплачен ({$paidTotal} < {$order->total_price})");
-                    throw new \Exception("Невозможно закрыть заказ ID {$order->id}: оплачено {$paidTotal} из {$order->total_price}");
+                    throw new \Exception("Нельзя закрыть заказ ID {$order->id}: оплачено {$paidTotal} из {$order->total_price}");
                 }
             }
 
             $order->status_id = $statusId;
             $order->save();
-            Log::info("Статус заказа ID={$id} успешно обновлён на {$statusId}");
             $updatedCount++;
         }
 

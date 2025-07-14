@@ -16,7 +16,7 @@ class OrderStatusSeeder extends Seeder
             [
                 'name' => 'Новые',
                 'user_id' => 1,
-                'color' => '#FF0000',
+                'color' => '#207ac7',
             ]
         );
 
@@ -25,7 +25,7 @@ class OrderStatusSeeder extends Seeder
             [
                 'name' => 'В работе',
                 'user_id' => 1,
-                'color' => '#00FF00',
+                'color' => '#5cb85c',
             ]
         );
 
@@ -34,7 +34,24 @@ class OrderStatusSeeder extends Seeder
             [
                 'name' => 'Готово',
                 'user_id' => 1,
-                'color' => '#0000FF',
+                'color' => '#53585c',
+            ]
+        );
+
+         OrderStatusCategory::updateOrCreate(
+            ['id' => 4],
+            [
+                'name' => 'Завершено',
+                'user_id' => 1,
+                'color' => '#939699',
+            ]
+        );
+          OrderStatusCategory::updateOrCreate(
+            ['id' => 5],
+            [
+                'name' => 'Отменено',
+                'user_id' => 1,
+                'color' => '#d9534f',
             ]
         );
 
@@ -62,11 +79,26 @@ class OrderStatusSeeder extends Seeder
             ]
         );
 
-        OrderStatus::updateOrCreate(
+         OrderStatus::updateOrCreate(
             ['id' => 4],
             [
-                'name' => 'Завершено',
+                'name' => 'Готово',
                 'category_id' => 3,
+            ]
+        );
+
+        OrderStatus::updateOrCreate(
+            ['id' => 5],
+            [
+                'name' => 'Завершено',
+                'category_id' => 4,
+            ]
+        );
+         OrderStatus::updateOrCreate(
+            ['id' => 6],
+            [
+                'name' => 'Отменено',
+                'category_id' => 5,
             ]
         );
     }
