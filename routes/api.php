@@ -16,21 +16,12 @@ use App\Http\Controllers\Api\WarehouseMovementController;
 use App\Http\Controllers\Api\WarehouseReceiptController;
 use App\Http\Controllers\Api\WarehouseStockController;
 use App\Http\Controllers\Api\WarehouseWriteoffController;
-use Illuminate\Http\Request;
+use App\Http\Controllers\Api\OrderStatusController;
+use App\Http\Controllers\Api\OrderStatusCategoryController;
+use App\Http\Controllers\Api\OrderCategoryController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\TableOrderController;
 use App\Http\Controllers\Api\OrderController;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
-*/
 
 Route::post('user/login', [UserController::class, 'login']);
 Route::post('user/refresh', [UserController::class, 'refresh']);
@@ -41,8 +32,8 @@ Route::middleware('auth:api')->group(function () {
     Route::get('app/units', [AppController::class, 'getUnitsList']);
     Route::get('app/product_statuses', [AppController::class, 'getProductStatuses']);
     Route::get('app/transaction_categories', [AppController::class, 'getTransactionCategories']);
-    Route::get('app/order_categories', [AppController::class, 'getOrderCategories']);
-    Route::get('app/order_statuses', [AppController::class, 'getOrderStatuses']);
+    // Route::get('app/order_categories', [AppController::class, 'getOrderCategories']);
+    // Route::get('app/order_statuses', [AppController::class, 'getOrderStatuses']);
 
 
     // user
@@ -152,4 +143,23 @@ Route::middleware('auth:api')->group(function () {
     Route::put('orders/{id}', [OrderController::class, 'update']);
     Route::delete('orders/{id}', [OrderController::class, 'destroy']);
     Route::post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
+
+    Route::get('order_statuses', [OrderStatusController::class, 'index']);
+    Route::get('order_statuses/all', [OrderStatusController::class, 'all']);
+    Route::post('order_statuses', [OrderStatusController::class, 'store']);
+    Route::put('order_statuses/{id}', [OrderStatusController::class, 'update']);
+    Route::delete('order_statuses/{id}', [OrderStatusController::class, 'destroy']);
+
+    // Категории
+    Route::get('order_status_categories', [OrderStatusCategoryController::class, 'index']);
+    Route::get('order_status_categories/all', [OrderStatusCategoryController::class, 'all']);
+    Route::post('order_status_categories', [OrderStatusCategoryController::class, 'store']);
+    Route::put('order_status_categories/{id}', [OrderStatusCategoryController::class, 'update']);
+    Route::delete('order_status_categories/{id}', [OrderStatusCategoryController::class, 'destroy']);
+
+    Route::get('order_categories', [OrderCategoryController::class, 'index']);
+    Route::get('order_categories/all', [OrderCategoryController::class, 'all']);
+    Route::post('order_categories', [OrderCategoryController::class, 'store']);
+    Route::put('order_categories/{id}', [OrderCategoryController::class, 'update']);
+    Route::delete('order_categories/{id}', [OrderCategoryController::class, 'destroy']);
 });

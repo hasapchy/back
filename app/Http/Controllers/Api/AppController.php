@@ -45,20 +45,20 @@ class AppController extends Controller
     }
 
 
-    public function getOrderCategories()
-    {
-        $items = OrderCategory::select('id', 'name')->orderBy('name')->get();
-        return response()->json($items);
-    }
+    // public function getOrderCategories()
+    // {
+    //     $items = OrderCategory::select('id', 'name')->orderBy('name')->get();
+    //     return response()->json($items);
+    // }
 
-    public function getOrderStatuses()
-    {
+    // public function getOrderStatuses()
+    // {
 
-        $items = OrderStatus::with(['category' => function ($q) {
-            $q->select('id', 'name', 'user_id', 'color');
-        }])
-            ->get(['id', 'name', 'category_id']);
+    //     $items = OrderStatus::with(['category' => function ($q) {
+    //         $q->select('id', 'name', 'user_id', 'color');
+    //     }])
+    //         ->get(['id', 'name', 'category_id']);
 
-        return response()->json($items);
-    }
+    //     return response()->json($items);
+    // }
 }
