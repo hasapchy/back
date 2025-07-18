@@ -17,7 +17,7 @@ class ClientController extends Controller
     }
 
 
-    public function getClients(Request $request)
+    public function index(Request $request)
     {
         $perPage = $request->input('per_page', 20);
         $items = $this->itemsRepository->getImemsPaginated($perPage);
@@ -37,7 +37,6 @@ class ClientController extends Controller
 
         if (!$search_request || empty($search_request)) {
             $items = [];
-            // $items = $this->itemsRepository->getImemsPaginated(20);
         } else {
             $items = $this->itemsRepository->searchClient($search_request);
         }
@@ -61,7 +60,7 @@ class ClientController extends Controller
         }
     }
 
-    public function createClient(Request $request)
+    public function store(Request $request)
     {
         $validatedData = $request->validate([
             'first_name'       => 'required|string',
@@ -103,7 +102,7 @@ class ClientController extends Controller
             ], 500);
         }
     }
-    public function updateClient(Request $request, $id)
+    public function update(Request $request, $id)
     {
         $validatedData = $request->validate([
             'first_name'       => 'required|string',
@@ -129,5 +128,41 @@ class ClientController extends Controller
             'message' => 'Client updated successfully',
             'client' => $client
         ], 200);
+    }
+
+    public function destroy($id)
+    {
+        try {
+            // Проверка на наличие транзакций
+            $hasTransactions = DB::table('transactions')->where('client_id', $id)->exists();
+
+            if ($hasTransactions) {
+                return response()->json([
+                    'message' => 'Нельзя удалить клиента: найдены связанные транзакции.'
+                ], 422);
+            }
+
+            // Проверка баланса
+            $balance = DB::table('client_balances')->where('client_id', $id)->value('balance');
+
+            if ($balance > 0 || $balance < 0) {
+                return response()->json([
+                    'message' => 'Нельзя удалить клиента с ненулевым балансом.'
+                ], 422);
+            }
+
+            $deleted = $this->itemsRepository->deleteItem($id);
+
+            if ($deleted) {
+                return response()->json(['message' => 'Клиент успешно удалён'], 200);
+            } else {
+                return response()->json(['message' => 'Клиент не найден'], 404);
+            }
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Ошибка при удалении клиента',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

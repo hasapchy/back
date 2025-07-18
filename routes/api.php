@@ -34,8 +34,6 @@ Route::middleware('auth:api')->group(function () {
     Route::get('app/transaction_categories', [AppController::class, 'getTransactionCategories']);
     // Route::get('app/order_categories', [AppController::class, 'getOrderCategories']);
     // Route::get('app/order_statuses', [AppController::class, 'getOrderStatuses']);
-
-
     // user
     Route::post('user/logout', [UserController::class, 'logout']);
     Route::get('user/me', [UserController::class, 'me']);
@@ -74,7 +72,6 @@ Route::middleware('auth:api')->group(function () {
     Route::put('warehouse_movements/{id}', [WarehouseMovementController::class, 'update']);
     Route::delete('warehouse_movements/{id}', [WarehouseMovementController::class, 'destroy']);
 
-
     // categories
     Route::get('categories', [CategoriesController::class, 'index']);
     Route::get('categories/all', [CategoriesController::class, 'all']);
@@ -91,11 +88,12 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('products/{id}', [ProductController::class, 'destroy']);
 
     //clients
-    Route::get('clients', [ClientController::class, 'getClients']);
+    Route::get('clients', [ClientController::class, 'index']);
     Route::get('clients/search', [ClientController::class, 'search']);
-    Route::post('clients', [ClientController::class, 'createClient']);
-    Route::put('clients/{id}', [ClientController::class, 'updateClient']);
+    Route::post('clients', [ClientController::class, 'store']);
+    Route::put('clients/{id}', [ClientController::class, 'update']);
     Route::get('/clients/{id}/balance-history', [ClientController::class, 'getBalanceHistory']);
+    Route::delete('/clients/{id}', [ClientController::class, 'destroy']);
 
     // cash registers
     Route::get('cash_registers', [CashRegistersController::class, 'index']);
@@ -132,7 +130,6 @@ Route::middleware('auth:api')->group(function () {
 
     // transfers
     Route::get('transfers', [TransfersController::class, 'index']);
-    // Route::get('transactions/all', [TransactionsController::class, 'all']);
     Route::post('transfers', [TransfersController::class, 'store']);
     Route::put('transfers/{id}', [TransfersController::class, 'update']);
     Route::delete('transfers/{id}', [TransfersController::class, 'destroy']);
