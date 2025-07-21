@@ -10,7 +10,6 @@ class AdminSeeder extends Seeder
 {
     public function run()
     {
-        // Создаём или обновляем админа
         $admin = User::updateOrCreate(
             ['email' => 'admin@example.com'],
             [
@@ -21,7 +20,7 @@ class AdminSeeder extends Seeder
             ]
         );
 
-        $allPermissions = Permission::all()->pluck('name')->toArray();
+        $allPermissions = Permission::where('guard_name', 'api')->pluck('name');
         $admin->syncPermissions($allPermissions);
     }
 }
