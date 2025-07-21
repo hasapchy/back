@@ -34,19 +34,6 @@ class TransfersController extends Controller
         ]);
     }
 
-    // // Метод для получения всех проектов
-    // public function all(Request $request)
-    // {
-    //     $userUuid = optional(auth('api')->user())->id;
-    //     if(!$userUuid){
-    //         return response()->json(array('message' => 'Unauthorized'), 401);
-    //     }
-
-    //     $items = $this->itemsRepository->getAllItems($userUuid);
-
-    //     return response()->json($items);
-    // }
-
     // Метод для создания
     public function store(Request $request)
     {

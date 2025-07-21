@@ -4,20 +4,21 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class CheckPermission
 {
+    public function handle(Request $request, Closure $next, string $permission)
+    {
+       $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
 
-public function handle(Request $request, Closure $next)
-{
-    $user = auth()->user();
+        if (!Gate::allows($permission)) {
+            return response()->json(['message' => 'Нет доступа'], 403);
+        }
 
-    // Проверка активности
-    if (!$user || !$user->is_active) {
-        abort(403, 'Ваш аккаунт неактивен.');
+        return $next($request);
     }
-
-    return $next($request);
-}
-
 }

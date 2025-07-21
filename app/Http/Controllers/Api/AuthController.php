@@ -3,13 +3,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Repositories\UsersRepository;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 
-class UserController extends Controller
+class AuthController extends Controller
 {
+    protected $itemsRepository;
+
+    public function __construct(UsersRepository $itemsRepository)
+    {
+        $this->itemsRepository = $itemsRepository;
+    }
+
     public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');
@@ -28,7 +35,12 @@ class UserController extends Controller
 
     public function me()
     {
-        return response()->json(auth('api')->user());
+        $user = auth('api')->user();
+
+        return response()->json([
+            'user' => $user,
+            'permissions' => $user->getPermissionNames(),
+        ]);
     }
 
     public function logout()
@@ -50,14 +62,14 @@ class UserController extends Controller
             $user = JWTAuth::authenticate();
 
             if (!$user) {
-                return response()->json(['error' => 'Invalid refresh token', 't' => $refreshToken], 401);
+                return response()->json(['error' => 'Invalid refresh token'], 401);
             }
 
             $newAccessToken = auth('api')->login($user);
 
             return response()->json([
                 'access_token'  => $newAccessToken,
-                'refresh_token' => JWTAuth::fromUser($user), // Генерируем новый refresh_token
+                'refresh_token' => JWTAuth::fromUser($user),
                 'token_type'    => 'bearer',
                 'expires_in'    => auth('api')->factory()->getTTL() * 60
             ]);

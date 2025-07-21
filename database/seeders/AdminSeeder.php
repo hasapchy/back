@@ -4,13 +4,14 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\User;
-
+use Spatie\Permission\Models\Permission;
 
 class AdminSeeder extends Seeder
 {
     public function run()
     {
-        User::updateOrCreate(
+        // Создаём или обновляем админа
+        $admin = User::updateOrCreate(
             ['email' => 'admin@example.com'],
             [
                 'name' => 'Admin',
@@ -19,5 +20,8 @@ class AdminSeeder extends Seeder
                 'is_admin' => true,
             ]
         );
+
+        $allPermissions = Permission::all()->pluck('name')->toArray();
+        $admin->syncPermissions($allPermissions);
     }
 }
