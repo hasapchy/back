@@ -48,7 +48,7 @@ class CommentController extends Controller
 
         return response()->json([
             'message' => 'Комментарий добавлен',
-             'comment' => $comment,
+            'comment' => $comment,
         ]);
     }
 
@@ -107,6 +107,10 @@ class CommentController extends Controller
         try {
             $modelClass = $this->itemsRepository->resolveType($request->type);
             $model = $modelClass::findOrFail($request->id);
+            // \Log::info('Model loaded', [
+            //     'model_id' => $model->getKey(),
+            //     'model_class' => get_class($model),
+            // ]);
 
             // комментарии
             $comments = $model->comments()->with('user')->get()->map(function ($comment) {
@@ -125,14 +129,23 @@ class CommentController extends Controller
                     'type' => 'log',
                     'id' => $log->id,
                     'description' => $log->description,
-                    'changes' => $log->properties,
-                    'user' => $log->causer,
+                    'changes' => $log->description === 'created' ? null : $log->properties,
+                    'user' => $log->causer ? [
+                        'id' => $log->causer->id,
+                        'name' => $log->causer->name,
+                    ] : null,
                     'created_at' => $log->created_at,
                 ];
             });
 
+
             // объединяем и сортируем по дате
-            $timeline = $comments->merge($activities)->sortBy('created_at')->values();
+            $timeline = $comments->merge($activities)
+                ->sortByDesc(function ($item) {
+                    return \Carbon\Carbon::parse($item['created_at']);
+                })
+                ->values();
+
 
             return response()->json($timeline);
         } catch (\Throwable $e) {

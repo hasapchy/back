@@ -17,17 +17,32 @@ class CommentsRepository
             ->get();
     }
 
-    public function createItem(string $type, int $id, string $body, int $userId)
+    public function createItem(string $type, int $id, string $body, int $userId): array
     {
         $modelClass = $this->resolveType($type);
 
-        return Comment::create([
+        $comment = Comment::create([
             'body' => $body,
             'user_id' => $userId,
             'commentable_type' => $modelClass,
             'commentable_id' => $id,
-        ]) -> load('user');;
+        ])->load('user');
+
+        return [
+            'id' => $comment->id,
+            'body' => $comment->body,
+            'commentable_type' => $comment->commentable_type,
+            'commentable_id' => $comment->commentable_id,
+            'created_at' => $comment->created_at,
+            'updated_at' => $comment->updated_at,
+            'user_id' => $comment->user_id,
+            'user' => [
+                'id' => $comment->user->id,
+                'name' => $comment->user->name,
+            ],
+        ];
     }
+
 
     public function updateItem(int $id, int $userId, string $body)
     {
