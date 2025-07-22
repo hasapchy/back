@@ -20,7 +20,7 @@ class ClientController extends Controller
     public function index(Request $request)
     {
         $perPage = $request->input('per_page', 20);
-        $items = $this->itemsRepository->getImemsPaginated($perPage);
+        $items = $this->itemsRepository->getItemsPaginated ($perPage);
 
         return response()->json([
             'items' => $items->items(),  // Список

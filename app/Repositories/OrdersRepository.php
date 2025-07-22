@@ -12,7 +12,6 @@ use App\Models\Transaction;
 use App\Models\OrderStatus;
 use App\Services\CurrencyConverter;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class OrdersRepository
 {
@@ -354,7 +353,7 @@ class OrdersRepository
             OrderProduct::where('order_id', $id)->delete();
             foreach ($products as $product) {
                 // $unitPrice = CurrencyConverter::convert($product['price'], $fromCurrency, $defaultCurrency);
-                $unitPrice = $product['price']; // Без конвертации
+                $unitPrice = $product['price'];
                 OrderProduct::create([
                     'order_id' => $id,
                     'product_id' => $product['product_id'],
@@ -363,26 +362,18 @@ class OrdersRepository
                 ]);
             }
 
-            // 9. Обновляем баланс клиента
             ClientBalance::updateOrCreate(
                 ['client_id' => $client_id],
                 ['balance' => DB::raw("COALESCE(balance, 0) + {$total_price}")]
             );
 
             DB::commit();
-            \Log::info('💾 Заказ после редактирования:', [
-                'id' => $order->id,
-                'price' => $price,
-                'discount' => $discount_calculated,
-                'total_price' => $total_price,
-            ]);
 
             return $order;
         } catch (\Throwable $th) {
             DB::rollBack();
             throw new \Exception("Ошибка обновления заказа: " . $th->getMessage());
         }
-        Log::info('Полученные товары при update:', $products);
     }
 
     public function deleteItem($id)

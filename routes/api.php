@@ -21,7 +21,7 @@ use App\Http\Controllers\Api\OrderStatusCategoryController;
 use App\Http\Controllers\Api\OrderCategoryController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\OrderController;
-
+use App\Http\Controllers\Api\CommentController;
 
 Route::post('user/login', [AuthController::class, 'login']);
 Route::post('user/refresh', [AuthController::class, 'refresh']);
@@ -156,4 +156,11 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:order_categories_create')->post('order_categories', [OrderCategoryController::class, 'store']);
     Route::middleware('permission:order_categories_update')->put('order_categories/{id}', [OrderCategoryController::class, 'update']);
     Route::middleware('permission:order_categories_delete')->delete('order_categories/{id}', [OrderCategoryController::class, 'destroy']);
+
+    // comments
+    Route::get('comments', [CommentController::class, 'index']);
+    Route::post('comments', [CommentController::class, 'store']);
+    Route::put('comments/{id}', [CommentController::class, 'update']);
+    Route::delete('comments/{id}', [CommentController::class, 'destroy']);
+    Route::get('comments/timeline', [CommentController::class, 'timeline']);
 });

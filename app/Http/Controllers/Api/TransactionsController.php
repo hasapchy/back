@@ -15,24 +15,23 @@ class TransactionsController extends Controller
     {
         $this->itemsRepository = $itemsRepository;
     }
-    // Метод для получения транзакций с пагинацией
+
     public function index(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
         if (!$userUuid) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
-
         $cash_register_id = $request->query('cash_id');
         $date_filter_type = $request->query('date_filter_type');
-        $order_id = $request->query('order_id'); // Добавляем параметр order_id
+        $order_id = $request->query('order_id');
 
         $items = $this->itemsRepository->getItemsWithPagination(
             $userUuid,
             20,
             $cash_register_id,
             $date_filter_type,
-            $order_id // Передаем order_id в репозиторий
+            $order_id
         );
 
         return response()->json([
@@ -44,7 +43,6 @@ class TransactionsController extends Controller
         ]);
     }
 
-    // Метод для создания транзакции
     public function store(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
@@ -58,7 +56,7 @@ class TransactionsController extends Controller
             'orig_amount' => 'required|numeric|min:0.01',
             'currency_id' => 'required|exists:currencies,id',
             'cash_id' => 'required|exists:cash_registers,id',
-            'category_id' => 'nullable|sometimes|exists:transaction_categories,id',
+            'category_id' => 'required|exists:transaction_categories,id',
             'project_id' => 'nullable|sometimes|exists:projects,id',
             'client_id' => 'nullable|sometimes|exists:clients,id',
             'order_id' => 'nullable|integer|exists:orders,id',
@@ -66,7 +64,6 @@ class TransactionsController extends Controller
             'date' => 'nullable|sometimes|date'
         ]);
 
-        // Проверяем права пользователя на кассу
         $userHasPermissionToCashRegister = $this->itemsRepository->userHasPermissionToCashRegister($userUuid, $request->cash_id);
 
         if (!$userHasPermissionToCashRegister) {
@@ -75,7 +72,6 @@ class TransactionsController extends Controller
             ], 403);
         }
 
-        // Создаем транзакцию
         $item_created = $this->itemsRepository->createItem([
             'type' => $request->type,
             'user_id' => $userUuid,
@@ -100,7 +96,6 @@ class TransactionsController extends Controller
         ]);
     }
 
-    // Метод для обновления транзакции
     public function update(Request $request, $id)
     {
         $userUuid = optional(auth('api')->user())->id;
@@ -108,9 +103,8 @@ class TransactionsController extends Controller
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
 
-        // Валидация данных
         $request->validate([
-            'category_id' => 'nullable|sometimes|exists:transaction_categories,id',
+            'category_id' => 'required|exists:transaction_categories,id',
             'project_id' => 'nullable|sometimes|exists:projects,id',
             'client_id' => 'nullable|sometimes|exists:clients,id',
             'note' => 'nullable|sometimes|string',
@@ -122,7 +116,6 @@ class TransactionsController extends Controller
             return response()->json(['message' => 'Транзакция не найдена'], 404);
         }
 
-        // Проверяем права пользователя на кассу
         $userHasPermissionToCashRegister = $this->itemsRepository->userHasPermissionToCashRegister($userUuid, $transaction_exist->cash_id);
 
         if (!$userHasPermissionToCashRegister) {
@@ -130,9 +123,6 @@ class TransactionsController extends Controller
                 'message' => 'У вас нет прав на эту кассу'
             ], 403);
         }
-
-
-        // Обновляем транзакцию
         $category_updated = $this->itemsRepository->updateItem($id, [
             'category_id' => $request->category_id,
             'project_id' => $request->project_id,
@@ -158,7 +148,6 @@ class TransactionsController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        // Удаляем транзакцию
         $transaction_deleted = $this->itemsRepository->deleteItem($id);
 
         if (!$transaction_deleted) {

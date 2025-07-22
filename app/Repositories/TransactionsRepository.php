@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\DB;
 
 class TransactionsRepository
 {
-    // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $cash_id = null, $date_filter_type = null, $order_id = null)
     {
         $paginator = Transaction::leftJoin('cash_registers as cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
@@ -39,7 +38,7 @@ class TransactionsRepository
                 }
             })
             ->when($order_id, function ($query, $order_id) {
-                return $query->where('transactions.order_id', $order_id); // Фильтрация по order_id
+                return $query->where('transactions.order_id', $order_id);
             })
             ->orderBy('id', 'desc')
             ->select('transactions.id as id')
@@ -55,51 +54,40 @@ class TransactionsRepository
         return $paginator;
     }
 
-    // Получение всего списка
-    // public function getAllItems($userUuid)
-    // {
-    //     // $items = Transaction::leftJoin('currencies as currencies', 'cash_registers.currency_id', '=', 'currencies.id')
-    //     //     ->select('cash_registers.*', 'currencies.name as currency_name', 'currencies.code as currency_code', 'currencies.symbol as currency_symbol')
-    //     //     ->whereJsonContains('cash_registers.users', (string) $userUuid)
-    //     //     ->get();
-    //     $items = $this->getItems();
-    //     return $items;
-    // }
-
-
-    // Создание
     public function createItem($data, $return_id = false, bool $skipClientUpdate = false)
     {
-        // Касса
         $cashRegister = CashRegister::find($data['cash_id']);
-        // Указанная сумма
         $originalAmount = $data['orig_amount'];
-        // Валюта указанной суммы
-        $fromCurrency = Currency::find($data['currency_id']);
-        // Валюта кассы
-        $toCurrency   = Currency::find($cashRegister->currency_id);
-        // Валюта по умолчанию
-        $defaultCurrency = Currency::where('is_default', true)->first();
+        $defaultCurrencyId = Currency::where('is_default', true)->value('id');
 
-        // Конвертируем сумму в валюту кассы
+        $currencyIds = array_unique([
+            $data['currency_id'],
+            $cashRegister->currency_id,
+            $defaultCurrencyId,
+        ]);
+
+        $currencies = Currency::whereIn('id', $currencyIds)->get()->keyBy('id');
+
+        $fromCurrency = $currencies[$data['currency_id']];
+        $toCurrency = $currencies[$cashRegister->currency_id];
+        $defaultCurrency = $currencies[$defaultCurrencyId];
+
+
         if ($fromCurrency->id === $toCurrency->id) {
             $convertedAmount = $originalAmount;
         } else {
             $convertedAmount = CurrencyConverter::convert($originalAmount, $fromCurrency, $toCurrency);
         }
 
-        // Конвертируем сумму в валюту по умолчанию
         if ($fromCurrency->id !== $defaultCurrency->id) {
             $convertedAmountDefault = CurrencyConverter::convert($originalAmount, $fromCurrency, $defaultCurrency);
         } else {
             $convertedAmountDefault = $originalAmount;
         }
 
-        // Начинаем транзакцию
         DB::beginTransaction();
 
         try {
-            // Создаем транзакцию
             $transaction = new Transaction();
             $transaction->type = $data['type'];
             $transaction->user_id = $data['user_id'];
@@ -113,35 +101,8 @@ class TransactionsRepository
             $transaction->note = $data['note'];
             $transaction->date = $data['date'];
             $transaction->order_id = $data['order_id'] ?? null;
-            // Пропускаем обновление баланса клиента
             $transaction->setSkipClientBalanceUpdate(true);
-
-
             $transaction->save();
-
-            // Вычитаем сумму из кассы
-            // if ($data['type'] === 1) {
-            //     $cashRegister->balance += $convertedAmount;
-            // } else {
-            //     $cashRegister->balance -= $convertedAmount;
-            // }
-
-            // $cashRegister->save();
-
-            // $client = Client::find($data['client_id']);
-            // if ($client) {
-            //     // Вычитаем сумму из баланса клиента
-            //     $client_balance = ClientBalance::firstOrCreate(
-            //         ['client_id' => $client->id],
-            //         ['balance' => 0]
-            //     );
-            //     if ($data['type'] === 1) {
-            //         $client_balance->balance -= $convertedAmountDefault;
-            //     } else {
-            //         $client_balance->balance += $convertedAmountDefault;
-            //     }
-            //     $client_balance->save();
-            // }
 
             if ((int)$data['type'] === 1) {
                 $cashRegister->balance += $convertedAmount;
@@ -150,7 +111,6 @@ class TransactionsRepository
             }
             $cashRegister->save();
 
-            // Обновляем баланс клиента только если флаг = false
             if (! $skipClientUpdate && ! empty($data['client_id'])) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $data['client_id']]);
                 if ($data['type'] === 1) {
@@ -161,10 +121,8 @@ class TransactionsRepository
                 $clientBalance->save();
             }
 
-            // Фиксируем транзакцию
             DB::commit();
         } catch (\Exception $e) {
-            // Откатываем транзакцию в случае ошибки
             DB::rollBack();
             throw $e;
         }
@@ -172,7 +130,6 @@ class TransactionsRepository
         return $return_id ? $transaction->id : true;
     }
 
-    // Обновление
     public function updateItem($id, $data)
     {
         $item = Transaction::find($id);
@@ -186,7 +143,6 @@ class TransactionsRepository
         return true;
     }
 
-    // Удаление
     public function deleteItem(int $id, bool $skipClientUpdate = false): bool
     {
         $transaction = Transaction::find($id);
@@ -194,22 +150,31 @@ class TransactionsRepository
             return false;
         }
 
-        // Начинаем транзакцию
         DB::beginTransaction();
 
         try {
-            // Касса
             $cashRegister = CashRegister::find($transaction->cash_id);
             if (!$cashRegister) {
                 throw new \Exception('Касса не найдена');
             }
 
-            // Валюта кассы
-            $toCurrency = Currency::find($cashRegister->currency_id);
-            // Валюта транзакции
-            $fromCurrency = Currency::find($transaction->currency_id);
-            // Валюта по умолчанию
-            $defaultCurrency = Currency::where('is_default', true)->first();
+            // Получаем ID всех нужных валют
+            $defaultCurrencyId = Currency::where('is_default', true)->value('id');
+
+            $currencyIds = array_unique([
+                $transaction->currency_id,
+                $cashRegister->currency_id,
+                $defaultCurrencyId,
+            ]);
+
+            // Загружаем одним запросом
+            $currencies = Currency::whereIn('id', $currencyIds)->get()->keyBy('id');
+
+            // Назначаем
+            $fromCurrency = $currencies[$transaction->currency_id];
+            $toCurrency = $currencies[$cashRegister->currency_id];
+            $defaultCurrency = $currencies[$defaultCurrencyId];
+
 
             // Конвертируем сумму транзакции в валюту кассы
             if ($fromCurrency->id !== $toCurrency->id) {
@@ -274,64 +239,45 @@ class TransactionsRepository
     private function getItems(array $ids = [])
     {
         $query = Transaction::query();
-        // присоединяем таблицу пользователей
         $query->leftJoin('users as users', 'transactions.user_id', '=', 'users.id');
-        // Присоединяем таблицу валют оригинальной транзакции
         $query->leftJoin('currencies as currencies', 'transactions.currency_id', '=', 'currencies.id');
-        // Присоединяем таблицу касс
         $query->leftJoin('cash_registers as cash_registers', 'transactions.cash_id', '=', 'cash_registers.id');
-        // Присоединяем таблицу валют кассы
         $query->leftJoin('currencies as cash_register_currencies', 'cash_registers.currency_id', '=', 'cash_register_currencies.id');
-        // Присоединяем таблицу категорий
         $query->leftJoin('transaction_categories as transaction_categories', 'transactions.category_id', '=', 'transaction_categories.id');
-        // Присоединяем таблицу проектов
         $query->leftJoin('projects as projects', 'transactions.project_id', '=', 'projects.id');
-        // Присоединяем cash_transfers, чтобы проверить, есть ли transaction.id в tr_id_from или tr_id_to
         $query->leftJoin('cash_transfers as cash_transfers_from', 'transactions.id', '=', 'cash_transfers_from.tr_id_from');
         $query->leftJoin('cash_transfers as cash_transfers_to', 'transactions.id', '=', 'cash_transfers_to.tr_id_to');
 
-        // Берем нужные по массиву ид
         $query->whereIn('transactions.id', $ids);
-        // Выбираем поля
         $query->select(
-            // Поля из таблицы транзакций
             'transactions.id as id',
             'transactions.type as type',
-            // проверка на трансфер
             DB::raw('CASE 
             WHEN cash_transfers_from.tr_id_from IS NOT NULL 
               OR cash_transfers_to.tr_id_to IS NOT NULL 
                 THEN true 
                 ELSE false 
             END as is_transfer'),
-            // Поля из таблицы касс
             'transactions.cash_id as cash_id',
             'cash_registers.name as cash_name',
-            // Сумма в валюте кассы
             'transactions.amount as cash_amount',
             'cash_register_currencies.id as cash_currency_id',
             'cash_register_currencies.name as cash_currency_name',
             'cash_register_currencies.code as cash_currency_code',
             'cash_register_currencies.symbol as cash_currency_symbol',
-            // Сумма в валюте транзакции
             'transactions.orig_amount as orig_amount',
             'currencies.id as orig_currency_id',
             'currencies.name as orig_currency_name',
             'currencies.code as orig_currency_code',
             'currencies.symbol as orig_currency_symbol',
-            // Поля из таблицы пользователей
             'transactions.user_id as user_id',
             'users.name as user_name',
-            // Поля из таблицы категорий
             'transactions.category_id as category_id',
             'transaction_categories.name as category_name',
             'transaction_categories.type as category_type',
-            // Поля из таблицы проектов
             'transactions.project_id as project_id',
             'projects.name as project_name',
-            // Поля из таблицы клиентов
             'transactions.client_id as client_id',
-            // Поля из таблицы транзакций
             'transactions.note as note',
             'transactions.date as date',
             'transactions.order_id as order_id',

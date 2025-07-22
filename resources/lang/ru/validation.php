@@ -128,12 +128,7 @@ return [
     'url'                  => 'Поле :attribute имеет некорректный формат URL.',
     'uuid'                 => 'Поле :attribute должно быть корректным UUID.',
 
-    // Кастомные сообщения для атрибутов (например, "email" => "Ваш e-mail некорректен.")
-    'custom' => [
-        // 'attribute-name' => [
-        //     'rule-name' => 'custom-message',
-        // ],
-    ],
+
     'attributes' => [
         'address'                  => 'адрес',
         'affiliate_url'            => 'Партнёрская ссылка',
@@ -210,12 +205,14 @@ return [
         'category_id' => 'категория',
         'sku' => 'артикул',
         'photo'                    => 'фотография',
+        'products'                 => 'Товары',
         'orig_amount' => 'Сумма',
         'portfolio'                => 'портфолио',
         'postal_code'              => 'индекс',
         'preview'                  => 'предпросмотр',
         'price'                    => 'стоимость',
-        'product_id'               => 'ID продукта',
+        'client_id'            => 'Клиент',
+        'product_id'               => 'Товар',
         'product_uid'              => 'UID продукта',
         'product_uuid'             => 'UUID продукта',
         'promo_code'               => 'промокод',

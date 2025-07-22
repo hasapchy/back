@@ -9,7 +9,7 @@ class ClientsRepository
 {
 
 
-    function getImemsPaginated($perPage = 20)
+    function getItemsPaginated($perPage = 20)
     {
 
         $clients = DB::table('clients')
@@ -260,7 +260,7 @@ class ClientsRepository
                     'source' => 'sale',
                     'source_id' => $sale->id,
                     'date' => $sale->created_at,
-                    'amount' => $sale->cash_id + $sale->total_price,
+                    'amount' => $sale->cash_id ? $sale->total_price : 0,
                     'description' => $sale->cash_id ? 'Продажа через кассу' : 'Продажа в баланс(долг)'
                 ];
             });
@@ -275,7 +275,7 @@ class ClientsRepository
                     'source' => 'receipt',
                     'source_id' => $receipt->id,
                     'date' => $receipt->created_at,
-                    'amount' => $receipt->cash_id - $receipt->amount,
+                    'amount' => $receipt->cash_id ? -$receipt->amount : 0,
                     'description' => $receipt->cash_id ? 'Долг за оприходование(в кассу)' : 'Долг за оприходование(в баланс)'
                 ];
             });
