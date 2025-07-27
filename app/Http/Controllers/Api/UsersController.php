@@ -72,4 +72,8 @@ class UsersController extends Controller
     {
         return response()->json(Permission::where('guard_name', 'api')->get());
     }
+    public function getAllUsers()
+    {
+        return response()->json($this->itemsRepository->getAll());
+    }
 }

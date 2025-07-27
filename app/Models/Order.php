@@ -40,7 +40,6 @@ class Order extends Model
         'note',
         'date',
         'order_id',
-        'price',
         'discount',
         'total_price',
         'cash_id',
@@ -54,12 +53,20 @@ class Order extends Model
 
     public function getDescriptionForEvent(string $eventName): string
     {
+        if ($eventName === 'created') {
+            return 'Создан заказ';
+        }
         return "Заказ был {$eventName}";
     }
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults()->logOnly(static::$logAttributes);
+        // Для created не логируем все поля, только короткое описание
+        return LogOptions::defaults()
+            ->logOnly(static::$logAttributes)
+            ->useLogName('order')
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn(string $eventName) => $eventName === 'created' ? 'Создан заказ' : $this->getDescriptionForEvent($eventName));
     }
 
     protected $casts = [
@@ -102,5 +109,15 @@ class Order extends Model
     public function comments()
     {
         return $this->morphMany(Comment::class, 'commentable');
+    }
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
+
+    public function cash()
+    {
+        return $this->belongsTo(CashRegister::class);
     }
 }

@@ -180,6 +180,12 @@ class SalesRepository
         }
     }
 
+    public function getItemById($id)
+    {
+        $items = $this->getItems([$id]);
+        return $items->first();
+    }
+
     private function getProducts($sale_ids)
     {
         return SalesProduct::whereIn('sale_id', $sale_ids)

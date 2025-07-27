@@ -32,8 +32,68 @@ class OrdersRepository
         return $paginator;
     }
 
+    public function getItemById($id)
+    {
+        $items = $this->getItems([$id]);
+        return $items->first();
+    }
+
+
+    /**
+     * Получение заказов по ID (для совместимости)
+     */
+    public function getItemsByIds(array $order_ids)
+    {
+        if (empty($order_ids)) {
+            return collect();
+        }
+
+        return Order::with([
+            'client:id,first_name,last_name,contact_person',
+            'user:id,name',
+            'status:id,name,category_id',
+            'status.category:id,name,color',
+            'category:id,name',
+            'warehouse:id,name',
+            'cash:id,name',
+            'cash.currency:id,name,code,symbol',
+            'project:id,name',
+            'products.product:id,name,sku,barcode',
+            'products.product.category:id,name',
+            'products.product.unit:id,name,short_name,calc_area'
+        ])
+        ->select([
+            'orders.id',
+            'orders.note',
+            'orders.description',
+            'orders.status_id',
+            'orders.category_id',
+            'orders.client_id',
+            'orders.user_id',
+            'orders.cash_id',
+            'orders.warehouse_id',
+            'orders.project_id',
+            'orders.transaction_ids',
+            'orders.price',
+            'orders.discount',
+            'orders.total_price',
+            'orders.date',
+            'orders.created_at',
+            'orders.updated_at'
+        ])
+        ->whereIn('orders.id', $order_ids)
+        ->get();
+    }
+
+    /**
+     * Получение заказов с детальной информацией (для совместимости)
+     */
     private function getItems(array $order_ids = [])
     {
+        if (empty($order_ids)) {
+            return collect();
+        }
+
         $query = Order::query();
 
         $query->leftJoin('warehouses', 'orders.warehouse_id', '=', 'warehouses.id');
@@ -44,7 +104,6 @@ class OrdersRepository
         $query->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id');
         $query->leftJoin('order_categories', 'orders.category_id', '=', 'order_categories.id');
         $query->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id');
-
 
         $query->whereIn('orders.id', $order_ids);
 
@@ -126,7 +185,6 @@ class OrdersRepository
             ->get()
             ->groupBy('order_id');
     }
-
 
     public function createItem($data)
     {
@@ -213,7 +271,8 @@ class OrdersRepository
             $order->user_id = $userUuid;
             $order->save();
 
-            // Добавляем товары
+            // Добавляем товары batch insert для оптимизации
+            $productsData = [];
             foreach ($products as $product) {
                 $p_id = $product['product_id'];
                 $q = $product['quantity'];
@@ -222,12 +281,18 @@ class OrdersRepository
                 // $unitPrice = CurrencyConverter::convert($p, $fromCurrency, $defaultCurrency);
                 $unitPrice = $p; // Без конвертации
 
-                $order_product = new OrderProduct();
-                $order_product->order_id = $order->id;
-                $order_product->product_id = $p_id;
-                $order_product->quantity = $q;
-                $order_product->price = $unitPrice;
-                $order_product->save();
+                $productsData[] = [
+                    'order_id' => $order->id,
+                    'product_id' => $p_id,
+                    'quantity' => $q,
+                    'price' => $unitPrice,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+
+            if (!empty($productsData)) {
+                OrderProduct::insert($productsData);
             }
 
             // Обновляем баланс клиента
@@ -349,17 +414,36 @@ class OrdersRepository
                 'user_id' => $user_id
             ]);
 
-            // 8. Заменяем товары
-            OrderProduct::where('order_id', $id)->delete();
+            // 8. Обновляем товары более эффективно
+            $existingProducts = OrderProduct::where('order_id', $id)->get()->keyBy('product_id');
+            $newProducts = collect($products)->keyBy('product_id');
+
+            // Удаляем товары, которых нет в новом списке
+            $productsToDelete = $existingProducts->keys()->diff($newProducts->keys());
+            if ($productsToDelete->isNotEmpty()) {
+                OrderProduct::where('order_id', $id)
+                    ->whereIn('product_id', $productsToDelete)
+                    ->delete();
+            }
+
+            // Обновляем или создаем товары
             foreach ($products as $product) {
-                // $unitPrice = CurrencyConverter::convert($product['price'], $fromCurrency, $defaultCurrency);
                 $unitPrice = $product['price'];
-                OrderProduct::create([
+                $productData = [
                     'order_id' => $id,
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity'],
                     'price' => $unitPrice
-                ]);
+                ];
+
+                // Если товар уже существует - обновляем, иначе создаем
+                if ($existingProducts->has($product['product_id'])) {
+                    OrderProduct::where('order_id', $id)
+                        ->where('product_id', $product['product_id'])
+                        ->update($productData);
+                } else {
+                    OrderProduct::create($productData);
+                }
             }
 
             ClientBalance::updateOrCreate(

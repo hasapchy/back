@@ -39,6 +39,7 @@ Route::middleware('auth:api')->group(function () {
 
     // users
     Route::middleware('permission:users_view')->get('users', [UsersController::class, 'index']);
+    Route::middleware('permission:users_view')->get('users/all', [UsersController::class, 'getAllUsers']);
     Route::middleware('permission:users_create')->post('users', [UsersController::class, 'store']);
     Route::middleware('permission:users_update')->put('users/{id}', [UsersController::class, 'update']);
     Route::middleware('permission:users_delete')->delete('users/{id}', [UsersController::class, 'destroy']);
@@ -110,6 +111,7 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:projects_update')->put('projects/{id}', [ProjectsController::class, 'update']);
     Route::middleware('permission:projects_update')->post('projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);
     Route::middleware('permission:projects_update')->post('projects/{id}/delete-file', [ProjectsController::class, 'deleteFile']);
+    Route::get('projects/{id}/balance-history', [\App\Http\Controllers\Api\ProjectsController::class, 'getBalanceHistory']);
 
     // transactions
     Route::middleware('permission:transactions_view')->get('transactions', [TransactionsController::class, 'index']);
@@ -117,6 +119,7 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:transactions_update')->put('transactions/{id}', [TransactionsController::class, 'update']);
     Route::middleware('permission:transactions_delete')->delete('transactions/{id}', [TransactionsController::class, 'destroy']);
     Route::middleware('permission:transactions_view')->get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
+    Route::middleware('permission:transactions_view')->get('transactions/{id}', [TransactionsController::class, 'show']);
 
     // transfers
     Route::middleware('permission:transfers_view')->get('transfers', [TransfersController::class, 'index']);
@@ -128,6 +131,7 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware(['permission:sales_view'])->get('sales', [SaleController::class, 'index']);
     Route::middleware(['permission:sales_create'])->post('sales', [SaleController::class, 'store']);
     Route::middleware(['permission:sales_delete'])->delete('sales/{id}', [SaleController::class, 'destroy']);
+    Route::middleware('permission:sales_view')->get('sales/{id}', [SaleController::class, 'show']);
 
     // orders
     Route::middleware('permission:orders_view')->get('orders', [OrderController::class, 'index']);
@@ -135,6 +139,7 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:orders_update')->put('orders/{id}', [OrderController::class, 'update']);
     Route::middleware('permission:orders_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
     Route::middleware('permission:orders_update')->post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
+    Route::middleware('permission:orders_view')->get('orders/{id}', [OrderController::class, 'show']);
 
     // order statuses
     Route::middleware('permission:order_statuses_view')->get('order_statuses', [OrderStatusController::class, 'index']);

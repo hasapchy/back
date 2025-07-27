@@ -176,4 +176,17 @@ class TransactionsController extends Controller
         $total = $this->itemsRepository->getTotalByOrderId($userUuid, $orderId);
         return response()->json(['total' => $total]);
     }
+
+    public function show($id)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+        $item = $this->itemsRepository->getItemById($id);
+        if (!$item) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+        return response()->json(['item' => $item]);
+    }
 }

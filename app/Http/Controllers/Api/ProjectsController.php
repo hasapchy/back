@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Models\Project;
+use Illuminate\Support\Facades\Log;
 
 class ProjectsController extends Controller
 {
@@ -31,12 +32,14 @@ class ProjectsController extends Controller
             'items' => $items->items(),  // Список
             'current_page' => $items->currentPage(),  // Текущая страница
             'next_page' => $items->nextPageUrl(),  // Следующая страница
-            'last_page' => $items->lastPage(),  // Общее количество страниц
-            'total' => $items->total()  // Общее количество
+            'last_page' => $items->lastPage(),
+
+
+
+            'total' => $items->total()
         ]);
     }
 
-    // Метод для получения всех проектов
     public function all(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
@@ -49,14 +52,12 @@ class ProjectsController extends Controller
         return response()->json($items);
     }
 
-    // Метод для создания проекта
     public function store(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
-        // Валидация данных
         $request->validate([
             'name' => 'required|string',
             'budget' => 'required|numeric',
@@ -66,7 +67,6 @@ class ProjectsController extends Controller
             'users.*' => 'exists:users,id'
         ]);
 
-        // Создаем категорию
         $item_created = $this->itemsRepository->createItem([
             'name' => $request->name,
             'budget' => $request->budget,
@@ -86,14 +86,12 @@ class ProjectsController extends Controller
         ]);
     }
 
-    // Метод для обновления проекта
     public function update(Request $request, $id)
     {
         $userUuid = optional(auth('api')->user())->id;
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
-        // Валидация данных
         $request->validate([
             'name' => 'required|string',
             'budget' => 'required|numeric',
@@ -103,7 +101,6 @@ class ProjectsController extends Controller
             'users.*' => 'exists:users,id'
         ]);
 
-        // Обновляем проект
         $category_updated = $this->itemsRepository->updateItem($id, [
             'name' => $request->name,
             'budget' => $request->budget,
@@ -123,39 +120,15 @@ class ProjectsController extends Controller
         ]);
     }
 
-    // // Метод для удаления кассы
-    // public function destroy($id)
-    // {
-    //     $userUuid = optional(auth('api')->user())->id;
-    //     if(!$userUuid){
-    //         return response()->json(array('message' => 'Unauthorized'), 401);
-    //     }
-    //     // Удаляем кассу
-    //     $category_deleted = $this->itemsRepository->deleteItem($id);
-
-    //     if (!$category_deleted) {
-    //         return response()->json([
-    //             'message' => 'Ошибка удаления кассы'
-    //         ], 400);
-    //     }
-    //     return response()->json([
-    //         'message' => 'Категория удалена'
-    //     ]);
-    // }
-
     public function uploadFiles(Request $request, $id)
     {
         $files = $request->file('files');
 
-        // Если файлов нет, присваиваем пустой массив
         if (is_null($files)) {
             $files = [];
-        }
-        // Если пришел один файл, оборачиваем его в массив
-        elseif ($files instanceof \Illuminate\Http\UploadedFile) {
+        } elseif ($files instanceof \Illuminate\Http\UploadedFile) {
             $files = [$files];
         }
-        // Если $files уже массив, оставляем как есть
 
         if (count($files) == 0) {
             return response()->json(['message' => 'No files uploaded'], 400);
@@ -182,8 +155,6 @@ class ProjectsController extends Controller
         ]);
     }
 
-
-    // Удаление файла по индексу или имени
     public function deleteFile(Request $request, $id)
     {
         try {
@@ -208,7 +179,6 @@ class ProjectsController extends Controller
             $found = false;
             foreach ($files as $file) {
                 if ($file['path'] === $filePath) {
-                    // Проверяем, существует ли файл
                     if (Storage::disk('public')->exists($filePath)) {
                         Storage::disk('public')->delete($filePath);
                     }
@@ -222,7 +192,6 @@ class ProjectsController extends Controller
                 return response()->json(['error' => 'Файл не найден в проекте'], 404);
             }
 
-            // Обновляем только поле files
             $project->files = $updatedFiles;
             $project->save();
 
@@ -231,12 +200,53 @@ class ProjectsController extends Controller
                 'files' => $updatedFiles
             ]);
         } catch (\Exception $e) {
-            \Log::error('Ошибка удаления файла: ' . $e->getMessage(), [
+            Log::error('Ошибка удаления файла: ' . $e->getMessage(), [
                 'project_id' => $id,
                 'file_path' => $request->input('path'),
                 'trace' => $e->getTraceAsString()
             ]);
             return response()->json(['error' => 'Внутренняя ошибка сервера'], 500);
         }
+    }
+
+    // Получение истории баланса и текущего баланса проекта
+    public function getBalanceHistory($id)
+    {
+        try {
+            $history = $this->itemsRepository->getBalanceHistory($id);
+            $balance = collect($history)->sum('amount');
+            $project = \App\Models\Project::findOrFail($id);
+
+            return response()->json([
+                'history' => $history,
+                'balance' => $balance,
+                'budget' => $project->budget,
+            ], 200);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Ошибка при получении истории баланса проекта',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    public function destroy($id)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $deleted = $this->itemsRepository->deleteItem($id);
+
+        if (!$deleted) {
+            return response()->json([
+                'message' => 'Ошибка удаления проекта'
+            ], 400);
+        }
+        return response()->json([
+            'message' => 'Проект удалён'
+        ]);
     }
 }

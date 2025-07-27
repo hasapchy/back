@@ -58,4 +58,9 @@ class UsersRepository
         $user->delete();
         return true;
     }
+
+    public function getAll()
+    {
+        return User::with('permissions')->get();
+    }
 }

@@ -236,6 +236,12 @@ class TransactionsRepository
             ->whereJsonContains('cash_registers.users', (string) $userUuid)->exists();
     }
 
+    public function getItemById($id)
+    {
+        $items = $this->getItems([$id]);
+        return $items->first();
+    }
+
     private function getItems(array $ids = [])
     {
         $query = Transaction::query();
@@ -252,11 +258,11 @@ class TransactionsRepository
         $query->select(
             'transactions.id as id',
             'transactions.type as type',
-            DB::raw('CASE 
-            WHEN cash_transfers_from.tr_id_from IS NOT NULL 
-              OR cash_transfers_to.tr_id_to IS NOT NULL 
-                THEN true 
-                ELSE false 
+            DB::raw('CASE
+            WHEN cash_transfers_from.tr_id_from IS NOT NULL
+              OR cash_transfers_to.tr_id_to IS NOT NULL
+                THEN true
+                ELSE false
             END as is_transfer'),
             'transactions.cash_id as cash_id',
             'cash_registers.name as cash_name',

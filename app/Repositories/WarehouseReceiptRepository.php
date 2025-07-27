@@ -11,6 +11,7 @@ use App\Models\WhReceiptProduct;
 use App\Models\CashRegister;
 use App\Services\CurrencyConverter;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class WarehouseReceiptRepository
 {
@@ -94,6 +95,7 @@ class WarehouseReceiptRepository
             $receipt = new WhReceipt();
             $receipt->supplier_id  = $client_id;
             $receipt->warehouse_id = $warehouse_id;
+            $receipt->project_id   = $data['project_id'] ?? null;
             // $receipt->currency_id  = $currency->id;
             $receipt->cash_id      = $cash_id;
             $receipt->date         = $date;
@@ -155,7 +157,7 @@ class WarehouseReceiptRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('❌ Ошибка в createItem', ['error' => $e->getMessage()]);
+            Log::error('❌ Ошибка в createItem', ['error' => $e->getMessage()]);
             return false;
         }
     }
@@ -169,6 +171,7 @@ class WarehouseReceiptRepository
         $date         = $data['date'];
         $note         = $data['note'];
         $products     = $data['products'];
+        $project_id   = $data['project_id'] ?? null;
 
         DB::beginTransaction();
 
@@ -193,6 +196,7 @@ class WarehouseReceiptRepository
 
             $receipt->supplier_id  = $client_id;
             $receipt->warehouse_id = $warehouse_id;
+            $receipt->project_id   = $project_id;
             $receipt->cash_id      = $cash_id;
             $receipt->date         = $date;
             $receipt->note         = $note;

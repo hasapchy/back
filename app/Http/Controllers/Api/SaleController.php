@@ -90,6 +90,19 @@ class SaleController extends Controller
         }
     }
 
+    public function show($id)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+        $item = $this->itemRepository->getItemById($id);
+        if (!$item) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+        return response()->json(['item' => $item]);
+    }
+
     public function destroy($id)
     {
         $userUuid = optional(auth('api')->user())->id;

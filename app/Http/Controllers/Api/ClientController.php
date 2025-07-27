@@ -94,11 +94,25 @@ class ClientController extends Controller
                 'message' => 'Client created successfully',
                 'item' => $client->load('balance', 'phones', 'emails'),
             ], 200);
-        } catch (\Throwable $e) {
+                } catch (\Throwable $e) {
             DB::rollBack();
+
+            // Проверяем на ошибку дублирования телефона
+            if (str_contains($e->getMessage(), 'clients_phones_phone_unique')) {
+                return response()->json([
+                    'message' => 'Телефон уже используется другим клиентом'
+                ], 422);
+            }
+
+            // Проверяем на ошибку дублирования email
+            if (str_contains($e->getMessage(), 'clients_emails_email_unique')) {
+                return response()->json([
+                    'message' => 'Email уже используется другим клиентом'
+                ], 422);
+            }
+
             return response()->json([
-                'message' => 'Ошибка при создании клиента',
-                'error' => $e->getMessage()
+                'message' => 'Ошибка при создании клиента'
             ], 500);
         }
     }
@@ -122,12 +136,32 @@ class ClientController extends Controller
             'discount_type'    => 'nullable|in:fixed,percent',
         ]);
 
-        $client = $this->itemsRepository->update($id, $validatedData);
+        try {
+            $client = $this->itemsRepository->update($id, $validatedData);
 
-        return response()->json([
-            'message' => 'Client updated successfully',
-            'client' => $client
-        ], 200);
+            return response()->json([
+                'message' => 'Client updated successfully',
+                'client' => $client
+            ], 200);
+        } catch (\Throwable $e) {
+            // Проверяем на ошибку дублирования телефона
+            if (str_contains($e->getMessage(), 'clients_phones_phone_unique')) {
+                return response()->json([
+                    'message' => 'Телефон уже используется другим клиентом'
+                ], 422);
+            }
+
+            // Проверяем на ошибку дублирования email
+            if (str_contains($e->getMessage(), 'clients_emails_email_unique')) {
+                return response()->json([
+                    'message' => 'Email уже используется другим клиентом'
+                ], 422);
+            }
+
+            return response()->json([
+                'message' => 'Ошибка при обновлении клиента'
+            ], 500);
+        }
     }
 
     public function destroy($id)
