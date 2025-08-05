@@ -53,20 +53,26 @@ class Order extends Model
 
     public function getDescriptionForEvent(string $eventName): string
     {
-        if ($eventName === 'created') {
-            return 'Создан заказ';
+        switch ($eventName) {
+            case 'created':
+                return 'Создан заказ';
+            case 'updated':
+                return 'Заказ обновлен';
+            case 'deleted':
+                return 'Заказ удален';
+            default:
+                return "Заказ был {$eventName}";
         }
-        return "Заказ был {$eventName}";
     }
 
     public function getActivitylogOptions(): LogOptions
     {
-        // Для created не логируем все поля, только короткое описание
         return LogOptions::defaults()
             ->logOnly(static::$logAttributes)
             ->useLogName('order')
             ->dontSubmitEmptyLogs()
-            ->setDescriptionForEvent(fn(string $eventName) => $eventName === 'created' ? 'Создан заказ' : $this->getDescriptionForEvent($eventName));
+            ->logOnlyDirty()
+            ->setDescriptionForEvent(fn(string $eventName) => $this->getDescriptionForEvent($eventName));
     }
 
     protected $casts = [

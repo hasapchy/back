@@ -145,7 +145,7 @@ class OrderController extends Controller
             if (!$updated) {
                 return response()->json(['message' => 'Ошибка обновления заказа'], 400);
             }
-            return response()->json(['message' => 'Заказ обновлён']);
+            return response()->json(['message' => 'Заказ сохранён']);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Ошибка: ' . $th->getMessage()], 400);
         }
@@ -187,9 +187,15 @@ class OrderController extends Controller
             $affected = $this->itemRepository
                 ->updateStatusByIds($request->ids, $request->status_id, $userUuid);
 
-            return response()->json([
-                'message' => "Статус обновлён у {$affected} заказ(ов)"
-            ]);
+            if ($affected > 0) {
+                return response()->json([
+                    'message' => "Статус обновлён у {$affected} заказ(ов)"
+                ]);
+            } else {
+                return response()->json([
+                    'message' => "Статус не изменился"
+                ]);
+            }
         } catch (\Throwable $th) {
             return response()->json([
                 'message' => $th->getMessage() ?: 'Ошибка смены статуса'

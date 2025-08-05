@@ -55,10 +55,19 @@ class OrderTransactionController extends Controller
             return response()->json(['message' => 'Нет доступа к заказу'], 403);
         }
 
-        // Удаляем связь
-        OrderTransaction::where('order_id', $orderId)
+        // Находим и удаляем связь по отдельности для создания записи активности
+        $orderTransaction = OrderTransaction::where('order_id', $orderId)
             ->where('transaction_id', $transactionId)
-            ->delete();
+            ->first();
+
+        if ($orderTransaction) {
+            // Принудительно создаем активность перед удалением
+            activity()
+                ->performedOn($orderTransaction)
+                ->log('deleted');
+                
+            $orderTransaction->delete(); // Это создаст запись активности
+        }
 
         return response()->json(['message' => 'Транзакция успешно отвязана от заказа']);
     }

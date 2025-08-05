@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Repositories\CommentsRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Spatie\Activitylog\Models\Activity;
 
 class CommentController extends Controller
 {
@@ -146,48 +147,73 @@ class CommentController extends Controller
                         'created_at' => $log->created_at,
                     ];
                 }
+
                 $changes = $log->properties;
-                if ($modelClass === \App\Models\Order::class && $log->description === 'updated' && is_array($changes?->attributes ?? null)) {
-                    $attrs = $changes['attributes'] ?? [];
-                    $old = $changes['old'] ?? [];
 
-                    $processedAttrs = [];
-                    $processedOld = [];
+                // Обрабатываем изменения для всех событий, не только updated
+                // Проверяем, что properties существует и содержит attributes
+                if ($changes) {
+                    $attributes = null;
+                    $old = null;
 
-                    foreach ($attrs as $key => $value) {
-                        if ($key === 'total_price') {
-                            $processedAttrs[$key] = $value;
-                            $processedOld[$key] = $old[$key] ?? null;
-                        } elseif ($key === 'client_id') {
-                            $clientName = $value ? \App\Models\Client::find($value)?->name : null;
-                            $oldClientName = $old[$key] ? \App\Models\Client::find($old[$key])?->name : null;
-                            $processedAttrs[$key] = $clientName ?? $value;
-                            $processedOld[$key] = $oldClientName ?? $old[$key] ?? null;
-                        } elseif ($key === 'status_id') {
-                            $statusName = $value ? \App\Models\OrderStatus::find($value)?->name : null;
-                            $oldStatusName = $old[$key] ? \App\Models\OrderStatus::find($old[$key])?->name : null;
-                            $processedAttrs[$key] = $statusName ?? $value;
-                            $processedOld[$key] = $oldStatusName ?? $old[$key] ?? null;
-                        } elseif ($key === 'category_id') {
-                            $categoryName = $value ? \App\Models\OrderCategory::find($value)?->name : null;
-                            $oldCategoryName = $old[$key] ? \App\Models\OrderCategory::find($old[$key])?->name : null;
-                            $processedAttrs[$key] = $categoryName ?? $value;
-                            $processedOld[$key] = $oldCategoryName ?? $old[$key] ?? null;
+                    // Если это коллекция, преобразуем в массив
+                    if (method_exists($changes, 'toArray')) {
+                        $changesArray = $changes->toArray();
+                        $attributes = $changesArray['attributes'] ?? null;
+                        $old = $changesArray['old'] ?? null;
+                    }
+                    // Если это объект, пытаемся получить attributes
+                    elseif (is_object($changes)) {
+                        $attributes = $changes->attributes ?? null;
+                        $old = $changes->old ?? null;
+                    }
+                    // Если это массив
+                    elseif (is_array($changes)) {
+                        $attributes = $changes['attributes'] ?? null;
+                        $old = $changes['old'] ?? null;
+                    }
+
+                    if (is_array($attributes)) {
+                        $processedAttrs = [];
+                        $processedOld = [];
+
+                        foreach ($attributes as $key => $value) {
+                            // Обработка полей с ID - заменяем на названия
+                            if (str_ends_with($key, '_id') && $value) {
+                                $relatedModel = $this->getRelatedModelName($key, $modelClass);
+
+                                if ($relatedModel && class_exists($relatedModel)) {
+                                    try {
+                                        $relatedName = $relatedModel::find($value)?->name ?? $value;
+                                        $oldRelatedName = $old && isset($old[$key]) ? ($relatedModel::find($old[$key])?->name ?? $old[$key]) : null;
+                                        $processedAttrs[$key] = $relatedName;
+                                        $processedOld[$key] = $oldRelatedName;
+                                    } catch (\Exception $e) {
+                                        // Если что-то пошло не так, используем исходные значения
+                                        $processedAttrs[$key] = $value;
+                                        $processedOld[$key] = $old && isset($old[$key]) ? $old[$key] : null;
+                                    }
+                                } else {
+                                    $processedAttrs[$key] = $value;
+                                    $processedOld[$key] = $old && isset($old[$key]) ? $old[$key] : null;
+                                }
+                            } else {
+                                $processedAttrs[$key] = $value;
+                                $processedOld[$key] = $old && isset($old[$key]) ? $old[$key] : null;
+                            }
+                        }
+
+                        if (!empty($processedAttrs)) {
+                            $changes = [
+                                'attributes' => $processedAttrs,
+                                'old' => $processedOld,
+                            ];
                         } else {
-                            $processedAttrs[$key] = $value;
-                            $processedOld[$key] = $old[$key] ?? null;
+                            $changes = null;
                         }
                     }
-
-                    if (!empty($processedAttrs)) {
-                        $changes = [
-                            'attributes' => $processedAttrs,
-                            'old' => $processedOld,
-                        ];
-                    } else {
-                        $changes = null;
-                    }
                 }
+
                 return [
                     'type' => 'log',
                     'id' => $log->id,
@@ -207,6 +233,7 @@ class CommentController extends Controller
                     return response()->json(['message' => 'Не удалось получить ID заказа'], 400);
                 }
 
+                // Активность товаров заказа
                 $orderProductLogs = \App\Models\OrderProduct::where('order_id', $orderId)
                     ->with('product')
                     ->get()
@@ -232,9 +259,60 @@ class CommentController extends Controller
                         ];
                     })->filter()->values();
 
-                $orderProductLogs = collect($orderProductLogs);
+                // Активность транзакций заказа
+                $orderTransactionLogs = \App\Models\OrderTransaction::where('order_id', $orderId)
+                    ->with('transaction')
+                    ->get()
+                    ->flatMap(function ($orderTransaction) {
+                        return $orderTransaction->activities()
+                            ->with('causer')
+                            ->latest()
+                            ->limit(1)
+                            ->get();
+                    })->map(function ($log) {
+                        return [
+                            'type' => 'log',
+                            'id' => $log->id,
+                            'description' => $log->description,
+                            'changes' => null,
+                            'user' => $log->causer ? [
+                                'id' => $log->causer->id,
+                                'name' => $log->causer->name,
+                            ] : null,
+                            'created_at' => $log->created_at,
+                        ];
+                    })->filter()->values();
 
-                $activities = $activities->merge($orderProductLogs);
+                // Активность транзакций, связанных с заказом
+                $transactionIds = \App\Models\OrderTransaction::where('order_id', $orderId)
+                    ->pluck('transaction_id')
+                    ->toArray();
+
+                // Активность удаленных транзакций
+                $transactionLogs = Activity::where('subject_type', \App\Models\Transaction::class)
+                    ->where('description', 'Транзакция удалена')
+                    ->where('created_at', '>=', now()->subHours(1)) // Ищем за последний час
+                    ->with('causer')
+                    ->get()
+                    ->map(function ($log) {
+                        return [
+                            'type' => 'log',
+                            'id' => $log->id,
+                            'description' => 'Транзакция удалена из заказа',
+                            'changes' => null,
+                            'user' => $log->causer ? [
+                                'id' => $log->causer->id,
+                                'name' => $log->causer->name,
+                            ] : null,
+                            'created_at' => $log->created_at,
+                        ];
+                    })->values();
+
+                $orderProductLogs = collect($orderProductLogs);
+                $orderTransactionLogs = collect($orderTransactionLogs);
+                $transactionLogs = collect($transactionLogs);
+
+                $activities = $activities->merge($orderProductLogs)->merge($orderTransactionLogs)->merge($transactionLogs);
             }
 
             $comments = collect($comments);
@@ -251,5 +329,42 @@ class CommentController extends Controller
         } catch (\Throwable $e) {
             return response()->json(['message' => 'Ошибка загрузки таймлайна', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    private function getRelatedModelName(string $key, string $modelClass): ?string
+    {
+        // Базовый маппинг полей на модели
+        $baseFieldToModelMap = [
+            'client_id' => \App\Models\Client::class,
+            'user_id' => \App\Models\User::class,
+            'product_id' => \App\Models\Product::class,
+            'warehouse_id' => \App\Models\Warehouse::class,
+            'project_id' => \App\Models\Project::class,
+            'cash_register_id' => \App\Models\CashRegister::class,
+            'cash_id' => \App\Models\CashRegister::class,
+            'currency_id' => \App\Models\Currency::class,
+        ];
+
+        // Специфичные маппинги для разных типов сущностей
+        $specificFieldToModelMap = [
+            \App\Models\Order::class => [
+                'category_id' => \App\Models\OrderCategory::class,
+                'status_id' => \App\Models\OrderStatus::class,
+            ],
+            \App\Models\Transaction::class => [
+                'category_id' => \App\Models\TransactionCategory::class,
+            ],
+            \App\Models\Sale::class => [
+                'category_id' => \App\Models\Category::class,
+            ],
+        ];
+
+        // Сначала проверяем специфичные маппинги для модели
+        if (isset($specificFieldToModelMap[$modelClass]) && isset($specificFieldToModelMap[$modelClass][$key])) {
+            return $specificFieldToModelMap[$modelClass][$key];
+        }
+
+        // Затем проверяем базовый маппинг
+        return $baseFieldToModelMap[$key] ?? null;
     }
 }

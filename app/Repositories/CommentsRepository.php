@@ -77,6 +77,8 @@ class CommentsRepository
         return match ($type) {
             'order' => \App\Models\Order::class,
             'sale' => \App\Models\Sale::class,
+            'transaction' => \App\Models\Transaction::class,
+            'order_transaction' => \App\Models\OrderTransaction::class,
             default => throw new \InvalidArgumentException("Unknown commentable type: $type"),
         };
     }

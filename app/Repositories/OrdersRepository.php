@@ -393,8 +393,8 @@ class OrdersRepository
             }
             $total_price = $price - $discount_calculated;
 
-            // 7. Обновляем заказ
-            $order->update([
+            // 7. Проверяем, есть ли реальные изменения в заказе
+            $updateData = [
                 'client_id' => $client_id,
                 'project_id' => $project_id,
                 'warehouse_id' => $warehouse_id,
@@ -409,21 +409,39 @@ class OrdersRepository
                 'note' => $note,
                 'description' => $description,
                 'user_id' => $user_id
-            ]);
+            ];
+
+            // Проверяем, есть ли реальные изменения
+            $hasChanges = false;
+            foreach ($updateData as $key => $value) {
+                if ($order->$key != $value) {
+                    $hasChanges = true;
+                    break;
+                }
+            }
+
+            // Обновляем только если есть изменения
+            if ($hasChanges) {
+                $order->update($updateData);
+            }
 
             // 8. Обновляем товары более эффективно
             $existingProducts = OrderProduct::where('order_id', $id)->get()->keyBy('product_id');
             $newProducts = collect($products)->keyBy('product_id');
 
-            // Удаляем товары, которых нет в новом списке
+            // Проверяем, есть ли изменения в товарах
+            $productsChanged = false;
+
+            // Проверяем удаленные товары
             $productsToDelete = $existingProducts->keys()->diff($newProducts->keys());
             if ($productsToDelete->isNotEmpty()) {
+                $productsChanged = true;
                 OrderProduct::where('order_id', $id)
                     ->whereIn('product_id', $productsToDelete)
                     ->delete();
             }
 
-            // Обновляем или создаем товары
+            // Проверяем новые и измененные товары
             foreach ($products as $product) {
                 $unitPrice = $product['price'];
                 $productData = [
@@ -433,14 +451,33 @@ class OrdersRepository
                     'price' => $unitPrice
                 ];
 
-                // Если товар уже существует - обновляем, иначе создаем
+                // Если товар уже существует - проверяем изменения
                 if ($existingProducts->has($product['product_id'])) {
-                    OrderProduct::where('order_id', $id)
-                        ->where('product_id', $product['product_id'])
-                        ->update($productData);
+                    $existingProduct = $existingProducts->get($product['product_id']);
+                    if ($existingProduct->quantity != $product['quantity'] ||
+                        $existingProduct->price != $product['price']) {
+                        $productsChanged = true;
+                        OrderProduct::where('order_id', $id)
+                            ->where('product_id', $product['product_id'])
+                            ->update($productData);
+                    }
                 } else {
+                    // Новый товар
+                    $productsChanged = true;
                     OrderProduct::create($productData);
                 }
+            }
+
+            // Если товары не изменились и заказ не изменился, не создаем запись активности
+            if (!$hasChanges && !$productsChanged) {
+                // Просто обновляем баланс клиента без создания записи активности
+                ClientBalance::updateOrCreate(
+                    ['client_id' => $client_id],
+                    ['balance' => DB::raw("COALESCE(balance, 0) + {$total_price}")]
+                );
+
+                DB::commit();
+                return $order;
             }
 
             ClientBalance::updateOrCreate(
@@ -480,7 +517,10 @@ class OrdersRepository
             }
 
             // Удаляем связи с транзакциями
-            OrderTransaction::where('order_id', $id)->delete();
+            $orderTransactions = OrderTransaction::where('order_id', $id)->get();
+            foreach ($orderTransactions as $orderTransaction) {
+                $orderTransaction->delete(); // Это создаст запись активности
+            }
 
             // Удаляем товары
             OrderProduct::where('order_id', $id)->delete();
@@ -530,9 +570,12 @@ class OrdersRepository
                 }
             }
 
-            $order->status_id = $statusId;
-            $order->save();
-            $updatedCount++;
+            // Обновляем статус только если он изменился
+            if ($order->status_id != $statusId) {
+                $order->status_id = $statusId;
+                $order->save();
+                $updatedCount++;
+            }
         }
 
         return $updatedCount;

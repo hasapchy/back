@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\CurrencyConverter;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class Transaction extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
     protected $skipClientBalanceUpdate = false;
     protected $fillable = [
         'amount',
@@ -23,6 +25,47 @@ class Transaction extends Model
         'type',
         'user_id',
     ];
+
+    protected static $logAttributes = [
+        'amount',
+        'cash_id',
+        'category_id',
+        'client_id',
+        'currency_id',
+        'date',
+        'note',
+        'project_id',
+        'type',
+        'user_id',
+    ];
+
+    protected static $logName = 'transaction';
+    protected static $logFillable = true;
+    protected static $logOnlyDirty = true;
+    protected static $submitEmptyLogs = false;
+
+    public function getDescriptionForEvent(string $eventName): string
+    {
+        switch ($eventName) {
+            case 'created':
+                return 'Создана транзакция';
+            case 'updated':
+                return 'Транзакция обновлена';
+            case 'deleted':
+                return 'Транзакция удалена';
+            default:
+                return "Транзакция была {$eventName}";
+        }
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(static::$logAttributes)
+            ->useLogName('transaction')
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn(string $eventName) => $this->getDescriptionForEvent($eventName));
+    }
 
     protected $hidden = [
         'skipClientBalanceUpdate',
@@ -192,5 +235,15 @@ class Transaction extends Model
             ->first();
 
         return $rateHistory ? $rateHistory->exchange_rate : null;
+    }
+
+    public function activities()
+    {
+        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
+    }
+
+    public function comments()
+    {
+        return $this->morphMany(\App\Models\Comment::class, 'commentable');
     }
 }
