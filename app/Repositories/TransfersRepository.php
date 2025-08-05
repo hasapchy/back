@@ -159,9 +159,7 @@ class TransfersRepository
             // Фиксируем транзакцию
             DB::commit();
         } catch (\Exception $e) {
-            // Откатываем транзакцию
             DB::rollBack();
-            \Log::error('Ошибка при создании трансфера: ' . $e->getMessage());
             throw $e;
         }
 
@@ -178,7 +176,6 @@ class TransfersRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Ошибка при обновлении трансфера: " . $e->getMessage());
             return false;
         }
     }
@@ -201,7 +198,6 @@ class TransfersRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Ошибка при удалении трансфера: " . $e->getMessage());
             return false;
         }
     }

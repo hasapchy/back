@@ -40,9 +40,7 @@ class OrdersRepository
     }
 
 
-    /**
-     * Получение заказов по ID (для совместимости)
-     */
+
     public function getItemsByIds(array $order_ids)
     {
         if (empty($order_ids)) {
@@ -74,7 +72,7 @@ class OrdersRepository
             'orders.cash_id',
             'orders.warehouse_id',
             'orders.project_id',
-            // Удалено поле transaction_ids
+
             'orders.price',
             'orders.discount',
             'orders.total_price',
@@ -86,9 +84,7 @@ class OrdersRepository
         ->get();
     }
 
-    /**
-     * Получение заказов с детальной информацией (для совместимости)
-     */
+
     private function getItems(array $order_ids = [])
     {
         if (empty($order_ids)) {
@@ -485,7 +481,7 @@ class OrdersRepository
 
             // Удаляем связи с транзакциями
             OrderTransaction::where('order_id', $id)->delete();
-            
+
             // Удаляем товары
             OrderProduct::where('order_id', $id)->delete();
 

@@ -26,7 +26,7 @@
                             </form>
                         </div>
                     @endif
-                    @livewire('admin.currency-switcher')
+
                     <span>{{ Auth::user()->name }}</span>
 
                     <form method="POST" action="{{ route('logout') }}">

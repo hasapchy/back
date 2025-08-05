@@ -200,11 +200,6 @@ class ProjectsController extends Controller
                 'files' => $updatedFiles
             ]);
         } catch (\Exception $e) {
-            Log::error('Ошибка удаления файла: ' . $e->getMessage(), [
-                'project_id' => $id,
-                'file_path' => $request->input('path'),
-                'trace' => $e->getTraceAsString()
-            ]);
             return response()->json(['error' => 'Внутренняя ошибка сервера'], 500);
         }
     }

@@ -101,7 +101,7 @@ class WarehouseReceiptRepository
             $receipt->date         = $date;
             $receipt->note         = $note;
             $receipt->amount       = $total_amount;
-            $receipt->user_id      = auth('api')->id(); 
+            $receipt->user_id      = auth('api')->id();
             $receipt->save();
 
             // 4) Создаем продукты для receipt и обновляем склад
@@ -157,7 +157,6 @@ class WarehouseReceiptRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('❌ Ошибка в createItem', ['error' => $e->getMessage()]);
             return false;
         }
     }
