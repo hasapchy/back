@@ -4,6 +4,7 @@ namespace App\Livewire\Admin;
 
 use Livewire\Component;
 use App\Models\Order;
+use App\Models\OrderTransaction;
 use App\Models\User;
 use App\Models\OrderStatus;
 use App\Models\OrderCategory;
@@ -282,7 +283,7 @@ class Orders extends Component
         $this->date = $order->date;
         $this->selectedClient = $this->clientService->getClientById($order->client_id);
         $this->loadAfFields();
-        $this->transactions = Transaction::whereIn('id', json_decode($order->transaction_ids) ?? [])->get();
+        $this->transactions = $order->transactions;
         $this->showForm = true;
         // Загрузка товаров заказа с добавлением ключа image
         $this->selectedProducts = $order->orderProducts->mapWithKeys(function ($item) {
@@ -300,11 +301,10 @@ class Orders extends Component
 
     public function deleteOrderForm()
     {
-
         $order = Order::find($this->order_id);
-        if ($order && $order->transaction_ids) {
-            $transactionIds = json_decode($order->transaction_ids, true);
-            Transaction::whereIn('id', $transactionIds)->delete();
+        if ($order) {
+            // Удаляем связанные транзакции
+            $order->transactions()->delete();
         }
 
         Order::find($this->order_id)->delete();
@@ -317,13 +317,11 @@ class Orders extends Component
     public function deleteTransaction($transactionId)
     {
         $order = Order::find($this->order_id);
-        if ($order && $order->transaction_ids) {
-            $transactionIds = json_decode($order->transaction_ids, true);
-            $updatedTransactionIds = array_filter($transactionIds, function ($id) use ($transactionId) {
-                return $id != $transactionId;
-            });
-            $order->transaction_ids = json_encode(array_values($updatedTransactionIds));
-            $order->save();
+        if ($order) {
+            // Удаляем связь с транзакцией
+            OrderTransaction::where('order_id', $order->id)
+                ->where('transaction_id', $transactionId)
+                ->delete();
         }
 
         $transaction = Transaction::find($transactionId);
@@ -455,12 +453,15 @@ class Orders extends Component
         }
 
         $order = Order::find($this->order_id);
-        $transactionIds = json_decode($order->transaction_ids, true) ?? [];
-        $transactionIds[] = $transaction->id;
-        $order->update(['transaction_ids' => json_encode($transactionIds)]);
+        
+        // Создаем связь с заказом
+        OrderTransaction::create([
+            'order_id' => $order->id,
+            'transaction_id' => $transaction->id,
+        ]);
 
         // Обновляем локальное свойство с транзакциями, чтобы сразу отобразить новую транзакцию
-        $this->transactions = Transaction::whereIn('id', $transactionIds)->get();
+        $this->transactions = $order->transactions;
 
         session()->flash('message', 'Транзакция успешно создана.');
         $this->resetTrForm();
@@ -478,7 +479,7 @@ class Orders extends Component
             $this->tr_category_id = $transaction->category_id;
             $this->tr_currency_id = $transaction->currency_id;
             $this->tr_cash_id = $transaction->cash_id;
-            $this->order_id = $transaction->order_id ?? $this->order_id;
+            // Удалено поле order_id - теперь используется связующая таблица
             $this->showTrForm = true;
         }
     }

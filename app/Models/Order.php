@@ -70,7 +70,7 @@ class Order extends Model
     }
 
     protected $casts = [
-        'transaction_ids' => 'array',
+        // Удалено поле transaction_ids
     ];
 
     public function client()
@@ -104,7 +104,7 @@ class Order extends Model
     }
     public function transactions()
     {
-        return $this->hasMany(Transaction::class, 'order_id');
+        return $this->belongsToMany(Transaction::class, 'order_transactions', 'order_id', 'transaction_id');
     }
     public function comments()
     {

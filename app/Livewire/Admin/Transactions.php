@@ -81,9 +81,7 @@ class Transactions extends Component
         $this->clients = $this->clientService->searchClients($this->clientSearch);
 
         $transactions = $this->transactions->map(function ($transaction) {
-            $transaction->isOrder = Order::all()->contains(function ($order) use ($transaction) {
-                return in_array($transaction->id, json_decode($order->transaction_ids, true) ?? []);
-            });
+            $transaction->isOrder = $transaction->orders()->exists();
             $transaction->isTransfer = CashTransfer::where('tr_id_from', $transaction->id)
                 ->orWhere('tr_id_to', $transaction->id)
                 ->exists();
@@ -301,9 +299,7 @@ class Transactions extends Component
 
 
         $this->transactions = $this->transactions->map(function ($transaction) {
-            $transaction->isOrder = Order::all()->contains(function ($order) use ($transaction) {
-                return in_array($transaction->id, json_decode($order->transaction_ids, true) ?? []);
-            });
+            $transaction->isOrder = $transaction->orders()->exists();
             $transaction->isSale = Transaction::where('id', $transaction->id)
                 ->where('note', 'like', '%Продажа%')
                 ->exists();

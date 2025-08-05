@@ -19,7 +19,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [env('API_ALLOWED_ORIGINS', 'https://app.ltm.studio')],
+    'allowed_origins' => [
+        env('API_ALLOWED_ORIGINS', 'https://app.ltm.studio'),
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://192.168.31.175'
+    ],
 
     'allowed_origins_patterns' => [],
 

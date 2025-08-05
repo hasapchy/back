@@ -165,14 +165,9 @@ class Transaction extends Model
         return $this->belongsTo(User::class);
     }
 
-    // public function orders()
-    // {
-    //     return $this->belongsToMany(Order::class, 'order_transaction', 'transaction_id', 'order_id');
-    // }
-
-    public function order()
+    public function orders()
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsToMany(Order::class, 'order_transactions', 'transaction_id', 'order_id');
     }
 
     public function project()

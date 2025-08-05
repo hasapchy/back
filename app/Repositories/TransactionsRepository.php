@@ -6,6 +6,7 @@ use App\Models\CashRegister;
 use App\Models\Client;
 use App\Models\ClientBalance;
 use App\Models\Currency;
+use App\Models\OrderTransaction;
 use App\Models\Transaction;
 use App\Services\CurrencyConverter;
 use Illuminate\Support\Facades\DB;
@@ -38,7 +39,9 @@ class TransactionsRepository
                 }
             })
             ->when($order_id, function ($query, $order_id) {
-                return $query->where('transactions.order_id', $order_id);
+                return $query->whereHas('orders', function ($q) use ($order_id) {
+                    $q->where('orders.id', $order_id);
+                });
             })
             ->orderBy('id', 'desc')
             ->select('transactions.id as id')
@@ -100,9 +103,17 @@ class TransactionsRepository
             $transaction->client_id = $data['client_id'];
             $transaction->note = $data['note'];
             $transaction->date = $data['date'];
-            $transaction->order_id = $data['order_id'] ?? null;
+            // Удалено поле order_id - теперь используется связующая таблица
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->save();
+
+            // Создаем связь с заказом если указан order_id
+            if (!empty($data['order_id'])) {
+                OrderTransaction::create([
+                    'order_id' => $data['order_id'],
+                    'transaction_id' => $transaction->id,
+                ]);
+            }
 
             if ((int)$data['type'] === 1) {
                 $cashRegister->balance += $convertedAmount;
@@ -198,6 +209,9 @@ class TransactionsRepository
             }
             $cashRegister->save();
 
+            // Удаляем связи с заказами
+            OrderTransaction::where('transaction_id', $transaction->id)->delete();
+
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->delete();
 
@@ -225,7 +239,9 @@ class TransactionsRepository
     public function getTotalByOrderId($userId, $orderId)
     {
         return Transaction::where('user_id', $userId)
-            ->where('order_id', $orderId)
+            ->whereHas('orders', function ($query) use ($orderId) {
+                $query->where('orders.id', $orderId);
+            })
             ->sum('orig_amount');
     }
 
@@ -286,7 +302,7 @@ class TransactionsRepository
             'transactions.client_id as client_id',
             'transactions.note as note',
             'transactions.date as date',
-            'transactions.order_id as order_id',
+            // Удалено поле order_id - теперь используется связующая таблица
             'transactions.updated_at as updated_at',
             'transactions.created_at as created_at',
         );

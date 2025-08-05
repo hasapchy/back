@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Order;
 use App\Models\OrderProduct;
+use App\Models\OrderTransaction;
 use App\Models\Product;
 use App\Models\WarehouseStock;
 use App\Models\ClientBalance;
@@ -73,7 +74,7 @@ class OrdersRepository
             'orders.cash_id',
             'orders.warehouse_id',
             'orders.project_id',
-            'orders.transaction_ids',
+            // Удалено поле transaction_ids
             'orders.price',
             'orders.discount',
             'orders.total_price',
@@ -123,7 +124,7 @@ class OrdersRepository
             'orders.cash_id',
             'orders.warehouse_id',
             'orders.project_id',
-            'orders.transaction_ids',
+            // Удалено поле transaction_ids
             'orders.price',
             'orders.discount',
             'orders.total_price',
@@ -482,6 +483,9 @@ class OrdersRepository
                     ->update(['balance' => DB::raw("COALESCE(balance, 0) - {$order->total_price}")]);
             }
 
+            // Удаляем связи с транзакциями
+            OrderTransaction::where('order_id', $id)->delete();
+            
             // Удаляем товары
             OrderProduct::where('order_id', $id)->delete();
 

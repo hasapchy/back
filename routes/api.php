@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\WarehouseWriteoffController;
 use App\Http\Controllers\Api\OrderStatusController;
 use App\Http\Controllers\Api\OrderStatusCategoryController;
 use App\Http\Controllers\Api\OrderCategoryController;
+use App\Http\Controllers\Api\OrderTransactionController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\CommentController;
@@ -140,6 +141,11 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:orders_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
     Route::middleware('permission:orders_update')->post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
     Route::middleware('permission:orders_view')->get('orders/{id}', [OrderController::class, 'show']);
+
+    // order transactions
+    Route::middleware('permission:orders_update')->post('orders/{orderId}/transactions', [OrderTransactionController::class, 'linkTransaction']);
+    Route::middleware('permission:orders_update')->delete('orders/{orderId}/transactions/{transactionId}', [OrderTransactionController::class, 'unlinkTransaction']);
+    Route::middleware('permission:orders_view')->get('orders/{orderId}/transactions', [OrderTransactionController::class, 'getOrderTransactions']);
 
     // order statuses
     Route::middleware('permission:order_statuses_view')->get('order_statuses', [OrderStatusController::class, 'index']);
