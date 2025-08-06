@@ -95,9 +95,12 @@ class ProductController extends Controller
             $data['image'] = $request->file('image')->store('products', 'public');
         }
 
-        $this->itemsRepository->createItem($data);
+        $product = $this->itemsRepository->createItem($data);
 
-        return response()->json(['message' => 'Product successfully created'], 200);
+        return response()->json([
+            'message' => 'Product successfully created',
+            'item' => $product
+        ], 200);
     }
 
     // метод для обновления продукта
@@ -141,7 +144,10 @@ class ProductController extends Controller
             $product = $this->itemsRepository->updateItem($id, $data);
         }
 
-        return response()->json(['message' => 'Product successfully updated'], 200);
+        return response()->json([
+            'message' => 'Product successfully updated',
+            'item' => $product
+        ], 200);
     }
 
     public function destroy($id)

@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Product;
 use App\Models\ProductPrice;
+use Illuminate\Support\Facades\Storage;
 
 class ProductsRepository
 {
@@ -76,7 +77,22 @@ class ProductsRepository
             'purchase_price' => $data['purchase_price'] ?? 0.0,
         ]);
 
-        return $product;
+        // Возвращаем товар с полными данными
+        return Product::leftJoin('categories as cats', 'products.category_id', '=', 'cats.id')
+            ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
+            ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+            ->where('products.id', $product->id)
+            ->select(
+                'products.*',
+                'product_prices.retail_price as retail_price',
+                'product_prices.wholesale_price as wholesale_price',
+                'product_prices.purchase_price as purchase_price',
+                'cats.name as category_name',
+                'units.name as unit_name',
+                'units.short_name as unit_short_name',
+                'units.calc_area as unit_calc_area',
+            )
+            ->first();
     }
 
     public function updateItem($id, $data)
@@ -117,7 +133,22 @@ class ProductsRepository
             $prices_data
         );
 
-        return $product;
+        // Возвращаем товар с полными данными
+        return Product::leftJoin('categories as cats', 'products.category_id', '=', 'cats.id')
+            ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
+            ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+            ->where('products.id', $product->id)
+            ->select(
+                'products.*',
+                'product_prices.retail_price as retail_price',
+                'product_prices.wholesale_price as wholesale_price',
+                'product_prices.purchase_price as purchase_price',
+                'cats.name as category_name',
+                'units.name as unit_name',
+                'units.short_name as unit_short_name',
+                'units.calc_area as unit_calc_area',
+            )
+            ->first();
     }
 
     public function deleteItem($id)
@@ -141,7 +172,7 @@ class ProductsRepository
         }
 
         if ($product->image) {
-            \Storage::disk('public')->delete($product->image);
+            Storage::disk('public')->delete($product->image);
         }
 
         ProductPrice::where('product_id', $id)->delete();
