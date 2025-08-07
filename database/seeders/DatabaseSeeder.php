@@ -1,12 +1,13 @@
 <?php
 
 namespace Database\Seeders;
+
 use Hamcrest\Core\Set;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-   
+
     public function run(): void
     {
         $this->call([
@@ -18,8 +19,7 @@ class DatabaseSeeder extends Seeder
             OrderStatusSeeder::class,
             CashRegisterSeeder::class,
             UnitsSeeder::class,
-            PermissionSeeder::class,
+            PermissionsSeeder::class,
         ]);
-
     }
 }

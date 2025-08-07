@@ -11,15 +11,11 @@ class SettingSeeder extends Seeder
     {
         Setting::updateOrCreate(
             ['setting_name' => 'company_name'],
-            ['setting_value' => 'Laravel Company']
+            ['setting_value' => 'Моя компания']
         );
         Setting::updateOrCreate(
             ['setting_name' => 'company_logo'],
-            ['setting_value' => '/images/laravel.png']
-        );
-        Setting::updateOrCreate(
-            ['setting_name' => 'source'],
-            ['setting_value' => 'Default Source']
+            ['setting_value' => 'Screenshot 2025-08-07 at 17.58.00.png']
         );
     }
 }

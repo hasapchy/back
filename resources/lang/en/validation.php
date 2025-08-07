@@ -17,6 +17,7 @@ return [
         'body'                     => 'body',
         'city'                     => 'city',
         'company'                  => 'company',
+        'company_name'             => 'company name',
         'compilation'              => 'compilation',
         'concept'                  => 'concept',
         'conditions'               => 'conditions',
