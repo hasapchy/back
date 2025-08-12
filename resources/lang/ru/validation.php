@@ -143,6 +143,7 @@ return [
         'body'                     => 'контент',
         'city'                     => 'город',
         'company'                  => 'компания',
+        'company_name'             => 'название компании',
         'compilation'              => 'компиляция',
         'concept'                  => 'концепт',
         'conditions'               => 'условия',

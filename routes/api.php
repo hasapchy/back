@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\OrderStatusController;
 use App\Http\Controllers\Api\OrderStatusCategoryController;
 use App\Http\Controllers\Api\OrderCategoryController;
 use App\Http\Controllers\Api\OrderTransactionController;
+use App\Http\Controllers\Api\SettingsController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\CommentController;
@@ -174,4 +175,8 @@ Route::middleware('auth:api')->group(function () {
     Route::put('comments/{id}', [CommentController::class, 'update']);
     Route::delete('comments/{id}', [CommentController::class, 'destroy']);
     Route::get('comments/timeline', [CommentController::class, 'timeline']);
+
+    // settings
+    Route::middleware('permission:system_settings_view')->get('settings', [SettingsController::class, 'index']);
+    Route::middleware('permission:system_settings_update')->post('settings', [SettingsController::class, 'update']);
 });

@@ -41,6 +41,14 @@ class PermissionsSeeder extends Seeder
             }
         }
 
+        $systemSettingsActions = ['view', 'update'];
+        foreach ($systemSettingsActions as $action) {
+            Permission::firstOrCreate([
+                'name' => "system_settings_{$action}",
+                'guard_name' => 'api',
+            ]);
+        }
+
         $customPermissions = ['settings_edit_any_date',];
 
         foreach ($customPermissions as $permission) {
