@@ -4,9 +4,11 @@ namespace App\Repositories;
 
 use App\Models\Order;
 use App\Models\OrderProduct;
+use App\Models\OrderTempProduct;
 use App\Models\OrderTransaction;
 use App\Models\Product;
 use App\Models\WarehouseStock;
+use App\Models\Warehouse;
 use App\Models\ClientBalance;
 use App\Models\Currency;
 use App\Models\Transaction;
@@ -137,7 +139,9 @@ class OrdersRepository
             'users.name as user_name'
         );
 
-        $items = $query->get();
+        $items = $query->get()->map(function ($item) {
+            return (object) $item->toArray();
+        });
 
         $products = $this->getProducts($order_ids);
         $client_ids = $items->pluck('client_id')->toArray();
@@ -164,7 +168,8 @@ class OrdersRepository
 
     private function getProducts(array $order_ids)
     {
-        return OrderProduct::whereIn('order_id', $order_ids)
+        // Получаем обычные товары
+        $regularProducts = OrderProduct::whereIn('order_id', $order_ids)
             ->leftJoin('products', 'order_products.product_id', '=', 'products.id')
             ->leftJoin('units', 'products.unit_id', '=', 'units.id')
             ->select(
@@ -177,10 +182,32 @@ class OrdersRepository
                 'units.name as unit_name',
                 'units.short_name as unit_short_name',
                 'order_products.quantity',
-                'order_products.price'
+                'order_products.price',
+                DB::raw("'regular' as product_type")
             )
-            ->get()
-            ->groupBy('order_id');
+            ->get();
+
+        // Получаем одноразовые товары
+        $tempProducts = OrderTempProduct::whereIn('order_id', $order_ids)
+            ->leftJoin('units', 'order_temp_products.unit_id', '=', 'units.id')
+            ->select(
+                'order_temp_products.id',
+                'order_temp_products.order_id',
+                DB::raw('NULL as product_id'),
+                'order_temp_products.name as product_name',
+                DB::raw('NULL as product_image'),
+                'order_temp_products.unit_id',
+                'units.name as unit_name',
+                'units.short_name as unit_short_name',
+                'order_temp_products.quantity',
+                'order_temp_products.price',
+                DB::raw("'temp' as product_type")
+            )
+            ->get();
+
+        // Объединяем и группируем
+        $allProducts = $regularProducts->concat($tempProducts);
+        return $allProducts->groupBy('order_id');
     }
 
     public function createItem($data)
@@ -192,14 +219,14 @@ class OrdersRepository
         $project_id = $data['project_id'];
         $status_id = $data['status_id'] ?? 1;
         $category_id = $data['category_id'];
-        $products = $data['products'];
+        $products = $data['products'] ?? [];
+        $temp_products = $data['temp_products'] ?? [];
         $currency_id = $data['currency_id'];
         $discount = $data['discount'] ?? 0;
         $discount_type = $data['discount_type'] ?? 'fixed';
         $date = $data['date'] ?? now();
         $note = $data['note'] ?? '';
         $description = $data['description'] ?? '';
-        // $transaction_ids = $data['transaction_ids'] ?? [];
 
         $defaultCurrency = Currency::firstWhere('is_default', true);
         $fromCurrency = Currency::find($currency_id);
@@ -210,7 +237,7 @@ class OrdersRepository
 
         DB::beginTransaction();
         try {
-            // Рассчитываем цену заказа
+            // Рассчитываем цену заказа (обычные товары)
             foreach ($products as $product) {
                 $p_id = $product['product_id'];
                 $q = $product['quantity'];
@@ -227,7 +254,10 @@ class OrdersRepository
                         ->first();
 
                     if (!$warehouse_product || $warehouse_product->quantity < $q) {
-                        throw new \Exception("На складе {$warehouse_id} недостаточно товара ID {$p_id}");
+                        $warehouseName = optional(Warehouse::find($warehouse_id))->name ?? (string)$warehouse_id;
+                        $productName = $product_object->name ?? (string)$p_id;
+                        $available = $warehouse_product->quantity ?? 0;
+                        throw new \Exception("На складе '{$warehouseName}' недостаточно товара '{$productName}' (доступно: {$available}, требуется: {$q})");
                     }
 
                     WarehouseStock::where('product_id', $p_id)
@@ -236,9 +266,15 @@ class OrdersRepository
                 }
 
                 $origPrice = $q * $p;
-                // $convPrice = CurrencyConverter::convert($origPrice, $fromCurrency, $defaultCurrency);
-                // $price += $convPrice;
-                $price += $origPrice; // Без конвертации
+                $price += $origPrice;
+            }
+
+            // Рассчитываем цену заказа (одноразовые товары)
+            foreach ($temp_products as $temp_product) {
+                $q = $temp_product['quantity'];
+                $p = $temp_product['price'];
+                $origPrice = $q * $p;
+                $price += $origPrice;
             }
 
             // Рассчитываем скидку
@@ -246,11 +282,12 @@ class OrdersRepository
             //     $price * $discount / 100 :
             //     CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
             if ($discount_type == 'percent') {
-                $discount_calculated = $price * $discount / 100;
+                $percent = max(0, min(100, $discount));
+                $discount_calculated = $price * $percent / 100;
             } else {
-                $discount_calculated = $discount; // Без конвертации
+                $discount_calculated = max(0, min($discount, $price)); // Без конвертации, не больше суммы
             }
-            $total_price = $price - $discount_calculated;
+            $total_price = max(0, $price - $discount_calculated);
 
             $order = new Order();
             $order->client_id = $client_id;
@@ -268,15 +305,14 @@ class OrdersRepository
             $order->user_id = $userUuid;
             $order->save();
 
-            // Добавляем товары batch insert для оптимизации
+            // Добавляем обычные товары batch insert для оптимизации
             $productsData = [];
             foreach ($products as $product) {
                 $p_id = $product['product_id'];
                 $q = $product['quantity'];
                 $p = $product['price'];
 
-                // $unitPrice = CurrencyConverter::convert($p, $fromCurrency, $defaultCurrency);
-                $unitPrice = $p; // Без конвертации
+                $unitPrice = $p;
 
                 $productsData[] = [
                     'order_id' => $order->id,
@@ -290,6 +326,18 @@ class OrdersRepository
 
             if (!empty($productsData)) {
                 OrderProduct::insert($productsData);
+            }
+
+            // Добавляем одноразовые товары
+            foreach ($temp_products as $temp_product) {
+                OrderTempProduct::create([
+                    'order_id' => $order->id,
+                    'name' => $temp_product['name'],
+                    'description' => $temp_product['description'] ?? null,
+                    'quantity' => $temp_product['quantity'],
+                    'price' => $temp_product['price'],
+                    'unit_id' => $temp_product['unit_id'] ?? null,
+                ]);
             }
 
             // Обновляем баланс клиента
@@ -336,8 +384,9 @@ class OrdersRepository
             $project_id = $data['project_id'];
             $status_id = $data['status_id'] ?? $order->status_id;
             $category_id = $data['category_id'] ?? null; // Добавляем обработку category_id
-            $products = $data['products'];
-            $currency_id = $data['currency_id'] ?? $order->currency_id; // Используем текущий currency_id, если не передан
+            $products = $data['products'] ?? [];
+            $temp_products = $data['temp_products'] ?? [];
+            $currency_id = $data['currency_id'] ?? $order->currency_id;
             $discount = $data['discount'] ?? 0;
             $discount_type = $data['discount_type'] ?? 'fixed';
             $note = $data['note'] ?? '';
@@ -351,7 +400,7 @@ class OrdersRepository
             $discount_calculated = 0;
             $total_price = 0;
 
-            // 6. Списание товаров
+            // 6. Списание обычных товаров
             foreach ($products as $product) {
                 $p_id = $product['product_id'];
                 $q = $product['quantity'];
@@ -368,7 +417,10 @@ class OrdersRepository
                         ->first();
 
                     if (!$stock || $stock->quantity < $q) {
-                        throw new \Exception("Недостаточно товара ID {$p_id}");
+                        $warehouseName = optional(Warehouse::find($warehouse_id))->name ?? (string)$warehouse_id;
+                        $productName = $product_object->name ?? (string)$p_id;
+                        $available = $stock->quantity ?? 0;
+                        throw new \Exception("На складе '{$warehouseName}' недостаточно товара '{$productName}' (доступно: {$available}, требуется: {$q})");
                     }
 
                     WarehouseStock::where('product_id', $p_id)
@@ -377,9 +429,15 @@ class OrdersRepository
                 }
 
                 $origPrice = $q * $p;
-                // $convPrice = CurrencyConverter::convert($origPrice, $fromCurrency, $defaultCurrency);
-                // $price += $convPrice;
-                $price += $origPrice; // Без конвертации
+                $price += $origPrice;
+            }
+
+            // 6.1. Расчет цены одноразовых товаров
+            foreach ($temp_products as $temp_product) {
+                $q = $temp_product['quantity'];
+                $p = $temp_product['price'];
+                $origPrice = $q * $p;
+                $price += $origPrice;
             }
 
             // Рассчитываем скидку
@@ -387,11 +445,12 @@ class OrdersRepository
             //     $price * $discount / 100 :
             //     CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
             if ($discount_type == 'percent') {
-                $discount_calculated = $price * $discount / 100;
+                $percent = max(0, min(100, $discount));
+                $discount_calculated = $price * $percent / 100;
             } else {
-                $discount_calculated = $discount; // Без конвертации
+                $discount_calculated = max(0, min($discount, $price));
             }
-            $total_price = $price - $discount_calculated;
+            $total_price = max(0, $price - $discount_calculated);
 
             // 7. Проверяем, есть ли реальные изменения в заказе
             $updateData = [
@@ -425,7 +484,7 @@ class OrdersRepository
                 $order->update($updateData);
             }
 
-            // 8. Обновляем товары более эффективно
+            // 8. Обновляем обычные товары более эффективно
             $existingProducts = OrderProduct::where('order_id', $id)->get()->keyBy('product_id');
             $newProducts = collect($products)->keyBy('product_id');
 
@@ -466,6 +525,26 @@ class OrdersRepository
                     $productsChanged = true;
                     OrderProduct::create($productData);
                 }
+            }
+
+            // 8.1. Обновляем одноразовые товары
+            // Удаляем все существующие одноразовые товары
+            OrderTempProduct::where('order_id', $id)->delete();
+
+            // Создаем новые одноразовые товары
+            foreach ($temp_products as $temp_product) {
+                OrderTempProduct::create([
+                    'order_id' => $id,
+                    'name' => $temp_product['name'],
+                    'description' => $temp_product['description'] ?? null,
+                    'quantity' => $temp_product['quantity'],
+                    'price' => $temp_product['price'],
+                    'unit_id' => $temp_product['unit_id'] ?? null,
+                ]);
+            }
+
+            if (!empty($temp_products)) {
+                $productsChanged = true;
             }
 
             // Если товары не изменились и заказ не изменился, не создаем запись активности
@@ -509,6 +588,8 @@ class OrdersRepository
                         ->update(['quantity' => DB::raw('quantity + ' . $product->quantity)]);
                 }
             }
+
+            // Удаляем одноразовые товары (каскадное удаление через миграцию)
 
             // Корректируем баланс клиента
             if ($order->client_id) {
