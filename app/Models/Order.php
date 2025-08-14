@@ -108,6 +108,11 @@ class Order extends Model
     {
         return $this->hasMany(OrderProduct::class);
     }
+
+    public function tempProducts()
+    {
+        return $this->hasMany(OrderTempProduct::class);
+    }
     public function transactions()
     {
         return $this->belongsToMany(Transaction::class, 'order_transactions', 'order_id', 'transaction_id');

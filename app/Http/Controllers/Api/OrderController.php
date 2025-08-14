@@ -59,6 +59,12 @@ class OrderController extends Controller
             'products.*.product_id' => 'required_with:products|integer|exists:products,id',
             'products.*.quantity'   => 'required_with:products|numeric|min:0.01',
             'products.*.price'      => 'required_with:products|numeric|min:0',
+            'temp_products'         => 'sometimes|array',
+            'temp_products.*.name'  => 'required_with:temp_products|string|max:255',
+            'temp_products.*.description' => 'nullable|string',
+            'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0.01',
+            'temp_products.*.price'       => 'required_with:temp_products|numeric|min:0',
+            'temp_products.*.unit_id'     => 'nullable|exists:units,id',
         ]);
 
         $data = [
@@ -81,6 +87,13 @@ class OrderController extends Controller
                 'quantity'   => $p['quantity'],
                 'price'      => $p['price'],
             ], $request->products ?? []),
+            'temp_products' => array_map(fn($p) => [
+                'name'        => $p['name'],
+                'description' => $p['description'] ?? null,
+                'quantity'    => $p['quantity'],
+                'price'       => $p['price'],
+                'unit_id'     => $p['unit_id'] ?? null,
+            ], $request->temp_products ?? []),
         ];
 
         try {
@@ -117,6 +130,12 @@ class OrderController extends Controller
             'products.*.product_id' => 'required_with:products|integer|exists:products,id',
             'products.*.quantity'  => 'required_with:products|numeric|min:0.01',
             'products.*.price'     => 'required_with:products|numeric|min:0',
+            'temp_products'         => 'nullable|array',
+            'temp_products.*.name'  => 'required_with:temp_products|string|max:255',
+            'temp_products.*.description' => 'nullable|string',
+            'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0.01',
+            'temp_products.*.price'       => 'required_with:temp_products|numeric|min:0',
+            'temp_products.*.unit_id'     => 'nullable|exists:units,id',
         ]);
 
         $data = [
@@ -138,7 +157,14 @@ class OrderController extends Controller
                 'product_id' => $p['product_id'],
                 'quantity'   => $p['quantity'],
                 'price'      => $p['price'],
-            ], $request->products ?? [])
+            ], $request->products ?? []),
+            'temp_products' => array_map(fn($p) => [
+                'name'        => $p['name'],
+                'description' => $p['description'] ?? null,
+                'quantity'    => $p['quantity'],
+                'price'       => $p['price'],
+                'unit_id'     => $p['unit_id'] ?? null,
+            ], $request->temp_products ?? [])
         ];
 
         try {
