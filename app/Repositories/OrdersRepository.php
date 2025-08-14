@@ -16,11 +16,22 @@ use Illuminate\Support\Facades\DB;
 
 class OrdersRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null)
     {
-        $paginator = Order::select('orders.id as id')
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+        $query = Order::select('orders.id as id');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('orders.id', 'like', "%{$search}%")
+                    ->orWhereHas('client', function ($clientQuery) use ($search) {
+                        $clientQuery->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('contact_person', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        $paginator = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         $order_ids = $paginator->pluck('id')->toArray();
         $items = $this->getItems($order_ids);
@@ -61,27 +72,27 @@ class OrdersRepository
             'products.product.category:id,name',
             'products.product.unit:id,name,short_name,calc_area'
         ])
-        ->select([
-            'orders.id',
-            'orders.note',
-            'orders.description',
-            'orders.status_id',
-            'orders.category_id',
-            'orders.client_id',
-            'orders.user_id',
-            'orders.cash_id',
-            'orders.warehouse_id',
-            'orders.project_id',
+            ->select([
+                'orders.id',
+                'orders.note',
+                'orders.description',
+                'orders.status_id',
+                'orders.category_id',
+                'orders.client_id',
+                'orders.user_id',
+                'orders.cash_id',
+                'orders.warehouse_id',
+                'orders.project_id',
 
-            'orders.price',
-            'orders.discount',
-            'orders.total_price',
-            'orders.date',
-            'orders.created_at',
-            'orders.updated_at'
-        ])
-        ->whereIn('orders.id', $order_ids)
-        ->get();
+                'orders.price',
+                'orders.discount',
+                'orders.total_price',
+                'orders.date',
+                'orders.created_at',
+                'orders.updated_at'
+            ])
+            ->whereIn('orders.id', $order_ids)
+            ->get();
     }
 
 
@@ -454,8 +465,10 @@ class OrdersRepository
                 // Если товар уже существует - проверяем изменения
                 if ($existingProducts->has($product['product_id'])) {
                     $existingProduct = $existingProducts->get($product['product_id']);
-                    if ($existingProduct->quantity != $product['quantity'] ||
-                        $existingProduct->price != $product['price']) {
+                    if (
+                        $existingProduct->quantity != $product['quantity'] ||
+                        $existingProduct->price != $product['price']
+                    ) {
                         $productsChanged = true;
                         OrderProduct::where('order_id', $id)
                             ->where('product_id', $product['product_id'])

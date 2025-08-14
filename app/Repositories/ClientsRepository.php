@@ -9,10 +9,10 @@ class ClientsRepository
 {
 
 
-    function getItemsPaginated($perPage = 20)
+    function getItemsPaginated($perPage = 20, $search = null)
     {
 
-        $clients = DB::table('clients')
+        $query = DB::table('clients')
             ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
             ->select(
                 'clients.id as id',
@@ -30,8 +30,75 @@ class ClientsRepository
                 'clients.discount_type as discount_type',
                 'clients.created_at as created_at',
                 'clients.updated_at as updated_at'
-            )
-            ->paginate($perPage);
+            );
+
+        $clientIds = collect();
+
+        if ($search) {
+            // Поиск по основным полям клиента
+            $mainQuery = DB::table('clients')
+                ->where(function ($q) use ($search) {
+                    $q->where('clients.id', 'like', "%{$search}%")
+                        ->orWhere('clients.first_name', 'like', "%{$search}%")
+                        ->orWhere('clients.last_name', 'like', "%{$search}%")
+                        ->orWhere('clients.contact_person', 'like', "%{$search}%")
+                        ->orWhere('clients.address', 'like', "%{$search}%");
+                });
+
+            $mainClientIds = $mainQuery->pluck('id');
+            $clientIds = $clientIds->merge($mainClientIds);
+
+            // Поиск по телефонам
+            $phoneClientIds = DB::table('clients_phones')
+                ->where('phone', 'like', "%{$search}%")
+                ->pluck('client_id');
+            $clientIds = $clientIds->merge($phoneClientIds);
+
+            // Поиск по email
+            $emailClientIds = DB::table('clients_emails')
+                ->where('email', 'like', "%{$search}%")
+                ->pluck('client_id');
+            $clientIds = $clientIds->merge($emailClientIds);
+
+            // Убираем дубликаты и получаем уникальные ID
+            $uniqueClientIds = $clientIds->unique()->values()->toArray();
+
+            if (empty($uniqueClientIds)) {
+                // Если ничего не найдено, возвращаем пустой результат
+                $clients = new \Illuminate\Pagination\LengthAwarePaginator(
+                    collect(),
+                    0,
+                    $perPage,
+                    1
+                );
+                return $clients;
+            }
+
+            // Получаем клиентов по найденным ID с пагинацией
+            $clients = DB::table('clients')
+                ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
+                ->select(
+                    'clients.id as id',
+                    'clients.client_type as client_type',
+                    'client_balances.balance as balance',
+                    'clients.is_supplier as is_supplier',
+                    'clients.is_conflict as is_conflict',
+                    'clients.first_name as first_name',
+                    'clients.last_name as last_name',
+                    'clients.contact_person as contact_person',
+                    'clients.address as address',
+                    'clients.note as note',
+                    'clients.status as status',
+                    'clients.discount as discount',
+                    'clients.discount_type as discount_type',
+                    'clients.created_at as created_at',
+                    'clients.updated_at as updated_at'
+                )
+                ->whereIn('clients.id', $uniqueClientIds)
+                ->paginate($perPage);
+        } else {
+            $clients = $query->paginate($perPage);
+        }
 
         $clientIds = $clients->pluck('id');
 

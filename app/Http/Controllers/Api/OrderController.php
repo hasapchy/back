@@ -22,7 +22,8 @@ class OrderController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20);
+        $search = $request->input('search');
+        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search);
 
         return response()->json([
             'items' => $items->items(),

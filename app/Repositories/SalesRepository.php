@@ -14,11 +14,22 @@ use Illuminate\Support\Facades\DB;
 
 class SalesRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null)
     {
-        $paginator = Sale::select('sales.id as id')
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+        $query = Sale::select('sales.id as id');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('sales.id', 'like', "%{$search}%")
+                    ->orWhereHas('client', function ($clientQuery) use ($search) {
+                        $clientQuery->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('contact_person', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        $paginator = $query->orderBy('created_at', 'desc')->paginate($perPage);
         $items_ids = $paginator->pluck('id')->toArray();
         $items = $this->getItems($items_ids);
         $ordered_items = $items->sortBy(function ($item) use ($items_ids) {

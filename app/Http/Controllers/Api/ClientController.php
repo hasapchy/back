@@ -20,7 +20,8 @@ class ClientController extends Controller
     public function index(Request $request)
     {
         $perPage = $request->input('per_page', 20);
-        $items = $this->itemsRepository->getItemsPaginated ($perPage);
+        $search = $request->input('search');
+        $items = $this->itemsRepository->getItemsPaginated($perPage, $search);
 
         return response()->json([
             'items' => $items->items(),  // Список
@@ -94,7 +95,7 @@ class ClientController extends Controller
                 'message' => 'Client created successfully',
                 'item' => $client->load('balance', 'phones', 'emails'),
             ], 200);
-                } catch (\Throwable $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
 
             // Проверяем на ошибку дублирования телефона
