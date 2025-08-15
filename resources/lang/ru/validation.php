@@ -144,6 +144,7 @@ return [
         'city'                     => 'город',
         'company'                  => 'компания',
         'company_name'             => 'название компании',
+        'warehouse_id'             => 'склад',
         'compilation'              => 'компиляция',
         'concept'                  => 'концепт',
         'conditions'               => 'условия',

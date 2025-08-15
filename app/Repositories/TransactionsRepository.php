@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class TransactionsRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20, $cash_id = null, $date_filter_type = null, $order_id = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null)
     {
         $paginator = Transaction::leftJoin('cash_registers as cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
             ->leftJoin('cash_register_users as cash_register_users', 'cash_registers.id', '=', 'cash_register_users.cash_register_id')
@@ -42,6 +42,14 @@ class TransactionsRepository
             ->when($order_id, function ($query, $order_id) {
                 return $query->whereHas('orders', function ($q) use ($order_id) {
                     $q->where('orders.id', $order_id);
+                });
+            })
+            ->when($search, function ($query, $search) {
+                return $query->where(function ($q) use ($search) {
+                    $q->where('transactions.id', 'like', "%{$search}%")
+                        ->orWhere('clients.first_name', 'like', "%{$search}%")
+                        ->orWhere('clients.last_name', 'like', "%{$search}%")
+                        ->orWhere('clients.contact_person', 'like', "%{$search}%");
                 });
             })
             ->orderBy('id', 'desc')

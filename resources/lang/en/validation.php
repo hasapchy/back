@@ -18,6 +18,7 @@ return [
         'city'                     => 'city',
         'company'                  => 'company',
         'company_name'             => 'company name',
+        'warehouse_id'             => 'warehouse',
         'compilation'              => 'compilation',
         'concept'                  => 'concept',
         'conditions'               => 'conditions',

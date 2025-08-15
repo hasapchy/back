@@ -25,13 +25,15 @@ class TransactionsController extends Controller
         $cash_register_id = $request->query('cash_id');
         $date_filter_type = $request->query('date_filter_type');
         $order_id = $request->query('order_id');
+        $search = $request->query('search');
 
         $items = $this->itemsRepository->getItemsWithPagination(
             $userUuid,
             20,
             $cash_register_id,
             $date_filter_type,
-            $order_id
+            $order_id,
+            $search
         );
 
         return response()->json([
