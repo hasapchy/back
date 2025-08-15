@@ -120,8 +120,37 @@ class ProjectsController extends Controller
         ]);
     }
 
+    public function show($id)
+    {
+        try {
+            $userId = optional(auth('api')->user())->id;
+            if (!$userId) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+
+            $project = $this->itemsRepository->findItemWithRelations($id, $userId);
+
+            if (!$project) {
+                return response()->json(['error' => 'Проект не найден или доступ запрещен'], 404);
+            }
+
+            return response()->json($project);
+        } catch (\Exception $e) {
+            Log::error('Error fetching project ' . $id . ': ' . $e->getMessage());
+            return response()->json(['error' => 'Внутренняя ошибка сервера'], 500);
+        }
+    }
+
     public function uploadFiles(Request $request, $id)
     {
+        // Валидация файлов
+        $request->validate([
+            'files.*' => 'required|file|max:10240|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,gif,bmp,svg,zip,rar,7z,txt,md'
+        ], [
+            'files.*.max' => 'Файл не должен превышать 10MB',
+            'files.*.mimes' => 'Неподдерживаемый тип файла'
+        ]);
+
         $files = $request->file('files');
 
         if (is_null($files)) {
@@ -134,25 +163,36 @@ class ProjectsController extends Controller
             return response()->json(['message' => 'No files uploaded'], 400);
         }
 
-        $project = Project::findOrFail($id);
-        $storedFiles = $project->files ?? [];
+        try {
+            $project = Project::findOrFail($id);
+            $storedFiles = $project->files ?? [];
 
-        foreach ($files as $file) {
-            $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('projects/' . $project->id, $filename, 'public');
-            $storedFiles[] = [
-                'name' => $file->getClientOriginalName(),
-                'path' => $path,
-                'uploaded_at' => now()->toDateTimeString(),
-            ];
+            foreach ($files as $file) {
+                $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('projects/' . $project->id, $filename, 'public');
+
+                $storedFiles[] = [
+                    'name' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'size' => $file->getSize(),
+                    'mime_type' => $file->getMimeType(),
+                    'uploaded_at' => now()->toDateTimeString(),
+                ];
+            }
+
+            $project->update(['files' => $storedFiles]);
+
+            return response()->json([
+                'message' => 'Files uploaded successfully',
+                'files' => $storedFiles
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error uploading files for project ' . $id . ': ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Ошибка при загрузке файлов',
+                'error' => 'Internal server error'
+            ], 500);
         }
-
-        $project->update(['files' => $storedFiles]);
-
-        return response()->json([
-            'message' => 'Files uploaded',
-            'files' => $storedFiles
-        ]);
     }
 
     public function deleteFile(Request $request, $id)
@@ -168,6 +208,11 @@ class ProjectsController extends Controller
                 return response()->json(['error' => 'Проект не найден'], 404);
             }
 
+            // Проверяем, имеет ли пользователь доступ к проекту
+            if (!$project->hasUser($userId)) {
+                return response()->json(['error' => 'Доступ запрещен'], 403);
+            }
+
             $filePath = $request->input('path');
             if (!$filePath) {
                 return response()->json(['error' => 'Путь файла не указан'], 400);
@@ -175,31 +220,39 @@ class ProjectsController extends Controller
 
             $files = $project->files ?? [];
             $updatedFiles = [];
+            $deletedFile = null;
 
-            $found = false;
             foreach ($files as $file) {
                 if ($file['path'] === $filePath) {
+                    $deletedFile = $file;
+                    // Удаляем физический файл
                     if (Storage::disk('public')->exists($filePath)) {
                         Storage::disk('public')->delete($filePath);
                     }
-                    $found = true;
                     continue;
                 }
                 $updatedFiles[] = $file;
             }
 
-            if (!$found) {
+            if (!$deletedFile) {
                 return response()->json(['error' => 'Файл не найден в проекте'], 404);
             }
 
             $project->files = $updatedFiles;
             $project->save();
 
+            Log::info('File deleted from project', [
+                'project_id' => $id,
+                'file_path' => $filePath,
+                'user_id' => $userId
+            ]);
+
             return response()->json([
-                'message' => 'Файл удалён',
+                'message' => 'Файл успешно удалён',
                 'files' => $updatedFiles
             ]);
         } catch (\Exception $e) {
+            Log::error('Error deleting file from project ' . $id . ': ' . $e->getMessage());
             return response()->json(['error' => 'Внутренняя ошибка сервера'], 500);
         }
     }

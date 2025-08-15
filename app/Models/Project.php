@@ -9,10 +9,9 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name',  'user_id', 'users', 'client_id', 'files', 'budget', 'date'];
+    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'date'];
 
     protected $casts = [
-        'users' => 'array',
         'files' => 'array',
         'date' => 'datetime'
     ];
@@ -25,5 +24,25 @@ class Project extends Model
     public function transactions()
     {
         return $this->hasMany(Transaction::class);
+    }
+
+    public function projectUsers()
+    {
+        return $this->hasMany(ProjectUser::class);
+    }
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'project_users', 'project_id', 'user_id');
+    }
+
+    public function getUsersAttribute()
+    {
+        return $this->users()->get();
+    }
+
+    public function hasUser($userId)
+    {
+        return $this->users()->where('user_id', $userId)->exists();
     }
 }

@@ -21,8 +21,9 @@ class WarehouseReceiptRepository
         $items = WhReceipt::leftJoin('warehouses', 'wh_receipts.warehouse_id', '=', 'warehouses.id')
             ->leftJoin('users', 'wh_receipts.user_id', '=', 'users.id')
             ->leftJoin('cash_registers', 'wh_receipts.cash_id', '=', 'cash_registers.id')
-            ->leftJoin('currencies as cash_currency', 'cash_registers.currency_id', '=', 'cash_currency.id')
-            ->whereJsonContains('warehouses.users', (string) $userUuid)
+            ->leftJoin('currencies as cash_currency', 'cash_registers.currency_id', '=', 'cash_registers.currency_id')
+            ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
+            ->where('wh_users.user_id', $userUuid)
             ->select(
                 'wh_receipts.id as id',
                 'wh_receipts.warehouse_id as warehouse_id',

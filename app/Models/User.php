@@ -28,6 +28,7 @@ class User extends Authenticatable implements JWTSubject
         'is_active',
         'hire_date',
         'position',
+        'is_admin',
     ];
 
     /**
@@ -50,6 +51,29 @@ class User extends Authenticatable implements JWTSubject
         'password' => 'hashed',
     ];
 
+    /**
+     * Защита от удаления пользователя
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($user) {
+            throw new \Exception('Пользователя нельзя удалить.');
+        });
+    }
+
+    /**
+     * Защита от изменения поля is_admin
+     */
+    public function setIsAdminAttribute($value)
+    {
+        if ($this->exists && $this->is_admin) {
+            throw new \Exception('Нельзя убрать права администратора у пользователя.');
+        }
+
+        $this->attributes['is_admin'] = $value;
+    }
 
     // Методы для работы с JWT
     public function getJWTIdentifier()

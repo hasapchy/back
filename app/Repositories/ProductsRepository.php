@@ -14,8 +14,9 @@ class ProductsRepository
         $items = Product::leftJoin('categories as cats', 'products.category_id', '=', 'cats.id')
             ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
             ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+            ->leftJoin('category_users', 'cats.id', '=', 'category_users.category_id')
             ->where('products.type', $type)
-            ->whereJsonContains('cats.users', (string) $userUuid)
+            ->where('category_users.user_id', $userUuid)
             ->select(
                 'products.*',
                 'product_prices.retail_price as retail_price',
@@ -30,18 +31,19 @@ class ProductsRepository
         return $items;
     }
 
-    // Поиск 
+    // Поиск
     public function searchItems($userUuid, $search)
     {
         $items = Product::leftJoin('categories as cats', 'products.category_id', '=', 'cats.id')
             ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
             ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+            ->leftJoin('category_users', 'cats.id', '=', 'category_users.category_id')
             ->where(function ($query) use ($search) {
                 $query->where('products.name', 'like', '%' . $search . '%')
                     ->orWhere('products.sku', 'like', '%' . $search . '%')
                     ->orWhere('products.barcode', 'like', '%' . $search . '%');
             })
-            ->whereJsonContains('cats.users', (string) $userUuid)
+            ->where('category_users.user_id', $userUuid)
             ->select(
                 'products.*',
                 'product_prices.retail_price as retail_price',

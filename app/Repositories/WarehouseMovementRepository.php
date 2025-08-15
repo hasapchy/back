@@ -15,8 +15,10 @@ class WarehouseMovementRepository
         $items = WhMovement::leftJoin('warehouses as warehouses_from', 'wh_movements.wh_from', '=', 'warehouses_from.id')
             ->leftJoin('users', 'wh_movements.user_id', '=', 'users.id')
             ->leftJoin('warehouses as warehouses_to', 'wh_movements.wh_to', '=', 'warehouses_to.id')
-            ->whereJsonContains('warehouses_from.users', (string) $userUuid)
-            ->whereJsonContains('warehouses_to.users', (string) $userUuid)
+            ->leftJoin('wh_users as wh_users_from', 'warehouses_from.id', '=', 'wh_users_from.warehouse_id')
+            ->leftJoin('wh_users as wh_users_to', 'warehouses_to.id', '=', 'wh_users_to.warehouse_id')
+            ->where('wh_users_from.user_id', $userUuid)
+            ->where('wh_users_to.user_id', $userUuid)
             ->select(
                 'wh_movements.id as id',
                 'wh_movements.wh_from as warehouse_from_id',

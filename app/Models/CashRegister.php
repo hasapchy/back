@@ -13,12 +13,8 @@ class CashRegister extends Model
     protected $fillable = [
         'name',
         'balance',
+        'is_rounding',
         'currency_id',
-        'users', 
-    ];
-
-    protected $casts = [
-        'users' => 'array',
     ];
 
     public static function boot()
@@ -47,9 +43,39 @@ class CashRegister extends Model
         return $this->hasMany(Template::class);
     }
 
-    public function permittedUsers()
+    public function cashRegisterUsers()
     {
-        return User::whereIn('id', $this->users ?? [])->get();
+        return $this->hasMany(CashRegisterUser::class);
     }
 
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'cash_register_users', 'cash_register_id', 'user_id');
+    }
+
+    public function getUsersAttribute()
+    {
+        return $this->users()->get();
+    }
+
+    public function hasUser($userId)
+    {
+        return $this->users()->where('user_id', $userId)->exists();
+    }
+
+    public function permittedUsers()
+    {
+        return $this->users()->get();
+    }
+
+    /**
+     * Округляет сумму до целых чисел если включено округление
+     */
+    public function roundAmount($amount)
+    {
+        if ($this->is_rounding) {
+            return round($amount);
+        }
+        return $amount;
+    }
 }

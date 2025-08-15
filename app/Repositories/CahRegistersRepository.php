@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\CashRegister;
+use App\Models\CashRegisterUser;
 use App\Models\Transaction;
 
 class CahRegistersRepository
@@ -12,8 +13,9 @@ class CahRegistersRepository
     {
         $items = CashRegister::leftJoin('currencies as currencies', 'cash_registers.currency_id', '=', 'currencies.id')
             ->select('cash_registers.*', 'currencies.name as currency_name', 'currencies.code as currency_code', 'currencies.symbol as currency_symbol')
-            ->whereJsonContains('cash_registers.users', (string) $userUuid)
-            ->paginate($perPage);
+            ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
+                $query->where('user_id', $userUuid);
+            })->with('users')->paginate($perPage);
         return $items;
     }
 
@@ -22,8 +24,9 @@ class CahRegistersRepository
     {
         $items = CashRegister::leftJoin('currencies as currencies', 'cash_registers.currency_id', '=', 'currencies.id')
             ->select('cash_registers.*', 'currencies.name as currency_name', 'currencies.code as currency_code', 'currencies.symbol as currency_symbol')
-            ->whereJsonContains('cash_registers.users', (string) $userUuid)
-            ->get();
+            ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
+                $query->where('user_id', $userUuid);
+            })->with('users')->get();
         return $items;
     }
 
@@ -38,8 +41,9 @@ class CahRegistersRepository
         $items = CashRegister::when(!$all, function ($query) use ($cash_register_ids) {
             return $query->whereIn('id', $cash_register_ids);
         })
-            ->whereJsonContains('cash_registers.users', (string) $userUuid)
-            ->get()
+            ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
+                $query->where('user_id', $userUuid);
+            })->with('users')->get()
             ->map(function ($cashRegister) use ($startDate, $endDate) {
                 // базовый запрос по транзакциям
                 $txBase = Transaction::where('cash_id', $cashRegister->id)
@@ -64,16 +68,23 @@ class CahRegistersRepository
         return $items;
     }
 
-
     // Создание
     public function createItem($data)
     {
         $item = new CashRegister();
         $item->name = $data['name'];
         $item->balance = $data['balance'];
+        $item->is_rounding = $data['is_rounding'] ?? false;
         $item->currency_id = $data['currency_id'];
-        $item->users = array_map('strval', $data['users']);
         $item->save();
+
+        // Создаем связи с пользователями
+        foreach ($data['users'] as $userId) {
+            CashRegisterUser::create([
+                'cash_register_id' => $item->id,
+                'user_id' => $userId
+            ]);
+        }
 
         return true;
     }
@@ -83,10 +94,21 @@ class CahRegistersRepository
     {
         $item = CashRegister::find($id);
         $item->name = $data['name'];
+        $item->is_rounding = $data['is_rounding'] ?? false;
         // $item->balance = $data['balance'];
         // $item->currency_id = $data['currency_id'];
-        $item->users = array_map('strval', $data['users']);
         $item->save();
+
+        // Удаляем старые связи
+        CashRegisterUser::where('cash_register_id', $id)->delete();
+
+        // Создаем новые связи
+        foreach ($data['users'] as $userId) {
+            CashRegisterUser::create([
+                'cash_register_id' => $id,
+                'user_id' => $userId
+            ]);
+        }
 
         return true;
     }

@@ -16,7 +16,8 @@ class TransactionsRepository
     public function getItemsWithPagination($userUuid, $perPage = 20, $cash_id = null, $date_filter_type = null, $order_id = null)
     {
         $paginator = Transaction::leftJoin('cash_registers as cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
-            ->whereJsonContains('cash_registers.users', (string) $userUuid)
+            ->leftJoin('cash_register_users as cash_register_users', 'cash_registers.id', '=', 'cash_register_users.cash_register_id')
+            ->where('cash_register_users.user_id', $userUuid)
             ->when($cash_id, function ($query, $cash_id) {
                 return $query->where('transactions.cash_id', $cash_id);
             })
@@ -81,6 +82,9 @@ class TransactionsRepository
         } else {
             $convertedAmount = CurrencyConverter::convert($originalAmount, $fromCurrency, $toCurrency);
         }
+
+        // Применяем округление если оно включено в кассе
+        $convertedAmount = $cashRegister->roundAmount($convertedAmount);
 
         if ($fromCurrency->id !== $defaultCurrency->id) {
             $convertedAmountDefault = CurrencyConverter::convert($originalAmount, $fromCurrency, $defaultCurrency);
@@ -194,6 +198,9 @@ class TransactionsRepository
                 $convertedAmount = $transaction->amount;
             }
 
+            // Применяем округление если оно включено в кассе
+            $convertedAmount = $cashRegister->roundAmount($convertedAmount);
+
             // Конвертируем сумму в валюту по умолчанию для клиента
             if ($fromCurrency->id !== $defaultCurrency->id) {
                 $convertedAmountDefault = CurrencyConverter::convert($transaction->amount, $fromCurrency, $defaultCurrency);
@@ -249,7 +256,9 @@ class TransactionsRepository
     {
         return CashRegister::query()
             ->Where('id', $cashRegisterId)
-            ->whereJsonContains('cash_registers.users', (string) $userUuid)->exists();
+            ->whereHas('users', function($query) use ($userUuid) {
+                $query->where('user_id', $userUuid);
+            })->exists();
     }
 
     public function getItemById($id)
@@ -313,6 +322,7 @@ class TransactionsRepository
         $clients = $client_repository->getItemsByIds($client_ids);
 
         foreach ($items as $item) {
+            $item = (object) $item->toArray();
             $item->client = $clients->firstWhere('id', $item->client_id);
         }
         return $items;

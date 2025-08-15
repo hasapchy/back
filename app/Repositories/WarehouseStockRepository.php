@@ -14,7 +14,8 @@ class WarehouseStockRepository
             ->leftJoin('products', 'warehouse_stocks.product_id', '=', 'products.id')
             ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
             ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-            ->whereJsonContains('warehouses.users', (string) $userUuid)
+            ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
+            ->where('wh_users.user_id', $userUuid)
             ->when($warehouse_id, function ($query, $warehouse_id) {
                 return $query->where('warehouse_stocks.warehouse_id', $warehouse_id);
             })

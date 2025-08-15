@@ -109,6 +109,7 @@ Route::middleware('auth:api')->group(function () {
     // projects
     Route::middleware('permission:projects_view')->get('projects', [ProjectsController::class, 'index']);
     Route::middleware('permission:projects_view')->get('projects/all', [ProjectsController::class, 'all']);
+    Route::middleware('permission:projects_view')->get('projects/{id}', [ProjectsController::class, 'show']);
     Route::middleware('permission:projects_create')->post('projects', [ProjectsController::class, 'store']);
     Route::middleware('permission:projects_update')->put('projects/{id}', [ProjectsController::class, 'update']);
     Route::middleware('permission:projects_update')->post('projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);

@@ -94,6 +94,7 @@ class CashRegistersController extends Controller
         $request->validate([
             'name' => 'required|string',
             'balance' => 'required|numeric',
+            'is_rounding' => 'boolean',
             'currency_id' => 'nullable|exists:currencies,id',
             'users' => 'required|array',
             'users.*' => 'exists:users,id'
@@ -103,6 +104,7 @@ class CashRegistersController extends Controller
         $item_created = $this->itemsRepository->createItem([
             'name' => $request->name,
             'balance' => $request->balance,
+            'is_rounding' => $request->boolean('is_rounding', false),
             'currency_id' => $request->currency_id,
             'users' => $request->users
         ]);
@@ -127,6 +129,7 @@ class CashRegistersController extends Controller
         // Валидация данных
         $request->validate([
             'name' => 'required|string',
+            'is_rounding' => 'boolean',
             // 'balance' => 'required|numeric',
             // 'currency_id' => 'nullable|exists:currencies,id',
             'users' => 'required|array',
@@ -136,6 +139,7 @@ class CashRegistersController extends Controller
         // Обновляем категорию
         $category_updated = $this->itemsRepository->updateItem($id, [
             'name' => $request->name,
+            'is_rounding' => $request->boolean('is_rounding', false),
             // 'balance' => $request->balance,
             // 'currency_id' => $request->currency_id,
             'users' => $request->users

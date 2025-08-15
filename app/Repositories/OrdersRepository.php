@@ -528,22 +528,70 @@ class OrdersRepository
             }
 
             // 8.1. Обновляем одноразовые товары
-            // Удаляем все существующие одноразовые товары
-            OrderTempProduct::where('order_id', $id)->delete();
+            // Получаем существующие временные товары
+            $existingTempProducts = OrderTempProduct::where('order_id', $id)->get();
+            $tempProductsChanged = false;
 
-            // Создаем новые одноразовые товары
-            foreach ($temp_products as $temp_product) {
-                OrderTempProduct::create([
-                    'order_id' => $id,
-                    'name' => $temp_product['name'],
-                    'description' => $temp_product['description'] ?? null,
-                    'quantity' => $temp_product['quantity'],
-                    'price' => $temp_product['price'],
-                    'unit_id' => $temp_product['unit_id'] ?? null,
-                ]);
+            // Сначала удаляем товары, которых больше нет в новом списке
+            // Это обеспечит правильное логирование удаления
+            if (isset($data['remove_temp_products']) && is_array($data['remove_temp_products'])) {
+                $explicitlyRemoved = collect($data['remove_temp_products']);
+                $toDelete = $existingTempProducts->whereIn('name', $explicitlyRemoved->toArray());
+
+                if ($toDelete->count() > 0) {
+                    $toDelete->each(function($item) {
+                        $item->delete();
+                    });
+                    $tempProductsChanged = true;
+                }
             }
 
-            if (!empty($temp_products)) {
+            // Создаем хеш-мап существующих товаров для быстрого поиска
+            // После удаления товаров обновляем коллекцию
+            $existingTempProducts = OrderTempProduct::where('order_id', $id)->get();
+            $existingMap = $existingTempProducts->keyBy('name');
+
+            // Обрабатываем каждый новый товар
+            foreach ($temp_products as $temp_product) {
+                $productName = $temp_product['name'];
+
+                if ($existingMap->has($productName)) {
+                    // Товар существует - проверяем, изменился ли он
+                    $existing = $existingMap->get($productName);
+                    $tempProductChanged = false;
+
+                    if ($existing->description != ($temp_product['description'] ?? null) ||
+                        $existing->quantity != $temp_product['quantity'] ||
+                        $existing->price != $temp_product['price'] ||
+                        $existing->unit_id != ($temp_product['unit_id'] ?? null)) {
+                        $tempProductChanged = true;
+                    }
+
+                    if ($tempProductChanged) {
+                        // Обновляем существующий товар
+                        $existing->update([
+                            'description' => $temp_product['description'] ?? null,
+                            'quantity' => $temp_product['quantity'],
+                            'price' => $temp_product['price'],
+                            'unit_id' => $temp_product['unit_id'] ?? null,
+                        ]);
+                        $tempProductsChanged = true;
+                    }
+                } else {
+                    // Новый товар - создаем его
+                    OrderTempProduct::create([
+                        'order_id' => $id,
+                        'name' => $productName,
+                        'description' => $temp_product['description'] ?? null,
+                        'quantity' => $temp_product['quantity'],
+                        'price' => $temp_product['price'],
+                        'unit_id' => $temp_product['unit_id'] ?? null,
+                    ]);
+                    $tempProductsChanged = true;
+                }
+            }
+
+            if ($tempProductsChanged) {
                 $productsChanged = true;
             }
 
