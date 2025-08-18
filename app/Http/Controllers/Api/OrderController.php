@@ -23,7 +23,12 @@ class OrderController extends Controller
         }
 
         $search = $request->input('search');
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search);
+        $dateFilter = $request->input('date_filter_type', 'all_time');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        $statusFilter = $request->input('status_ids');
+
+        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search, $dateFilter, $startDate, $endDate, $statusFilter);
 
         return response()->json([
             'items' => $items->items(),

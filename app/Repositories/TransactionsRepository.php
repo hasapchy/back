@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class TransactionsRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null)
     {
         $paginator = Transaction::leftJoin('cash_registers as cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
             ->leftJoin('cash_register_users as cash_register_users', 'cash_registers.id', '=', 'cash_register_users.cash_register_id')
@@ -52,6 +52,59 @@ class TransactionsRepository
                         ->orWhere('clients.contact_person', 'like', "%{$search}%");
                 });
             })
+            ->when($transaction_type, function ($query, $transaction_type) {
+                switch ($transaction_type) {
+                    case 'income':
+                        return $query->where('transactions.type', 1);
+                    case 'outcome':
+                        return $query->where('transactions.type', 0);
+                    case 'transfer':
+                        return $query->where(function ($q) {
+                            $q->whereHas('cashTransfersFrom')
+                                ->orWhereHas('cashTransfersTo');
+                        });
+                    default:
+                        return $query;
+                }
+            })
+            ->when($source, function ($query, $source) {
+                if (empty($source)) return $query;
+
+                return $query->where(function ($q) use ($source) {
+                    $conditions = [];
+
+                    if (in_array('project', $source)) {
+                        $conditions[] = 'project';
+                    }
+                    if (in_array('sale', $source)) {
+                        $conditions[] = 'sale';
+                    }
+                    if (in_array('order', $source)) {
+                        $conditions[] = 'order';
+                    }
+                    if (in_array('other', $source)) {
+                        $conditions[] = 'other';
+                    }
+
+                    if (count($conditions) === 1) {
+                        // Если выбран только один источник
+                        $this->applySingleSourceFilter($q, $conditions[0]);
+                    } else {
+                        // Если выбрано несколько источников
+                        $q->where(function ($subQ) use ($conditions) {
+                            foreach ($conditions as $index => $condition) {
+                                if ($index === 0) {
+                                    $this->applySingleSourceFilter($subQ, $condition);
+                                } else {
+                                    $subQ->orWhere(function ($orQ) use ($condition) {
+                                        $this->applySingleSourceFilter($orQ, $condition);
+                                    });
+                                }
+                            }
+                        });
+                    }
+                });
+            })
             ->orderBy('id', 'desc')
             ->select('transactions.id as id')
             ->paginate($perPage);
@@ -64,6 +117,29 @@ class TransactionsRepository
 
         $paginator->setCollection($ordered_items);
         return $paginator;
+    }
+
+    /**
+     * Применяет фильтр по одному источнику средств
+     */
+    private function applySingleSourceFilter($query, $source)
+    {
+        switch ($source) {
+            case 'project':
+                $query->whereNotNull('transactions.project_id');
+                break;
+            case 'sale':
+                $query->whereHas('sales');
+                break;
+            case 'order':
+                $query->whereHas('orders');
+                break;
+            case 'other':
+                $query->whereNull('transactions.project_id')
+                    ->whereDoesntHave('sales')
+                    ->whereDoesntHave('orders');
+                break;
+        }
     }
 
     public function createItem($data, $return_id = false, bool $skipClientUpdate = false)

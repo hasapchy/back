@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Repositories\CahRegistersRepository;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CashRegistersController extends Controller
 {
@@ -58,9 +59,24 @@ class CashRegistersController extends Controller
         $all = empty($cashRegisterIds);
         $cashRegisterIds = array_map('intval', explode(',', $cashRegisterIds));
 
-
         $startRaw = $request->query('start_date');
         $endRaw   = $request->query('end_date');
+        $transactionType = $request->query('transaction_type');
+        $source = $request->query('source');
+
+        // Преобразуем source из строки в массив
+        if ($source && is_string($source)) {
+            $source = explode(',', $source);
+        }
+
+        // Логируем параметры для отладки
+        Log::info('Cash balance filter params', [
+            'transaction_type' => $transactionType,
+            'source' => $source,
+            'start_date' => $startRaw,
+            'end_date' => $endRaw
+        ]);
+
         try {
             $start = $startRaw
                 ? \Carbon\Carbon::createFromFormat('d.m.Y', $startRaw)->startOfDay()
@@ -77,7 +93,9 @@ class CashRegistersController extends Controller
             $cashRegisterIds,
             $all,
             $start,
-            $end
+            $end,
+            $transactionType,
+            $source
         );
 
         return response()->json($balances);

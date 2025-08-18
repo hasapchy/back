@@ -213,6 +213,21 @@ class Transaction extends Model
         return $this->belongsToMany(Order::class, 'order_transactions', 'transaction_id', 'order_id');
     }
 
+    public function sales()
+    {
+        return $this->hasMany(Sale::class, 'transaction_id');
+    }
+
+    public function cashTransfersFrom()
+    {
+        return $this->hasMany(CashTransfer::class, 'tr_id_from');
+    }
+
+    public function cashTransfersTo()
+    {
+        return $this->hasMany(CashTransfer::class, 'tr_id_to');
+    }
+
     public function project()
     {
         return $this->belongsTo(Project::class);

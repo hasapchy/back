@@ -11,10 +11,11 @@ use App\Models\WarehouseStock;
 use App\Models\CashRegister;
 use App\Services\CurrencyConverter;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SalesRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null)
     {
         $query = Sale::select('sales.id as id');
 
@@ -29,6 +30,13 @@ class SalesRepository
             });
         }
 
+        // Фильтрация по дате
+        if ($dateFilter && $dateFilter !== 'all_time') {
+            $this->applyDateFilter($query, $dateFilter, $startDate, $endDate);
+        }
+
+
+
         $paginator = $query->orderBy('created_at', 'desc')->paginate($perPage);
         $items_ids = $paginator->pluck('id')->toArray();
         $items = $this->getItems($items_ids);
@@ -37,6 +45,31 @@ class SalesRepository
         })->values();
         $paginator->setCollection($ordered_items);
         return $paginator;
+    }
+
+    private function applyDateFilter($query, $dateFilter, $startDate, $endDate)
+    {
+        if ($dateFilter === 'today') {
+            $query->whereDate('sales.date', now()->toDateString());
+        } elseif ($dateFilter === 'yesterday') {
+            $query->whereDate('sales.date', now()->subDay()->toDateString());
+        } elseif ($dateFilter === 'this_week') {
+            $query->whereBetween('sales.date', [now()->startOfWeek(), now()->endOfWeek()]);
+        } elseif ($dateFilter === 'this_month') {
+            $query->whereBetween('sales.date', [now()->startOfMonth(), now()->endOfMonth()]);
+        } elseif ($dateFilter === 'this_year') {
+            $query->whereBetween('sales.date', [now()->startOfYear(), now()->endOfYear()]);
+        } elseif ($dateFilter === 'last_week') {
+            $query->whereBetween('sales.date', [now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek()]);
+        } elseif ($dateFilter === 'last_month') {
+            $query->whereBetween('sales.date', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()]);
+        } elseif ($dateFilter === 'last_year') {
+            $query->whereBetween('sales.date', [now()->subYear()->startOfYear(), now()->subYear()->endOfYear()]);
+        } elseif ($dateFilter === 'custom') {
+            if ($startDate && $endDate) {
+                $query->whereBetween('sales.date', [$startDate, $endDate]);
+            }
+        }
     }
 
     private function getItems(array $ids = [])
