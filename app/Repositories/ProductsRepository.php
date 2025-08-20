@@ -10,11 +10,11 @@ use Illuminate\Support\Facades\Storage;
 class ProductsRepository
 {
     // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true)
+        public function getItemsWithPagination($userUuid, $perPage = 20, $type = true)
     {
         $cacheKey = "products_paginated_{$userUuid}_{$perPage}_{$type}";
 
-                return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type) {
             // Используем JOIN вместо whereHas для устранения N+1
             $query = Product::select([
                 'products.*',
@@ -34,11 +34,11 @@ class ProductsRepository
     }
 
     // Поиск
-    public function searchItems($userUuid, $search)
+        public function searchItems($userUuid, $search)
     {
         $cacheKey = "products_search_{$userUuid}_{$search}";
 
-                return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search) {
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search) {
             // Используем JOIN вместо whereHas для устранения N+1
             $query = Product::select([
                 'products.*',

@@ -289,11 +289,9 @@ return new class extends Migration
                 $this->addCompositeIndexIfNotExists('activity_log', 'activity_log_subject_index', ['subject_type', 'subject_id']);
                 $this->addIndexIfNotExists($table, 'activity_log_causer_index', 'causer_id');
                 $this->addIndexIfNotExists($table, 'activity_log_name_index', 'log_name');
-                $this->addIndexIfNotExists($table, 'activity_log_description_index', 'description');
                 $this->addIndexIfNotExists($table, 'activity_log_created_at_index', 'created_at');
                 $this->addCompositeIndexIfNotExists('activity_log', 'activity_log_subject_created_index', ['subject_type', 'subject_id', 'created_at']);
                 $this->addCompositeIndexIfNotExists('activity_log', 'activity_log_causer_created_index', ['causer_id', 'created_at']);
-                $this->addIndexIfNotExists($table, 'activity_log_properties_index', 'properties');
             });
         }
 
@@ -322,8 +320,16 @@ return new class extends Migration
 
         Schema::table('projects', function (Blueprint $table) {
             $this->addIndexIfNotExists($table, 'projects_name_index', 'name');
-            $this->addIndexIfNotExists($table, 'projects_status_index', 'status_id');
+            $this->addIndexIfNotExists($table, 'projects_user_id_index', 'user_id');
+            $this->addIndexIfNotExists($table, 'projects_client_id_index', 'client_id');
+            $this->addIndexIfNotExists($table, 'projects_date_index', 'date');
+            $this->addIndexIfNotExists($table, 'projects_created_at_index', 'created_at');
         });
+
+        // Составные индексы для projects
+        $this->addCompositeIndexIfNotExists('projects', 'projects_user_date_index', ['user_id', 'date']);
+        $this->addCompositeIndexIfNotExists('projects', 'projects_client_date_index', ['client_id', 'date']);
+        $this->addCompositeIndexIfNotExists('projects', 'projects_name_user_index', ['name', 'user_id']);
     }
 
     /**
@@ -358,6 +364,26 @@ return new class extends Migration
             Schema::table($tableName, function (Blueprint $table) use ($indexName, $columns) {
                 $table->index($columns, $indexName);
             });
+        }
+    }
+
+    /**
+     * Добавляет индекс для TEXT колонки с указанием длины
+     */
+    private function addTextIndexIfNotExists(string $tableName, string $indexName, string $column, int $length = 100): void
+    {
+        if (!$this->indexExists($tableName, $indexName)) {
+            DB::statement("ALTER TABLE `{$tableName}` ADD INDEX `{$indexName}` (`{$column}`({$length}))");
+        }
+    }
+
+    /**
+     * Добавляет индекс для JSON колонки
+     */
+    private function addJsonIndexIfNotExists(string $tableName, string $indexName, string $column): void
+    {
+        if (!$this->indexExists($tableName, $indexName)) {
+            DB::statement("ALTER TABLE `{$tableName}` ADD INDEX `{$indexName}` ((CAST(`{$column}` AS CHAR(100))))");
         }
     }
 
@@ -578,11 +604,11 @@ return new class extends Migration
                 $table->dropIndexIfExists('activity_log_subject_index');
                 $table->dropIndexIfExists('activity_log_causer_index');
                 $table->dropIndexIfExists('activity_log_name_index');
-                $table->dropIndexIfExists('activity_log_description_index');
+                // Убираем удаление несуществующих индексов
                 $table->dropIndexIfExists('activity_log_created_at_index');
                 $table->dropIndexIfExists('activity_log_subject_created_index');
                 $table->dropIndexIfExists('activity_log_causer_created_index');
-                $table->dropIndexIfExists('activity_log_properties_index');
+                // Убираем удаление несуществующих индексов
             });
         }
 
@@ -607,8 +633,16 @@ return new class extends Migration
 
         Schema::table('projects', function (Blueprint $table) {
             $table->dropIndexIfExists('projects_name_index');
-            $table->dropIndexIfExists('projects_status_index');
+            $table->dropIndexIfExists('projects_user_id_index');
+            $table->dropIndexIfExists('projects_client_id_index');
+            $table->dropIndexIfExists('projects_date_index');
+            $table->dropIndexIfExists('projects_created_at_index');
         });
+
+        // Удаляем составные индексы
+        $this->dropCompositeIndexIfExists('projects', 'projects_user_date_index');
+        $this->dropCompositeIndexIfExists('projects', 'projects_client_date_index');
+        $this->dropCompositeIndexIfExists('projects', 'projects_name_user_index');
     }
 
     private function dropUsersIndexes(): void
