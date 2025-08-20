@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Models\Activity;
+use App\Models\Order;
+
 
 class OrderTempProduct extends Model
 {
@@ -22,12 +24,6 @@ class OrderTempProduct extends Model
     ];
 
     protected static $logAttributes = [
-        'order_id',
-        'name',
-        'description',
-        'quantity',
-        'price',
-        'unit_id',
     ];
 
     protected static $logName = 'order_temp_product';
@@ -38,13 +34,16 @@ class OrderTempProduct extends Model
     public function getDescriptionForEvent(string $eventName): string
     {
         if ($eventName === 'created') {
-            return "Добавлен временный товар: {$this->name}";
+            $productName = $this->name ?? 'Временный товар';
+            return "Добавлен временный товар ({$productName})";
         }
         if ($eventName === 'updated') {
-            return "Изменён временный товар: {$this->name}";
+            $productName = $this->name ?? 'Временный товар';
+            return "Изменён временный товар ({$productName})";
         }
         if ($eventName === 'deleted') {
-            return "Удалён временный товар: {$this->name}";
+            $productName = $this->name ?? 'Временный товар';
+            return "Удалён временный товар ({$productName})";
         }
         return "временный товар был {$eventName}";
     }
@@ -54,23 +53,22 @@ class OrderTempProduct extends Model
         return LogOptions::defaults()
             ->logOnly(static::$logAttributes)
             ->useLogName(static::$logName)
-            ->dontSubmitEmptyLogs()
             ->logOnlyDirty()
+            ->submitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => $this->getDescriptionForEvent($eventName));
     }
 
-    // Привязываем записи активности к самому заказу и в общий лог 'order'
+    // Привязываем записи активности к самому заказу для отображения в таймлайне
     public function tapActivity(Activity $activity, string $eventName)
     {
-        // Пишем в общий лог заказов
-        $activity->log_name = 'order';
-
         // Если известен заказ — закрепляем как subject сам заказ, чтобы он отображался в таймлайне заказа
         if ($this->order_id) {
             $activity->subject_id = $this->order_id;
             $activity->subject_type = Order::class;
         }
     }
+
+
 
     public function order()
     {

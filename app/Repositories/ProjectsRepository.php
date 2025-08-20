@@ -3,6 +3,8 @@
 namespace App\Repositories;
 
 use App\Models\Project;
+use App\Models\ProjectUser;
+use App\Repositories\ClientsRepository;
 use Illuminate\Support\Facades\DB;
 
 class ProjectsRepository
@@ -10,36 +12,24 @@ class ProjectsRepository
     // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
-        $items = Project::leftJoin('users as users', 'projects.user_id', '=', 'users.id')
-            ->select('projects.*', 'users.name as user_name')
-            ->whereJsonContains('projects.users', (string) $userUuid)
+        $items = Project::with(['client.phones', 'client.emails', 'client.balance'])
+            ->whereHas('projectUsers', function($query) use ($userUuid) {
+                $query->where('user_id', $userUuid);
+            })->with('users')->orderBy('created_at', 'desc')
             ->paginate($perPage);
-        $client_ids = $items->pluck('client_id')->toArray();
 
-        $client_repository = new ClientsRepository();
-        $clients = $client_repository->getItemsByIds($client_ids);
-
-        foreach ($items as $item) {
-            $item->client = $clients->firstWhere('id', $item->client_id);
-        }
         return $items;
     }
 
     // Получение всего списка
     public function getAllItems($userUuid)
     {
-        $items = Project::leftJoin('users as users', 'projects.user_id', '=', 'users.id')
-            ->select('projects.*', 'users.name as user_name')
-            ->whereJsonContains('projects.users', (string) $userUuid)
+        $items = Project::with(['client.phones', 'client.emails', 'client.balance'])
+            ->whereHas('projectUsers', function($query) use ($userUuid) {
+                $query->where('user_id', $userUuid);
+            })->with('users')->orderBy('created_at', 'desc')
             ->get();
-        $client_ids = $items->pluck('client_id')->toArray();
 
-        $client_repository = new ClientsRepository();
-        $clients = $client_repository->getItemsByIds($client_ids);
-
-        foreach ($items as $item) {
-            $item->client = $clients->firstWhere('id', $item->client_id);
-        }
         return $items;
     }
 
@@ -52,9 +42,16 @@ class ProjectsRepository
         $item->date = $data['date'];
         $item->user_id = $data['user_id'];
         $item->client_id = $data['client_id'];
-        $item->users = array_map('strval', $data['users']);
         $item->files = $data['files'] ?? [];
         $item->save();
+
+        // Создаем связи с пользователями
+        foreach ($data['users'] as $userId) {
+            ProjectUser::create([
+                'project_id' => $item->id,
+                'user_id' => $userId
+            ]);
+        }
 
         return true;
     }
@@ -74,16 +71,53 @@ class ProjectsRepository
         $item->date = $data['date'];
         $item->user_id = $data['user_id'];
         $item->client_id = $data['client_id'];
-        $item->users = array_map('strval', $data['users']);
 
         $item->save();
+
+        // Удаляем старые связи
+        ProjectUser::where('project_id', $id)->delete();
+
+        // Создаем новые связи
+        foreach ($data['users'] as $userId) {
+            ProjectUser::create([
+                'project_id' => $id,
+                'user_id' => $userId
+            ]);
+        }
 
         return true;
     }
 
     public function findItem($id)
     {
-        return Project::find($id);
+        $project = Project::find($id);
+        if ($project && $project->client_id) {
+            $client_repository = new ClientsRepository();
+            $clients = $client_repository->getItemsByIds([$project->client_id]);
+            $project->client = $clients->first();
+        }
+        return $project;
+    }
+
+    public function findItemWithRelations($id, $userUuid = null)
+    {
+        $query = Project::where('id', $id);
+
+        if ($userUuid) {
+            $query->whereHas('projectUsers', function($query) use ($userUuid) {
+                $query->where('user_id', $userUuid);
+            });
+        }
+
+        $project = $query->first();
+
+        if ($project && $project->client_id) {
+            $client_repository = new ClientsRepository();
+            $clients = $client_repository->getItemsByIds([$project->client_id]);
+            $project->client = $clients->first();
+        }
+
+        return $project;
     }
 
     // Удаление

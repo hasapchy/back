@@ -26,6 +26,8 @@ class TransactionsController extends Controller
         $date_filter_type = $request->query('date_filter_type');
         $order_id = $request->query('order_id');
         $search = $request->query('search');
+        $transaction_type = $request->query('transaction_type');
+        $source = $request->query('source');
 
         $items = $this->itemsRepository->getItemsWithPagination(
             $userUuid,
@@ -33,7 +35,9 @@ class TransactionsController extends Controller
             $cash_register_id,
             $date_filter_type,
             $order_id,
-            $search
+            $search,
+            $transaction_type,
+            $source
         );
 
         return response()->json([

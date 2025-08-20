@@ -16,10 +16,11 @@ use App\Models\Transaction;
 use App\Models\OrderStatus;
 use App\Services\CurrencyConverter;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrdersRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null)
     {
         $query = Order::select('orders.id as id');
 
@@ -32,6 +33,17 @@ class OrdersRepository
                             ->orWhere('contact_person', 'like', "%{$search}%");
                     });
             });
+        }
+
+        // Фильтрация по дате
+        if ($dateFilter && $dateFilter !== 'all_time') {
+            $this->applyDateFilter($query, $dateFilter, $startDate, $endDate);
+        }
+
+        // Фильтрация по статусам
+        if ($statusFilter) {
+            $statusIds = explode(',', $statusFilter);
+            $query->whereIn('orders.status_id', $statusIds);
         }
 
         $paginator = $query->orderBy('created_at', 'desc')->paginate($perPage);
@@ -178,6 +190,31 @@ class OrdersRepository
         }
 
         return $items;
+    }
+
+    private function applyDateFilter($query, $dateFilter, $startDate, $endDate)
+    {
+        if ($dateFilter === 'today') {
+            $query->whereDate('orders.date', now()->toDateString());
+        } elseif ($dateFilter === 'yesterday') {
+            $query->whereDate('orders.date', now()->subDay()->toDateString());
+        } elseif ($dateFilter === 'this_week') {
+            $query->whereBetween('orders.date', [now()->startOfWeek(), now()->endOfWeek()]);
+        } elseif ($dateFilter === 'this_month') {
+            $query->whereBetween('orders.date', [now()->startOfMonth(), now()->endOfMonth()]);
+        } elseif ($dateFilter === 'this_year') {
+            $query->whereBetween('orders.date', [now()->startOfYear(), now()->endOfYear()]);
+        } elseif ($dateFilter === 'last_week') {
+            $query->whereBetween('orders.date', [now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek()]);
+        } elseif ($dateFilter === 'last_month') {
+            $query->whereBetween('orders.date', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()]);
+        } elseif ($dateFilter === 'last_year') {
+            $query->whereBetween('orders.date', [now()->subYear()->startOfYear(), now()->subYear()->endOfYear()]);
+        } elseif ($dateFilter === 'custom') {
+            if ($startDate && $endDate) {
+                $query->whereBetween('orders.date', [$startDate, $endDate]);
+            }
+        }
     }
 
     private function getProducts(array $order_ids)
@@ -513,9 +550,13 @@ class OrdersRepository
             $productsToDelete = $existingProducts->keys()->diff($newProducts->keys());
             if ($productsToDelete->isNotEmpty()) {
                 $productsChanged = true;
-                OrderProduct::where('order_id', $id)
-                    ->whereIn('product_id', $productsToDelete)
-                    ->delete();
+                // ВАЖНО: удаляем по одному, чтобы сработали события модели и записалось корректное логирование
+                foreach ($productsToDelete as $productIdToDelete) {
+                    $existing = $existingProducts->get($productIdToDelete);
+                    if ($existing) {
+                        $existing->delete();
+                    }
+                }
             }
 
             // Проверяем новые и измененные товары
@@ -548,22 +589,85 @@ class OrdersRepository
             }
 
             // 8.1. Обновляем одноразовые товары
-            // Удаляем все существующие одноразовые товары
-            OrderTempProduct::where('order_id', $id)->delete();
+            // Получаем существующие временные товары
+            $existingTempProducts = OrderTempProduct::where('order_id', $id)->get();
+            $tempProductsChanged = false;
 
-            // Создаем новые одноразовые товары
-            foreach ($temp_products as $temp_product) {
-                OrderTempProduct::create([
-                    'order_id' => $id,
-                    'name' => $temp_product['name'],
-                    'description' => $temp_product['description'] ?? null,
-                    'quantity' => $temp_product['quantity'],
-                    'price' => $temp_product['price'],
-                    'unit_id' => $temp_product['unit_id'] ?? null,
-                ]);
+            // Сначала удаляем товары, которых больше нет в новом списке
+            // Это обеспечит правильное логирование удаления
+            if (isset($data['remove_temp_products']) && is_array($data['remove_temp_products'])) {
+                $explicitlyRemoved = collect($data['remove_temp_products']);
+                $toDelete = $existingTempProducts->whereIn('name', $explicitlyRemoved->toArray());
+
+                if ($toDelete->count() > 0) {
+                    $toDelete->each(function($item) {
+                        $item->delete();
+                    });
+                    $tempProductsChanged = true;
+                }
             }
 
-            if (!empty($temp_products)) {
+                        // Удаляем временные товары, которых нет в новом списке
+            $newTempProductNames = collect($temp_products)->pluck('name')->toArray();
+            $tempProductsToDelete = $existingTempProducts->whereNotIn('name', $newTempProductNames);
+
+            if ($tempProductsToDelete->count() > 0) {
+                $tempProductsToDelete->each(function($item) {
+                    // Убеждаемся, что товар действительно удаляется
+                    $itemName = $item->name;
+                    $item->delete();
+                    // Логируем удаление для отладки
+                    Log::info("Удален временный товар: {$itemName}");
+                });
+                $tempProductsChanged = true;
+            }
+
+            // Создаем хеш-мап существующих товаров для быстрого поиска
+            // После удаления товаров обновляем коллекцию
+            $existingTempProducts = OrderTempProduct::where('order_id', $id)->get();
+            $existingMap = $existingTempProducts->keyBy('name');
+
+            // Обрабатываем каждый новый товар
+            foreach ($temp_products as $temp_product) {
+                $productName = $temp_product['name'];
+
+                if ($existingMap->has($productName)) {
+                    // Товар существует - проверяем, изменился ли он
+                    $existing = $existingMap->get($productName);
+                    $tempProductChanged = false;
+
+                    if ($existing->description != ($temp_product['description'] ?? null) ||
+                        $existing->quantity != $temp_product['quantity'] ||
+                        $existing->price != $temp_product['price'] ||
+                        $existing->unit_id != ($temp_product['unit_id'] ?? null)) {
+                        $tempProductChanged = true;
+                    }
+
+                    if ($tempProductChanged) {
+                        // Обновляем существующий товар
+                        $existing->update([
+                            'description' => $temp_product['description'] ?? null,
+                            'quantity' => $temp_product['quantity'],
+                            'price' => $temp_product['price'],
+                            'unit_id' => $temp_product['unit_id'] ?? null,
+                        ]);
+                        $tempProductsChanged = true;
+                    }
+                } else {
+                    // Новый товар - создаем его
+                    OrderTempProduct::create([
+                        'order_id' => $id,
+                        'name' => $productName,
+                        'description' => $temp_product['description'] ?? null,
+                        'quantity' => $temp_product['quantity'],
+                        'price' => $temp_product['price'],
+                        'unit_id' => $temp_product['unit_id'] ?? null,
+                    ]);
+                    $tempProductsChanged = true;
+                }
+            }
+
+            if ($tempProductsChanged) {
                 $productsChanged = true;
             }
 

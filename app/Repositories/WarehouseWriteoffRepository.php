@@ -14,7 +14,8 @@ class WarehouseWriteoffRepository
     {
         $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
             ->leftJoin('users', 'wh_write_offs.user_id', '=', 'users.id')
-            ->whereJsonContains('warehouses.users', (string) $userUuid)
+            ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
+            ->where('wh_users.user_id', $userUuid)
             ->select(
                 'wh_write_offs.id as id',
                 'wh_write_offs.warehouse_id as warehouse_id',

@@ -10,14 +10,25 @@ class Warehouse extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'users'];
-
-    protected $casts = [
-        'users' => 'array',
-    ];
+    protected $fillable = ['name'];
 
     public function stocks()
     {
         return $this->hasMany(WarehouseStock::class);
+    }
+
+    public function whUsers()
+    {
+        return $this->hasMany(WhUser::class);
+    }
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'wh_users', 'warehouse_id', 'user_id');
+    }
+
+    public function getUsersAttribute()
+    {
+        return $this->users()->get();
     }
 }

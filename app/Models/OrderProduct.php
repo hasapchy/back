@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Models\Activity;
 
 class OrderProduct extends Model
 {
@@ -21,11 +22,6 @@ class OrderProduct extends Model
     ];
 
     protected static $logAttributes = [
-        'order_id',
-        'product_id',
-        'quantity',
-        'price',
-        'discount',
     ];
     protected static $logName = 'order_product';
     protected static $logFillable = true;
@@ -54,8 +50,20 @@ class OrderProduct extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults()->logOnly(static::$logAttributes)->useLogName('order_product');
-        
+        return LogOptions::defaults()
+            ->logOnly(static::$logAttributes)
+            ->useLogName(static::$logName)
+            ->logOnlyDirty()
+            ->submitEmptyLogs();
+    }
+
+    // Привязываем записи активности к самому заказу для отображения в таймлайне заказа
+    public function tapActivity(Activity $activity, string $eventName)
+    {
+        if ($this->order_id) {
+            $activity->subject_id = $this->order_id;
+            $activity->subject_type = Order::class;
+        }
     }
 
     public function order()
