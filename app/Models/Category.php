@@ -23,7 +23,7 @@ class Category extends Model
 
     public function categoryUsers()
     {
-        return $this->hasMany(CategoryUser::class);
+        return $this->hasMany(CategoryUser::class, 'category_id');
     }
 
     public function users()

@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\OrderCategoryController;
 use App\Http\Controllers\Api\OrderTransactionController;
 use App\Http\Controllers\Api\OrderAfController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\PerformanceController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\CommentController;
@@ -94,6 +95,7 @@ Route::middleware('auth:api')->group(function () {
     // clients
     Route::middleware('permission:clients_view')->get('clients', [ClientController::class, 'index']);
     Route::middleware('permission:clients_view')->get('clients/search', [ClientController::class, 'search']);
+    Route::middleware('permission:clients_view')->get('clients/{id}', [ClientController::class, 'show']);
     Route::middleware('permission:clients_create')->post('clients', [ClientController::class, 'store']);
     Route::middleware('permission:clients_update')->put('clients/{id}', [ClientController::class, 'update']);
     Route::middleware('permission:clients_view')->get('clients/{id}/balance-history', [ClientController::class, 'getBalanceHistory']);
@@ -193,4 +195,14 @@ Route::middleware('auth:api')->group(function () {
     // settings
     Route::middleware('permission:system_settings_view')->get('settings', [SettingsController::class, 'index']);
     Route::middleware('permission:system_settings_update')->post('settings', [SettingsController::class, 'update']);
+
+    // performance monitoring
+    Route::get('performance/metrics', [PerformanceController::class, 'getDatabaseMetrics']);
+    Route::get('performance/table-sizes', [PerformanceController::class, 'getTableSizes']);
+    Route::post('performance/test', [PerformanceController::class, 'runPerformanceTest']);
+    Route::get('performance/cache/stats', [PerformanceController::class, 'getCacheStats']);
+    Route::post('performance/cache/clear', [PerformanceController::class, 'clearCache']);
+    Route::get('performance/analyze-indexes', [PerformanceController::class, 'analyzeIndexes']);
+    Route::get('performance/real-time-metrics', [PerformanceController::class, 'getRealTimeMetrics']);
+    Route::get('performance/server-logs', [PerformanceController::class, 'getServerLogs']);
 });

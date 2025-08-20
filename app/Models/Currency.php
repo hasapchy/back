@@ -18,7 +18,7 @@ class Currency extends Model
 
     public function exchangeRateHistories()
     {
-        return $this->hasMany(CurrencyHistory::class);
+        return $this->hasMany(CurrencyHistory::class, 'currency_id');
     }
 
     public function currentExchangeRate()

@@ -26,31 +26,31 @@ class Template extends Model
 
     public function cashRegister()
     {
-        return $this->belongsTo(CashRegister::class);
+        return $this->belongsTo(CashRegister::class, 'cash_register_id');
     }
 
     public function currency()
     {
-        return $this->belongsTo(Currency::class);
+        return $this->belongsTo(Currency::class, 'currency_id');
     }
 
     public function category()
     {
-        return $this->belongsTo(TransactionCategory::class);
+        return $this->belongsTo(TransactionCategory::class, 'category_id');
     }
 
     public function project()
     {
-        return $this->belongsTo(Project::class);
+        return $this->belongsTo(Project::class, 'project_id');
     }
 
     public function client()
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(Client::class, 'client_id');
     }
 
     public function clientBalance()
     {
-        return $this->hasOne(ClientBalance::class);
+        return $this->hasOne(ClientBalance::class, 'client_id');
     }
 }

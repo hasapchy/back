@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\ClientsPhone;
+use App\Models\ClientsEmail;
+use App\Models\ClientBalance;
 
 class Client extends Model
 {
@@ -22,22 +25,27 @@ class Client extends Model
         'discount',
         'status',
         'sort',
-  
     ];
 
     // Связь с контактами клиента
     public function phones()
     {
-        return $this->hasMany(ClientsPhone::class);
+        return $this->hasMany(ClientsPhone::class, 'client_id');
     }
 
     public function emails()
     {
-        return $this->hasMany(ClientsEmail::class);
+        return $this->hasMany(ClientsEmail::class, 'client_id');
     }
 
     public function balance()
     {
         return $this->hasOne(ClientBalance::class, 'client_id');
+    }
+
+    // Геттер для получения баланса
+    public function getBalanceAttribute()
+    {
+        return $this->balance()->first()?->balance ?? 0;
     }
 }

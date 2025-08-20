@@ -15,6 +15,8 @@ use App\Models\Currency;
 use App\Models\Transaction;
 use App\Models\OrderStatus;
 use App\Services\CurrencyConverter;
+use App\Services\CacheService;
+use App\Repositories\ClientsRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -22,41 +24,165 @@ class OrdersRepository
 {
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null)
     {
-        $query = Order::select('orders.id as id');
+        $cacheKey = "orders_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusFilter}";
 
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('orders.id', 'like', "%{$search}%")
-                    ->orWhereHas('client', function ($clientQuery) use ($search) {
-                        $clientQuery->where('first_name', 'like', "%{$search}%")
-                            ->orWhere('last_name', 'like', "%{$search}%")
-                            ->orWhere('contact_person', 'like', "%{$search}%");
-                    });
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter) {
+            // Используем оптимизированный подход с JOIN'ами для основных данных и Eager Loading для товаров
+            $query = Order::select([
+                'orders.*',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name',
+                'clients.contact_person as client_contact_person',
+                'clients.client_type as client_type',
+                'clients.is_supplier as client_is_supplier',
+                'clients.is_conflict as client_is_conflict',
+                'clients.address as client_address',
+                'clients.note as client_note',
+                'clients.status as client_status',
+                'clients.discount_type as client_discount_type',
+                'clients.discount as client_discount',
+                'clients.created_at as client_created_at',
+                'clients.updated_at as client_updated_at',
+                'users.name as user_name',
+                'order_statuses.name as status_name',
+                'order_status_categories.name as status_category_name',
+                'order_status_categories.color as status_category_color',
+                'order_categories.name as category_name',
+                'warehouses.name as warehouse_name',
+                'cash_registers.name as cash_name',
+                'currencies.name as currency_name',
+                'currencies.code as currency_code',
+                'currencies.symbol as currency_symbol',
+                'projects.name as project_name'
+            ])
+            ->leftJoin('clients', 'orders.client_id', '=', 'clients.id')
+            ->leftJoin('users', 'orders.user_id', '=', 'users.id')
+            ->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id')
+            ->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id')
+            ->leftJoin('order_categories', 'orders.category_id', '=', 'order_categories.id')
+            ->leftJoin('warehouses', 'orders.warehouse_id', '=', 'warehouses.id')
+            ->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id')
+            ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
+            ->leftJoin('projects', 'orders.project_id', '=', 'projects.id')
+            ->with([
+                'orderProducts:id,order_id,product_id,quantity,price',
+                'orderProducts.product:id,name,image,unit_id',
+                'orderProducts.product.unit:id,name,short_name',
+                'tempProducts:id,order_id,name,description,quantity,price,unit_id',
+                'tempProducts.unit:id,name,short_name',
+                'client.phones:id,client_id,phone',
+                'client.emails:id,client_id,email',
+                'client.balance:id,client_id,balance'
+            ]);
+
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('orders.id', 'like', "%{$search}%")
+                        ->orWhere('clients.first_name', 'like', "%{$search}%")
+                        ->orWhere('clients.last_name', 'like', "%{$search}%")
+                        ->orWhere('clients.contact_person', 'like', "%{$search}%");
+                });
+            }
+
+            // Фильтрация по дате
+            if ($dateFilter && $dateFilter !== 'all_time') {
+                $this->applyDateFilter($query, $dateFilter, $startDate, $endDate);
+            }
+
+            // Фильтрация по статусам
+            if ($statusFilter) {
+                $statusIds = explode(',', $statusFilter);
+                $query->whereIn('orders.status_id', $statusIds);
+            }
+
+            $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage);
+
+            // Преобразуем данные для совместимости с фронтендом
+            $orders->getCollection()->transform(function ($order) {
+                // Создаем объект клиента для совместимости с фронтендом
+                if ($order->client_id) {
+                    $order->client = (object) [
+                        'id' => $order->client_id,
+                        'first_name' => $order->client_first_name,
+                        'last_name' => $order->client_last_name,
+                        'contact_person' => $order->client_contact_person,
+                        'client_type' => $order->client_type,
+                        'is_supplier' => $order->client_is_supplier,
+                        'is_conflict' => $order->client_is_conflict,
+                        'address' => $order->client_address,
+                        'note' => $order->client_note,
+                        'status' => $order->client_status,
+                        'discount_type' => $order->client_discount_type,
+                        'discount' => $order->client_discount,
+                        'created_at' => $order->client_created_at,
+                        'updated_at' => $order->client_updated_at,
+                        'balance' => $order->client->balance->balance ?? 0
+                    ];
+                }
+
+                // Добавляем поля для совместимости
+                $order->client_first_name = $order->client_first_name ?? null;
+                $order->client_last_name = $order->client_last_name ?? null;
+                $order->client_contact_person = $order->client_contact_person ?? null;
+                $order->user_name = $order->user_name ?? null;
+                $order->status_name = $order->status_name ?? null;
+                $order->status_category_name = $order->status_category_name ?? null;
+                $order->status_category_color = $order->status_category_color ?? null;
+                $order->category_name = $order->category_name ?? null;
+                $order->warehouse_name = $order->warehouse_name ?? null;
+                $order->cash_name = $order->cash_name ?? null;
+                $order->currency_id = null; // Будет загружено через Eager Loading
+                $order->currency_name = $order->currency_name ?? null;
+                $order->currency_code = $order->currency_code ?? null;
+                $order->currency_symbol = $order->currency_symbol ?? null;
+                $order->project_name = $order->project_name ?? null;
+
+                // Объединяем обычные и временные товары
+                $allProducts = collect();
+
+                if ($order->orderProducts) {
+                    foreach ($order->orderProducts as $orderProduct) {
+                        $allProducts->push([
+                            'id' => $orderProduct->id,
+                            'order_id' => $orderProduct->order_id,
+                            'product_id' => $orderProduct->product_id,
+                            'product_name' => $orderProduct->product->name ?? null,
+                            'product_image' => $orderProduct->product->image ?? null,
+                            'unit_id' => $orderProduct->product->unit_id ?? null,
+                            'unit_name' => $orderProduct->product->unit->name ?? null,
+                            'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
+                            'quantity' => $orderProduct->quantity,
+                            'price' => $orderProduct->price,
+                            'product_type' => 'regular'
+                        ]);
+                    }
+                }
+
+                if ($order->tempProducts) {
+                    foreach ($order->tempProducts as $tempProduct) {
+                        $allProducts->push([
+                            'id' => $tempProduct->id,
+                            'order_id' => $tempProduct->order_id,
+                            'product_id' => null,
+                            'product_name' => $tempProduct->name,
+                            'product_image' => null,
+                            'unit_id' => $tempProduct->unit_id,
+                            'unit_name' => $tempProduct->unit->name ?? null,
+                            'unit_short_name' => $tempProduct->unit->short_name ?? null,
+                            'quantity' => $tempProduct->quantity,
+                            'price' => $tempProduct->price,
+                            'product_type' => 'temp'
+                        ]);
+                    }
+                }
+
+                $order->products = $allProducts;
+
+                return $order;
             });
-        }
 
-        // Фильтрация по дате
-        if ($dateFilter && $dateFilter !== 'all_time') {
-            $this->applyDateFilter($query, $dateFilter, $startDate, $endDate);
-        }
-
-        // Фильтрация по статусам
-        if ($statusFilter) {
-            $statusIds = explode(',', $statusFilter);
-            $query->whereIn('orders.status_id', $statusIds);
-        }
-
-        $paginator = $query->orderBy('created_at', 'desc')->paginate($perPage);
-
-        $order_ids = $paginator->pluck('id')->toArray();
-        $items = $this->getItems($order_ids);
-
-        $ordered = $items->sortBy(function ($item) use ($order_ids) {
-            return array_search($item->id, $order_ids);
-        })->values();
-
-        $paginator->setCollection($ordered);
-        return $paginator;
+            return $orders;
+        });
     }
 
     public function getItemById($id)
@@ -73,41 +199,31 @@ class OrdersRepository
             return collect();
         }
 
-        return Order::with([
-            'client:id,first_name,last_name,contact_person',
-            'user:id,name',
-            'status:id,name,category_id',
-            'status.category:id,name,color',
-            'category:id,name',
-            'warehouse:id,name',
-            'cash:id,name',
-            'cash.currency:id,name,code,symbol',
-            'project:id,name',
-            'products.product:id,name,sku,barcode',
-            'products.product.category:id,name',
-            'products.product.unit:id,name,short_name,calc_area'
-        ])
-            ->select([
-                'orders.id',
-                'orders.note',
-                'orders.description',
-                'orders.status_id',
-                'orders.category_id',
-                'orders.client_id',
-                'orders.user_id',
-                'orders.cash_id',
-                'orders.warehouse_id',
-                'orders.project_id',
+        $cacheKey = "orders_by_ids_" . md5(implode(',', $order_ids));
 
-                'orders.price',
-                'orders.discount',
-                'orders.total_price',
-                'orders.date',
-                'orders.created_at',
-                'orders.updated_at'
-            ])
-            ->whereIn('orders.id', $order_ids)
-            ->get();
+        return CacheService::remember($cacheKey, function () use ($order_ids) {
+            return Order::select([
+                    'orders.id',
+                    'orders.note',
+                    'orders.description',
+                    'orders.status_id',
+                    'orders.category_id',
+                    'orders.client_id',
+                    'orders.user_id',
+                    'orders.cash_id',
+                    'orders.warehouse_id',
+                    'orders.project_id',
+
+                    'orders.price',
+                    'orders.discount',
+                    'orders.total_price',
+                    'orders.date',
+                    'orders.created_at',
+                    'orders.updated_at'
+                ])
+                ->whereIn('orders.id', $order_ids)
+                ->get();
+        });
     }
 
 
@@ -402,6 +518,11 @@ class OrdersRepository
             );
 
             DB::commit();
+
+            // Инвалидируем кэш заказов и баланса клиента
+            CacheService::invalidateOrdersCache();
+            $this->invalidateClientBalanceCache($client_id);
+
             return $order;
         } catch (\Exception $e) {
             DB::rollBack();
@@ -694,6 +815,10 @@ class OrdersRepository
 
             DB::commit();
 
+            // Инвалидируем кэш заказов и баланса клиента
+            CacheService::invalidateOrdersCache();
+            $this->invalidateClientBalanceCache($client_id);
+
             return $order;
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -736,6 +861,12 @@ class OrdersRepository
 
             // Удаляем заказ
             $order->delete();
+
+            // Инвалидируем кэш заказов и баланса клиента
+            CacheService::invalidateOrdersCache();
+            if ($order->client_id) {
+                $this->invalidateClientBalanceCache($order->client_id);
+            }
 
             return [
                 'id' => $order->id,
@@ -787,7 +918,27 @@ class OrdersRepository
             }
         }
 
+        // Инвалидируем кэш заказов если были изменения
+        if ($updatedCount > 0) {
+            CacheService::invalidateOrdersCache();
+
+            // Инвалидируем кэш баланса клиентов для измененных заказов
+            foreach ($ids as $id) {
+                $order = Order::find($id);
+                if ($order && $order->client_id) {
+                    $this->invalidateClientBalanceCache($order->client_id);
+                }
+            }
+        }
+
         return $updatedCount;
+    }
+
+    // Инвалидация кэша баланса клиента
+    private function invalidateClientBalanceCache($clientId)
+    {
+        $clientsRepository = new ClientsRepository();
+        $clientsRepository->invalidateClientBalanceCache($clientId);
     }
 
     private function saveAdditionalFields($orderId, array $additionalFields)

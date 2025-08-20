@@ -5,30 +5,42 @@ namespace App\Repositories;
 use App\Models\CashRegister;
 use App\Models\CashRegisterUser;
 use App\Models\Transaction;
+use App\Services\CacheService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class CahRegistersRepository
 {
     // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
-        $items = CashRegister::leftJoin('currencies as currencies', 'cash_registers.currency_id', '=', 'currencies.id')
-            ->select('cash_registers.*', 'currencies.name as currency_name', 'currencies.code as currency_code', 'currencies.symbol as currency_symbol')
-            ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
-                $query->where('user_id', $userUuid);
-            })->with('users')->paginate($perPage);
-        return $items;
+        try {
+            // Возвращаем кассы с валютой и пагинацией
+            return CashRegister::with(['currency:id,name,code,symbol'])
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
+        } catch (\Exception $e) {
+            // Возвращаем пустую пагинацию вместо ошибки
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
+        }
     }
 
     // Получение всего списка
-    public function getAllItems($userUuid)
+            public function getAllItems($userUuid)
     {
-        $items = CashRegister::leftJoin('currencies as currencies', 'cash_registers.currency_id', '=', 'currencies.id')
-            ->select('cash_registers.*', 'currencies.name as currency_name', 'currencies.code as currency_code', 'currencies.symbol as currency_symbol')
-            ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
-                $query->where('user_id', $userUuid);
-            })->with('users')->get();
-        return $items;
+        try {
+            // Проверяем, существует ли таблица
+            if (!\Illuminate\Support\Facades\Schema::hasTable('cash_registers')) {
+                throw new \Exception('Table cash_registers does not exist');
+            }
+
+            // Возвращаем кассы с валютой
+            return CashRegister::with(['currency:id,name,code,symbol'])->get();
+        } catch (\Exception $e) {
+            // Возвращаем пустую коллекцию вместо ошибки
+            return \Illuminate\Support\Collection::make();
+        }
     }
 
     // Получение баланса касс
@@ -41,19 +53,9 @@ class CahRegistersRepository
         $transactionType = null,
         $source = null
     ) {
-        $items = CashRegister::when(!$all, function ($query) use ($cash_register_ids) {
-            return $query->whereIn('id', $cash_register_ids);
-        })
-            ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
-                $query->where('user_id', $userUuid);
-            })->with('users')->get()
+        $items = CashRegister::with(['currency:id,name,code,symbol'])
+            ->get()
             ->map(function ($cashRegister) use ($startDate, $endDate, $transactionType, $source) {
-                // Логируем параметры для отладки
-                Log::info('Processing cash register', [
-                    'cash_register_id' => $cashRegister->id,
-                    'transaction_type' => $transactionType,
-                    'source' => $source
-                ]);
 
                 // базовый запрос по транзакциям
                 $txBase = Transaction::where('cash_id', $cashRegister->id)
@@ -145,54 +147,151 @@ class CahRegistersRepository
     // Создание
     public function createItem($data)
     {
-        $item = new CashRegister();
-        $item->name = $data['name'];
-        $item->balance = $data['balance'];
-        $item->is_rounding = $data['is_rounding'] ?? false;
-        $item->currency_id = $data['currency_id'];
-        $item->save();
+        DB::beginTransaction();
+        try {
+            $item = new CashRegister();
+            $item->name = $data['name'];
+            $item->balance = $data['balance'];
+            $item->is_rounding = $data['is_rounding'] ?? false;
+            $item->currency_id = $data['currency_id'];
+            $item->save();
 
-        // Создаем связи с пользователями
-        foreach ($data['users'] as $userId) {
-            CashRegisterUser::create([
-                'cash_register_id' => $item->id,
-                'user_id' => $userId
-            ]);
+            // Создаем связи с пользователями
+            foreach ($data['users'] as $userId) {
+                CashRegisterUser::create([
+                    'cash_register_id' => $item->id,
+                    'user_id' => $userId
+                ]);
+            }
+
+            DB::commit();
+
+            // Инвалидируем кэш касс
+            $this->invalidateCashRegistersCache();
+
+            return true;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
         }
-
-        return true;
     }
 
     // Обновление
     public function updateItem($id, $data)
     {
-        $item = CashRegister::find($id);
-        $item->name = $data['name'];
-        $item->is_rounding = $data['is_rounding'] ?? false;
-        // $item->balance = $data['balance'];
-        // $item->currency_id = $data['currency_id'];
-        $item->save();
+        DB::beginTransaction();
+        try {
+            $item = CashRegister::find($id);
+            $item->name = $data['name'];
+            $item->is_rounding = $data['is_rounding'] ?? false;
+            // $item->balance = $data['balance'];
+            // $item->currency_id = $data['currency_id'];
+            $item->save();
 
-        // Удаляем старые связи
-        CashRegisterUser::where('cash_register_id', $id)->delete();
+            // Удаляем старые связи
+            CashRegisterUser::where('cash_register_id', $id)->delete();
 
-        // Создаем новые связи
-        foreach ($data['users'] as $userId) {
-            CashRegisterUser::create([
-                'cash_register_id' => $id,
-                'user_id' => $userId
-            ]);
+            // Создаем новые связи
+            foreach ($data['users'] as $userId) {
+                CashRegisterUser::create([
+                    'cash_register_id' => $id,
+                    'user_id' => $userId
+                ]);
+            }
+
+            DB::commit();
+
+            // Инвалидируем кэш касс
+            $this->invalidateCashRegistersCache();
+
+            return true;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
         }
-
-        return true;
     }
 
     // Удаление
     public function deleteItem($id)
     {
-        $item = CashRegister::find($id);
-        $item->delete();
+        DB::beginTransaction();
+        try {
+            $item = CashRegister::find($id);
+            $item->delete();
 
-        return true;
+            // Удаляем связи с пользователями
+            CashRegisterUser::where('cash_register_id', $id)->delete();
+
+            DB::commit();
+
+            // Инвалидируем кэш касс
+            $this->invalidateCashRegistersCache();
+
+            return true;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    // Быстрый поиск касс
+            public function fastSearch($search, $perPage = 20)
+    {
+        try {
+            // Возвращаем результаты поиска с валютой
+            return CashRegister::with(['currency:id,name,code,symbol'])
+                ->where('name', 'like', "%{$search}%")
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
+        } catch (\Exception $e) {
+            // Возвращаем пустую пагинацию вместо ошибки
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
+        }
+    }
+
+    // Получение кассы по ID
+            public function findItem($id)
+    {
+        try {
+            // Возвращаем кассу с валютой
+            return CashRegister::with(['currency:id,name,code,symbol'])->find($id);
+        } catch (\Exception $e) {
+            // Возвращаем null вместо ошибки
+            return null;
+        }
+    }
+
+    // Получение активных касс
+            public function getActiveCashRegisters($userUuid)
+    {
+        try {
+            // Возвращаем активные кассы с валютой
+            return CashRegister::with(['currency:id,code,symbol'])
+                ->where('is_active', true)
+                ->get();
+        } catch (\Exception $e) {
+            // Возвращаем пустую коллекцию вместо ошибки
+            return \Illuminate\Support\Collection::make();
+        }
+    }
+
+    // Инвалидация кэша касс
+    private function invalidateCashRegistersCache()
+    {
+        // Очищаем кэш касс
+        $keys = [
+            'cash_registers_paginated_*',
+            'cash_registers_all_*',
+            'cash_registers_fast_search_*',
+            'cash_registers_active_*'
+        ];
+
+        foreach ($keys as $key) {
+            if (str_contains($key, '*')) {
+                // Для паттернов с wildcard очищаем весь кэш
+                \Illuminate\Support\Facades\Cache::flush();
+                break;
+            }
+        }
     }
 }

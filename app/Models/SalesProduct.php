@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+
 class SalesProduct extends Model
 {
     use HasFactory;
@@ -18,7 +19,7 @@ class SalesProduct extends Model
 
     public function sale()
     {
-        return $this->belongsTo(Sale::class);
+        return $this->belongsTo(Sale::class, 'sale_id');
     }
 
     public function product()
@@ -26,5 +27,5 @@ class SalesProduct extends Model
         return $this->belongsTo(Product::class, 'product_id');
     }
 
-  
+
 }

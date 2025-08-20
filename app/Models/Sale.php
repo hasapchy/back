@@ -4,6 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\SalesProduct;
+use App\Models\Client;
+use App\Models\Warehouse;
+use App\Models\CashRegister;
+use App\Models\User;
+use App\Models\Transaction;
+use App\Models\Project;
 
 
 class Sale extends Model
@@ -28,23 +35,22 @@ class Sale extends Model
 
     public function client()
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(Client::class, 'client_id');
     }
 
     public function warehouse()
     {
-        return $this->belongsTo(Warehouse::class);
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
 
     public function products()
     {
-        return $this->belongsToMany(Product::class, 'sales_products')
-            ->withPivot('quantity', 'price',);
+        return $this->hasMany(SalesProduct::class, 'sale_id');
     }
 
     public function cashRegister()
     {
-        return $this->belongsTo(CashRegister::class);
+        return $this->belongsTo(CashRegister::class, 'cash_id');
     }
     public function user()
     {
@@ -53,5 +59,10 @@ class Sale extends Model
     public function transaction()
     {
         return $this->belongsTo(Transaction::class, 'transaction_id');
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class, 'project_id');
     }
 }
