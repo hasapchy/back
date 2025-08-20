@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\OrderStatusController;
 use App\Http\Controllers\Api\OrderStatusCategoryController;
 use App\Http\Controllers\Api\OrderCategoryController;
 use App\Http\Controllers\Api\OrderTransactionController;
+use App\Http\Controllers\Api\OrderAfController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\PerformanceController;
 use Illuminate\Support\Facades\Route;
@@ -145,6 +146,8 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:orders_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
     Route::middleware('permission:orders_update')->post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
     Route::middleware('permission:orders_view')->get('orders/{id}', [OrderController::class, 'show']);
+    Route::middleware('permission:orders_view')->get('orders/category/{id}/additional-fields', [OrderController::class, 'getAdditionalFields']);
+    Route::middleware('permission:orders_view')->post('orders/categories/additional-fields', [OrderController::class, 'getAdditionalFieldsByCategories']);
 
     // order transactions
     Route::middleware('permission:orders_update')->post('orders/{orderId}/transactions', [OrderTransactionController::class, 'linkTransaction']);
@@ -171,6 +174,16 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:order_categories_create')->post('order_categories', [OrderCategoryController::class, 'store']);
     Route::middleware('permission:order_categories_update')->put('order_categories/{id}', [OrderCategoryController::class, 'update']);
     Route::middleware('permission:order_categories_delete')->delete('order_categories/{id}', [OrderCategoryController::class, 'destroy']);
+
+    // order additional fields
+    Route::middleware('permission:orders_view')->get('order-af', [OrderAfController::class, 'index']);
+    Route::middleware('permission:orders_create')->post('order-af', [OrderAfController::class, 'store']);
+    Route::middleware('permission:orders_update')->put('order-af/{id}', [OrderAfController::class, 'update']);
+    Route::middleware('permission:orders_delete')->delete('order-af/{id}', [OrderAfController::class, 'destroy']);
+    Route::middleware('permission:orders_view')->get('order-af/{id}', [OrderAfController::class, 'show']);
+    Route::middleware('permission:orders_view')->get('order-af/category/{id}', [OrderAfController::class, 'getByCategory']);
+    Route::middleware('permission:orders_view')->post('order-af/categories', [OrderAfController::class, 'getByCategories']);
+    Route::middleware('permission:orders_view')->get('order-af/types', [OrderAfController::class, 'getFieldTypes']);
 
     // comments
     Route::get('comments', [CommentController::class, 'index']);

@@ -21,8 +21,13 @@ class OrderCategory extends Model
         return $this->hasMany(Order::class, 'category_id');
     }
 
-    public function af()
+    public function additionalFields()
     {
-        return $this->hasMany(OrderAf::class, 'category_id');
+        return $this->belongsToMany(OrderAf::class, 'order_af_categories', 'order_category_id', 'order_af_id');
+    }
+
+    public function getAdditionalFields()
+    {
+        return $this->additionalFields()->orderBy('name')->get();
     }
 }

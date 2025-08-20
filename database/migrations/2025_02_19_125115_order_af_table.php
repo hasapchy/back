@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('order_af', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->enum('type', ['int', 'string']);
-            $table->json('category_ids');
+            $table->enum('type', ['int', 'string', 'date', 'boolean', 'select', 'datetime']);
+            $table->json('options')->nullable();
             $table->boolean('required')->default(false);
             $table->string('default')->nullable();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');

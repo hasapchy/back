@@ -137,4 +137,32 @@ class Order extends Model
     {
         return $this->belongsTo(Project::class, 'project_id');
     }
+
+    public function additionalFieldValues()
+    {
+        return $this->hasMany(OrderAfValue::class);
+    }
+
+    public function getAdditionalFieldValues()
+    {
+        return $this->additionalFieldValues()
+            ->with('additionalField')
+            ->get()
+            ->map(function ($value) {
+                return [
+                    'field' => $value->additionalField,
+                    'value' => $value->value,
+                    'formatted_value' => $value->getFormattedValue()
+                ];
+            });
+    }
+
+    public function getAdditionalFieldsByCategory()
+    {
+        $categoryId = $this->category_id;
+
+        return OrderAf::whereHas('categories', function ($query) use ($categoryId) {
+            $query->where('order_category_id', $categoryId);
+        })->get();
+    }
 }

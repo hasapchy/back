@@ -4,15 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\OrdersRepository;
+use App\Repositories\OrderAfRepository;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
     protected $itemRepository;
+    protected $orderAfRepository;
 
-    public function __construct(OrdersRepository $itemRepository)
+    public function __construct(OrdersRepository $itemRepository, OrderAfRepository $orderAfRepository)
     {
         $this->itemRepository = $itemRepository;
+        $this->orderAfRepository = $orderAfRepository;
     }
 
     public function index(Request $request)
@@ -70,6 +73,9 @@ class OrderController extends Controller
             'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0.01',
             'temp_products.*.price'       => 'required_with:temp_products|numeric|min:0',
             'temp_products.*.unit_id'     => 'nullable|exists:units,id',
+            'additional_fields' => 'sometimes|array',
+            'additional_fields.*.field_id' => 'required_with:additional_fields|integer|exists:order_af,id',
+            'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
         ]);
 
         $data = [
@@ -99,6 +105,7 @@ class OrderController extends Controller
                 'price'       => $p['price'],
                 'unit_id'     => $p['unit_id'] ?? null,
             ], $request->temp_products ?? []),
+            'additional_fields' => $request->additional_fields ?? [],
         ];
 
         try {
@@ -141,6 +148,9 @@ class OrderController extends Controller
             'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0.01',
             'temp_products.*.price'       => 'required_with:temp_products|numeric|min:0',
             'temp_products.*.unit_id'     => 'nullable|exists:units,id',
+            'additional_fields' => 'sometimes|array',
+            'additional_fields.*.field_id' => 'required_with:additional_fields|integer|exists:order_af,id',
+            'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
         ]);
 
         $data = [
@@ -169,7 +179,8 @@ class OrderController extends Controller
                 'quantity'    => $p['quantity'],
                 'price'       => $p['price'],
                 'unit_id'     => $p['unit_id'] ?? null,
-            ], $request->temp_products ?? [])
+            ], $request->temp_products ?? []),
+            'additional_fields' => $request->additional_fields ?? [],
         ];
 
         try {
@@ -246,5 +257,40 @@ class OrderController extends Controller
             return response()->json(['message' => 'Not found'], 404);
         }
         return response()->json(['item' => $item]);
+    }
+
+    public function getAdditionalFields($categoryId)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $fields = $this->orderAfRepository->getFieldsByCategory($categoryId, $userUuid);
+
+        return response()->json([
+            'category_id' => $categoryId,
+            'fields' => $fields
+        ]);
+    }
+
+    public function getAdditionalFieldsByCategories(Request $request)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $request->validate([
+            'category_ids' => 'required|array|min:1',
+            'category_ids.*' => 'integer|exists:order_categories,id',
+        ]);
+
+        $fields = $this->orderAfRepository->getFieldsByCategories($request->category_ids, $userUuid);
+
+        return response()->json([
+            'category_ids' => $request->category_ids,
+            'fields' => $fields
+        ]);
     }
 }

@@ -20,7 +20,14 @@ class AdminSeeder extends Seeder
             ]
         );
 
-        $allPermissions = Permission::where('guard_name', 'api')->pluck('name');
-        $admin->syncPermissions($allPermissions);
+        // Получаем все права с guard 'api'
+        $allPermissions = Permission::where('guard_name', 'api')->get();
+
+        // Назначаем все права администратору
+        foreach ($allPermissions as $permission) {
+            $admin->givePermissionTo($permission);
+        }
+
+        echo "Admin user created/updated with " . $allPermissions->count() . " permissions\n";
     }
 }

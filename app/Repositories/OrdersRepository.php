@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderProduct;
 use App\Models\OrderTempProduct;
 use App\Models\OrderTransaction;
+use App\Models\OrderAfValue;
 use App\Models\Product;
 use App\Models\WarehouseStock;
 use App\Models\Warehouse;
@@ -300,6 +301,8 @@ class OrdersRepository
                     'color' => $item->status_category_color,
                 ] : null,
             ];
+
+            $item->additional_fields = $this->getAdditionalFields($item->id);
         }
 
         return $items;
@@ -502,6 +505,10 @@ class OrdersRepository
                     'price' => $temp_product['price'],
                     'unit_id' => $temp_product['unit_id'] ?? null,
                 ]);
+            }
+
+            if (!empty($data['additional_fields'])) {
+                $this->saveAdditionalFields($order->id, $data['additional_fields']);
             }
 
             // Обновляем баланс клиента
@@ -797,6 +804,10 @@ class OrdersRepository
                 return $order;
             }
 
+            if (isset($data['additional_fields'])) {
+                $this->updateAdditionalFields($order->id, $data['additional_fields']);
+            }
+
             ClientBalance::updateOrCreate(
                 ['client_id' => $client_id],
                 ['balance' => DB::raw("COALESCE(balance, 0) + {$total_price}")]
@@ -928,5 +939,47 @@ class OrdersRepository
     {
         $clientsRepository = new ClientsRepository();
         $clientsRepository->invalidateClientBalanceCache($clientId);
+    }
+
+    private function saveAdditionalFields($orderId, array $additionalFields)
+    {
+        $fieldsData = [];
+
+        foreach ($additionalFields as $field) {
+            $fieldsData[] = [
+                'order_id' => $orderId,
+                'order_af_id' => $field['field_id'],
+                'value' => $field['value'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        if (!empty($fieldsData)) {
+            OrderAfValue::insert($fieldsData);
+        }
+    }
+
+    private function updateAdditionalFields($orderId, array $additionalFields)
+    {
+        OrderAfValue::where('order_id', $orderId)->delete();
+
+        if (!empty($additionalFields)) {
+            $this->saveAdditionalFields($orderId, $additionalFields);
+        }
+    }
+
+    public function getAdditionalFields($orderId)
+    {
+        return OrderAfValue::with('additionalField')
+            ->where('order_id', $orderId)
+            ->get()
+            ->map(function ($value) {
+                return [
+                    'field' => $value->additionalField,
+                    'value' => $value->value,
+                    'formatted_value' => $value->getFormattedValue()
+                ];
+            });
     }
 }
