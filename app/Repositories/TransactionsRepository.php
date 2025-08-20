@@ -9,114 +9,185 @@ use App\Models\Currency;
 use App\Models\OrderTransaction;
 use App\Models\Transaction;
 use App\Services\CurrencyConverter;
+use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class TransactionsRepository
 {
     public function getItemsWithPagination($userUuid, $perPage = 20, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null)
     {
-        $paginator = Transaction::leftJoin('cash_registers as cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
-            ->leftJoin('cash_register_users as cash_register_users', 'cash_registers.id', '=', 'cash_register_users.cash_register_id')
-            ->where('cash_register_users.user_id', $userUuid)
-            ->when($cash_id, function ($query, $cash_id) {
-                return $query->where('transactions.cash_id', $cash_id);
-            })
-            ->when($date_filter_type, function ($query, $date_filter_type) {
-                switch ($date_filter_type) {
-                    case 'today':
-                        return $query->whereDate('transactions.date', '=', now()->toDateString());
-                    case 'yesterday':
-                        return $query->whereDate('transactions.date', '=', now()->subDay()->toDateString());
-                    case 'this_week':
-                        return $query->whereBetween('transactions.date', [now()->startOfWeek(), now()->endOfWeek()]);
-                    case 'last_week':
-                        return $query->whereBetween('transactions.date', [now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek()]);
-                    case 'this_month':
-                        return $query->whereBetween('transactions.date', [now()->startOfMonth(), now()->endOfMonth()]);
-                    case 'last_month':
-                        return $query->whereBetween('transactions.date', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()]);
-                    default:
-                        return $query;
-                }
-            })
-            ->when($order_id, function ($query, $order_id) {
-                return $query->whereHas('orders', function ($q) use ($order_id) {
-                    $q->where('orders.id', $order_id);
-                });
-            })
-            ->when($search, function ($query, $search) {
-                return $query->where(function ($q) use ($search) {
-                    $q->where('transactions.id', 'like', "%{$search}%")
-                        ->orWhere('clients.first_name', 'like', "%{$search}%")
-                        ->orWhere('clients.last_name', 'like', "%{$search}%")
-                        ->orWhere('clients.contact_person', 'like', "%{$search}%");
-                });
-            })
-            ->when($transaction_type, function ($query, $transaction_type) {
-                switch ($transaction_type) {
-                    case 'income':
-                        return $query->where('transactions.type', 1);
-                    case 'outcome':
-                        return $query->where('transactions.type', 0);
-                    case 'transfer':
-                        return $query->where(function ($q) {
-                            $q->whereHas('cashTransfersFrom')
-                                ->orWhereHas('cashTransfersTo');
+        try {
+            // Создаем уникальный ключ кэша
+            $cacheKey = "transactions_paginated_{$userUuid}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$search}_{$transaction_type}_" . json_encode($source);
+
+            return CacheService::remember($cacheKey, function () use ($userUuid, $perPage, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source) {
+                // Используем with() для загрузки связей вместо сложных JOIN'ов
+                $query = Transaction::with([
+                    'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
+                    'currency:id,name,code,symbol',
+                    'cashRegister:id,name,currency_id',
+                    'cashRegister.currency:id,name,code,symbol',
+                    'category:id,name,type',
+                    'project:id,name',
+                    'user:id,name'
+                    // Временно убираем проблемные связи для отладки
+                    // 'cashTransfersFrom:id,tr_id_from',
+                    // 'cashTransfersTo:id,tr_id_to',
+                    // 'orderTransactions:id,order_id,transaction_id'
+                ])
+                    ->whereHas('cashRegister.cashRegisterUsers', function($q) use ($userUuid) {
+                        $q->where('user_id', $userUuid);
+                    })
+                    ->when($cash_id, function ($query, $cash_id) {
+                        return $query->where('transactions.cash_id', $cash_id);
+                    })
+                    ->when($date_filter_type, function ($query, $date_filter_type) {
+                        switch ($date_filter_type) {
+                            case 'today':
+                                return $query->whereDate('transactions.date', '=', now()->toDateString());
+                            case 'yesterday':
+                                return $query->whereDate('transactions.date', '=', now()->subDay()->toDateString());
+                            case 'this_week':
+                                return $query->whereBetween('transactions.date', [now()->startOfWeek(), now()->endOfWeek()]);
+                            case 'last_week':
+                                return $query->whereBetween('transactions.date', [now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek()]);
+                            case 'this_month':
+                                return $query->whereBetween('transactions.date', [now()->startOfMonth(), now()->endOfMonth()]);
+                            case 'last_month':
+                                return $query->whereBetween('transactions.date', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()]);
+                            default:
+                                return $query;
+                        }
+                    })
+                    ->when($order_id, function ($query, $order_id) {
+                        return $query->whereExists(function ($subQuery) use ($order_id) {
+                            $subQuery->select(DB::raw(1))
+                                ->from('order_transactions')
+                                ->whereColumn('order_transactions.transaction_id', 'transactions.id')
+                                ->where('order_transactions.order_id', $order_id);
                         });
-                    default:
-                        return $query;
-                }
-            })
-            ->when($source, function ($query, $source) {
-                if (empty($source)) return $query;
-
-                return $query->where(function ($q) use ($source) {
-                    $conditions = [];
-
-                    if (in_array('project', $source)) {
-                        $conditions[] = 'project';
-                    }
-                    if (in_array('sale', $source)) {
-                        $conditions[] = 'sale';
-                    }
-                    if (in_array('order', $source)) {
-                        $conditions[] = 'order';
-                    }
-                    if (in_array('other', $source)) {
-                        $conditions[] = 'other';
-                    }
-
-                    if (count($conditions) === 1) {
-                        // Если выбран только один источник
-                        $this->applySingleSourceFilter($q, $conditions[0]);
-                    } else {
-                        // Если выбрано несколько источников
-                        $q->where(function ($subQ) use ($conditions) {
-                            foreach ($conditions as $index => $condition) {
-                                if ($index === 0) {
-                                    $this->applySingleSourceFilter($subQ, $condition);
-                                } else {
-                                    $subQ->orWhere(function ($orQ) use ($condition) {
-                                        $this->applySingleSourceFilter($orQ, $condition);
+                    })
+                    ->when($search, function ($query, $search) {
+                        return $query->where(function ($q) use ($search) {
+                            $q->where('transactions.id', 'like', "%{$search}%")
+                                ->orWhereHas('client', function($clientQuery) use ($search) {
+                                    $clientQuery->where('first_name', 'like', "%{$search}%")
+                                        ->orWhere('last_name', 'like', "%{$search}%")
+                                        ->orWhere('contact_person', 'like', "%{$search}%");
+                                });
+                        });
+                    })
+                    ->when($transaction_type, function ($query, $transaction_type) {
+                        switch ($transaction_type) {
+                            case 'income':
+                                return $query->where('transactions.type', 1);
+                            case 'outcome':
+                                return $query->where('transactions.type', 0);
+                            case 'transfer':
+                                return $query->where(function ($q) {
+                                    $q->whereExists(function ($subQuery) {
+                                        $subQuery->select(DB::raw(1))
+                                            ->from('cash_transfers')
+                                            ->whereColumn('cash_transfers.tr_id_from', 'transactions.id');
+                                    })->orWhereExists(function ($subQuery) {
+                                        $subQuery->select(DB::raw(1))
+                                            ->from('cash_transfers')
+                                            ->whereColumn('cash_transfers.tr_id_to', 'transactions.id');
                                     });
-                                }
+                                });
+                            default:
+                                return $query;
+                        }
+                    })
+                    ->when($source, function ($q, $source) {
+                        if (empty($source)) return $q;
+
+                        return $q->where(function ($subQ) use ($source) {
+                            $conditions = [];
+
+                            if (in_array('project', $source)) {
+                                $conditions[] = 'project';
+                            }
+                            if (in_array('sale', $source)) {
+                                $conditions[] = 'sale';
+                            }
+                            if (in_array('order', $source)) {
+                                $conditions[] = 'order';
+                            }
+                            if (in_array('other', $source)) {
+                                $conditions[] = 'other';
+                            }
+
+                            if (!empty($conditions)) {
+                                $subQ->where(function ($orQ) use ($conditions) {
+                                    foreach ($conditions as $condition) {
+                                        $orQ->orWhere(function ($subOrQ) use ($condition) {
+                                            $this->applySingleSourceFilter($subOrQ, $condition);
+                                        });
+                                    }
+                                });
                             }
                         });
-                    }
-                });
-            })
-            ->orderBy('id', 'desc')
-            ->select('transactions.id as id')
-            ->paginate($perPage);
+                    })
+                    ->orderBy('transactions.id', 'desc');
 
-        $items_ids = $paginator->pluck('id')->toArray();
-        $items = $this->getItems($items_ids);
-        $ordered_items = $items->sortBy(function ($item) use ($items_ids) {
-            return array_search($item->id, $items_ids);
-        })->values();
+                $paginatedResults = $query->paginate($perPage);
 
-        $paginator->setCollection($ordered_items);
-        return $paginator;
+                // Принудительно загружаем связи для всех элементов пагинации
+                $paginatedResults->getCollection()->load([
+                    'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
+                    'currency:id,name,code,symbol',
+                    'cashRegister:id,name,currency_id',
+                    'cashRegister.currency:id,name,code,symbol',
+                    'category:id,name,type',
+                    'project:id,name',
+                    'user:id,name'
+                    // Временно убираем проблемные связи для отладки
+                    // 'cashTransfersFrom:id,tr_id_from',
+                    // 'cashTransfersTo:id,tr_id_to',
+                    // 'orderTransactions:id,order_id,transaction_id'
+                ]);
+
+                return $paginatedResults;
+            });
+        } catch (\Exception $e) {
+            Log::error('TransactionsRepository: Ошибка в getItemsWithPagination', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'userUuid' => $userUuid
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Быстрый поиск транзакций с оптимизированным кэшированием
+     */
+    public function fastSearch($userUuid, $search, $perPage = 20)
+    {
+        $cacheKey = "transactions_fast_search_{$userUuid}_{$search}_{$perPage}";
+
+        return CacheService::rememberSearch($cacheKey, function () use ($userUuid, $search, $perPage) {
+            return Transaction::select([
+                'transactions.id',
+                'transactions.type',
+                'transactions.amount',
+                'transactions.cash_id',
+                'transactions.date',
+                'transactions.created_at'
+            ])
+                ->leftJoin('cash_registers as cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
+                ->leftJoin('cash_register_users as cash_register_users', 'cash_registers.id', '=', 'cash_register_users.cash_register_id')
+                ->where('cash_register_users.user_id', $userUuid)
+                ->where(function ($q) use ($search) {
+                    $q->where('transactions.id', 'like', "%{$search}%")
+                        ->orWhere('transactions.amount', 'like', "%{$search}%")
+                        ->orWhere('transactions.note', 'like', "%{$search}%");
+                })
+                ->orderBy('transactions.created_at', 'desc')
+                ->paginate($perPage);
+        });
     }
 
     /**
@@ -129,15 +200,31 @@ class TransactionsRepository
                 $query->whereNotNull('transactions.project_id');
                 break;
             case 'sale':
-                $query->whereHas('sales');
+                $query->whereExists(function ($subQuery) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('sales')
+                        ->whereColumn('sales.transaction_id', 'transactions.id');
+                });
                 break;
             case 'order':
-                $query->whereHas('orders');
+                $query->whereExists(function ($subQuery) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('order_transactions')
+                        ->whereColumn('order_transactions.transaction_id', 'transactions.id');
+                });
                 break;
             case 'other':
                 $query->whereNull('transactions.project_id')
-                    ->whereDoesntHave('sales')
-                    ->whereDoesntHave('orders');
+                    ->whereNotExists(function ($subQuery) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('sales')
+                            ->whereColumn('sales.transaction_id', 'transactions.id');
+                    })
+                    ->whereNotExists(function ($subQuery) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('order_transactions')
+                            ->whereColumn('order_transactions.transaction_id', 'transactions.id');
+                    });
                 break;
         }
     }
@@ -221,6 +308,10 @@ class TransactionsRepository
             }
 
             DB::commit();
+
+            // Инвалидируем кэш транзакций
+            $this->invalidateTransactionsCache();
+
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -238,6 +329,9 @@ class TransactionsRepository
         $item->date = $data['date'];
         $item->note = $data['note'];
         $item->save();
+
+        // Инвалидируем кэш транзакций
+        $this->invalidateTransactionsCache();
 
         return true;
     }
@@ -320,6 +414,10 @@ class TransactionsRepository
             }
 
             DB::commit();
+
+            // Инвалидируем кэш транзакций
+            $this->invalidateTransactionsCache();
+
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
@@ -329,9 +427,12 @@ class TransactionsRepository
 
     public function getTotalByOrderId($userId, $orderId)
     {
-        return Transaction::where('user_id', $userId)
-            ->whereHas('orders', function ($query) use ($orderId) {
-                $query->where('orders.id', $orderId);
+        return Transaction::where('transactions.user_id', $userId)
+            ->whereExists(function ($subQuery) use ($orderId) {
+                $subQuery->select(DB::raw(1))
+                    ->from('order_transactions')
+                    ->whereColumn('order_transactions.transaction_id', 'transactions.id')
+                    ->where('order_transactions.order_id', $orderId);
             })
             ->sum('orig_amount');
     }
@@ -339,10 +440,33 @@ class TransactionsRepository
     public function userHasPermissionToCashRegister($userUuid, $cashRegisterId)
     {
         return CashRegister::query()
-            ->Where('id', $cashRegisterId)
-            ->whereHas('users', function($query) use ($userUuid) {
-                $query->where('user_id', $userUuid);
+            ->where('cash_registers.id', $cashRegisterId)
+            ->whereExists(function ($subQuery) use ($userUuid) {
+                $subQuery->select(DB::raw(1))
+                    ->from('cash_register_users')
+                    ->whereColumn('cash_register_users.cash_register_id', 'cash_registers.id')
+                    ->where('cash_register_users.user_id', $userUuid);
             })->exists();
+    }
+
+    /**
+     * Инвалидация кэша транзакций
+     */
+    private function invalidateTransactionsCache()
+    {
+        // Очищаем кэш транзакций
+        $keys = [
+            'transactions_paginated_*',
+            'transactions_fast_search_*'
+        ];
+
+        foreach ($keys as $key) {
+            if (str_contains($key, '*')) {
+                // Для паттернов с wildcard очищаем весь кэш
+                \Illuminate\Support\Facades\Cache::flush();
+                break;
+            }
+        }
     }
 
     public function getItemById($id)
@@ -401,13 +525,20 @@ class TransactionsRepository
         );
         $items = $query->get();
 
-        $client_ids = $items->pluck('client_id')->toArray();
-        $client_repository = new ClientsRepository();
-        $clients = $client_repository->getItemsByIds($client_ids);
+        // Загружаем клиентов с помощью with() для лучшей производительности
+        $clientIds = $items->pluck('client_id')->filter()->unique()->toArray();
+        $clients = collect();
+
+        if (!empty($clientIds)) {
+            $clients = Client::whereIn('id', $clientIds)
+                ->select('id', 'first_name', 'last_name', 'contact_person')
+                ->get()
+                ->keyBy('id');
+        }
 
         foreach ($items as $item) {
             $item = (object) $item->toArray();
-            $item->client = $clients->firstWhere('id', $item->client_id);
+            $item->client = $clients->get($item->client_id);
         }
         return $items;
     }

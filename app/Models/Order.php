@@ -27,6 +27,7 @@ class Order extends Model
         'total_price',
         'cash_id',
         'warehouse_id',
+        'project_id',
     ];
 
 
@@ -81,37 +82,37 @@ class Order extends Model
 
     public function client()
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(Client::class, 'client_id');
     }
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function status()
     {
-        return $this->belongsTo(OrderStatus::class);
+        return $this->belongsTo(OrderStatus::class, 'status_id');
     }
 
     public function category()
     {
-        return $this->belongsTo(OrderCategory::class);
+        return $this->belongsTo(OrderCategory::class, 'category_id');
     }
 
     public function transaction()
     {
-        return $this->belongsTo(Transaction::class);
+        return $this->belongsTo(Transaction::class, 'transaction_id');
     }
 
     public function orderProducts()
     {
-        return $this->hasMany(OrderProduct::class);
+        return $this->hasMany(OrderProduct::class, 'order_id');
     }
 
     public function tempProducts()
     {
-        return $this->hasMany(OrderTempProduct::class);
+        return $this->hasMany(OrderTempProduct::class, 'order_id');
     }
     public function transactions()
     {
@@ -124,11 +125,16 @@ class Order extends Model
 
     public function warehouse()
     {
-        return $this->belongsTo(Warehouse::class);
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
 
     public function cash()
     {
-        return $this->belongsTo(CashRegister::class);
+        return $this->belongsTo(CashRegister::class, 'cash_id');
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class, 'project_id');
     }
 }

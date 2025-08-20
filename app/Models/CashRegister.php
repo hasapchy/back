@@ -30,12 +30,12 @@ class CashRegister extends Model
 
     public function currency()
     {
-        return $this->belongsTo(Currency::class);
+        return $this->belongsTo(Currency::class, 'currency_id');
     }
 
     public function Transactions()
     {
-        return $this->hasMany(Transaction::class);
+        return $this->hasMany(Transaction::class, 'cash_id');
     }
 
     public function templates()
@@ -45,7 +45,7 @@ class CashRegister extends Model
 
     public function cashRegisterUsers()
     {
-        return $this->hasMany(CashRegisterUser::class);
+        return $this->hasMany(CashRegisterUser::class, 'cash_register_id');
     }
 
     public function users()

@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Product;
 use App\Models\ProductPrice;
+use App\Services\CacheService;
 use Illuminate\Support\Facades\Storage;
 
 class ProductsRepository
@@ -11,51 +12,53 @@ class ProductsRepository
     // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $type = true)
     {
-        $items = Product::leftJoin('categories as cats', 'products.category_id', '=', 'cats.id')
-            ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
-            ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-            ->leftJoin('category_users', 'cats.id', '=', 'category_users.category_id')
-            ->where('products.type', $type)
-            ->where('category_users.user_id', $userUuid)
-            ->select(
+        $cacheKey = "products_paginated_{$userUuid}_{$perPage}_{$type}";
+
+                return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type) {
+            // Используем JOIN вместо whereHas для устранения N+1
+            $query = Product::select([
                 'products.*',
-                'product_prices.retail_price as retail_price',
-                'product_prices.wholesale_price as wholesale_price',
-                'product_prices.purchase_price as purchase_price',
-                'cats.name as category_name',
-                'units.name as unit_name',
-                'units.short_name as unit_short_name',
-                'units.calc_area as unit_calc_area',
-            )
-            ->paginate($perPage);
-        return $items;
+                'categories.name as category_name',
+                'units.name as unit_name', 'units.short_name as unit_short_name', 'units.calc_area as unit_calc_area',
+                'product_prices.retail_price', 'product_prices.wholesale_price', 'product_prices.purchase_price'
+            ])
+                ->join('categories', 'products.category_id', '=', 'categories.id')
+                ->join('category_users', 'categories.id', '=', 'category_users.category_id')
+                ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+                ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
+                ->where('category_users.user_id', $userUuid)
+                ->where('products.type', $type);
+
+            return $query->orderBy('products.created_at', 'desc')->paginate($perPage);
+        });
     }
 
     // Поиск
     public function searchItems($userUuid, $search)
     {
-        $items = Product::leftJoin('categories as cats', 'products.category_id', '=', 'cats.id')
-            ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
-            ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-            ->leftJoin('category_users', 'cats.id', '=', 'category_users.category_id')
-            ->where(function ($query) use ($search) {
-                $query->where('products.name', 'like', '%' . $search . '%')
-                    ->orWhere('products.sku', 'like', '%' . $search . '%')
-                    ->orWhere('products.barcode', 'like', '%' . $search . '%');
-            })
-            ->where('category_users.user_id', $userUuid)
-            ->select(
+        $cacheKey = "products_search_{$userUuid}_{$search}";
+
+                return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search) {
+            // Используем JOIN вместо whereHas для устранения N+1
+            $query = Product::select([
                 'products.*',
-                'product_prices.retail_price as retail_price',
-                'product_prices.wholesale_price as wholesale_price',
-                'product_prices.purchase_price as purchase_price',
-                'cats.name as category_name',
-                'units.name as unit_name',
-                'units.short_name as unit_short_name',
-                'units.calc_area as unit_calc_area',
-            )
-            ->get();
-        return $items;
+                'categories.name as category_name',
+                'units.name as unit_name', 'units.short_name as unit_short_name', 'units.calc_area as unit_calc_area',
+                'product_prices.retail_price', 'product_prices.wholesale_price', 'product_prices.purchase_price'
+            ])
+                ->join('categories', 'products.category_id', '=', 'categories.id')
+                ->join('category_users', 'categories.id', '=', 'category_users.category_id')
+                ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+                ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
+                ->where('category_users.user_id', $userUuid)
+                ->where(function ($query) use ($search) {
+                    $query->where('products.name', 'like', '%' . $search . '%')
+                        ->orWhere('products.sku', 'like', '%' . $search . '%')
+                        ->orWhere('products.barcode', 'like', '%' . $search . '%');
+                });
+
+            return $query->limit(50)->get();
+        });
     }
 
     public function createItem($data)
@@ -79,22 +82,21 @@ class ProductsRepository
             'purchase_price' => $data['purchase_price'] ?? 0.0,
         ]);
 
-        // Возвращаем товар с полными данными
-        return Product::leftJoin('categories as cats', 'products.category_id', '=', 'cats.id')
-            ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
-            ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-            ->where('products.id', $product->id)
-            ->select(
-                'products.*',
-                'product_prices.retail_price as retail_price',
-                'product_prices.wholesale_price as wholesale_price',
-                'product_prices.purchase_price as purchase_price',
-                'cats.name as category_name',
-                'units.name as unit_name',
-                'units.short_name as unit_short_name',
-                'units.calc_area as unit_calc_area',
-            )
-            ->first();
+        // Инвалидируем кэш продуктов
+        CacheService::invalidateProductsCache();
+
+        // Возвращаем товар с полными данными через JOIN
+        return Product::select([
+            'products.*',
+            'categories.name as category_name',
+            'units.name as unit_name', 'units.short_name as unit_short_name', 'units.calc_area as unit_calc_area',
+            'product_prices.retail_price', 'product_prices.wholesale_price', 'product_prices.purchase_price'
+        ])
+        ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+        ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+        ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
+        ->where('products.id', $product->id)
+        ->first();
     }
 
     public function updateItem($id, $data)
@@ -135,22 +137,15 @@ class ProductsRepository
             $prices_data
         );
 
+        // Инвалидируем кэш продуктов
+        CacheService::invalidateProductsCache();
+
         // Возвращаем товар с полными данными
-        return Product::leftJoin('categories as cats', 'products.category_id', '=', 'cats.id')
-            ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
-            ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-            ->where('products.id', $product->id)
-            ->select(
-                'products.*',
-                'product_prices.retail_price as retail_price',
-                'product_prices.wholesale_price as wholesale_price',
-                'product_prices.purchase_price as purchase_price',
-                'cats.name as category_name',
-                'units.name as unit_name',
-                'units.short_name as unit_short_name',
-                'units.calc_area as unit_calc_area',
-            )
-            ->first();
+        return Product::with([
+            'category:id,name',
+            'unit:id,name,short_name,calc_area',
+            'prices:id,product_id,retail_price,wholesale_price,purchase_price'
+        ])->find($product->id);
     }
 
     public function deleteItem($id)
@@ -180,6 +175,9 @@ class ProductsRepository
         ProductPrice::where('product_id', $id)->delete();
 
         $product->delete();
+
+        // Инвалидируем кэш продуктов
+        CacheService::invalidateProductsCache();
 
         return ['success' => true];
     }

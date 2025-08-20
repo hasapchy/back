@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Services\CurrencyConverter;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use App\Models\OrderTransaction;
 
 class Transaction extends Model
 {
@@ -180,17 +181,17 @@ class Transaction extends Model
 
     public function cashRegister()
     {
-        return $this->belongsTo(CashRegister::class);
+        return $this->belongsTo(CashRegister::class, 'cash_id');
     }
 
     public function category()
     {
-        return $this->belongsTo(TransactionCategory::class);
+        return $this->belongsTo(TransactionCategory::class, 'category_id');
     }
 
     public function client()
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(Client::class, 'client_id');
     }
 
     public function supplier()
@@ -200,17 +201,22 @@ class Transaction extends Model
 
     public function currency()
     {
-        return $this->belongsTo(Currency::class);
+        return $this->belongsTo(Currency::class, 'currency_id');
     }
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function orders()
     {
         return $this->belongsToMany(Order::class, 'order_transactions', 'transaction_id', 'order_id');
+    }
+
+    public function orderTransactions()
+    {
+        return $this->hasMany(OrderTransaction::class, 'transaction_id');
     }
 
     public function sales()
@@ -230,7 +236,7 @@ class Transaction extends Model
 
     public function project()
     {
-        return $this->belongsTo(Project::class);
+        return $this->belongsTo(Project::class, 'project_id');
     }
 
     public function getExchangeRateAttribute()

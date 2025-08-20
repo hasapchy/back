@@ -15,11 +15,11 @@ class CashRegisterUser extends Model
 
     public function cashRegister()
     {
-        return $this->belongsTo(CashRegister::class);
+        return $this->belongsTo(CashRegister::class, 'cash_register_id');
     }
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 }

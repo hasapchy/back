@@ -4,6 +4,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Category;
+use App\Models\ProductPrice;
+use App\Models\WarehouseStock;
+use App\Models\ProductStatus;
+use App\Models\WhReceiptProduct;
+use App\Models\WhWriteoffProduct;
+use App\Models\WhMovementProduct;
+use App\Models\SalesProduct;
+use App\Models\Unit;
 
 class Product extends Model
 {
@@ -29,19 +38,24 @@ class Product extends Model
 
     public function category()
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsTo(Category::class, 'category_id');
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class, 'unit_id');
     }
 
 
     public function prices()
     {
-        return $this->hasMany(ProductPrice::class);
+        return $this->hasMany(ProductPrice::class, 'product_id');
     }
 
 
     public function stocks()
     {
-        return $this->hasMany(WarehouseStock::class);
+        return $this->hasMany(WarehouseStock::class, 'product_id');
     }
 
     public function status()
@@ -51,21 +65,21 @@ class Product extends Model
 
     public function receiptProducts()
     {
-        return $this->hasMany(WhReceiptProduct::class);
+        return $this->hasMany(WhReceiptProduct::class, 'product_id');
     }
 
     public function writeOffProducts()
     {
-        return $this->hasMany(WhWriteoffProduct::class);
+        return $this->hasMany(WhWriteoffProduct::class, 'product_id');
     }
 
     public function movementProducts()
     {
-        return $this->hasMany(WhMovementProduct::class);
+        return $this->hasMany(WhMovementProduct::class, 'product_id');
     }
 
     public function salesProducts()
     {
-        return $this->hasMany(SalesProduct::class);
+        return $this->hasMany(SalesProduct::class, 'product_id');
     }
 }

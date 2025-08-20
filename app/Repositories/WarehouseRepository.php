@@ -4,23 +4,52 @@ namespace App\Repositories;
 
 use App\Models\Warehouse;
 use App\Models\WhUser;
+use App\Services\CacheService;
 
 class WarehouseRepository
 {
     // Получение складов с пагинацией
     public function getWarehousesWithPagination($userUuid, $perPage = 20)
     {
-        return Warehouse::whereHas('whUsers', function($query) use ($userUuid) {
-            $query->where('user_id', $userUuid);
-        })->with('users')->orderBy('created_at', 'desc')->paginate($perPage);
+        $cacheKey = "warehouses_paginated_{$userUuid}_{$perPage}";
+
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage) {
+            // Получаем ID складов, к которым у пользователя есть доступ
+            $warehouseIds = WhUser::where('user_id', $userUuid)
+                ->pluck('warehouse_id')
+                ->toArray();
+
+            if (empty($warehouseIds)) {
+                return collect([])->paginate($perPage);
+            }
+
+            // Получаем склады по ID с пагинацией
+            return Warehouse::whereIn('id', $warehouseIds)
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
+        });
     }
 
     // Получение списка всех складов
     public function getAllWarehouses($userUuid)
     {
-        return Warehouse::whereHas('whUsers', function($query) use ($userUuid) {
-            $query->where('user_id', $userUuid);
-        })->with('users')->get();
+        $cacheKey = "warehouses_all_{$userUuid}";
+
+        return CacheService::remember($cacheKey, function () use ($userUuid) {
+            // Получаем ID складов, к которым у пользователя есть доступ
+            $warehouseIds = WhUser::where('user_id', $userUuid)
+                ->pluck('warehouse_id')
+                ->toArray();
+
+            if (empty($warehouseIds)) {
+                return collect([]);
+            }
+
+            // Получаем склады по ID
+            return Warehouse::whereIn('id', $warehouseIds)
+                ->orderBy('name', 'asc')
+                ->get();
+        });
     }
 
     // Создание склада с именем и массивом пользователей
@@ -37,6 +66,9 @@ class WarehouseRepository
                 'user_id' => $userId
             ]);
         }
+
+        // Инвалидируем кэш для всех пользователей
+        $this->invalidateWarehouseCache();
 
         return true;
     }
@@ -59,6 +91,9 @@ class WarehouseRepository
             ]);
         }
 
+        // Инвалидируем кэш
+        $this->invalidateWarehouseCache();
+
         return true;
     }
 
@@ -68,6 +103,16 @@ class WarehouseRepository
         $warehouse = Warehouse::find($id);
         $warehouse->delete();
 
+        // Инвалидируем кэш
+        $this->invalidateWarehouseCache();
+
         return true;
+    }
+
+    // Инвалидация кэша складов
+    private function invalidateWarehouseCache()
+    {
+        // Очищаем кэш складов
+        CacheService::invalidateByTag('warehouses');
     }
 }

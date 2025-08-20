@@ -37,9 +37,11 @@ class WarehouseController extends Controller
     public function all(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
+
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
+
         // Получаем склады
         $warehouses = $this->warehouseRepository->getAllWarehouses($userUuid);
 

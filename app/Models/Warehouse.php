@@ -14,12 +14,12 @@ class Warehouse extends Model
 
     public function stocks()
     {
-        return $this->hasMany(WarehouseStock::class);
+        return $this->hasMany(WarehouseStock::class, 'warehouse_id');
     }
 
     public function whUsers()
     {
-        return $this->hasMany(WhUser::class);
+        return $this->hasMany(WhUser::class, 'warehouse_id');
     }
 
     public function users()

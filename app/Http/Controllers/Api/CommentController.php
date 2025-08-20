@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\CommentsRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
 
 class CommentController extends Controller
@@ -48,6 +50,9 @@ class CommentController extends Controller
 
         $comment = $this->itemsRepository->createItem($request->type, $request->id, $request->body, $user->id);
 
+        // Инвалидируем кэш таймлайна
+        $this->invalidateTimelineCache($request->type, $request->id);
+
         return response()->json([
             'message' => 'Комментарий добавлен',
             'comment' => $comment,
@@ -71,6 +76,9 @@ class CommentController extends Controller
             return response()->json(['message' => 'Комментарий не найден или нет прав'], 403);
         }
 
+        // Инвалидируем кэш таймлайна
+        $this->invalidateTimelineCache($updatedComment->commentable_type, $updatedComment->commentable_id);
+
         return response()->json([
             'message' => 'Комментарий обновлён',
             'comment' => $updatedComment,
@@ -81,15 +89,28 @@ class CommentController extends Controller
     public function destroy($id)
     {
         $user = auth('api')->user();
-        if (! $user) {
+        if (!$user) {
             return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        // Получаем комментарий для определения типа и ID сущности
+        $comment = \App\Models\Comment::select(['id', 'commentable_type', 'commentable_id'])
+            ->where('id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$comment) {
+            return response()->json(['message' => 'Комментарий не найден или нет прав'], 403);
         }
 
         $deleted = $this->itemsRepository->deleteItem($id, $user->id);
 
-        if (! $deleted) {
+        if (!$deleted) {
             return response()->json(['message' => 'Комментарий не найден или нет прав'], 403);
         }
+
+        // Инвалидируем кэш таймлайна
+        $this->invalidateTimelineCache($comment->commentable_type, $comment->commentable_id);
 
         return response()->json(['message' => 'Комментарий удалён']);
     }
@@ -97,7 +118,7 @@ class CommentController extends Controller
     public function timeline(Request $request)
     {
         $user = auth('api')->user();
-        if (! $user) {
+        if (!$user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
@@ -108,22 +129,84 @@ class CommentController extends Controller
 
         try {
             $modelClass = $this->itemsRepository->resolveType($request->type);
+            $cacheKey = "timeline_{$request->type}_{$request->id}";
 
-            try {
-                $model = $modelClass::with(['client', 'user', 'status', 'category'])->findOrFail($request->id);
-            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-                return response()->json(['message' => 'Заказ не найден'], 404);
-            }
+            return CacheService::remember($cacheKey, function () use ($modelClass, $request) {
+                return $this->buildTimeline($modelClass, $request->id);
+            }, 600); // 10 минут для таймлайна
 
-            if (!$model || !is_object($model)) {
-                return response()->json(['message' => 'Модель не найдена'], 404);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Ошибка загрузки таймлайна', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Построение таймлайна с оптимизацией
+     */
+    private function buildTimeline(string $modelClass, int $id)
+    {
+        try {
+            // Получаем модель с оптимизированными связями
+            $model = $modelClass::select([
+                'id', 'client_id', 'user_id', 'status_id', 'category_id'
+            ])
+            ->with([
+                'client:id,first_name,last_name,contact_person',
+                'user:id,name',
+                'status:id,name',
+                'category:id,name'
+            ])
+            ->findOrFail($id);
+
+            // Добавляем виртуальное поле name для клиента, если оно нужно
+            if ($model->client) {
+                $model->client->name = $model->client->first_name . ' ' . $model->client->last_name;
             }
 
             if (!method_exists($model, 'comments') || !method_exists($model, 'activities') || !method_exists($model, 'getKey')) {
-                return response()->json(['message' => 'Модель не поддерживает комментарии или активность'], 400);
+                throw new \Exception('Модель не поддерживает комментарии или активность');
             }
 
-            $comments = $model->comments()->with('user')->get()->map(function ($comment) {
+            // Получаем комментарии с оптимизацией
+            $comments = $this->getOptimizedComments($model);
+
+            // Получаем активность с оптимизацией
+            $activities = $this->getOptimizedActivities($model, $modelClass);
+
+            // Специальная обработка для заказов
+            if ($modelClass === \App\Models\Order::class) {
+                $orderActivities = $this->getOrderSpecificActivities($id);
+                $activities = $activities->merge($orderActivities);
+            }
+
+            // Объединяем и сортируем
+            $timeline = collect($comments)
+                ->merge($activities)
+                ->sortBy(function ($item) {
+                    return \Carbon\Carbon::parse($item['created_at']);
+                })
+                ->values();
+
+            return $timeline;
+
+        } catch (\Exception $e) {
+            throw $e;
+        }
+    }
+
+    /**
+     * Получение оптимизированных комментариев
+     */
+    private function getOptimizedComments($model)
+    {
+        return $model->comments()
+            ->select([
+                'comments.id', 'comments.body', 'comments.user_id', 'comments.created_at'
+            ])
+            ->with(['user:id,name,email'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($comment) {
                 return [
                     'type' => 'comment',
                     'id' => $comment->id,
@@ -132,93 +215,215 @@ class CommentController extends Controller
                     'created_at' => $comment->created_at,
                 ];
             });
+    }
 
-            $activities = $model->activities()->with('causer')->get()->map(function ($log) use ($modelClass) {
-                if ($log->description === 'created' || $log->description === 'Создан заказ') {
-                    return [
-                        'type' => 'log',
-                        'id' => $log->id,
-                        'description' => $log->description,
-                        'changes' => null,
-                        'user' => $log->causer ? [
-                            'id' => $log->causer->id,
-                            'name' => $log->causer->name,
-                        ] : null,
-                        'created_at' => $log->created_at,
-                    ];
-                }
+    /**
+     * Получение оптимизированной активности
+     */
+    private function getOptimizedActivities($model, string $modelClass)
+    {
+        return $model->activities()
+            ->select([
+                'activity_log.id', 'activity_log.description', 'activity_log.properties',
+                'activity_log.causer_id', 'activity_log.created_at'
+            ])
+            ->with(['causer:id,name'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($log) use ($modelClass) {
+                return $this->processActivityLog($log, $modelClass);
+            });
+    }
 
-                $changes = $log->properties;
+    /**
+     * Обработка лога активности
+     */
+    private function processActivityLog($log, string $modelClass)
+    {
+        if ($log->description === 'created' || $log->description === 'Создан заказ') {
+            return [
+                'type' => 'log',
+                'id' => $log->id,
+                'description' => $log->description,
+                'changes' => null,
+                'user' => $log->causer ? [
+                    'id' => $log->causer->id,
+                    'name' => $log->causer->name,
+                ] : null,
+                'created_at' => $log->created_at,
+            ];
+        }
 
-                // Обрабатываем изменения для всех событий, не только updated
-                // Проверяем, что properties существует и содержит attributes
-                if ($changes) {
-                    $attributes = null;
-                    $old = null;
+        $changes = $this->processActivityChanges($log->properties, $modelClass);
 
-                    // Если это коллекция, преобразуем в массив
-                    if (method_exists($changes, 'toArray')) {
-                        $changesArray = $changes->toArray();
-                        $attributes = $changesArray['attributes'] ?? null;
-                        $old = $changesArray['old'] ?? null;
-                    }
-                    // Если это объект, пытаемся получить attributes
-                    elseif (is_object($changes)) {
-                        $attributes = $changes->attributes ?? null;
-                        $old = $changes->old ?? null;
-                    }
-                    // Если это массив
-                    elseif (is_array($changes)) {
-                        $attributes = $changes['attributes'] ?? null;
-                        $old = $changes['old'] ?? null;
-                    }
+        return [
+            'type' => 'log',
+            'id' => $log->id,
+            'description' => $log->description,
+            'changes' => $changes,
+            'user' => $log->causer ? [
+                'id' => $log->causer->id,
+                'name' => $log->causer->name,
+            ] : null,
+            'created_at' => $log->created_at,
+        ];
+    }
 
-                    if (is_array($attributes)) {
-                        $processedAttrs = [];
-                        $processedOld = [];
+    /**
+     * Обработка изменений в активности
+     */
+    private function processActivityChanges($changes, string $modelClass)
+    {
+        if (!$changes) {
+            return null;
+        }
 
-                        foreach ($attributes as $key => $value) {
-                            // Обработка полей с ID - заменяем на названия
-                            if (str_ends_with($key, '_id') && $value) {
-                                $relatedModel = $this->getRelatedModelName($key, $modelClass);
+        $attributes = null;
+        $old = null;
 
-                                if ($relatedModel && class_exists($relatedModel)) {
-                                    try {
-                                        $relatedName = $relatedModel::find($value)?->name ?? $value;
-                                        $oldRelatedName = $old && isset($old[$key]) ? ($relatedModel::find($old[$key])?->name ?? $old[$key]) : null;
-                                        $processedAttrs[$key] = $relatedName;
-                                        $processedOld[$key] = $oldRelatedName;
-                                    } catch (\Exception $e) {
-                                        // Если что-то пошло не так, используем исходные значения
-                                        $processedAttrs[$key] = $value;
-                                        $processedOld[$key] = $old && isset($old[$key]) ? $old[$key] : null;
-                                    }
-                                } else {
-                                    $processedAttrs[$key] = $value;
-                                    $processedOld[$key] = $old && isset($old[$key]) ? $old[$key] : null;
-                                }
-                            } else {
-                                $processedAttrs[$key] = $value;
-                                $processedOld[$key] = $old && isset($old[$key]) ? $old[$key] : null;
-                            }
-                        }
+        // Извлекаем attributes и old из properties
+        if (method_exists($changes, 'toArray')) {
+            $changesArray = $changes->toArray();
+            $attributes = $changesArray['attributes'] ?? null;
+            $old = $changesArray['old'] ?? null;
+        } elseif (is_object($changes)) {
+            $attributes = $changes->attributes ?? null;
+            $old = $changes->old ?? null;
+        } elseif (is_array($changes)) {
+            $attributes = $changes['attributes'] ?? null;
+            $old = $changes['old'] ?? null;
+        }
 
-                        if (!empty($processedAttrs)) {
-                            $changes = [
-                                'attributes' => $processedAttrs,
-                                'old' => $processedOld,
-                            ];
+        if (!is_array($attributes)) {
+            return null;
+        }
+
+        $processedAttrs = [];
+        $processedOld = [];
+
+        foreach ($attributes as $key => $value) {
+            // Обработка полей с ID - заменяем на названия
+            if (str_ends_with($key, '_id') && $value) {
+                $relatedModel = $this->getRelatedModelName($key, $modelClass);
+
+                if ($relatedModel && class_exists($relatedModel)) {
+                    try {
+                        // Специальная обработка для разных типов моделей
+                        if ($relatedModel === \App\Models\Client::class) {
+                            $relatedRecord = $relatedModel::select('id,first_name,last_name,contact_person')->find($value);
+                            $relatedName = $relatedRecord ? ($relatedRecord->first_name . ' ' . $relatedRecord->last_name) : $value;
+
+                            $oldRelatedRecord = $old && isset($old[$key]) ? $relatedModel::select('id,first_name,last_name,contact_person')->find($old[$key]) : null;
+                            $oldRelatedName = $oldRelatedRecord ? ($oldRelatedRecord->first_name . ' ' . $oldRelatedRecord->last_name) : ($old && isset($old[$key]) ? $old[$key] : null);
                         } else {
-                            $changes = null;
+                            $relatedName = $relatedModel::select('id,name')->find($value)?->name ?? $value;
+                            $oldRelatedName = $old && isset($old[$key]) ? ($relatedModel::select('id,name')->find($old[$key])?->name ?? $old[$key]) : null;
                         }
-                    }
-                }
 
+                        $processedAttrs[$key] = $relatedName;
+                        $processedOld[$key] = $oldRelatedName;
+                    } catch (\Exception $e) {
+                        $processedAttrs[$key] = $value;
+                        $processedOld[$key] = $old && isset($old[$key]) ? $old[$key] : null;
+                    }
+                } else {
+                    $processedAttrs[$key] = $value;
+                    $processedOld[$key] = $old && isset($old[$key]) ? $old[$key] : null;
+                }
+            } else {
+                $processedAttrs[$key] = $value;
+                $processedOld[$key] = $old && isset($old[$key]) ? $old[$key] : null;
+            }
+        }
+
+        if (!empty($processedAttrs)) {
+            return [
+                'attributes' => $processedAttrs,
+                'old' => $processedOld,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Получение специфичной активности для заказов
+     */
+    private function getOrderSpecificActivities(int $orderId)
+    {
+        $activities = collect();
+
+        // Активность товаров заказа с оптимизацией
+        $orderProductLogs = \App\Models\OrderProduct::select(['id', 'order_id', 'product_id'])
+            ->where('order_id', $orderId)
+            ->with(['product:id,name'])
+            ->get()
+            ->flatMap(function ($orderProduct) {
+                return $orderProduct->activities()
+                    ->select(['activity_log.id', 'activity_log.description', 'activity_log.causer_id', 'activity_log.created_at'])
+                    ->with(['causer:id,name'])
+                    ->latest()
+                    ->limit(1)
+                    ->get();
+            })->map(function ($log) {
                 return [
                     'type' => 'log',
                     'id' => $log->id,
                     'description' => $log->description,
-                    'changes' => $changes,
+                    'changes' => null,
+                    'user' => $log->causer ? [
+                        'id' => $log->causer->id,
+                        'name' => $log->causer->name,
+                    ] : null,
+                    'created_at' => $log->created_at,
+                ];
+            })->filter();
+
+        $activities = $activities->merge($orderProductLogs);
+
+        // Активность транзакций заказа с оптимизацией
+        $orderTransactionLogs = \App\Models\OrderTransaction::select(['id', 'order_id', 'transaction_id'])
+            ->where('order_id', $orderId)
+            ->with(['transaction:id,amount'])
+            ->get()
+            ->flatMap(function ($orderTransaction) {
+                return $orderTransaction->activities()
+                    ->select(['activity_log.id', 'activity_log.description', 'activity_log.causer_id', 'activity_log.created_at'])
+                    ->with(['causer:id,name'])
+                    ->latest()
+                    ->limit(1)
+                    ->get();
+            })->map(function ($log) {
+                return [
+                    'type' => 'log',
+                    'id' => $log->id,
+                    'description' => $log->description,
+                    'changes' => null,
+                    'user' => $log->causer ? [
+                        'id' => $log->causer->id,
+                        'name' => $log->causer->name,
+                    ] : null,
+                    'created_at' => $log->created_at,
+                ];
+            })->filter();
+
+        $activities = $activities->merge($orderTransactionLogs);
+
+        // Активность удаленных транзакций с оптимизацией
+        $transactionLogs = Activity::select([
+            'activity_log.id', 'activity_log.description', 'activity_log.causer_id', 'activity_log.created_at'
+        ])
+            ->where('subject_type', \App\Models\Transaction::class)
+            ->where('description', 'Транзакция удалена')
+            ->where('created_at', '>=', now()->subHours(1))
+            ->with(['causer:id,name'])
+            ->get()
+            ->map(function ($log) {
+                return [
+                    'type' => 'log',
+                    'id' => $log->id,
+                    'description' => 'Транзакция удалена из заказа',
+                    'changes' => null,
                     'user' => $log->causer ? [
                         'id' => $log->causer->id,
                         'name' => $log->causer->name,
@@ -227,108 +432,9 @@ class CommentController extends Controller
                 ];
             });
 
-            if ($modelClass === \App\Models\Order::class) {
-                $orderId = is_object($model) ? $model->id : $model['id'] ?? null;
-                if (!$orderId) {
-                    return response()->json(['message' => 'Не удалось получить ID заказа'], 400);
-                }
+        $activities = $activities->merge($transactionLogs);
 
-                // Активность товаров заказа
-                $orderProductLogs = \App\Models\OrderProduct::where('order_id', $orderId)
-                    ->with('product')
-                    ->get()
-                    ->flatMap(function ($orderProduct) {
-                        return $orderProduct->activities()
-                            ->with('causer')
-                            ->latest()
-                            ->limit(1)
-                            ->get();
-                    })->map(function ($log) {
-                        $isOrderProduct = $log->log_name === 'order_product';
-
-                        return [
-                            'type' => 'log',
-                            'id' => $log->id,
-                            'description' => $log->description,
-                            'changes' => $isOrderProduct ? null : $log->properties,
-                            'user' => $log->causer ? [
-                                'id' => $log->causer->id,
-                                'name' => $log->causer->name,
-                            ] : null,
-                            'created_at' => $log->created_at,
-                        ];
-                    })->filter()->values();
-
-                // Активность транзакций заказа
-                $orderTransactionLogs = \App\Models\OrderTransaction::where('order_id', $orderId)
-                    ->with('transaction')
-                    ->get()
-                    ->flatMap(function ($orderTransaction) {
-                        return $orderTransaction->activities()
-                            ->with('causer')
-                            ->latest()
-                            ->limit(1)
-                            ->get();
-                    })->map(function ($log) {
-                        return [
-                            'type' => 'log',
-                            'id' => $log->id,
-                            'description' => $log->description,
-                            'changes' => null,
-                            'user' => $log->causer ? [
-                                'id' => $log->causer->id,
-                                'name' => $log->causer->name,
-                            ] : null,
-                            'created_at' => $log->created_at,
-                        ];
-                    })->filter()->values();
-
-                // Активность транзакций, связанных с заказом
-                $transactionIds = \App\Models\OrderTransaction::where('order_id', $orderId)
-                    ->pluck('transaction_id')
-                    ->toArray();
-
-                // Активность удаленных транзакций
-                $transactionLogs = Activity::where('subject_type', \App\Models\Transaction::class)
-                    ->where('description', 'Транзакция удалена')
-                    ->where('created_at', '>=', now()->subHours(1)) // Ищем за последний час
-                    ->with('causer')
-                    ->get()
-                    ->map(function ($log) {
-                        return [
-                            'type' => 'log',
-                            'id' => $log->id,
-                            'description' => 'Транзакция удалена из заказа',
-                            'changes' => null,
-                            'user' => $log->causer ? [
-                                'id' => $log->causer->id,
-                                'name' => $log->causer->name,
-                            ] : null,
-                            'created_at' => $log->created_at,
-                        ];
-                    })->values();
-
-                $orderProductLogs = collect($orderProductLogs);
-                $orderTransactionLogs = collect($orderTransactionLogs);
-                $transactionLogs = collect($transactionLogs);
-
-                $activities = $activities->merge($orderProductLogs)->merge($orderTransactionLogs)->merge($transactionLogs);
-            }
-
-            $comments = collect($comments);
-            $activities = collect($activities);
-
-            $timeline = $comments->merge($activities)
-                ->sortBy(function ($item) {
-                    return \Carbon\Carbon::parse($item['created_at']);
-                })
-                ->values();
-
-
-            return response()->json($timeline);
-        } catch (\Throwable $e) {
-            return response()->json(['message' => 'Ошибка загрузки таймлайна', 'error' => $e->getMessage()], 500);
-        }
+        return $activities;
     }
 
     private function getRelatedModelName(string $key, string $modelClass): ?string
@@ -366,5 +472,17 @@ class CommentController extends Controller
 
         // Затем проверяем базовый маппинг
         return $baseFieldToModelMap[$key] ?? null;
+    }
+
+    /**
+     * Инвалидация кэша таймлайна
+     */
+    private function invalidateTimelineCache(string $type, int $id)
+    {
+        $cacheKey = "timeline_{$type}_{$id}";
+        \Illuminate\Support\Facades\Cache::forget($cacheKey);
+
+        // Также инвалидируем кэш комментариев
+        $this->itemsRepository->invalidateCommentsCacheByType($type);
     }
 }

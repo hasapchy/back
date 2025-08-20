@@ -18,17 +18,17 @@ class Project extends Model
 
     public function client()
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(Client::class, 'client_id');
     }
 
     public function transactions()
     {
-        return $this->hasMany(Transaction::class);
+        return $this->hasMany(Transaction::class, 'project_id');
     }
 
     public function projectUsers()
     {
-        return $this->hasMany(ProjectUser::class);
+        return $this->hasMany(ProjectUser::class, 'project_id');
     }
 
     public function users()
