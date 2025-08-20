@@ -160,11 +160,11 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:order_statuses_delete')->delete('order_statuses/{id}', [OrderStatusController::class, 'destroy']);
 
     // order_status_categories
-    Route::middleware('permission:order_status_categories_view')->get('order_status_categories', [OrderStatusCategoryController::class, 'index']);
-    Route::middleware('permission:order_status_categories_view')->get('order_status_categories/all', [OrderStatusCategoryController::class, 'all']);
-    Route::middleware('permission:order_status_categories_create')->post('order_status_categories', [OrderStatusCategoryController::class, 'store']);
-    Route::middleware('permission:order_status_categories_update')->put('order_status_categories/{id}', [OrderStatusCategoryController::class, 'update']);
-    Route::middleware('permission:order_status_categories_delete')->delete('order_status_categories/{id}', [OrderStatusCategoryController::class, 'destroy']);
+    Route::middleware('permission:order_statuscategories_view')->get('order_status_categories', [OrderStatusCategoryController::class, 'index']);
+    Route::middleware('permission:order_statuscategories_view')->get('order_status_categories/all', [OrderStatusCategoryController::class, 'all']);
+    Route::middleware('permission:order_statuscategories_create')->post('order_status_categories', [OrderStatusCategoryController::class, 'store']);
+    Route::middleware('permission:order_statuscategories_update')->put('order_status_categories/{id}', [OrderStatusCategoryController::class, 'update']);
+    Route::middleware('permission:order_statuscategories_delete')->delete('order_status_categories/{id}', [OrderStatusCategoryController::class, 'destroy']);
 
     // order_categories
     Route::middleware('permission:order_categories_view')->get('order_categories', [OrderCategoryController::class, 'index']);
