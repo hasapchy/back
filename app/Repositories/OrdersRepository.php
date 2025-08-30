@@ -55,25 +55,25 @@ class OrdersRepository
                 'currencies.symbol as currency_symbol',
                 'projects.name as project_name'
             ])
-            ->leftJoin('clients', 'orders.client_id', '=', 'clients.id')
-            ->leftJoin('users', 'orders.user_id', '=', 'users.id')
-            ->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id')
-            ->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id')
-            ->leftJoin('order_categories', 'orders.category_id', '=', 'order_categories.id')
-            ->leftJoin('warehouses', 'orders.warehouse_id', '=', 'warehouses.id')
-            ->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id')
-            ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
-            ->leftJoin('projects', 'orders.project_id', '=', 'projects.id')
-            ->with([
-                'orderProducts:id,order_id,product_id,quantity,price',
-                'orderProducts.product:id,name,image,unit_id',
-                'orderProducts.product.unit:id,name,short_name',
-                'tempProducts:id,order_id,name,description,quantity,price,unit_id',
-                'tempProducts.unit:id,name,short_name',
-                'client.phones:id,client_id,phone',
-                'client.emails:id,client_id,email',
-                'client.balance:id,client_id,balance'
-            ]);
+                ->leftJoin('clients', 'orders.client_id', '=', 'clients.id')
+                ->leftJoin('users', 'orders.user_id', '=', 'users.id')
+                ->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id')
+                ->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id')
+                ->leftJoin('order_categories', 'orders.category_id', '=', 'order_categories.id')
+                ->leftJoin('warehouses', 'orders.warehouse_id', '=', 'warehouses.id')
+                ->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id')
+                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
+                ->leftJoin('projects', 'orders.project_id', '=', 'projects.id')
+                ->with([
+                    'orderProducts:id,order_id,product_id,quantity,price',
+                    'orderProducts.product:id,name,image,unit_id',
+                    'orderProducts.product.unit:id,name,short_name',
+                    'tempProducts:id,order_id,name,description,quantity,price,unit_id',
+                    'tempProducts.unit:id,name,short_name',
+                    'client.phones:id,client_id,phone',
+                    'client.emails:id,client_id,email',
+                    'client.balance:id,client_id,balance'
+                ]);
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -203,24 +203,24 @@ class OrdersRepository
 
         return CacheService::remember($cacheKey, function () use ($order_ids) {
             return Order::select([
-                    'orders.id',
-                    'orders.note',
-                    'orders.description',
-                    'orders.status_id',
-                    'orders.category_id',
-                    'orders.client_id',
-                    'orders.user_id',
-                    'orders.cash_id',
-                    'orders.warehouse_id',
-                    'orders.project_id',
+                'orders.id',
+                'orders.note',
+                'orders.description',
+                'orders.status_id',
+                'orders.category_id',
+                'orders.client_id',
+                'orders.user_id',
+                'orders.cash_id',
+                'orders.warehouse_id',
+                'orders.project_id',
 
-                    'orders.price',
-                    'orders.discount',
-                    'orders.total_price',
-                    'orders.date',
-                    'orders.created_at',
-                    'orders.updated_at'
-                ])
+                'orders.price',
+                'orders.discount',
+                'orders.total_price',
+                'orders.date',
+                'orders.created_at',
+                'orders.updated_at'
+            ])
                 ->whereIn('orders.id', $order_ids)
                 ->get();
         });
@@ -721,19 +721,19 @@ class OrdersRepository
                 $toDelete = $existingTempProducts->whereIn('name', $explicitlyRemoved->toArray());
 
                 if ($toDelete->count() > 0) {
-                    $toDelete->each(function($item) {
+                    $toDelete->each(function ($item) {
                         $item->delete();
                     });
                     $tempProductsChanged = true;
                 }
             }
 
-                        // Удаляем временные товары, которых нет в новом списке
+            // Удаляем временные товары, которых нет в новом списке
             $newTempProductNames = collect($temp_products)->pluck('name')->toArray();
             $tempProductsToDelete = $existingTempProducts->whereNotIn('name', $newTempProductNames);
 
             if ($tempProductsToDelete->count() > 0) {
-                $tempProductsToDelete->each(function($item) {
+                $tempProductsToDelete->each(function ($item) {
                     // Убеждаемся, что товар действительно удаляется
                     $itemName = $item->name;
                     $item->delete();
@@ -757,10 +757,12 @@ class OrdersRepository
                     $existing = $existingMap->get($productName);
                     $tempProductChanged = false;
 
-                    if ($existing->description != ($temp_product['description'] ?? null) ||
+                    if (
+                        $existing->description != ($temp_product['description'] ?? null) ||
                         $existing->quantity != $temp_product['quantity'] ||
                         $existing->price != $temp_product['price'] ||
-                        $existing->unit_id != ($temp_product['unit_id'] ?? null)) {
+                        $existing->unit_id != ($temp_product['unit_id'] ?? null)
+                    ) {
                         $tempProductChanged = true;
                     }
 
@@ -976,8 +978,9 @@ class OrdersRepository
             ->get()
             ->map(function ($value) {
                 return [
-                    'field' => $value->additionalField,
+                    'field_id' => $value->order_af_id,
                     'value' => $value->value,
+                    'field' => $value->additionalField,
                     'formatted_value' => $value->getFormattedValue()
                 ];
             });
