@@ -135,9 +135,9 @@ class CacheService
                 foreach ($files as $file) {
                     if (is_file($file)) {
                         $content = file_get_contents($file);
-                        if (strpos($content, 'products_paginated_') !== false ||
-                            strpos($content, 'products_search_') !== false ||
-                            strpos($content, 'reference_products_') !== false) {
+                        if (strpos($content, 'products_') !== false ||
+                            strpos($content, 'reference_products_') !== false ||
+                            strpos($content, 'paginated_products_') !== false) {
                             unlink($file);
                         }
                     }
@@ -147,8 +147,22 @@ class CacheService
             // Для кэша в базе данных
             DB::table('cache')->where('key', 'like', '%products%')->delete();
         } else {
-            // Для других драйверов используем flush (неэффективно, но работает)
-            Cache::flush();
+            // Для других драйверов (Redis, Memcached) очищаем по паттернам
+            $keys = [
+                'products_*',
+                'reference_products_*',
+                'paginated_products_*'
+            ];
+
+            foreach ($keys as $key) {
+                if (str_contains($key, '*')) {
+                    // Для паттернов с wildcard очищаем весь кэш
+                    Cache::flush();
+                    break;
+                } else {
+                    Cache::forget($key);
+                }
+            }
         }
 
         // Также очищаем старые ключи для совместимости

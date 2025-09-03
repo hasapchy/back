@@ -12,7 +12,7 @@ class ProductsRepository
     // Получение с пагинацией
         public function getItemsWithPagination($userUuid, $perPage = 20, $type = true)
     {
-        $cacheKey = "products_paginated_{$userUuid}_{$perPage}_{$type}";
+        $cacheKey = "products_{$userUuid}_{$perPage}_{$type}";
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type) {
             // Используем JOIN вместо whereHas для устранения N+1
