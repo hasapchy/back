@@ -480,8 +480,8 @@ class TransactionsRepository
         $query = Transaction::query();
         $query->leftJoin('users as users', 'transactions.user_id', '=', 'users.id');
         $query->leftJoin('currencies as currencies', 'transactions.currency_id', '=', 'currencies.id');
-        $query->leftJoin('cash_registers as cash_registers', 'transactions.cash_id', '=', 'cash_registers.id');
-        $query->leftJoin('currencies as cash_register_currencies', 'cash_registers.currency_id', '=', 'cash_register_currencies.id');
+        $query->join('cash_registers as cash_registers', 'transactions.cash_id', '=', 'cash_registers.id');
+        $query->join('currencies as cash_register_currencies', 'cash_registers.currency_id', '=', 'cash_register_currencies.id');
         $query->leftJoin('transaction_categories as transaction_categories', 'transactions.category_id', '=', 'transaction_categories.id');
         $query->leftJoin('projects as projects', 'transactions.project_id', '=', 'projects.id');
         $query->leftJoin('cash_transfers as cash_transfers_from', 'transactions.id', '=', 'cash_transfers_from.tr_id_from');

@@ -123,13 +123,13 @@ class ProductsRepository
         $product->save();
 
         $prices_data = array();
-        if (isset($data['retail_price'])) {
+        if (isset($data['retail_price']) && $data['retail_price'] !== null) {
             $prices_data['retail_price'] = $data['retail_price'];
         }
-        if (isset($data['wholesale_price'])) {
+        if (isset($data['wholesale_price']) && $data['wholesale_price'] !== null) {
             $prices_data['wholesale_price'] = $data['wholesale_price'];
         }
-        if (isset($data['purchase_price'])) {
+        if (isset($data['purchase_price']) && $data['purchase_price'] !== null) {
             $prices_data['purchase_price'] = $data['purchase_price'];
         }
         ProductPrice::updateOrCreate(
@@ -140,12 +140,18 @@ class ProductsRepository
         // Инвалидируем кэш продуктов
         CacheService::invalidateProductsCache();
 
-        // Возвращаем товар с полными данными
-        return Product::with([
-            'category:id,name',
-            'unit:id,name,short_name,calc_area',
-            'prices:id,product_id,retail_price,wholesale_price,purchase_price'
-        ])->find($product->id);
+        // Возвращаем товар с полными данными через JOIN (как в других методах)
+        return Product::select([
+            'products.*',
+            'categories.name as category_name',
+            'units.name as unit_name', 'units.short_name as unit_short_name', 'units.calc_area as unit_calc_area',
+            'product_prices.retail_price', 'product_prices.wholesale_price', 'product_prices.purchase_price'
+        ])
+        ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+        ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+        ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
+        ->where('products.id', $product->id)
+        ->first();
     }
 
     public function deleteItem($id)

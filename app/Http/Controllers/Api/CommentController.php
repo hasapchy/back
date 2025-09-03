@@ -240,16 +240,16 @@ class CommentController extends Controller
      */
     private function processActivityLog($log, string $modelClass)
     {
+        // Получаем пользователя из causer или пытаемся найти его другим способом
+        $user = $this->getUserForActivity($log, $modelClass);
+
         if ($log->description === 'created' || $log->description === 'Создан заказ') {
             return [
                 'type' => 'log',
                 'id' => $log->id,
                 'description' => $log->description,
                 'changes' => null,
-                'user' => $log->causer ? [
-                    'id' => $log->causer->id,
-                    'name' => $log->causer->name,
-                ] : null,
+                'user' => $user,
                 'created_at' => $log->created_at,
             ];
         }
@@ -261,10 +261,7 @@ class CommentController extends Controller
             'id' => $log->id,
             'description' => $log->description,
             'changes' => $changes,
-            'user' => $log->causer ? [
-                'id' => $log->causer->id,
-                'name' => $log->causer->name,
-            ] : null,
+            'user' => $user,
             'created_at' => $log->created_at,
         ];
     }
@@ -371,10 +368,7 @@ class CommentController extends Controller
                     'id' => $log->id,
                     'description' => $log->description,
                     'changes' => null,
-                    'user' => $log->causer ? [
-                        'id' => $log->causer->id,
-                        'name' => $log->causer->name,
-                    ] : null,
+                    'user' => $this->getUserForActivity($log, \App\Models\Order::class),
                     'created_at' => $log->created_at,
                 ];
             })->filter();
@@ -399,10 +393,7 @@ class CommentController extends Controller
                     'id' => $log->id,
                     'description' => $log->description,
                     'changes' => null,
-                    'user' => $log->causer ? [
-                        'id' => $log->causer->id,
-                        'name' => $log->causer->name,
-                    ] : null,
+                    'user' => $this->getUserForActivity($log, \App\Models\Order::class),
                     'created_at' => $log->created_at,
                 ];
             })->filter();
@@ -424,10 +415,7 @@ class CommentController extends Controller
                     'id' => $log->id,
                     'description' => 'Транзакция удалена из заказа',
                     'changes' => null,
-                    'user' => $log->causer ? [
-                        'id' => $log->causer->id,
-                        'name' => $log->causer->name,
-                    ] : null,
+                    'user' => $this->getUserForActivity($log, \App\Models\Order::class),
                     'created_at' => $log->created_at,
                 ];
             });
@@ -472,6 +460,56 @@ class CommentController extends Controller
 
         // Затем проверяем базовый маппинг
         return $baseFieldToModelMap[$key] ?? null;
+    }
+
+    /**
+     * Получение пользователя для активности
+     */
+    private function getUserForActivity($log, string $modelClass)
+    {
+        // Если есть causer, используем его
+        if ($log->causer) {
+            return [
+                'id' => $log->causer->id,
+                'name' => $log->causer->name,
+            ];
+        }
+
+        // Если causer_id есть, но связь не загружена, пытаемся найти пользователя
+        if ($log->causer_id) {
+            try {
+                $user = \App\Models\User::select('id', 'name')->find($log->causer_id);
+                if ($user) {
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                    ];
+                }
+            } catch (\Exception $e) {
+                // Игнорируем ошибки
+            }
+        }
+
+        // Если это создание заказа, пытаемся найти пользователя из самого заказа
+        if ($log->description === 'created' || $log->description === 'Создан заказ') {
+            try {
+                $subject = $log->subject;
+                if ($subject && isset($subject->user_id) && $subject->user_id) {
+                    $user = \App\Models\User::select('id', 'name')->find($subject->user_id);
+                    if ($user) {
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->name,
+                        ];
+                    }
+                }
+            } catch (\Exception $e) {
+                // Игнорируем ошибки
+            }
+        }
+
+        // В крайнем случае возвращаем null, чтобы фронтенд показал "Система"
+        return null;
     }
 
     /**

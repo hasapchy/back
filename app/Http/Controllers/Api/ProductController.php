@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Repositories\ProductsRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -69,7 +70,7 @@ class ProductController extends Controller
         ]);
     }
 
-    // метод 
+    // метод
     public function store(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;
@@ -124,8 +125,8 @@ class ProductController extends Controller
             'description' => 'nullable|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
             'unit_id' => 'nullable|exists:units,id',
-            'retail_price' => 'nullable|numeric|min:0.01',
-            'wholesale_price' => 'nullable|numeric|min:0.01',
+            'retail_price' => 'nullable|numeric|min:0',
+            'wholesale_price' => 'nullable|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
         ]);
 

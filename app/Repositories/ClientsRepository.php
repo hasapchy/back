@@ -21,7 +21,7 @@ class ClientsRepository
             // Используем подзапросы для получения телефонов и email'ов как JSON
             $query = Client::select([
                 'clients.*',
-                DB::raw('CAST(COALESCE(client_balances.balance, 0) AS CHAR) as balance_amount'),
+                DB::raw('COALESCE(client_balances.balance, 0) as balance_amount'),
                 DB::raw('(SELECT JSON_ARRAYAGG(JSON_OBJECT("id", cp.id, "client_id", cp.client_id, "phone", cp.phone)) FROM clients_phones cp WHERE cp.client_id = clients.id) as phones_json'),
                 DB::raw('(SELECT JSON_ARRAYAGG(JSON_OBJECT("id", ce.id, "client_id", ce.client_id, "email", ce.email)) FROM clients_emails ce WHERE ce.client_id = clients.id) as emails_json')
             ])
@@ -77,7 +77,7 @@ class ClientsRepository
 
             $query = Client::select([
                 'clients.*',
-                DB::raw('CAST(COALESCE(client_balances.balance, 0) AS CHAR) as balance_amount'),
+                DB::raw('COALESCE(client_balances.balance, 0) as balance_amount'),
                 DB::raw('(SELECT JSON_ARRAYAGG(JSON_OBJECT("id", cp.id, "client_id", cp.client_id, "phone", cp.phone)) FROM clients_phones cp WHERE cp.client_id = clients.id) as phones_json'),
                 DB::raw('(SELECT JSON_ARRAYAGG(JSON_OBJECT("id", ce.id, "client_id", ce.client_id, "email", ce.email)) FROM clients_emails ce WHERE ce.client_id = clients.id) as emails_json')
             ])
@@ -128,7 +128,7 @@ class ClientsRepository
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
             $result = Client::select([
                 'clients.*',
-                DB::raw('CAST(COALESCE(client_balances.balance, 0) AS CHAR) as balance_amount'),
+                DB::raw('COALESCE(client_balances.balance, 0) as balance_amount'),
                 DB::raw('(SELECT JSON_ARRAYAGG(JSON_OBJECT("id", cp.id, "client_id", cp.client_id, "phone", cp.phone)) FROM clients_phones cp WHERE cp.client_id = clients.id) as phones_json'),
                 DB::raw('(SELECT JSON_ARRAYAGG(JSON_OBJECT("id", ce.id, "client_id", ce.client_id, "email", ce.email)) FROM clients_emails ce WHERE ce.client_id = clients.id) as emails_json')
             ])
@@ -269,7 +269,7 @@ class ClientsRepository
             ->select(
                 'clients.id as id',
                 'clients.client_type as client_type',
-                DB::raw('CAST(COALESCE(client_balances.balance, 0) AS CHAR) as balance'),
+                DB::raw('COALESCE(client_balances.balance, 0) as balance'),
                 'clients.is_supplier as is_supplier',
                 'clients.is_conflict as is_conflict',
                 'clients.first_name as first_name',

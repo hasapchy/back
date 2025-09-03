@@ -852,10 +852,16 @@ class OrdersRepository
                     ->update(['balance' => DB::raw("COALESCE(balance, 0) - {$order->total_price}")]);
             }
 
-            // Удаляем связи с транзакциями
+            // Удаляем связанные транзакции
             $orderTransactions = OrderTransaction::where('order_id', $id)->get();
             foreach ($orderTransactions as $orderTransaction) {
-                $orderTransaction->delete(); // Это создаст запись активности
+                // Сначала удаляем саму транзакцию
+                $transaction = Transaction::find($orderTransaction->transaction_id);
+                if ($transaction) {
+                    $transaction->delete(); // Это обновит баланс клиента и создаст запись активности
+                }
+                // Затем удаляем связь
+                $orderTransaction->delete();
             }
 
             // Удаляем товары

@@ -125,6 +125,33 @@ class CacheService
      */
     public static function invalidateProductsCache()
     {
+        $driver = config('cache.default');
+
+        if ($driver === 'file') {
+            // Для файлового кэша очищаем файлы, содержащие "products"
+            $cachePath = storage_path('framework/cache');
+            if (is_dir($cachePath)) {
+                $files = glob($cachePath . '/*');
+                foreach ($files as $file) {
+                    if (is_file($file)) {
+                        $content = file_get_contents($file);
+                        if (strpos($content, 'products_paginated_') !== false ||
+                            strpos($content, 'products_search_') !== false ||
+                            strpos($content, 'reference_products_') !== false) {
+                            unlink($file);
+                        }
+                    }
+                }
+            }
+        } elseif ($driver === 'database') {
+            // Для кэша в базе данных
+            DB::table('cache')->where('key', 'like', '%products%')->delete();
+        } else {
+            // Для других драйверов используем flush (неэффективно, но работает)
+            Cache::flush();
+        }
+
+        // Также очищаем старые ключи для совместимости
         Cache::forget('reference_products_list');
         Cache::forget('reference_products_search');
     }
