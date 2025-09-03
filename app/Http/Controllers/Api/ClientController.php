@@ -46,6 +46,15 @@ class ClientController extends Controller
             $items = $this->itemsRepository->searchClient($search_request);
         }
 
+        // Приводим балансы к числам для всех клиентов
+        if (is_array($items)) {
+            foreach ($items as &$item) {
+                if (isset($item['balance_amount'])) {
+                    $item['balance_amount'] = (float) $item['balance_amount'];
+                }
+            }
+        }
+
         return response()->json($items);
     }
 
@@ -61,6 +70,11 @@ class ClientController extends Controller
                 return response()->json([
                     'message' => 'Client not found'
                 ], 404);
+            }
+
+            // Приводим баланс к числу
+            if (isset($client['balance_amount'])) {
+                $client['balance_amount'] = (float) $client['balance_amount'];
             }
 
             return response()->json([

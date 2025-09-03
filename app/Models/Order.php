@@ -165,4 +165,9 @@ class Order extends Model
             $query->where('order_category_id', $categoryId);
         })->get();
     }
+
+    public function activities()
+    {
+        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
+    }
 }
