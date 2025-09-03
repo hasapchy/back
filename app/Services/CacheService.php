@@ -45,10 +45,15 @@ class CacheService
     {
         $fullKey = "paginated_{$cacheKey}_page_{$page}";
 
+        // Для продуктов используем более длительный TTL
+        $ttl = str_contains($cacheKey, 'products') ? self::CACHE_TTL['reference_data'] : self::CACHE_TTL['sales_list'];
+
+
+
         return self::remember(
             $fullKey,
             $callback,
-            self::CACHE_TTL['sales_list']
+            $ttl
         );
     }
 
@@ -127,43 +132,17 @@ class CacheService
     {
         $driver = config('cache.default');
 
-        if ($driver === 'file') {
-            // Для файлового кэша очищаем файлы, содержащие "products"
-            $cachePath = storage_path('framework/cache');
-            if (is_dir($cachePath)) {
-                $files = glob($cachePath . '/*');
-                foreach ($files as $file) {
-                    if (is_file($file)) {
-                        $content = file_get_contents($file);
-                        if (strpos($content, 'products_') !== false ||
-                            strpos($content, 'reference_products_') !== false ||
-                            strpos($content, 'paginated_products_') !== false) {
-                            unlink($file);
-                        }
-                    }
-                }
-            }
-        } elseif ($driver === 'database') {
-            // Для кэша в базе данных
+        // Очищаем все ключи кэша, содержащие "products"
+        // Это включает товары (type=1) и услуги (type=0) для всех пользователей
+        if ($driver === 'database') {
+            // Для базы данных удаляем все записи с ключами, содержащими "products"
             DB::table('cache')->where('key', 'like', '%products%')->delete();
         } else {
-            // Для других драйверов (Redis, Memcached) очищаем по паттернам
-            $keys = [
-                'products_*',
-                'reference_products_*',
-                'paginated_products_*'
-            ];
-
-            foreach ($keys as $key) {
-                if (str_contains($key, '*')) {
-                    // Для паттернов с wildcard очищаем весь кэш
-                    Cache::flush();
-                    break;
-                } else {
-                    Cache::forget($key);
-                }
-            }
+            // Для других драйверов используем flush (очистка всего кэша)
+            Cache::flush();
         }
+
+
 
         // Также очищаем старые ключи для совместимости
         Cache::forget('reference_products_list');
