@@ -149,6 +149,55 @@ class TransactionsRepository
                     // 'orderTransactions:id,order_id,transaction_id'
                 ]);
 
+                // Преобразуем данные в тот же формат, что и в методе getItems
+                $paginatedResults->getCollection()->transform(function ($transaction) {
+                    return (object) [
+                        'id' => $transaction->id,
+                        'type' => $transaction->type,
+                        'is_transfer' => $this->isTransfer($transaction),
+                        'cash_id' => $transaction->cash_id,
+                        'cash_name' => $transaction->cashRegister?->name,
+                        'cash_amount' => $transaction->amount,
+                        'cash_currency_id' => $transaction->cashRegister?->currency?->id,
+                        'cash_currency_name' => $transaction->cashRegister?->currency?->name,
+                        'cash_currency_code' => $transaction->cashRegister?->currency?->code,
+                        'cash_currency_symbol' => $transaction->cashRegister?->currency?->symbol,
+                        'orig_amount' => $transaction->orig_amount,
+                        'orig_currency_id' => $transaction->currency?->id,
+                        'orig_currency_name' => $transaction->currency?->name,
+                        'orig_currency_code' => $transaction->currency?->code,
+                        'orig_currency_symbol' => $transaction->currency?->symbol,
+                        'user_id' => $transaction->user_id,
+                        'user_name' => $transaction->user?->name,
+                        'category_id' => $transaction->category_id,
+                        'category_name' => $transaction->category?->name,
+                        'category_type' => $transaction->category?->type,
+                        'project_id' => $transaction->project_id,
+                        'project_name' => $transaction->project?->name,
+                        'client_id' => $transaction->client_id,
+                        'client' => $transaction->client ? [
+                            'id' => $transaction->client->id,
+                            'first_name' => $transaction->client->first_name,
+                            'last_name' => $transaction->client->last_name,
+                            'contact_person' => $transaction->client->contact_person,
+                            'client_type' => $transaction->client->client_type,
+                            'is_supplier' => $transaction->client->is_supplier,
+                            'is_conflict' => $transaction->client->is_conflict,
+                            'address' => $transaction->client->address,
+                            'note' => $transaction->client->note,
+                            'status' => $transaction->client->status,
+                            'discount_type' => $transaction->client->discount_type,
+                            'discount' => $transaction->client->discount,
+                            'created_at' => $transaction->client->created_at,
+                            'updated_at' => $transaction->client->updated_at,
+                        ] : null,
+                        'note' => $transaction->note,
+                        'date' => $transaction->date,
+                        'created_at' => $transaction->created_at,
+                        'updated_at' => $transaction->updated_at,
+                    ];
+                });
+
                 return $paginatedResults;
             });
         } catch (\Exception $e) {
@@ -435,6 +484,11 @@ class TransactionsRepository
                     ->where('order_transactions.order_id', $orderId);
             })
             ->sum('orig_amount');
+    }
+
+    private function isTransfer($transaction)
+    {
+        return $transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists();
     }
 
     public function userHasPermissionToCashRegister($userUuid, $cashRegisterId)
