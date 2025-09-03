@@ -15,38 +15,37 @@ use Illuminate\Support\Facades\Log;
 
 class WarehouseReceiptRepository
 {
-    // Получение стоков с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
-        $items = WhReceipt::leftJoin('warehouses', 'wh_receipts.warehouse_id', '=', 'warehouses.id')
-            ->leftJoin('users', 'wh_receipts.user_id', '=', 'users.id')
-            ->leftJoin('cash_registers', 'wh_receipts.cash_id', '=', 'cash_registers.id')
-            ->leftJoin('currencies as cash_currency', 'cash_registers.currency_id', '=', 'cash_registers.currency_id')
-            ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
-            ->where('wh_users.user_id', $userUuid)
-            ->select(
+        $warehouseIds = DB::table('wh_users')
+            ->where('user_id', $userUuid)
+            ->pluck('warehouse_id')
+            ->toArray();
+
+        $items = WhReceipt::select([
                 'wh_receipts.id as id',
                 'wh_receipts.warehouse_id as warehouse_id',
-                'warehouses.name as warehouse_name',
                 'wh_receipts.supplier_id as supplier_id',
                 'wh_receipts.amount as amount',
                 'wh_receipts.cash_id as cash_id',
-                'cash_registers.name as cash_name',
-                'cash_currency.id as currency_id',
-                'cash_currency.name as currency_name',
-                'cash_currency.code as currency_code',
-                'cash_currency.symbol as currency_symbol',
                 'wh_receipts.note as note',
                 'wh_receipts.user_id as user_id',
-                'users.name as user_name',
                 'wh_receipts.date as date',
                 'wh_receipts.created_at as created_at',
-                'wh_receipts.updated_at as updated_at'
-            )
-            ->orderBy('wh_receipts.created_at', 'desc')->paginate($perPage);
+                'wh_receipts.updated_at as updated_at',
+                DB::raw('(SELECT name FROM warehouses WHERE warehouses.id = wh_receipts.warehouse_id) as warehouse_name'),
+                DB::raw('(SELECT name FROM users WHERE users.id = wh_receipts.user_id) as user_name'),
+                DB::raw('(SELECT name FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id) as cash_name'),
+                DB::raw('(SELECT id FROM currencies WHERE currencies.id = (SELECT currency_id FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id)) as currency_id'),
+                DB::raw('(SELECT name FROM currencies WHERE currencies.id = (SELECT currency_id FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id)) as currency_name'),
+                DB::raw('(SELECT code FROM currencies WHERE currencies.id = (SELECT currency_id FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id)) as currency_code'),
+                DB::raw('(SELECT symbol FROM currencies WHERE currencies.id = (SELECT currency_id FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id)) as currency_symbol')
+            ])
+            ->whereIn('wh_receipts.warehouse_id', $warehouseIds)
+            ->orderBy('wh_receipts.created_at', 'desc')
+            ->paginate($perPage);
 
         $client_ids = $items->pluck('supplier_id')->toArray();
-
         $client_repository = new ClientsRepository();
         $clients = $client_repository->getItemsByIds($client_ids);
 
@@ -75,7 +74,6 @@ class WarehouseReceiptRepository
         DB::beginTransaction();
 
         try {
-            // ✅ Валюта: как в SalesRepository
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $currency = $defaultCurrency;
 
@@ -86,18 +84,15 @@ class WarehouseReceiptRepository
                 }
             }
 
-            // 👉 Далее логика расчёта суммы и сохранения
             $total_amount = 0;
             foreach ($products as $product) {
                 $total_amount += $product['price'] * $product['quantity'];
             }
 
-            // 3) Создаем receipt с суммой и валютой
             $receipt = new WhReceipt();
             $receipt->supplier_id  = $client_id;
             $receipt->warehouse_id = $warehouse_id;
             $receipt->project_id   = $data['project_id'] ?? null;
-            // $receipt->currency_id  = $currency->id;
             $receipt->cash_id      = $cash_id;
             $receipt->date         = $date;
             $receipt->note         = $note;
@@ -105,7 +100,6 @@ class WarehouseReceiptRepository
             $receipt->user_id      = auth('api')->id();
             $receipt->save();
 
-            // 4) Создаем продукты для receipt и обновляем склад
             foreach ($products as $product) {
                 $receiptProduct = new WhReceiptProduct();
                 $receiptProduct->receipt_id = $receipt->id;
@@ -124,21 +118,19 @@ class WarehouseReceiptRepository
 
             $transaction_id = null;
 
-            // 5) Обновляем баланс клиента если тип balance
             if ($type === 'balance') {
                 ClientBalance::updateOrCreate(
                     ['client_id' => $client_id],
                     ['balance' => DB::raw("COALESCE(balance, 0) - {$total_amount}")]
                 );
             } else {
-                // 6) Если тип cash, создаём расходную транзакцию (не трогаем баланс клиента)
                 $txData = [
                     'type'        => 0,
                     'user_id'     => auth('api')->id(),
                     'orig_amount' => $total_amount,
                     'currency_id' => $currency->id,
                     'cash_id'     => $cash_id,
-                    'category_id' => 7,
+                    'category_id' => 6,
                     'project_id'  => null,
                     'client_id'   => $client_id,
                     'note'        => $note,
@@ -148,7 +140,6 @@ class WarehouseReceiptRepository
                 $transaction_id = $txRepo->createItem($txData, true, true);
             }
 
-            // 7) Обновляем receipt с id транзакции, если она есть
             if ($transaction_id) {
                 $receipt->transaction_id = $transaction_id;
                 $receipt->save();

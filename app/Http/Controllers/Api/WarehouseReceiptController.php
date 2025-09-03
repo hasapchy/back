@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Repositories\WarehouseReceiptRepository;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class WarehouseReceiptController extends Controller
 {
@@ -15,28 +16,23 @@ class WarehouseReceiptController extends Controller
         $this->warehouseRepository = $warehouseRepository;
     }
 
-    // Метод для получения оприходований с пагинацией
     public function index(Request $request)
     {
-
         $userUuid = optional(auth('api')->user())->id;
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
 
-        // Получаем сток с пагинацией
         $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20);
 
         return response()->json([
-            'items' => $warehouses->items(),  // Список 
-            'current_page' => $warehouses->currentPage(),  // Текущая страница
-            'next_page' => $warehouses->nextPageUrl(),  // Следующая страница
-            'last_page' => $warehouses->lastPage(),  // Общее количество страниц
-            'total' => $warehouses->total()  // Общее количество
+            'items' => $warehouses->items(),
+            'current_page' => $warehouses->currentPage(),
+            'next_page' => $warehouses->nextPageUrl(),
+            'last_page' => $warehouses->lastPage(),
+            'total' => $warehouses->total()
         ]);
     }
-
-    // Метод оприходования товара
 
     public function store(Request $request)
     {
@@ -44,7 +40,6 @@ class WarehouseReceiptController extends Controller
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
-        // Валидация данных
         $request->validate([
             'client_id' => 'required|integer|exists:clients,id',
             'warehouse_id' => 'required|integer|exists:warehouses,id',
@@ -77,7 +72,6 @@ class WarehouseReceiptController extends Controller
             }, $request->products)
         );
 
-        // Оприходуем
         try {
             $warehouse_created = $this->warehouseRepository->createItem($data);
             if (!$warehouse_created) {
@@ -96,10 +90,8 @@ class WarehouseReceiptController extends Controller
     }
 
 
-    // Метод для удаления склада
     public function destroy($id)
     {
-        // Удаляем склад
         $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 
         if (!$warehouse_deleted) {

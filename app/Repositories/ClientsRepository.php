@@ -5,8 +5,10 @@ namespace App\Repositories;
 use App\Models\Client;
 use App\Models\ClientBalance;
 use App\Services\CacheService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class ClientsRepository
 {
@@ -17,54 +19,38 @@ class ClientsRepository
         // Создаем уникальный ключ кэша
         $cacheKey = "clients_paginated_{$perPage}_{$search}";
 
+        // Принудительно очищаем кэш клиентов перед получением
+        CacheService::invalidateClientsCache();
+
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search) {
-            // Используем подзапросы для получения телефонов и email'ов как JSON
-            $query = Client::select([
-                'clients.*',
-                DB::raw('COALESCE(client_balances.balance, 0) as balance_amount'),
-                DB::raw('(SELECT JSON_ARRAYAGG(JSON_OBJECT("id", cp.id, "client_id", cp.client_id, "phone", cp.phone)) FROM clients_phones cp WHERE cp.client_id = clients.id) as phones_json'),
-                DB::raw('(SELECT JSON_ARRAYAGG(JSON_OBJECT("id", ce.id, "client_id", ce.client_id, "email", ce.email)) FROM clients_emails ce WHERE ce.client_id = clients.id) as emails_json')
-            ])
-            ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id');
+            // Используем Eloquent relationships с eager loading для избежания N+1
+            $query = Client::with(['phones', 'emails'])
+                ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
+                ->select([
+                    'clients.*',
+                    DB::raw('COALESCE(client_balances.balance, 0) as balance_amount')
+                ]);
 
             if ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('clients.id', 'like', "%{$search}%")
-                        ->orWhere('clients.first_name', 'like', "%{$search}%")
-                        ->orWhere('clients.last_name', 'like', "%{$search}%")
-                        ->orWhere('clients.contact_person', 'like', "%{$search}%")
-                        ->orWhere('clients.address', 'like', "%{$search}%")
-                        ->orWhereExists(function ($subQuery) use ($search) {
-                            $subQuery->select(DB::raw(1))
-                                ->from('clients_phones')
-                                ->whereColumn('clients_phones.client_id', 'clients.id')
-                                ->where('clients_phones.phone', 'like', "%{$search}%");
-                        })
-                        ->orWhereExists(function ($subQuery) use ($search) {
-                            $subQuery->select(DB::raw(1))
-                                ->from('clients_emails')
-                                ->whereColumn('clients_emails.client_id', 'clients.id')
-                                ->where('clients_emails.email', 'like', "%{$search}%");
-                        });
+                $searchTerm = "%{$search}%";
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('clients.id', 'like', $searchTerm)
+                      ->orWhere('clients.first_name', 'like', $searchTerm)
+                      ->orWhere('clients.last_name', 'like', $searchTerm)
+                      ->orWhere('clients.contact_person', 'like', $searchTerm)
+                      ->orWhere('clients.address', 'like', $searchTerm)
+                      ->orWhereHas('phones', function ($phoneQuery) use ($searchTerm) {
+                          $phoneQuery->where('phone', 'like', $searchTerm);
+                      })
+                      ->orWhereHas('emails', function ($emailQuery) use ($searchTerm) {
+                          $emailQuery->where('email', 'like', $searchTerm);
+                      });
                 });
             }
 
-            $results = $query->orderBy('clients.created_at', 'desc')->paginate($perPage);
+            $query->orderBy('clients.created_at', 'desc');
 
-            // Логируем результаты пагинации для отладки
-            Log::info("=== CLIENT PAGINATION BACKEND ===");
-            Log::info("Page: {$perPage}");
-            Log::info("Search: " . ($search ?? 'NULL'));
-            Log::info("Results count: " . $results->count());
-            if ($results->count() > 0) {
-                $firstResult = $results->first();
-                Log::info("First result ID: " . $firstResult->id);
-                Log::info("First result balance_amount: " . ($firstResult->balance_amount ?? 'NULL'));
-                Log::info("First result balance_amount type: " . gettype($firstResult->balance_amount ?? null));
-            }
-            Log::info("================================");
-
-            return $results;
+            return $query->paginate($perPage);
         });
     }
 
@@ -72,33 +58,30 @@ class ClientsRepository
     {
         $cacheKey = "clients_search_{$search_request}";
 
+        // Принудительно очищаем кэш клиентов перед поиском
+        CacheService::invalidateClientsCache();
+
         return CacheService::getReferenceData($cacheKey, function () use ($search_request) {
             $searchTerms = explode(' ', $search_request);
 
-            $query = Client::select([
-                'clients.*',
-                DB::raw('COALESCE(client_balances.balance, 0) as balance_amount'),
-                DB::raw('(SELECT JSON_ARRAYAGG(JSON_OBJECT("id", cp.id, "client_id", cp.client_id, "phone", cp.phone)) FROM clients_phones cp WHERE cp.client_id = clients.id) as phones_json'),
-                DB::raw('(SELECT JSON_ARRAYAGG(JSON_OBJECT("id", ce.id, "client_id", ce.client_id, "email", ce.email)) FROM clients_emails ce WHERE ce.client_id = clients.id) as emails_json')
-            ])
-            ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id');
+            // Используем Eloquent relationships с eager loading для избежания N+1
+            $query = Client::with(['phones', 'emails'])
+                ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
+                ->select([
+                    'clients.*',
+                    DB::raw('COALESCE(client_balances.balance, 0) as balance_amount')
+                ]);
 
             foreach ($searchTerms as $term) {
                 $query->orWhere(function ($q) use ($term) {
                     $q->where('clients.first_name', 'like', "%{$term}%")
                         ->orWhere('clients.last_name', 'like', "%{$term}%")
                         ->orWhere('clients.contact_person', 'like', "%{$term}%")
-                        ->orWhereExists(function ($subQuery) use ($term) {
-                            $subQuery->select(DB::raw(1))
-                                ->from('clients_phones')
-                                ->whereColumn('clients_phones.client_id', 'clients.id')
-                                ->where('clients_phones.phone', 'like', "%{$term}%");
+                        ->orWhereHas('phones', function ($phoneQuery) use ($term) {
+                            $phoneQuery->where('phone', 'like', "%{$term}%");
                         })
-                        ->orWhereExists(function ($subQuery) use ($term) {
-                            $subQuery->select(DB::raw(1))
-                                ->from('clients_emails')
-                                ->whereColumn('clients_emails.client_id', 'clients.id')
-                                ->where('clients_emails.email', 'like', "%{$term}%");
+                        ->orWhereHas('emails', function ($emailQuery) use ($term) {
+                            $emailQuery->where('email', 'like', "%{$term}%");
                         });
                 });
             }
@@ -125,28 +108,19 @@ class ClientsRepository
     {
         $cacheKey = "client_{$id}";
 
+        // Принудительно очищаем кэш для этого клиента перед получением
+        Cache::forget($cacheKey);
+
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
-            $result = Client::select([
-                'clients.*',
-                DB::raw('COALESCE(client_balances.balance, 0) as balance_amount'),
-                DB::raw('(SELECT JSON_ARRAYAGG(JSON_OBJECT("id", cp.id, "client_id", cp.client_id, "phone", cp.phone)) FROM clients_phones cp WHERE cp.client_id = clients.id) as phones_json'),
-                DB::raw('(SELECT JSON_ARRAYAGG(JSON_OBJECT("id", ce.id, "client_id", ce.client_id, "email", ce.email)) FROM clients_emails ce WHERE ce.client_id = clients.id) as emails_json')
-            ])
-            ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
-            ->where('clients.id', $id)
-            ->first();
-
-            // Логируем результат для отладки
-            Log::info("=== CLIENT GET ITEM BACKEND ===");
-            Log::info("Client ID: {$id}");
-            Log::info("Full result: " . json_encode($result));
-            Log::info("Balance amount: " . ($result->balance_amount ?? 'NULL'));
-            Log::info("Balance amount type: " . gettype($result->balance_amount ?? null));
-            Log::info("Phones JSON: " . ($result->phones_json ?? 'NULL'));
-            Log::info("Emails JSON: " . ($result->emails_json ?? 'NULL'));
-            Log::info("=================================");
-
-            return $result;
+            // Используем Eloquent relationships с eager loading для избежания N+1
+            return Client::with(['phones', 'emails'])
+                ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
+                ->select([
+                    'clients.*',
+                    DB::raw('COALESCE(client_balances.balance, 0) as balance_amount')
+                ])
+                ->where('clients.id', $id)
+                ->first();
         });
     }
 
@@ -185,6 +159,14 @@ class ClientsRepository
                 }
             }
 
+            // Создаем запись баланса для клиента
+            DB::table('client_balances')->insert([
+                'client_id' => $client->id,
+                'balance' => 0.00,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
             return $client;
         });
 
@@ -193,6 +175,36 @@ class ClientsRepository
         $this->invalidateClientBalanceCache($client->id);
 
         return $client;
+    }
+
+    /**
+     * Создает записи баланса для клиентов, у которых их нет
+     */
+    public function createMissingBalances()
+    {
+        $clientsWithoutBalance = DB::table('clients')
+            ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
+            ->whereNull('client_balances.client_id')
+            ->select('clients.id')
+            ->get();
+
+        $created = 0;
+        foreach ($clientsWithoutBalance as $client) {
+            DB::table('client_balances')->insert([
+                'client_id' => $client->id,
+                'balance' => 0.00,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $created++;
+        }
+
+        if ($created > 0) {
+            // Очищаем кэш клиентов после создания недостающих балансов
+            CacheService::invalidateClientsCache();
+        }
+
+        return $created;
     }
 
     public function update($id, array $data)
@@ -313,97 +325,125 @@ class ClientsRepository
         $cacheKey = "client_balance_history_{$clientId}";
 
         return CacheService::remember($cacheKey, function () use ($clientId) {
-            $result = [];
-
-            // Продажи
             try {
-                $sales = DB::table('sales')
-                    ->where('client_id', $clientId)
-                    ->select('id', 'created_at', 'total_price', 'cash_id')
-                    ->get()
-                    ->map(function ($sale) {
-                        return [
-                            'source' => 'sale',
-                            'source_id' => $sale->id,
-                            'date' => $sale->created_at,
-                            'amount' => $sale->cash_id ? $sale->total_price : 0,
-                            'description' => $sale->cash_id ? 'Продажа через кассу' : 'Продажа в баланс(долг)'
-                        ];
-                    });
+                Log::info("Начинаем получение истории баланса для клиента {$clientId}");
+                $result = [];
+
+                // Продажи
+                Log::info("Проверяем таблицу sales для клиента {$clientId}");
+                if (Schema::hasTable('sales')) {
+                    try {
+                        $sales = DB::table('sales')
+                            ->where('client_id', $clientId)
+                            ->select('id', 'created_at', 'total_price', 'cash_id')
+                            ->get()
+                            ->map(function ($sale) {
+                                return [
+                                    'source' => 'sale',
+                                    'source_id' => $sale->id,
+                                    'date' => $sale->created_at,
+                                    'amount' => $sale->cash_id ? $sale->total_price : 0,
+                                    'description' => $sale->cash_id ? 'Продажа через кассу' : 'Продажа в баланс(долг)'
+                                ];
+                            });
+                        Log::info("Получено продаж для клиента {$clientId}: " . $sales->count());
+                    } catch (\Exception $e) {
+                        Log::warning("Ошибка при получении продаж для клиента {$clientId}: " . $e->getMessage());
+                        $sales = collect();
+                    }
+                } else {
+                    Log::info("Таблица sales не существует");
+                    $sales = collect();
+                }
+
+                // Оприходования
+                if (Schema::hasTable('warehouse_receipts')) {
+                    try {
+                        $receipts = DB::table('warehouse_receipts')
+                            ->where('supplier_id', $clientId)
+                            ->select('id', 'created_at', 'amount', 'cash_id')
+                            ->get()
+                            ->map(function ($receipt) {
+                                return [
+                                    'source' => 'receipt',
+                                    'source_id' => $receipt->id,
+                                    'date' => $receipt->created_at,
+                                    'amount' => $receipt->cash_id ? -$receipt->amount : 0,
+                                    'description' => $receipt->cash_id ? 'Долг за оприходование(в кассу)' : 'Долг за оприходование(в баланс)'
+                                ];
+                            });
+                    } catch (\Exception $e) {
+                        Log::warning("Ошибка при получении оприходований для клиента {$clientId}: " . $e->getMessage());
+                        $receipts = collect();
+                    }
+                } else {
+                    $receipts = collect();
+                }
+
+                // Транзакции
+                if (Schema::hasTable('transactions')) {
+                    try {
+                        $transactions = DB::table('transactions')
+                            ->where('client_id', $clientId)
+                            ->select('id', 'created_at', 'orig_amount', 'type')
+                            ->get()
+                            ->map(function ($tr) {
+                                $isIncome = $tr->type === 1;
+                                return [
+                                    'source' => 'transaction',
+                                    'source_id' => $tr->id,
+                                    'date' => $tr->created_at,
+                                    'amount' => $isIncome ? -$tr->orig_amount : +$tr->orig_amount,
+                                    'description' => $isIncome ? 'Клиент оплатил нам' : 'Мы оплатили клиенту'
+                                ];
+                            });
+                    } catch (\Exception $e) {
+                        Log::warning("Ошибка при получении транзакций для клиента {$clientId}: " . $e->getMessage());
+                        $transactions = collect();
+                    }
+                } else {
+                    $transactions = collect();
+                }
+
+                // Заказы
+                if (Schema::hasTable('orders')) {
+                    try {
+                        $orders = DB::table('orders')
+                            ->where('client_id', $clientId)
+                            ->select('id', 'created_at', 'total_price as amount', 'cash_id')
+                            ->get()
+                            ->map(function ($order) {
+                                return [
+                                    'source' => 'order',
+                                    'source_id' => $order->id,
+                                    'date' => $order->created_at,
+                                    'amount' => $order->cash_id ? +$order->amount : 0,
+                                    'description' => 'Заказ'
+                                ];
+                            });
+                    } catch (\Exception $e) {
+                        Log::warning("Ошибка при получении заказов для клиента {$clientId}: " . $e->getMessage());
+                        $orders = collect();
+                    }
+                } else {
+                    $orders = collect();
+                }
+
+                // Объединение и сортировка
+                $result = collect()
+                    ->merge($sales)
+                    ->merge($receipts)
+                    ->merge($transactions)
+                    ->merge($orders)
+                    ->sortBy('date')
+                    ->values()
+                    ->all();
+
+                return $result;
             } catch (\Exception $e) {
-                $sales = collect();
+                Log::error("Критическая ошибка при получении истории баланса для клиента {$clientId}: " . $e->getMessage());
+                return [];
             }
-
-            // Оприходования
-            try {
-                $receipts = DB::table('warehouse_receipts')
-                    ->where('supplier_id', $clientId)
-                    ->select('id', 'created_at', 'amount', 'cash_id')
-                    ->get()
-                    ->map(function ($receipt) {
-                        return [
-                            'source' => 'receipt',
-                            'source_id' => $receipt->id,
-                            'date' => $receipt->created_at,
-                            'amount' => $receipt->cash_id ? -$receipt->amount : 0,
-                            'description' => $receipt->cash_id ? 'Долг за оприходование(в кассу)' : 'Долг за оприходование(в баланс)'
-                        ];
-                    });
-            } catch (\Exception $e) {
-                // Если таблица не существует, используем пустой массив
-                $receipts = collect();
-            }
-
-            // Транзакции
-            try {
-                $transactions = DB::table('transactions')
-                    ->where('client_id', $clientId)
-                    ->select('id', 'created_at', 'orig_amount', 'type')
-                    ->get()
-                    ->map(function ($tr) {
-                        $isIncome = $tr->type === 1;
-                        return [
-                            'source' => 'transaction',
-                            'source_id' => $tr->id,
-                            'date' => $tr->created_at,
-                            'amount' => $isIncome ? -$tr->orig_amount : +$tr->orig_amount,
-                            'description' => $isIncome ? 'Клиент оплатил нам' : 'Мы оплатили клиенту'
-                        ];
-                    });
-            } catch (\Exception $e) {
-                $transactions = collect();
-            }
-
-            // Заказы
-            try {
-                $orders = DB::table('orders')
-                    ->where('client_id', $clientId)
-                    ->select('id', 'created_at', 'total_price as amount', 'cash_id')
-                    ->get()
-                    ->map(function ($order) {
-                        return [
-                            'source' => 'order',
-                            'source_id' => $order->id,
-                            'date' => $order->created_at,
-                            'amount' => $order->cash_id ? +$order->amount : 0,
-                            'description' => 'Заказ'
-                        ];
-                    });
-            } catch (\Exception $e) {
-                $orders = collect();
-            }
-
-            // Объединение и сортировка
-            $result = collect()
-                ->merge($sales)
-                ->merge($receipts)
-                ->merge($transactions)
-                ->merge($orders)
-                ->sortBy('date')
-                ->values()
-                ->all();
-
-            return $result;
         });
     }
 

@@ -121,6 +121,18 @@ class CacheService
      */
     public static function invalidateClientsCache()
     {
+        $driver = config('cache.default');
+
+        // Очищаем все ключи кэша, содержащие "clients"
+        if ($driver === 'database') {
+            // Для базы данных удаляем все записи с ключами, содержащими "clients"
+            DB::table('cache')->where('key', 'like', '%clients%')->delete();
+        } else {
+            // Для других драйверов используем flush (очистка всего кэша)
+            Cache::flush();
+        }
+
+        // Также очищаем старые ключи для совместимости
         Cache::forget('reference_clients_list');
         Cache::forget('reference_clients_search');
     }

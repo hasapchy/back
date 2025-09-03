@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Repositories\ClientsRepository;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ClientController extends Controller
 {
@@ -39,10 +40,38 @@ class ClientController extends Controller
         if (!$search_request || empty($search_request)) {
             $items = [];
         } else {
+            // Создаем недостающие балансы перед поиском
+            $this->itemsRepository->createMissingBalances();
+
             $items = $this->itemsRepository->searchClient($search_request);
         }
 
         return response()->json($items);
+    }
+
+        public function show($id)
+    {
+        try {
+            // Создаем недостающие балансы перед получением клиента
+            $this->itemsRepository->createMissingBalances();
+
+            $client = $this->itemsRepository->getItem($id);
+
+            if (!$client) {
+                return response()->json([
+                    'message' => 'Client not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'item' => $client
+            ], 200);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Ошибка при получении клиента',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function getBalanceHistory($id)
@@ -54,6 +83,12 @@ class ClientController extends Controller
                 'history' => $history
             ], 200);
         } catch (\Throwable $e) {
+            Log::error("Ошибка в ClientController::getBalanceHistory для клиента {$id}: " . $e->getMessage(), [
+                'client_id' => $id,
+                'exception' => $e,
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'message' => 'Ошибка при получении истории баланса',
                 'error' => $e->getMessage()
