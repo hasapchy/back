@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\PerformanceController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\CommentController;
 
 Route::post('user/login', [AuthController::class, 'login']);
@@ -184,6 +185,14 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:orders_view')->get('order-af/category/{id}', [OrderAfController::class, 'getByCategory']);
     Route::middleware('permission:orders_view')->post('order-af/categories', [OrderAfController::class, 'getByCategories']);
     Route::middleware('permission:orders_view')->get('order-af/types', [OrderAfController::class, 'getFieldTypes']);
+
+    // invoices
+    Route::middleware('permission:invoices_view')->get('invoices', [InvoiceController::class, 'index']);
+    Route::middleware('permission:invoices_create')->post('invoices', [InvoiceController::class, 'store']);
+    Route::middleware('permission:invoices_update')->put('invoices/{id}', [InvoiceController::class, 'update']);
+    Route::middleware('permission:invoices_delete')->delete('invoices/{id}', [InvoiceController::class, 'destroy']);
+    Route::middleware('permission:invoices_view')->get('invoices/{id}', [InvoiceController::class, 'show']);
+    Route::middleware('permission:invoices_create')->post('invoices/orders', [InvoiceController::class, 'getOrdersForInvoice']);
 
     // comments
     Route::get('comments', [CommentController::class, 'index']);

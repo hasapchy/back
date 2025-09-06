@@ -1,0 +1,214 @@
+<?php
+
+namespace App\Repositories;
+
+use App\Models\Invoice;
+use App\Models\InvoiceProduct;
+use App\Models\Order;
+use App\Models\OrderProduct;
+use App\Models\OrderTempProduct;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
+
+class InvoicesRepository
+{
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $typeFilter = null)
+    {
+        $query = Invoice::with(['client', 'user', 'orders', 'products.unit', 'products.order'])
+            ->where('user_id', $userUuid);
+
+        // Поиск
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('invoice_number', 'like', "%{$search}%")
+                  ->orWhere('note', 'like', "%{$search}%")
+                  ->orWhereHas('client', function ($clientQuery) use ($search) {
+                      $clientQuery->where('first_name', 'like', "%{$search}%")
+                                 ->orWhere('last_name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // Фильтр по дате
+        if ($dateFilter !== 'all_time') {
+            $query->whereDate('invoice_date', $this->getDateFilter($dateFilter, $startDate, $endDate));
+        }
+
+        // Фильтр по типу
+        if ($typeFilter) {
+            $query->where('type', $typeFilter);
+        }
+
+        return $query->orderBy('created_at', 'desc')->paginate($perPage);
+    }
+
+    public function getItemById($id)
+    {
+        return Invoice::with(['client', 'user', 'orders', 'products.unit', 'products.order'])
+            ->find($id);
+    }
+
+    public function createItem($data)
+    {
+        return DB::transaction(function () use ($data) {
+            // Создаем счет
+            $invoice = Invoice::create([
+                'client_id' => $data['client_id'],
+                'user_id' => $data['user_id'],
+                'invoice_date' => $data['invoice_date'] ?? now()->toDateString(),
+                'note' => $data['note'] ?? '',
+                'total_amount' => $data['total_amount'] ?? 0,
+                'invoice_number' => Invoice::generateInvoiceNumber(),
+                'status' => 'new', // Всегда создаем счет в статусе "новый"
+            ]);
+
+            // Связываем заказы
+            if (isset($data['order_ids']) && is_array($data['order_ids'])) {
+                $invoice->orders()->attach($data['order_ids']);
+            }
+
+            // Добавляем товары
+            if (isset($data['products']) && is_array($data['products'])) {
+                foreach ($data['products'] as $productData) {
+                    InvoiceProduct::create([
+                        'invoice_id' => $invoice->id,
+                        'order_id' => $productData['order_id'] ?? null,
+                        'product_id' => $productData['product_id'] ?? null,
+                        'product_name' => $productData['product_name'],
+                        'product_description' => $productData['product_description'] ?? null,
+                        'quantity' => $productData['quantity'],
+                        'price' => $productData['price'],
+                        'total_price' => $productData['total_price'],
+                        'unit_id' => $productData['unit_id'] ?? null,
+                    ]);
+                }
+            }
+
+            return $invoice;
+        });
+    }
+
+    public function updateItem($id, $data)
+    {
+        return DB::transaction(function () use ($id, $data) {
+            $invoice = Invoice::findOrFail($id);
+
+            $invoice->update([
+                'client_id' => $data['client_id'],
+                'invoice_date' => $data['invoice_date'] ?? $invoice->invoice_date,
+                'note' => $data['note'] ?? $invoice->note,
+                'total_amount' => $data['total_amount'] ?? $invoice->total_amount,
+            ]);
+
+            // Обновляем связи с заказами
+            if (isset($data['order_ids'])) {
+                $invoice->orders()->sync($data['order_ids']);
+            }
+
+            // Обновляем товары
+            if (isset($data['products'])) {
+                // Удаляем старые товары
+                $invoice->products()->delete();
+
+                // Добавляем новые товары
+                foreach ($data['products'] as $productData) {
+                    InvoiceProduct::create([
+                        'invoice_id' => $invoice->id,
+                        'order_id' => $productData['order_id'] ?? null,
+                        'product_id' => $productData['product_id'] ?? null,
+                        'product_name' => $productData['product_name'],
+                        'product_description' => $productData['product_description'] ?? null,
+                        'quantity' => $productData['quantity'],
+                        'price' => $productData['price'],
+                        'total_price' => $productData['total_price'],
+                        'unit_id' => $productData['unit_id'] ?? null,
+                    ]);
+                }
+            }
+
+            return $invoice;
+        });
+    }
+
+    public function deleteItem($id)
+    {
+        $invoice = Invoice::findOrFail($id);
+        $invoice->delete();
+        return $invoice;
+    }
+
+    public function getOrdersForInvoice($orderIds)
+    {
+        return Order::with(['client', 'orderProducts.product', 'tempProducts.unit'])
+            ->whereIn('id', $orderIds)
+            ->get();
+    }
+
+    public function prepareProductsFromOrders($orders)
+    {
+        $products = [];
+        $orderDate = null;
+
+        foreach ($orders as $order) {
+            // Берем дату заказа (самую раннюю из всех заказов)
+            if (!$orderDate || $order->date < $orderDate) {
+                $orderDate = $order->date;
+            }
+
+            // Добавляем товары из заказа
+            foreach ($order->orderProducts as $orderProduct) {
+                $products[] = [
+                    'product_id' => $orderProduct->product_id,
+                    'order_id' => $order->id,
+                    'product_name' => $orderProduct->product->name ?? 'Товар',
+                    'product_description' => $orderProduct->product->description ?? null,
+                    'quantity' => $orderProduct->quantity,
+                    'price' => $orderProduct->price,
+                    'total_price' => $orderProduct->quantity * $orderProduct->price,
+                    'unit_id' => $orderProduct->product->unit_id ?? null,
+                ];
+            }
+
+            // Добавляем временные товары из заказа
+            foreach ($order->tempProducts as $tempProduct) {
+                $products[] = [
+                    'product_id' => null,
+                    'order_id' => $order->id,
+                    'product_name' => $tempProduct->name,
+                    'product_description' => $tempProduct->description,
+                    'quantity' => $tempProduct->quantity,
+                    'price' => $tempProduct->price,
+                    'total_price' => $tempProduct->quantity * $tempProduct->price,
+                    'unit_id' => $tempProduct->unit_id,
+                ];
+            }
+        }
+
+        return [
+            'products' => $products,
+            'order_date' => $orderDate
+        ];
+    }
+
+    private function getDateFilter($dateFilter, $startDate = null, $endDate = null)
+    {
+        switch ($dateFilter) {
+            case 'today':
+                return now()->toDateString();
+            case 'yesterday':
+                return now()->subDay()->toDateString();
+            case 'this_week':
+                return now()->startOfWeek()->toDateString();
+            case 'this_month':
+                return now()->startOfMonth()->toDateString();
+            case 'last_week':
+                return now()->subWeek()->startOfWeek()->toDateString();
+            case 'last_month':
+                return now()->subMonth()->startOfMonth()->toDateString();
+            case 'custom':
+                return $startDate ?: now()->toDateString();
+            default:
+                return now()->toDateString();
+        }
+    }
+}
