@@ -108,6 +108,12 @@ class OrderController extends Controller
             'additional_fields' => $request->additional_fields ?? [],
         ];
 
+        // Проверяем права доступа к кассе
+        $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $request->cash_id);
+        if (!$userHasPermissionToCashRegister) {
+            return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
+        }
+
         try {
             $created = $this->itemRepository->createItem($data);
 
@@ -183,6 +189,12 @@ class OrderController extends Controller
             'additional_fields' => $request->additional_fields ?? [],
         ];
 
+        // Проверяем права доступа к кассе
+        $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $request->cash_id);
+        if (!$userHasPermissionToCashRegister) {
+            return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
+        }
+
         try {
             $updated = $this->itemRepository->updateItem($id, $data);
             if (!$updated) {
@@ -199,6 +211,18 @@ class OrderController extends Controller
         $userUuid = optional(auth('api')->user())->id;
         if (!$userUuid) {
             return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        // Получаем заказ для проверки прав доступа к кассе
+        $order = $this->itemRepository->getItemById($id);
+        if (!$order) {
+            return response()->json(['message' => 'Заказ не найден'], 404);
+        }
+
+        // Проверяем права доступа к кассе
+        $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $order->cash_id);
+        if (!$userHasPermissionToCashRegister) {
+            return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
         }
 
         try {
@@ -256,6 +280,13 @@ class OrderController extends Controller
         if (!$item) {
             return response()->json(['message' => 'Not found'], 404);
         }
+
+        // Проверяем права доступа к кассе
+        $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $item->cash_id);
+        if (!$userHasPermissionToCashRegister) {
+            return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
+        }
+
         return response()->json(['item' => $item]);
     }
 

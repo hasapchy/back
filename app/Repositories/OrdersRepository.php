@@ -73,7 +73,10 @@ class OrdersRepository
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
                     'client.balance:id,client_id,balance'
-                ]);
+                ])
+                ->whereHas('cashRegister.cashRegisterUsers', function($q) use ($userUuid) {
+                    $q->where('user_id', $userUuid);
+                });
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -990,5 +993,17 @@ class OrdersRepository
                     'formatted_value' => $value->getFormattedValue()
                 ];
             });
+    }
+
+    public function userHasPermissionToCashRegister($userUuid, $cashRegisterId)
+    {
+        return \App\Models\CashRegister::query()
+            ->where('cash_registers.id', $cashRegisterId)
+            ->whereExists(function ($subQuery) use ($userUuid) {
+                $subQuery->select(DB::raw(1))
+                    ->from('cash_register_users')
+                    ->whereColumn('cash_register_users.cash_register_id', 'cash_registers.id')
+                    ->where('cash_register_users.user_id', $userUuid);
+            })->exists();
     }
 }

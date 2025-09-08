@@ -6,11 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderTransaction;
 use App\Models\Transaction;
+use App\Repositories\OrdersRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class OrderTransactionController extends Controller
 {
+    protected $ordersRepository;
+
+    public function __construct(OrdersRepository $ordersRepository)
+    {
+        $this->ordersRepository = $ordersRepository;
+    }
     /**
      * Связать транзакцию с заказом
      */
@@ -22,9 +29,10 @@ class OrderTransactionController extends Controller
 
         $order = Order::findOrFail($orderId);
 
-        // Проверяем права доступа
-        if ($order->user_id != Auth::id()) {
-            return response()->json(['message' => 'Нет доступа к заказу'], 403);
+        // Проверяем права доступа к кассе заказа
+        $userHasPermissionToCashRegister = $this->ordersRepository->userHasPermissionToCashRegister(Auth::id(), $order->cash_id);
+        if (!$userHasPermissionToCashRegister) {
+            return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
         }
 
         $transaction = Transaction::findOrFail($request->transaction_id);
@@ -50,9 +58,10 @@ class OrderTransactionController extends Controller
     {
         $order = Order::findOrFail($orderId);
 
-        // Проверяем права доступа
-        if ($order->user_id != Auth::id()) {
-            return response()->json(['message' => 'Нет доступа к заказу'], 403);
+        // Проверяем права доступа к кассе заказа
+        $userHasPermissionToCashRegister = $this->ordersRepository->userHasPermissionToCashRegister(Auth::id(), $order->cash_id);
+        if (!$userHasPermissionToCashRegister) {
+            return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
         }
 
         // Находим и удаляем связь по отдельности для создания записи активности
@@ -65,7 +74,7 @@ class OrderTransactionController extends Controller
             activity()
                 ->performedOn($orderTransaction)
                 ->log('deleted');
-                
+
             $orderTransaction->delete(); // Это создаст запись активности
         }
 
@@ -79,9 +88,10 @@ class OrderTransactionController extends Controller
     {
         $order = Order::findOrFail($orderId);
 
-        // Проверяем права доступа
-        if ($order->user_id != Auth::id()) {
-            return response()->json(['message' => 'Нет доступа к заказу'], 403);
+        // Проверяем права доступа к кассе заказа
+        $userHasPermissionToCashRegister = $this->ordersRepository->userHasPermissionToCashRegister(Auth::id(), $order->cash_id);
+        if (!$userHasPermissionToCashRegister) {
+            return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
         }
 
         $transactions = $order->transactions()->get();
