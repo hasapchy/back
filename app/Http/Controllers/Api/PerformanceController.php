@@ -208,12 +208,6 @@ class PerformanceController extends Controller
                     $result['timeline_performance'] = ['error' => $e->getMessage()];
                 }
 
-                try {
-                    $result['slow_queries'] = $this->getSlowQueries();
-                } catch (\Exception $e) {
-                    Log::error('Error getting slow queries: ' . $e->getMessage());
-                    $result['slow_queries'] = ['error' => $e->getMessage()];
-                }
 
                 try {
                     $result['table_sizes'] = $this->getTableSizesData();
@@ -435,246 +429,9 @@ class PerformanceController extends Controller
         return $metrics;
     }
 
-    private function getSlowQueries()
-    {
-        try {
-            $connection = DB::connection();
-            $driver = $connection->getDriverName();
 
-            if ($driver === 'mysql') {
-                try {
-                    // Более детальный анализ медленных запросов
-                    $slowQueries = DB::select("
-                        SELECT
-                            sql_text,
-                            exec_count,
-                            avg_timer_wait/1000000000 as avg_time_sec,
-                            max_timer_wait/1000000000 as max_time_sec,
-                            sum_timer_wait/1000000000 as total_time_sec,
-                            ROUND(avg_timer_wait/1000000000, 4) as avg_time_ms,
-                            ROUND(max_timer_wait/1000000000, 4) as max_time_ms,
-                            ROUND(sum_timer_wait/1000000000, 4) as total_time_ms,
-                            ROUND(sum_lock_time/1000000000, 4) as total_lock_time_ms,
-                            ROUND(sum_rows_examined, 0) as total_rows_examined,
-                            ROUND(sum_rows_sent, 0) as total_rows_sent,
-                            ROUND(sum_created_tmp_tables, 0) as total_tmp_tables,
-                            ROUND(sum_select_scan, 0) as total_select_scans,
-                            ROUND(sum_select_full_join, 0) as total_full_joins
-                        FROM performance_schema.events_statements_summary_by_digest
-                        WHERE avg_timer_wait > 1000000000
-                        ORDER BY avg_timer_wait DESC
-                        LIMIT 15
-                    ");
 
-                    // Анализ блокировок
-                    $locks = DB::select("
-                        SELECT
-                            object_schema,
-                            object_name,
-                            lock_type,
-                            lock_mode,
-                            lock_status,
-                            lock_data
-                        FROM performance_schema.data_locks
-                        WHERE lock_status = 'GRANTED'
-                        LIMIT 10
-                    ");
 
-                    return [
-                        'slow_queries' => $slowQueries,
-                        'locks' => $locks,
-                        'summary' => [
-                            'total_slow_queries' => count($slowQueries),
-                            'avg_execution_time' => collect($slowQueries)->avg('avg_time_ms'),
-                            'max_execution_time' => collect($slowQueries)->max('avg_time_ms'),
-                            'total_executions' => collect($slowQueries)->sum('exec_count')
-                        ]
-                    ];
-                } catch (\Exception $e) {
-                    Log::error('Error in getSlowQueries MySQL query: ' . $e->getMessage());
-                    return ['error' => 'Performance schema not available: ' . $e->getMessage()];
-                }
-            }
-
-            return ['message' => 'Slow queries monitoring not available for ' . $driver];
-        } catch (\Exception $e) {
-            Log::error('Error in getSlowQueries: ' . $e->getMessage());
-            return ['error' => 'Database connection error: ' . $e->getMessage()];
-        }
-    }
-
-    /**
-     * Анализ индексов и рекомендации по производительности
-     */
-    public function analyzeIndexes()
-    {
-        try {
-            $userUuid = optional(auth('api')->user())->id;
-            if (!$userUuid) {
-                return response()->json(['message' => 'Unauthorized'], 401);
-            }
-
-            $connection = DB::connection();
-            $driver = $connection->getDriverName();
-
-            if ($driver === 'mysql') {
-                try {
-                    // Анализ отсутствующих индексов
-                    $missingIndexes = DB::select("
-                        SELECT
-                            t.TABLE_NAME,
-                            t.TABLE_ROWS,
-                            s.INDEX_NAME,
-                            s.COLUMN_NAME,
-                            s.CARDINALITY
-                        FROM information_schema.TABLES t
-                        LEFT JOIN information_schema.STATISTICS s
-                            ON t.TABLE_SCHEMA = s.TABLE_SCHEMA
-                            AND t.TABLE_NAME = s.TABLE_NAME
-                        WHERE t.TABLE_SCHEMA = DATABASE()
-                        AND t.TABLE_NAME IN ('sales', 'clients', 'products', 'transactions')
-                        ORDER BY t.TABLE_ROWS DESC, t.TABLE_NAME
-                    ");
-
-                    // Анализ медленных запросов с деталями
-                    $slowQueriesDetailed = DB::select("
-                        SELECT
-                            sql_text,
-                            exec_count,
-                            avg_timer_wait/1000000000 as avg_time_sec,
-                            max_timer_wait/1000000000 as max_time_sec,
-                            sum_timer_wait/1000000000 as total_time_sec,
-                            ROUND(avg_timer_wait/1000000000, 4) as avg_time_ms,
-                            ROUND(max_timer_wait/1000000000, 4) as max_time_ms,
-                            ROUND(sum_timer_wait/1000000000, 4) as total_time_ms,
-                            ROUND(sum_lock_time/1000000000, 4) as total_lock_time_ms,
-                            ROUND(sum_rows_examined, 0) as total_rows_examined,
-                            ROUND(sum_rows_sent, 0) as total_rows_sent
-                        FROM performance_schema.events_statements_summary_by_digest
-                        WHERE avg_timer_wait > 1000000000
-                        ORDER BY avg_timer_wait DESC
-                        LIMIT 20
-                    ");
-
-                    return response()->json([
-                        'missing_indexes' => $missingIndexes,
-                        'slow_queries_detailed' => $slowQueriesDetailed,
-                        'recommendations' => $this->generatePerformanceRecommendations($missingIndexes, $slowQueriesDetailed)
-                    ]);
-                } catch (\Exception $e) {
-                    return response()->json(['error' => 'Index analysis not available: ' . $e->getMessage()], 500);
-                }
-            }
-
-            return response()->json(['message' => 'Index analysis not available for ' . $driver], 400);
-        } catch (\Exception $e) {
-            Log::error('Error in analyzeIndexes: ' . $e->getMessage(), [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'error' => 'Internal server error',
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Генерация рекомендаций по производительности
-     */
-    private function generatePerformanceRecommendations($missingIndexes, $slowQueries)
-    {
-        $recommendations = [];
-
-        // Анализ отсутствующих индексов
-        foreach ($missingIndexes as $index) {
-            if (!$index->INDEX_NAME && $index->TABLE_ROWS > 1000) {
-                $recommendations[] = [
-                    'type' => 'missing_index',
-                    'table' => $index->TABLE_NAME,
-                    'priority' => 'high',
-                    'message' => "Рекомендуется добавить индекс для таблицы {$index->TABLE_NAME} (строк: {$index->TABLE_ROWS})"
-                ];
-            }
-        }
-
-        // Анализ медленных запросов
-        foreach ($slowQueries as $query) {
-            if ($query->avg_time_ms > 1000) {
-                $recommendations[] = [
-                    'type' => 'slow_query',
-                    'priority' => 'critical',
-                    'message' => "Критически медленный запрос: {$query->avg_time_ms}мс в среднем",
-                    'sql' => $query->sql_text
-                ];
-            }
-        }
-
-        return $recommendations;
-    }
-
-    /**
-     * Получение метрик в реальном времени
-     */
-    public function getRealTimeMetrics()
-    {
-        try {
-            $userUuid = optional(auth('api')->user())->id;
-            if (!$userUuid) {
-                return response()->json(['message' => 'Unauthorized'], 401);
-            }
-
-            $connection = DB::connection();
-            $driver = $connection->getDriverName();
-
-            if ($driver === 'mysql') {
-                try {
-                    // Активные соединения
-                    $activeConnections = DB::select("
-                        SELECT
-                            COUNT(*) as active_connections,
-                            MAX(connections) as max_connections
-                        FROM information_schema.GLOBAL_STATUS
-                        WHERE VARIABLE_NAME IN ('Threads_connected', 'Max_used_connections')
-                    ");
-
-                    // Статистика InnoDB
-                    $innodbStats = DB::select("
-                        SHOW STATUS LIKE 'Innodb_%'
-                    ");
-
-                    // Размер буфера
-                    $bufferStats = DB::select("
-                        SHOW VARIABLES LIKE 'innodb_buffer_pool_size'
-                    ");
-
-                    return response()->json([
-                        'active_connections' => $activeConnections,
-                        'innodb_stats' => $innodbStats,
-                        'buffer_stats' => $bufferStats,
-                        'timestamp' => now()->toISOString()
-                    ]);
-                } catch (\Exception $e) {
-                    return response()->json(['error' => 'Real-time metrics not available: ' . $e->getMessage()], 500);
-                }
-            }
-
-            return response()->json(['message' => 'Real-time monitoring not available for ' . $driver], 400);
-        } catch (\Exception $e) {
-            Log::error('Error in getRealTimeMetrics: ' . $e->getMessage(), [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'error' => 'Internal server error',
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    }
 
     private function getTableSizesData()
     {
@@ -684,6 +441,7 @@ class PerformanceController extends Controller
 
             if ($driver === 'mysql') {
                 try {
+                    // Сначала попробуем основной запрос
                     $tableSizes = DB::select("
                         SELECT
                             table_name,
@@ -691,9 +449,61 @@ class PerformanceController extends Controller
                             table_rows
                         FROM information_schema.tables
                         WHERE table_schema = DATABASE()
-                        AND table_name IN ('sales', 'sales_products', 'clients', 'products', 'warehouses')
+                        AND table_type = 'BASE TABLE'
                         ORDER BY (data_length + index_length) DESC
                     ");
+
+                    // Если нет данных, попробуем альтернативный запрос
+                    if (empty($tableSizes)) {
+                        $tableSizes = DB::select("
+                            SELECT
+                                table_name,
+                                ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb',
+                                table_rows
+                            FROM information_schema.tables
+                            WHERE table_schema = ?
+                            AND table_type = 'BASE TABLE'
+                            ORDER BY (data_length + index_length) DESC
+                        ", [$connection->getDatabaseName()]);
+                    }
+
+                    // Если все еще нет данных, попробуем получить список таблиц через SHOW TABLES
+                    if (empty($tableSizes)) {
+                        $tableNames = DB::select("SHOW TABLES");
+                        $tableSizes = [];
+
+                        foreach ($tableNames as $table) {
+                            $tableName = array_values((array)$table)[0];
+
+                            try {
+                                $tableInfo = DB::select("SHOW TABLE STATUS LIKE ?", [$tableName]);
+                                if (!empty($tableInfo)) {
+                                    $info = $tableInfo[0];
+                                    $dataLength = $info->Data_length ?? 0;
+                                    $indexLength = $info->Index_length ?? 0;
+                                    $rows = $info->Rows ?? 0;
+
+                                    $tableSizes[] = (object)[
+                                        'table_name' => $tableName,
+                                        'size_mb' => round(($dataLength + $indexLength) / 1024 / 1024, 2),
+                                        'table_rows' => $rows
+                                    ];
+                                }
+                            } catch (\Exception $e) {
+                                // Добавляем таблицу с нулевыми значениями
+                                $tableSizes[] = (object)[
+                                    'table_name' => $tableName,
+                                    'size_mb' => 0,
+                                    'table_rows' => 0
+                                ];
+                            }
+                        }
+
+                        // Сортируем по размеру
+                        usort($tableSizes, function($a, $b) {
+                            return $b->size_mb <=> $a->size_mb;
+                        });
+                    }
 
                     return $tableSizes;
                 } catch (\Exception $e) {
@@ -2551,6 +2361,7 @@ class PerformanceController extends Controller
 
         return $metrics;
     }
+
 
 
 

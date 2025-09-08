@@ -217,7 +217,5 @@ Route::middleware('auth:api')->group(function () {
     Route::post('performance/test', [PerformanceController::class, 'runPerformanceTest']);
     Route::get('performance/cache/stats', [PerformanceController::class, 'getCacheStats']);
     Route::post('performance/cache/clear', [PerformanceController::class, 'clearCache']);
-    Route::get('performance/analyze-indexes', [PerformanceController::class, 'analyzeIndexes']);
-    Route::get('performance/real-time-metrics', [PerformanceController::class, 'getRealTimeMetrics']);
     Route::get('performance/server-logs', [PerformanceController::class, 'getServerLogs']);
 });
