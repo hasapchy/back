@@ -240,15 +240,44 @@ class CacheService
             'status' => 'active'
         ];
 
-        if ($driver === 'file') {
-            $stats['type'] = 'File Cache';
-            $stats['path'] = storage_path('framework/cache');
-        } elseif ($driver === 'database') {
-            $stats['type'] = 'Database Cache';
-            $stats['table'] = config('cache.stores.database.table');
-        } elseif ($driver === 'redis') {
-            $stats['type'] = 'Redis Cache';
-            $stats['connection'] = config('cache.stores.redis.connection');
+        try {
+            if ($driver === 'file') {
+                $stats['type'] = 'File Cache';
+                $stats['path'] = storage_path('framework/cache');
+                $stats['writable'] = is_writable(storage_path('framework/cache'));
+            } elseif ($driver === 'database') {
+                $stats['type'] = 'Database Cache';
+                $stats['table'] = config('cache.stores.database.table');
+                $stats['connection'] = config('cache.stores.database.connection');
+            } elseif ($driver === 'redis') {
+                $stats['type'] = 'Redis Cache';
+                $stats['connection'] = config('cache.stores.redis.connection');
+                $stats['host'] = config('database.redis.cache.host', '127.0.0.1');
+                $stats['port'] = config('database.redis.cache.port', 6379);
+            } else {
+                $stats['type'] = ucfirst($driver) . ' Cache';
+            }
+
+            // Проверяем доступность кэша
+            try {
+                Cache::put('test_key', 'test_value', 1);
+                $testValue = Cache::get('test_key');
+                if ($testValue !== 'test_value') {
+                    $stats['status'] = 'error';
+                    $stats['error'] = 'Cache test failed';
+                } else {
+                    $stats['status'] = 'active';
+                    // Получаем дополнительную информацию о кэше
+                    $stats['items_count'] = self::getCacheItemsCount();
+                }
+                Cache::forget('test_key');
+            } catch (\Exception $e) {
+                $stats['status'] = 'error';
+                $stats['error'] = $e->getMessage();
+            }
+        } catch (\Exception $e) {
+            $stats['status'] = 'error';
+            $stats['error'] = $e->getMessage();
         }
 
         return $stats;
@@ -264,35 +293,74 @@ class CacheService
     }
 
     /**
-     * Получить размер кэша (только для файлового кэша)
+     * Получить размер кэша
      */
     public static function getCacheSize()
     {
         $driver = config('cache.default');
 
-        if ($driver === 'file') {
-            $cachePath = storage_path('framework/cache');
-            if (is_dir($cachePath)) {
-                $size = 0;
-                $files = new \RecursiveIteratorIterator(
-                    new \RecursiveDirectoryIterator($cachePath)
-                );
+        try {
+            if ($driver === 'file') {
+                $cachePath = storage_path('framework/cache');
+                if (is_dir($cachePath)) {
+                    $size = 0;
+                    $files = new \RecursiveIteratorIterator(
+                        new \RecursiveDirectoryIterator($cachePath)
+                    );
 
-                foreach ($files as $file) {
-                    if ($file->isFile()) {
-                        $size += $file->getSize();
+                    foreach ($files as $file) {
+                        if ($file->isFile()) {
+                            $size += $file->getSize();
+                        }
                     }
+
+                    return [
+                        'size_bytes' => $size,
+                        'size_mb' => round($size / 1024 / 1024, 2),
+                        'size_kb' => round($size / 1024, 2)
+                    ];
                 }
-
-                return [
-                    'size_bytes' => $size,
-                    'size_mb' => round($size / 1024 / 1024, 2),
-                    'size_kb' => round($size / 1024, 2)
-                ];
+            } elseif ($driver === 'redis') {
+                try {
+                    $redis = app('redis');
+                    $info = $redis->info();
+                    $usedMemory = $info['used_memory'] ?? 0;
+                    return [
+                        'size_bytes' => $usedMemory,
+                        'size_kb' => round($usedMemory / 1024, 2),
+                        'size_mb' => round($usedMemory / (1024 * 1024), 2)
+                    ];
+                } catch (\Exception $e) {
+                    return [
+                        'error' => 'Unable to get Redis cache size: ' . $e->getMessage()
+                    ];
+                }
+            } elseif ($driver === 'database') {
+                try {
+                    $cacheTable = config('cache.stores.database.table', 'cache');
+                    $size = \Illuminate\Support\Facades\DB::table($cacheTable)->sum('size');
+                    return [
+                        'size_bytes' => $size ?? 0,
+                        'size_kb' => round(($size ?? 0) / 1024, 2),
+                        'size_mb' => round(($size ?? 0) / (1024 * 1024), 2)
+                    ];
+                } catch (\Exception $e) {
+                    return [
+                        'error' => 'Unable to get database cache size: ' . $e->getMessage()
+                    ];
+                }
             }
-        }
 
-        return ['error' => 'Размер кэша доступен только для файлового драйвера'];
+            return [
+                'size_bytes' => 0,
+                'size_kb' => 0,
+                'size_mb' => 0
+            ];
+        } catch (\Exception $e) {
+            return [
+                'error' => 'Unable to calculate cache size: ' . $e->getMessage()
+            ];
+        }
     }
 
     /**
@@ -349,5 +417,46 @@ class CacheService
             }
         }
         return $results;
+    }
+
+    /**
+     * Получить количество элементов в кэше
+     */
+    public static function getCacheItemsCount()
+    {
+        $driver = config('cache.default');
+
+        try {
+            if ($driver === 'file') {
+                $cachePath = storage_path('framework/cache');
+                if (is_dir($cachePath)) {
+                    $count = 0;
+                    $files = new \RecursiveIteratorIterator(
+                        new \RecursiveDirectoryIterator($cachePath)
+                    );
+
+                    foreach ($files as $file) {
+                        if ($file->isFile() && $file->getExtension() === 'php') {
+                            $count++;
+                        }
+                    }
+                    return $count;
+                }
+            } elseif ($driver === 'database') {
+                $cacheTable = config('cache.stores.database.table', 'cache');
+                return \Illuminate\Support\Facades\DB::table($cacheTable)->count();
+            } elseif ($driver === 'redis') {
+                try {
+                    $redis = app('redis');
+                    return $redis->dbsize();
+                } catch (\Exception $e) {
+                    return 0;
+                }
+            }
+
+            return 0;
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
 }

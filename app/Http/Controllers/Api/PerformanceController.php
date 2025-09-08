@@ -14,6 +14,10 @@ use App\Repositories\ProjectsRepository;
 use App\Repositories\UsersRepository;
 use App\Repositories\CommentsRepository;
 use App\Repositories\CahRegistersRepository;
+use App\Repositories\InvoicesRepository;
+use App\Repositories\WarehouseReceiptRepository;
+use App\Repositories\WarehouseWriteoffRepository;
+use App\Repositories\TransfersRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +36,10 @@ class PerformanceController extends Controller
     protected $usersRepository;
     protected $commentsRepository;
     protected $cashRegistersRepository;
+    protected $invoicesRepository;
+    protected $warehouseReceiptRepository;
+    protected $warehouseWriteoffRepository;
+    protected $transfersRepository;
 
     public function __construct(
         SalesRepository $salesRepository,
@@ -44,7 +52,11 @@ class PerformanceController extends Controller
         ProjectsRepository $projectsRepository,
         UsersRepository $usersRepository,
         CommentsRepository $commentsRepository,
-        CahRegistersRepository $cashRegistersRepository
+        CahRegistersRepository $cashRegistersRepository,
+        InvoicesRepository $invoicesRepository,
+        WarehouseReceiptRepository $warehouseReceiptRepository,
+        WarehouseWriteoffRepository $warehouseWriteoffRepository,
+        TransfersRepository $transfersRepository
     ) {
         $this->salesRepository = $salesRepository;
         $this->clientsRepository = $clientsRepository;
@@ -57,6 +69,10 @@ class PerformanceController extends Controller
         $this->usersRepository = $usersRepository;
         $this->commentsRepository = $commentsRepository;
         $this->cashRegistersRepository = $cashRegistersRepository;
+        $this->invoicesRepository = $invoicesRepository;
+        $this->warehouseReceiptRepository = $warehouseReceiptRepository;
+        $this->warehouseWriteoffRepository = $warehouseWriteoffRepository;
+        $this->transfersRepository = $transfersRepository;
     }
 
     public function getDatabaseMetrics()
@@ -141,6 +157,49 @@ class PerformanceController extends Controller
                     Log::error('Error getting cash registers performance: ' . $e->getMessage());
                     $result['cash_registers_performance'] = ['error' => $e->getMessage()];
                 }
+
+                try {
+                    $result['invoices_performance'] = $this->getCachedInvoicesPerformanceMetrics($userUuid);
+                } catch (\Exception $e) {
+                    Log::error('Error getting invoices performance: ' . $e->getMessage());
+                    $result['invoices_performance'] = ['error' => $e->getMessage()];
+                }
+
+                try {
+                    $result['warehouses_performance'] = $this->getCachedWarehousesPerformanceMetrics($userUuid);
+                } catch (\Exception $e) {
+                    Log::error('Error getting warehouses performance: ' . $e->getMessage());
+                    $result['warehouses_performance'] = ['error' => $e->getMessage()];
+                }
+
+                try {
+                    $result['warehouse_receipts_performance'] = $this->getCachedWarehouseReceiptsPerformanceMetrics($userUuid);
+                } catch (\Exception $e) {
+                    Log::error('Error getting warehouse receipts performance: ' . $e->getMessage());
+                    $result['warehouse_receipts_performance'] = ['error' => $e->getMessage()];
+                }
+
+                try {
+                    $result['warehouse_writeoffs_performance'] = $this->getCachedWarehouseWriteoffsPerformanceMetrics($userUuid);
+                } catch (\Exception $e) {
+                    Log::error('Error getting warehouse writeoffs performance: ' . $e->getMessage());
+                    $result['warehouse_writeoffs_performance'] = ['error' => $e->getMessage()];
+                }
+
+                try {
+                    $result['warehouse_transfers_performance'] = $this->getCachedWarehouseTransfersPerformanceMetrics($userUuid);
+                } catch (\Exception $e) {
+                    Log::error('Error getting warehouse transfers performance: ' . $e->getMessage());
+                    $result['warehouse_transfers_performance'] = ['error' => $e->getMessage()];
+                }
+
+                try {
+                    $result['orders_performance'] = $this->getCachedOrdersPerformanceMetrics($userUuid);
+                } catch (\Exception $e) {
+                    Log::error('Error getting orders performance: ' . $e->getMessage());
+                    $result['orders_performance'] = ['error' => $e->getMessage()];
+                }
+
 
                 try {
                     $result['timeline_performance'] = $this->getCachedTimelinePerformanceMetrics($userUuid);
@@ -327,8 +386,8 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2), // в миллисекундах
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2), // в КБ
             'total_queries' => count($queries),
-            'items_count' => $sales->count(),
-            'total_items' => $sales->total()
+            'items_count' => is_object($sales) && method_exists($sales, 'count') ? $sales->count() : 0,
+            'total_items' => is_object($sales) && method_exists($sales, 'total') ? $sales->total() : 0
         ];
 
         // Тест 2: Поиск по клиенту
@@ -348,8 +407,8 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2),
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
-            'items_count' => $salesWithSearch->count(),
-            'total_items' => $salesWithSearch->total()
+            'items_count' => is_object($salesWithSearch) && method_exists($salesWithSearch, 'count') ? $salesWithSearch->count() : 0,
+            'total_items' => is_object($salesWithSearch) && method_exists($salesWithSearch, 'total') ? $salesWithSearch->total() : 0
         ];
 
         // Тест 3: Фильтр по дате
@@ -369,8 +428,8 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2),
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
-            'items_count' => $salesWithDateFilter->count(),
-            'total_items' => $salesWithDateFilter->total()
+            'items_count' => is_object($salesWithDateFilter) && method_exists($salesWithDateFilter, 'count') ? $salesWithDateFilter->count() : 0,
+            'total_items' => is_object($salesWithDateFilter) && method_exists($salesWithDateFilter, 'total') ? $salesWithDateFilter->total() : 0
         ];
 
         return $metrics;
@@ -681,6 +740,55 @@ class PerformanceController extends Controller
             }
         }
 
+        // Добавляем недостающие модули
+        if ($testType === 'all' || $testType === 'sales_list') {
+            try {
+                $results['sales_performance'] = $this->getCachedSalesPerformanceMetrics($userUuid);
+            } catch (\Exception $e) {
+                $results['sales_performance'] = ['error' => $e->getMessage()];
+            }
+        }
+
+        if ($testType === 'all' || $testType === 'clients_list') {
+            try {
+                $results['clients_performance'] = $this->getCachedClientsPerformanceMetrics($userUuid);
+            } catch (\Exception $e) {
+                $results['clients_performance'] = ['error' => $e->getMessage()];
+            }
+        }
+
+        if ($testType === 'all' || $testType === 'products_list') {
+            try {
+                $results['products_performance'] = $this->getCachedProductsPerformanceMetrics($userUuid);
+            } catch (\Exception $e) {
+                $results['products_performance'] = ['error' => $e->getMessage()];
+            }
+        }
+
+        if ($testType === 'all' || $testType === 'transactions_list') {
+            try {
+                $results['transactions_performance'] = $this->getCachedTransactionsPerformanceMetrics($userUuid);
+            } catch (\Exception $e) {
+                $results['transactions_performance'] = ['error' => $e->getMessage()];
+            }
+        }
+
+        if ($testType === 'all' || $testType === 'projects_list') {
+            try {
+                $results['projects_performance'] = $this->getCachedProjectsPerformanceMetrics($userUuid);
+            } catch (\Exception $e) {
+                $results['projects_performance'] = ['error' => $e->getMessage()];
+            }
+        }
+
+        if ($testType === 'all' || $testType === 'comments_list') {
+            try {
+                $results['comments_performance'] = $this->getCachedCommentsPerformanceMetrics($userUuid);
+            } catch (\Exception $e) {
+                $results['comments_performance'] = ['error' => $e->getMessage()];
+            }
+        }
+
         if ($testType === 'all' || $testType === 'cash_registers_list') {
             try {
                 $results['cash_registers_list'] = $this->testCashRegistersList($userUuid);
@@ -697,14 +805,62 @@ class PerformanceController extends Controller
             }
         }
 
+        // Добавляем новые модули
+        if ($testType === 'all' || $testType === 'invoices_list') {
+            try {
+                $results['invoices_performance'] = $this->getCachedInvoicesPerformanceMetrics($userUuid);
+            } catch (\Exception $e) {
+                $results['invoices_performance'] = ['error' => $e->getMessage()];
+            }
+        }
+
+        if ($testType === 'all' || $testType === 'warehouses_list') {
+            try {
+                $results['warehouses_performance'] = $this->getCachedWarehousesPerformanceMetrics($userUuid);
+            } catch (\Exception $e) {
+                $results['warehouses_performance'] = ['error' => $e->getMessage()];
+            }
+        }
+
+        if ($testType === 'all' || $testType === 'warehouse_receipts_list') {
+            try {
+                $results['warehouse_receipts_performance'] = $this->getCachedWarehouseReceiptsPerformanceMetrics($userUuid);
+            } catch (\Exception $e) {
+                $results['warehouse_receipts_performance'] = ['error' => $e->getMessage()];
+            }
+        }
+
+        if ($testType === 'all' || $testType === 'warehouse_writeoffs_list') {
+            try {
+                $results['warehouse_writeoffs_performance'] = $this->getCachedWarehouseWriteoffsPerformanceMetrics($userUuid);
+            } catch (\Exception $e) {
+                $results['warehouse_writeoffs_performance'] = ['error' => $e->getMessage()];
+            }
+        }
+
+        if ($testType === 'all' || $testType === 'warehouse_transfers_list') {
+            try {
+                $results['warehouse_transfers_performance'] = $this->getCachedWarehouseTransfersPerformanceMetrics($userUuid);
+            } catch (\Exception $e) {
+                $results['warehouse_transfers_performance'] = ['error' => $e->getMessage()];
+            }
+        }
+
+        if ($testType === 'all' || $testType === 'orders_list') {
+            try {
+                $results['orders_performance'] = $this->getCachedOrdersPerformanceMetrics($userUuid);
+            } catch (\Exception $e) {
+                $results['orders_performance'] = ['error' => $e->getMessage()];
+            }
+        }
+
         // Добавляем информацию о том, что некоторые тесты временно отключены
         $results['info'] = [
             'message' => 'Некоторые тесты временно отключены из-за проблем с raw JOIN\'ами в репозиториях',
             'disabled_tests' => [
-                'sales_list', 'sales_search', 'sales_date_filter', 'optimized_search',
-                'transactions_list', 'transactions_search', 'orders_list',
-                'warehouses_list', 'warehouse_stocks_list', 'projects_list',
-                'projects_search', 'comments_list', 'comments_search', 'timeline'
+                'sales_search', 'sales_date_filter', 'optimized_search',
+                'transactions_search', 'projects_search', 'comments_search', 'timeline',
+                'warehouse_stocks_list'
             ]
         ];
 
@@ -730,8 +886,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $sales->count(),
-            'total_items' => $sales->total()
+            'items_count' => is_object($sales) && method_exists($sales, 'count') ? $sales->count() : 0,
+            'total_items' => is_object($sales) && method_exists($sales, 'total') ? $sales->total() : 0
         ];
     }
 
@@ -754,8 +910,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $sales->count(),
-            'total_items' => $sales->total()
+            'items_count' => is_object($sales) && method_exists($sales, 'count') ? $sales->count() : 0,
+            'total_items' => is_object($sales) && method_exists($sales, 'total') ? $sales->total() : 0
         ];
     }
 
@@ -778,8 +934,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $sales->count(),
-            'total_items' => $sales->total()
+            'items_count' => is_object($sales) && method_exists($sales, 'count') ? $sales->count() : 0,
+            'total_items' => is_object($sales) && method_exists($sales, 'total') ? $sales->total() : 0
         ];
     }
 
@@ -805,8 +961,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $sales->count(),
-            'total_items' => $sales->total()
+            'items_count' => is_object($sales) && method_exists($sales, 'count') ? $sales->count() : 0,
+            'total_items' => is_object($sales) && method_exists($sales, 'total') ? $sales->total() : 0
         ];
     }
 
@@ -832,8 +988,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $transactions->count(),
-            'total_items' => $transactions->total()
+            'items_count' => is_object($transactions) && method_exists($transactions, 'count') ? $transactions->count() : 0,
+            'total_items' => is_object($transactions) && method_exists($transactions, 'total') ? $transactions->total() : 0
         ];
     }
 
@@ -859,8 +1015,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $transactions->count(),
-            'total_items' => $transactions->total()
+            'items_count' => is_object($transactions) && method_exists($transactions, 'count') ? $transactions->count() : 0,
+            'total_items' => is_object($transactions) && method_exists($transactions, 'total') ? $transactions->total() : 0
         ];
     }
 
@@ -960,8 +1116,8 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2),
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
-            'items_count' => $clients->count(),
-            'total_items' => $clients->total()
+            'items_count' => is_object($clients) && method_exists($clients, 'count') ? $clients->count() : 0,
+            'total_items' => is_object($clients) && method_exists($clients, 'total') ? $clients->total() : 0
         ];
 
         // Тест 2: Поиск клиентов
@@ -981,7 +1137,7 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2),
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
-            'items_count' => $clientsWithSearch->count()
+            'items_count' => is_object($clientsWithSearch) && method_exists($clientsWithSearch, 'count') ? $clientsWithSearch->count() : 0
         ];
 
         return $metrics;
@@ -1011,8 +1167,8 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2),
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
-            'items_count' => $products->count(),
-            'total_items' => $products->total()
+            'items_count' => is_object($products) && method_exists($products, 'count') ? $products->count() : 0,
+            'total_items' => is_object($products) && method_exists($products, 'total') ? $products->total() : 0
         ];
 
         // Тест 2: Поиск продуктов
@@ -1032,7 +1188,7 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2),
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
-            'items_count' => $productsWithSearch->count()
+            'items_count' => is_object($productsWithSearch) && method_exists($productsWithSearch, 'count') ? $productsWithSearch->count() : 0
         ];
 
         return $metrics;
@@ -1062,8 +1218,8 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2),
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
-            'items_count' => $transactions->count(),
-            'total_items' => $transactions->total()
+            'items_count' => is_object($transactions) && method_exists($transactions, 'count') ? $transactions->count() : 0,
+            'total_items' => is_object($transactions) && method_exists($transactions, 'total') ? $transactions->total() : 0
         ];
 
         // Тест 2: Поиск транзакций
@@ -1083,7 +1239,7 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2),
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
-            'items_count' => $transactionsWithSearch->count()
+            'items_count' => is_object($transactionsWithSearch) && method_exists($transactionsWithSearch, 'count') ? $transactionsWithSearch->count() : 0
         ];
 
         return $metrics;
@@ -1113,8 +1269,8 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2),
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
-            'items_count' => $projects->count(),
-            'total_items' => $projects->total()
+            'items_count' => is_object($projects) && method_exists($projects, 'count') ? $projects->count() : 0,
+            'total_items' => is_object($projects) && method_exists($projects, 'total') ? $projects->total() : 0
         ];
 
         // Тест 2: Поиск проектов
@@ -1134,7 +1290,7 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2),
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
-            'items_count' => $projectsWithSearch->count()
+            'items_count' => is_object($projectsWithSearch) && method_exists($projectsWithSearch, 'count') ? $projectsWithSearch->count() : 0
         ];
 
         return $metrics;
@@ -1164,8 +1320,8 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2),
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
-            'items_count' => $users->count(),
-            'total_items' => $users->total()
+            'items_count' => is_object($users) && method_exists($users, 'count') ? $users->count() : 0,
+            'total_items' => is_object($users) && method_exists($users, 'total') ? $users->total() : 0
         ];
 
         // Тест 2: Поиск пользователей
@@ -1185,7 +1341,7 @@ class PerformanceController extends Controller
             'execution_time' => round(($endTime - $startTime) * 1000, 2),
             'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
-            'items_count' => $usersWithSearch->count()
+            'items_count' => is_object($usersWithSearch) && method_exists($usersWithSearch, 'count') ? $usersWithSearch->count() : 0
         ];
 
         return $metrics;
@@ -1201,13 +1357,24 @@ class PerformanceController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        $stats = CacheService::getCacheStats();
-        $size = CacheService::getCacheSize();
+        try {
+            $stats = CacheService::getCacheStats();
+            $size = CacheService::getCacheSize();
 
-        return response()->json([
-            'stats' => $stats,
-            'size' => $size
-        ]);
+            return response()->json([
+                'type' => $stats['type'] ?? 'Unknown',
+                'driver' => $stats['driver'] ?? 'Unknown',
+                'status' => $stats['status'] ?? 'Unknown',
+                'items_count' => $stats['items_count'] ?? 0,
+                'error' => $stats['error'] ?? null,
+                'cache_size' => $size
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error getting cache stats: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to get cache statistics: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -1220,9 +1387,25 @@ class PerformanceController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        $result = CacheService::clearAll();
+        try {
+            $result = CacheService::clearAll();
 
-        return response()->json($result);
+            // Дополнительно очищаем кэш Laravel
+            \Illuminate\Support\Facades\Artisan::call('cache:clear');
+            \Illuminate\Support\Facades\Artisan::call('config:clear');
+            \Illuminate\Support\Facades\Artisan::call('route:clear');
+            \Illuminate\Support\Facades\Artisan::call('view:clear');
+
+            return response()->json([
+                'message' => 'Cache cleared successfully',
+                'cleared_at' => now()->toISOString()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error clearing cache: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to clear cache: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -1247,8 +1430,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $orders->count(),
-            'total_items' => $orders->total()
+            'items_count' => is_object($orders) && method_exists($orders, 'count') ? $orders->count() : 0,
+            'total_items' => is_object($orders) && method_exists($orders, 'total') ? $orders->total() : 0
         ];
     }
 
@@ -1274,8 +1457,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $warehouses->count(),
-            'total_items' => $warehouses->total()
+            'items_count' => is_object($warehouses) && method_exists($warehouses, 'count') ? $warehouses->count() : 0,
+            'total_items' => is_object($warehouses) && method_exists($warehouses, 'total') ? $warehouses->total() : 0
         ];
     }
 
@@ -1301,8 +1484,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $stocks->count(),
-            'total_items' => $stocks->total()
+            'items_count' => is_object($stocks) && method_exists($stocks, 'count') ? $stocks->count() : 0,
+            'total_items' => is_object($stocks) && method_exists($stocks, 'total') ? $stocks->total() : 0
         ];
     }
 
@@ -1328,8 +1511,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $projects->count(),
-            'total_items' => $projects->total()
+            'items_count' => is_object($projects) && method_exists($projects, 'count') ? $projects->count() : 0,
+            'total_items' => is_object($projects) && method_exists($projects, 'total') ? $projects->total() : 0
         ];
     }
 
@@ -1355,8 +1538,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $projects->count(),
-            'total_items' => $projects->total()
+            'items_count' => is_object($projects) && method_exists($projects, 'count') ? $projects->count() : 0,
+            'total_items' => is_object($projects) && method_exists($projects, 'total') ? $projects->total() : 0
         ];
     }
 
@@ -1382,8 +1565,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $users->count(),
-            'total_items' => $users->total()
+            'items_count' => is_object($users) && method_exists($users, 'count') ? $users->count() : 0,
+            'total_items' => is_object($users) && method_exists($users, 'total') ? $users->total() : 0
         ];
     }
 
@@ -1409,8 +1592,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $users->count(),
-            'total_items' => $users->total()
+            'items_count' => is_object($users) && method_exists($users, 'count') ? $users->count() : 0,
+            'total_items' => is_object($users) && method_exists($users, 'total') ? $users->total() : 0
         ];
     }
 
@@ -1436,8 +1619,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $comments->count(),
-            'total_items' => $comments->total()
+            'items_count' => is_object($comments) && method_exists($comments, 'count') ? $comments->count() : 0,
+            'total_items' => is_object($comments) && method_exists($comments, 'total') ? $comments->total() : 0
         ];
     }
 
@@ -1463,8 +1646,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $comments->count(),
-            'total_items' => $comments->total()
+            'items_count' => is_object($comments) && method_exists($comments, 'count') ? $comments->count() : 0,
+            'total_items' => is_object($comments) && method_exists($comments, 'total') ? $comments->total() : 0
         ];
     }
 
@@ -1513,7 +1696,13 @@ class PerformanceController extends Controller
                 ];
             });
 
+            // Убеждаемся, что обе переменные являются коллекциями
+            $comments = collect($comments);
+            $activities = collect($activities);
+
             $timeline = $comments->merge($activities)->sortBy('created_at')->values();
+        } else {
+            $timeline = collect(); // Убеждаемся, что $timeline всегда коллекция
         }
 
         $endTime = microtime(true);
@@ -1525,8 +1714,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $timeline->count(),
-            'total_items' => $timeline->count()
+            'items_count' => is_object($timeline) && method_exists($timeline, 'count') ? $timeline->count() : 0,
+            'total_items' => is_object($timeline) && method_exists($timeline, 'count') ? $timeline->count() : 0
         ];
     }
 
@@ -1588,8 +1777,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $cashRegisters->count(),
-            'total_items' => $cashRegisters->total()
+            'items_count' => is_object($cashRegisters) && method_exists($cashRegisters, 'count') ? $cashRegisters->count() : 0,
+            'total_items' => is_object($cashRegisters) && method_exists($cashRegisters, 'total') ? $cashRegisters->total() : 0
         ];
     }
 
@@ -1615,8 +1804,8 @@ class PerformanceController extends Controller
             'memory_usage_kb' => round(($endMemory - $startMemory) / 1024, 2),
             'total_queries' => count($queries),
             'queries' => $queries,
-            'items_count' => $cashRegisters->count(),
-            'total_items' => $cashRegisters->total()
+            'items_count' => is_object($cashRegisters) && method_exists($cashRegisters, 'count') ? $cashRegisters->count() : 0,
+            'total_items' => is_object($cashRegisters) && method_exists($cashRegisters, 'total') ? $cashRegisters->total() : 0
         ];
     }
 
@@ -1942,5 +2131,427 @@ class PerformanceController extends Controller
             return ['Error reading Nginx error log: ' . $e->getMessage()];
         }
     }
+
+    /**
+     * Получение кэшированных метрик производительности инвойсов
+     */
+    public function getCachedInvoicesPerformanceMetrics($userUuid)
+    {
+        try {
+            $cacheKey = "invoices_performance_metrics_{$userUuid}";
+
+            return CacheService::getPerformanceMetrics($cacheKey, function () use ($userUuid) {
+                return $this->getInvoicesPerformanceMetrics($userUuid);
+            });
+        } catch (\Exception $e) {
+            Log::error('Error in getCachedInvoicesPerformanceMetrics: ' . $e->getMessage());
+            return [
+                'error' => 'Invoices performance metrics not available: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Получение метрик производительности инвойсов
+     */
+    public function getInvoicesPerformanceMetrics($userUuid)
+    {
+        $metrics = [];
+
+        // Тест 1: Получение списка инвойсов без поиска
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        $invoices = $this->invoicesRepository->getItemsWithPagination($userUuid, 20);
+
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+        $queries = DB::getQueryLog();
+
+        $metrics['list_performance'] = [
+            'execution_time' => round(($endTime - $startTime) * 1000, 2),
+            'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
+            'total_queries' => count($queries),
+            'items_count' => is_object($invoices) && method_exists($invoices, 'count') ? $invoices->count() : 0,
+            'total_items' => is_object($invoices) && method_exists($invoices, 'total') ? $invoices->total() : 0
+        ];
+
+        // Тест 2: Поиск инвойсов
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        $invoicesWithSearch = $this->invoicesRepository->getItemsWithPagination($userUuid, 20, 'test');
+
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+        $queries = DB::getQueryLog();
+
+        $metrics['search_performance'] = [
+            'execution_time' => round(($endTime - $startTime) * 1000, 2),
+            'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
+            'total_queries' => count($queries),
+            'items_count' => is_object($invoicesWithSearch) && method_exists($invoicesWithSearch, 'count') ? $invoicesWithSearch->count() : 0
+        ];
+
+        return $metrics;
+    }
+
+    /**
+     * Получение кэшированных метрик производительности складов
+     */
+    public function getCachedWarehousesPerformanceMetrics($userUuid)
+    {
+        try {
+            $cacheKey = "warehouses_performance_metrics_{$userUuid}";
+
+            return CacheService::getPerformanceMetrics($cacheKey, function () use ($userUuid) {
+                return $this->getWarehousesPerformanceMetrics($userUuid);
+            });
+        } catch (\Exception $e) {
+            Log::error('Error in getCachedWarehousesPerformanceMetrics: ' . $e->getMessage());
+            return [
+                'error' => 'Warehouses performance metrics not available: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Получение метрик производительности складов
+     */
+    public function getWarehousesPerformanceMetrics($userUuid)
+    {
+        $metrics = [];
+
+        // Тест 1: Получение списка складов без поиска
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        $warehouses = $this->warehouseRepository->getWarehousesWithPagination($userUuid, 20);
+
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+        $queries = DB::getQueryLog();
+
+        $metrics['list_performance'] = [
+            'execution_time' => round(($endTime - $startTime) * 1000, 2),
+            'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
+            'total_queries' => count($queries),
+            'items_count' => is_object($warehouses) && method_exists($warehouses, 'count') ? $warehouses->count() : 0,
+            'total_items' => is_object($warehouses) && method_exists($warehouses, 'total') ? $warehouses->total() : 0
+        ];
+
+        // Тест 2: Поиск складов
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        $warehousesWithSearch = $this->warehouseRepository->getWarehousesWithPagination($userUuid, 20);
+
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+        $queries = DB::getQueryLog();
+
+        $metrics['search_performance'] = [
+            'execution_time' => round(($endTime - $startTime) * 1000, 2),
+            'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
+            'total_queries' => count($queries),
+            'items_count' => is_object($warehousesWithSearch) && method_exists($warehousesWithSearch, 'count') ? $warehousesWithSearch->count() : 0
+        ];
+
+        return $metrics;
+    }
+
+    /**
+     * Получение кэшированных метрик производительности оприходований
+     */
+    public function getCachedWarehouseReceiptsPerformanceMetrics($userUuid)
+    {
+        try {
+            $cacheKey = "warehouse_receipts_performance_metrics_{$userUuid}";
+
+            return CacheService::getPerformanceMetrics($cacheKey, function () use ($userUuid) {
+                return $this->getWarehouseReceiptsPerformanceMetrics($userUuid);
+            });
+        } catch (\Exception $e) {
+            Log::error('Error in getCachedWarehouseReceiptsPerformanceMetrics: ' . $e->getMessage());
+            return [
+                'error' => 'Warehouse receipts performance metrics not available: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Получение метрик производительности оприходований
+     */
+    public function getWarehouseReceiptsPerformanceMetrics($userUuid)
+    {
+        $metrics = [];
+
+        // Тест 1: Получение списка оприходований без поиска
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        $receipts = $this->warehouseReceiptRepository->getItemsWithPagination($userUuid, 20);
+
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+        $queries = DB::getQueryLog();
+
+        $metrics['list_performance'] = [
+            'execution_time' => round(($endTime - $startTime) * 1000, 2),
+            'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
+            'total_queries' => count($queries),
+            'items_count' => is_object($receipts) && method_exists($receipts, 'count') ? $receipts->count() : 0,
+            'total_items' => is_object($receipts) && method_exists($receipts, 'total') ? $receipts->total() : 0
+        ];
+
+        // Тест 2: Поиск оприходований
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        $receiptsWithSearch = $this->warehouseReceiptRepository->getItemsWithPagination($userUuid, 20);
+
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+        $queries = DB::getQueryLog();
+
+        $metrics['search_performance'] = [
+            'execution_time' => round(($endTime - $startTime) * 1000, 2),
+            'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
+            'total_queries' => count($queries),
+            'items_count' => is_object($receiptsWithSearch) && method_exists($receiptsWithSearch, 'count') ? $receiptsWithSearch->count() : 0
+        ];
+
+        return $metrics;
+    }
+
+    /**
+     * Получение кэшированных метрик производительности списаний
+     */
+    public function getCachedWarehouseWriteoffsPerformanceMetrics($userUuid)
+    {
+        try {
+            $cacheKey = "warehouse_writeoffs_performance_metrics_{$userUuid}";
+
+            return CacheService::getPerformanceMetrics($cacheKey, function () use ($userUuid) {
+                return $this->getWarehouseWriteoffsPerformanceMetrics($userUuid);
+            });
+        } catch (\Exception $e) {
+            Log::error('Error in getCachedWarehouseWriteoffsPerformanceMetrics: ' . $e->getMessage());
+            return [
+                'error' => 'Warehouse writeoffs performance metrics not available: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Получение метрик производительности списаний
+     */
+    public function getWarehouseWriteoffsPerformanceMetrics($userUuid)
+    {
+        $metrics = [];
+
+        // Тест 1: Получение списка списаний без поиска
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        $writeoffs = $this->warehouseWriteoffRepository->getItemsWithPagination($userUuid, 20);
+
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+        $queries = DB::getQueryLog();
+
+        $metrics['list_performance'] = [
+            'execution_time' => round(($endTime - $startTime) * 1000, 2),
+            'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
+            'total_queries' => count($queries),
+            'items_count' => is_object($writeoffs) && method_exists($writeoffs, 'count') ? $writeoffs->count() : 0,
+            'total_items' => is_object($writeoffs) && method_exists($writeoffs, 'total') ? $writeoffs->total() : 0
+        ];
+
+        // Тест 2: Поиск списаний
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        $writeoffsWithSearch = $this->warehouseWriteoffRepository->getItemsWithPagination($userUuid, 20);
+
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+        $queries = DB::getQueryLog();
+
+        $metrics['search_performance'] = [
+            'execution_time' => round(($endTime - $startTime) * 1000, 2),
+            'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
+            'total_queries' => count($queries),
+            'items_count' => is_object($writeoffsWithSearch) && method_exists($writeoffsWithSearch, 'count') ? $writeoffsWithSearch->count() : 0
+        ];
+
+        return $metrics;
+    }
+
+    /**
+     * Получение кэшированных метрик производительности трансферов
+     */
+    public function getCachedWarehouseTransfersPerformanceMetrics($userUuid)
+    {
+        try {
+            $cacheKey = "warehouse_transfers_performance_metrics_{$userUuid}";
+
+            return CacheService::getPerformanceMetrics($cacheKey, function () use ($userUuid) {
+                return $this->getWarehouseTransfersPerformanceMetrics($userUuid);
+            });
+        } catch (\Exception $e) {
+            Log::error('Error in getCachedWarehouseTransfersPerformanceMetrics: ' . $e->getMessage());
+            return [
+                'error' => 'Warehouse transfers performance metrics not available: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Получение метрик производительности трансферов
+     */
+    public function getWarehouseTransfersPerformanceMetrics($userUuid)
+    {
+        $metrics = [];
+
+        // Тест 1: Получение списка трансферов без поиска
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        $transfers = $this->transfersRepository->getItemsWithPagination($userUuid, 20);
+
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+        $queries = DB::getQueryLog();
+
+        $metrics['list_performance'] = [
+            'execution_time' => round(($endTime - $startTime) * 1000, 2),
+            'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
+            'total_queries' => count($queries),
+            'items_count' => is_object($transfers) ? $transfers->total() : 0,
+            'total_items' => is_object($transfers) && method_exists($transfers, 'total') ? $transfers->total() : 0
+        ];
+
+        // Тест 2: Поиск трансферов
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        $transfersWithSearch = $this->transfersRepository->getItemsWithPagination($userUuid, 20);
+
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+        $queries = DB::getQueryLog();
+
+        $metrics['search_performance'] = [
+            'execution_time' => round(($endTime - $startTime) * 1000, 2),
+            'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
+            'total_queries' => count($queries),
+            'items_count' => is_object($transfersWithSearch) ? $transfersWithSearch->total() : 0
+        ];
+
+        return $metrics;
+    }
+
+    /**
+     * Получение кэшированных метрик производительности заказов
+     */
+    public function getCachedOrdersPerformanceMetrics($userUuid)
+    {
+        try {
+            $cacheKey = "orders_performance_metrics_{$userUuid}";
+
+            return CacheService::getPerformanceMetrics($cacheKey, function () use ($userUuid) {
+                return $this->getOrdersPerformanceMetrics($userUuid);
+            });
+        } catch (\Exception $e) {
+            Log::error('Error in getCachedOrdersPerformanceMetrics: ' . $e->getMessage());
+            return [
+                'error' => 'Orders performance metrics not available: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Получение метрик производительности заказов
+     */
+    public function getOrdersPerformanceMetrics($userUuid)
+    {
+        $metrics = [];
+
+        // Тест 1: Получение списка заказов без поиска
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        $orders = $this->ordersRepository->getItemsWithPagination($userUuid, 20);
+
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+        $queries = DB::getQueryLog();
+
+        $metrics['list_performance'] = [
+            'execution_time' => round(($endTime - $startTime) * 1000, 2),
+            'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
+            'total_queries' => count($queries),
+            'items_count' => is_object($orders) && method_exists($orders, 'count') ? $orders->count() : 0,
+            'total_items' => is_object($orders) && method_exists($orders, 'total') ? $orders->total() : 0
+        ];
+
+        // Тест 2: Поиск заказов
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        $ordersWithSearch = $this->ordersRepository->getItemsWithPagination($userUuid, 20, 'test');
+
+        $endTime = microtime(true);
+        $endMemory = memory_get_usage();
+        $queries = DB::getQueryLog();
+
+        $metrics['search_performance'] = [
+            'execution_time' => round(($endTime - $startTime) * 1000, 2),
+            'memory_usage' => round(($endMemory - $startMemory) / 1024, 2),
+            'total_queries' => count($queries),
+            'items_count' => is_object($ordersWithSearch) && method_exists($ordersWithSearch, 'count') ? $ordersWithSearch->count() : 0
+        ];
+
+        return $metrics;
+    }
+
+
 
 }
