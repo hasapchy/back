@@ -22,7 +22,8 @@ class ClientController extends Controller
     {
         $perPage = $request->input('per_page', 20);
         $search = $request->input('search');
-        $items = $this->itemsRepository->getItemsPaginated($perPage, $search);
+        $includeInactive = $request->input('include_inactive', false);
+        $items = $this->itemsRepository->getItemsPaginated($perPage, $search, $includeInactive);
 
         return response()->json([
             'items' => $items->items(),  // Список

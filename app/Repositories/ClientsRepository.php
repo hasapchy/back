@@ -14,15 +14,15 @@ class ClientsRepository
 {
 
 
-    function getItemsPaginated($perPage = 20, $search = null)
+    function getItemsPaginated($perPage = 20, $search = null, $includeInactive = false)
     {
         // Создаем уникальный ключ кэша
-        $cacheKey = "clients_paginated_{$perPage}_{$search}";
+        $cacheKey = "clients_paginated_{$perPage}_{$search}_{$includeInactive}";
 
         // Принудительно очищаем кэш клиентов перед получением
         CacheService::invalidateClientsCache();
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive) {
             // Используем Eloquent relationships с eager loading для избежания N+1
             $query = Client::with(['phones', 'emails'])
                 ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
@@ -30,6 +30,11 @@ class ClientsRepository
                     'clients.*',
                     DB::raw('COALESCE(client_balances.balance, 0) as balance_amount')
                 ]);
+
+            // Фильтруем только активных клиентов, если не запрошены неактивные
+            if (!$includeInactive) {
+                $query->where('clients.status', true);
+            }
 
             if ($search) {
                 $searchTerm = "%{$search}%";
@@ -70,7 +75,8 @@ class ClientsRepository
                 ->select([
                     'clients.*',
                     DB::raw('COALESCE(client_balances.balance, 0) as balance_amount')
-                ]);
+                ])
+                ->where('clients.status', true); // Фильтруем только активных клиентов
 
             foreach ($searchTerms as $term) {
                 $query->orWhere(function ($q) use ($term) {

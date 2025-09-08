@@ -13,7 +13,7 @@ class User extends Authenticatable implements JWTSubject
 {
     use HasFactory, Notifiable, HasRoles;
 
-    protected $guard_name = 'api'; // для работы с ролями и правами ya izmenila chtoby rabotat s api
+    protected $guard_name = 'api';
 
     /**
      * The attributes that are mass assignable.
@@ -67,7 +67,8 @@ class User extends Authenticatable implements JWTSubject
      */
     public function setIsAdminAttribute($value)
     {
-        if ($this->exists && $this->is_admin) {
+        // Проверяем только если пользователь уже существует И пытаемся убрать права администратора
+        if ($this->exists && $this->is_admin && !$value) {
             throw new \Exception('Нельзя убрать права администратора у пользователя.');
         }
 
@@ -85,5 +86,11 @@ class User extends Authenticatable implements JWTSubject
         return [];
     }
 
-
+    /**
+     * Компании, к которым принадлежит пользователь
+     */
+    public function companies()
+    {
+        return $this->belongsToMany(Company::class, 'company_user');
+    }
 }

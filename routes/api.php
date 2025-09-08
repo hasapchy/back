@@ -50,6 +50,12 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:users_delete')->delete('users/{id}', [UsersController::class, 'destroy']);
     Route::get('/permissions', [UsersController::class, 'permissions']);
 
+    // companies
+    Route::middleware('permission:companies_view')->get('companies', [App\Http\Controllers\Api\CompaniesController::class, 'index']);
+    Route::middleware('permission:companies_create')->post('companies', [App\Http\Controllers\Api\CompaniesController::class, 'store']);
+    Route::middleware('permission:companies_update')->put('companies/{id}', [App\Http\Controllers\Api\CompaniesController::class, 'update']);
+    Route::middleware('permission:companies_delete')->delete('companies/{id}', [App\Http\Controllers\Api\CompaniesController::class, 'destroy']);
+
     // warehouses
     Route::middleware('permission:warehouses_view')->get('warehouses', [WarehouseController::class, 'index']);
     Route::middleware('permission:warehouses_view')->get('warehouses/all', [WarehouseController::class, 'all']);

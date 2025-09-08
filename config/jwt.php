@@ -124,6 +124,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | JWT Remember Me time to live
+    |--------------------------------------------------------------------------
+    |
+    | Specify the length of time (in minutes) that the token will be valid for
+    | when "Remember Me" is checked. Defaults to 7 days.
+    |
+    */
+
+    'remember_ttl' => env('JWT_REMEMBER_TTL', 10080),
+
+    /*
+    |--------------------------------------------------------------------------
+    | JWT Remember Me refresh time to live
+    |--------------------------------------------------------------------------
+    |
+    | Specify the length of time (in minutes) that the refresh token can be
+    | refreshed within when "Remember Me" is checked. Defaults to 30 days.
+    |
+    */
+
+    'remember_refresh_ttl' => env('JWT_REMEMBER_REFRESH_TTL', 43200),
+
+    /*
+    |--------------------------------------------------------------------------
     | JWT hashing algorithm
     |--------------------------------------------------------------------------
     |

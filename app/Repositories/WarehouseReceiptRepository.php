@@ -42,6 +42,13 @@ class WarehouseReceiptRepository
                 DB::raw('(SELECT symbol FROM currencies WHERE currencies.id = (SELECT currency_id FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id)) as currency_symbol')
             ])
             ->whereIn('wh_receipts.warehouse_id', $warehouseIds)
+            // Фильтрация по доступу к проектам
+            ->where(function($q) use ($userUuid) {
+                $q->whereNull('wh_receipts.project_id') // Оприходования без проекта
+                  ->orWhereHas('project.projectUsers', function($subQuery) use ($userUuid) {
+                      $subQuery->where('user_id', $userUuid);
+                  });
+            })
             ->orderBy('wh_receipts.created_at', 'desc')
             ->paginate($perPage);
 

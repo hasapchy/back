@@ -30,8 +30,13 @@ class UsersController extends Controller
             'name'     => 'required|string|max:255',
             'email'    => 'required|string|email|unique:users,email',
             'password' => 'required|string|min:6',
+            'hire_date' => 'nullable|date',
+            'is_active'   => 'nullable|boolean',
+            'is_admin'   => 'nullable|boolean',
             'permissions' => 'nullable|array',
             'permissions.*' => 'string|exists:permissions,name',
+            'companies' => 'nullable|array',
+            'companies.*' => 'integer|exists:companies,id',
         ]);
 
         if ($validator->fails()) {
@@ -49,8 +54,13 @@ class UsersController extends Controller
             'name'     => 'required|string|max:255',
             'email'    => "required|email|unique:users,email,{$id}",
             'password' => 'nullable|string|min:6',
+            'hire_date' => 'nullable|date',
+            'is_active'   => 'nullable|boolean',
+            'is_admin'   => 'nullable|boolean',
             'permissions' => 'nullable|array',
             'permissions.*' => 'string|exists:permissions,name',
+            'companies' => 'nullable|array',
+            'companies.*' => 'integer|exists:companies,id',
         ]);
 
         if ($validator->fails()) {

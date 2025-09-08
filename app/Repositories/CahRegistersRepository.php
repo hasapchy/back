@@ -16,8 +16,11 @@ class CahRegistersRepository
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
         try {
-            // Возвращаем кассы с валютой и пагинацией
-            return CashRegister::with(['currency:id,name,code,symbol'])
+            // Возвращаем только кассы, к которым у пользователя есть доступ
+            return CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])
+                ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
+                    $query->where('user_id', $userUuid);
+                })
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
         } catch (\Exception $e) {
@@ -35,8 +38,12 @@ class CahRegistersRepository
                 throw new \Exception('Table cash_registers does not exist');
             }
 
-            // Возвращаем кассы с валютой
-            return CashRegister::with(['currency:id,name,code,symbol'])->get();
+            // Возвращаем только кассы, к которым у пользователя есть доступ
+            return CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])
+                ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
+                    $query->where('user_id', $userUuid);
+                })
+                ->get();
         } catch (\Exception $e) {
             // Возвращаем пустую коллекцию вместо ошибки
             return \Illuminate\Support\Collection::make();
@@ -54,6 +61,9 @@ class CahRegistersRepository
         $source = null
     ) {
         $items = CashRegister::with(['currency:id,name,code,symbol'])
+            ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
+                $query->where('user_id', $userUuid);
+            })
             ->get()
             ->map(function ($cashRegister) use ($startDate, $endDate, $transactionType, $source) {
 
@@ -253,8 +263,8 @@ class CahRegistersRepository
             public function findItem($id)
     {
         try {
-            // Возвращаем кассу с валютой
-            return CashRegister::with(['currency:id,name,code,symbol'])->find($id);
+            // Возвращаем кассу с валютой и пользователями
+            return CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])->find($id);
         } catch (\Exception $e) {
             // Возвращаем null вместо ошибки
             return null;
@@ -265,9 +275,12 @@ class CahRegistersRepository
             public function getActiveCashRegisters($userUuid)
     {
         try {
-            // Возвращаем активные кассы с валютой
+            // Возвращаем только активные кассы, к которым у пользователя есть доступ
             return CashRegister::with(['currency:id,code,symbol'])
                 ->where('is_active', true)
+                ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
+                    $query->where('user_id', $userUuid);
+                })
                 ->get();
         } catch (\Exception $e) {
             // Возвращаем пустую коллекцию вместо ошибки

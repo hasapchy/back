@@ -25,7 +25,8 @@ class UsersRepository
             ])
             ->with([
                 'roles:id,name',
-                'permissions:id,name'
+                'permissions:id,name',
+                'companies:id,name'
             ]);
 
             // Применяем фильтры
@@ -79,7 +80,8 @@ class UsersRepository
             ])
             ->with([
                 'roles:id,name',
-                'permissions:id,name'
+                'permissions:id,name',
+                'companies:id,name'
             ])
             ->orderBy('users.created_at', 'desc')
             ->get();
@@ -94,8 +96,8 @@ class UsersRepository
             $user->name     = $data['name'];
             $user->email    = $data['email'];
             $user->password = Hash::make($data['password']);
-            $user->is_active = $data['is_active'] ?? true;
             $user->hire_date = $data['hire_date'] ?? null;
+            $user->is_active = $data['is_active'] ?? true;
             $user->position = $data['position'] ?? null;
             $user->is_admin = $data['is_admin'] ?? false;
             $user->save();
@@ -108,12 +110,16 @@ class UsersRepository
                 $user->syncRoles($data['roles']);
             }
 
+            if (isset($data['companies'])) {
+                $user->companies()->sync($data['companies']);
+            }
+
             DB::commit();
 
             // Инвалидируем кэш пользователей
             $this->invalidateUsersCache();
 
-            return $user->load(['permissions', 'roles']);
+            return $user->load(['permissions', 'roles', 'companies']);
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -127,9 +133,10 @@ class UsersRepository
             $user = User::findOrFail($id);
             $user->name = $data['name'];
             $user->email = $data['email'];
-            $user->is_active = $data['is_active'] ?? $user->is_active;
             $user->hire_date = $data['hire_date'] ?? $user->hire_date;
+            $user->is_active = $data['is_active'] ?? $user->is_active;
             $user->position = $data['position'] ?? $user->position;
+            $user->is_admin = $data['is_admin'] ?? $user->is_admin;
 
             if (!empty($data['password'])) {
                 $user->password = Hash::make($data['password']);
@@ -145,12 +152,16 @@ class UsersRepository
                 $user->syncRoles($data['roles']);
             }
 
+            if (isset($data['companies'])) {
+                $user->companies()->sync($data['companies']);
+            }
+
             DB::commit();
 
             // Инвалидируем кэш пользователей
             $this->invalidateUsersCache();
 
-            return $user->load(['permissions', 'roles']);
+            return $user->load(['permissions', 'roles', 'companies']);
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -199,7 +210,8 @@ class UsersRepository
             ])
             ->with([
                 'roles:id,name',
-                'permissions:id,name'
+                'permissions:id,name',
+                'companies:id,name'
             ])
             ->find($id);
         }, 1800); // 30 минут

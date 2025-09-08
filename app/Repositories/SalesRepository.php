@@ -56,6 +56,14 @@ class SalesRepository
                 $this->applyDateFilter($query, $dateFilter, $startDate, $endDate);
             }
 
+            // Фильтрация по доступу к проектам
+            $query->where(function($q) use ($userUuid) {
+                $q->whereNull('sales.project_id') // Продажи без проекта
+                  ->orWhereHas('project.projectUsers', function($subQuery) use ($userUuid) {
+                      $subQuery->where('user_id', $userUuid);
+                  });
+            });
+
             // Получаем результат с пагинацией
             return $query->orderBy('created_at', 'desc')->paginate($perPage);
         }, $ttl);

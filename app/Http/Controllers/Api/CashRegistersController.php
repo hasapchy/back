@@ -41,7 +41,7 @@ class CashRegistersController extends Controller
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
-        // Получаем склад с пагинацией
+        // Получаем кассы
         $items = $this->itemsRepository->getAllItems($userUuid);
 
         return response()->json($items);

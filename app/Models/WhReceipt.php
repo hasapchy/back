@@ -17,6 +17,7 @@ class WhReceipt extends Model
         'amount',
         'date',
         'user_id',
+        'project_id',
     ];
 
     public function supplier()
@@ -47,5 +48,10 @@ class WhReceipt extends Model
             'receipt_id',
             'product_id'
         )->withPivot('quantity');
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class, 'project_id');
     }
 }

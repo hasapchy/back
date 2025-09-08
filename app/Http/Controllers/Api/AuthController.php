@@ -20,26 +20,40 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');
+        $remember = $request->boolean('remember');
 
         if (!$token = auth('api')->attempt($credentials)) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
         $user = auth('api')->user();
-        $refreshToken = JWTAuth::fromUser($user);
+
+        // Проверяем, активен ли пользователь
+        if (!$user->is_active) {
+            auth('api')->logout();
+            return response()->json(['error' => 'Account is disabled'], 403);
+        }
+
+        // Устанавливаем время жизни токена в зависимости от remember me
+        $ttl = $remember ? config('jwt.remember_ttl', 10080) : config('jwt.ttl', 1440); // remember_ttl в минутах (по умолчанию 7 дней)
+        $refreshTtl = $remember ? config('jwt.remember_refresh_ttl', 43200) : config('jwt.refresh_ttl', 10080); // remember_refresh_ttl в минутах (по умолчанию 30 дней)
+
+        // Создаем токены с новым временем жизни
+        $customToken = JWTAuth::customClaims(['exp' => now()->addMinutes($ttl)->timestamp])->fromUser($user);
+        $refreshToken = JWTAuth::customClaims(['exp' => now()->addMinutes($refreshTtl)->timestamp])->fromUser($user);
 
         return response()->json([
-            'access_token' => $token,
+            'access_token' => $customToken,
             'refresh_token' => $refreshToken,
             'token_type'   => 'bearer',
-            'expires_in'   => auth('api')->factory()->getTTL() * 60, // В секундах
-            'refresh_expires_in' => config('jwt.refresh_ttl') * 60, // Время жизни refresh token в секундах
+            'expires_in'   => $ttl * 60, // В секундах
+            'refresh_expires_in' => $refreshTtl * 60, // Время жизни refresh token в секундах
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'is_admin' => $user->is_admin,
-                'permissions' => $user->getPermissionNames()
+                'permissions' => $user->permissions->pluck('name')->toArray()
             ]
         ]);
     }
@@ -50,7 +64,7 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $user,
-            'permissions' => $user->getPermissionNames(),
+            'permissions' => $user->permissions->pluck('name')->toArray(),
         ]);
     }
 
@@ -58,15 +72,15 @@ class AuthController extends Controller
     {
         try {
             // Получаем текущий токен для добавления в черный список
-            $token = auth('api')->getToken();
-            
+            $token = JWTAuth::getToken();
+
             if ($token) {
                 // Добавляем токен в черный список
                 JWTAuth::invalidate($token);
             }
-            
+
             auth('api')->logout();
-            
+
             return response()->json([
                 'message' => 'Successfully logged out',
                 'status' => 'success'
@@ -74,7 +88,7 @@ class AuthController extends Controller
         } catch (JWTException $e) {
             // Даже если не удалось добавить в черный список, выходим
             auth('api')->logout();
-            
+
             return response()->json([
                 'message' => 'Successfully logged out',
                 'status' => 'success'
@@ -119,7 +133,7 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'is_admin' => $user->is_admin,
-                    'permissions' => $user->getPermissionNames()
+                    'permissions' => $user->permissions->pluck('name')->toArray()
                 ]
             ]);
         } catch (JWTException $e) {

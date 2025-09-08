@@ -29,6 +29,7 @@ class PermissionsSeeder extends Seeder
             'order_categories',
             'invoices',
             'users',
+            'companies',
         ];
 
         $actions = ['view', 'create', 'update', 'delete'];

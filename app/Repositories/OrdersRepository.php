@@ -74,7 +74,7 @@ class OrdersRepository
                     'client.emails:id,client_id,email',
                     'client.balance:id,client_id,balance'
                 ])
-                ->whereHas('cashRegister.cashRegisterUsers', function($q) use ($userUuid) {
+                ->whereHas('cash.cashRegisterUsers', function($q) use ($userUuid) {
                     $q->where('user_id', $userUuid);
                 });
 
@@ -97,6 +97,14 @@ class OrdersRepository
                 $statusIds = explode(',', $statusFilter);
                 $query->whereIn('orders.status_id', $statusIds);
             }
+
+            // Фильтрация по доступу к проектам
+            $query->where(function($q) use ($userUuid) {
+                $q->whereNull('orders.project_id') // Заказы без проекта
+                  ->orWhereHas('project.projectUsers', function($subQuery) use ($userUuid) {
+                      $subQuery->where('user_id', $userUuid);
+                  });
+            });
 
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage);
 

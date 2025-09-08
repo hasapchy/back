@@ -130,6 +130,13 @@ class TransactionsRepository
                             }
                         });
                     })
+                    // Фильтрация по доступу к проектам
+                    ->where(function($q) use ($userUuid) {
+                        $q->whereNull('transactions.project_id') // Транзакции без проекта
+                          ->orWhereHas('project.projectUsers', function($subQuery) use ($userUuid) {
+                              $subQuery->where('user_id', $userUuid);
+                          });
+                    })
                     ->orderBy('transactions.id', 'desc');
 
                 $paginatedResults = $query->paginate($perPage);
