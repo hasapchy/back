@@ -191,6 +191,7 @@ class UsersRepository
             return User::select([
                 'users.id', 'users.name', 'users.email', 'users.is_active'
             ])
+            ->with(['companies:id,name'])
             ->orderBy('users.name')
             ->get();
         }, 1800); // 30 минут
