@@ -93,4 +93,12 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->belongsToMany(Company::class, 'company_user');
     }
+
+    /**
+     * Склады, к которым принадлежит пользователь
+     */
+    public function warehouses()
+    {
+        return $this->belongsToMany(\App\Models\Warehouse::class, 'wh_users', 'user_id', 'warehouse_id');
+    }
 }

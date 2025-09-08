@@ -23,8 +23,9 @@ class WarehouseRepository
                 return collect([])->paginate($perPage);
             }
 
-            // Получаем склады по ID с пагинацией
+            // Получаем склады по ID с пагинацией и загружаем связанных пользователей
             return Warehouse::whereIn('id', $warehouseIds)
+                ->with(['users:id,name,email'])
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
         });
@@ -45,8 +46,9 @@ class WarehouseRepository
                 return collect([]);
             }
 
-            // Получаем склады по ID
+            // Получаем склады по ID и загружаем связанных пользователей
             return Warehouse::whereIn('id', $warehouseIds)
+                ->with(['users:id,name,email'])
                 ->orderBy('name', 'asc')
                 ->get();
         });
@@ -70,7 +72,8 @@ class WarehouseRepository
         // Инвалидируем кэш для всех пользователей
         $this->invalidateWarehouseCache();
 
-        return true;
+        // Возвращаем склад с загруженными пользователями
+        return $warehouse->load(['users:id,name,email']);
     }
 
     //  Обновление склада
@@ -94,7 +97,8 @@ class WarehouseRepository
         // Инвалидируем кэш
         $this->invalidateWarehouseCache();
 
-        return true;
+        // Возвращаем склад с загруженными пользователями
+        return $warehouse->load(['users:id,name,email']);
     }
 
     // Удаление склада

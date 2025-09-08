@@ -68,7 +68,8 @@ class WarehouseController extends Controller
             ], 400);
         }
         return response()->json([
-            'message' => 'Склад создан'
+            'message' => 'Склад создан',
+            'warehouse' => $warehouse_created
         ]);
     }
 
@@ -91,7 +92,8 @@ class WarehouseController extends Controller
             ], 400);
         }
         return response()->json([
-            'message' => 'Склад обновлен'
+            'message' => 'Склад обновлен',
+            'warehouse' => $warehouse_updated
         ]);
     }
 
