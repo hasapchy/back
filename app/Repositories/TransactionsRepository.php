@@ -162,6 +162,8 @@ class TransactionsRepository
                         'id' => $transaction->id,
                         'type' => $transaction->type,
                         'is_transfer' => $this->isTransfer($transaction),
+                        'is_sale' => $this->isSale($transaction),
+                        'is_receipt' => $this->isReceipt($transaction),
                         'cash_id' => $transaction->cash_id,
                         'cash_name' => $transaction->cashRegister?->name,
                         'cash_amount' => $transaction->amount,
@@ -378,18 +380,155 @@ class TransactionsRepository
 
     public function updateItem($id, $data)
     {
-        $item = Transaction::find($id);
-        $item->client_id = $data['client_id'];
-        $item->category_id = $data['category_id'];
-        $item->project_id = $data['project_id'];
-        $item->date = $data['date'];
-        $item->note = $data['note'];
-        $item->save();
+        $transaction = Transaction::find($id);
+        if (!$transaction) {
+            return false;
+        }
+
+        // Если изменяется сумма или валюта, нужно пересчитать баланс кассы
+        $needsBalanceUpdate = isset($data['orig_amount']) || isset($data['currency_id']);
+
+        if ($needsBalanceUpdate) {
+            return $this->updateItemWithBalanceRecalculation($id, $data);
+        }
+
+        // Обычное обновление без изменения суммы
+        $transaction->client_id = $data['client_id'];
+        $transaction->category_id = $data['category_id'];
+        $transaction->project_id = $data['project_id'];
+        $transaction->date = $data['date'];
+        $transaction->note = $data['note'];
+        $transaction->save();
 
         // Инвалидируем кэш транзакций
         $this->invalidateTransactionsCache();
 
         return true;
+    }
+
+    private function updateItemWithBalanceRecalculation($id, $data)
+    {
+        $transaction = Transaction::find($id);
+        if (!$transaction) {
+            return false;
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $cashRegister = CashRegister::find($transaction->cash_id);
+            if (!$cashRegister) {
+                throw new \Exception('Касса не найдена');
+            }
+
+            // Сохраняем старые значения для отката баланса
+            $oldAmount = $transaction->amount;
+            $oldOrigAmount = $transaction->orig_amount;
+            $oldCurrencyId = $transaction->currency_id;
+
+            // Откатываем старый баланс кассы
+            if ($transaction->type == 1) {
+                $cashRegister->balance -= $oldAmount;
+            } else {
+                $cashRegister->balance += $oldAmount;
+            }
+
+            // Обновляем поля транзакции
+            $transaction->client_id = $data['client_id'];
+            $transaction->category_id = $data['category_id'];
+            $transaction->project_id = $data['project_id'];
+            $transaction->date = $data['date'];
+            $transaction->note = $data['note'];
+
+            // Обновляем сумму и валюту если переданы
+            if (isset($data['orig_amount'])) {
+                $transaction->orig_amount = $data['orig_amount'];
+            }
+            if (isset($data['currency_id'])) {
+                $transaction->currency_id = $data['currency_id'];
+            }
+
+            // Пересчитываем конвертированную сумму
+            $newOrigAmount = $transaction->orig_amount;
+            $newCurrencyId = $transaction->currency_id;
+
+            // Получаем валюты
+            $defaultCurrencyId = Currency::where('is_default', true)->value('id');
+            $currencyIds = array_unique([
+                $newCurrencyId,
+                $cashRegister->currency_id,
+                $defaultCurrencyId,
+            ]);
+
+            $currencies = Currency::whereIn('id', $currencyIds)->get()->keyBy('id');
+            $fromCurrency = $currencies[$newCurrencyId];
+            $toCurrency = $currencies[$cashRegister->currency_id];
+
+            // Конвертируем новую сумму
+            if ($fromCurrency->id === $toCurrency->id) {
+                $newConvertedAmount = $newOrigAmount;
+            } else {
+                $newConvertedAmount = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $toCurrency);
+            }
+
+            // Применяем округление если оно включено в кассе
+            $newConvertedAmount = $cashRegister->roundAmount($newConvertedAmount);
+
+            // Обновляем конвертированную сумму
+            $transaction->amount = $newConvertedAmount;
+            $transaction->save();
+
+            // Применяем новый баланс кассы
+            if ($transaction->type == 1) {
+                $cashRegister->balance += $newConvertedAmount;
+            } else {
+                $cashRegister->balance -= $newConvertedAmount;
+            }
+            $cashRegister->save();
+
+            // Обновляем баланс клиента если нужно
+            if ($transaction->client_id) {
+                $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
+
+                // Откатываем старый баланс клиента
+                if ($oldCurrencyId !== $defaultCurrencyId) {
+                    $oldConvertedAmountDefault = CurrencyConverter::convert($oldAmount, $currencies[$oldCurrencyId], $currencies[$defaultCurrencyId]);
+                } else {
+                    $oldConvertedAmountDefault = $oldAmount;
+                }
+
+                if ($transaction->type == 1) {
+                    $clientBalance->balance += $oldConvertedAmountDefault;
+                } else {
+                    $clientBalance->balance -= $oldConvertedAmountDefault;
+                }
+
+                // Применяем новый баланс клиента
+                if ($newCurrencyId !== $defaultCurrencyId) {
+                    $newConvertedAmountDefault = CurrencyConverter::convert($newConvertedAmount, $fromCurrency, $currencies[$defaultCurrencyId]);
+                } else {
+                    $newConvertedAmountDefault = $newConvertedAmount;
+                }
+
+                if ($transaction->type == 1) {
+                    $clientBalance->balance -= $newConvertedAmountDefault;
+                } else {
+                    $clientBalance->balance += $newConvertedAmountDefault;
+                }
+
+                $clientBalance->save();
+            }
+
+            DB::commit();
+
+            // Инвалидируем кэш транзакций
+            $this->invalidateTransactionsCache();
+
+            return true;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
     }
 
     public function deleteItem(int $id, bool $skipClientUpdate = false): bool
@@ -496,6 +635,16 @@ class TransactionsRepository
     private function isTransfer($transaction)
     {
         return $transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists();
+    }
+
+    private function isSale($transaction)
+    {
+        return $transaction->sales()->exists();
+    }
+
+    private function isReceipt($transaction)
+    {
+        return $transaction->warehouseReceipts()->exists();
     }
 
     public function userHasPermissionToCashRegister($userUuid, $cashRegisterId)

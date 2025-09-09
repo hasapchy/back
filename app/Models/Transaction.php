@@ -8,6 +8,7 @@ use App\Services\CurrencyConverter;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Models\OrderTransaction;
+use App\Models\WhReceipt;
 
 class Transaction extends Model
 {
@@ -222,6 +223,11 @@ class Transaction extends Model
     public function sales()
     {
         return $this->hasMany(Sale::class, 'transaction_id');
+    }
+
+    public function warehouseReceipts()
+    {
+        return $this->hasMany(WhReceipt::class, 'transaction_id');
     }
 
     public function cashTransfersFrom()

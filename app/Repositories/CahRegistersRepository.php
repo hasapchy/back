@@ -137,7 +137,8 @@ class CahRegistersRepository
                     'cash_register_id' => $cashRegister->id,
                     'income' => $income,
                     'outcome' => $outcome,
-                    'total' => $income - $outcome
+                    'calculated_total' => $income - $outcome,
+                    'stored_balance' => $cashRegister->balance
                 ]);
 
                 return [
@@ -147,7 +148,7 @@ class CahRegistersRepository
                     'balance'     => [
                         ['value' => $income,  'title' => 'Приход',  'type' => 'income'],
                         ['value' => $outcome, 'title' => 'Расход',  'type' => 'outcome'],
-                        ['value' => $income - $outcome,       'title' => 'Итого', 'type' => 'default'],
+                        ['value' => $cashRegister->balance, 'title' => 'Итого', 'type' => 'default'],
                     ],
                 ];
             });

@@ -114,12 +114,21 @@ class TransactionsController extends Controller
             'project_id' => 'nullable|sometimes|exists:projects,id',
             'client_id' => 'nullable|sometimes|exists:clients,id',
             'note' => 'nullable|sometimes|string',
-            'date' => 'nullable|sometimes|date'
+            'date' => 'nullable|sometimes|date',
+            'orig_amount' => 'nullable|sometimes|numeric|min:0.01',
+            'currency_id' => 'nullable|sometimes|exists:currencies,id'
         ]);
 
         $transaction_exist = Transaction::where('id', $id)->first();
         if (!$transaction_exist) {
             return response()->json(['message' => 'Транзакция не найдена'], 404);
+        }
+
+        // Проверяем, не является ли транзакция ограниченной
+        if ($this->isRestrictedTransaction($transaction_exist)) {
+            return response()->json([
+                'message' => 'Нельзя редактировать эту транзакцию'
+            ], 403);
         }
 
         $userHasPermissionToCashRegister = $this->itemsRepository->userHasPermissionToCashRegister($userUuid, $transaction_exist->cash_id);
@@ -129,13 +138,23 @@ class TransactionsController extends Controller
                 'message' => 'У вас нет прав на эту кассу'
             ], 403);
         }
-        $category_updated = $this->itemsRepository->updateItem($id, [
+        $updateData = [
             'category_id' => $request->category_id,
             'project_id' => $request->project_id,
             'client_id' => $request->client_id,
             'note' => $request->note,
             'date' => $request->date ?? now()
-        ]);
+        ];
+
+        // Добавляем сумму и валюту только если они переданы
+        if ($request->has('orig_amount')) {
+            $updateData['orig_amount'] = $request->orig_amount;
+        }
+        if ($request->has('currency_id')) {
+            $updateData['currency_id'] = $request->currency_id;
+        }
+
+        $category_updated = $this->itemsRepository->updateItem($id, $updateData);
 
         if (!$category_updated) {
             return response()->json([
@@ -152,6 +171,18 @@ class TransactionsController extends Controller
         $userUuid = optional(auth('api')->user())->id;
         if (!$userUuid) {
             return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $transaction_exist = Transaction::where('id', $id)->first();
+        if (!$transaction_exist) {
+            return response()->json(['message' => 'Транзакция не найдена'], 404);
+        }
+
+        // Проверяем, не является ли транзакция ограниченной
+        if ($this->isRestrictedTransaction($transaction_exist)) {
+            return response()->json([
+                'message' => 'Нельзя удалить эту транзакцию'
+            ], 403);
         }
 
         $transaction_deleted = $this->itemsRepository->deleteItem($id);
@@ -194,5 +225,16 @@ class TransactionsController extends Controller
             return response()->json(['message' => 'Not found'], 404);
         }
         return response()->json(['item' => $item]);
+    }
+
+    /**
+     * Проверяет, является ли транзакция ограниченной (трансфер, продажа, оприходование)
+     */
+    private function isRestrictedTransaction($transaction)
+    {
+        return $transaction->cashTransfersFrom()->exists() ||
+               $transaction->cashTransfersTo()->exists() ||
+               $transaction->sales()->exists() ||
+               $transaction->warehouseReceipts()->exists();
     }
 }
