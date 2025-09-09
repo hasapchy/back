@@ -23,14 +23,12 @@ class ClientsRepository
         CacheService::invalidateClientsCache();
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive) {
-            // Используем Eloquent relationships с eager loading для избежания N+1
+            // Используем подзапрос для получения баланса, чтобы избежать дублирования
             $query = Client::with(['phones', 'emails'])
-                ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
                 ->select([
                     'clients.*',
-                    DB::raw('COALESCE(client_balances.balance, 0) as balance_amount')
-                ])
-                ->groupBy('clients.id', 'client_balances.balance'); // Добавляем groupBy для избежания дублирования
+                    DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
+                ]);
 
             // Фильтруем только активных клиентов, если не запрошены неактивные
             if (!$includeInactive) {
@@ -70,14 +68,12 @@ class ClientsRepository
         return CacheService::getReferenceData($cacheKey, function () use ($search_request) {
             $searchTerms = explode(' ', $search_request);
 
-            // Используем Eloquent relationships с eager loading для избежания N+1
+            // Используем подзапрос для получения баланса, чтобы избежать дублирования
             $query = Client::with(['phones', 'emails'])
-                ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
                 ->select([
                     'clients.*',
-                    DB::raw('COALESCE(client_balances.balance, 0) as balance_amount')
+                    DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
                 ])
-                ->groupBy('clients.id', 'client_balances.balance') // Добавляем groupBy для избежания дублирования
                 ->where('clients.status', true); // Фильтруем только активных клиентов
 
             foreach ($searchTerms as $term) {
@@ -120,14 +116,12 @@ class ClientsRepository
         Cache::forget($cacheKey);
 
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
-            // Используем Eloquent relationships с eager loading для избежания N+1
+            // Используем подзапрос для получения баланса, чтобы избежать дублирования
             return Client::with(['phones', 'emails'])
-                ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
                 ->select([
                     'clients.*',
-                    DB::raw('COALESCE(client_balances.balance, 0) as balance_amount')
+                    DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
                 ])
-                ->groupBy('clients.id', 'client_balances.balance') // Добавляем groupBy для избежания дублирования
                 ->where('clients.id', $id)
                 ->first();
         });
@@ -286,11 +280,10 @@ class ClientsRepository
     {
 
         $clients = DB::table('clients')
-            ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
             ->select(
                 'clients.id as id',
                 'clients.client_type as client_type',
-                DB::raw('COALESCE(client_balances.balance, 0) as balance'),
+                DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance'),
                 'clients.is_supplier as is_supplier',
                 'clients.is_conflict as is_conflict',
                 'clients.first_name as first_name',
@@ -304,7 +297,6 @@ class ClientsRepository
                 'clients.created_at as created_at',
                 'clients.updated_at as updated_at'
             )
-            ->groupBy('clients.id', 'client_balances.balance') // Добавляем groupBy для избежания дублирования
             ->whereIn('clients.id', $ids)
             ->get();
 
