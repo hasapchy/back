@@ -22,7 +22,7 @@ class ProjectsRepository
         return CacheService::remember($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate) {
             // Оптимизированный запрос с селективным выбором полей и JOIN для клиентов
             $query = Project::select([
-                'projects.id', 'projects.name', 'projects.budget', 'projects.date', 'projects.user_id', 'projects.client_id',
+                'projects.id', 'projects.name', 'projects.budget', 'projects.currency_id', 'projects.exchange_rate', 'projects.date', 'projects.user_id', 'projects.client_id',
                 'projects.files', 'projects.created_at', 'projects.updated_at',
                 'clients.first_name as client_first_name', 'clients.last_name as client_last_name', 'clients.contact_person as client_contact_person'
             ])
@@ -32,6 +32,7 @@ class ProjectsRepository
                 'client.phones:id,client_id,phone',
                 'client.emails:id,client_id,email',
                 'client.balance:id,client_id,balance',
+                'currency:id,name,code,symbol',
                 'users:id,name',
                 'projectUsers:id,project_id,user_id'
             ]);
@@ -121,7 +122,7 @@ class ProjectsRepository
 
         return CacheService::remember($cacheKey, function () use ($userUuid) {
             return Project::select([
-                'projects.id', 'projects.name', 'projects.budget', 'projects.date', 'projects.user_id', 'projects.client_id',
+                'projects.id', 'projects.name', 'projects.budget', 'projects.currency_id', 'projects.exchange_rate', 'projects.date', 'projects.user_id', 'projects.client_id',
                 'projects.files', 'projects.created_at', 'projects.updated_at',
                 'clients.first_name as client_first_name', 'clients.last_name as client_last_name'
             ])
@@ -131,6 +132,7 @@ class ProjectsRepository
                 'client.phones:id,client_id,phone',
                 'client.emails:id,client_id,email',
                 'client.balance:id,client_id,balance',
+                'currency:id,name,code,symbol',
                 'users:id,name'
             ])
             ->whereHas('projectUsers', function($query) use ($userUuid) {
@@ -148,10 +150,13 @@ class ProjectsRepository
         try {
             $item = new Project();
             $item->name = $data['name'];
-            $item->budget = $data['budget'];
+            $item->budget = $data['budget'] ?? 0;
+            $item->currency_id = $data['currency_id'] ?? null;
+            $item->exchange_rate = $data['exchange_rate'] ?? null;
             $item->date = $data['date'];
             $item->user_id = $data['user_id'];
             $item->client_id = $data['client_id'];
+            $item->description = $data['description'] ?? null;
             $item->files = $data['files'] ?? [];
             $item->save();
 
@@ -191,10 +196,13 @@ class ProjectsRepository
             }
 
             $item->name = $data['name'];
-            $item->budget = $data['budget'];
+            $item->budget = $data['budget'] ?? $item->budget;
+            $item->currency_id = $data['currency_id'] ?? $item->currency_id;
+            $item->exchange_rate = $data['exchange_rate'] ?? $item->exchange_rate;
             $item->date = $data['date'];
             $item->user_id = $data['user_id'];
             $item->client_id = $data['client_id'];
+            $item->description = $data['description'] ?? null;
 
             $item->save();
 
@@ -231,6 +239,7 @@ class ProjectsRepository
                 'client.phones:id,client_id,phone',
                 'client.emails:id,client_id,email',
                 'client.balance:id,client_id,balance',
+                'currency:id,name,code,symbol',
                 'users:id,name',
                 'projectUsers:id,project_id,user_id'
             ])->find($id);
@@ -243,7 +252,7 @@ class ProjectsRepository
 
         return CacheService::remember($cacheKey, function () use ($id, $userUuid) {
             $query = Project::select([
-                'projects.id', 'projects.name', 'projects.budget', 'projects.date', 'projects.user_id', 'projects.client_id',
+                'projects.id', 'projects.name', 'projects.budget', 'projects.currency_id', 'projects.exchange_rate', 'projects.date', 'projects.user_id', 'projects.client_id',
                 'projects.files', 'projects.created_at', 'projects.updated_at'
             ])
             ->with([
@@ -251,6 +260,7 @@ class ProjectsRepository
                 'client.phones:id,client_id,phone',
                 'client.emails:id,client_id,email',
                 'client.balance:id,client_id,balance',
+                'currency:id,name,code,symbol',
                 'users:id,name',
                 'projectUsers:id,project_id,user_id'
             ])
@@ -304,6 +314,7 @@ class ProjectsRepository
                 ->where('project_id', $projectId)
                 ->select(
                     'id', 'created_at', 'total_price as amount', 'cash_id',
+                    DB::raw("NULL as type"),
                     DB::raw("'sale' as source"),
                     DB::raw("CASE WHEN cash_id IS NOT NULL THEN 'Продажа через кассу' ELSE 'Продажа в баланс(долг)' END as description")
                 );
@@ -312,6 +323,7 @@ class ProjectsRepository
                 ->where('project_id', $projectId)
                 ->select(
                     'id', 'created_at', 'amount', 'cash_id',
+                    DB::raw("NULL as type"),
                     DB::raw("'receipt' as source"),
                     DB::raw("CASE WHEN cash_id IS NOT NULL THEN 'Долг за оприходование(в кассу)' ELSE 'Долг за оприходование(в баланс)' END as description")
                 );
@@ -319,15 +331,16 @@ class ProjectsRepository
             $transactions = DB::table('transactions')
                 ->where('project_id', $projectId)
                 ->select(
-                    'id', 'created_at', 'orig_amount as amount', 'type',
+                    'id', 'created_at', 'orig_amount as amount', 'cash_id', 'type',
                     DB::raw("'transaction' as source"),
-                    DB::raw("CASE WHEN type = 1 THEN 'Проект оплатил нам' ELSE 'Мы оплатили по проекту' END as description")
+                    DB::raw("CASE WHEN type = 1 THEN 'Приход в проект' ELSE 'Расход из проекта' END as description")
                 );
 
             $orders = DB::table('orders')
                 ->where('project_id', $projectId)
                 ->select(
                     'id', 'created_at', 'total_price as amount', 'cash_id',
+                    DB::raw("NULL as type"),
                     DB::raw("'order' as source"),
                     DB::raw("'Заказ' as description")
                 );
@@ -342,11 +355,11 @@ class ProjectsRepository
                     $amount = $item->amount;
 
                     // Корректируем сумму в зависимости от типа
-                    if ($item->source === 'receipt' && $item->cash_id) {
+                    if ($item->source === 'receipt' && isset($item->cash_id) && $item->cash_id) {
                         $amount = -$amount;
-                    } elseif ($item->source === 'transaction') {
-                        $amount = $item->type === 1 ? -$amount : +$amount;
-                    } elseif ($item->source === 'order' && $item->cash_id) {
+                    } elseif ($item->source === 'transaction' && isset($item->type)) {
+                        $amount = $item->type == 1 ? +$amount : -$amount;
+                    } elseif ($item->source === 'order' && isset($item->cash_id) && $item->cash_id) {
                         $amount = +$amount;
                     }
 

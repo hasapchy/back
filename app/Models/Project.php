@@ -9,7 +9,7 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'date'];
+    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'exchange_rate', 'date', 'description'];
 
     protected $casts = [
         'files' => 'array',
@@ -19,6 +19,11 @@ class Project extends Model
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');
+    }
+
+    public function currency()
+    {
+        return $this->belongsTo(Currency::class, 'currency_id');
     }
 
     public function transactions()
@@ -44,5 +49,58 @@ class Project extends Model
     public function hasUser($userId)
     {
         return $this->users()->where('user_id', $userId)->exists();
+    }
+
+    public function getExchangeRateAttribute()
+    {
+        // Если курс указан вручную, используем его
+        if (isset($this->attributes['exchange_rate']) && $this->attributes['exchange_rate'] !== null) {
+            return $this->attributes['exchange_rate'];
+        }
+
+        // Иначе берем актуальный курс из истории валют
+        $currency = $this->currency;
+        if (!$currency) {
+            return 1;
+        }
+
+        // Получаем актуальный курс из истории валют
+        $rateHistory = $currency->exchangeRateHistories()
+            ->where('start_date', '<=', now()->toDateString())
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                      ->orWhere('end_date', '>=', now()->toDateString());
+            })
+            ->orderBy('start_date', 'desc')
+            ->first();
+
+        return $rateHistory ? $rateHistory->exchange_rate : 1;
+    }
+
+    /**
+     * Получить актуальный курс валюты из истории
+     */
+    public function getCurrentExchangeRate($currencyId = null)
+    {
+        $currencyId = $currencyId ?? $this->currency_id;
+        if (!$currencyId) {
+            return 1;
+        }
+
+        $currency = Currency::find($currencyId);
+        if (!$currency) {
+            return 1;
+        }
+
+        $rateHistory = $currency->exchangeRateHistories()
+            ->where('start_date', '<=', now()->toDateString())
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                      ->orWhere('end_date', '>=', now()->toDateString());
+            })
+            ->orderBy('start_date', 'desc')
+            ->first();
+
+        return $rateHistory ? $rateHistory->exchange_rate : 1;
     }
 }

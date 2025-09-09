@@ -34,6 +34,7 @@ Route::post('user/refresh', [AuthController::class, 'refresh']);
 Route::middleware('auth:api')->group(function () {
     // app
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
+    Route::get('app/currency/{id}/exchange-rate', [AppController::class, 'getCurrencyExchangeRate']);
     Route::get('app/units', [AppController::class, 'getUnitsList']);
     Route::get('app/product_statuses', [AppController::class, 'getProductStatuses']);
     Route::get('app/transaction_categories', [AppController::class, 'getTransactionCategories']);

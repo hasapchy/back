@@ -29,7 +29,7 @@ class AppController extends Controller
         return response()->json($items);
     }
 
-    // получение статусов товаров 
+    // получение статусов товаров
     public function getProductStatuses()
     {
         $items = ProductStatus::all();
@@ -37,11 +37,39 @@ class AppController extends Controller
         return response()->json($items);
     }
 
-    // получение категорий транзакций 
+    // получение категорий транзакций
     public function getTransactionCategories()
     {
         $items = TransactionCategory::select('id', 'name', 'type')->get();
         return response()->json($items);
+    }
+
+    // получение актуального курса валюты
+    public function getCurrencyExchangeRate($currencyId)
+    {
+        $currency = Currency::find($currencyId);
+        if (!$currency) {
+            return response()->json(['error' => 'Валюта не найдена'], 404);
+        }
+
+        $rateHistory = $currency->exchangeRateHistories()
+            ->where('start_date', '<=', now()->toDateString())
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                      ->orWhere('end_date', '>=', now()->toDateString());
+            })
+            ->orderBy('start_date', 'desc')
+            ->first();
+
+        $exchangeRate = $rateHistory ? $rateHistory->exchange_rate : 1;
+
+        return response()->json([
+            'currency_id' => $currencyId,
+            'exchange_rate' => $exchangeRate,
+            'currency_name' => $currency->name,
+            'currency_code' => $currency->code,
+            'currency_symbol' => $currency->symbol
+        ]);
     }
 
 

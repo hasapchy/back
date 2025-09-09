@@ -650,10 +650,15 @@ class TransactionsRepository
      */
     private function invalidateTransactionsCache()
     {
-        // Очищаем кэш транзакций
+        // Очищаем кэш транзакций и проектов
         $keys = [
             'transactions_paginated_*',
-            'transactions_fast_search_*'
+            'transactions_fast_search_*',
+            'project_balance_history_*',
+            'project_balance_*',
+            'projects_paginated_*',
+            'projects_all_*',
+            'projects_fast_search_*'
         ];
 
         foreach ($keys as $key) {

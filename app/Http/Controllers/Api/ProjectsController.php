@@ -58,23 +58,46 @@ class ProjectsController extends Controller
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
-        $request->validate([
+
+        $validationRules = [
             'name' => 'required|string',
-            'budget' => 'required|numeric',
             'date' => 'nullable|sometimes|date',
             'client_id' => 'required|exists:clients,id',
             'users' => 'required|array',
-            'users.*' => 'exists:users,id'
-        ]);
+            'users.*' => 'exists:users,id',
+            'description' => 'nullable|string'
+        ];
 
-        $item_created = $this->itemsRepository->createItem([
+        // Добавляем валидацию для полей бюджета только если они переданы
+        if ($request->has('budget') || $request->has('currency_id') || $request->has('exchange_rate')) {
+            $validationRules['budget'] = 'required|numeric';
+            $validationRules['currency_id'] = 'required|exists:currencies,id';
+            $validationRules['exchange_rate'] = 'required|numeric|min:0.000001';
+        }
+
+        $request->validate($validationRules);
+
+        $itemData = [
             'name' => $request->name,
-            'budget' => $request->budget,
             'date' => $request->date,
             'user_id' => $userUuid,
             'client_id' => $request->client_id,
-            'users' => $request->users
-        ]);
+            'users' => $request->users,
+            'description' => $request->description
+        ];
+
+        // Добавляем поля бюджета только если они переданы
+        if ($request->has('budget')) {
+            $itemData['budget'] = $request->budget;
+        }
+        if ($request->has('currency_id')) {
+            $itemData['currency_id'] = $request->currency_id;
+        }
+        if ($request->has('exchange_rate')) {
+            $itemData['exchange_rate'] = $request->exchange_rate;
+        }
+
+        $item_created = $this->itemsRepository->createItem($itemData);
 
         if (!$item_created) {
             return response()->json([
@@ -92,23 +115,46 @@ class ProjectsController extends Controller
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
-        $request->validate([
+
+        $validationRules = [
             'name' => 'required|string',
-            'budget' => 'required|numeric',
             'date' => 'nullable|sometimes|date',
             'client_id' => 'required|exists:clients,id',
             'users' => 'required|array',
-            'users.*' => 'exists:users,id'
-        ]);
+            'users.*' => 'exists:users,id',
+            'description' => 'nullable|string'
+        ];
 
-        $category_updated = $this->itemsRepository->updateItem($id, [
+        // Добавляем валидацию для полей бюджета только если они переданы
+        if ($request->has('budget') || $request->has('currency_id') || $request->has('exchange_rate')) {
+            $validationRules['budget'] = 'required|numeric';
+            $validationRules['currency_id'] = 'required|exists:currencies,id';
+            $validationRules['exchange_rate'] = 'required|numeric|min:0.000001';
+        }
+
+        $request->validate($validationRules);
+
+        $itemData = [
             'name' => $request->name,
-            'budget' => $request->budget,
             'date' => $request->date,
             'user_id' => $userUuid,
             'client_id' => $request->client_id,
-            'users' => $request->users
-        ]);
+            'users' => $request->users,
+            'description' => $request->description
+        ];
+
+        // Добавляем поля бюджета только если они переданы
+        if ($request->has('budget')) {
+            $itemData['budget'] = $request->budget;
+        }
+        if ($request->has('currency_id')) {
+            $itemData['currency_id'] = $request->currency_id;
+        }
+        if ($request->has('exchange_rate')) {
+            $itemData['exchange_rate'] = $request->exchange_rate;
+        }
+
+        $category_updated = $this->itemsRepository->updateItem($id, $itemData);
 
         if (!$category_updated) {
             return response()->json([
@@ -133,6 +179,14 @@ class ProjectsController extends Controller
             if (!$project) {
                 return response()->json(['error' => 'Проект не найден или доступ запрещен'], 404);
             }
+
+            // Отладочная информация
+            Log::info('Project data for ID ' . $id, [
+                'currency_id' => $project->currency_id,
+                'exchange_rate' => $project->exchange_rate,
+                'currency' => $project->currency,
+                'raw_attributes' => $project->getAttributes()
+            ]);
 
             return response()->json($project);
         } catch (\Exception $e) {
@@ -268,7 +322,7 @@ class ProjectsController extends Controller
             return response()->json([
                 'history' => $history,
                 'balance' => $balance,
-                'budget' => $project->budget,
+                'budget' => (float) $project->budget,
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
