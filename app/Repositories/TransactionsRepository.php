@@ -546,39 +546,25 @@ class TransactionsRepository
                 throw new \Exception('Касса не найдена');
             }
 
-            // Получаем ID всех нужных валют
+            // Получаем валюту по умолчанию и исходную валюту транзакции
             $defaultCurrencyId = Currency::where('is_default', true)->value('id');
-
             $currencyIds = array_unique([
                 $transaction->currency_id,
-                $cashRegister->currency_id,
                 $defaultCurrencyId,
             ]);
 
-            // Загружаем одним запросом
             $currencies = Currency::whereIn('id', $currencyIds)->get()->keyBy('id');
-
-            // Назначаем
             $fromCurrency = $currencies[$transaction->currency_id];
-            $toCurrency = $currencies[$cashRegister->currency_id];
             $defaultCurrency = $currencies[$defaultCurrencyId];
 
+            // Для кассы используем уже сохраненную сумму в валюте кассы без повторной конвертации
+            $convertedAmount = $transaction->amount;
 
-            // Конвертируем сумму транзакции в валюту кассы
-            if ($fromCurrency->id !== $toCurrency->id) {
-                $convertedAmount = CurrencyConverter::convert($transaction->amount, $fromCurrency, $toCurrency);
-            } else {
-                $convertedAmount = $transaction->amount;
-            }
-
-            // Применяем округление если оно включено в кассе
-            $convertedAmount = $cashRegister->roundAmount($convertedAmount);
-
-            // Конвертируем сумму в валюту по умолчанию для клиента
+            // Для клиента конвертируем исходную сумму в базовую валюту
             if ($fromCurrency->id !== $defaultCurrency->id) {
-                $convertedAmountDefault = CurrencyConverter::convert($transaction->amount, $fromCurrency, $defaultCurrency);
+                $convertedAmountDefault = CurrencyConverter::convert($transaction->orig_amount, $fromCurrency, $defaultCurrency);
             } else {
-                $convertedAmountDefault = $transaction->amount;
+                $convertedAmountDefault = $transaction->orig_amount;
             }
 
             // Корректируем баланс кассы
