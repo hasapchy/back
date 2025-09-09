@@ -9,11 +9,8 @@ class OrderStatusRepository
     // Пагинация
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
-        // Статусы по своим категориям, категории — только для своих пользователей
+        // Возвращаем все статусы независимо от владельца категории
         $items = OrderStatus::with('category')
-            ->whereHas('category', function ($q) use ($userUuid) {
-                $q->where('user_id', $userUuid);
-            })
             ->paginate($perPage);
         return $items;
     }
@@ -21,10 +18,8 @@ class OrderStatusRepository
     // Все статусы
     public function getAllItems($userUuid)
     {
-        return OrderStatus::with('category')
-            ->whereHas('category', function ($q) use ($userUuid) {
-                $q->where('user_id', $userUuid);
-            })->get();
+        // Возвращаем все статусы независимо от владельца категории
+        return OrderStatus::with('category')->get();
     }
 
     public function createItem($data)
