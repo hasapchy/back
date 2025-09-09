@@ -29,7 +29,8 @@ class ClientsRepository
                 ->select([
                     'clients.*',
                     DB::raw('COALESCE(client_balances.balance, 0) as balance_amount')
-                ]);
+                ])
+                ->groupBy('clients.id', 'client_balances.balance'); // Добавляем groupBy для избежания дублирования
 
             // Фильтруем только активных клиентов, если не запрошены неактивные
             if (!$includeInactive) {
@@ -76,6 +77,7 @@ class ClientsRepository
                     'clients.*',
                     DB::raw('COALESCE(client_balances.balance, 0) as balance_amount')
                 ])
+                ->groupBy('clients.id', 'client_balances.balance') // Добавляем groupBy для избежания дублирования
                 ->where('clients.status', true); // Фильтруем только активных клиентов
 
             foreach ($searchTerms as $term) {
@@ -125,6 +127,7 @@ class ClientsRepository
                     'clients.*',
                     DB::raw('COALESCE(client_balances.balance, 0) as balance_amount')
                 ])
+                ->groupBy('clients.id', 'client_balances.balance') // Добавляем groupBy для избежания дублирования
                 ->where('clients.id', $id)
                 ->first();
         });
@@ -301,6 +304,7 @@ class ClientsRepository
                 'clients.created_at as created_at',
                 'clients.updated_at as updated_at'
             )
+            ->groupBy('clients.id', 'client_balances.balance') // Добавляем groupBy для избежания дублирования
             ->whereIn('clients.id', $ids)
             ->get();
 
