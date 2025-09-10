@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\OrderTransactionController;
 use App\Http\Controllers\Api\OrderAfController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\PerformanceController;
+use App\Http\Controllers\Api\CurrencyHistoryController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\InvoiceController;
@@ -38,6 +39,13 @@ Route::middleware('auth:api')->group(function () {
     Route::get('app/units', [AppController::class, 'getUnitsList']);
     Route::get('app/product_statuses', [AppController::class, 'getProductStatuses']);
     Route::get('app/transaction_categories', [AppController::class, 'getTransactionCategories']);
+
+    // currency history
+    Route::middleware('permission:currency_history_view')->get('currency-history/currencies', [CurrencyHistoryController::class, 'getCurrenciesWithRates']);
+    Route::middleware('permission:currency_history_view')->get('currency-history/{currencyId}', [CurrencyHistoryController::class, 'index']);
+    Route::middleware('permission:currency_history_create')->post('currency-history/{currencyId}', [CurrencyHistoryController::class, 'store']);
+    Route::middleware('permission:currency_history_update')->put('currency-history/{currencyId}/{historyId}', [CurrencyHistoryController::class, 'update']);
+    Route::middleware('permission:currency_history_delete')->delete('currency-history/{currencyId}/{historyId}', [CurrencyHistoryController::class, 'destroy']);
 
     // user
     Route::post('user/logout', [AuthController::class, 'logout']);

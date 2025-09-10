@@ -30,6 +30,7 @@ class PermissionsSeeder extends Seeder
             'invoices',
             'users',
             'companies',
+            'currency_history',
         ];
 
         $actions = ['view', 'create', 'update', 'delete'];
