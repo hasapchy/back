@@ -24,7 +24,7 @@ class ClientsRepository
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive) {
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
-            $query = Client::with(['phones', 'emails'])
+            $query = Client::with(['phones', 'emails', 'user'])
                 ->select([
                     'clients.*',
                     DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
@@ -69,7 +69,7 @@ class ClientsRepository
             $searchTerms = explode(' ', $search_request);
 
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
-            $query = Client::with(['phones', 'emails'])
+            $query = Client::with(['phones', 'emails', 'user'])
                 ->select([
                     'clients.*',
                     DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
@@ -117,7 +117,7 @@ class ClientsRepository
 
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
-            return Client::with(['phones', 'emails'])
+            return Client::with(['phones', 'emails', 'user'])
                 ->select([
                     'clients.*',
                     DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')

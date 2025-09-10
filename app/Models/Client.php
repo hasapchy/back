@@ -13,6 +13,7 @@ class Client extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'client_type',
         'is_supplier',
         'is_conflict',
@@ -26,6 +27,12 @@ class Client extends Model
         'status',
         'sort',
     ];
+
+    // Связь с пользователем
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     // Связь с контактами клиента
     public function phones()

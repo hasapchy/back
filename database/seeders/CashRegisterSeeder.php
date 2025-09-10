@@ -10,11 +10,14 @@ class CashRegisterSeeder extends Seeder
 {
     public function run()
     {
+        // Проверяем, существует ли уже касса с ID 1
+        $existingCashRegister = CashRegister::find(1);
+
         $cashRegister = CashRegister::updateOrCreate([
             'id' => 1
         ], [
             'name' => 'Главная касса',
-            'balance' => 0,
+            'balance' => $existingCashRegister ? $existingCashRegister->balance : 0, // Сохраняем существующий баланс или устанавливаем 0
             'is_rounding' => false,
             'currency_id' => 1,
         ]);

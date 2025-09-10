@@ -71,8 +71,8 @@ class ProjectsController extends Controller
         // Добавляем валидацию для полей бюджета только если они переданы
         if ($request->has('budget') || $request->has('currency_id') || $request->has('exchange_rate')) {
             $validationRules['budget'] = 'required|numeric';
-            $validationRules['currency_id'] = 'required|exists:currencies,id';
-            $validationRules['exchange_rate'] = 'required|numeric|min:0.000001';
+            $validationRules['currency_id'] = 'nullable|exists:currencies,id';
+            $validationRules['exchange_rate'] = 'nullable|numeric|min:0.000001';
         }
 
         $request->validate($validationRules);
@@ -128,8 +128,8 @@ class ProjectsController extends Controller
         // Добавляем валидацию для полей бюджета только если они переданы
         if ($request->has('budget') || $request->has('currency_id') || $request->has('exchange_rate')) {
             $validationRules['budget'] = 'required|numeric';
-            $validationRules['currency_id'] = 'required|exists:currencies,id';
-            $validationRules['exchange_rate'] = 'required|numeric|min:0.000001';
+            $validationRules['currency_id'] = 'nullable|exists:currencies,id';
+            $validationRules['exchange_rate'] = 'nullable|numeric|min:0.000001';
         }
 
         $request->validate($validationRules);

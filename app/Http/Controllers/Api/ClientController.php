@@ -133,6 +133,8 @@ class ClientController extends Controller
 
         DB::beginTransaction();
         try {
+            // Добавляем user_id к данным
+            $validatedData['user_id'] = auth('api')->id();
             $client = $this->itemsRepository->create($validatedData);
 
             $client->balance()->create([
