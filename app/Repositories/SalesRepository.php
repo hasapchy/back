@@ -507,6 +507,10 @@ class SalesRepository
             $this->clearSalesCache();
             CacheService::invalidateClientsCache();
 
+            // Очищаем кэш баланса клиента
+            $clientsRepo = new \App\Repositories\ClientsRepository();
+            $clientsRepo->invalidateClientBalanceCache($clientId);
+
             return true;
         } catch (\Exception $e) {
             DB::rollBack();

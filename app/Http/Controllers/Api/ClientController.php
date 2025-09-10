@@ -229,6 +229,15 @@ class ClientController extends Controller
                 ], 422);
             }
 
+            // Проверка на наличие заказов
+            $hasOrders = DB::table('orders')->where('client_id', $id)->exists();
+
+            if ($hasOrders) {
+                return response()->json([
+                    'message' => 'Нельзя удалить клиента: найдены связанные заказы.'
+                ], 422);
+            }
+
             // Проверка баланса
             $balance = DB::table('client_balances')->where('client_id', $id)->value('balance');
 

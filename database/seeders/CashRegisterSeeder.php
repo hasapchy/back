@@ -10,6 +10,7 @@ class CashRegisterSeeder extends Seeder
 {
     public function run()
     {
+
         // Проверяем, существует ли уже касса с ID 1
         $existingCashRegister = CashRegister::find(1);
 

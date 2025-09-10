@@ -8,8 +8,10 @@ use App\Models\ClientBalance;
 use App\Models\Currency;
 use App\Models\OrderTransaction;
 use App\Models\Transaction;
+use App\Models\ProjectTransaction;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
+use App\Repositories\ClientsRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -367,8 +369,11 @@ class TransactionsRepository
 
             DB::commit();
 
-            // Инвалидируем кэш транзакций
+            // Инвалидируем кэш транзакций и баланса клиента
             $this->invalidateTransactionsCache();
+            if (!empty($data['client_id'])) {
+                $this->invalidateClientBalanceCache($data['client_id']);
+            }
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -400,8 +405,11 @@ class TransactionsRepository
         $transaction->note = $data['note'];
         $transaction->save();
 
-        // Инвалидируем кэш транзакций
+        // Инвалидируем кэш транзакций и баланса клиента
         $this->invalidateTransactionsCache();
+        if ($transaction->client_id) {
+            $this->invalidateClientBalanceCache($transaction->client_id);
+        }
 
         return true;
     }
@@ -521,8 +529,11 @@ class TransactionsRepository
 
             DB::commit();
 
-            // Инвалидируем кэш транзакций
+            // Инвалидируем кэш транзакций и баланса клиента
             $this->invalidateTransactionsCache();
+            if ($transaction->client_id) {
+                $this->invalidateClientBalanceCache($transaction->client_id);
+            }
 
             return true;
         } catch (\Exception $e) {
@@ -596,8 +607,11 @@ class TransactionsRepository
 
             DB::commit();
 
-            // Инвалидируем кэш транзакций
+            // Инвалидируем кэш транзакций и баланса клиента
             $this->invalidateTransactionsCache();
+            if ($transaction->client_id) {
+                $this->invalidateClientBalanceCache($transaction->client_id);
+            }
 
             return true;
         } catch (\Exception $e) {
@@ -676,6 +690,67 @@ class TransactionsRepository
         return $items->first();
     }
 
+    /**
+     * Получает приходы проекта с пагинацией
+     */
+    public function getProjectIncomesWithPagination($userUuid, $projectId, $perPage = 20, $search = null, $dateFilter = null, $startDate = null, $endDate = null)
+    {
+        try {
+            $cacheKey = "project_incomes_paginated_{$userUuid}_{$projectId}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}";
+
+            return CacheService::remember($cacheKey, function () use ($userUuid, $projectId, $perPage, $search, $dateFilter, $startDate, $endDate) {
+                $query = ProjectTransaction::with(['user', 'currency', 'project'])
+                    ->where('user_id', $userUuid)
+                    ->where('project_id', $projectId);
+
+                if ($search) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('note', 'like', "%{$search}%")
+                          ->orWhere('amount', 'like', "%{$search}%");
+                    });
+                }
+
+                if ($dateFilter && $dateFilter !== 'all_time') {
+                    switch ($dateFilter) {
+                        case 'today':
+                            $query->whereDate('date', today());
+                            break;
+                        case 'yesterday':
+                            $query->whereDate('date', today()->subDay());
+                            break;
+                        case 'this_week':
+                            $query->whereBetween('date', [now()->startOfWeek(), now()->endOfWeek()]);
+                            break;
+                        case 'last_week':
+                            $query->whereBetween('date', [now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek()]);
+                            break;
+                        case 'this_month':
+                            $query->whereMonth('date', now()->month)->whereYear('date', now()->year);
+                            break;
+                        case 'last_month':
+                            $query->whereMonth('date', now()->subMonth()->month)->whereYear('date', now()->subMonth()->year);
+                            break;
+                        case 'custom':
+                            if ($startDate && $endDate) {
+                                $query->whereBetween('date', [$startDate, $endDate]);
+                            }
+                            break;
+                    }
+                }
+
+                return $query->orderBy('date', 'desc')->paginate($perPage);
+            });
+        } catch (\Exception $e) {
+            Log::error('TransactionsRepository: Ошибка в getProjectIncomesWithPagination', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'userUuid' => $userUuid,
+                'projectId' => $projectId
+            ]);
+            throw $e;
+        }
+    }
+
     private function getItems(array $ids = [])
     {
         $query = Transaction::query();
@@ -742,5 +817,12 @@ class TransactionsRepository
             $item->client = $clients->get($item->client_id);
         }
         return $items;
+    }
+
+    // Инвалидация кэша баланса клиента
+    private function invalidateClientBalanceCache($clientId)
+    {
+        $clientsRepository = new ClientsRepository();
+        $clientsRepository->invalidateClientBalanceCache($clientId);
     }
 }

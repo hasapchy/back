@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\CashRegister;
 use App\Models\CashRegisterUser;
 use App\Models\Transaction;
+use App\Models\ProjectTransaction;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -65,7 +66,7 @@ class CahRegistersRepository
                 $query->where('user_id', $userUuid);
             })
             ->get()
-            ->map(function ($cashRegister) use ($startDate, $endDate, $transactionType, $source) {
+            ->map(function ($cashRegister) use ($userUuid, $startDate, $endDate, $transactionType, $source) {
 
                 // базовый запрос по транзакциям
                 $txBase = Transaction::where('cash_id', $cashRegister->id)
@@ -132,11 +133,20 @@ class CahRegistersRepository
                 $income  = (clone $txBase)->where('type', 1)->sum('amount');
                 $outcome = (clone $txBase)->where('type', 0)->sum('amount');
 
+                // Получаем сумму приходов из project_transactions
+                $projectIncome = ProjectTransaction::where('user_id', $userUuid)
+                    ->where('cash_register_id', $cashRegister->id)
+                    ->when($startDate && $endDate, function ($q) use ($startDate, $endDate) {
+                        return $q->whereBetween('date', [$startDate, $endDate]);
+                    })
+                    ->sum('amount');
+
                 // Логируем результаты для отладки
                 Log::info('Balance calculation result', [
                     'cash_register_id' => $cashRegister->id,
                     'income' => $income,
                     'outcome' => $outcome,
+                    'project_income' => $projectIncome,
                     'calculated_total' => $income - $outcome,
                     'stored_balance' => $cashRegister->balance
                 ]);
@@ -148,6 +158,7 @@ class CahRegistersRepository
                     'balance'     => [
                         ['value' => $income,  'title' => 'Приход',  'type' => 'income'],
                         ['value' => $outcome, 'title' => 'Расход',  'type' => 'outcome'],
+                        ['value' => $projectIncome, 'title' => 'Приход', 'type' => 'project_income'],
                         ['value' => $cashRegister->balance, 'title' => 'Итого', 'type' => 'default'],
                     ],
                 ];

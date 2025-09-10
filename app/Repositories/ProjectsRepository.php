@@ -345,10 +345,20 @@ class ProjectsRepository
                     DB::raw("'Заказ' as description")
                 );
 
+            $projectIncomes = DB::table('project_transactions')
+                ->where('project_id', $projectId)
+                ->select(
+                    'id', 'created_at', 'amount', 'cash_id',
+                    DB::raw("NULL as type"),
+                    DB::raw("'project_income' as source"),
+                    DB::raw("'Приход в проект' as description")
+                );
+
             // Объединяем все запросы
             $result = $sales->union($receipts)
                 ->union($transactions)
                 ->union($orders)
+                ->union($projectIncomes)
                 ->orderBy('created_at')
                 ->get()
                 ->map(function ($item) {
@@ -361,6 +371,8 @@ class ProjectsRepository
                         $amount = $item->type == 1 ? +$amount : -$amount;
                     } elseif ($item->source === 'order' && isset($item->cash_id) && $item->cash_id) {
                         $amount = +$amount;
+                    } elseif ($item->source === 'project_income') {
+                        $amount = +$amount; // Приходы всегда положительные
                     }
 
                     return [

@@ -227,6 +227,42 @@ class TransactionsController extends Controller
         return response()->json(['item' => $item]);
     }
 
+    public function getProjectIncomes(Request $request)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $projectId = $request->query('project_id');
+        if (!$projectId) {
+            return response()->json(['message' => 'project_id is required'], 400);
+        }
+
+        $search = $request->query('search');
+        $dateFilter = $request->query('date_filter', 'all_time');
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+
+        $items = $this->itemsRepository->getProjectIncomesWithPagination(
+            $userUuid,
+            $projectId,
+            20,
+            $search,
+            $dateFilter,
+            $startDate,
+            $endDate
+        );
+
+        return response()->json([
+            'items' => $items->items(),
+            'current_page' => $items->currentPage(),
+            'next_page' => $items->nextPageUrl(),
+            'last_page' => $items->lastPage(),
+            'total' => $items->total()
+        ]);
+    }
+
     /**
      * Проверяет, является ли транзакция ограниченной (трансфер, продажа, оприходование)
      */
