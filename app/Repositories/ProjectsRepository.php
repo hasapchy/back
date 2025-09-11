@@ -315,6 +315,9 @@ class ProjectsRepository
         $cacheKey = "project_balance_history_{$projectId}";
 
         return CacheService::remember($cacheKey, function () use ($projectId) {
+            // Получаем информацию о проекте для конвертации валют
+            $project = \App\Models\Project::find($projectId);
+            $exchangeRate = $project ? $project->exchange_rate : 1;
             // Оптимизированный запрос с UNION вместо отдельных запросов
             $sales = DB::table('sales')
                 ->where('project_id', $projectId)

@@ -40,12 +40,12 @@ class TransactionsRepository
                     // 'cashTransfersTo:id,tr_id_to',
                     // 'orderTransactions:id,order_id,transaction_id'
                 ])
-                    ->addSelect([
-                        'client_balance' => DB::table('client_balances')
-                            ->select('balance')
-                            ->whereColumn('client_id', 'clients.id')
-                            ->limit(1)
-                    ])
+                ->addSelect([
+                    'client_balance' => DB::table('client_balances')
+                        ->select('balance')
+                        ->whereColumn('client_id', 'transactions.client_id')
+                        ->limit(1)
+                ])
                     ->whereHas('cashRegister.cashRegisterUsers', function($q) use ($userUuid) {
                         $q->where('user_id', $userUuid);
                     })
