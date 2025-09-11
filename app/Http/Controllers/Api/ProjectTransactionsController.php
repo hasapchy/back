@@ -53,31 +53,51 @@ class ProjectTransactionsController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
+        // Отладочная информация
+        \Illuminate\Support\Facades\Log::info('ProjectTransaction store request', [
+            'user_id' => $userUuid,
+            'request_data' => $request->all()
+        ]);
+
         // Валидация данных
         $request->validate([
+            'project_id' => 'required|exists:projects,id',
             'amount' => 'required|numeric|min:0.01',
             'currency_id' => 'required|exists:currencies,id',
             'note' => 'nullable|string|max:1000',
             'date' => 'nullable|date'
         ]);
 
-        $item_created = $this->itemsRepository->createItem([
-            'user_id' => $userUuid,
-            'amount' => $request->amount,
-            'currency_id' => $request->currency_id,
-            'note' => $request->note,
-            'date' => $request->date ?? now()
-        ]);
+        try {
+            $item_created = $this->itemsRepository->createItem([
+                'user_id' => $userUuid,
+                'project_id' => $request->project_id,
+                'amount' => $request->amount,
+                'currency_id' => $request->currency_id,
+                'note' => $request->note,
+                'date' => $request->date ?? now()
+            ]);
 
-        if (!$item_created) {
+            if (!$item_created) {
+                return response()->json([
+                    'message' => 'Ошибка создания прихода'
+                ], 400);
+            }
+
             return response()->json([
-                'message' => 'Ошибка создания прихода'
-            ], 400);
-        }
+                'message' => 'Приход создан'
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('ProjectTransaction store error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
 
-        return response()->json([
-            'message' => 'Приход создан'
-        ]);
+            return response()->json([
+                'message' => 'Ошибка создания прихода: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function update(Request $request, $id)

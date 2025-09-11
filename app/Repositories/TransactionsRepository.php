@@ -27,6 +27,8 @@ class TransactionsRepository
                 // Используем with() для загрузки связей вместо сложных JOIN'ов
                 $query = Transaction::with([
                     'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
+                    'client.phones:id,client_id,phone',
+                    'client.emails:id,client_id,email',
                     'currency:id,name,code,symbol',
                     'cashRegister:id,name,currency_id',
                     'cashRegister.currency:id,name,code,symbol',
@@ -38,6 +40,12 @@ class TransactionsRepository
                     // 'cashTransfersTo:id,tr_id_to',
                     // 'orderTransactions:id,order_id,transaction_id'
                 ])
+                    ->addSelect([
+                        'client_balance' => DB::table('client_balances')
+                            ->select('balance')
+                            ->whereColumn('client_id', 'clients.id')
+                            ->limit(1)
+                    ])
                     ->whereHas('cashRegister.cashRegisterUsers', function($q) use ($userUuid) {
                         $q->where('user_id', $userUuid);
                     })
@@ -146,6 +154,8 @@ class TransactionsRepository
                 // Принудительно загружаем связи для всех элементов пагинации
                 $paginatedResults->getCollection()->load([
                     'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
+                    'client.phones:id,client_id,phone',
+                    'client.emails:id,client_id,email',
                     'currency:id,name,code,symbol',
                     'cashRegister:id,name,currency_id',
                     'cashRegister.currency:id,name,code,symbol',
@@ -201,6 +211,9 @@ class TransactionsRepository
                             'discount' => $transaction->client->discount,
                             'created_at' => $transaction->client->created_at,
                             'updated_at' => $transaction->client->updated_at,
+                            'phones' => $transaction->client->phones ? $transaction->client->phones->toArray() : [],
+                            'emails' => $transaction->client->emails ? $transaction->client->emails->toArray() : [],
+                            'balance_amount' => $transaction->client_balance ?? 0,
                         ] : null,
                         'note' => $transaction->note,
                         'date' => $transaction->date,
@@ -807,7 +820,11 @@ class TransactionsRepository
 
         if (!empty($clientIds)) {
             $clients = Client::whereIn('id', $clientIds)
-                ->select('id', 'first_name', 'last_name', 'contact_person')
+                ->with(['phones', 'emails'])
+                ->select([
+                    'id', 'first_name', 'last_name', 'contact_person', 'client_type', 'is_supplier', 'is_conflict', 'address', 'note', 'status', 'discount_type', 'discount', 'created_at', 'updated_at',
+                    DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
+                ])
                 ->get()
                 ->keyBy('id');
         }

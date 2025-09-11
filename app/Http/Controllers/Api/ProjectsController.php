@@ -316,13 +316,16 @@ class ProjectsController extends Controller
     {
         try {
             $history = $this->itemsRepository->getBalanceHistory($id);
-            $balance = collect($history)->sum('amount');
+            // Итоговый баланс НЕ включает project_income записи
+            $balance = collect($history)->where('source', '!=', 'project_income')->sum('amount');
+            $projectIncome = $this->itemsRepository->getProjectIncome($id);
             $project = \App\Models\Project::findOrFail($id);
 
             return response()->json([
                 'history' => $history,
                 'balance' => $balance,
                 'budget' => (float) $project->budget,
+                'projectIncome' => (float) $projectIncome,
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([

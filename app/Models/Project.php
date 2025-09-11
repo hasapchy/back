@@ -21,6 +21,11 @@ class Project extends Model
         return $this->belongsTo(Client::class, 'client_id');
     }
 
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function currency()
     {
         return $this->belongsTo(Currency::class, 'currency_id');

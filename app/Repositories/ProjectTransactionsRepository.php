@@ -56,20 +56,42 @@ class ProjectTransactionsRepository
 
     public function createItem($data)
     {
-        return ProjectTransaction::create($data);
+        $item = ProjectTransaction::create($data);
+
+        // Инвалидируем кэш проекта
+        if (isset($data['project_id'])) {
+            $projectsRepo = new \App\Repositories\ProjectsRepository();
+            $projectsRepo->invalidateProjectCache($data['project_id']);
+        }
+
+        return $item;
     }
 
     public function updateItem($id, $data)
     {
         $item = ProjectTransaction::findOrFail($id);
         $item->update($data);
+
+        // Инвалидируем кэш проекта
+        $projectsRepo = new \App\Repositories\ProjectsRepository();
+        $projectsRepo->invalidateProjectCache($item->project_id);
+
         return $item;
     }
 
     public function deleteItem($id)
     {
         $item = ProjectTransaction::findOrFail($id);
-        return $item->delete();
+        $projectId = $item->project_id;
+        $result = $item->delete();
+
+        // Инвалидируем кэш проекта
+        if ($result) {
+            $projectsRepo = new \App\Repositories\ProjectsRepository();
+            $projectsRepo->invalidateProjectCache($projectId);
+        }
+
+        return $result;
     }
 
     public function getItemById($id)

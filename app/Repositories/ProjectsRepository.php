@@ -33,6 +33,7 @@ class ProjectsRepository
                 'client.emails:id,client_id,email',
                 'client.balance:id,client_id,balance',
                 'currency:id,name,code,symbol',
+                'creator:id,name',
                 'users:id,name',
                 'projectUsers:id,project_id,user_id'
             ]);
@@ -133,6 +134,7 @@ class ProjectsRepository
                 'client.emails:id,client_id,email',
                 'client.balance:id,client_id,balance',
                 'currency:id,name,code,symbol',
+                'creator:id,name',
                 'users:id,name'
             ])
             ->whereHas('projectUsers', function($query) use ($userUuid) {
@@ -348,7 +350,8 @@ class ProjectsRepository
             $projectIncomes = DB::table('project_transactions')
                 ->where('project_id', $projectId)
                 ->select(
-                    'id', 'created_at', 'amount', 'cash_id',
+                    'id', 'created_at', 'amount',
+                    DB::raw("NULL as cash_id"),
                     DB::raw("NULL as type"),
                     DB::raw("'project_income' as source"),
                     DB::raw("'Приход в проект' as description")
@@ -366,13 +369,15 @@ class ProjectsRepository
 
                     // Корректируем сумму в зависимости от типа
                     if ($item->source === 'receipt' && isset($item->cash_id) && $item->cash_id) {
-                        $amount = -$amount;
+                        $amount = -$amount; // Долг за оприходование
                     } elseif ($item->source === 'transaction' && isset($item->type)) {
-                        $amount = $item->type == 1 ? +$amount : -$amount;
+                        $amount = $item->type == 1 ? +$amount : -$amount; // Приход/расход
+                    } elseif ($item->source === 'sale' && isset($item->cash_id) && $item->cash_id) {
+                        $amount = +$amount; // Продажа через кассу - положительная
                     } elseif ($item->source === 'order' && isset($item->cash_id) && $item->cash_id) {
-                        $amount = +$amount;
+                        $amount = +$amount; // Заказ через кассу - положительная
                     } elseif ($item->source === 'project_income') {
-                        $amount = +$amount; // Приходы всегда положительные
+                        $amount = +$amount; // Приходы в проект - отображаются, но не учитываются в итоговом балансе
                     }
 
                     return [
@@ -401,6 +406,18 @@ class ProjectsRepository
         }, 900); // 15 минут
     }
 
+    // Получение итогового прихода проекта (только ProjectTransaction)
+    public function getProjectIncome($projectId)
+    {
+        $cacheKey = "project_income_{$projectId}";
+
+        return CacheService::remember($cacheKey, function () use ($projectId) {
+            return DB::table('project_transactions')
+                ->where('project_id', $projectId)
+                ->sum('amount');
+        }, 900); // 15 минут
+    }
+
     /**
      * Инвалидация кэша проектов
      */
@@ -413,7 +430,8 @@ class ProjectsRepository
             'projects_fast_search_*',
             'project_item_*',
             'project_balance_history_*',
-            'project_balance_*'
+            'project_balance_*',
+            'project_income_*'
         ];
 
         foreach ($keys as $key) {
@@ -435,6 +453,7 @@ class ProjectsRepository
         \Illuminate\Support\Facades\Cache::forget("project_item_{$projectId}");
         \Illuminate\Support\Facades\Cache::forget("project_balance_history_{$projectId}");
         \Illuminate\Support\Facades\Cache::forget("project_balance_{$projectId}");
+        \Illuminate\Support\Facades\Cache::forget("project_income_{$projectId}");
 
         // Очищаем кэш с отношениями для всех пользователей
         \Illuminate\Support\Facades\Cache::forget("project_item_relations_{$projectId}_null");
