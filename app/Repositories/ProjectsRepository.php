@@ -24,9 +24,11 @@ class ProjectsRepository
             $query = Project::select([
                 'projects.id', 'projects.name', 'projects.budget', 'projects.currency_id', 'projects.exchange_rate', 'projects.date', 'projects.user_id', 'projects.client_id',
                 'projects.files', 'projects.created_at', 'projects.updated_at',
-                'clients.first_name as client_first_name', 'clients.last_name as client_last_name', 'clients.contact_person as client_contact_person'
+                'clients.first_name as client_first_name', 'clients.last_name as client_last_name', 'clients.contact_person as client_contact_person',
+                'users.name as user_name'
             ])
             ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
+            ->leftJoin('users', 'projects.user_id', '=', 'users.id')
             ->with([
                 'client:id,first_name,last_name,contact_person',
                 'client.phones:id,client_id,phone',
@@ -125,9 +127,11 @@ class ProjectsRepository
             return Project::select([
                 'projects.id', 'projects.name', 'projects.budget', 'projects.currency_id', 'projects.exchange_rate', 'projects.date', 'projects.user_id', 'projects.client_id',
                 'projects.files', 'projects.created_at', 'projects.updated_at',
-                'clients.first_name as client_first_name', 'clients.last_name as client_last_name'
+                'clients.first_name as client_first_name', 'clients.last_name as client_last_name',
+                'users.name as user_name'
             ])
             ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
+            ->leftJoin('users', 'projects.user_id', '=', 'users.id')
             ->with([
                 'client:id,first_name,last_name,contact_person',
                 'client.phones:id,client_id,phone',
@@ -318,7 +322,8 @@ class ProjectsRepository
                     'id', 'created_at', 'total_price as amount', 'cash_id',
                     DB::raw("NULL as type"),
                     DB::raw("'sale' as source"),
-                    DB::raw("CASE WHEN cash_id IS NOT NULL THEN 'Продажа через кассу' ELSE 'Продажа в баланс(долг)' END as description")
+                    DB::raw("CASE WHEN cash_id IS NOT NULL THEN 'Продажа через кассу' ELSE 'Продажа в баланс(долг)' END as description"),
+                    DB::raw("NULL as currency_id")
                 );
 
             $receipts = DB::table('wh_receipts')
@@ -327,7 +332,8 @@ class ProjectsRepository
                     'id', 'created_at', 'amount', 'cash_id',
                     DB::raw("NULL as type"),
                     DB::raw("'receipt' as source"),
-                    DB::raw("CASE WHEN cash_id IS NOT NULL THEN 'Долг за оприходование(в кассу)' ELSE 'Долг за оприходование(в баланс)' END as description")
+                    DB::raw("CASE WHEN cash_id IS NOT NULL THEN 'Долг за оприходование(в кассу)' ELSE 'Долг за оприходование(в баланс)' END as description"),
+                    DB::raw("NULL as currency_id")
                 );
 
             $transactions = DB::table('transactions')
@@ -335,7 +341,8 @@ class ProjectsRepository
                 ->select(
                     'id', 'created_at', 'orig_amount as amount', 'cash_id', 'type',
                     DB::raw("'transaction' as source"),
-                    DB::raw("CASE WHEN type = 1 THEN 'Приход в проект' ELSE 'Расход из проекта' END as description")
+                    DB::raw("CASE WHEN type = 1 THEN 'Приход в проект' ELSE 'Расход из проекта' END as description"),
+                    DB::raw("NULL as currency_id")
                 );
 
             $orders = DB::table('orders')
@@ -344,7 +351,8 @@ class ProjectsRepository
                     'id', 'created_at', 'total_price as amount', 'cash_id',
                     DB::raw("NULL as type"),
                     DB::raw("'order' as source"),
-                    DB::raw("'Заказ' as description")
+                    DB::raw("'Заказ' as description"),
+                    DB::raw("NULL as currency_id")
                 );
 
             $projectIncomes = DB::table('project_transactions')
@@ -354,7 +362,8 @@ class ProjectsRepository
                     DB::raw("NULL as cash_id"),
                     DB::raw("NULL as type"),
                     DB::raw("'project_income' as source"),
-                    DB::raw("'Приход в проект' as description")
+                    DB::raw("'Приход в проект' as description"),
+                    'currency_id'
                 );
 
             // Объединяем все запросы
@@ -385,7 +394,8 @@ class ProjectsRepository
                         'source_id' => $item->id,
                         'date' => $item->created_at,
                         'amount' => $amount,
-                        'description' => $item->description
+                        'description' => $item->description,
+                        'currency_id' => $item->currency_id ?? null
                     ];
                 })
                 ->values()

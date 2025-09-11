@@ -51,12 +51,11 @@ class CurrencyHistoryController extends Controller
 
             DB::beginTransaction();
 
-            // Если указана дата окончания, закрываем предыдущую запись
-            if ($request->end_date) {
-                CurrencyHistory::where('currency_id', $currencyId)
-                    ->whereNull('end_date')
-                    ->update(['end_date' => $request->start_date]);
-            }
+            // Всегда закрываем все предыдущие активные записи для этой валюты
+            // Устанавливаем дату окончания равной дате начала новой записи
+            CurrencyHistory::where('currency_id', $currencyId)
+                ->whereNull('end_date')
+                ->update(['end_date' => $request->start_date]);
 
             $history = CurrencyHistory::create([
                 'currency_id' => $currencyId,
@@ -102,6 +101,14 @@ class CurrencyHistoryController extends Controller
             ]);
 
             DB::beginTransaction();
+
+            // Если обновляем активную запись (без end_date), закрываем все другие активные записи
+            if (!$request->end_date) {
+                CurrencyHistory::where('currency_id', $currencyId)
+                    ->where('id', '!=', $historyId)
+                    ->whereNull('end_date')
+                    ->update(['end_date' => $request->start_date]);
+            }
 
             $history->update([
                 'exchange_rate' => $request->exchange_rate,

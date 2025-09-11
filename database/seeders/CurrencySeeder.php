@@ -15,7 +15,7 @@ class CurrencySeeder extends Seeder
                 'name' => 'Turkmen Manat',
                 'symbol' => 'm',
                 'is_default' => true,
-            
+
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
@@ -25,7 +25,7 @@ class CurrencySeeder extends Seeder
                 'name' => 'Yuan',
                 'symbol' => '¥',
                 'is_default' => false,
-             
+
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
@@ -42,22 +42,30 @@ class CurrencySeeder extends Seeder
             ],
         ];
 
-      
+
         DB::table('currencies')->upsert(
-            $currencies, 
+            $currencies,
             ['code'],
-            ['name', 'symbol', 'is_default',  'status', 'updated_at'] 
+            ['name', 'symbol', 'is_default',  'status', 'updated_at']
         );
 
-     
+
         $currencyIds = DB::table('currencies')->pluck('id', 'code');
 
         // Подготовка истории валют
         $currencyHistories = [];
         foreach ($currencies as $currency) {
+            // Курсы относительно TMT (манат) как дефолтной валюты
+            $exchangeRate = match($currency['code']) {
+                'TMT' => 1.00,        // Манат - дефолтная валюта
+                'USD' => 19.65,       // 1 доллар = 19.65 манат
+                'CNY' => 139.515,     // 1 юань = 7.10 долларов = 7.10 * 19.65 = 139.515 манат
+                default => 1.00
+            };
+
             $currencyHistories[] = [
                 'currency_id' => $currencyIds[$currency['code']],
-                'exchange_rate' => $currency['code'] == 'TMT' ? 19.65 : ($currency['code'] == 'CNY' ? 7.10 : 1.00),
+                'exchange_rate' => $exchangeRate,
                 'start_date' => now()->toDateString(),
                 'created_at' => now(),
                 'updated_at' => now()
@@ -67,8 +75,8 @@ class CurrencySeeder extends Seeder
         // Вставка или обновление истории валют
         DB::table('currency_histories')->upsert(
             $currencyHistories,
-            ['currency_id', 'start_date'], 
-            ['exchange_rate', 'updated_at'] 
+            ['currency_id', 'start_date'],
+            ['exchange_rate', 'updated_at']
         );
     }
 }

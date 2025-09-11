@@ -131,6 +131,7 @@ class ClientsRepository
     {
         $client = DB::transaction(function () use ($data) {
             $client = Client::create([
+                'user_id'        => $data['user_id'] ?? null,
                 'first_name'     => $data['first_name'],
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,
@@ -215,6 +216,7 @@ class ClientsRepository
         $client = DB::transaction(function () use ($id, $data) {
             $client = Client::findOrFail($id);
             $client->update([
+                'user_id'        => $data['user_id'] ?? $client->user_id,
                 'first_name'     => $data['first_name'],
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,

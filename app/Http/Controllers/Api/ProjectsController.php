@@ -312,9 +312,14 @@ class ProjectsController extends Controller
     }
 
     // Получение истории баланса и текущего баланса проекта
-    public function getBalanceHistory($id)
+    public function getBalanceHistory(Request $request, $id)
     {
         try {
+            // Если передан timestamp, принудительно обновляем кэш
+            if ($request->has('t')) {
+                $this->itemsRepository->invalidateProjectCache($id);
+            }
+
             $history = $this->itemsRepository->getBalanceHistory($id);
             // Итоговый баланс НЕ включает project_income записи
             $balance = collect($history)->where('source', '!=', 'project_income')->sum('amount');
