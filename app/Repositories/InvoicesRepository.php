@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 
 class InvoicesRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $typeFilter = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $typeFilter = null, $page = 1)
     {
         $query = Invoice::with(['client', 'user', 'orders', 'products.unit', 'products.order'])
             ->where('user_id', $userUuid);
@@ -39,7 +39,7 @@ class InvoicesRepository
             $query->where('type', $typeFilter);
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate($perPage);
+        return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
     }
 
     public function getItemById($id)

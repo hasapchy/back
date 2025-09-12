@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 class ProjectsRepository
 {
     // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null)
     {
         // Создаем уникальный ключ кэша
         $cacheKey = "projects_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}";
@@ -19,7 +19,7 @@ class ProjectsRepository
         // Для списка без фильтров используем более длительное кэширование
         $ttl = (!$search && $dateFilter === 'all_time') ? 1800 : 600; // 30 мин для списка, 10 мин для фильтров
 
-        return CacheService::remember($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page) {
             // Оптимизированный запрос с селективным выбором полей и JOIN для клиентов
             $query = Project::select([
                 'projects.id', 'projects.name', 'projects.budget', 'projects.currency_id', 'projects.exchange_rate', 'projects.date', 'projects.user_id', 'projects.client_id',
@@ -62,8 +62,8 @@ class ProjectsRepository
             });
 
             // Получаем результат с пагинацией
-            return $query->orderBy('created_at', 'desc')->paginate($perPage);
-        }, $ttl);
+            return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
+        }, $page);
     }
 
     /**

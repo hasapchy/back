@@ -23,14 +23,16 @@ class WarehouseStockController extends Controller
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
+
+        $page = $request->input('page', 1);
         $warehouse_id = $request->query('warehouse_id');
         $category_id = $request->query('category_id');
 
         // Получаем сток с пагинацией
-        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20, $warehouse_id, $category_id);
+        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20, $warehouse_id, $category_id, $page);
 
         return response()->json([
-            'items' => $warehouses->items(),  // Список 
+            'items' => $warehouses->items(),  // Список
             'current_page' => $warehouses->currentPage(),  // Текущая страница
             'next_page' => $warehouses->nextPageUrl(),  // Следующая страница
             'last_page' => $warehouses->lastPage(),  // Общее количество страниц

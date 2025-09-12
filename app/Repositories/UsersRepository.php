@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 class UsersRepository
 {
-    public function getItemsWithPagination($perPage = 20, $search = null, $statusFilter = null)
+    public function getItemsWithPagination($page = 1, $perPage = 20, $search = null, $statusFilter = null)
     {
         // Создаем уникальный ключ кэша
         $cacheKey = "users_paginated_{$perPage}_{$search}_{$statusFilter}";
@@ -18,7 +18,7 @@ class UsersRepository
         // Для списка без фильтров используем более длительное кэширование
         $ttl = (!$search && !$statusFilter) ? 1800 : 600; // 30 мин для списка, 10 мин для фильтров
 
-        return CacheService::remember($cacheKey, function () use ($perPage, $search, $statusFilter) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $statusFilter, $page) {
             $query = User::select([
                 'users.id', 'users.name', 'users.email', 'users.is_active', 'users.hire_date',
                 'users.position', 'users.is_admin', 'users.created_at', 'users.updated_at'
@@ -43,8 +43,8 @@ class UsersRepository
                 $query->where('users.is_active', $statusFilter);
             }
 
-            return $query->orderBy('users.created_at', 'desc')->paginate($perPage);
-        }, $ttl);
+            return $query->orderBy('users.created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
+        }, $page);
     }
 
     /**

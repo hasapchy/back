@@ -25,8 +25,11 @@ class ProductController extends Controller
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
-        // Получаем склад с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20);
+
+        $page = $request->query('page', 1);
+
+        // Получаем продукты с пагинацией
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page);
 
         return response()->json([
             'items' => $items->items(),  // Список
@@ -58,8 +61,11 @@ class ProductController extends Controller
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
-        // Получаем склад с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false);
+
+        $page = $request->query('page', 1);
+
+        // Получаем услуги с пагинацией
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page);
 
         return response()->json([
             'items' => $items->items(),  // Список

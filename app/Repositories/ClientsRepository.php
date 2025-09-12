@@ -14,7 +14,7 @@ class ClientsRepository
 {
 
 
-    function getItemsPaginated($perPage = 20, $search = null, $includeInactive = false)
+    function getItemsPaginated($perPage = 20, $search = null, $includeInactive = false, $page = 1)
     {
         // Создаем уникальный ключ кэша
         $cacheKey = "clients_paginated_{$perPage}_{$search}_{$includeInactive}";
@@ -22,7 +22,7 @@ class ClientsRepository
         // Принудительно очищаем кэш клиентов перед получением
         CacheService::invalidateClientsCache();
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page) {
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
             $query = Client::with(['phones', 'emails', 'user'])
                 ->select([
@@ -54,8 +54,8 @@ class ClientsRepository
 
             $query->orderBy('clients.created_at', 'desc');
 
-            return $query->paginate($perPage);
-        });
+            return $query->paginate($perPage, ['*'], 'page', $page);
+        }, $page);
     }
 
     function searchClient(string $search_request)

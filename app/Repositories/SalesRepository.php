@@ -22,12 +22,12 @@ class SalesRepository
      * Оптимизированный метод получения продаж с пагинацией
      * Улучшен eager loading и кэширование
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $page = 1)
     {
         $cacheKey = $this->generateCacheKey('paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate]);
         $ttl = $this->getCacheTTL('paginated', $search || $dateFilter !== 'all_time');
 
-        return CacheService::remember($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page) {
             // Оптимизированный запрос с селективным выбором полей и JOIN для клиентов
             $query = Sale::select([
                 'sales.id', 'sales.client_id', 'sales.warehouse_id', 'sales.cash_id', 'sales.user_id', 'sales.project_id',
@@ -65,8 +65,8 @@ class SalesRepository
             });
 
             // Получаем результат с пагинацией
-            return $query->orderBy('created_at', 'desc')->paginate($perPage);
-        }, $ttl);
+            return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
+        }, $page);
     }
 
     /**

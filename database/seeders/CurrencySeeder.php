@@ -13,19 +13,8 @@ class CurrencySeeder extends Seeder
             [
                 'code' => 'TMT',
                 'name' => 'Turkmen Manat',
-                'symbol' => 'm',
+                'symbol' => 'TMT',
                 'is_default' => true,
-
-                'status' => true,
-                'created_at' => now(),
-                'updated_at' => now()
-            ],
-            [
-                'code' => 'CNY',
-                'name' => 'Yuan',
-                'symbol' => '¥',
-                'is_default' => false,
-
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
@@ -35,7 +24,6 @@ class CurrencySeeder extends Seeder
                 'name' => 'US Dollar',
                 'symbol' => '$',
                 'is_default' => false,
-
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
@@ -54,14 +42,18 @@ class CurrencySeeder extends Seeder
 
         // Подготовка истории валют
         $currencyHistories = [];
+
+        // Курсы валют относительно маната (базовая валюта в системе)
+        // Здесь записывайте курсы так, как они есть в реальности:
+        // 1 доллар = X манат (как обычно говорят в банках)
+        $realRates = [
+            'TMT' => 1.00,        // 1 манат = 1 манат
+            'USD' => 19.65,       // 1 доллар = 19.65 манат
+        ];
+
         foreach ($currencies as $currency) {
-            // Курсы относительно TMT (манат) как дефолтной валюты
-            $exchangeRate = match($currency['code']) {
-                'TMT' => 1.00,        // Манат - дефолтная валюта
-                'USD' => 19.65,       // 1 доллар = 19.65 манат
-                'CNY' => 139.515,     // 1 юань = 7.10 долларов = 7.10 * 19.65 = 139.515 манат
-                default => 1.00
-            };
+            // Exchange rate показывает, сколько манат за 1 единицу валюты
+            $exchangeRate = $realRates[$currency['code']] ?? 1.00;
 
             $currencyHistories[] = [
                 'currency_id' => $currencyIds[$currency['code']],

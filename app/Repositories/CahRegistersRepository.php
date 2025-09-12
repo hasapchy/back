@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Schema;
 class CahRegistersRepository
 {
     // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         try {
             // Возвращаем только кассы, к которым у пользователя есть доступ
@@ -23,7 +23,7 @@ class CahRegistersRepository
                     $query->where('user_id', $userUuid);
                 })
                 ->orderBy('created_at', 'desc')
-                ->paginate($perPage);
+                ->paginate($perPage, ['*'], 'page', $page);
         } catch (\Exception $e) {
             // Возвращаем пустую пагинацию вместо ошибки
             return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);

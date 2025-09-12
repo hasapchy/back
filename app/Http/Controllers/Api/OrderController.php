@@ -25,13 +25,14 @@ class OrderController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
+        $page = $request->input('page', 1);
         $search = $request->input('search');
         $dateFilter = $request->input('date_filter_type', 'all_time');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
         $statusFilter = $request->input('status_ids');
 
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search, $dateFilter, $startDate, $endDate, $statusFilter);
+        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page);
 
         return response()->json([
             'items' => $items->items(),
