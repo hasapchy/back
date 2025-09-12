@@ -23,7 +23,6 @@ class Product extends Model
         'description',
         'sku',
         'image',
-        'category_id',
         'unit_id',
         'status_id',
         'barcode',
@@ -36,10 +35,16 @@ class Product extends Model
         'type' => 'boolean',
     ];
 
-    public function category()
+
+    /**
+     * Связь с множественными категориями через промежуточную таблицу
+     */
+    public function categories()
     {
-        return $this->belongsTo(Category::class, 'category_id');
+        return $this->belongsToMany(Category::class, 'product_categories', 'product_id', 'category_id')
+            ->withTimestamps();
     }
+
 
     public function unit()
     {

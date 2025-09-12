@@ -6,58 +6,85 @@ use App\Models\Product;
 use App\Models\ProductPrice;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class ProductsRepository
 {
     // Получение с пагинацией
-        public function getItemsWithPagination($userUuid, $perPage = 20, $type = true)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true)
     {
         $cacheKey = "products_{$userUuid}_{$perPage}_{$type}";
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type) {
-            // Используем JOIN вместо whereHas для устранения N+1
-            $query = Product::select([
-                'products.*',
-                'categories.name as category_name',
-                'units.name as unit_name', 'units.short_name as unit_short_name', 'units.calc_area as unit_calc_area',
-                'product_prices.retail_price', 'product_prices.wholesale_price', 'product_prices.purchase_price'
-            ])
-                ->join('categories', 'products.category_id', '=', 'categories.id')
-                ->join('category_users', 'categories.id', '=', 'category_users.category_id')
-                ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-                ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
+            // Получаем ID продуктов пользователя через категории
+            $userProductIds = DB::table('product_categories')
+                ->join('category_users', 'product_categories.category_id', '=', 'category_users.category_id')
                 ->where('category_users.user_id', $userUuid)
-                ->where('products.type', $type);
+                ->pluck('product_categories.product_id')
+                ->unique()
+                ->toArray();
 
-            return $query->orderBy('products.created_at', 'desc')->paginate($perPage);
+            // Загружаем продукты с категориями через Eloquent
+            $query = Product::with(['categories', 'unit', 'prices'])
+                ->whereIn('id', $userProductIds)
+                ->where('type', $type);
+
+            $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage);
+
+            // Добавляем дополнительные поля для обратной совместимости
+            $products->getCollection()->each(function ($product) {
+                $product->category_name = $product->categories->first()?->name ?? '';
+                $product->unit_name = $product->unit?->name ?? '';
+                $product->unit_short_name = $product->unit?->short_name ?? '';
+                $product->unit_calc_area = $product->unit?->calc_area ?? '';
+                $price = $product->prices->first();
+                $product->retail_price = $price?->retail_price ?? 0;
+                $product->wholesale_price = $price?->wholesale_price ?? 0;
+                $product->purchase_price = $price?->purchase_price ?? 0;
+            });
+
+            return $products;
         });
     }
 
     // Поиск
-        public function searchItems($userUuid, $search)
+    public function searchItems($userUuid, $search)
     {
         $cacheKey = "products_search_{$userUuid}_{$search}";
 
         return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search) {
-            // Используем JOIN вместо whereHas для устранения N+1
-            $query = Product::select([
-                'products.*',
-                'categories.name as category_name',
-                'units.name as unit_name', 'units.short_name as unit_short_name', 'units.calc_area as unit_calc_area',
-                'product_prices.retail_price', 'product_prices.wholesale_price', 'product_prices.purchase_price'
-            ])
-                ->join('categories', 'products.category_id', '=', 'categories.id')
-                ->join('category_users', 'categories.id', '=', 'category_users.category_id')
-                ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-                ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
+            // Получаем ID продуктов пользователя через категории
+            $userProductIds = DB::table('product_categories')
+                ->join('category_users', 'product_categories.category_id', '=', 'category_users.category_id')
                 ->where('category_users.user_id', $userUuid)
+                ->pluck('product_categories.product_id')
+                ->unique()
+                ->toArray();
+
+            // Загружаем продукты с категориями через Eloquent
+            $query = Product::with(['categories', 'unit', 'prices'])
+                ->whereIn('id', $userProductIds)
                 ->where(function ($query) use ($search) {
-                    $query->where('products.name', 'like', '%' . $search . '%')
-                        ->orWhere('products.sku', 'like', '%' . $search . '%')
-                        ->orWhere('products.barcode', 'like', '%' . $search . '%');
+                    $query->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('sku', 'like', '%' . $search . '%')
+                        ->orWhere('barcode', 'like', '%' . $search . '%');
                 });
 
-            return $query->limit(50)->get();
+            $products = $query->limit(50)->get();
+
+            // Добавляем дополнительные поля для обратной совместимости
+            $products->each(function ($product) {
+                $product->category_name = $product->categories->first()?->name ?? '';
+                $product->unit_name = $product->unit?->name ?? '';
+                $product->unit_short_name = $product->unit?->short_name ?? '';
+                $product->unit_calc_area = $product->unit?->calc_area ?? '';
+                $price = $product->prices->first();
+                $product->retail_price = $price?->retail_price ?? 0;
+                $product->wholesale_price = $price?->wholesale_price ?? 0;
+                $product->purchase_price = $price?->purchase_price ?? 0;
+            });
+
+            return $products;
         });
     }
 
@@ -70,9 +97,17 @@ class ProductsRepository
         $product->description = $data['description'];
         $product->sku = $data['sku'];
         $product->barcode = $data['barcode'];
-        $product->category_id = $data['category_id'];
         $product->unit_id = $data['unit_id'];
         $product->save();
+
+        // Создаем связи с категориями
+        if (isset($data['categories']) && !empty($data['categories'])) {
+            // Если переданы множественные категории
+            $product->categories()->sync($data['categories']);
+        } elseif (isset($data['category_id'])) {
+            // Если передана одна категория (обратная совместимость)
+            $product->categories()->sync([$data['category_id']]);
+        }
 
         ProductPrice::updateOrCreate([
             'product_id' => $product->id
@@ -88,15 +123,20 @@ class ProductsRepository
         // Возвращаем товар с полными данными через JOIN
         return Product::select([
             'products.*',
-            'categories.name as category_name',
-            'units.name as unit_name', 'units.short_name as unit_short_name', 'units.calc_area as unit_calc_area',
-            'product_prices.retail_price', 'product_prices.wholesale_price', 'product_prices.purchase_price'
+            'primary_categories.name as category_name', // Основная категория
+            'units.name as unit_name',
+            'units.short_name as unit_short_name',
+            'units.calc_area as unit_calc_area',
+            'product_prices.retail_price',
+            'product_prices.wholesale_price',
+            'product_prices.purchase_price'
         ])
-        ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
-        ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-        ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
-        ->where('products.id', $product->id)
-        ->first();
+            ->join('product_categories', 'products.id', '=', 'product_categories.product_id')
+            ->join('categories as primary_categories', 'product_categories.category_id', '=', 'primary_categories.id')
+            ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+            ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
+            ->where('products.id', $product->id)
+            ->first();
     }
 
     public function updateItem($id, $data)
@@ -114,8 +154,13 @@ class ProductsRepository
         if (isset($data['description'])) {
             $product->description = $data['description'];
         }
-        if (isset($data['category_id'])) {
-            $product->category_id = $data['category_id'];
+        // Обновляем категории
+        if (isset($data['categories']) && !empty($data['categories'])) {
+            // Если переданы множественные категории
+            $product->categories()->sync($data['categories']);
+        } elseif (isset($data['category_id'])) {
+            // Если передана одна категория (обратная совместимость)
+            $product->categories()->sync([$data['category_id']]);
         }
         if (isset($data['unit_id'])) {
             $product->unit_id = $data['unit_id'];
@@ -143,15 +188,20 @@ class ProductsRepository
         // Возвращаем товар с полными данными через JOIN (как в других методах)
         return Product::select([
             'products.*',
-            'categories.name as category_name',
-            'units.name as unit_name', 'units.short_name as unit_short_name', 'units.calc_area as unit_calc_area',
-            'product_prices.retail_price', 'product_prices.wholesale_price', 'product_prices.purchase_price'
+            'primary_categories.name as category_name', // Основная категория
+            'units.name as unit_name',
+            'units.short_name as unit_short_name',
+            'units.calc_area as unit_calc_area',
+            'product_prices.retail_price',
+            'product_prices.wholesale_price',
+            'product_prices.purchase_price'
         ])
-        ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
-        ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-        ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
-        ->where('products.id', $product->id)
-        ->first();
+            ->join('product_categories', 'products.id', '=', 'product_categories.product_id')
+            ->join('categories as primary_categories', 'product_categories.category_id', '=', 'primary_categories.id')
+            ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+            ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
+            ->where('products.id', $product->id)
+            ->first();
     }
 
     public function deleteItem($id)

@@ -109,6 +109,12 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:products_update')->post('products/{id}', [ProductController::class, 'update']);
     Route::middleware('permission:products_delete')->delete('products/{id}', [ProductController::class, 'destroy']);
 
+    // Маршруты для работы с категориями продуктов
+    Route::middleware('permission:products_view')->get('products/{id}/categories', [ProductController::class, 'getProductCategories']);
+    Route::middleware('permission:products_update')->post('products/{id}/categories', [ProductController::class, 'addCategory']);
+    Route::middleware('permission:products_update')->delete('products/{id}/categories', [ProductController::class, 'removeCategory']);
+    Route::middleware('permission:products_update')->post('products/{id}/categories/primary', [ProductController::class, 'setPrimaryCategory']);
+
     // clients
     Route::middleware('permission:clients_view')->get('clients', [ClientController::class, 'index']);
     Route::middleware('permission:clients_view')->get('clients/search', [ClientController::class, 'search']);

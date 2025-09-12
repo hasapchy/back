@@ -78,6 +78,18 @@ class ProductController extends Controller
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
 
+        // Обрабатываем categories - если пришла строка, преобразуем в массив
+        if ($request->has('categories')) {
+            $categories = $request->input('categories');
+            if (is_string($categories)) {
+                // Если это строка с разделителями, разбиваем на массив
+                $categories = explode(',', $categories);
+                $categories = array_map('trim', $categories); // Убираем пробелы
+                $categories = array_filter($categories); // Убираем пустые элементы
+                $request->merge(['categories' => $categories]);
+            }
+        }
+
         $data = $request->validate([
             'type' => 'required',
             'image' => 'nullable|sometimes|file|mimes:jpeg,png,jpg,gif|max:2048',
@@ -85,12 +97,19 @@ class ProductController extends Controller
             'description' => 'nullable|sometimes|string|max:255',
             'sku' => 'required|string|unique:products,sku',
             'barcode' => 'nullable|string',
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => 'nullable|exists:categories,id', // Для обратной совместимости
+            'categories' => 'nullable|array', // Множественные категории
+            'categories.*' => 'exists:categories,id',
             'unit_id' => 'nullable|sometimes|exists:units,id',
             'retail_price' => 'nullable|numeric|min:0',
             'wholesale_price' => 'nullable|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
         ]);
+
+        // Валидация: должна быть хотя бы одна категория
+        if (empty($data['category_id']) && empty($data['categories'])) {
+            return response()->json(['message' => 'Необходимо указать хотя бы одну категорию'], 422);
+        }
 
         if ($request->hasFile('image')) {
             $data['image'] = $request->file('image')->store('products', 'public');
@@ -117,6 +136,17 @@ class ProductController extends Controller
             return response()->json(['message' => 'Product not found'], 404);
         }
 
+        // Обрабатываем categories - если пришла строка, преобразуем в массив
+        if ($request->has('categories')) {
+            $categories = $request->input('categories');
+            if (is_string($categories)) {
+                // Если это строка с разделителями, разбиваем на массив
+                $categories = explode(',', $categories);
+                $categories = array_map('trim', $categories); // Убираем пробелы
+                $categories = array_filter($categories); // Убираем пустые элементы
+                $request->merge(['categories' => $categories]);
+            }
+        }
 
         $data = $request->validate([
             'type' => 'nullable|integer',
@@ -124,6 +154,8 @@ class ProductController extends Controller
             'name' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
+            'categories' => 'nullable|array', // Множественные категории
+            'categories.*' => 'exists:categories,id',
             'unit_id' => 'nullable|exists:units,id',
             'retail_price' => 'nullable|numeric|min:0',
             'wholesale_price' => 'nullable|numeric|min:0',
