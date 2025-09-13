@@ -26,11 +26,14 @@ class ProjectsController extends Controller
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
 
-        $page = $request->input('page', 1);
-        $statusId = $request->input('status_id');
+        $page = (int) $request->input('page', 1);
+        $statusId = $request->input('status_id') ? (int) $request->input('status_id') : null;
+        $dateFilter = $request->input('date_filter', 'all_time');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
 
         // Получаем с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page, null, 'all_time', null, null, $statusId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page, null, $dateFilter, $startDate, $endDate, $statusId);
 
         return response()->json([
             'items' => $items->items(),  // Список
