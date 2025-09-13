@@ -58,7 +58,6 @@ class OrderController extends Controller
             'currency_id' => 'nullable|integer|exists:currencies,id',
             'discount'      => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|in:fixed,percent|required_with:discount',
-            'category_id' => 'nullable|integer|exists:order_categories,id',
             'description' => 'nullable|string',
             'date' => 'nullable|date',
             'note' => 'nullable|string',
@@ -88,7 +87,6 @@ class OrderController extends Controller
             'currency_id' => $request->currency_id,
             'discount' => $request->discount ?? 0,
             'discount_type' => $request->discount_type ?? 'percent',
-            'category_id' => $request->category_id,
             'description' => $request->description,
             'date'         => $request->date ?? now(),
             'note'         => $request->note ?? '',
@@ -144,7 +142,6 @@ class OrderController extends Controller
             'note'                 => 'nullable|string',
             'description'          => 'nullable|string',
             'status_id'            => 'nullable|integer|exists:order_statuses,id',
-            'category_id'          => 'nullable|integer|exists:order_categories,id',
             'products'             => 'nullable|array',
             'products.*.product_id' => 'required_with:products|integer|exists:products,id',
             'products.*.quantity'  => 'required_with:products|numeric|min:0.01',
@@ -173,7 +170,6 @@ class OrderController extends Controller
             'note'         => $request->note ?? '',
             'description'  => $request->description ?? '',
             'status_id'    => $request->status_id,
-            'category_id'  => $request->category_id,
             'date'         => $request->date ?? now(),
             'products'     => array_map(fn($p) => [
                 'product_id' => $p['product_id'],
@@ -291,38 +287,4 @@ class OrderController extends Controller
         return response()->json(['item' => $item]);
     }
 
-    public function getAdditionalFields($categoryId)
-    {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
-
-        $fields = $this->orderAfRepository->getFieldsByCategory($categoryId, $userUuid);
-
-        return response()->json([
-            'category_id' => $categoryId,
-            'fields' => $fields
-        ]);
-    }
-
-    public function getAdditionalFieldsByCategories(Request $request)
-    {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
-
-        $request->validate([
-            'category_ids' => 'required|array|min:1',
-            'category_ids.*' => 'integer|exists:order_categories,id',
-        ]);
-
-        $fields = $this->orderAfRepository->getFieldsByCategories($request->category_ids, $userUuid);
-
-        return response()->json([
-            'category_ids' => $request->category_ids,
-            'fields' => $fields
-        ]);
-    }
 }

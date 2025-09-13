@@ -10,15 +10,27 @@ class AdminSeeder extends Seeder
 {
     public function run()
     {
-        $admin = User::updateOrCreate(
-            ['email' => 'admin@example.com'],
-            [
+        // Проверяем, существует ли уже пользователь с таким email
+        $existingAdmin = User::where('email', 'admin@example.com')->first();
+
+        if ($existingAdmin) {
+            // Если пользователь уже существует, обновляем только необходимые поля, но не имя
+            $existingAdmin->update([
+                'password' => bcrypt('12345678'),
+                'is_active' => true,
+                'is_admin' => true,
+            ]);
+            $admin = $existingAdmin;
+        } else {
+            // Если пользователя нет, создаем нового
+            $admin = User::create([
+                'email' => 'admin@example.com',
                 'name' => 'Admin',
                 'password' => bcrypt('12345678'),
                 'is_active' => true,
                 'is_admin' => true,
-            ]
-        );
+            ]);
+        }
 
         // Получаем все права с guard 'api'
         $allPermissions = Permission::where('guard_name', 'api')->get();
