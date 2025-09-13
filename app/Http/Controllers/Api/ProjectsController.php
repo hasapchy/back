@@ -349,6 +349,14 @@ class ProjectsController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
+        // Проверяем, существует ли проект и имеет ли пользователь к нему доступ
+        $project = $this->itemsRepository->findItemWithRelations($id, $userUuid);
+        if (!$project) {
+            return response()->json([
+                'message' => 'Проект не найден или доступ запрещен'
+            ], 404);
+        }
+
         $deleted = $this->itemsRepository->deleteItem($id);
 
         if (!$deleted) {

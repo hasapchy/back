@@ -47,7 +47,6 @@ class OrdersRepository
                 'order_statuses.name as status_name',
                 'order_status_categories.name as status_category_name',
                 'order_status_categories.color as status_category_color',
-                'order_categories.name as category_name',
                 'warehouses.name as warehouse_name',
                 'cash_registers.name as cash_name',
                 'currencies.name as currency_name',
@@ -59,7 +58,6 @@ class OrdersRepository
                 ->leftJoin('users', 'orders.user_id', '=', 'users.id')
                 ->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id')
                 ->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id')
-                ->leftJoin('order_categories', 'orders.category_id', '=', 'order_categories.id')
                 ->leftJoin('warehouses', 'orders.warehouse_id', '=', 'warehouses.id')
                 ->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id')
                 ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
@@ -218,7 +216,6 @@ class OrdersRepository
                 'orders.note',
                 'orders.description',
                 'orders.status_id',
-                'orders.category_id',
                 'orders.client_id',
                 'orders.user_id',
                 'orders.cash_id',
@@ -252,7 +249,6 @@ class OrdersRepository
         $query->leftJoin('users', 'orders.user_id', '=', 'users.id');
         $query->leftJoin('currencies as cash_currency', 'cash_registers.currency_id', '=', 'cash_currency.id');
         $query->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id');
-        $query->leftJoin('order_categories', 'orders.category_id', '=', 'order_categories.id');
         $query->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id');
 
         $query->whereIn('orders.id', $order_ids);
@@ -266,8 +262,6 @@ class OrdersRepository
             'order_statuses.category_id as status_category_id',
             'order_status_categories.name as status_category_name',
             'order_status_categories.color as status_category_color',
-            'orders.category_id',
-            'order_categories.name as category_name',
             'orders.client_id',
             'orders.user_id',
             'orders.cash_id',
@@ -396,7 +390,6 @@ class OrdersRepository
         $cash_id = $data['cash_id'];
         $project_id = $data['project_id'];
         $status_id = $data['status_id'] ?? 1;
-        $category_id = $data['category_id'];
         $products = $data['products'] ?? [];
         $temp_products = $data['temp_products'] ?? [];
         $currency_id = $data['currency_id'];
@@ -473,7 +466,6 @@ class OrdersRepository
             $order->warehouse_id = $warehouse_id;
             $order->cash_id = $cash_id;
             $order->status_id = $status_id;
-            $order->category_id = $category_id;
             $order->price = $price;
             $order->discount = $discount_calculated;
             $order->total_price = $total_price;
@@ -570,7 +562,6 @@ class OrdersRepository
             $cash_id = $data['cash_id'];
             $project_id = $data['project_id'];
             $status_id = $data['status_id'] ?? $order->status_id;
-            $category_id = $data['category_id'] ?? null; // Добавляем обработку category_id
             $products = $data['products'] ?? [];
             $temp_products = $data['temp_products'] ?? [];
             $currency_id = $data['currency_id'] ?? $order->currency_id;
@@ -646,7 +637,6 @@ class OrdersRepository
                 'warehouse_id' => $warehouse_id,
                 'cash_id' => $cash_id,
                 'status_id' => $status_id,
-                'category_id' => $category_id,
                 'currency_id' => $currency_id,
                 'price' => $price,
                 'discount' => $discount_calculated,

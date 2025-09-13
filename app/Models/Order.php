@@ -17,7 +17,6 @@ class Order extends Model
         'client_id',
         'user_id',
         'status_id',
-        'category_id',
         'description',
         'note',
         'date',
@@ -36,7 +35,6 @@ class Order extends Model
         'client_id',
         'user_id',
         'status_id',
-        'category_id',
         'description',
         'note',
         'date',
@@ -95,10 +93,6 @@ class Order extends Model
         return $this->belongsTo(OrderStatus::class, 'status_id');
     }
 
-    public function category()
-    {
-        return $this->belongsTo(OrderCategory::class, 'category_id');
-    }
 
     public function transaction()
     {
@@ -157,14 +151,6 @@ class Order extends Model
             });
     }
 
-    public function getAdditionalFieldsByCategory()
-    {
-        $categoryId = $this->category_id;
-
-        return OrderAf::whereHas('categories', function ($query) use ($categoryId) {
-            $query->where('order_category_id', $categoryId);
-        })->get();
-    }
 
     public function activities()
     {
