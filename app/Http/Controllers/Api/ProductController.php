@@ -110,6 +110,8 @@ class ProductController extends Controller
             'retail_price' => 'nullable|numeric|min:0',
             'wholesale_price' => 'nullable|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
+            'date' => 'nullable|date',
+            'user_id' => 'nullable|exists:users,id',
         ]);
 
         // Валидация: должна быть хотя бы одна категория
@@ -166,6 +168,8 @@ class ProductController extends Controller
             'retail_price' => 'nullable|numeric|min:0',
             'wholesale_price' => 'nullable|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
+            'date' => 'nullable|date',
+            'user_id' => 'nullable|exists:users,id',
         ]);
 
         $data = array_filter($data, function ($value) {

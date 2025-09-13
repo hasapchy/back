@@ -28,11 +28,14 @@ class Product extends Model
         'barcode',
         'is_serialized',
         'type',
+        'date',
+        'user_id',
     ];
 
     protected $casts = [
         'is_serialized' => 'boolean',
         'type' => 'boolean',
+        'date' => 'datetime',
     ];
 
 
@@ -86,5 +89,10 @@ class Product extends Model
     public function salesProducts()
     {
         return $this->hasMany(SalesProduct::class, 'product_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }
