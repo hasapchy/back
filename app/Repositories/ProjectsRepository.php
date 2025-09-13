@@ -11,15 +11,15 @@ use Illuminate\Support\Facades\DB;
 class ProjectsRepository
 {
     // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null)
     {
         // Создаем уникальный ключ кэша
-        $cacheKey = "projects_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}";
+        $cacheKey = "projects_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusId}";
 
         // Для списка без фильтров используем более длительное кэширование
-        $ttl = (!$search && $dateFilter === 'all_time') ? 1800 : 600; // 30 мин для списка, 10 мин для фильтров
+        $ttl = (!$search && $dateFilter === 'all_time' && !$statusId) ? 1800 : 600; // 30 мин для списка, 10 мин для фильтров
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId) {
             // Оптимизированный запрос с селективным выбором полей и JOIN для клиентов
             $query = Project::select([
                 'projects.id',
@@ -30,6 +30,7 @@ class ProjectsRepository
                 'projects.date',
                 'projects.user_id',
                 'projects.client_id',
+                'projects.status_id',
                 'projects.files',
                 'projects.created_at',
                 'projects.updated_at',
@@ -46,6 +47,7 @@ class ProjectsRepository
                     'client.emails:id,client_id,email',
                     'client.balance:id,client_id,balance',
                     'currency:id,name,code,symbol',
+                    'status:id,name,color',
                     'creator:id,name',
                     'users:id,name',
                     'projectUsers:id,project_id,user_id'
@@ -65,6 +67,11 @@ class ProjectsRepository
             // Фильтрация по дате
             if ($dateFilter && $dateFilter !== 'all_time') {
                 $this->applyDateFilter($query, $dateFilter, $startDate, $endDate);
+            }
+
+            // Фильтрация по статусу
+            if ($statusId) {
+                $query->where('projects.status_id', $statusId);
             }
 
             // Фильтр по пользователю
@@ -190,6 +197,7 @@ class ProjectsRepository
             $item->client_id = $data['client_id'];
             $item->description = $data['description'] ?? null;
             $item->files = $data['files'] ?? [];
+            $item->status_id = $data['status_id'] ?? 1; // Статус "Новый" по умолчанию
             $item->save();
 
             // Создаем связи с пользователями
@@ -235,6 +243,7 @@ class ProjectsRepository
             $item->user_id = $data['user_id'];
             $item->client_id = $data['client_id'];
             $item->description = $data['description'] ?? null;
+            $item->status_id = $data['status_id'] ?? $item->status_id;
 
             $item->save();
 
@@ -521,5 +530,41 @@ class ProjectsRepository
         // Очищаем кэш с отношениями для всех пользователей
         \Illuminate\Support\Facades\Cache::forget("project_item_relations_{$projectId}_null");
         // Можно добавить очистку для конкретных пользователей, если нужно
+    }
+
+    /**
+     * Обновление статуса для нескольких проектов
+     */
+    public function updateStatusByIds(array $ids, int $statusId, string $userId): int
+    {
+        $targetStatus = \App\Models\ProjectStatus::findOrFail($statusId);
+        $updatedCount = 0;
+
+        foreach ($ids as $id) {
+            $project = Project::find($id);
+
+            if (!$project) {
+                throw new \Exception("Проект ID {$id} не найден");
+            }
+
+            // Проверяем доступ пользователя к проекту
+            if (!$project->hasUser($userId)) {
+                throw new \Exception("Нет доступа к проекту ID {$id}");
+            }
+
+            // Обновляем статус только если он изменился
+            if ($project->status_id != $statusId) {
+                $project->status_id = $statusId;
+                $project->save();
+                $updatedCount++;
+            }
+        }
+
+        // Инвалидируем кэш проектов если были изменения
+        if ($updatedCount > 0) {
+            $this->invalidateProjectsCache();
+        }
+
+        return $updatedCount;
     }
 }

@@ -25,7 +25,7 @@ class ProductsRepository
                 ->toArray();
 
             // Загружаем продукты с категориями через Eloquent
-            $query = Product::with(['categories', 'unit', 'prices'])
+            $query = Product::with(['categories', 'unit', 'prices', 'creator'])
                 ->whereIn('id', $userProductIds)
                 ->where('type', $type);
 
@@ -62,7 +62,7 @@ class ProductsRepository
                 ->toArray();
 
             // Загружаем продукты с категориями через Eloquent
-            $query = Product::with(['categories', 'unit', 'prices'])
+            $query = Product::with(['categories', 'unit', 'prices', 'creator'])
                 ->whereIn('id', $userProductIds)
                 ->where(function ($query) use ($search) {
                     $query->where('name', 'like', '%' . $search . '%')
@@ -98,6 +98,8 @@ class ProductsRepository
         $product->sku = $data['sku'];
         $product->barcode = $data['barcode'];
         $product->unit_id = $data['unit_id'];
+        $product->date = $data['date'] ?? now();
+        $product->user_id = $data['user_id'] ?? auth()->id();
         $product->save();
 
         // Создаем связи с категориями

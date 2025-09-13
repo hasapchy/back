@@ -21,6 +21,8 @@ return new class extends Migration
             $table->string('barcode')->unique()->nullable();
             $table->boolean('is_serialized')->default(false);
             $table->foreignId('unit_id')->default(null)->nullable()->constrained('units')->nullOnDelete();
+            $table->datetime('date')->nullable(); // Дата товара
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamps();
         });
     }
