@@ -22,8 +22,11 @@ class WarehouseController extends Controller
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
+
+        $page = $request->input('page', 1);
+
         // Получаем склад с пагинацией
-        $warehouses = $this->warehouseRepository->getWarehousesWithPagination($userUuid, 20);
+        $warehouses = $this->warehouseRepository->getWarehousesWithPagination($userUuid, 20, $page);
 
         return response()->json([
             'items' => $warehouses->items(),  // Список складов

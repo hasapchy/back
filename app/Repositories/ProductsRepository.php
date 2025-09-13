@@ -11,11 +11,11 @@ use Illuminate\Support\Facades\DB;
 class ProductsRepository
 {
     // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1)
     {
         $cacheKey = "products_{$userUuid}_{$perPage}_{$type}";
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page) {
             // Получаем ID продуктов пользователя через категории
             $userProductIds = DB::table('product_categories')
                 ->join('category_users', 'product_categories.category_id', '=', 'category_users.category_id')
@@ -29,7 +29,7 @@ class ProductsRepository
                 ->whereIn('id', $userProductIds)
                 ->where('type', $type);
 
-            $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage);
+            $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
 
             // Добавляем дополнительные поля для обратной совместимости
             $products->getCollection()->each(function ($product) {
@@ -44,7 +44,7 @@ class ProductsRepository
             });
 
             return $products;
-        });
+        }, $page);
     }
 
     // Поиск

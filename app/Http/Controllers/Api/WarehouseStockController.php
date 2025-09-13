@@ -23,6 +23,8 @@ class WarehouseStockController extends Controller
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
+
+        $page = $request->input('page', 1);
         $warehouse_id = $request->query('warehouse_id');
         // category_id больше не поддерживается, так как столбец был удален из products
 
@@ -30,7 +32,7 @@ class WarehouseStockController extends Controller
         $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20, $warehouse_id, null);
 
         return response()->json([
-            'items' => $warehouses->items(),  // Список 
+            'items' => $warehouses->items(),  // Список
             'current_page' => $warehouses->currentPage(),  // Текущая страница
             'next_page' => $warehouses->nextPageUrl(),  // Следующая страница
             'last_page' => $warehouses->lastPage(),  // Общее количество страниц

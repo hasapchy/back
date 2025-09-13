@@ -9,11 +9,11 @@ use App\Services\CacheService;
 class WarehouseRepository
 {
     // Получение складов с пагинацией
-    public function getWarehousesWithPagination($userUuid, $perPage = 20)
+    public function getWarehousesWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         $cacheKey = "warehouses_paginated_{$userUuid}_{$perPage}";
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
             // Получаем ID складов, к которым у пользователя есть доступ
             $warehouseIds = WhUser::where('user_id', $userUuid)
                 ->pluck('warehouse_id')
@@ -27,8 +27,8 @@ class WarehouseRepository
             return Warehouse::whereIn('id', $warehouseIds)
                 ->with(['users:id,name,email'])
                 ->orderBy('created_at', 'desc')
-                ->paginate($perPage);
-        });
+                ->paginate($perPage, ['*'], 'page', $page);
+        }, $page);
     }
 
     // Получение списка всех складов

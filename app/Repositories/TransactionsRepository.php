@@ -17,13 +17,13 @@ use Illuminate\Support\Facades\Log;
 
 class TransactionsRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null)
     {
         try {
             // Создаем уникальный ключ кэша
             $cacheKey = "transactions_paginated_{$userUuid}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$search}_{$transaction_type}_" . json_encode($source);
 
-            return CacheService::remember($cacheKey, function () use ($userUuid, $perPage, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source) {
+            return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source) {
                 // Используем with() для загрузки связей вместо сложных JOIN'ов
                 $query = Transaction::with([
                     'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
@@ -149,7 +149,7 @@ class TransactionsRepository
                     })
                     ->orderBy('transactions.id', 'desc');
 
-                $paginatedResults = $query->paginate($perPage);
+                $paginatedResults = $query->paginate($perPage, ['*'], 'page', $page);
 
                 // Принудительно загружаем связи для всех элементов пагинации
                 $paginatedResults->getCollection()->load([
@@ -223,7 +223,7 @@ class TransactionsRepository
                 });
 
                 return $paginatedResults;
-            });
+            }, $page);
         } catch (\Exception $e) {
             Log::error('TransactionsRepository: Ошибка в getItemsWithPagination', [
                 'error' => $e->getMessage(),

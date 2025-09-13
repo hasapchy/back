@@ -10,11 +10,11 @@ use Illuminate\Support\Facades\DB;
 class WarehouseStockRepository
 {
     // Получение стоков с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20, $warehouse_id = null, $category_id = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $warehouse_id = null, $category_id = null, $page = 1)
     {
         $cacheKey = "warehouse_stocks_paginated_{$userUuid}_{$perPage}_{$warehouse_id}_{$category_id}";
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id, $page) {
             return WarehouseStock::leftJoin('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id')
                 ->leftJoin('products', 'warehouse_stocks.product_id', '=', 'products.id')
                 ->leftJoin('units', 'products.unit_id', '=', 'units.id')
@@ -37,8 +37,8 @@ class WarehouseStockRepository
                     'warehouse_stocks.created_at as created_at'
                 )
                 ->orderBy('warehouse_stocks.created_at', 'desc')
-                ->paginate($perPage);
-        });
+                ->paginate($perPage, ['*'], 'page', $page);
+        }, $page);
     }
 
     // Получение общего количества товаров на складе

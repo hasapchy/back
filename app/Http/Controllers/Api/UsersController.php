@@ -19,9 +19,10 @@ class UsersController extends Controller
         $this->itemsRepository = $itemsRepository;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json($this->itemsRepository->getItemsWithPagination());
+        $page = $request->input('page', 1);
+        return response()->json($this->itemsRepository->getItemsWithPagination($page));
     }
 
     public function store(Request $request)

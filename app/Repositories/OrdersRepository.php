@@ -22,11 +22,11 @@ use Illuminate\Support\Facades\Log;
 
 class OrdersRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1)
     {
         $cacheKey = "orders_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusFilter}";
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page) {
             // Используем оптимизированный подход с JOIN'ами для основных данных и Eager Loading для товаров
             $query = Order::select([
                 'orders.*',
@@ -106,7 +106,7 @@ class OrdersRepository
                   });
             });
 
-            $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage);
+            $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
 
             // Преобразуем данные для совместимости с фронтендом
             $orders->getCollection()->transform(function ($order) {
@@ -193,7 +193,7 @@ class OrdersRepository
             });
 
             return $orders;
-        });
+        }, $page);
     }
 
     public function getItemById($id)

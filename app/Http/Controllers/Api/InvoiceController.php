@@ -22,13 +22,14 @@ class InvoiceController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
+        $page = $request->input('page', 1);
         $search = $request->input('search');
         $dateFilter = $request->input('date_filter_type', 'all_time');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
         $typeFilter = $request->input('type');
 
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search, $dateFilter, $startDate, $endDate, $typeFilter);
+        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search, $dateFilter, $startDate, $endDate, $typeFilter, $page);
 
         return response()->json([
             'items' => $items->items(),

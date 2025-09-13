@@ -25,8 +25,11 @@ class ProjectsController extends Controller
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
+
+        $page = $request->input('page', 1);
+
         // Получаем с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page);
 
         return response()->json([
             'items' => $items->items(),  // Список

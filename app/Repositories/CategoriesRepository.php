@@ -9,14 +9,14 @@ use App\Models\Warehouse;
 class CategoriesRepository
 {
     // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         $items = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
             ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
             ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name')
             ->whereHas('categoryUsers', function($query) use ($userUuid) {
                 $query->where('user_id', $userUuid);
-            })->with('users')->paginate($perPage);
+            })->with('users')->paginate($perPage, ['*'], 'page', $page);
         return $items;
     }
 
