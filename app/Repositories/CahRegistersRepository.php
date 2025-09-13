@@ -146,6 +146,8 @@ class CahRegistersRepository
                     'id'          => $cashRegister->id,
                     'name'        => $cashRegister->name,
                     'currency_id' => $cashRegister->currency_id,
+                    'currency_symbol' => $cashRegister->currency ? $cashRegister->currency->symbol : null,
+                    'currency_code' => $cashRegister->currency ? $cashRegister->currency->code : null,
                     'balance'     => [
                         ['value' => $income,  'title' => 'Приход',  'type' => 'income'],
                         ['value' => $outcome, 'title' => 'Расход',  'type' => 'outcome'],

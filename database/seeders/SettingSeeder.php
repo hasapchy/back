@@ -15,7 +15,7 @@ class SettingSeeder extends Seeder
         );
         Setting::updateOrCreate(
             ['setting_name' => 'company_logo'],
-            ['setting_value' => 'Screenshot 2025-08-07 at 17.58.00.png']
+            ['setting_value' => 'logo.jpg']
         );
     }
 }

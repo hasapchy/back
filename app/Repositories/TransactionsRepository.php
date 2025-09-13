@@ -34,11 +34,10 @@ class TransactionsRepository
                     'cashRegister.currency:id,name,code,symbol',
                     'category:id,name,type',
                     'project:id,name',
-                    'user:id,name'
-                    // Временно убираем проблемные связи для отладки
-                    // 'cashTransfersFrom:id,tr_id_from',
-                    // 'cashTransfersTo:id,tr_id_to',
-                    // 'orderTransactions:id,order_id,transaction_id'
+                    'user:id,name',
+                    'cashTransfersFrom:id,tr_id_from',
+                    'cashTransfersTo:id,tr_id_to',
+                    'orderTransactions:id,order_id,transaction_id'
                 ])
                 ->addSelect([
                     'client_balance' => DB::table('client_balances')
@@ -161,11 +160,10 @@ class TransactionsRepository
                     'cashRegister.currency:id,name,code,symbol',
                     'category:id,name,type',
                     'project:id,name',
-                    'user:id,name'
-                    // Временно убираем проблемные связи для отладки
-                    // 'cashTransfersFrom:id,tr_id_from',
-                    // 'cashTransfersTo:id,tr_id_to',
-                    // 'orderTransactions:id,order_id,transaction_id'
+                    'user:id,name',
+                    'cashTransfersFrom:id,tr_id_from',
+                    'cashTransfersTo:id,tr_id_to',
+                    'orderTransactions:id,order_id,transaction_id'
                 ]);
 
                 // Преобразуем данные в тот же формат, что и в методе getItems
@@ -647,6 +645,11 @@ class TransactionsRepository
 
     private function isTransfer($transaction)
     {
+        // Проверяем сначала загруженные связи, затем делаем запрос если нужно
+        if ($transaction->relationLoaded('cashTransfersFrom') && $transaction->relationLoaded('cashTransfersTo')) {
+            return $transaction->cashTransfersFrom->count() > 0 || $transaction->cashTransfersTo->count() > 0;
+        }
+
         return $transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists();
     }
 
@@ -675,7 +678,7 @@ class TransactionsRepository
     /**
      * Инвалидация кэша транзакций
      */
-    private function invalidateTransactionsCache()
+    public function invalidateTransactionsCache()
     {
         // Очищаем кэш транзакций и проектов
         $keys = [

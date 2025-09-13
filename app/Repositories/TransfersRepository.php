@@ -14,7 +14,7 @@ class TransfersRepository
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
         $items = DB::table('cash_transfers')
-            // присоединяем таблицу касс     
+            // присоединяем таблицу касс
             ->leftJoin('cash_registers as cash_from', 'cash_transfers.cash_id_from', '=', 'cash_from.id')
             ->leftJoin('cash_registers as cash_to', 'cash_transfers.cash_id_to', '=', 'cash_to.id')
             // присоединяем таблицу валют
@@ -158,6 +158,9 @@ class TransfersRepository
 
             // Фиксируем транзакцию
             DB::commit();
+
+            // Очищаем кэш транзакций после создания трансфера
+            $transaction_repository->invalidateTransactionsCache();
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -195,6 +198,10 @@ class TransfersRepository
             app(TransactionsRepository::class)->deleteItem($toTransactionId);
 
             DB::commit();
+
+            // Очищаем кэш транзакций после удаления трансфера
+            app(TransactionsRepository::class)->invalidateTransactionsCache();
+
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
