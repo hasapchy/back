@@ -61,11 +61,17 @@ class CahRegistersRepository
         $transactionType = null,
         $source = null
     ) {
-        $items = CashRegister::with(['currency:id,name,code,symbol'])
-            ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
-                $query->where('user_id', $userUuid);
-            })
-            ->get()
+        $query = CashRegister::with(['currency:id,name,code,symbol'])
+            ->whereHas('cashRegisterUsers', function($q) use ($userUuid) {
+                $q->where('user_id', $userUuid);
+            });
+
+        // Применяем фильтр по конкретным кассам
+        if (!$all && !empty($cash_register_ids)) {
+            $query->whereIn('id', $cash_register_ids);
+        }
+
+        $items = $query->get()
             ->map(function ($cashRegister) use ($userUuid, $startDate, $endDate, $transactionType, $source) {
 
                 // базовый запрос по транзакциям
@@ -146,6 +152,8 @@ class CahRegistersRepository
                     'id'          => $cashRegister->id,
                     'name'        => $cashRegister->name,
                     'currency_id' => $cashRegister->currency_id,
+                    'currency_symbol' => $cashRegister->currency ? $cashRegister->currency->symbol : null,
+                    'currency_code' => $cashRegister->currency ? $cashRegister->currency->code : null,
                     'balance'     => [
                         ['value' => $income,  'title' => 'Приход',  'type' => 'income'],
                         ['value' => $outcome, 'title' => 'Расход',  'type' => 'outcome'],
