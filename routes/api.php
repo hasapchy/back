@@ -141,6 +141,7 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:projects_update')->put('projects/{id}', [ProjectsController::class, 'update']);
     Route::middleware('permission:projects_update')->post('projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);
     Route::middleware('permission:projects_update')->post('projects/{id}/delete-file', [ProjectsController::class, 'deleteFile']);
+    Route::middleware('permission:projects_update')->post('projects/batch-status', [ProjectsController::class, 'batchUpdateStatus']);
     Route::get('projects/{id}/balance-history', [\App\Http\Controllers\Api\ProjectsController::class, 'getBalanceHistory']);
 
     // project statuses

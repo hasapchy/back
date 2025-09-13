@@ -27,18 +27,16 @@ class ProjectsController extends Controller
         }
 
         $page = $request->input('page', 1);
+        $statusId = $request->input('status_id');
 
         // Получаем с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page, null, 'all_time', null, null, $statusId);
 
         return response()->json([
             'items' => $items->items(),  // Список
             'current_page' => $items->currentPage(),  // Текущая страница
             'next_page' => $items->nextPageUrl(),  // Следующая страница
             'last_page' => $items->lastPage(),
-
-
-
             'total' => $items->total()
         ]);
     }
@@ -361,5 +359,38 @@ class ProjectsController extends Controller
         return response()->json([
             'message' => 'Проект удалён'
         ]);
+    }
+
+    public function batchUpdateStatus(Request $request)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $request->validate([
+            'ids'       => 'required|array|min:1',
+            'ids.*'     => 'integer|exists:projects,id',
+            'status_id' => 'required|integer|exists:project_statuses,id',
+        ]);
+
+        try {
+            $affected = $this->itemsRepository
+                ->updateStatusByIds($request->ids, $request->status_id, $userUuid);
+
+            if ($affected > 0) {
+                return response()->json([
+                    'message' => "Статус обновлён у {$affected} проект(ов)"
+                ]);
+            } else {
+                return response()->json([
+                    'message' => "Статус не изменился"
+                ]);
+            }
+        } catch (\Throwable $th) {
+            return response()->json([
+                'message' => $th->getMessage() ?: 'Ошибка смены статуса'
+            ], 400);
+        }
     }
 }
