@@ -22,23 +22,34 @@ class ProjectsRepository
         return CacheService::remember($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate) {
             // Оптимизированный запрос с селективным выбором полей и JOIN для клиентов
             $query = Project::select([
-                'projects.id', 'projects.name', 'projects.budget', 'projects.currency_id', 'projects.exchange_rate', 'projects.date', 'projects.user_id', 'projects.client_id',
-                'projects.files', 'projects.created_at', 'projects.updated_at',
-                'clients.first_name as client_first_name', 'clients.last_name as client_last_name', 'clients.contact_person as client_contact_person',
+                'projects.id',
+                'projects.name',
+                'projects.budget',
+                'projects.currency_id',
+                'projects.exchange_rate',
+                'projects.date',
+                'projects.user_id',
+                'projects.client_id',
+                'projects.files',
+                'projects.created_at',
+                'projects.updated_at',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name',
+                'clients.contact_person as client_contact_person',
                 'users.name as user_name'
             ])
-            ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
-            ->leftJoin('users', 'projects.user_id', '=', 'users.id')
-            ->with([
-                'client:id,first_name,last_name,contact_person',
-                'client.phones:id,client_id,phone',
-                'client.emails:id,client_id,email',
-                'client.balance:id,client_id,balance',
-                'currency:id,name,code,symbol',
-                'creator:id,name',
-                'users:id,name',
-                'projectUsers:id,project_id,user_id'
-            ]);
+                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
+                ->leftJoin('users', 'projects.user_id', '=', 'users.id')
+                ->with([
+                    'client:id,first_name,last_name,contact_person',
+                    'client.phones:id,client_id,phone',
+                    'client.emails:id,client_id,email',
+                    'client.balance:id,client_id,balance',
+                    'currency:id,name,code,symbol',
+                    'creator:id,name',
+                    'users:id,name',
+                    'projectUsers:id,project_id,user_id'
+                ]);
 
             // Применяем фильтры
             if ($search) {
@@ -57,7 +68,7 @@ class ProjectsRepository
             }
 
             // Фильтр по пользователю
-            $query->whereHas('projectUsers', function($query) use ($userUuid) {
+            $query->whereHas('projectUsers', function ($query) use ($userUuid) {
                 $query->where('user_id', $userUuid);
             });
 
@@ -75,11 +86,16 @@ class ProjectsRepository
 
         return CacheService::rememberSearch($cacheKey, function () use ($userUuid, $search, $perPage) {
             return Project::select([
-                'projects.id', 'projects.name', 'projects.budget', 'projects.date', 'projects.created_at',
-                'clients.first_name as client_first_name', 'clients.last_name as client_last_name'
+                'projects.id',
+                'projects.name',
+                'projects.budget',
+                'projects.date',
+                'projects.created_at',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name'
             ])
                 ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
-                ->whereHas('projectUsers', function($query) use ($userUuid) {
+                ->whereHas('projectUsers', function ($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
                 })
                 ->where(function ($q) use ($search) {
@@ -125,27 +141,37 @@ class ProjectsRepository
 
         return CacheService::remember($cacheKey, function () use ($userUuid) {
             return Project::select([
-                'projects.id', 'projects.name', 'projects.budget', 'projects.currency_id', 'projects.exchange_rate', 'projects.date', 'projects.user_id', 'projects.client_id',
-                'projects.files', 'projects.created_at', 'projects.updated_at',
-                'clients.first_name as client_first_name', 'clients.last_name as client_last_name',
+                'projects.id',
+                'projects.name',
+                'projects.budget',
+                'projects.currency_id',
+                'projects.exchange_rate',
+                'projects.date',
+                'projects.user_id',
+                'projects.client_id',
+                'projects.files',
+                'projects.created_at',
+                'projects.updated_at',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name',
                 'users.name as user_name'
             ])
-            ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
-            ->leftJoin('users', 'projects.user_id', '=', 'users.id')
-            ->with([
-                'client:id,first_name,last_name,contact_person',
-                'client.phones:id,client_id,phone',
-                'client.emails:id,client_id,email',
-                'client.balance:id,client_id,balance',
-                'currency:id,name,code,symbol',
-                'creator:id,name',
-                'users:id,name'
-            ])
-            ->whereHas('projectUsers', function($query) use ($userUuid) {
-                $query->where('user_id', $userUuid);
-            })
-            ->orderBy('created_at', 'desc')
-            ->get();
+                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
+                ->leftJoin('users', 'projects.user_id', '=', 'users.id')
+                ->with([
+                    'client:id,first_name,last_name,contact_person',
+                    'client.phones:id,client_id,phone',
+                    'client.emails:id,client_id,email',
+                    'client.balance:id,client_id,balance',
+                    'currency:id,name,code,symbol',
+                    'creator:id,name',
+                    'users:id,name'
+                ])
+                ->whereHas('projectUsers', function ($query) use ($userUuid) {
+                    $query->where('user_id', $userUuid);
+                })
+                ->orderBy('created_at', 'desc')
+                ->get();
         }, 1800); // 30 минут
     }
 
@@ -258,22 +284,31 @@ class ProjectsRepository
 
         return CacheService::remember($cacheKey, function () use ($id, $userUuid) {
             $query = Project::select([
-                'projects.id', 'projects.name', 'projects.budget', 'projects.currency_id', 'projects.exchange_rate', 'projects.date', 'projects.user_id', 'projects.client_id',
-                'projects.files', 'projects.created_at', 'projects.updated_at'
+                'projects.id',
+                'projects.name',
+                'projects.budget',
+                'projects.currency_id',
+                'projects.exchange_rate',
+                'projects.date',
+                'projects.user_id',
+                'projects.client_id',
+                'projects.files',
+                'projects.created_at',
+                'projects.updated_at'
             ])
-            ->with([
-                'client:id,first_name,last_name,contact_person',
-                'client.phones:id,client_id,phone',
-                'client.emails:id,client_id,email',
-                'client.balance:id,client_id,balance',
-                'currency:id,name,code,symbol',
-                'users:id,name',
-                'projectUsers:id,project_id,user_id'
-            ])
-            ->where('id', $id);
+                ->with([
+                    'client:id,first_name,last_name,contact_person',
+                    'client.phones:id,client_id,phone',
+                    'client.emails:id,client_id,email',
+                    'client.balance:id,client_id,balance',
+                    'currency:id,name,code,symbol',
+                    'users:id,name',
+                    'projectUsers:id,project_id,user_id'
+                ])
+                ->where('id', $id);
 
             if ($userUuid) {
-                $query->whereHas('projectUsers', function($query) use ($userUuid) {
+                $query->whereHas('projectUsers', function ($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
                 });
             }
@@ -322,7 +357,10 @@ class ProjectsRepository
             $sales = DB::table('sales')
                 ->where('project_id', $projectId)
                 ->select(
-                    'id', 'created_at', 'total_price as amount', 'cash_id',
+                    'id',
+                    'created_at',
+                    'total_price as amount',
+                    'cash_id',
                     DB::raw("NULL as type"),
                     DB::raw("'sale' as source"),
                     DB::raw("CASE WHEN cash_id IS NOT NULL THEN 'Продажа через кассу' ELSE 'Продажа в баланс(долг)' END as description"),
@@ -332,7 +370,10 @@ class ProjectsRepository
             $receipts = DB::table('wh_receipts')
                 ->where('project_id', $projectId)
                 ->select(
-                    'id', 'created_at', 'amount', 'cash_id',
+                    'id',
+                    'created_at',
+                    'amount',
+                    'cash_id',
                     DB::raw("NULL as type"),
                     DB::raw("'receipt' as source"),
                     DB::raw("CASE WHEN cash_id IS NOT NULL THEN 'Долг за оприходование(в кассу)' ELSE 'Долг за оприходование(в баланс)' END as description"),
@@ -342,7 +383,11 @@ class ProjectsRepository
             $transactions = DB::table('transactions')
                 ->where('project_id', $projectId)
                 ->select(
-                    'id', 'created_at', 'orig_amount as amount', 'cash_id', 'type',
+                    'id',
+                    'created_at',
+                    'orig_amount as amount',
+                    'cash_id',
+                    'type',
                     DB::raw("'transaction' as source"),
                     DB::raw("CASE WHEN type = 1 THEN 'Приход в проект' ELSE 'Расход из проекта' END as description"),
                     DB::raw("NULL as currency_id")
@@ -351,7 +396,10 @@ class ProjectsRepository
             $orders = DB::table('orders')
                 ->where('project_id', $projectId)
                 ->select(
-                    'id', 'created_at', 'total_price as amount', 'cash_id',
+                    'id',
+                    'created_at',
+                    'total_price as amount',
+                    'cash_id',
                     DB::raw("NULL as type"),
                     DB::raw("'order' as source"),
                     DB::raw("'Заказ' as description"),
@@ -361,7 +409,9 @@ class ProjectsRepository
             $projectIncomes = DB::table('project_transactions')
                 ->where('project_id', $projectId)
                 ->select(
-                    'id', 'created_at', 'amount',
+                    'id',
+                    'created_at',
+                    'amount',
                     DB::raw("NULL as cash_id"),
                     DB::raw("NULL as type"),
                     DB::raw("'project_income' as source"),

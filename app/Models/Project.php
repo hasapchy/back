@@ -9,7 +9,7 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'exchange_rate', 'date', 'description'];
+    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'exchange_rate', 'date', 'description', 'status_id'];
 
     protected $casts = [
         'files' => 'array',
@@ -46,6 +46,11 @@ class Project extends Model
         return $this->belongsToMany(User::class, 'project_users', 'project_id', 'user_id');
     }
 
+    public function status()
+    {
+        return $this->belongsTo(ProjectStatus::class, 'status_id');
+    }
+
     public function getUsersAttribute()
     {
         return $this->users()->get();
@@ -74,7 +79,7 @@ class Project extends Model
             ->where('start_date', '<=', now()->toDateString())
             ->where(function ($query) {
                 $query->whereNull('end_date')
-                      ->orWhere('end_date', '>=', now()->toDateString());
+                    ->orWhere('end_date', '>=', now()->toDateString());
             })
             ->orderBy('start_date', 'desc')
             ->first();
@@ -101,7 +106,7 @@ class Project extends Model
             ->where('start_date', '<=', now()->toDateString())
             ->where(function ($query) {
                 $query->whereNull('end_date')
-                      ->orWhere('end_date', '>=', now()->toDateString());
+                    ->orWhere('end_date', '>=', now()->toDateString());
             })
             ->orderBy('start_date', 'desc')
             ->first();

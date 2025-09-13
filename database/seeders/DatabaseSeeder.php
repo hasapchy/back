@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             ProductStatusSeeder::class,
             TransactionCategorySeeder::class,
             OrderStatusSeeder::class,
+            ProjectStatusSeeder::class,
             CashRegisterSeeder::class,
             UnitsSeeder::class,
             WarehouseSeeder::class,

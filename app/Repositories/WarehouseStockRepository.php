@@ -17,15 +17,11 @@ class WarehouseStockRepository
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id) {
             return WarehouseStock::leftJoin('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id')
                 ->leftJoin('products', 'warehouse_stocks.product_id', '=', 'products.id')
-                ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
                 ->leftJoin('units', 'products.unit_id', '=', 'units.id')
                 ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
                 ->where('wh_users.user_id', $userUuid)
                 ->when($warehouse_id, function ($query, $warehouse_id) {
                     return $query->where('warehouse_stocks.warehouse_id', $warehouse_id);
-                })
-                ->when($category_id, function ($query, $category_id) {
-                    return $query->where('products.category_id', $category_id);
                 })
                 ->select(
                     'warehouse_stocks.id as id',
@@ -37,8 +33,6 @@ class WarehouseStockRepository
                     'products.unit_id as unit_id',
                     'units.name as unit_name',
                     'units.short_name as unit_short_name',
-                    'products.category_id as category_id',
-                    'categories.name as category_name',
                     'warehouse_stocks.quantity as quantity',
                     'warehouse_stocks.created_at as created_at'
                 )
@@ -71,23 +65,7 @@ class WarehouseStockRepository
         $cacheKey = "warehouse_stocks_categories_{$userUuid}_{$warehouse_id}";
 
         return CacheService::remember($cacheKey, function () use ($userUuid, $warehouse_id) {
-            $query = WarehouseStock::leftJoin('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id')
-                ->leftJoin('products', 'warehouse_stocks.product_id', '=', 'products.id')
-                ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
-                ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
-                ->where('wh_users.user_id', $userUuid)
-                ->select(
-                    'categories.id as category_id',
-                    'categories.name as category_name',
-                    DB::raw('SUM(warehouse_stocks.quantity) as total_quantity')
-                )
-                ->groupBy('categories.id', 'categories.name');
-
-            if ($warehouse_id) {
-                $query->where('warehouse_stocks.warehouse_id', $warehouse_id);
-            }
-
-            return $query->get();
+            return collect([]);
         });
     }
 

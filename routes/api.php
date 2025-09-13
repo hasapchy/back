@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\ProjectTransactionsController;
+use App\Http\Controllers\Api\ProjectStatusController;
 
 Route::post('user/login', [AuthController::class, 'login']);
 Route::post('user/refresh', [AuthController::class, 'refresh']);
@@ -141,6 +142,13 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:projects_update')->post('projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);
     Route::middleware('permission:projects_update')->post('projects/{id}/delete-file', [ProjectsController::class, 'deleteFile']);
     Route::get('projects/{id}/balance-history', [\App\Http\Controllers\Api\ProjectsController::class, 'getBalanceHistory']);
+
+    // project statuses
+    Route::middleware('permission:projects_view')->get('project-statuses', [ProjectStatusController::class, 'index']);
+    Route::middleware('permission:projects_view')->get('project-statuses/all', [ProjectStatusController::class, 'all']);
+    Route::middleware('permission:projects_create')->post('project-statuses', [ProjectStatusController::class, 'store']);
+    Route::middleware('permission:projects_update')->put('project-statuses/{id}', [ProjectStatusController::class, 'update']);
+    Route::middleware('permission:projects_delete')->delete('project-statuses/{id}', [ProjectStatusController::class, 'destroy']);
 
     // transactions
     Route::middleware('permission:transactions_view')->get('transactions', [TransactionsController::class, 'index']);
