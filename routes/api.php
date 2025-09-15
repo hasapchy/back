@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\WarehouseWriteoffController;
 use App\Http\Controllers\Api\OrderStatusController;
 use App\Http\Controllers\Api\OrderStatusCategoryController;
 use App\Http\Controllers\Api\OrderCategoryController;
+use App\Http\Controllers\Api\TransactionCategoryController;
 use App\Http\Controllers\Api\OrderTransactionController;
 use App\Http\Controllers\Api\OrderAfController;
 use App\Http\Controllers\Api\SettingsController;
@@ -145,6 +146,14 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:projects_delete')->delete('projects/{id}', [ProjectsController::class, 'destroy']);
     Route::get('projects/{id}/balance-history', [\App\Http\Controllers\Api\ProjectsController::class, 'getBalanceHistory']);
 
+    // project contracts
+    Route::middleware('permission:projects_view')->get('projects/{projectId}/contracts', [\App\Http\Controllers\ProjectContractsController::class, 'index']);
+    Route::middleware('permission:projects_view')->get('projects/{projectId}/contracts/all', [\App\Http\Controllers\ProjectContractsController::class, 'getAll']);
+    Route::middleware('permission:projects_create')->post('projects/{projectId}/contracts', [\App\Http\Controllers\ProjectContractsController::class, 'store']);
+    Route::middleware('permission:projects_view')->get('contracts/{id}', [\App\Http\Controllers\ProjectContractsController::class, 'show']);
+    Route::middleware('permission:projects_update')->put('contracts/{id}', [\App\Http\Controllers\ProjectContractsController::class, 'update']);
+    Route::middleware('permission:projects_delete')->delete('contracts/{id}', [\App\Http\Controllers\ProjectContractsController::class, 'destroy']);
+
     // project statuses
     Route::middleware('permission:projects_view')->get('project-statuses', [ProjectStatusController::class, 'index']);
     Route::middleware('permission:projects_view')->get('project-statuses/all', [ProjectStatusController::class, 'all']);
@@ -208,6 +217,13 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:order_categories_create')->post('order_categories', [OrderCategoryController::class, 'store']);
     Route::middleware('permission:order_categories_update')->put('order_categories/{id}', [OrderCategoryController::class, 'update']);
     Route::middleware('permission:order_categories_delete')->delete('order_categories/{id}', [OrderCategoryController::class, 'destroy']);
+
+    // transaction_categories
+    Route::middleware('permission:transaction_categories_view')->get('transaction_categories', [TransactionCategoryController::class, 'index']);
+    Route::middleware('permission:transaction_categories_view')->get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
+    Route::middleware('permission:transaction_categories_create')->post('transaction_categories', [TransactionCategoryController::class, 'store']);
+    Route::middleware('permission:transaction_categories_update')->put('transaction_categories/{id}', [TransactionCategoryController::class, 'update']);
+    Route::middleware('permission:transaction_categories_delete')->delete('transaction_categories/{id}', [TransactionCategoryController::class, 'destroy']);
 
     // order additional fields
     Route::middleware('permission:orders_view')->get('order-af', [OrderAfController::class, 'index']);

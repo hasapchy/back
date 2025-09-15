@@ -30,13 +30,12 @@ class ProjectsController extends Controller
         $page = (int) $request->input('page', 1);
         $statusId = $request->input('status_id') ? (int) $request->input('status_id') : null;
         $clientId = $request->input('client_id') ? (int) $request->input('client_id') : null;
-        $contractType = $request->input('contract_type') !== null ? (int) $request->input('contract_type') : null;
         $dateFilter = $request->input('date_filter', 'all_time');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
         // Получаем с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page, null, $dateFilter, $startDate, $endDate, $statusId, $clientId, $contractType);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page, null, $dateFilter, $startDate, $endDate, $statusId, $clientId, null);
 
         return response()->json([
             'items' => $items->items(),  // Список
@@ -73,9 +72,6 @@ class ProjectsController extends Controller
             'users' => 'required|array',
             'users.*' => 'exists:users,id',
             'description' => 'nullable|string',
-            'contract_type' => 'nullable|boolean',
-            'contract_number' => 'nullable|string|max:255',
-            'contract_returned' => 'nullable|boolean'
         ];
 
         // Добавляем валидацию для полей бюджета только если они переданы
@@ -94,9 +90,6 @@ class ProjectsController extends Controller
             'client_id' => $request->client_id,
             'users' => $request->users,
             'description' => $request->description,
-            'payment_type' => $request->contract_type ?? false,
-            'contract_number' => $request->contract_number,
-            'contract_returned' => $request->contract_returned ?? false
         ];
 
         // Добавляем поля бюджета только если они переданы
@@ -140,9 +133,6 @@ class ProjectsController extends Controller
             'users' => 'required|array',
             'users.*' => 'exists:users,id',
             'description' => 'nullable|string',
-            'contract_type' => 'nullable|boolean',
-            'contract_number' => 'nullable|string|max:255',
-            'contract_returned' => 'nullable|boolean'
         ];
 
         // Добавляем валидацию для полей бюджета только если они переданы
@@ -161,9 +151,6 @@ class ProjectsController extends Controller
             'client_id' => $request->client_id,
             'users' => $request->users,
             'description' => $request->description,
-            'payment_type' => $request->contract_type ?? false,
-            'contract_number' => $request->contract_number,
-            'contract_returned' => $request->contract_returned ?? false
         ];
 
         // Добавляем поля бюджета только если они переданы

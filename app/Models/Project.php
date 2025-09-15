@@ -9,13 +9,11 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'exchange_rate', 'date', 'description', 'status_id', 'company_id', 'payment_type', 'contract_number', 'contract_returned'];
+    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'exchange_rate', 'date', 'description', 'status_id', 'company_id'];
 
     protected $casts = [
         'files' => 'array',
-        'date' => 'datetime',
-        'payment_type' => 'boolean',
-        'contract_returned' => 'boolean'
+        'date' => 'datetime'
     ];
 
     public function client()
@@ -119,5 +117,10 @@ class Project extends Model
     public function company()
     {
         return $this->belongsTo(Company::class, 'company_id');
+    }
+
+    public function contracts()
+    {
+        return $this->hasMany(ProjectContract::class);
     }
 }
