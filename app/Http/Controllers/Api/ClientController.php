@@ -112,6 +112,20 @@ class ClientController extends Controller
         }
     }
 
+    public function all()
+    {
+        try {
+            // Получаем всех клиентов без пагинации (большой per_page)
+            $items = $this->itemsRepository->getItemsPaginated(1000, null, false, 1);
+            return response()->json($items->items());
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Ошибка при получении всех клиентов',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function store(Request $request)
     {
         $validatedData = $request->validate([

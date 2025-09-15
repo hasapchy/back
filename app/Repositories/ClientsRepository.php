@@ -500,5 +500,4 @@ class ClientsRepository
         CacheService::invalidateByTag("client_balance_history_{$clientId}");
     }
 
-
 }

@@ -24,6 +24,10 @@ class TransactionCategorySeeder extends Seeder
         TransactionCategory::updateOrCreate(['name' => 'Оплата коммунальных расходов'], ['type' => 0]);
         TransactionCategory::updateOrCreate(['name' => 'Оплата рекламы'], ['type' => 0]);
         TransactionCategory::updateOrCreate(['name' => 'Оплата телефона и интернета'], ['type' => 0]);
+
         TransactionCategory::updateOrCreate(['name' => 'Прочий расход денег'], ['type' => 0]);
+        TransactionCategory::updateOrCreate(['name' => 'Питание'], ['type' => 0]);
+        TransactionCategory::updateOrCreate(['name' => 'Транспорт'], ['type' => 0]);
+        TransactionCategory::updateOrCreate(['name' => 'Перемещение'], ['type' => 0]);
     }
 }

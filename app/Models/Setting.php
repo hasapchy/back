@@ -9,5 +9,13 @@ class Setting extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['setting_name', 'setting_value'];
+    protected $fillable = ['setting_name', 'setting_value', 'company_id'];
+
+    /**
+     * Компания, к которой принадлежит настройка
+     */
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 }

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 class TransfersRepository
 {
+
     // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
@@ -52,6 +53,13 @@ class TransfersRepository
 
             )
             ->paginate($perPage);
+
+        // Добавляем информацию о категории "Перемещение" к каждому элементу
+        foreach ($items->items() as $item) {
+            $item->category_id = 17;
+            $item->category_name = 'Перемещение';
+        }
+
         return $items;
     }
 
@@ -82,7 +90,6 @@ class TransfersRepository
         $userUuid = $data['user_id'];
         $note = $data['note'];
         $date_of_transfer = now();
-
         $fromCashRegister = CashRegister::find($cash_from_id);
         $toCashRegister = CashRegister::find($cash_to_id);
 
@@ -118,7 +125,7 @@ class TransfersRepository
                 'orig_amount' => $amount,
                 'currency_id' => $fromCashRegister->currency_id,
                 'cash_id' => $fromCashRegister->id,
-                'category_id' => null,
+                'category_id' => 17,
                 'project_id' => null,
                 'client_id' => null,
                 'note' => $note . ' ' . $transferNote,
@@ -132,7 +139,7 @@ class TransfersRepository
                 'orig_amount' => $amountInTargetCurrency,
                 'currency_id' => $toCashRegister->currency_id,
                 'cash_id' => $toCashRegister->id,
-                'category_id' => null,
+                'category_id' => 17,
                 'project_id' => null,
                 'client_id' => null,
                 'note' => $note . ' ' . $transferNote,

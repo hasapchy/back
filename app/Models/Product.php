@@ -30,6 +30,7 @@ class Product extends Model
         'type',
         'date',
         'user_id',
+        'company_id',
     ];
 
     protected $casts = [
@@ -94,5 +95,10 @@ class Product extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 }

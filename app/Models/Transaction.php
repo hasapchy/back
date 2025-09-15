@@ -26,6 +26,7 @@ class Transaction extends Model
         'project_id',
         'type',
         'user_id',
+        'company_id',
     ];
 
     protected static $logAttributes = [
@@ -272,5 +273,10 @@ class Transaction extends Model
     public function comments()
     {
         return $this->morphMany(\App\Models\Comment::class, 'commentable');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 }

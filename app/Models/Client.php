@@ -14,6 +14,7 @@ class Client extends Model
 
     protected $fillable = [
         'user_id',
+        'company_id',
         'client_type',
         'is_supplier',
         'is_conflict',
@@ -32,6 +33,12 @@ class Client extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    // Связь с компанией
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 
     // Связь с контактами клиента

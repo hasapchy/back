@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             CashRegisterSeeder::class,
             UnitsSeeder::class,
             WarehouseSeeder::class,
+            CompanySeeder::class,
         ]);
     }
 }

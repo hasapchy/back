@@ -10,7 +10,7 @@ class Warehouse extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'company_id'];
 
     public function stocks()
     {
@@ -30,5 +30,10 @@ class Warehouse extends Model
     public function getUsersAttribute()
     {
         return $this->users()->get();
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 }

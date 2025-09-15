@@ -28,7 +28,6 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\CommentController;
-use App\Http\Controllers\Api\ProjectTransactionsController;
 use App\Http\Controllers\Api\ProjectStatusController;
 
 Route::post('user/login', [AuthController::class, 'login']);
@@ -118,6 +117,7 @@ Route::middleware('auth:api')->group(function () {
 
     // clients
     Route::middleware('permission:clients_view')->get('clients', [ClientController::class, 'index']);
+    Route::middleware('permission:clients_view')->get('clients/all', [ClientController::class, 'all']);
     Route::middleware('permission:clients_view')->get('clients/search', [ClientController::class, 'search']);
     Route::middleware('permission:clients_view')->get('clients/{id}', [ClientController::class, 'show']);
     Route::middleware('permission:clients_create')->post('clients', [ClientController::class, 'store']);
@@ -237,14 +237,13 @@ Route::middleware('auth:api')->group(function () {
     // settings
     Route::middleware('permission:system_settings_view')->get('settings', [SettingsController::class, 'index']);
     Route::middleware('permission:system_settings_update')->post('settings', [SettingsController::class, 'update']);
+    Route::get('settings/user-companies', [SettingsController::class, 'getUserCompanies']);
 
-    // project transactions (приходы)
-    Route::middleware('permission:transactions_view')->get('project_transactions', [ProjectTransactionsController::class, 'index']);
-    Route::middleware('permission:transactions_create')->post('project_transactions', [ProjectTransactionsController::class, 'store']);
-    Route::middleware('permission:transactions_update')->put('project_transactions/{id}', [ProjectTransactionsController::class, 'update']);
-    Route::middleware('permission:transactions_delete')->delete('project_transactions/{id}', [ProjectTransactionsController::class, 'destroy']);
-    Route::middleware('permission:transactions_view')->get('project_transactions/{id}', [ProjectTransactionsController::class, 'show']);
-    Route::middleware('permission:transactions_view')->get('project_transactions/total', [ProjectTransactionsController::class, 'getTotalAmount']);
+    // user company
+    Route::get('user/current-company', [App\Http\Controllers\Api\UserCompanyController::class, 'getCurrentCompany']);
+    Route::post('user/set-company', [App\Http\Controllers\Api\UserCompanyController::class, 'setCurrentCompany']);
+    Route::get('user/companies', [App\Http\Controllers\Api\UserCompanyController::class, 'getUserCompanies']);
+
 
     // performance monitoring
     Route::get('performance/metrics', [PerformanceController::class, 'getDatabaseMetrics']);

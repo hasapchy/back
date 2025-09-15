@@ -5,7 +5,6 @@ namespace App\Repositories;
 use App\Models\CashRegister;
 use App\Models\CashRegisterUser;
 use App\Models\Transaction;
-use App\Models\ProjectTransaction;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;

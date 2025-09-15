@@ -9,11 +9,13 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'exchange_rate', 'date', 'description', 'status_id'];
+    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'exchange_rate', 'date', 'description', 'status_id', 'company_id', 'payment_type', 'contract_number', 'contract_returned'];
 
     protected $casts = [
         'files' => 'array',
-        'date' => 'datetime'
+        'date' => 'datetime',
+        'payment_type' => 'boolean',
+        'contract_returned' => 'boolean'
     ];
 
     public function client()
@@ -112,5 +114,10 @@ class Project extends Model
             ->first();
 
         return $rateHistory ? $rateHistory->exchange_rate : 1;
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 }
