@@ -230,6 +230,22 @@ class CacheService
     }
 
     /**
+     * Очистка кэша для конкретного пользователя и типа данных
+     */
+    public static function clearUserCache($userId, $dataType)
+    {
+        $driver = config('cache.default');
+
+        if ($driver === 'database') {
+            // Для базы данных удаляем все записи с ключами, содержащими пользователя и тип данных
+            DB::table('cache')->where('key', 'like', "%{$userId}%{$dataType}%")->delete();
+        } else {
+            // Для других драйверов используем flush (очистка всего кэша)
+            Cache::flush();
+        }
+    }
+
+    /**
      * Получить статистику кэша
      */
     public static function getCacheStats()

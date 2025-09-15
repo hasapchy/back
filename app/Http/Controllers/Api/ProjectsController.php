@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\ProjectsRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -29,13 +30,13 @@ class ProjectsController extends Controller
         $page = (int) $request->input('page', 1);
         $statusId = $request->input('status_id') ? (int) $request->input('status_id') : null;
         $clientId = $request->input('client_id') ? (int) $request->input('client_id') : null;
-        $paymentType = $request->input('payment_type') !== null ? (int) $request->input('payment_type') : null;
+        $contractType = $request->input('contract_type') !== null ? (int) $request->input('contract_type') : null;
         $dateFilter = $request->input('date_filter', 'all_time');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
         // Получаем с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page, null, $dateFilter, $startDate, $endDate, $statusId, $clientId, $paymentType);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page, null, $dateFilter, $startDate, $endDate, $statusId, $clientId, $contractType);
 
         return response()->json([
             'items' => $items->items(),  // Список
@@ -72,7 +73,7 @@ class ProjectsController extends Controller
             'users' => 'required|array',
             'users.*' => 'exists:users,id',
             'description' => 'nullable|string',
-            'payment_type' => 'nullable|boolean',
+            'contract_type' => 'nullable|boolean',
             'contract_number' => 'nullable|string|max:255',
             'contract_returned' => 'nullable|boolean'
         ];
@@ -93,7 +94,7 @@ class ProjectsController extends Controller
             'client_id' => $request->client_id,
             'users' => $request->users,
             'description' => $request->description,
-            'payment_type' => $request->payment_type ?? false,
+            'payment_type' => $request->contract_type ?? false,
             'contract_number' => $request->contract_number,
             'contract_returned' => $request->contract_returned ?? false
         ];
@@ -116,6 +117,10 @@ class ProjectsController extends Controller
                 'message' => 'Ошибка создания проекта'
             ], 400);
         }
+
+        // Очищаем кэш проектов для пользователя
+        CacheService::clearUserCache($userUuid, 'projects');
+
         return response()->json([
             'message' => 'Проект создан'
         ]);
@@ -135,7 +140,7 @@ class ProjectsController extends Controller
             'users' => 'required|array',
             'users.*' => 'exists:users,id',
             'description' => 'nullable|string',
-            'payment_type' => 'nullable|boolean',
+            'contract_type' => 'nullable|boolean',
             'contract_number' => 'nullable|string|max:255',
             'contract_returned' => 'nullable|boolean'
         ];
@@ -156,7 +161,7 @@ class ProjectsController extends Controller
             'client_id' => $request->client_id,
             'users' => $request->users,
             'description' => $request->description,
-            'payment_type' => $request->payment_type ?? false,
+            'payment_type' => $request->contract_type ?? false,
             'contract_number' => $request->contract_number,
             'contract_returned' => $request->contract_returned ?? false
         ];
@@ -179,6 +184,10 @@ class ProjectsController extends Controller
                 'message' => 'Ошибка обновления проекта'
             ], 400);
         }
+
+        // Очищаем кэш проектов для пользователя
+        CacheService::clearUserCache($userUuid, 'projects');
+
         return response()->json([
             'message' => 'Проект обновлен'
         ]);
@@ -378,6 +387,10 @@ class ProjectsController extends Controller
                 'message' => 'Ошибка удаления проекта'
             ], 400);
         }
+
+        // Очищаем кэш проектов для пользователя
+        CacheService::clearUserCache($userUuid, 'projects');
+
         return response()->json([
             'message' => 'Проект удалён'
         ]);
