@@ -211,6 +211,9 @@ class ProjectsRepository
             $item->description = $data['description'] ?? null;
             $item->files = $data['files'] ?? [];
             $item->status_id = $data['status_id'] ?? 1; // Статус "Новый" по умолчанию
+            $item->payment_type = $data['payment_type'] ?? false;
+            $item->contract_number = $data['contract_number'] ?? null;
+            $item->contract_returned = $data['contract_returned'] ?? false;
             $item->save();
 
             // Создаем связи с пользователями
@@ -257,6 +260,9 @@ class ProjectsRepository
             $item->client_id = $data['client_id'];
             $item->description = $data['description'] ?? null;
             $item->status_id = $data['status_id'] ?? $item->status_id;
+            $item->payment_type = $data['payment_type'] ?? $item->payment_type;
+            $item->contract_number = $data['contract_number'] ?? $item->contract_number;
+            $item->contract_returned = $data['contract_returned'] ?? $item->contract_returned;
 
             $item->save();
 
@@ -315,6 +321,9 @@ class ProjectsRepository
                 'projects.user_id',
                 'projects.client_id',
                 'projects.files',
+                'projects.payment_type',
+                'projects.contract_number',
+                'projects.contract_returned',
                 'projects.created_at',
                 'projects.updated_at'
             ])
