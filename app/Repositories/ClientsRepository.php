@@ -97,7 +97,7 @@ class ClientsRepository
             Log::info("Search request: '{$search_request}'");
             Log::info("Search terms: " . json_encode($searchTerms));
             Log::info("Results count: " . $results->count());
-            
+
             if ($results->count() > 0) {
                 foreach ($results as $index => $result) {
                     Log::info("Result #{$index}: ID={$result->id}, first_name='{$result->first_name}', last_name='{$result->last_name}', balance={$result->balance_amount}");
