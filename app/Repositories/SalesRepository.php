@@ -30,21 +30,31 @@ class SalesRepository
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page) {
             // Оптимизированный запрос с селективным выбором полей и JOIN для клиентов
             $query = Sale::select([
-                'sales.id', 'sales.client_id', 'sales.warehouse_id', 'sales.cash_id', 'sales.user_id', 'sales.project_id',
-                'sales.date', 'sales.total_price', 'sales.discount', 'sales.created_at',
-                'clients.first_name as client_first_name', 'clients.last_name as client_last_name', 'clients.contact_person as client_contact_person'
+                'sales.id',
+                'sales.client_id',
+                'sales.warehouse_id',
+                'sales.cash_id',
+                'sales.user_id',
+                'sales.project_id',
+                'sales.date',
+                'sales.total_price',
+                'sales.discount',
+                'sales.created_at',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name',
+                'clients.contact_person as client_contact_person'
             ])
-            ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
-            ->with([
-                'warehouse:id,name',
-                'cashRegister:id,currency_id',
-                'cashRegister.currency:id,name,code,symbol',
-                'user:id,name',
-                'project:id,name',
-                'products:id,sale_id,product_id,quantity,price',
-                'products.product:id,name,image,unit_id',
-                'products.product.unit:id,name,short_name'
-            ]);
+                ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
+                ->with([
+                    'warehouse:id,name',
+                    'cashRegister:id,currency_id',
+                    'cashRegister.currency:id,name,code,symbol',
+                    'user:id,name',
+                    'project:id,name',
+                    'products:id,sale_id,product_id,quantity,price',
+                    'products.product:id,name,image,unit_id',
+                    'products.product.unit:id,name,short_name'
+                ]);
 
             // Применяем фильтры
             if ($search) {
@@ -57,11 +67,11 @@ class SalesRepository
             }
 
             // Фильтрация по доступу к проектам
-            $query->where(function($q) use ($userUuid) {
+            $query->where(function ($q) use ($userUuid) {
                 $q->whereNull('sales.project_id') // Продажи без проекта
-                  ->orWhereHas('project.projectUsers', function($subQuery) use ($userUuid) {
-                      $subQuery->where('user_id', $userUuid);
-                  });
+                    ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
+                        $subQuery->where('user_id', $userUuid);
+                    });
             });
 
             // Получаем результат с пагинацией
@@ -79,8 +89,13 @@ class SalesRepository
 
         return CacheService::rememberSearch($cacheKey, function () use ($userUuid, $search, $perPage) {
             return Sale::select([
-                'sales.id', 'sales.client_id', 'sales.date', 'sales.total_price', 'sales.created_at',
-                'clients.first_name as client_first_name', 'clients.last_name as client_last_name'
+                'sales.id',
+                'sales.client_id',
+                'sales.date',
+                'sales.total_price',
+                'sales.created_at',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name'
             ])
                 ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
                 ->where(function ($q) use ($search) {
@@ -104,11 +119,16 @@ class SalesRepository
 
         return CacheService::remember($cacheKey, function () use ($userUuid, $perPage, $dateFilter) {
             $query = Sale::select([
-                'sales.id', 'sales.client_id', 'sales.date', 'sales.total_price', 'sales.created_at',
-                'clients.first_name as client_first_name', 'clients.last_name as client_last_name'
+                'sales.id',
+                'sales.client_id',
+                'sales.date',
+                'sales.total_price',
+                'sales.created_at',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name'
             ])
-            ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
-            ->with(['warehouse:id,name']); // Минимальная загрузка связей
+                ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
+                ->with(['warehouse:id,name']); // Минимальная загрузка связей
 
             if ($dateFilter && $dateFilter !== 'all_time') {
                 $this->applyDateFilter($query, $dateFilter);
@@ -154,15 +174,19 @@ class SalesRepository
 
         return CacheService::remember($cacheKey, function () use ($clientId, $perPage) {
             return Sale::select([
-                'sales.id', 'sales.date', 'sales.total_price', 'sales.discount', 'sales.created_at',
+                'sales.id',
+                'sales.date',
+                'sales.total_price',
+                'sales.discount',
+                'sales.created_at',
                 'warehouses.name as warehouse_name',
                 'users.name as user_name'
             ])
-            ->leftJoin('warehouses', 'sales.warehouse_id', '=', 'warehouses.id')
-            ->leftJoin('users', 'sales.user_id', '=', 'users.id')
-            ->where('sales.client_id', $clientId)
-            ->orderBy('sales.date', 'desc')
-            ->paginate($perPage);
+                ->leftJoin('warehouses', 'sales.warehouse_id', '=', 'warehouses.id')
+                ->leftJoin('users', 'sales.user_id', '=', 'users.id')
+                ->where('sales.client_id', $clientId)
+                ->orderBy('sales.date', 'desc')
+                ->paginate($perPage);
         }, $ttl);
     }
 
@@ -176,11 +200,16 @@ class SalesRepository
 
         return CacheService::remember($cacheKey, function () use ($warehouseId, $perPage, $dateFilter) {
             $query = Sale::select([
-                'sales.id', 'sales.client_id', 'sales.date', 'sales.total_price', 'sales.created_at',
-                'clients.first_name as client_first_name', 'clients.last_name as client_last_name'
+                'sales.id',
+                'sales.client_id',
+                'sales.date',
+                'sales.total_price',
+                'sales.created_at',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name'
             ])
-            ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
-            ->where('sales.warehouse_id', $warehouseId);
+                ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
+                ->where('sales.warehouse_id', $warehouseId);
 
             if ($dateFilter && $dateFilter !== 'all_time') {
                 $this->applyDateFilter($query, $dateFilter);
@@ -231,10 +260,10 @@ class SalesRepository
                 DB::raw('SUM(total_price) as total_revenue'),
                 DB::raw('AVG(total_price) as avg_sale')
             ])
-            ->whereBetween('date', [$startDate, $endDate])
-            ->groupBy('period')
-            ->orderBy('period')
-            ->get();
+                ->whereBetween('date', [$startDate, $endDate])
+                ->groupBy('period')
+                ->orderBy('period')
+                ->get();
         }, $ttl);
     }
 
@@ -248,15 +277,20 @@ class SalesRepository
 
         return CacheService::remember($cacheKey, function () use ($productId, $perPage) {
             return Sale::select([
-                'sales.id', 'sales.date', 'sales.total_price', 'sales.created_at',
-                'clients.first_name as client_first_name', 'clients.last_name as client_last_name',
-                'sales_products.quantity', 'sales_products.price as unit_price'
+                'sales.id',
+                'sales.date',
+                'sales.total_price',
+                'sales.created_at',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name',
+                'sales_products.quantity',
+                'sales_products.price as unit_price'
             ])
-            ->join('sales_products', 'sales.id', '=', 'sales_products.sale_id')
-            ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
-            ->where('sales_products.product_id', $productId)
-            ->orderBy('sales.date', 'desc')
-            ->paginate($perPage);
+                ->join('sales_products', 'sales.id', '=', 'sales_products.sale_id')
+                ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
+                ->where('sales_products.product_id', $productId)
+                ->orderBy('sales.date', 'desc')
+                ->paginate($perPage);
         }, $ttl);
     }
 
@@ -383,11 +417,11 @@ class SalesRepository
             DB::raw('COUNT(*) as sales_count'),
             DB::raw('SUM(total_price) as total_spent')
         ])
-        ->with('client:id,first_name,last_name')
-        ->groupBy('client_id')
-        ->orderBy('total_spent', 'desc')
-        ->limit(10)
-        ->get();
+            ->with('client:id,first_name,last_name')
+            ->groupBy('client_id')
+            ->orderBy('total_spent', 'desc')
+            ->limit(10)
+            ->get();
     }
 
     /**
@@ -401,11 +435,11 @@ class SalesRepository
             DB::raw('COUNT(*) as sales_count'),
             DB::raw('SUM(total_price) as total_revenue')
         ])
-        ->groupBy('year', 'month')
-        ->orderBy('year', 'desc')
-        ->orderBy('month', 'desc')
-        ->limit(12)
-        ->get();
+            ->groupBy('year', 'month')
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->limit(12)
+            ->get();
     }
 
 

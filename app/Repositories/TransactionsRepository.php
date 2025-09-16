@@ -39,13 +39,13 @@ class TransactionsRepository
                     'cashTransfersTo:id,tr_id_to',
                     'orderTransactions:id,order_id,transaction_id'
                 ])
-                ->addSelect([
-                    'client_balance' => DB::table('client_balances')
-                        ->select('balance')
-                        ->whereColumn('client_id', 'transactions.client_id')
-                        ->limit(1)
-                ])
-                    ->whereHas('cashRegister.cashRegisterUsers', function($q) use ($userUuid) {
+                    ->addSelect([
+                        'client_balance' => DB::table('client_balances')
+                            ->select('balance')
+                            ->whereColumn('client_id', 'transactions.client_id')
+                            ->limit(1)
+                    ])
+                    ->whereHas('cashRegister.cashRegisterUsers', function ($q) use ($userUuid) {
                         $q->where('user_id', $userUuid);
                     })
                     ->when($cash_id, function ($query, $cash_id) {
@@ -80,7 +80,7 @@ class TransactionsRepository
                     ->when($search, function ($query, $search) {
                         return $query->where(function ($q) use ($search) {
                             $q->where('transactions.id', 'like', "%{$search}%")
-                                ->orWhereHas('client', function($clientQuery) use ($search) {
+                                ->orWhereHas('client', function ($clientQuery) use ($search) {
                                     $clientQuery->where('first_name', 'like', "%{$search}%")
                                         ->orWhere('last_name', 'like', "%{$search}%")
                                         ->orWhere('contact_person', 'like', "%{$search}%");
@@ -140,11 +140,11 @@ class TransactionsRepository
                         });
                     })
                     // Фильтрация по доступу к проектам
-                    ->where(function($q) use ($userUuid) {
+                    ->where(function ($q) use ($userUuid) {
                         $q->whereNull('transactions.project_id') // Транзакции без проекта
-                          ->orWhereHas('project.projectUsers', function($subQuery) use ($userUuid) {
-                              $subQuery->where('user_id', $userUuid);
-                          });
+                            ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
+                                $subQuery->where('user_id', $userUuid);
+                            });
                     })
                     ->orderBy('transactions.id', 'desc');
 
@@ -371,9 +371,11 @@ class TransactionsRepository
             if (! $skipClientUpdate && ! empty($data['client_id'])) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $data['client_id']]);
                 if ($data['type'] === 1) {
-                    $clientBalance->balance -= $convertedAmountDefault;
-                } else {
+                    // Доход: клиент нам платит - уменьшаем его долг (увеличиваем баланс)
                     $clientBalance->balance += $convertedAmountDefault;
+                } else {
+                    // Расход: мы клиенту платим - увеличиваем его долг (уменьшаем баланс)
+                    $clientBalance->balance -= $convertedAmountDefault;
                 }
                 $clientBalance->save();
             }
@@ -385,7 +387,6 @@ class TransactionsRepository
             if (!empty($data['client_id'])) {
                 $this->invalidateClientBalanceCache($data['client_id']);
             }
-
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -609,9 +610,11 @@ class TransactionsRepository
                     ['balance' => 0]
                 );
                 if ($transaction->type == 1) {
-                    $clientBalance->balance += $convertedAmountDefault;
-                } else {
+                    // Доход: клиент нам платил - при удалении уменьшаем баланс
                     $clientBalance->balance -= $convertedAmountDefault;
+                } else {
+                    // Расход: мы клиенту платили - при удалении увеличиваем баланс
+                    $clientBalance->balance += $convertedAmountDefault;
                 }
                 $clientBalance->save();
             }
@@ -722,7 +725,7 @@ class TransactionsRepository
                 if ($search) {
                     $query->where(function ($q) use ($search) {
                         $q->where('note', 'like', "%{$search}%")
-                          ->orWhere('amount', 'like', "%{$search}%");
+                            ->orWhere('amount', 'like', "%{$search}%");
                     });
                 }
 
@@ -825,7 +828,20 @@ class TransactionsRepository
             $clients = Client::whereIn('id', $clientIds)
                 ->with(['phones', 'emails'])
                 ->select([
-                    'id', 'first_name', 'last_name', 'contact_person', 'client_type', 'is_supplier', 'is_conflict', 'address', 'note', 'status', 'discount_type', 'discount', 'created_at', 'updated_at',
+                    'id',
+                    'first_name',
+                    'last_name',
+                    'contact_person',
+                    'client_type',
+                    'is_supplier',
+                    'is_conflict',
+                    'address',
+                    'note',
+                    'status',
+                    'discount_type',
+                    'discount',
+                    'created_at',
+                    'updated_at',
                     DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
                 ])
                 ->get()

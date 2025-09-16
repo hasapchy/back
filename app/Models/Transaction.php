@@ -111,9 +111,11 @@ class Transaction extends Model
                 }
 
                 if ($transaction->type == 1) {
-                    $clientBalance->balance -= $convertedAmount;
-                } else {
+                    // Доход: клиент нам платит - уменьшаем его долг (увеличиваем баланс)
                     $clientBalance->balance += $convertedAmount;
+                } else {
+                    // Расход: мы клиенту платим - увеличиваем его долг (уменьшаем баланс)
+                    $clientBalance->balance -= $convertedAmount;
                 }
                 $clientBalance->save();
             }
@@ -147,9 +149,11 @@ class Transaction extends Model
                 }
 
                 if ($transaction->type == 1) {
-                    $clientBalance->balance = $clientBalance->balance - $originalConverted + $currentConverted;
-                } else {
+                    // Доход: клиент нам платит - уменьшаем его долг (увеличиваем баланс)
                     $clientBalance->balance = $clientBalance->balance + $originalConverted - $currentConverted;
+                } else {
+                    // Расход: мы клиенту платим - увеличиваем его долг (уменьшаем баланс)
+                    $clientBalance->balance = $clientBalance->balance - $originalConverted + $currentConverted;
                 }
                 $clientBalance->save();
             }
@@ -171,8 +175,10 @@ class Transaction extends Model
                 }
 
                 if ($transaction->type == 1) {
+                    // Доход: клиент нам платил - при удалении уменьшаем баланс
                     $clientBalance->balance -= $convertedAmount;
                 } else {
+                    // Расход: мы клиенту платили - при удалении увеличиваем баланс
                     $clientBalance->balance += $convertedAmount;
                 }
                 $clientBalance->save();
