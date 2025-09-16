@@ -9,7 +9,7 @@ class Category extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'parent_id', 'user_id'];
+    protected $fillable = ['name', 'parent_id', 'user_id', 'company_id'];
 
     public function children()
     {
@@ -39,5 +39,10 @@ class Category extends Model
     public function hasUser($userId)
     {
         return $this->users()->where('user_id', $userId)->exists();
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 }

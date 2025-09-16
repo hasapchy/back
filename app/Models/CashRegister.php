@@ -15,6 +15,7 @@ class CashRegister extends Model
         'balance',
         'is_rounding',
         'currency_id',
+        'company_id',
     ];
 
     public static function boot()
@@ -31,6 +32,11 @@ class CashRegister extends Model
     public function currency()
     {
         return $this->belongsTo(Currency::class, 'currency_id');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 
     public function Transactions()

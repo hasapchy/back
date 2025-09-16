@@ -9,7 +9,7 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'exchange_rate', 'date', 'description', 'status_id'];
+    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'exchange_rate', 'date', 'description', 'status_id', 'company_id'];
 
     protected $casts = [
         'files' => 'array',
@@ -112,5 +112,15 @@ class Project extends Model
             ->first();
 
         return $rateHistory ? $rateHistory->exchange_rate : 1;
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
+
+    public function contracts()
+    {
+        return $this->hasMany(ProjectContract::class);
     }
 }

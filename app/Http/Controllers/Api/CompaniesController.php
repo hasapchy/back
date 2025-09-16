@@ -7,12 +7,13 @@ use App\Models\Company;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 
 class CompaniesController extends Controller
 {
     public function index()
     {
-        $companies = Company::select(['id', 'name', 'created_at', 'updated_at'])
+        $companies = Company::select(['id', 'name', 'logo', 'created_at', 'updated_at'])
             ->orderBy('name')
             ->get();
 
@@ -23,13 +24,23 @@ class CompaniesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:companies,name',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048'
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $company = Company::create($request->all());
+        $data = $request->only(['name']);
+
+        if ($request->hasFile('logo')) {
+            $file = $request->file('logo');
+            $filename = 'logo_' . time() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('uploads/logos', $filename, 'public');
+            $data['logo'] = url('/storage/' . $path);
+        }
+
+        $company = Company::create($data);
 
         return response()->json(['company' => $company]);
     }
@@ -38,6 +49,7 @@ class CompaniesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => "required|string|max:255|unique:companies,name,{$id}",
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048'
         ]);
 
         if ($validator->fails()) {
@@ -45,7 +57,22 @@ class CompaniesController extends Controller
         }
 
         $company = Company::findOrFail($id);
-        $company->update($request->all());
+        $data = $request->only(['name']);
+
+        if ($request->hasFile('logo')) {
+            // Удаляем старый логотип если есть
+            if ($company->logo) {
+                $oldPath = str_replace(url('/storage/'), 'public/', $company->logo);
+                Storage::delete($oldPath);
+            }
+
+            $file = $request->file('logo');
+            $filename = 'logo_' . time() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('uploads/logos', $filename, 'public');
+            $data['logo'] = url('/storage/' . $path);
+        }
+
+        $company->update($data);
 
         return response()->json(['company' => $company]);
     }

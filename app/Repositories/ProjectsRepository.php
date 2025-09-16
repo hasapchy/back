@@ -11,15 +11,15 @@ use Illuminate\Support\Facades\DB;
 class ProjectsRepository
 {
     // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null, $clientId = null, $contractType = null)
     {
         // Создаем уникальный ключ кэша
-        $cacheKey = "projects_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusId}";
+        $cacheKey = "projects_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusId}_{$clientId}_{$contractType}";
 
         // Для списка без фильтров используем более длительное кэширование
-        $ttl = (!$search && $dateFilter === 'all_time' && !$statusId) ? 1800 : 600; // 30 мин для списка, 10 мин для фильтров
+        $ttl = (!$search && $dateFilter === 'all_time' && !$statusId && !$clientId && $contractType === null) ? 1800 : 600; // 30 мин для списка, 10 мин для фильтров
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId, $clientId, $contractType) {
             // Оптимизированный запрос с селективным выбором полей и JOIN для клиентов
             $query = Project::select([
                 'projects.id',
@@ -73,6 +73,12 @@ class ProjectsRepository
             if ($statusId) {
                 $query->where('projects.status_id', $statusId);
             }
+
+            // Фильтрация по клиенту
+            if ($clientId) {
+                $query->where('projects.client_id', $clientId);
+            }
+
 
             // Фильтр по пользователю
             $query->whereHas('projectUsers', function ($query) use ($userUuid) {
@@ -361,78 +367,98 @@ class ProjectsRepository
         return CacheService::remember($cacheKey, function () use ($projectId) {
             // Получаем информацию о проекте для конвертации валют
             $project = \App\Models\Project::find($projectId);
-            $exchangeRate = $project ? $project->exchange_rate : 1;
+            $projectCurrencyId = $project ? $project->currency_id : null;
+            $projectExchangeRate = $project ? $project->exchange_rate : 1;
+
             // Оптимизированный запрос с UNION вместо отдельных запросов
             $sales = DB::table('sales')
-                ->where('project_id', $projectId)
+                ->leftJoin('cash_registers', 'sales.cash_id', '=', 'cash_registers.id')
+                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
+                ->where('sales.project_id', $projectId)
                 ->select(
-                    'id',
-                    'created_at',
-                    'total_price as amount',
-                    'cash_id',
+                    'sales.id',
+                    'sales.created_at',
+                    DB::raw("CASE
+                        WHEN sales.cash_id IS NOT NULL AND cash_registers.currency_id != {$projectCurrencyId}
+                        THEN sales.price * {$projectExchangeRate}
+                        ELSE sales.price
+                    END as amount"),
+                    DB::raw("CASE WHEN sales.cash_id IS NOT NULL THEN sales.price ELSE NULL END as orig_amount"),
+                    'sales.cash_id',
                     DB::raw("NULL as type"),
                     DB::raw("'sale' as source"),
-                    DB::raw("CASE WHEN cash_id IS NOT NULL THEN 'Продажа через кассу' ELSE 'Продажа в баланс(долг)' END as description"),
-                    DB::raw("NULL as currency_id")
+                    DB::raw("CASE WHEN sales.cash_id IS NOT NULL THEN 'Продажа через кассу' ELSE 'Продажа в баланс(долг)' END as description"),
+                    'currencies.symbol as cash_currency_symbol',
+                    'currencies.code as cash_currency_code'
                 );
 
             $receipts = DB::table('wh_receipts')
-                ->where('project_id', $projectId)
+                ->leftJoin('cash_registers', 'wh_receipts.cash_id', '=', 'cash_registers.id')
+                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
+                ->where('wh_receipts.project_id', $projectId)
                 ->select(
-                    'id',
-                    'created_at',
-                    'amount',
-                    'cash_id',
+                    'wh_receipts.id',
+                    'wh_receipts.created_at',
+                    DB::raw("CASE
+                        WHEN wh_receipts.cash_id IS NOT NULL AND cash_registers.currency_id != {$projectCurrencyId}
+                        THEN wh_receipts.amount * {$projectExchangeRate}
+                        ELSE wh_receipts.amount
+                    END as amount"),
+                    DB::raw("CASE WHEN wh_receipts.cash_id IS NOT NULL THEN wh_receipts.amount ELSE NULL END as orig_amount"),
+                    'wh_receipts.cash_id',
                     DB::raw("NULL as type"),
                     DB::raw("'receipt' as source"),
-                    DB::raw("CASE WHEN cash_id IS NOT NULL THEN 'Долг за оприходование(в кассу)' ELSE 'Долг за оприходование(в баланс)' END as description"),
-                    DB::raw("NULL as currency_id")
+                    DB::raw("CASE WHEN wh_receipts.cash_id IS NOT NULL THEN 'Долг за оприходование(в кассу)' ELSE 'Долг за оприходование(в баланс)' END as description"),
+                    'currencies.symbol as cash_currency_symbol',
+                    'currencies.code as cash_currency_code'
                 );
 
             $transactions = DB::table('transactions')
-                ->where('project_id', $projectId)
+                ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
+                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
+                ->where('transactions.project_id', $projectId)
                 ->select(
-                    'id',
-                    'created_at',
-                    'orig_amount as amount',
-                    'cash_id',
-                    'type',
+                    'transactions.id',
+                    'transactions.created_at',
+                    DB::raw("CASE
+                        WHEN transactions.cash_id IS NOT NULL AND cash_registers.currency_id != {$projectCurrencyId}
+                        THEN transactions.amount * {$projectExchangeRate}
+                        ELSE transactions.amount
+                    END as amount"),
+                    'transactions.orig_amount',
+                    'transactions.cash_id',
+                    'transactions.type',
                     DB::raw("'transaction' as source"),
-                    DB::raw("CASE WHEN type = 1 THEN 'Приход в проект' ELSE 'Расход из проекта' END as description"),
-                    DB::raw("NULL as currency_id")
+                    DB::raw("CASE WHEN transactions.type = 1 THEN 'Приход в проект' ELSE 'Расход из проекта' END as description"),
+                    'currencies.symbol as cash_currency_symbol',
+                    'currencies.code as cash_currency_code'
                 );
 
             $orders = DB::table('orders')
-                ->where('project_id', $projectId)
+                ->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id')
+                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
+                ->where('orders.project_id', $projectId)
                 ->select(
-                    'id',
-                    'created_at',
-                    'total_price as amount',
-                    'cash_id',
+                    'orders.id',
+                    'orders.created_at',
+                    DB::raw("CASE
+                        WHEN orders.cash_id IS NOT NULL AND cash_registers.currency_id != {$projectCurrencyId}
+                        THEN orders.total_price * {$projectExchangeRate}
+                        ELSE orders.total_price
+                    END as amount"),
+                    DB::raw("CASE WHEN orders.cash_id IS NOT NULL THEN orders.total_price ELSE NULL END as orig_amount"),
+                    'orders.cash_id',
                     DB::raw("NULL as type"),
                     DB::raw("'order' as source"),
                     DB::raw("'Заказ' as description"),
-                    DB::raw("NULL as currency_id")
-                );
-
-            $projectIncomes = DB::table('project_transactions')
-                ->where('project_id', $projectId)
-                ->select(
-                    'id',
-                    'created_at',
-                    'amount',
-                    DB::raw("NULL as cash_id"),
-                    DB::raw("NULL as type"),
-                    DB::raw("'project_income' as source"),
-                    DB::raw("'Приход в проект' as description"),
-                    'currency_id'
+                    'currencies.symbol as cash_currency_symbol',
+                    'currencies.code as cash_currency_code'
                 );
 
             // Объединяем все запросы
             $result = $sales->union($receipts)
                 ->union($transactions)
                 ->union($orders)
-                ->union($projectIncomes)
                 ->orderBy('created_at')
                 ->get()
                 ->map(function ($item) {
@@ -447,8 +473,6 @@ class ProjectsRepository
                         $amount = +$amount; // Продажа через кассу - положительная
                     } elseif ($item->source === 'order' && isset($item->cash_id) && $item->cash_id) {
                         $amount = +$amount; // Заказ через кассу - положительная
-                    } elseif ($item->source === 'project_income') {
-                        $amount = +$amount; // Приходы в проект - отображаются, но не учитываются в итоговом балансе
                     }
 
                     return [
@@ -478,17 +502,6 @@ class ProjectsRepository
         }, 900); // 15 минут
     }
 
-    // Получение итогового прихода проекта (только ProjectTransaction)
-    public function getProjectIncome($projectId)
-    {
-        $cacheKey = "project_income_{$projectId}";
-
-        return CacheService::remember($cacheKey, function () use ($projectId) {
-            return DB::table('project_transactions')
-                ->where('project_id', $projectId)
-                ->sum('amount');
-        }, 900); // 15 минут
-    }
 
     /**
      * Инвалидация кэша проектов
@@ -502,8 +515,7 @@ class ProjectsRepository
             'projects_fast_search_*',
             'project_item_*',
             'project_balance_history_*',
-            'project_balance_*',
-            'project_income_*'
+            'project_balance_*'
         ];
 
         foreach ($keys as $key) {
@@ -525,7 +537,6 @@ class ProjectsRepository
         \Illuminate\Support\Facades\Cache::forget("project_item_{$projectId}");
         \Illuminate\Support\Facades\Cache::forget("project_balance_history_{$projectId}");
         \Illuminate\Support\Facades\Cache::forget("project_balance_{$projectId}");
-        \Illuminate\Support\Facades\Cache::forget("project_income_{$projectId}");
 
         // Очищаем кэш с отношениями для всех пользователей
         \Illuminate\Support\Facades\Cache::forget("project_item_relations_{$projectId}_null");
@@ -568,3 +579,4 @@ class ProjectsRepository
         return $updatedCount;
     }
 }
+

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\ProjectsRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -28,12 +29,13 @@ class ProjectsController extends Controller
 
         $page = (int) $request->input('page', 1);
         $statusId = $request->input('status_id') ? (int) $request->input('status_id') : null;
+        $clientId = $request->input('client_id') ? (int) $request->input('client_id') : null;
         $dateFilter = $request->input('date_filter', 'all_time');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
         // Получаем с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page, null, $dateFilter, $startDate, $endDate, $statusId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page, null, $dateFilter, $startDate, $endDate, $statusId, $clientId, null);
 
         return response()->json([
             'items' => $items->items(),  // Список
@@ -69,7 +71,7 @@ class ProjectsController extends Controller
             'client_id' => 'required|exists:clients,id',
             'users' => 'required|array',
             'users.*' => 'exists:users,id',
-            'description' => 'nullable|string'
+            'description' => 'nullable|string',
         ];
 
         // Добавляем валидацию для полей бюджета только если они переданы
@@ -87,7 +89,7 @@ class ProjectsController extends Controller
             'user_id' => $userUuid,
             'client_id' => $request->client_id,
             'users' => $request->users,
-            'description' => $request->description
+            'description' => $request->description,
         ];
 
         // Добавляем поля бюджета только если они переданы
@@ -108,6 +110,10 @@ class ProjectsController extends Controller
                 'message' => 'Ошибка создания проекта'
             ], 400);
         }
+
+        // Очищаем кэш проектов для пользователя
+        CacheService::clearUserCache($userUuid, 'projects');
+
         return response()->json([
             'message' => 'Проект создан'
         ]);
@@ -126,7 +132,7 @@ class ProjectsController extends Controller
             'client_id' => 'required|exists:clients,id',
             'users' => 'required|array',
             'users.*' => 'exists:users,id',
-            'description' => 'nullable|string'
+            'description' => 'nullable|string',
         ];
 
         // Добавляем валидацию для полей бюджета только если они переданы
@@ -144,7 +150,7 @@ class ProjectsController extends Controller
             'user_id' => $userUuid,
             'client_id' => $request->client_id,
             'users' => $request->users,
-            'description' => $request->description
+            'description' => $request->description,
         ];
 
         // Добавляем поля бюджета только если они переданы
@@ -165,6 +171,10 @@ class ProjectsController extends Controller
                 'message' => 'Ошибка обновления проекта'
             ], 400);
         }
+
+        // Очищаем кэш проектов для пользователя
+        CacheService::clearUserCache($userUuid, 'projects');
+
         return response()->json([
             'message' => 'Проект обновлен'
         ]);
@@ -325,16 +335,13 @@ class ProjectsController extends Controller
             }
 
             $history = $this->itemsRepository->getBalanceHistory($id);
-            // Итоговый баланс НЕ включает project_income записи
-            $balance = collect($history)->where('source', '!=', 'project_income')->sum('amount');
-            $projectIncome = $this->itemsRepository->getProjectIncome($id);
+            $balance = collect($history)->sum('amount');
             $project = \App\Models\Project::findOrFail($id);
 
             return response()->json([
                 'history' => $history,
                 'balance' => $balance,
                 'budget' => (float) $project->budget,
-                'projectIncome' => (float) $projectIncome,
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
@@ -367,6 +374,10 @@ class ProjectsController extends Controller
                 'message' => 'Ошибка удаления проекта'
             ], 400);
         }
+
+        // Очищаем кэш проектов для пользователя
+        CacheService::clearUserCache($userUuid, 'projects');
+
         return response()->json([
             'message' => 'Проект удалён'
         ]);

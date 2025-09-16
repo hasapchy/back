@@ -27,6 +27,7 @@ class Order extends Model
         'cash_id',
         'warehouse_id',
         'project_id',
+        'company_id',
     ];
 
 
@@ -155,5 +156,10 @@ class Order extends Model
     public function activities()
     {
         return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 }

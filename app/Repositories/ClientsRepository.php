@@ -60,12 +60,10 @@ class ClientsRepository
 
     function searchClient(string $search_request)
     {
-        $cacheKey = "clients_search_{$search_request}";
-
-        // Принудительно очищаем кэш клиентов перед поиском
-        CacheService::invalidateClientsCache();
-
-        return CacheService::getReferenceData($cacheKey, function () use ($search_request) {
+        // Временно отключаем кэш для отладки
+        // $cacheKey = "clients_search_{$search_request}";
+        // CacheService::invalidateClientsCache();
+        // return CacheService::getReferenceData($cacheKey, function () use ($search_request) {
             $searchTerms = explode(' ', $search_request);
 
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
@@ -76,36 +74,41 @@ class ClientsRepository
                 ])
                 ->where('clients.status', true); // Фильтруем только активных клиентов
 
-            foreach ($searchTerms as $term) {
-                $query->orWhere(function ($q) use ($term) {
-                    $q->where('clients.first_name', 'like', "%{$term}%")
-                        ->orWhere('clients.last_name', 'like', "%{$term}%")
-                        ->orWhere('clients.contact_person', 'like', "%{$term}%")
-                        ->orWhereHas('phones', function ($phoneQuery) use ($term) {
-                            $phoneQuery->where('phone', 'like', "%{$term}%");
-                        })
-                        ->orWhereHas('emails', function ($emailQuery) use ($term) {
-                            $emailQuery->where('email', 'like', "%{$term}%");
-                        });
-                });
-            }
+            $query->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->orWhere(function ($subQuery) use ($term) {
+                        $subQuery->where('clients.first_name', 'like', "%{$term}%")
+                            ->orWhere('clients.last_name', 'like', "%{$term}%")
+                            ->orWhere('clients.contact_person', 'like', "%{$term}%")
+                            ->orWhereHas('phones', function ($phoneQuery) use ($term) {
+                                $phoneQuery->where('phone', 'like', "%{$term}%");
+                            })
+                            ->orWhereHas('emails', function ($emailQuery) use ($term) {
+                                $emailQuery->where('email', 'like', "%{$term}%");
+                            });
+                    });
+                }
+            });
 
             $results = $query->limit(50)->get();
 
             // Логируем результаты поиска для отладки
             Log::info("=== CLIENT SEARCH BACKEND ===");
-            Log::info("Search request: {$search_request}");
+            Log::info("Search request: '{$search_request}'");
+            Log::info("Search terms: " . json_encode($searchTerms));
             Log::info("Results count: " . $results->count());
+
             if ($results->count() > 0) {
-                $firstResult = $results->first();
-                Log::info("First result ID: " . $firstResult->id);
-                Log::info("First result balance_amount: " . ($firstResult->balance_amount ?? 'NULL'));
-                Log::info("First result balance_amount type: " . gettype($firstResult->balance_amount ?? null));
+                foreach ($results as $index => $result) {
+                    Log::info("Result #{$index}: ID={$result->id}, first_name='{$result->first_name}', last_name='{$result->last_name}', balance={$result->balance_amount}");
+                }
+            } else {
+                Log::info("No results found for search term: '{$search_request}'");
             }
             Log::info("=============================");
 
             return $results;
-        });
+        // });
     }
 
     public function getItem($id)
@@ -499,6 +502,5 @@ class ClientsRepository
         CacheService::invalidateByTag("client_balance_{$clientId}");
         CacheService::invalidateByTag("client_balance_history_{$clientId}");
     }
-
 
 }
