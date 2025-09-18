@@ -7,14 +7,40 @@ use App\Models\ProjectUser;
 use App\Repositories\ClientsRepository;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ProjectsRepository
 {
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
+
+    /**
+     * Добавить фильтрацию по компании к запросу
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->where('projects.company_id', $companyId);
+        } else {
+            // Если компания не выбрана, показываем только проекты без company_id (для обратной совместимости)
+            $query->whereNull('projects.company_id');
+        }
+        return $query;
+    }
+
     // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null, $clientId = null, $contractType = null)
     {
-        // Создаем уникальный ключ кэша
-        $cacheKey = "projects_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusId}_{$clientId}_{$contractType}";
+        // Создаем уникальный ключ кэша с учетом компании
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "projects_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusId}_{$clientId}_{$contractType}_{$companyId}";
 
         // Для списка без фильтров используем более длительное кэширование
         $ttl = (!$search && $dateFilter === 'all_time' && !$statusId && !$clientId && $contractType === null) ? 1800 : 600; // 30 мин для списка, 10 мин для фильтров
@@ -52,6 +78,9 @@ class ProjectsRepository
                     'users:id,name',
                     'projectUsers:id,project_id,user_id'
                 ]);
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
 
             // Применяем фильтры
             if ($search) {
@@ -201,6 +230,7 @@ class ProjectsRepository
             $item->date = $data['date'];
             $item->user_id = $data['user_id'];
             $item->client_id = $data['client_id'];
+            $item->company_id = $this->getCurrentCompanyId();
             $item->description = $data['description'] ?? null;
             $item->files = $data['files'] ?? [];
             $item->status_id = $data['status_id'] ?? 1; // Статус "Новый" по умолчанию

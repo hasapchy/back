@@ -12,16 +12,44 @@ use Illuminate\Support\Facades\Schema;
 
 class CahRegistersRepository
 {
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
+
+    /**
+     * Добавить фильтрацию по компании к запросу
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->where('cash_registers.company_id', $companyId);
+        } else {
+            // Если компания не выбрана, показываем только кассы без company_id (для обратной совместимости)
+            $query->whereNull('cash_registers.company_id');
+        }
+        return $query;
+    }
+
     // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         try {
             // Возвращаем только кассы, к которым у пользователя есть доступ
-            return CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])
+            $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])
                 ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
-                })
-                ->orderBy('created_at', 'desc')
+                });
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
+
+            return $query->orderBy('created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', $page);
         } catch (\Exception $e) {
             // Возвращаем пустую пагинацию вместо ошибки
@@ -30,7 +58,7 @@ class CahRegistersRepository
     }
 
     // Получение всего списка
-            public function getAllItems($userUuid)
+    public function getAllItems($userUuid)
     {
         try {
             // Проверяем, существует ли таблица
@@ -39,11 +67,15 @@ class CahRegistersRepository
             }
 
             // Возвращаем только кассы, к которым у пользователя есть доступ
-            return CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])
+            $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])
                 ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
-                })
-                ->get();
+                });
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
+
+            return $query->get();
         } catch (\Exception $e) {
             // Возвращаем пустую коллекцию вместо ошибки
             return \Illuminate\Support\Collection::make();

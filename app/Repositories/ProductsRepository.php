@@ -7,13 +7,39 @@ use App\Models\ProductPrice;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ProductsRepository
 {
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
+
+    /**
+     * Добавить фильтрацию по компании к запросу
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->where('products.company_id', $companyId);
+        } else {
+            // Если компания не выбрана, показываем только продукты без company_id (для обратной совместимости)
+            $query->whereNull('products.company_id');
+        }
+        return $query;
+    }
+
     // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1)
     {
-        $cacheKey = "products_{$userUuid}_{$perPage}_{$type}";
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "products_{$userUuid}_{$perPage}_{$type}_{$companyId}";
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page) {
             // Получаем ID продуктов пользователя через категории
@@ -28,6 +54,9 @@ class ProductsRepository
             $query = Product::with(['categories', 'unit', 'prices', 'creator'])
                 ->whereIn('id', $userProductIds)
                 ->where('type', $type);
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
 
             $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
 
