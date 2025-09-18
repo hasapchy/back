@@ -7,6 +7,28 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+# Hasapchy Backend
+
+Backend API для системы учета и управления бизнесом.
+
+## Команды для работы с балансами клиентов
+
+### Пересчет балансов клиентов
+```bash
+# Пересчитать балансы всех клиентов
+php artisan clients:recalculate-balances
+
+# Пересчитать баланс конкретного клиента
+php artisan clients:recalculate-balances --client-id=2
+```
+
+**Когда использовать:**
+- После исправления ошибок в логике расчета балансов
+- При подозрении на неправильные данные
+- После миграций базы данных
+- При восстановлении после сбоев
+- Периодически для проверки целостности данных
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
