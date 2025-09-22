@@ -16,7 +16,8 @@ class ProjectContract extends Model
         'currency_id',
         'date',
         'returned',
-        'files'
+        'files',
+        'note'
     ];
 
     protected $casts = [

@@ -27,9 +27,10 @@ class ProductController extends Controller
         }
 
         $page = $request->query('page', 1);
+        $warehouseId = $request->query('warehouse_id');
 
         // Получаем продукты с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page, $warehouseId);
 
         return response()->json([
             'items' => $items->items(),  // Список
@@ -49,8 +50,10 @@ class ProductController extends Controller
         }
 
         $search = $request->query('search');
+        $productsOnly = $request->query('products_only');
+        $warehouseId = $request->query('warehouse_id');
 
-        $items = $this->itemsRepository->searchItems($userUuid, $search);
+        $items = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId);
 
         return response()->json($items);
     }
@@ -63,9 +66,10 @@ class ProductController extends Controller
         }
 
         $page = $request->query('page', 1);
+        $warehouseId = $request->query('warehouse_id');
 
         // Получаем услуги с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page, $warehouseId);
 
         return response()->json([
             'items' => $items->items(),  // Список

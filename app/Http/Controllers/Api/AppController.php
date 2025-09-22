@@ -25,7 +25,6 @@ class AppController extends Controller
     public function getUnitsList()
     {
         $items = Unit::all();
-
         return response()->json($items);
     }
 
@@ -40,7 +39,14 @@ class AppController extends Controller
     // получение категорий транзакций
     public function getTransactionCategories()
     {
-        $items = TransactionCategory::select('id', 'name', 'type')->get();
+        $userUuid = optional(auth('api')->user())->id;
+
+        $items = TransactionCategory::select('id', 'name', 'type')
+            ->where(function($query) use ($userUuid) {
+                $query->whereNull('user_id') // системные категории
+                      ->orWhere('user_id', $userUuid); // пользовательские категории
+            })
+            ->get();
         return response()->json($items);
     }
 

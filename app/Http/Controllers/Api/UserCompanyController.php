@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class UserCompanyController extends Controller
@@ -84,12 +83,7 @@ class UserCompanyController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        // Получаем компании пользователя через прямой запрос
-        $companies = DB::table('companies')
-            ->join('company_user', 'companies.id', '=', 'company_user.company_id')
-            ->where('company_user.user_id', $user->id)
-            ->select('companies.id', 'companies.name', 'companies.logo')
-            ->get();
+        $companies = $user->companies()->select('companies.id', 'companies.name', 'companies.logo')->get();
 
         return response()->json($companies);
     }

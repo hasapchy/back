@@ -176,7 +176,7 @@ class ProjectsRepository
         }
     }
 
-    // Получение всего списка
+    // Получение всего списка (включая все статусы для страницы проектов)
     public function getAllItems($userUuid)
     {
         $cacheKey = "projects_all_{$userUuid}";
@@ -212,6 +212,49 @@ class ProjectsRepository
                 ->whereHas('projectUsers', function ($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
                 })
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }, 1800); // 30 минут
+    }
+
+    // Получение активных проектов (без завершенных и отмененных) для выбора в формах
+    public function getActiveItems($userUuid)
+    {
+        $cacheKey = "projects_active_{$userUuid}";
+
+        return CacheService::remember($cacheKey, function () use ($userUuid) {
+            return Project::select([
+                'projects.id',
+                'projects.name',
+                'projects.budget',
+                'projects.currency_id',
+                'projects.exchange_rate',
+                'projects.date',
+                'projects.user_id',
+                'projects.client_id',
+                'projects.status_id',
+                'projects.created_at',
+                'projects.updated_at',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name',
+                'users.name as user_name'
+            ])
+                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
+                ->leftJoin('users', 'projects.user_id', '=', 'users.id')
+                ->with([
+                    'client:id,first_name,last_name,contact_person',
+                    'client.phones:id,client_id,phone',
+                    'client.emails:id,client_id,email',
+                    'client.balance:id,client_id,balance',
+                    'currency:id,name,code,symbol',
+                    'status:id,name,color',
+                    'creator:id,name',
+                    'users:id,name'
+                ])
+                ->whereHas('projectUsers', function ($query) use ($userUuid) {
+                    $query->where('user_id', $userUuid);
+                })
+                ->whereNotIn('projects.status_id', [3, 4]) // Исключаем статусы "Завершен" и "Отменен"
                 ->orderBy('created_at', 'desc')
                 ->get();
         }, 1800); // 30 минут
@@ -542,6 +585,7 @@ class ProjectsRepository
         $keys = [
             'projects_paginated_*',
             'projects_all_*',
+            'projects_active_*',
             'projects_fast_search_*',
             'project_item_*',
             'project_balance_history_*',

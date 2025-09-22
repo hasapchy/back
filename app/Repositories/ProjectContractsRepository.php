@@ -23,6 +23,7 @@ class ProjectContractsRepository
                 'project_contracts.date',
                 'project_contracts.returned',
                 'project_contracts.files',
+                'project_contracts.note',
                 'project_contracts.created_at',
                 'project_contracts.updated_at',
                 'currencies.name as currency_name',
@@ -37,7 +38,8 @@ class ProjectContractsRepository
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('project_contracts.number', 'like', "%{$search}%")
-                        ->orWhere('project_contracts.amount', 'like', "%{$search}%");
+                        ->orWhere('project_contracts.amount', 'like', "%{$search}%")
+                        ->orWhere('project_contracts.note', 'like', "%{$search}%");
                 });
             }
 
@@ -62,6 +64,7 @@ class ProjectContractsRepository
                 'project_contracts.date',
                 'project_contracts.returned',
                 'project_contracts.files',
+                'project_contracts.note',
                 'project_contracts.created_at',
                 'project_contracts.updated_at',
                 'currencies.name as currency_name',
@@ -90,6 +93,7 @@ class ProjectContractsRepository
             $contract->date = $data['date'];
             $contract->returned = $data['returned'] ?? false;
             $contract->files = $data['files'] ?? [];
+            $contract->note = $data['note'] ?? null;
             $contract->save();
 
             DB::commit();
@@ -119,6 +123,7 @@ class ProjectContractsRepository
             $contract->currency_id = $data['currency_id'] ?? null;
             $contract->date = $data['date'];
             $contract->returned = $data['returned'] ?? false;
+            $contract->note = $data['note'] ?? null;
 
             // Защита: если files переданы, убедись, что это массив
             if (isset($data['files']) && is_array($data['files'])) {
