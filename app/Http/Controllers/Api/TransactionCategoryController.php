@@ -46,7 +46,7 @@ class TransactionCategoryController extends Controller
         $userUuid = optional(auth('api')->user())->id;
         if (!$userUuid) return response()->json(['message' => 'Unauthorized'], 401);
 
-        $items = $this->repo->getAllItems($userUuid);
+        $items = $this->repo->getAllItemsWithoutUserFilter();
 
         return response()->json($items->map(function ($item) {
             return [
