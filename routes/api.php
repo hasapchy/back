@@ -58,7 +58,7 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:users_view')->get('users', [UsersController::class, 'index']);
     Route::middleware('permission:users_view')->get('users/all', [UsersController::class, 'getAllUsers']);
     Route::middleware('permission:users_create')->post('users', [UsersController::class, 'store']);
-    Route::middleware('permission:users_update')->post('users/{id}', [UsersController::class, 'update']);
+    Route::middleware('permission:users_update')->put('users/{id}', [UsersController::class, 'update']);
     Route::middleware('permission:users_delete')->delete('users/{id}', [UsersController::class, 'destroy']);
     Route::get('/permissions', [UsersController::class, 'permissions']);
 
