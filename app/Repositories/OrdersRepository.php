@@ -146,6 +146,14 @@ class OrdersRepository
                 $order->currency_symbol = $order->currency_symbol ?? null;
                 $order->project_name = $order->project_name ?? null;
 
+                // Создаем объект проекта для совместимости с фронтендом
+                if ($order->project_id && $order->project_name) {
+                    $order->project = (object) [
+                        'id' => $order->project_id,
+                        'name' => $order->project_name
+                    ];
+                }
+
                 // Объединяем обычные и временные товары
                 $allProducts = collect();
 

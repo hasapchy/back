@@ -12,7 +12,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             PermissionsSeeder::class,
+            RolesSeeder::class,
             AdminSeeder::class,
+            BasementWorkerSeeder::class,
             CurrencySeeder::class,
             ProductStatusSeeder::class,
             TransactionCategorySeeder::class,

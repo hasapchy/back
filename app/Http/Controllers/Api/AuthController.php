@@ -52,7 +52,9 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'photo' => $user->photo,
                 'is_admin' => $user->is_admin,
+                'roles' => $user->roles->pluck('name')->toArray(),
                 'permissions' => $user->permissions->pluck('name')->toArray()
             ]
         ]);
@@ -63,7 +65,15 @@ class AuthController extends Controller
         $user = auth('api')->user();
 
         return response()->json([
-            'user' => $user,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'photo' => $user->photo,
+                'is_admin' => $user->is_admin,
+                'roles' => $user->roles->pluck('name')->toArray(),
+                'permissions' => $user->permissions->pluck('name')->toArray()
+            ],
             'permissions' => $user->permissions->pluck('name')->toArray(),
         ]);
     }

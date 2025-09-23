@@ -40,6 +40,10 @@ class AdminSeeder extends Seeder
             $admin->givePermissionTo($permission);
         }
 
-        echo "Admin user created/updated with " . $allPermissions->count() . " permissions\n";
+        // Назначаем роли администратора (admin + basement_worker)
+        $admin->assignRole('admin');
+        $admin->assignRole('basement_worker');
+
+        echo "Admin user created/updated with " . $allPermissions->count() . " permissions and roles: admin, basement_worker\n";
     }
 }

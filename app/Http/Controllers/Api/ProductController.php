@@ -27,10 +27,11 @@ class ProductController extends Controller
         }
 
         $page = $request->query('page', 1);
+        $filterByCategory1 = filter_var($request->query('filter_by_category_1', false), FILTER_VALIDATE_BOOLEAN);
         $warehouseId = $request->query('warehouse_id');
 
         // Получаем продукты с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page, $warehouseId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page, $filterByCategory1, $warehouseId);
 
         return response()->json([
             'items' => $items->items(),  // Список
@@ -50,10 +51,12 @@ class ProductController extends Controller
         }
 
         $search = $request->query('search');
+        $type = $request->query('type', true); // По умолчанию ищем продукты
+        $filterByCategory1 = filter_var($request->query('filter_by_category_1', false), FILTER_VALIDATE_BOOLEAN);
         $productsOnly = $request->query('products_only');
         $warehouseId = $request->query('warehouse_id');
 
-        $items = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId);
+        $items = $this->itemsRepository->searchItems($userUuid, $search, $type, $filterByCategory1, $productsOnly, $warehouseId);
 
         return response()->json($items);
     }
@@ -66,10 +69,12 @@ class ProductController extends Controller
         }
 
         $page = $request->query('page', 1);
+        $filterByCategory1 = filter_var($request->query('filter_by_category_1', false), FILTER_VALIDATE_BOOLEAN);
+
         $warehouseId = $request->query('warehouse_id');
 
         // Получаем услуги с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page, $warehouseId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page, $filterByCategory1, $warehouseId);
 
         return response()->json([
             'items' => $items->items(),  // Список

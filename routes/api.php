@@ -51,12 +51,14 @@ Route::middleware('auth:api')->group(function () {
     // user
     Route::post('user/logout', [AuthController::class, 'logout']);
     Route::get('user/me', [AuthController::class, 'me']);
+    Route::get('user/current', [UsersController::class, 'getCurrentUser']);
+    Route::post('user/profile', [UsersController::class, 'updateProfile']);
 
     // users
     Route::middleware('permission:users_view')->get('users', [UsersController::class, 'index']);
     Route::middleware('permission:users_view')->get('users/all', [UsersController::class, 'getAllUsers']);
     Route::middleware('permission:users_create')->post('users', [UsersController::class, 'store']);
-    Route::middleware('permission:users_update')->put('users/{id}', [UsersController::class, 'update']);
+    Route::middleware('permission:users_update')->post('users/{id}', [UsersController::class, 'update']);
     Route::middleware('permission:users_delete')->delete('users/{id}', [UsersController::class, 'destroy']);
     Route::get('/permissions', [UsersController::class, 'permissions']);
 
