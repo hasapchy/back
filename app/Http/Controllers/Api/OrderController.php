@@ -50,6 +50,7 @@ class OrderController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
+
         $request->validate([
             'client_id' => 'required|integer|exists:clients,id',
             'project_id' => 'nullable|sometimes|integer|exists:projects,id',
@@ -65,12 +66,12 @@ class OrderController extends Controller
             'status_id'    => 'nullable|integer|exists:order_statuses,id',
             'products'              => 'sometimes|array',
             'products.*.product_id' => 'required_with:products|integer|exists:products,id',
-            'products.*.quantity'   => 'required_with:products|numeric|min:0.01',
+            'products.*.quantity'   => 'required_with:products|numeric|min:0',
             'products.*.price'      => 'required_with:products|numeric|min:0',
             'temp_products'         => 'sometimes|array',
             'temp_products.*.name'  => 'required_with:temp_products|string|max:255',
             'temp_products.*.description' => 'nullable|string',
-            'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0.01',
+            'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0',
             'temp_products.*.price'       => 'required_with:temp_products|numeric|min:0',
             'temp_products.*.unit_id'     => 'nullable|exists:units,id',
             'additional_fields' => 'sometimes|array',
@@ -144,12 +145,12 @@ class OrderController extends Controller
             'status_id'            => 'nullable|integer|exists:order_statuses,id',
             'products'             => 'nullable|array',
             'products.*.product_id' => 'required_with:products|integer|exists:products,id',
-            'products.*.quantity'  => 'required_with:products|numeric|min:0.01',
+            'products.*.quantity'  => 'required_with:products|numeric|min:0',
             'products.*.price'     => 'required_with:products|numeric|min:0',
             'temp_products'         => 'nullable|array',
             'temp_products.*.name'  => 'required_with:temp_products|string|max:255',
             'temp_products.*.description' => 'nullable|string',
-            'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0.01',
+            'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0',
             'temp_products.*.price'       => 'required_with:temp_products|numeric|min:0',
             'temp_products.*.unit_id'     => 'nullable|exists:units,id',
             'additional_fields' => 'sometimes|array',
@@ -286,5 +287,4 @@ class OrderController extends Controller
 
         return response()->json(['item' => $item]);
     }
-
 }

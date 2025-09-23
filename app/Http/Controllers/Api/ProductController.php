@@ -27,9 +27,10 @@ class ProductController extends Controller
         }
 
         $page = $request->query('page', 1);
+        $filterByCategory1 = filter_var($request->query('filter_by_category_1', false), FILTER_VALIDATE_BOOLEAN);
 
         // Получаем продукты с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page, $filterByCategory1);
 
         return response()->json([
             'items' => $items->items(),  // Список
@@ -49,8 +50,10 @@ class ProductController extends Controller
         }
 
         $search = $request->query('search');
+        $type = $request->query('type', true); // По умолчанию ищем продукты
+        $filterByCategory1 = filter_var($request->query('filter_by_category_1', false), FILTER_VALIDATE_BOOLEAN);
 
-        $items = $this->itemsRepository->searchItems($userUuid, $search);
+        $items = $this->itemsRepository->searchItems($userUuid, $search, $type, $filterByCategory1);
 
         return response()->json($items);
     }
@@ -63,9 +66,10 @@ class ProductController extends Controller
         }
 
         $page = $request->query('page', 1);
+        $filterByCategory1 = filter_var($request->query('filter_by_category_1', false), FILTER_VALIDATE_BOOLEAN);
 
         // Получаем услуги с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page, $filterByCategory1);
 
         return response()->json([
             'items' => $items->items(),  // Список

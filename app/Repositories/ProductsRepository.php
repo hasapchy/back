@@ -4,30 +4,28 @@ namespace App\Repositories;
 
 use App\Models\Product;
 use App\Models\ProductPrice;
+use App\Models\Category;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\DB;
 
 class ProductsRepository
 {
     // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $filterByCategory1 = false)
     {
-        $cacheKey = "products_{$userUuid}_{$perPage}_{$type}";
+        $cacheKey = "products_{$userUuid}_{$perPage}_{$type}" . ($filterByCategory1 ? "_cat1" : "");
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page) {
-            // Получаем ID продуктов пользователя через категории
-            $userProductIds = DB::table('product_categories')
-                ->join('category_users', 'product_categories.category_id', '=', 'category_users.category_id')
-                ->where('category_users.user_id', $userUuid)
-                ->pluck('product_categories.product_id')
-                ->unique()
-                ->toArray();
-
-            // Загружаем продукты с категориями через Eloquent
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $filterByCategory1) {
             $query = Product::with(['categories', 'unit', 'prices', 'creator'])
-                ->whereIn('id', $userProductIds)
                 ->where('type', $type);
+
+            // Если нужно фильтровать по категории 1 (для basement)
+            if ($filterByCategory1) {
+                $categoryIds = $this->getCategoryAndSubcategories(1);
+                $query->whereHas('categories', function ($q) use ($categoryIds) {
+                    $q->whereIn('categories.id', $categoryIds);
+                });
+            }
 
             $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
 
@@ -48,27 +46,27 @@ class ProductsRepository
     }
 
     // Поиск
-    public function searchItems($userUuid, $search)
+    public function searchItems($userUuid, $search, $type = true, $filterByCategory1 = false)
     {
-        $cacheKey = "products_search_{$userUuid}_{$search}";
+        $cacheKey = "products_search_{$userUuid}_{$search}_{$type}" . ($filterByCategory1 ? "_cat1" : "");
 
-        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search) {
-            // Получаем ID продуктов пользователя через категории
-            $userProductIds = DB::table('product_categories')
-                ->join('category_users', 'product_categories.category_id', '=', 'category_users.category_id')
-                ->where('category_users.user_id', $userUuid)
-                ->pluck('product_categories.product_id')
-                ->unique()
-                ->toArray();
-
-            // Загружаем продукты с категориями через Eloquent
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $type, $filterByCategory1) {
             $query = Product::with(['categories', 'unit', 'prices', 'creator'])
-                ->whereIn('id', $userProductIds)
+                ->where('type', $type)
                 ->where(function ($query) use ($search) {
                     $query->where('name', 'like', '%' . $search . '%')
                         ->orWhere('sku', 'like', '%' . $search . '%')
                         ->orWhere('barcode', 'like', '%' . $search . '%');
                 });
+
+            // Если нужно фильтровать по категории 1 (для basement)
+            if ($filterByCategory1) {
+                $categoryIds = $this->getCategoryAndSubcategories(1);
+                $query->whereHas('categories', function ($q) use ($categoryIds) {
+                    $q->whereIn('categories.id', $categoryIds);
+                });
+            }
+
 
             $products = $query->limit(50)->get();
 
@@ -238,5 +236,19 @@ class ProductsRepository
         CacheService::invalidateProductsCache();
 
         return ['success' => true];
+    }
+
+    private function getCategoryAndSubcategories($categoryId)
+    {
+        $categoryIds = [$categoryId];
+
+        // Получаем все подкатегории рекурсивно
+        $subcategories = Category::where('parent_id', $categoryId)->get();
+
+        foreach ($subcategories as $subcategory) {
+            $categoryIds = array_merge($categoryIds, $this->getCategoryAndSubcategories($subcategory->id));
+        }
+
+        return $categoryIds;
     }
 }

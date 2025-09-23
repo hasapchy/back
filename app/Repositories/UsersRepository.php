@@ -20,14 +20,22 @@ class UsersRepository
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $statusFilter, $page) {
             $query = User::select([
-                'users.id', 'users.name', 'users.email', 'users.is_active', 'users.hire_date',
-                'users.position', 'users.is_admin', 'users.created_at', 'users.updated_at'
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.is_active',
+                'users.hire_date',
+                'users.position',
+                'users.is_admin',
+                'users.photo',
+                'users.created_at',
+                'users.updated_at'
             ])
-            ->with([
-                'roles:id,name',
-                'permissions:id,name',
-                'companies:id,name'
-            ]);
+                ->with([
+                    'roles:id,name',
+                    'permissions:id,name',
+                    'companies:id,name'
+                ]);
 
             // Применяем фильтры
             if ($search) {
@@ -56,16 +64,22 @@ class UsersRepository
 
         return CacheService::rememberSearch($cacheKey, function () use ($search, $perPage) {
             return User::select([
-                'users.id', 'users.name', 'users.email', 'users.is_active', 'users.position', 'users.created_at'
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.is_active',
+                'users.position',
+                'users.photo',
+                'users.created_at'
             ])
-            ->with(['roles:id,name'])
-            ->where(function ($q) use ($search) {
-                $q->where('users.name', 'like', "%{$search}%")
-                    ->orWhere('users.email', 'like', "%{$search}%")
-                    ->orWhere('users.position', 'like', "%{$search}%");
-            })
-            ->orderBy('users.created_at', 'desc')
-            ->paginate($perPage);
+                ->with(['roles:id,name'])
+                ->where(function ($q) use ($search) {
+                    $q->where('users.name', 'like', "%{$search}%")
+                        ->orWhere('users.email', 'like', "%{$search}%")
+                        ->orWhere('users.position', 'like', "%{$search}%");
+                })
+                ->orderBy('users.created_at', 'desc')
+                ->paginate($perPage);
         });
     }
 
@@ -75,16 +89,23 @@ class UsersRepository
 
         return CacheService::remember($cacheKey, function () {
             return User::select([
-                'users.id', 'users.name', 'users.email', 'users.is_active', 'users.hire_date',
-                'users.position', 'users.is_admin', 'users.created_at'
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.is_active',
+                'users.hire_date',
+                'users.position',
+                'users.is_admin',
+                'users.photo',
+                'users.created_at'
             ])
-            ->with([
-                'roles:id,name',
-                'permissions:id,name',
-                'companies:id,name'
-            ])
-            ->orderBy('users.created_at', 'desc')
-            ->get();
+                ->with([
+                    'roles:id,name',
+                    'permissions:id,name',
+                    'companies:id,name'
+                ])
+                ->orderBy('users.created_at', 'desc')
+                ->get();
         }, 1800); // 30 минут
     }
 
@@ -100,6 +121,11 @@ class UsersRepository
             $user->is_active = $data['is_active'] ?? true;
             $user->position = $data['position'] ?? null;
             $user->is_admin = $data['is_admin'] ?? false;
+
+            if (isset($data['photo'])) {
+                $user->photo = $data['photo'];
+            }
+
             $user->save();
 
             if (isset($data['permissions'])) {
@@ -131,12 +157,30 @@ class UsersRepository
         DB::beginTransaction();
         try {
             $user = User::findOrFail($id);
-            $user->name = $data['name'];
-            $user->email = $data['email'];
-            $user->hire_date = $data['hire_date'] ?? $user->hire_date;
-            $user->is_active = $data['is_active'] ?? $user->is_active;
-            $user->position = $data['position'] ?? $user->position;
-            $user->is_admin = $data['is_admin'] ?? $user->is_admin;
+
+            if (isset($data['name'])) {
+                $user->name = $data['name'];
+            }
+            if (isset($data['email'])) {
+                $user->email = $data['email'];
+            }
+            if (isset($data['hire_date'])) {
+                $user->hire_date = $data['hire_date'];
+            }
+            if (isset($data['is_active'])) {
+                $user->is_active = $data['is_active'];
+            }
+            if (isset($data['position'])) {
+                $user->position = $data['position'];
+            }
+            if (isset($data['is_admin'])) {
+                $user->is_admin = $data['is_admin'];
+            }
+
+            // Обрабатываем фото (как в ProductsRepository)
+            if (isset($data['photo'])) {
+                $user->photo = $data['photo'];
+            }
 
             if (!empty($data['password'])) {
                 $user->password = Hash::make($data['password']);
@@ -189,11 +233,14 @@ class UsersRepository
 
         return CacheService::remember($cacheKey, function () {
             return User::select([
-                'users.id', 'users.name', 'users.email', 'users.is_active'
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.is_active'
             ])
-            ->with(['companies:id,name'])
-            ->orderBy('users.name')
-            ->get();
+                ->with(['companies:id,name'])
+                ->orderBy('users.name')
+                ->get();
         }, 1800); // 30 минут
     }
 
@@ -206,15 +253,23 @@ class UsersRepository
 
         return CacheService::remember($cacheKey, function () use ($id) {
             return User::select([
-                'users.id', 'users.name', 'users.email', 'users.is_active', 'users.hire_date',
-                'users.position', 'users.is_admin', 'users.created_at', 'users.updated_at'
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.is_active',
+                'users.hire_date',
+                'users.position',
+                'users.is_admin',
+                'users.photo',
+                'users.created_at',
+                'users.updated_at'
             ])
-            ->with([
-                'roles:id,name',
-                'permissions:id,name',
-                'companies:id,name'
-            ])
-            ->find($id);
+                ->with([
+                    'roles:id,name',
+                    'permissions:id,name',
+                    'companies:id,name'
+                ])
+                ->find($id);
         }, 1800); // 30 минут
     }
 
@@ -231,11 +286,15 @@ class UsersRepository
 
         return CacheService::remember($cacheKey, function () use ($userIds) {
             return User::select([
-                'users.id', 'users.name', 'users.email', 'users.is_active', 'users.position'
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.is_active',
+                'users.position'
             ])
-            ->whereIn('users.id', $userIds)
-            ->orderBy('users.name')
-            ->get();
+                ->whereIn('users.id', $userIds)
+                ->orderBy('users.name')
+                ->get();
         }, 1800); // 30 минут
     }
 
@@ -248,11 +307,14 @@ class UsersRepository
 
         return CacheService::remember($cacheKey, function () {
             return User::select([
-                'users.id', 'users.name', 'users.email', 'users.position'
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.position'
             ])
-            ->where('users.is_active', true)
-            ->orderBy('users.name')
-            ->get();
+                ->where('users.is_active', true)
+                ->orderBy('users.name')
+                ->get();
         }, 1800); // 30 минут
     }
 
@@ -265,14 +327,18 @@ class UsersRepository
 
         return CacheService::remember($cacheKey, function () use ($roleName) {
             return User::select([
-                'users.id', 'users.name', 'users.email', 'users.is_active', 'users.position'
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.is_active',
+                'users.position'
             ])
-            ->whereHas('roles', function ($query) use ($roleName) {
-                $query->where('name', $roleName);
-            })
-            ->where('users.is_active', true)
-            ->orderBy('users.name')
-            ->get();
+                ->whereHas('roles', function ($query) use ($roleName) {
+                    $query->where('name', $roleName);
+                })
+                ->where('users.is_active', true)
+                ->orderBy('users.name')
+                ->get();
         }, 1800); // 30 минут
     }
 

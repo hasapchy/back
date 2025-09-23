@@ -58,6 +58,23 @@ class ProjectsController extends Controller
         return response()->json($items);
     }
 
+    public function search(Request $request)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(array('message' => 'Unauthorized'), 401);
+        }
+
+        $searchTerm = $request->input('search');
+        if (!$searchTerm || strlen($searchTerm) < 3) {
+            return response()->json([]);
+        }
+
+        $items = $this->itemsRepository->fastSearch($userUuid, $searchTerm, 20);
+
+        return response()->json($items->items());
+    }
+
     public function store(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;

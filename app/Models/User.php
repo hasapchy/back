@@ -28,6 +28,7 @@ class User extends Authenticatable implements JWTSubject
         'hire_date',
         'position',
         'is_admin',
+        'photo',
     ];
 
     /**
@@ -100,5 +101,21 @@ class User extends Authenticatable implements JWTSubject
     public function warehouses()
     {
         return $this->belongsToMany(\App\Models\Warehouse::class, 'wh_users', 'user_id', 'warehouse_id');
+    }
+
+    /**
+     * Проекты, к которым принадлежит пользователь
+     */
+    public function projectUsers()
+    {
+        return $this->hasMany(\App\Models\ProjectUser::class, 'user_id');
+    }
+
+    /**
+     * Проекты пользователя через связь many-to-many
+     */
+    public function projects()
+    {
+        return $this->belongsToMany(\App\Models\Project::class, 'project_users', 'user_id', 'project_id');
     }
 }
