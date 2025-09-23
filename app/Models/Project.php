@@ -84,7 +84,14 @@ class Project extends Model
             ->orderBy('start_date', 'desc')
             ->first();
 
-        return $rateHistory ? $rateHistory->exchange_rate : 1;
+        $currentRate = $rateHistory ? $rateHistory->exchange_rate : 1;
+
+        // Если валюта не дефолтная (не манат), возвращаем 1/курс для конвертации в манаты
+        if (!$currency->is_default) {
+            return 1 / $currentRate;
+        }
+
+        return $currentRate;
     }
 
     /**
@@ -111,7 +118,14 @@ class Project extends Model
             ->orderBy('start_date', 'desc')
             ->first();
 
-        return $rateHistory ? $rateHistory->exchange_rate : 1;
+        $currentRate = $rateHistory ? $rateHistory->exchange_rate : 1;
+
+        // Если валюта не дефолтная (не манат), возвращаем 1/курс для конвертации в манаты
+        if (!$currency->is_default) {
+            return 1 / $currentRate;
+        }
+
+        return $currentRate;
     }
 
     public function company()
