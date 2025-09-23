@@ -79,7 +79,8 @@ class ProjectContractsController extends Controller
                 'currency_id' => 'nullable|exists:currencies,id',
                 'date' => 'required|date',
                 'returned' => 'boolean',
-                'files' => 'nullable|array'
+                'files' => 'nullable|array',
+                'note' => 'nullable|string'
             ]);
 
             $data = $request->only([
@@ -89,7 +90,8 @@ class ProjectContractsController extends Controller
                 'currency_id',
                 'date',
                 'returned',
-                'files'
+                'files',
+                'note'
             ]);
 
             $contract = $this->repository->createContract($data);
@@ -146,7 +148,8 @@ class ProjectContractsController extends Controller
                 'currency_id' => 'nullable|exists:currencies,id',
                 'date' => 'required|date',
                 'returned' => 'boolean',
-                'files' => 'nullable|array'
+                'files' => 'nullable|array',
+                'note' => 'nullable|string'
             ]);
 
             $data = $request->only([
@@ -155,7 +158,8 @@ class ProjectContractsController extends Controller
                 'currency_id',
                 'date',
                 'returned',
-                'files'
+                'files',
+                'note'
             ]);
 
             $contract = $this->repository->updateContract($id, $data);

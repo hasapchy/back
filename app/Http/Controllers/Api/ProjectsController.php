@@ -75,6 +75,19 @@ class ProjectsController extends Controller
         return response()->json($items->items());
     }
 
+    // Получение активных проектов (без завершенных и отмененных) для выбора в формах
+    public function active(Request $request)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(array('message' => 'Unauthorized'), 401);
+        }
+
+        $items = $this->itemsRepository->getActiveItems($userUuid);
+
+        return response()->json($items);
+    }
+
     public function store(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;

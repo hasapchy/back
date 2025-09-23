@@ -5,13 +5,39 @@ namespace App\Repositories;
 use App\Models\Warehouse;
 use App\Models\WhUser;
 use App\Services\CacheService;
+use Illuminate\Support\Facades\Log;
 
 class WarehouseRepository
 {
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
+
+    /**
+     * Добавить фильтрацию по компании к запросу
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->where('warehouses.company_id', $companyId);
+        } else {
+            // Если компания не выбрана, показываем только склады без company_id (для обратной совместимости)
+            $query->whereNull('warehouses.company_id');
+        }
+        return $query;
+    }
+
     // Получение складов с пагинацией
     public function getWarehousesWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $cacheKey = "warehouses_paginated_{$userUuid}_{$perPage}";
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "warehouses_paginated_{$userUuid}_{$perPage}_{$companyId}";
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
             // Получаем ID складов, к которым у пользователя есть доступ
@@ -24,9 +50,13 @@ class WarehouseRepository
             }
 
             // Получаем склады по ID с пагинацией и загружаем связанных пользователей
-            return Warehouse::whereIn('id', $warehouseIds)
-                ->with(['users:id,name,email'])
-                ->orderBy('created_at', 'desc')
+            $query = Warehouse::whereIn('id', $warehouseIds)
+                ->with(['users:id,name,email']);
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
+
+            return $query->orderBy('created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', $page);
         }, $page);
     }
@@ -34,7 +64,8 @@ class WarehouseRepository
     // Получение списка всех складов
     public function getAllWarehouses($userUuid)
     {
-        $cacheKey = "warehouses_all_{$userUuid}";
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "warehouses_all_{$userUuid}_{$companyId}";
 
         return CacheService::remember($cacheKey, function () use ($userUuid) {
             // Получаем ID складов, к которым у пользователя есть доступ
@@ -47,7 +78,12 @@ class WarehouseRepository
             }
 
             // Получаем склады по ID и загружаем связанных пользователей
-            return Warehouse::whereIn('id', $warehouseIds)
+            $query = Warehouse::whereIn('id', $warehouseIds);
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
+
+            return $query
                 ->with(['users:id,name,email'])
                 ->orderBy('name', 'asc')
                 ->get();

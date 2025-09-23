@@ -22,7 +22,6 @@ use App\Http\Controllers\Api\OrderCategoryController;
 use App\Http\Controllers\Api\TransactionCategoryController;
 use App\Http\Controllers\Api\OrderTransactionController;
 use App\Http\Controllers\Api\OrderAfController;
-use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\PerformanceController;
 use App\Http\Controllers\Api\CurrencyHistoryController;
 use Illuminate\Support\Facades\Route;
@@ -139,6 +138,7 @@ Route::middleware('auth:api')->group(function () {
     // projects
     Route::middleware('permission:projects_view')->get('projects', [ProjectsController::class, 'index']);
     Route::middleware('permission:projects_view')->get('projects/all', [ProjectsController::class, 'all']);
+    Route::middleware('permission:projects_view')->get('projects/active', [ProjectsController::class, 'active']);
     Route::middleware('permission:projects_view')->get('projects/{id}', [ProjectsController::class, 'show']);
     Route::middleware('permission:projects_create')->post('projects', [ProjectsController::class, 'store']);
     Route::middleware('permission:projects_update')->put('projects/{id}', [ProjectsController::class, 'update']);
@@ -252,10 +252,6 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('comments/{id}', [CommentController::class, 'destroy']);
     Route::get('comments/timeline', [CommentController::class, 'timeline']);
 
-    // settings
-    Route::middleware('permission:system_settings_view')->get('settings', [SettingsController::class, 'index']);
-    Route::middleware('permission:system_settings_update')->post('settings', [SettingsController::class, 'update']);
-    Route::get('settings/user-companies', [SettingsController::class, 'getUserCompanies']);
 
     // user company
     Route::get('user/current-company', [App\Http\Controllers\Api\UserCompanyController::class, 'getCurrentCompany']);

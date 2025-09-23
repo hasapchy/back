@@ -16,7 +16,7 @@ class TransactionCategory extends Model
     ];
 
     protected $casts = [
-        'type' => 'boolean',
+        'type' => 'integer',
     ];
 
     // Системные категории, которые нельзя удалять

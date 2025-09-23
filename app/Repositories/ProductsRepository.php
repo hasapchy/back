@@ -4,33 +4,64 @@ namespace App\Repositories;
 
 use App\Models\Product;
 use App\Models\ProductPrice;
-use App\Models\Category;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ProductsRepository
 {
-    // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $filterByCategory1 = false)
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
     {
-        $cacheKey = "products_{$userUuid}_{$perPage}_{$type}" . ($filterByCategory1 ? "_cat1" : "");
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $filterByCategory1) {
+    /**
+     * Добавить фильтрацию по компании к запросу
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->where('products.company_id', $companyId);
+        } else {
+            // Если компания не выбрана, показываем только продукты без company_id (для обратной совместимости)
+            $query->whereNull('products.company_id');
+        }
+        return $query;
+    }
+
+    // Получение с пагинацией
+    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $warehouseId = null)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "products_{$userUuid}_{$perPage}_{$type}_{$companyId}_{$warehouseId}";
+
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId) {
+            // Получаем ID продуктов пользователя через категории
+            $userProductIds = DB::table('product_categories')
+                ->join('category_users', 'product_categories.category_id', '=', 'category_users.category_id')
+                ->where('category_users.user_id', $userUuid)
+                ->pluck('product_categories.product_id')
+                ->unique()
+                ->toArray();
+
+            // Загружаем продукты с категориями через Eloquent
             $query = Product::with(['categories', 'unit', 'prices', 'creator'])
+                ->whereIn('id', $userProductIds)
                 ->where('type', $type);
 
-            // Если нужно фильтровать по категории 1 (для basement)
-            if ($filterByCategory1) {
-                $categoryIds = $this->getCategoryAndSubcategories(1);
-                $query->whereHas('categories', function ($q) use ($categoryIds) {
-                    $q->whereIn('categories.id', $categoryIds);
-                });
-            }
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
 
             $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
 
             // Добавляем дополнительные поля для обратной совместимости
-            $products->getCollection()->each(function ($product) {
+            $products->getCollection()->each(function ($product) use ($warehouseId) {
                 $product->category_name = $product->categories->first()?->name ?? '';
                 $product->unit_name = $product->unit?->name ?? '';
                 $product->unit_short_name = $product->unit?->short_name ?? '';
@@ -39,6 +70,17 @@ class ProductsRepository
                 $product->retail_price = $price?->retail_price ?? 0;
                 $product->wholesale_price = $price?->wholesale_price ?? 0;
                 $product->purchase_price = $price?->purchase_price ?? 0;
+
+                // Добавляем остатки по складу
+                if ($warehouseId) {
+                    $stock = DB::table('warehouse_stocks')
+                        ->where('warehouse_id', $warehouseId)
+                        ->where('product_id', $product->id)
+                        ->value('quantity');
+                    $product->stock_quantity = $stock ?? 0;
+                } else {
+                    $product->stock_quantity = 0;
+                }
             });
 
             return $products;
@@ -46,32 +88,41 @@ class ProductsRepository
     }
 
     // Поиск
-    public function searchItems($userUuid, $search, $type = true, $filterByCategory1 = false)
+    public function searchItems($userUuid, $search, $productsOnly = null, $warehouseId = null)
     {
-        $cacheKey = "products_search_{$userUuid}_{$search}_{$type}" . ($filterByCategory1 ? "_cat1" : "");
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "products_search_{$userUuid}_{$search}_{$productsOnly}_{$companyId}_{$warehouseId}";
 
-        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $type, $filterByCategory1) {
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId) {
+            // Получаем ID продуктов пользователя через категории
+            $userProductIds = DB::table('product_categories')
+                ->join('category_users', 'product_categories.category_id', '=', 'category_users.category_id')
+                ->where('category_users.user_id', $userUuid)
+                ->pluck('product_categories.product_id')
+                ->unique()
+                ->toArray();
+
+            // Загружаем продукты с категориями через Eloquent
             $query = Product::with(['categories', 'unit', 'prices', 'creator'])
-                ->where('type', $type)
+                ->whereIn('id', $userProductIds)
                 ->where(function ($query) use ($search) {
                     $query->where('name', 'like', '%' . $search . '%')
                         ->orWhere('sku', 'like', '%' . $search . '%')
                         ->orWhere('barcode', 'like', '%' . $search . '%');
                 });
 
-            // Если нужно фильтровать по категории 1 (для basement)
-            if ($filterByCategory1) {
-                $categoryIds = $this->getCategoryAndSubcategories(1);
-                $query->whereHas('categories', function ($q) use ($categoryIds) {
-                    $q->whereIn('categories.id', $categoryIds);
-                });
+            // Добавляем фильтр по типу товара, если указан
+            if ($productsOnly !== null) {
+                $query->where('type', $productsOnly);
             }
 
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
 
             $products = $query->limit(50)->get();
 
             // Добавляем дополнительные поля для обратной совместимости
-            $products->each(function ($product) {
+            $products->each(function ($product) use ($warehouseId) {
                 $product->category_name = $product->categories->first()?->name ?? '';
                 $product->unit_name = $product->unit?->name ?? '';
                 $product->unit_short_name = $product->unit?->short_name ?? '';
@@ -80,6 +131,17 @@ class ProductsRepository
                 $product->retail_price = $price?->retail_price ?? 0;
                 $product->wholesale_price = $price?->wholesale_price ?? 0;
                 $product->purchase_price = $price?->purchase_price ?? 0;
+
+                // Добавляем остатки по складу
+                if ($warehouseId) {
+                    $stock = DB::table('warehouse_stocks')
+                        ->where('warehouse_id', $warehouseId)
+                        ->where('product_id', $product->id)
+                        ->value('quantity');
+                    $product->stock_quantity = $stock ?? 0;
+                } else {
+                    $product->stock_quantity = 0;
+                }
             });
 
             return $products;
@@ -236,19 +298,5 @@ class ProductsRepository
         CacheService::invalidateProductsCache();
 
         return ['success' => true];
-    }
-
-    private function getCategoryAndSubcategories($categoryId)
-    {
-        $categoryIds = [$categoryId];
-
-        // Получаем все подкатегории рекурсивно
-        $subcategories = Category::where('parent_id', $categoryId)->get();
-
-        foreach ($subcategories as $subcategory) {
-            $categoryIds = array_merge($categoryIds, $this->getCategoryAndSubcategories($subcategory->id));
-        }
-
-        return $categoryIds;
     }
 }

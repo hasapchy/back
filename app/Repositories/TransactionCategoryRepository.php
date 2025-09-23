@@ -22,6 +22,12 @@ class TransactionCategoryRepository
             ->get();
     }
 
+    // Получение всего списка без фильтрации по пользователю
+    public function getAllItemsWithoutUserFilter()
+    {
+        return TransactionCategory::with('user')->get();
+    }
+
     // Создание
     public function createItem($data)
     {

@@ -64,11 +64,16 @@ class CurrencySeeder extends Seeder
             ];
         }
 
-        // Вставка или обновление истории валют
-        DB::table('currency_histories')->upsert(
-            $currencyHistories,
-            ['currency_id', 'start_date'],
-            ['exchange_rate', 'updated_at']
-        );
+        // Вставка истории валют только если записи не существует
+        foreach ($currencyHistories as $history) {
+            DB::table('currency_histories')
+                ->updateOrInsert(
+                    [
+                        'currency_id' => $history['currency_id'],
+                        'start_date' => $history['start_date']
+                    ],
+                    $history
+                );
+        }
     }
 }

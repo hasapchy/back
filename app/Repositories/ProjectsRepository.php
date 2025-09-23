@@ -7,14 +7,40 @@ use App\Models\ProjectUser;
 use App\Repositories\ClientsRepository;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ProjectsRepository
 {
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
+
+    /**
+     * Добавить фильтрацию по компании к запросу
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->where('projects.company_id', $companyId);
+        } else {
+            // Если компания не выбрана, показываем только проекты без company_id (для обратной совместимости)
+            $query->whereNull('projects.company_id');
+        }
+        return $query;
+    }
+
     // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null, $clientId = null, $contractType = null)
     {
-        // Создаем уникальный ключ кэша
-        $cacheKey = "projects_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusId}_{$clientId}_{$contractType}";
+        // Создаем уникальный ключ кэша с учетом компании
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "projects_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusId}_{$clientId}_{$contractType}_{$companyId}";
 
         // Для списка без фильтров используем более длительное кэширование
         $ttl = (!$search && $dateFilter === 'all_time' && !$statusId && !$clientId && $contractType === null) ? 1800 : 600; // 30 мин для списка, 10 мин для фильтров
@@ -52,6 +78,9 @@ class ProjectsRepository
                     'users:id,name',
                     'projectUsers:id,project_id,user_id'
                 ]);
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
 
             // Применяем фильтры
             if ($search) {
@@ -147,7 +176,7 @@ class ProjectsRepository
         }
     }
 
-    // Получение всего списка
+    // Получение всего списка (включая все статусы для страницы проектов)
     public function getAllItems($userUuid)
     {
         $cacheKey = "projects_all_{$userUuid}";
@@ -188,6 +217,49 @@ class ProjectsRepository
         }, 1800); // 30 минут
     }
 
+    // Получение активных проектов (без завершенных и отмененных) для выбора в формах
+    public function getActiveItems($userUuid)
+    {
+        $cacheKey = "projects_active_{$userUuid}";
+
+        return CacheService::remember($cacheKey, function () use ($userUuid) {
+            return Project::select([
+                'projects.id',
+                'projects.name',
+                'projects.budget',
+                'projects.currency_id',
+                'projects.exchange_rate',
+                'projects.date',
+                'projects.user_id',
+                'projects.client_id',
+                'projects.status_id',
+                'projects.created_at',
+                'projects.updated_at',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name',
+                'users.name as user_name'
+            ])
+                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
+                ->leftJoin('users', 'projects.user_id', '=', 'users.id')
+                ->with([
+                    'client:id,first_name,last_name,contact_person',
+                    'client.phones:id,client_id,phone',
+                    'client.emails:id,client_id,email',
+                    'client.balance:id,client_id,balance',
+                    'currency:id,name,code,symbol',
+                    'status:id,name,color',
+                    'creator:id,name',
+                    'users:id,name'
+                ])
+                ->whereHas('projectUsers', function ($query) use ($userUuid) {
+                    $query->where('user_id', $userUuid);
+                })
+                ->whereNotIn('projects.status_id', [3, 4]) // Исключаем статусы "Завершен" и "Отменен"
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }, 1800); // 30 минут
+    }
+
     // Создание
     public function createItem($data)
     {
@@ -201,6 +273,7 @@ class ProjectsRepository
             $item->date = $data['date'];
             $item->user_id = $data['user_id'];
             $item->client_id = $data['client_id'];
+            $item->company_id = $this->getCurrentCompanyId();
             $item->description = $data['description'] ?? null;
             $item->files = $data['files'] ?? [];
             $item->status_id = $data['status_id'] ?? 1; // Статус "Новый" по умолчанию
@@ -512,6 +585,7 @@ class ProjectsRepository
         $keys = [
             'projects_paginated_*',
             'projects_all_*',
+            'projects_active_*',
             'projects_fast_search_*',
             'project_item_*',
             'project_balance_history_*',

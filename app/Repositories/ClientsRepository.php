@@ -13,11 +13,35 @@ use Illuminate\Support\Facades\Schema;
 class ClientsRepository
 {
 
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
+
+    /**
+     * Добавить фильтрацию по компании к запросу
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->where('clients.company_id', $companyId);
+        } else {
+            // Если компания не выбрана, показываем только клиентов без company_id (для обратной совместимости)
+            $query->whereNull('clients.company_id');
+        }
+        return $query;
+    }
 
     function getItemsPaginated($perPage = 20, $search = null, $includeInactive = false, $page = 1)
     {
-        // Создаем уникальный ключ кэша
-        $cacheKey = "clients_paginated_{$perPage}_{$search}_{$includeInactive}";
+        // Создаем уникальный ключ кэша с учетом компании
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "clients_paginated_{$perPage}_{$search}_{$includeInactive}_{$companyId}";
 
         // Принудительно очищаем кэш клиентов перед получением
         CacheService::invalidateClientsCache();
@@ -29,6 +53,13 @@ class ClientsRepository
                     'clients.*',
                     DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
                 ]);
+
+            // Логируем для отладки
+            $companyId = $this->getCurrentCompanyId();
+            Log::info("ClientsRepository::getItemsPaginated - Current company ID: " . ($companyId ?? 'null'));
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
 
             // Фильтруем только активных клиентов, если не запрошены неактивные
             if (!$includeInactive) {
@@ -61,7 +92,8 @@ class ClientsRepository
     function searchClient(string $search_request)
     {
         // Временно отключаем кэш для отладки
-        // $cacheKey = "clients_search_{$search_request}";
+        // $companyId = $this->getCurrentCompanyId();
+        // $cacheKey = "clients_search_{$search_request}_{$companyId}";
         // CacheService::invalidateClientsCache();
         // return CacheService::getReferenceData($cacheKey, function () use ($search_request) {
             $searchTerms = explode(' ', $search_request);
@@ -73,6 +105,9 @@ class ClientsRepository
                     DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
                 ])
                 ->where('clients.status', true); // Фильтруем только активных клиентов
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
 
             $query->where(function ($q) use ($searchTerms) {
                 foreach ($searchTerms as $term) {
@@ -113,28 +148,37 @@ class ClientsRepository
 
     public function getItem($id)
     {
-        $cacheKey = "client_{$id}";
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "client_{$id}_{$companyId}";
 
         // Принудительно очищаем кэш для этого клиента перед получением
         Cache::forget($cacheKey);
 
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
-            return Client::with(['phones', 'emails', 'user'])
+            $query = Client::with(['phones', 'emails', 'user'])
                 ->select([
                     'clients.*',
                     DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
                 ])
-                ->where('clients.id', $id)
-                ->first();
+                ->where('clients.id', $id);
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
+
+            return $query->first();
         });
     }
 
     public function create(array $data)
     {
         $client = DB::transaction(function () use ($data) {
+            $companyId = $this->getCurrentCompanyId();
+            Log::info("ClientsRepository::create - Creating client with company_id: " . ($companyId ?? 'null'));
+
             $client = Client::create([
                 'user_id'        => $data['user_id'] ?? null,
+                'company_id'     => $companyId,
                 'first_name'     => $data['first_name'],
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,
@@ -189,11 +233,18 @@ class ClientsRepository
      */
     public function createMissingBalances()
     {
-        $clientsWithoutBalance = DB::table('clients')
+        $query = DB::table('clients')
             ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
             ->whereNull('client_balances.client_id')
-            ->select('clients.id')
-            ->get();
+            ->select('clients.id');
+
+        // Фильтруем по текущей компании пользователя
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->where('clients.company_id', $companyId);
+        }
+
+        $clientsWithoutBalance = $query->get();
 
         $created = 0;
         foreach ($clientsWithoutBalance as $client) {
@@ -284,7 +335,7 @@ class ClientsRepository
     function getItemsByIds(array $ids)
     {
 
-        $clients = DB::table('clients')
+        $query = DB::table('clients')
             ->select(
                 'clients.id as id',
                 'clients.client_type as client_type',
@@ -302,8 +353,15 @@ class ClientsRepository
                 'clients.created_at as created_at',
                 'clients.updated_at as updated_at'
             )
-            ->whereIn('clients.id', $ids)
-            ->get();
+            ->whereIn('clients.id', $ids);
+
+        // Фильтруем по текущей компании пользователя
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->where('clients.company_id', $companyId);
+        }
+
+        $clients = $query->get();
 
         $clientIds = $clients->pluck('id');
 
