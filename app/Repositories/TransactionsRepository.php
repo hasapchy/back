@@ -17,13 +17,13 @@ use Illuminate\Support\Facades\Log;
 
 class TransactionsRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null)
     {
         try {
             // Создаем уникальный ключ кэша
-            $cacheKey = "transactions_paginated_{$userUuid}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$search}_{$transaction_type}_" . json_encode($source);
+            $cacheKey = "transactions_paginated_{$userUuid}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$search}_{$transaction_type}_{$source}_{$project_id}";
 
-            return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source) {
+            return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id) {
                 // Используем with() для загрузки связей вместо сложных JOIN'ов
                 $query = Transaction::with([
                     'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
@@ -113,31 +113,12 @@ class TransactionsRepository
                         if (empty($source)) return $q;
 
                         return $q->where(function ($subQ) use ($source) {
-                            $conditions = [];
-
-                            if (in_array('project', $source)) {
-                                $conditions[] = 'project';
-                            }
-                            if (in_array('sale', $source)) {
-                                $conditions[] = 'sale';
-                            }
-                            if (in_array('order', $source)) {
-                                $conditions[] = 'order';
-                            }
-                            if (in_array('other', $source)) {
-                                $conditions[] = 'other';
-                            }
-
-                            if (!empty($conditions)) {
-                                $subQ->where(function ($orQ) use ($conditions) {
-                                    foreach ($conditions as $condition) {
-                                        $orQ->orWhere(function ($subOrQ) use ($condition) {
-                                            $this->applySingleSourceFilter($subOrQ, $condition);
-                                        });
-                                    }
-                                });
-                            }
+                            $this->applySingleSourceFilter($subQ, $source);
                         });
+                    })
+                    // Фильтрация по проекту
+                    ->when($project_id, function ($q, $project_id) {
+                        return $q->where('transactions.project_id', $project_id);
                     })
                     // Фильтрация по доступу к проектам
                     ->where(function ($q) use ($userUuid) {

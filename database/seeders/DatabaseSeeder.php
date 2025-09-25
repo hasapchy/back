@@ -16,7 +16,6 @@ class DatabaseSeeder extends Seeder
             AdminSeeder::class,
             BasementWorkerSeeder::class,
             CurrencySeeder::class,
-            SettingSeeder::class,
             ProductStatusSeeder::class,
             TransactionCategorySeeder::class,
             OrderStatusSeeder::class,
