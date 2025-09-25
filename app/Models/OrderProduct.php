@@ -19,10 +19,11 @@ class OrderProduct extends Model
         'quantity',
         'price',
         'discount',
+        'width',
+        'height',
     ];
 
-    protected static $logAttributes = [
-    ];
+    protected static $logAttributes = [];
     protected static $logName = 'order_product';
     protected static $logFillable = true;
     protected static $logOnlyDirty = true;

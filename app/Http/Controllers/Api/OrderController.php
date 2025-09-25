@@ -68,6 +68,8 @@ class OrderController extends Controller
             'products.*.product_id' => 'required_with:products|integer|exists:products,id',
             'products.*.quantity'   => 'required_with:products|numeric|min:0',
             'products.*.price'      => 'required_with:products|numeric|min:0',
+            'products.*.width'      => 'nullable|numeric|min:0',
+            'products.*.height'    => 'nullable|numeric|min:0',
             'temp_products'         => 'sometimes|array',
             'temp_products.*.name'  => 'required_with:temp_products|string|max:255',
             'temp_products.*.description' => 'nullable|string',
@@ -97,6 +99,8 @@ class OrderController extends Controller
                 'product_id' => $p['product_id'],
                 'quantity'   => $p['quantity'],
                 'price'      => $p['price'],
+                'width'      => $p['width'] ?? null,
+                'height'     => $p['height'] ?? null,
             ], $request->products ?? []),
             'temp_products' => array_map(fn($p) => [
                 'name'        => $p['name'],
@@ -176,6 +180,8 @@ class OrderController extends Controller
                 'product_id' => $p['product_id'],
                 'quantity'   => $p['quantity'],
                 'price'      => $p['price'],
+                'width'      => $p['width'] ?? null,
+                'height'     => $p['height'] ?? null,
             ], $request->products ?? []),
             'temp_products' => array_map(fn($p) => [
                 'name'        => $p['name'],

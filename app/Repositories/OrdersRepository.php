@@ -63,7 +63,7 @@ class OrdersRepository
                 ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
                 ->leftJoin('projects', 'orders.project_id', '=', 'projects.id')
                 ->with([
-                    'orderProducts:id,order_id,product_id,quantity,price',
+                    'orderProducts:id,order_id,product_id,quantity,price,width,height',
                     'orderProducts.product:id,name,image,unit_id',
                     'orderProducts.product.unit:id,name,short_name',
                     'tempProducts:id,order_id,name,description,quantity,price,unit_id',
@@ -72,7 +72,7 @@ class OrdersRepository
                     'client.emails:id,client_id,email',
                     'client.balance:id,client_id,balance'
                 ])
-                ->whereHas('cash.cashRegisterUsers', function($q) use ($userUuid) {
+                ->whereHas('cash.cashRegisterUsers', function ($q) use ($userUuid) {
                     $q->where('user_id', $userUuid);
                 });
 
@@ -97,11 +97,11 @@ class OrdersRepository
             }
 
             // Фильтрация по доступу к проектам
-            $query->where(function($q) use ($userUuid) {
+            $query->where(function ($q) use ($userUuid) {
                 $q->whereNull('orders.project_id') // Заказы без проекта
-                  ->orWhereHas('project.projectUsers', function($subQuery) use ($userUuid) {
-                      $subQuery->where('user_id', $userUuid);
-                  });
+                    ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
+                        $subQuery->where('user_id', $userUuid);
+                    });
             });
 
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
@@ -170,6 +170,8 @@ class OrdersRepository
                             'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
                             'quantity' => $orderProduct->quantity,
                             'price' => $orderProduct->price,
+                            'width' => $orderProduct->width,
+                            'height' => $orderProduct->height,
                             'product_type' => 'regular'
                         ]);
                     }
@@ -363,6 +365,8 @@ class OrdersRepository
                 'units.short_name as unit_short_name',
                 'order_products.quantity',
                 'order_products.price',
+                'order_products.width',
+                'order_products.height',
                 DB::raw("'regular' as product_type")
             )
             ->get();
@@ -483,20 +487,49 @@ class OrdersRepository
             $order->user_id = $userUuid;
             $order->save();
 
+            // Суммируем дубликаты товаров перед сохранением
+            $groupedProducts = [];
+            foreach ($products as $product) {
+                $key = $product['product_id'] . '_' . ($product['width'] ?? 'null') . '_' . ($product['height'] ?? 'null');
+
+                if (isset($groupedProducts[$key])) {
+                    // Суммируем количество и усредняем цену
+                    $groupedProducts[$key]['quantity'] += $product['quantity'];
+                    $groupedProducts[$key]['price'] = ($groupedProducts[$key]['price'] + $product['price']) / 2;
+                } else {
+                    $groupedProducts[$key] = $product;
+                }
+            }
+
             // Добавляем обычные товары batch insert для оптимизации
             $productsData = [];
-            foreach ($products as $product) {
+            foreach ($groupedProducts as $product) {
                 $p_id = $product['product_id'];
                 $q = $product['quantity'];
                 $p = $product['price'];
+                $width = $product['width'] ?? null;
+                $height = $product['height'] ?? null;
 
                 $unitPrice = $p;
+
+                // Если переданы width и height, рассчитываем quantity автоматически
+                if ($width && $height) {
+                    $productObject = Product::find($p_id);
+                    if ($productObject) {
+                        $unitShortName = $productObject->unit ? $productObject->unit->short_name : '';
+                        $unitName = $productObject->unit ? $productObject->unit->name : '';
+                        $calculatedQuantity = $this->calculateQuantityFromDimensions($width, $height, $unitShortName, $unitName);
+                        $q = $calculatedQuantity;
+                    }
+                }
 
                 $productsData[] = [
                     'order_id' => $order->id,
                     'product_id' => $p_id,
                     'quantity' => $q,
                     'price' => $unitPrice,
+                    'width' => $width,
+                    'height' => $height,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -689,22 +722,55 @@ class OrdersRepository
                 }
             }
 
-            // Проверяем новые и измененные товары
+            // Суммируем дубликаты товаров перед обновлением
+            $groupedProducts = [];
             foreach ($products as $product) {
+                $key = $product['product_id'] . '_' . ($product['width'] ?? 'null') . '_' . ($product['height'] ?? 'null');
+
+                if (isset($groupedProducts[$key])) {
+                    // Суммируем количество и усредняем цену
+                    $groupedProducts[$key]['quantity'] += $product['quantity'];
+                    $groupedProducts[$key]['price'] = ($groupedProducts[$key]['price'] + $product['price']) / 2;
+                } else {
+                    $groupedProducts[$key] = $product;
+                }
+            }
+
+            // Проверяем новые и измененные товары
+            foreach ($groupedProducts as $product) {
                 $unitPrice = $product['price'];
+                $width = $product['width'] ?? null;
+                $height = $product['height'] ?? null;
+                $quantity = $product['quantity'];
+
+                // Если переданы width и height, рассчитываем quantity автоматически
+                if ($width && $height) {
+                    $productObject = Product::find($product['product_id']);
+                    if ($productObject) {
+                        $unitShortName = $productObject->unit ? $productObject->unit->short_name : '';
+                        $unitName = $productObject->unit ? $productObject->unit->name : '';
+                        $calculatedQuantity = $this->calculateQuantityFromDimensions($width, $height, $unitShortName, $unitName);
+                        $quantity = $calculatedQuantity;
+                    }
+                }
+
                 $productData = [
                     'order_id' => $id,
                     'product_id' => $product['product_id'],
-                    'quantity' => $product['quantity'],
-                    'price' => $unitPrice
+                    'quantity' => $quantity,
+                    'price' => $unitPrice,
+                    'width' => $width,
+                    'height' => $height
                 ];
 
                 // Если товар уже существует - проверяем изменения
                 if ($existingProducts->has($product['product_id'])) {
                     $existingProduct = $existingProducts->get($product['product_id']);
                     if (
-                        $existingProduct->quantity != $product['quantity'] ||
-                        $existingProduct->price != $product['price']
+                        $existingProduct->quantity != $quantity ||
+                        $existingProduct->price != $product['price'] ||
+                        $existingProduct->width != $width ||
+                        $existingProduct->height != $height
                     ) {
                         $productsChanged = true;
                         OrderProduct::where('order_id', $id)
@@ -1011,5 +1077,51 @@ class OrdersRepository
                     ->whereColumn('cash_register_users.cash_register_id', 'cash_registers.id')
                     ->where('cash_register_users.user_id', $userUuid);
             })->exists();
+    }
+
+    /**
+     * Рассчитывает количество на основе width и height
+     */
+    public function calculateQuantityFromDimensions($width, $height, $unitShortName, $unitName)
+    {
+        if (!$width || !$height || $width <= 0 || $height <= 0) {
+            return 0;
+        }
+
+        $width = (float) $width;
+        $height = (float) $height;
+
+        // Логика расчета на основе единиц измерения
+        if ($unitShortName === 'м²' || $unitName === 'Квадратный метр') {
+            // Квадратный метр: ширина × высота
+            return $width * $height;
+        } elseif ($unitShortName === 'м' || $unitName === 'Метр') {
+            // Метр: периметр (2 × ширина + 2 × высота)
+            return 2 * $width + 2 * $height;
+        } elseif ($unitShortName === 'л' || $unitName === 'Литр') {
+            // Литр: ширина × высота (площадь для расчета объема)
+            return $width * $height;
+        } elseif (
+            $unitShortName === 'кг' || $unitName === 'Килограмм' ||
+            $unitShortName === 'г' || $unitName === 'Грамм'
+        ) {
+            // Вес: ширина × высота (площадь для расчета веса)
+            return $width * $height;
+        } elseif ($unitShortName === 'шт' || $unitName === 'Штука') {
+            // Штука: ширина × высота
+            return $width * $height;
+        } elseif (
+            $unitShortName === 'уп' || $unitName === 'Упаковка' ||
+            $unitShortName === 'кор' || $unitName === 'Коробка' ||
+            $unitShortName === 'пал' || $unitName === 'Паллета' ||
+            $unitShortName === 'комп' || $unitName === 'Комплект' ||
+            $unitShortName === 'рул' || $unitName === 'Рулон'
+        ) {
+            // Упаковочные единицы: ширина × высота
+            return $width * $height;
+        } else {
+            // Для остальных единиц: ширина × высота
+            return $width * $height;
+        }
     }
 }
