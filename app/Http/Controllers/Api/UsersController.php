@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\UsersRepository;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -77,12 +78,17 @@ class UsersController extends Controller
 
         $user = $this->itemsRepository->createItem($data);
 
-        return response()->json(['user' => $user]);
+
+        return response()->json([
+            'user' => $user,
+            'permissions' => $user->permissions->pluck('name')->toArray()
+        ]);
     }
 
     public function update(Request $request, $id)
     {
         $data = $request->all();
+
 
         if (isset($data['is_active'])) {
             $data['is_active'] = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
@@ -134,13 +140,29 @@ class UsersController extends Controller
 
         $user = $user->fresh();
 
-        return response()->json(['user' => $user]);
+
+        return response()->json([
+            'user' => $user,
+            'permissions' => $user->permissions->pluck('name')->toArray()
+        ]);
     }
 
     public function destroy($id)
     {
         $this->itemsRepository->deleteItem($id);
         return response()->json(['message' => 'User deleted']);
+    }
+
+    public function checkPermissions($id)
+    {
+        $user = User::with('permissions')->findOrFail($id);
+
+        return response()->json([
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'permissions' => $user->permissions->pluck('name')->toArray(),
+            'permissions_count' => $user->permissions->count()
+        ]);
     }
 
     public function permissions()

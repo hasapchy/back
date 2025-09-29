@@ -28,6 +28,7 @@ class Order extends Model
         'warehouse_id',
         'project_id',
         'company_id',
+        'category_id',
     ];
 
 
@@ -43,7 +44,8 @@ class Order extends Model
         'discount',
         'total_price',
         'cash_id',
-        'warehouse_id'
+        'warehouse_id',
+        'category_id'
     ];
 
     protected static $logName = 'order';
@@ -166,5 +168,10 @@ class Order extends Model
     public function company()
     {
         return $this->belongsTo(Company::class, 'company_id');
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class, 'category_id');
     }
 }

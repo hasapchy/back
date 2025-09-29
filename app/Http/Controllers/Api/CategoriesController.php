@@ -49,6 +49,19 @@ class CategoriesController extends Controller
         return response()->json($items);
     }
 
+    // Метод для получения только родительских категорий (первого уровня)
+    public function parents(Request $request)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if(!$userUuid){
+            return response()->json(array('message' => 'Unauthorized'), 401);
+        }
+
+        $items = $this->itemsRepository->getParentCategories($userUuid);
+
+        return response()->json($items);
+    }
+
     // Метод для создания категории
     public function store(Request $request)
     {

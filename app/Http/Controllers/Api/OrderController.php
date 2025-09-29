@@ -57,6 +57,7 @@ class OrderController extends Controller
             'cash_id' => 'required|integer|exists:cash_registers,id',
             'warehouse_id' => 'required|integer|exists:warehouses,id',
             'currency_id' => 'nullable|integer|exists:currencies,id',
+            'category_id' => 'nullable|integer|exists:categories,id',
             'discount'      => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|in:fixed,percent|required_with:discount',
             'description' => 'nullable|string',
@@ -88,6 +89,7 @@ class OrderController extends Controller
             'cash_id'      => $request->cash_id,
             'warehouse_id' => $request->warehouse_id,
             'currency_id' => $request->currency_id,
+            'category_id' => $request->category_id,
             'discount' => $request->discount ?? 0,
             'discount_type' => $request->discount_type ?? 'percent',
             'description' => $request->description,
@@ -143,6 +145,7 @@ class OrderController extends Controller
             'cash_id'              => 'required|integer|exists:cash_registers,id',
             'warehouse_id'         => 'required|integer|exists:warehouses,id',
             'currency_id'  => 'nullable|integer|exists:currencies,id',
+            'category_id' => 'nullable|integer|exists:categories,id',
             'date'                 => 'nullable|date',
             'note'                 => 'nullable|string',
             'description'          => 'nullable|string',
@@ -169,6 +172,7 @@ class OrderController extends Controller
             'cash_id'      => $request->cash_id,
             'warehouse_id'  => $request->warehouse_id,
             'currency_id'   => $request->currency_id,
+            'category_id' => $request->category_id,
             'discount'      => $request->discount  ?? 0,
             'discount_type' => $request->discount_type ?? 'percent',
             'warehouse_id' => $request->warehouse_id,
@@ -255,12 +259,18 @@ class OrderController extends Controller
         ]);
 
         try {
-            $affected = $this->itemRepository
+            $result = $this->itemRepository
                 ->updateStatusByIds($request->ids, $request->status_id, $userUuid);
 
-            if ($affected > 0) {
+            // Проверяем, если это массив с информацией о недостающей оплате
+            if (is_array($result) && isset($result['needs_payment']) && $result['needs_payment']) {
+                return response()->json($result, 422); // 422 Unprocessable Entity
+            }
+
+            // Обычный успешный ответ
+            if ($result > 0) {
                 return response()->json([
-                    'message' => "Статус обновлён у {$affected} заказ(ов)"
+                    'message' => "Статус обновлён у {$result} заказ(ов)"
                 ]);
             } else {
                 return response()->json([

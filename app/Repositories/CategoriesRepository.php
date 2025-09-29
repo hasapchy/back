@@ -32,6 +32,21 @@ class CategoriesRepository
         return $items;
     }
 
+    // Получение только родительских категорий (первого уровня)
+    public function getParentCategories($userUuid)
+    {
+        $items = Category::leftJoin('users as users', 'categories.user_id', '=', 'users.id')
+            ->select('categories.*', 'users.name as user_name')
+            ->whereNull('categories.parent_id') // Только родительские категории
+            ->whereHas('categoryUsers', function($query) use ($userUuid) {
+                $query->where('user_id', $userUuid);
+            })
+            ->whereHas('children') // Только те, у которых есть подкатегории
+            ->with('users')
+            ->get();
+        return $items;
+    }
+
     // Создание
     public function createItem($data)
     {

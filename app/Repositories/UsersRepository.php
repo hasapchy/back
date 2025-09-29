@@ -158,6 +158,7 @@ class UsersRepository
         try {
             $user = User::findOrFail($id);
 
+
             if (isset($data['name'])) {
                 $user->name = $data['name'];
             }

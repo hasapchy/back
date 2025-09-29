@@ -17,6 +17,7 @@ use App\Models\OrderStatus;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use App\Repositories\ClientsRepository;
+use App\Repositories\TransactionsRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -52,7 +53,8 @@ class OrdersRepository
                 'currencies.name as currency_name',
                 'currencies.code as currency_code',
                 'currencies.symbol as currency_symbol',
-                'projects.name as project_name'
+                'projects.name as project_name',
+                'categories.name as category_name'
             ])
                 ->leftJoin('clients', 'orders.client_id', '=', 'clients.id')
                 ->leftJoin('users', 'orders.user_id', '=', 'users.id')
@@ -62,6 +64,7 @@ class OrdersRepository
                 ->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id')
                 ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
                 ->leftJoin('projects', 'orders.project_id', '=', 'projects.id')
+                ->leftJoin('categories', 'orders.category_id', '=', 'categories.id')
                 ->with([
                     'orderProducts:id,order_id,product_id,quantity,price,width,height',
                     'orderProducts.product:id,name,image,unit_id',
@@ -145,6 +148,7 @@ class OrdersRepository
                 $order->currency_code = $order->currency_code ?? null;
                 $order->currency_symbol = $order->currency_symbol ?? null;
                 $order->project_name = $order->project_name ?? null;
+                $order->category_name = $order->category_name ?? null;
 
                 // Создаем объект проекта для совместимости с фронтендом
                 if ($order->project_id && $order->project_name) {
@@ -260,6 +264,7 @@ class OrdersRepository
         $query->leftJoin('currencies as cash_currency', 'cash_registers.currency_id', '=', 'cash_currency.id');
         $query->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id');
         $query->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id');
+        $query->leftJoin('categories', 'orders.category_id', '=', 'categories.id');
 
         $query->whereIn('orders.id', $order_ids);
 
@@ -291,7 +296,8 @@ class OrdersRepository
             'cash_currency.code as currency_code',
             'cash_currency.symbol as currency_symbol',
             'projects.name as project_name',
-            'users.name as user_name'
+            'users.name as user_name',
+            'categories.name as category_name'
         );
 
         $items = $query->get()->map(function ($item) {
@@ -402,6 +408,7 @@ class OrdersRepository
         $cash_id = $data['cash_id'];
         $project_id = $data['project_id'];
         $status_id = $data['status_id'] ?? 1;
+        $category_id = $data['category_id'] ?? null;
         $products = $data['products'] ?? [];
         $temp_products = $data['temp_products'] ?? [];
         $currency_id = $data['currency_id'];
@@ -478,6 +485,7 @@ class OrdersRepository
             $order->warehouse_id = $warehouse_id;
             $order->cash_id = $cash_id;
             $order->status_id = $status_id;
+            $order->category_id = $category_id;
             $order->price = $price;
             $order->discount = $discount_calculated;
             $order->total_price = $total_price;
@@ -603,6 +611,7 @@ class OrdersRepository
             $cash_id = $data['cash_id'];
             $project_id = $data['project_id'];
             $status_id = $data['status_id'] ?? $order->status_id;
+            $category_id = $data['category_id'] ?? $order->category_id;
             $products = $data['products'] ?? [];
             $temp_products = $data['temp_products'] ?? [];
             $currency_id = $data['currency_id'] ?? $order->currency_id;
@@ -678,6 +687,7 @@ class OrdersRepository
                 'warehouse_id' => $warehouse_id,
                 'cash_id' => $cash_id,
                 'status_id' => $status_id,
+                'category_id' => $category_id,
                 'currency_id' => $currency_id,
                 'price' => $price,
                 'discount' => $discount_calculated,
@@ -966,7 +976,7 @@ class OrdersRepository
             ];
         });
     }
-    public function updateStatusByIds(array $ids, int $statusId, string $userId): int
+    public function updateStatusByIds(array $ids, int $statusId, string $userId)
     {
         $targetStatus = OrderStatus::findOrFail($statusId);
         $transactionsRepository = new TransactionsRepository();
@@ -989,7 +999,16 @@ class OrdersRepository
                 $paidTotal = $transactionsRepository->getTotalByOrderId($userId, $order->id);
 
                 if ($paidTotal < $order->total_price) {
-                    throw new \Exception("Нельзя закрыть заказ ID {$order->id}: оплачено {$paidTotal} из {$order->total_price}");
+                    $remainingAmount = $order->total_price - $paidTotal;
+                    return [
+                        'success' => false,
+                        'needs_payment' => true,
+                        'order_id' => $order->id,
+                        'paid_total' => $paidTotal,
+                        'order_total' => $order->total_price,
+                        'remaining_amount' => $remainingAmount,
+                        'message' => "Заказ не оплачен полностью. Осталось доплатить: {$remainingAmount}"
+                    ];
                 }
             }
 
