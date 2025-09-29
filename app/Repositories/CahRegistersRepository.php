@@ -205,6 +205,7 @@ class CahRegistersRepository
             $item->balance = $data['balance'];
             $item->is_rounding = $data['is_rounding'] ?? false;
             $item->currency_id = $data['currency_id'];
+            $item->company_id = $this->getCurrentCompanyId();
             $item->save();
 
             // Создаем связи с пользователями
@@ -286,7 +287,7 @@ class CahRegistersRepository
     }
 
     // Быстрый поиск касс
-            public function fastSearch($search, $perPage = 20)
+    public function fastSearch($search, $perPage = 20)
     {
         try {
             // Возвращаем результаты поиска с валютой
@@ -301,7 +302,7 @@ class CahRegistersRepository
     }
 
     // Получение кассы по ID
-            public function findItem($id)
+    public function findItem($id)
     {
         try {
             // Возвращаем кассу с валютой и пользователями
@@ -313,13 +314,13 @@ class CahRegistersRepository
     }
 
     // Получение активных касс
-            public function getActiveCashRegisters($userUuid)
+    public function getActiveCashRegisters($userUuid)
     {
         try {
             // Возвращаем только активные кассы, к которым у пользователя есть доступ
             return CashRegister::with(['currency:id,code,symbol'])
                 ->where('is_active', true)
-                ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
+                ->whereHas('cashRegisterUsers', function ($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
                 })
                 ->get();

@@ -8,16 +8,32 @@ use App\Models\CurrencyHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Spatie\Permission\Traits\HasRoles;
 
 class CurrencyHistoryController extends Controller
 {
+    use HasRoles;
     // Получение истории курсов для конкретной валюты
     public function index(Request $request, $currencyId)
     {
         try {
+            $user = auth('api')->user();
+
+            if (!$user) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+
             $currency = Currency::find($currencyId);
             if (!$currency) {
                 return response()->json(['error' => 'Валюта не найдена'], 404);
+            }
+
+            // Проверяем права доступа к валюте
+            $hasAccessToAllCurrencies = $user->can('currencies_access_all');
+
+            // Если нет доступа ко всем валютам и это не базовая валюта - запрещаем доступ
+            if (!$hasAccessToAllCurrencies && !$currency->is_default) {
+                return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
             }
 
             $history = CurrencyHistory::where('currency_id', $currencyId)
@@ -38,9 +54,23 @@ class CurrencyHistoryController extends Controller
     public function store(Request $request, $currencyId)
     {
         try {
+            $user = auth('api')->user();
+
+            if (!$user) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+
             $currency = Currency::find($currencyId);
             if (!$currency) {
                 return response()->json(['error' => 'Валюта не найдена'], 404);
+            }
+
+            // Проверяем права доступа к валюте
+            $hasAccessToAllCurrencies = $user->can('currencies_access_all');
+
+            // Если нет доступа ко всем валютам и это не базовая валюта - запрещаем доступ
+            if (!$hasAccessToAllCurrencies && !$currency->is_default) {
+                return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
             }
 
             $request->validate([
@@ -81,9 +111,23 @@ class CurrencyHistoryController extends Controller
     public function update(Request $request, $currencyId, $historyId)
     {
         try {
+            $user = auth('api')->user();
+
+            if (!$user) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+
             $currency = Currency::find($currencyId);
             if (!$currency) {
                 return response()->json(['error' => 'Валюта не найдена'], 404);
+            }
+
+            // Проверяем права доступа к валюте
+            $hasAccessToAllCurrencies = $user->can('currencies_access_all');
+
+            // Если нет доступа ко всем валютам и это не базовая валюта - запрещаем доступ
+            if (!$hasAccessToAllCurrencies && !$currency->is_default) {
+                return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
             }
 
             $history = CurrencyHistory::where('currency_id', $currencyId)
@@ -133,9 +177,23 @@ class CurrencyHistoryController extends Controller
     public function destroy(Request $request, $currencyId, $historyId)
     {
         try {
+            $user = auth('api')->user();
+
+            if (!$user) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+
             $currency = Currency::find($currencyId);
             if (!$currency) {
                 return response()->json(['error' => 'Валюта не найдена'], 404);
+            }
+
+            // Проверяем права доступа к валюте
+            $hasAccessToAllCurrencies = $user->can('currencies_access_all');
+
+            // Если нет доступа ко всем валютам и это не базовая валюта - запрещаем доступ
+            if (!$hasAccessToAllCurrencies && !$currency->is_default) {
+                return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
             }
 
             $history = CurrencyHistory::where('currency_id', $currencyId)
@@ -166,16 +224,31 @@ class CurrencyHistoryController extends Controller
     public function getCurrenciesWithRates()
     {
         try {
-            $currencies = Currency::where('status', 1)
-                ->with(['exchangeRateHistories' => function ($query) {
-                    $query->where('start_date', '<=', now()->toDateString())
-                          ->where(function ($q) {
-                              $q->whereNull('end_date')
-                                ->orWhere('end_date', '>=', now()->toDateString());
-                          })
-                          ->orderBy('start_date', 'desc')
-                          ->limit(1);
-                }])
+            $user = auth('api')->user();
+
+            if (!$user) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+
+            // Проверяем, есть ли у пользователя доступ ко всем валютам
+            $hasAccessToAllCurrencies = $user->can('currencies_access_all');
+
+            $query = Currency::where('status', 1);
+
+            // Если нет доступа ко всем валютам - показываем только базовую валюту
+            if (!$hasAccessToAllCurrencies) {
+                $query->where('is_default', true);
+            }
+
+            $currencies = $query->with(['exchangeRateHistories' => function ($query) {
+                $query->where('start_date', '<=', now()->toDateString())
+                    ->where(function ($q) {
+                        $q->whereNull('end_date')
+                            ->orWhere('end_date', '>=', now()->toDateString());
+                    })
+                    ->orderBy('start_date', 'desc')
+                    ->limit(1);
+            }])
                 ->get();
 
             $result = $currencies->map(function ($currency) {
