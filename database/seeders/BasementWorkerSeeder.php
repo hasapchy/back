@@ -75,7 +75,7 @@ class BasementWorkerSeeder extends Seeder
                     ->where('user_id', $userId)
                     ->where('cash_register_id', 1)
                     ->first();
-                
+
                 if (!$existingCashRegister) {
                     DB::table('cash_register_users')->insert([
                         'user_id' => $userId,
@@ -93,7 +93,7 @@ class BasementWorkerSeeder extends Seeder
                     ->where('user_id', $userId)
                     ->where('warehouse_id', 1)
                     ->first();
-                
+
                 if (!$existingWarehouse) {
                     DB::table('wh_users')->insert([
                         'user_id' => $userId,
@@ -111,7 +111,7 @@ class BasementWorkerSeeder extends Seeder
                     ->where('user_id', $userId)
                     ->where('company_id', 1)
                     ->first();
-                
+
                 if (!$existingCompany) {
                     DB::table('company_user')->insert([
                         'user_id' => $userId,
@@ -123,7 +123,6 @@ class BasementWorkerSeeder extends Seeder
                 } else {
                     echo "User ID {$userId} already has access to company 1\n";
                 }
-
             } else {
                 echo "User with ID {$userId} not found\n";
             }
