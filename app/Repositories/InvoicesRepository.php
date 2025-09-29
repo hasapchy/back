@@ -14,18 +14,18 @@ class InvoicesRepository
 {
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $typeFilter = null, $page = 1)
     {
-        $query = Invoice::with(['client', 'user', 'orders', 'products.unit', 'products.order'])
+        $query = Invoice::with(['client.phones', 'client.emails', 'user', 'orders', 'products.unit', 'products.order'])
             ->where('user_id', $userUuid);
 
         // Поиск
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('invoice_number', 'like', "%{$search}%")
-                  ->orWhere('note', 'like', "%{$search}%")
-                  ->orWhereHas('client', function ($clientQuery) use ($search) {
-                      $clientQuery->where('first_name', 'like', "%{$search}%")
-                                 ->orWhere('last_name', 'like', "%{$search}%");
-                  });
+                    ->orWhere('note', 'like', "%{$search}%")
+                    ->orWhereHas('client', function ($clientQuery) use ($search) {
+                        $clientQuery->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -44,7 +44,7 @@ class InvoicesRepository
 
     public function getItemById($id)
     {
-        return Invoice::with(['client', 'user', 'orders', 'products.unit', 'products.order'])
+        return Invoice::with(['client.phones', 'client.emails', 'user', 'orders', 'products.unit', 'products.order'])
             ->find($id);
     }
 
@@ -139,7 +139,7 @@ class InvoicesRepository
 
     public function getOrdersForInvoice($orderIds)
     {
-        return Order::with(['client', 'orderProducts.product', 'tempProducts.unit'])
+        return Order::with(['client.phones', 'client.emails', 'orderProducts.product', 'tempProducts.unit'])
             ->whereIn('id', $orderIds)
             ->get();
     }

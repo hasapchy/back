@@ -42,11 +42,21 @@ class ProductsRepository
         $cacheKey = "products_{$userUuid}_{$perPage}_{$type}_{$companyId}_{$warehouseId}";
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId) {
+            // Получаем категории пользователя
+            $userCategoryIds = DB::table('category_users')
+                ->where('user_id', $userUuid)
+                ->pluck('category_id')
+                ->toArray();
+
+            // Если у пользователя нет связей с категориями, показываем товары из категории 1 (по умолчанию)
+            if (empty($userCategoryIds)) {
+                $userCategoryIds = [1]; // Категория 1 по умолчанию
+            }
+
             // Получаем ID продуктов пользователя через категории
             $userProductIds = DB::table('product_categories')
-                ->join('category_users', 'product_categories.category_id', '=', 'category_users.category_id')
-                ->where('category_users.user_id', $userUuid)
-                ->pluck('product_categories.product_id')
+                ->whereIn('category_id', $userCategoryIds)
+                ->pluck('product_id')
                 ->unique()
                 ->toArray();
 
@@ -94,11 +104,21 @@ class ProductsRepository
         $cacheKey = "products_search_{$userUuid}_{$search}_{$productsOnly}_{$companyId}_{$warehouseId}";
 
         return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId) {
+            // Получаем категории пользователя
+            $userCategoryIds = DB::table('category_users')
+                ->where('user_id', $userUuid)
+                ->pluck('category_id')
+                ->toArray();
+
+            // Если у пользователя нет связей с категориями, показываем товары из категории 1 (по умолчанию)
+            if (empty($userCategoryIds)) {
+                $userCategoryIds = [1]; // Категория 1 по умолчанию
+            }
+
             // Получаем ID продуктов пользователя через категории
             $userProductIds = DB::table('product_categories')
-                ->join('category_users', 'product_categories.category_id', '=', 'category_users.category_id')
-                ->where('category_users.user_id', $userUuid)
-                ->pluck('product_categories.product_id')
+                ->whereIn('category_id', $userCategoryIds)
+                ->pluck('product_id')
                 ->unique()
                 ->toArray();
 
