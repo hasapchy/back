@@ -139,6 +139,7 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:projects_view')->get('projects', [ProjectsController::class, 'index']);
     Route::middleware('permission:projects_view')->get('projects/all', [ProjectsController::class, 'all']);
     Route::middleware('permission:projects_view')->get('projects/active', [ProjectsController::class, 'active']);
+    Route::middleware('permission:projects_view')->get('projects/search', [ProjectsController::class, 'search']);
     Route::middleware('permission:projects_view')->get('projects/{id}', [ProjectsController::class, 'show']);
     Route::middleware('permission:projects_create')->post('projects', [ProjectsController::class, 'store']);
     Route::middleware('permission:projects_update')->put('projects/{id}', [ProjectsController::class, 'update']);
@@ -193,6 +194,7 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:orders_view')->get('orders/{id}', [OrderController::class, 'show']);
     Route::middleware('permission:orders_view')->get('orders/category/{id}/additional-fields', [OrderController::class, 'getAdditionalFields']);
     Route::middleware('permission:orders_view')->post('orders/categories/additional-fields', [OrderController::class, 'getAdditionalFieldsByCategories']);
+    Route::get('orders/server-time', [OrderController::class, 'getServerTime']);
 
     // order transactions
     Route::middleware('permission:orders_update')->post('orders/{orderId}/transactions', [OrderTransactionController::class, 'linkTransaction']);

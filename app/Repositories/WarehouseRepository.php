@@ -95,6 +95,7 @@ class WarehouseRepository
     {
         $warehouse = new Warehouse();
         $warehouse->name = $name;
+        $warehouse->company_id = $this->getCurrentCompanyId();
         $warehouse->save();
 
         // Создаем связи с пользователями
@@ -117,6 +118,11 @@ class WarehouseRepository
     {
         $warehouse = Warehouse::find($id);
         $warehouse->name = $name;
+        // Обновляем company_id если он изменился
+        $currentCompanyId = $this->getCurrentCompanyId();
+        if ($currentCompanyId && $warehouse->company_id !== $currentCompanyId) {
+            $warehouse->company_id = $currentCompanyId;
+        }
         $warehouse->save();
 
         // Удаляем старые связи
