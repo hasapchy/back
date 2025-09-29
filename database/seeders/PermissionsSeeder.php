@@ -53,7 +53,7 @@ class PermissionsSeeder extends Seeder
             ]);
         }
 
-        $customPermissions = ['settings_edit_any_date', 'settings_project_budget_view'];
+        $customPermissions = ['settings_edit_any_date', 'settings_project_budget_view', 'currencies_access_all'];
 
         foreach ($customPermissions as $permission) {
             Permission::firstOrCreate(['name' => $permission,  'guard_name' => 'api',]);
