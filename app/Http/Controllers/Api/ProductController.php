@@ -8,6 +8,7 @@ use App\Repositories\ProductsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class ProductController extends Controller
 {
@@ -31,7 +32,17 @@ class ProductController extends Controller
         $warehouseId = $request->query('warehouse_id');
 
         // Получаем продукты с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page, $filterByCategory1, $warehouseId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page, $warehouseId);
+
+        Log::info('Products list fetched', [
+            'user_id' => $userUuid,
+            'company_id' => $request->header('X-Company-ID'),
+            'page' => $page,
+            'warehouse_id' => $warehouseId,
+            'filter_by_category_1' => $filterByCategory1,
+            'items_count' => $items->count(),
+            'total' => $items->total(),
+        ]);
 
         return response()->json([
             'items' => $items->items(),  // Список
@@ -56,7 +67,19 @@ class ProductController extends Controller
         $productsOnly = $request->query('products_only');
         $warehouseId = $request->query('warehouse_id');
 
-        $items = $this->itemsRepository->searchItems($userUuid, $search, $type, $filterByCategory1, $productsOnly, $warehouseId);
+        // productsOnly в репозитории — булево для фильтра типа, filterByCategory1 не используется здесь
+        $items = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId);
+
+        Log::info('Products/services search', [
+            'user_id' => $userUuid,
+            'company_id' => $request->header('X-Company-ID'),
+            'query' => $search,
+            'type' => $type,
+            'products_only' => $productsOnly,
+            'warehouse_id' => $warehouseId,
+            'filter_by_category_1' => $filterByCategory1,
+            'items_count' => is_countable($items) ? count($items) : null,
+        ]);
 
         return response()->json($items);
     }
@@ -74,7 +97,17 @@ class ProductController extends Controller
         $warehouseId = $request->query('warehouse_id');
 
         // Получаем услуги с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page, $filterByCategory1, $warehouseId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page, $warehouseId);
+
+        Log::info('Services list fetched', [
+            'user_id' => $userUuid,
+            'company_id' => $request->header('X-Company-ID'),
+            'page' => $page,
+            'warehouse_id' => $warehouseId,
+            'filter_by_category_1' => $filterByCategory1,
+            'items_count' => $items->count(),
+            'total' => $items->total(),
+        ]);
 
         return response()->json([
             'items' => $items->items(),  // Список
