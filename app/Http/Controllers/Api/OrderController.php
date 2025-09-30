@@ -34,7 +34,7 @@ class OrderController extends Controller
         $dateFilter = $request->input('date_filter_type', 'all_time');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
-        $statusFilter = $request->input('status_ids');
+        $statusFilter = $request->input('status_id');
 
         $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page);
 
@@ -58,7 +58,7 @@ class OrderController extends Controller
         $request->validate([
             'client_id' => 'required|integer|exists:clients,id',
             'project_id' => 'nullable|sometimes|integer|exists:projects,id',
-            'cash_id' => 'required|integer|exists:cash_registers,id',
+            'cash_id' => 'nullable|integer|exists:cash_registers,id',
             'warehouse_id' => 'required|integer|exists:warehouses,id',
             'currency_id' => 'nullable|integer|exists:currencies,id',
             'category_id' => 'nullable|integer|exists:categories,id',
@@ -86,10 +86,14 @@ class OrderController extends Controller
             'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
         ]);
 
+        // Автоматически определяем тип оплаты: если указана касса - наличные, иначе - баланс
+        $type = $request->cash_id ? 'cash' : 'balance';
+
         $data = [
             'user_id'      => $userUuid,
             'client_id'    => $request->client_id,
             'project_id'   => $request->project_id,
+            'type'         => $type,
             'cash_id'      => $request->cash_id,
             'warehouse_id' => $request->warehouse_id,
             'currency_id' => $request->currency_id,
@@ -118,10 +122,12 @@ class OrderController extends Controller
             'additional_fields' => $request->additional_fields ?? [],
         ];
 
-        // Проверяем права доступа к кассе
-        $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $request->cash_id);
-        if (!$userHasPermissionToCashRegister) {
-            return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
+        // Проверяем права доступа к кассе только если указан cash_id и он не null
+        if ($request->cash_id && $request->cash_id !== null) {
+            $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $request->cash_id);
+            if (!$userHasPermissionToCashRegister) {
+                return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
+            }
         }
 
         try {
@@ -169,7 +175,7 @@ class OrderController extends Controller
         $request->validate([
             'client_id'            => 'required|integer|exists:clients,id',
             'project_id'           => 'nullable|sometimes|integer|exists:projects,id',
-            'cash_id'              => 'required|integer|exists:cash_registers,id',
+            'cash_id'              => 'nullable|integer|exists:cash_registers,id',
             'warehouse_id'         => 'required|integer|exists:warehouses,id',
             'currency_id'  => 'nullable|integer|exists:currencies,id',
             'category_id' => 'nullable|integer|exists:categories,id',
@@ -192,10 +198,14 @@ class OrderController extends Controller
             'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
         ]);
 
+        // Автоматически определяем тип оплаты: если указана касса - наличные, иначе - баланс
+        $type = $request->cash_id ? 'cash' : 'balance';
+
         $data = [
             'user_id'      => $userUuid,
             'client_id'    => $request->client_id,
             'project_id'   => $request->project_id,
+            'type'         => $type,
             'cash_id'      => $request->cash_id,
             'warehouse_id'  => $request->warehouse_id,
             'currency_id'   => $request->currency_id,
@@ -224,10 +234,12 @@ class OrderController extends Controller
             'additional_fields' => $request->additional_fields ?? [],
         ];
 
-        // Проверяем права доступа к кассе
-        $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $request->cash_id);
-        if (!$userHasPermissionToCashRegister) {
-            return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
+        // Проверяем права доступа к кассе только если указан cash_id и он не null
+        if ($request->cash_id && $request->cash_id !== null) {
+            $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $request->cash_id);
+            if (!$userHasPermissionToCashRegister) {
+                return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
+            }
         }
 
         try {

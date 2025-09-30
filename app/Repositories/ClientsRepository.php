@@ -517,6 +517,9 @@ class ClientsRepository
     {
         $cacheKey = "client_balance_{$clientId}";
 
+        // Принудительно очищаем кэш перед получением актуального баланса
+        CacheService::invalidateClientBalanceCache($clientId);
+
         return CacheService::remember($cacheKey, function () use ($clientId) {
             return DB::table('client_balances')
                 ->where('client_id', $clientId)
@@ -556,9 +559,8 @@ class ClientsRepository
     // Инвалидация кэша баланса клиента
     public function invalidateClientBalanceCache($clientId)
     {
-        // Очищаем кэш баланса конкретного клиента
-        CacheService::invalidateByTag("client_balance_{$clientId}");
-        CacheService::invalidateByTag("client_balance_history_{$clientId}");
+        // Используем новый метод из CacheService
+        CacheService::invalidateClientBalanceCache($clientId);
     }
 
 }

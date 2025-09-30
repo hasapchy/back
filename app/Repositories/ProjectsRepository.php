@@ -220,10 +220,12 @@ class ProjectsRepository
     // Получение активных проектов (без завершенных и отмененных) для выбора в формах
     public function getActiveItems($userUuid)
     {
-        $cacheKey = "projects_active_{$userUuid}";
+        // Создаем уникальный ключ кэша с учетом компании
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "projects_active_{$userUuid}_{$companyId}";
 
         return CacheService::remember($cacheKey, function () use ($userUuid) {
-            return Project::select([
+            $query = Project::select([
                 'projects.id',
                 'projects.name',
                 'projects.budget',
@@ -250,8 +252,12 @@ class ProjectsRepository
                     'status:id,name,color',
                     'creator:id,name',
                     'users:id,name'
-                ])
-                ->whereHas('projectUsers', function ($query) use ($userUuid) {
+                ]);
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
+
+            return $query->whereHas('projectUsers', function ($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
                 })
                 ->whereNotIn('projects.status_id', [3, 4]) // Исключаем статусы "Завершен" и "Отменен"
@@ -523,7 +529,7 @@ class ProjectsRepository
                     'orders.cash_id',
                     DB::raw("NULL as type"),
                     DB::raw("'order' as source"),
-                    DB::raw("'Заказ' as description"),
+                    DB::raw("CASE WHEN orders.cash_id IS NOT NULL THEN 'Заказ через кассу' ELSE 'Заказ через баланс' END as description"),
                     'currencies.symbol as cash_currency_symbol',
                     'currencies.code as cash_currency_code'
                 );
@@ -544,8 +550,8 @@ class ProjectsRepository
                         $amount = $item->type == 1 ? +$amount : -$amount; // Приход/расход
                     } elseif ($item->source === 'sale' && isset($item->cash_id) && $item->cash_id) {
                         $amount = +$amount; // Продажа через кассу - положительная
-                    } elseif ($item->source === 'order' && isset($item->cash_id) && $item->cash_id) {
-                        $amount = +$amount; // Заказ через кассу - положительная
+                    } elseif ($item->source === 'order') {
+                        $amount = +$amount; // Заказ - положительная (и через кассу, и через баланс)
                     }
 
                     return [

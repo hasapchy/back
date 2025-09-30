@@ -74,19 +74,23 @@ class CacheService
      */
     public static function invalidateByTag(string $tag)
     {
-        // Очищаем только кэш, связанный с указанным тегом
-        $keys = [
-            "warehouses_all_*",
-            "warehouses_paginated_*",
-            "paginated_warehouses_*"
-        ];
+        // Очищаем кэш, связанный с указанным тегом
+        $driver = config('cache.default');
 
-        foreach ($keys as $key) {
-            if (str_contains($key, '*')) {
-                // Для паттернов с wildcard очищаем весь кэш
-                Cache::flush();
-                break;
-            } else {
+        if ($driver === 'database') {
+            // Для базы данных удаляем записи по тегу
+            DB::table('cache')->where('key', 'like', "%{$tag}%")->delete();
+        } else {
+            // Для других драйверов очищаем конкретные ключи
+            $keys = [
+                $tag,
+                "client_balance_{$tag}",
+                "client_balance_history_{$tag}",
+                "clients_balance_{$tag}",
+                "clients_balances_{$tag}"
+            ];
+
+            foreach ($keys as $key) {
                 Cache::forget($key);
             }
         }
@@ -135,6 +139,32 @@ class CacheService
         // Также очищаем старые ключи для совместимости
         Cache::forget('reference_clients_list');
         Cache::forget('reference_clients_search');
+    }
+
+    /**
+     * Инвалидация кэша баланса клиента
+     */
+    public static function invalidateClientBalanceCache($clientId)
+    {
+        $driver = config('cache.default');
+
+        if ($driver === 'database') {
+            // Для базы данных удаляем записи по client_id
+            DB::table('cache')->where('key', 'like', "%client_balance_{$clientId}%")->delete();
+            DB::table('cache')->where('key', 'like', "%clients_balance_{$clientId}%")->delete();
+        } else {
+            // Для других драйверов очищаем конкретные ключи
+            $keys = [
+                "client_balance_{$clientId}",
+                "client_balance_history_{$clientId}",
+                "clients_balance_{$clientId}",
+                "clients_balances_{$clientId}"
+            ];
+
+            foreach ($keys as $key) {
+                Cache::forget($key);
+            }
+        }
     }
 
     /**
