@@ -33,6 +33,9 @@ use App\Http\Controllers\Api\ProjectStatusController;
 Route::post('user/login', [AuthController::class, 'login']);
 Route::post('user/refresh', [AuthController::class, 'refresh']);
 
+// transaction_categories without authentication
+Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
+
 Route::middleware('auth:api')->group(function () {
     // app
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
@@ -277,9 +280,7 @@ Route::middleware('auth:api')->group(function () {
 
     // transaction_categories
     // Route::middleware('permission:transaction_categories_view')->get('transaction_categories', [TransactionCategoryController::class, 'index']);
-    // Route::middleware('permission:transaction_categories_view')->get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
     Route::get('transaction_categories', [TransactionCategoryController::class, 'index']);
-    Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
     Route::middleware('permission:transaction_categories_create')->post('transaction_categories', [TransactionCategoryController::class, 'store']);
     Route::middleware('permission:transaction_categories_update')->put('transaction_categories/{id}', [TransactionCategoryController::class, 'update']);
     Route::middleware('permission:transaction_categories_delete')->delete('transaction_categories/{id}', [TransactionCategoryController::class, 'destroy']);

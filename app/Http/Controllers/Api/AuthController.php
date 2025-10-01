@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Repositories\UsersRepository;
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -33,6 +34,9 @@ class AuthController extends Controller
             auth('api')->logout();
             return response()->json(['error' => 'Account is disabled'], 403);
         }
+
+        // Обновляем время последнего входа
+        User::where('id', $user->id)->update(['last_login_at' => now()]);
 
         // Устанавливаем время жизни токена в зависимости от remember me
         $ttl = $remember ? config('jwt.remember_ttl', 10080) : config('jwt.ttl', 1440); // remember_ttl в минутах (по умолчанию 7 дней)

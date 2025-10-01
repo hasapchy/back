@@ -7,23 +7,15 @@ use App\Models\TransactionCategory;
 class TransactionCategoryRepository
 {
     // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20)
+    public function getItemsWithPagination($perPage = 20)
     {
         // Возвращаем все категории независимо от владельца
         return TransactionCategory::with('user')
             ->paginate($perPage);
     }
 
-    // Получение всего списка
-    public function getAllItems($userUuid)
-    {
-        return TransactionCategory::with('user')
-            ->where('user_id', $userUuid)
-            ->get();
-    }
-
     // Получение всего списка без фильтрации по пользователю
-    public function getAllItemsWithoutUserFilter()
+    public function getAllItems()
     {
         return TransactionCategory::with('user')->get();
     }

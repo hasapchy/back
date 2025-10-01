@@ -29,7 +29,8 @@ class UsersRepository
                 'users.is_admin',
                 'users.photo',
                 'users.created_at',
-                'users.updated_at'
+                'users.updated_at',
+                'users.last_login_at'
             ])
                 ->with([
                     'roles:id,name',
@@ -97,7 +98,8 @@ class UsersRepository
                 'users.position',
                 'users.is_admin',
                 'users.photo',
-                'users.created_at'
+                'users.created_at',
+                'users.last_login_at'
             ])
                 ->with([
                     'roles:id,name',
@@ -263,7 +265,8 @@ class UsersRepository
                 'users.is_admin',
                 'users.photo',
                 'users.created_at',
-                'users.updated_at'
+                'users.updated_at',
+                'users.last_login_at'
             ])
                 ->with([
                     'roles:id,name',

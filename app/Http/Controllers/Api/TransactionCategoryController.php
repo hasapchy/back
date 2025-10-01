@@ -20,7 +20,7 @@ class TransactionCategoryController extends Controller
         $userUuid = optional(auth('api')->user())->id;
         if (!$userUuid) return response()->json(['message' => 'Unauthorized'], 401);
 
-        $items = $this->repo->getItemsWithPagination($userUuid, 20);
+        $items = $this->repo->getItemsWithPagination(20);
 
         return response()->json([
             'items' => collect($items->items())->map(function ($item) {
@@ -43,10 +43,7 @@ class TransactionCategoryController extends Controller
 
     public function all(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) return response()->json(['message' => 'Unauthorized'], 401);
-
-        $items = $this->repo->getAllItemsWithoutUserFilter();
+        $items = $this->repo->getAllItems();
 
         return response()->json($items->map(function ($item) {
             return [
