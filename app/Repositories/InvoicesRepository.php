@@ -15,11 +15,11 @@ class InvoicesRepository
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $typeFilter = null, $page = 1)
     {
         $query = Invoice::with([
-            'client.phones', 
-            'client.emails', 
-            'user', 
-            'orders.cash.currency', 
-            'products.unit', 
+            'client.phones',
+            'client.emails',
+            'user',
+            'orders.cash.currency',
+            'products.unit',
             'products.order'
         ])
             ->where('user_id', $userUuid);
@@ -57,11 +57,11 @@ class InvoicesRepository
     public function getItemById($id)
     {
         return Invoice::with([
-            'client.phones', 
-            'client.emails', 
-            'user', 
-            'orders.cash.currency', 
-            'products.unit', 
+            'client.phones',
+            'client.emails',
+            'user',
+            'orders.cash.currency',
+            'products.unit',
             'products.order'
         ])
             ->find($id);
@@ -159,7 +159,7 @@ class InvoicesRepository
     public function getOrdersForInvoice($orderIds)
     {
         $query = Order::query();
-        
+
         $query->leftJoin('warehouses', 'orders.warehouse_id', '=', 'warehouses.id');
         $query->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id');
         $query->leftJoin('projects', 'orders.project_id', '=', 'projects.id');
@@ -202,14 +202,14 @@ class InvoicesRepository
         );
 
         $orders = $query->get();
-        
+
         // Загружаем связанные данные для каждого заказа
         foreach ($orders as $order) {
             $order->setRelation('client', $order->client()->with(['phones', 'emails'])->first());
             $order->setRelation('orderProducts', $order->orderProducts()->with('product')->get());
             $order->setRelation('tempProducts', $order->tempProducts()->with('unit')->get());
         }
-        
+
         return $orders;
     }
 
