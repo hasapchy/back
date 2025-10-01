@@ -145,6 +145,7 @@ class CacheService
         if ($driver === 'database') {
             // Для базы данных удаляем записи по client_id
             DB::table('cache')->where('key', 'like', "%client_balance_{$clientId}%")->delete();
+            DB::table('cache')->where('key', 'like', "%client_balance_history_{$clientId}%")->delete();
             DB::table('cache')->where('key', 'like', "%clients_balance_{$clientId}%")->delete();
         } else {
             // Для других драйверов очищаем конкретные ключи

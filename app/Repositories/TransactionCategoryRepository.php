@@ -9,8 +9,8 @@ class TransactionCategoryRepository
     // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
+        // Возвращаем все категории независимо от владельца
         return TransactionCategory::with('user')
-            ->where('user_id', $userUuid)
             ->paginate($perPage);
     }
 
