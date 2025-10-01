@@ -14,7 +14,14 @@ class InvoicesRepository
 {
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $typeFilter = null, $page = 1)
     {
-        $query = Invoice::with(['client.phones', 'client.emails', 'user', 'orders', 'products.unit', 'products.order'])
+        $query = Invoice::with([
+            'client.phones', 
+            'client.emails', 
+            'user', 
+            'orders.cash.currency', 
+            'products.unit', 
+            'products.order'
+        ])
             ->where('user_id', $userUuid);
 
         // Поиск
@@ -44,7 +51,14 @@ class InvoicesRepository
 
     public function getItemById($id)
     {
-        return Invoice::with(['client.phones', 'client.emails', 'user', 'orders', 'products.unit', 'products.order'])
+        return Invoice::with([
+            'client.phones', 
+            'client.emails', 
+            'user', 
+            'orders.cash.currency', 
+            'products.unit', 
+            'products.order'
+        ])
             ->find($id);
     }
 
@@ -139,9 +153,59 @@ class InvoicesRepository
 
     public function getOrdersForInvoice($orderIds)
     {
-        return Order::with(['client.phones', 'client.emails', 'orderProducts.product', 'tempProducts.unit'])
-            ->whereIn('id', $orderIds)
-            ->get();
+        $query = Order::query();
+        
+        $query->leftJoin('warehouses', 'orders.warehouse_id', '=', 'warehouses.id');
+        $query->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id');
+        $query->leftJoin('projects', 'orders.project_id', '=', 'projects.id');
+        $query->leftJoin('users', 'orders.user_id', '=', 'users.id');
+        $query->leftJoin('currencies as cash_currency', 'cash_registers.currency_id', '=', 'cash_currency.id');
+        $query->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id');
+        $query->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id');
+        $query->leftJoin('categories', 'orders.category_id', '=', 'categories.id');
+
+        $query->whereIn('orders.id', $orderIds);
+
+        $query->select(
+            'orders.id',
+            'orders.note',
+            'orders.description',
+            'orders.status_id',
+            'order_statuses.name as status_name',
+            'order_statuses.category_id as status_category_id',
+            'order_status_categories.name as status_category_name',
+            'order_status_categories.color as status_category_color',
+            'orders.client_id',
+            'orders.user_id',
+            'orders.cash_id',
+            'orders.warehouse_id',
+            'orders.project_id',
+            'orders.price',
+            'orders.discount',
+            'orders.total_price',
+            'orders.date',
+            'orders.created_at',
+            'orders.updated_at',
+            'warehouses.name as warehouse_name',
+            'cash_registers.name as cash_name',
+            'cash_currency.id as currency_id',
+            'cash_currency.name as currency_name',
+            'cash_currency.code as currency_code',
+            'cash_currency.symbol as currency_symbol',
+            'projects.name as project_name',
+            'users.name as user_name',
+        );
+
+        $orders = $query->get();
+        
+        // Загружаем связанные данные для каждого заказа
+        foreach ($orders as $order) {
+            $order->setRelation('client', $order->client()->with(['phones', 'emails'])->first());
+            $order->setRelation('orderProducts', $order->orderProducts()->with('product')->get());
+            $order->setRelation('tempProducts', $order->tempProducts()->with('unit')->get());
+        }
+        
+        return $orders;
     }
 
     public function prepareProductsFromOrders($orders)

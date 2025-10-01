@@ -158,6 +158,9 @@ class ClientController extends Controller
 
             DB::commit();
 
+            // Инвалидируем кэш клиентов
+            \App\Services\CacheService::invalidateClientsCache();
+
             return response()->json([
                 'message' => 'Client created successfully',
                 'item' => $client->load('balance', 'phones', 'emails'),
@@ -206,6 +209,9 @@ class ClientController extends Controller
 
         try {
             $client = $this->itemsRepository->update($id, $validatedData);
+
+            // Инвалидируем кэш клиентов
+            \App\Services\CacheService::invalidateClientsCache();
 
             return response()->json([
                 'message' => 'Client updated successfully',
@@ -265,6 +271,9 @@ class ClientController extends Controller
             $deleted = $this->itemsRepository->deleteItem($id);
 
             if ($deleted) {
+                // Инвалидируем кэш клиентов
+                \App\Services\CacheService::invalidateClientsCache();
+
                 return response()->json(['message' => 'Клиент успешно удалён'], 200);
             } else {
                 return response()->json(['message' => 'Клиент не найден'], 404);

@@ -43,8 +43,7 @@ class ClientsRepository
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = "clients_paginated_{$perPage}_{$search}_{$includeInactive}_{$companyId}";
 
-        // Принудительно очищаем кэш клиентов перед получением
-        CacheService::invalidateClientsCache();
+        // Чтение не должно инвалидировать кэш; инвалидация выполняется при CRUD операциях
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page) {
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
@@ -91,11 +90,10 @@ class ClientsRepository
 
     function searchClient(string $search_request)
     {
-        // Временно отключаем кэш для отладки
-        // $companyId = $this->getCurrentCompanyId();
-        // $cacheKey = "clients_search_{$search_request}_{$companyId}";
-        // CacheService::invalidateClientsCache();
-        // return CacheService::getReferenceData($cacheKey, function () use ($search_request) {
+        // Кэшируем быстрый поиск по компании (короткий TTL)
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "clients_search_" . md5($search_request) . "_{$companyId}";
+        return CacheService::rememberSearch($cacheKey, function () use ($search_request) {
             $searchTerms = explode(' ', $search_request);
 
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
@@ -143,7 +141,7 @@ class ClientsRepository
             Log::info("=============================");
 
             return $results;
-        // });
+        });
     }
 
     public function getItem($id)
@@ -151,8 +149,7 @@ class ClientsRepository
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = "client_{$id}_{$companyId}";
 
-        // Принудительно очищаем кэш для этого клиента перед получением
-        Cache::forget($cacheKey);
+        // Чтение не инвалидирует кэш; инвалидация выполняется при CRUD операциях
 
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
@@ -517,6 +514,8 @@ class ClientsRepository
     {
         $cacheKey = "client_balance_{$clientId}";
 
+        // Чтение не инвалидирует кэш; инвалидация выполняется при CRUD операциях
+
         return CacheService::remember($cacheKey, function () use ($clientId) {
             return DB::table('client_balances')
                 ->where('client_id', $clientId)
@@ -556,9 +555,8 @@ class ClientsRepository
     // Инвалидация кэша баланса клиента
     public function invalidateClientBalanceCache($clientId)
     {
-        // Очищаем кэш баланса конкретного клиента
-        CacheService::invalidateByTag("client_balance_{$clientId}");
-        CacheService::invalidateByTag("client_balance_history_{$clientId}");
+        // Используем новый метод из CacheService
+        CacheService::invalidateClientBalanceCache($clientId);
     }
 
 }

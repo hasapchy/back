@@ -25,7 +25,7 @@ class OrdersRepository
 {
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1)
     {
-        $cacheKey = "orders_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusFilter}";
+        $cacheKey = "orders_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusFilter}_single";
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page) {
             // Используем оптимизированный подход с JOIN'ами для основных данных и Eager Loading для товаров
@@ -75,8 +75,11 @@ class OrdersRepository
                     'client.emails:id,client_id,email',
                     'client.balance:id,client_id,balance'
                 ])
-                ->whereHas('cash.cashRegisterUsers', function ($q) use ($userUuid) {
-                    $q->where('user_id', $userUuid);
+                ->where(function ($q) use ($userUuid) {
+                    $q->whereNull('orders.cash_id') // Заказы без кассы (оплата через баланс)
+                        ->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($userUuid) {
+                            $subQuery->where('user_id', $userUuid);
+                        });
                 });
 
             if ($search) {
@@ -93,10 +96,9 @@ class OrdersRepository
                 $this->applyDateFilter($query, $dateFilter, $startDate, $endDate);
             }
 
-            // Фильтрация по статусам
+            // Фильтрация по статусу
             if ($statusFilter) {
-                $statusIds = explode(',', $statusFilter);
-                $query->whereIn('orders.status_id', $statusIds);
+                $query->where('orders.status_id', $statusFilter);
             }
 
             // Фильтрация по доступу к проектам
@@ -105,6 +107,22 @@ class OrdersRepository
                     ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
                         $subQuery->where('user_id', $userUuid);
                     });
+            });
+
+            // Фильтрация по доступу к категориям товаров
+            // Пользователь видит заказ только если хотя бы один товар в заказе
+            // принадлежит к категории, к которой у пользователя есть доступ через category_users
+            $query->where(function ($q) use ($userUuid) {
+                // Заказы, где есть товары с категориями, доступными пользователю
+                $q->whereHas('orderProducts.product.categories.categoryUsers', function ($subQuery) use ($userUuid) {
+                    $subQuery->where('user_id', $userUuid);
+                })
+                // ИЛИ заказы, где есть товары без категорий
+                ->orWhereHas('orderProducts.product', function ($subQuery) {
+                    $subQuery->whereDoesntHave('categories');
+                })
+                // ИЛИ заказы без товаров (только temp_products)
+                ->orWhereDoesntHave('orderProducts');
             });
 
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
@@ -417,6 +435,7 @@ class OrdersRepository
         $date = $data['date'] ?? now();
         $note = $data['note'] ?? '';
         $description = $data['description'] ?? '';
+        $type = $data['type'] ?? 'balance'; // Получаем тип оплаты
 
         $defaultCurrency = Currency::firstWhere('is_default', true);
         $fromCurrency = Currency::find($currency_id);
@@ -563,11 +582,37 @@ class OrdersRepository
                 $this->saveAdditionalFields($order->id, $data['additional_fields']);
             }
 
-            // Обновляем баланс клиента
-            ClientBalance::updateOrCreate(
-                ['client_id' => $client_id],
-                ['balance' => DB::raw("COALESCE(balance, 0) + {$total_price}")]
-            );
+            // Логика баланса как в продажах и поступлениях
+            if ($type === 'cash' && !empty($cash_id)) {
+                // Если тип "наличные" и указана касса - создаем транзакцию
+                $txRepo = new TransactionsRepository();
+                $transactionId = $txRepo->createItem([
+                    'type'        => 1, // Приход
+                    'user_id'     => $userUuid,
+                    'orig_amount' => $total_price,
+                    'currency_id' => $defaultCurrency->id,
+                    'cash_id'     => $cash_id,
+                    'category_id' => 1,
+                    'project_id'  => $project_id,
+                    'client_id'   => $client_id,
+                    'note'        => $note,
+                    'date'        => $date,
+                ], true, true);
+
+                // Связываем транзакцию с заказом
+                if ($transactionId) {
+                    OrderTransaction::create([
+                        'order_id' => $order->id,
+                        'transaction_id' => $transactionId
+                    ]);
+                }
+            } else {
+                // Если тип "баланс" - обновляем баланс клиента
+                ClientBalance::updateOrCreate(
+                    ['client_id' => $client_id],
+                    ['balance' => DB::raw("COALESCE(balance, 0) + {$total_price}")]
+                );
+            }
 
             DB::commit();
 
@@ -599,10 +644,27 @@ class OrdersRepository
                 }
             }
 
-            // 3. Уменьшаем баланс клиента
+            // 3. Откатываем старую логику баланса
             if ($order->client_id) {
-                ClientBalance::where('client_id', $order->client_id)
-                    ->update(['balance' => DB::raw("COALESCE(balance, 0) - {$order->total_price}")]);
+                // Проверяем, была ли у заказа транзакция
+                $hasTransaction = OrderTransaction::where('order_id', $order->id)->exists();
+
+                if ($hasTransaction) {
+                    // Если была транзакция - удаляем её
+                    $orderTransactions = OrderTransaction::where('order_id', $order->id)->get();
+                    foreach ($orderTransactions as $orderTransaction) {
+                        $transaction = Transaction::find($orderTransaction->transaction_id);
+                        if ($transaction) {
+                            $txRepo = new TransactionsRepository();
+                            $txRepo->deleteItem($transaction->id, true);
+                        }
+                        $orderTransaction->delete();
+                    }
+                } else {
+                    // Если не было транзакции - уменьшаем баланс клиента
+                    ClientBalance::where('client_id', $order->client_id)
+                        ->update(['balance' => DB::raw("COALESCE(balance, 0) - {$order->total_price}")]);
+                }
             }
 
             $user_id = $data['user_id'];
@@ -620,6 +682,7 @@ class OrdersRepository
             $note = $data['note'] ?? '';
             $description = $data['description'] ?? '';
             $date = $data['date'] ?? now();
+            $type = $data['type'] ?? 'balance'; // Получаем тип оплаты
 
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $fromCurrency = Currency::find($currency_id);
@@ -881,11 +944,34 @@ class OrdersRepository
 
             // Если товары не изменились и заказ не изменился, не создаем запись активности
             if (!$hasChanges && !$productsChanged) {
-                // Просто обновляем баланс клиента без создания записи активности
-                ClientBalance::updateOrCreate(
-                    ['client_id' => $client_id],
-                    ['balance' => DB::raw("COALESCE(balance, 0) + {$total_price}")]
-                );
+                // Просто обновляем баланс/транзакцию без создания записи активности
+                if ($type === 'cash' && !empty($cash_id)) {
+                    $txRepo = new TransactionsRepository();
+                    $transactionId = $txRepo->createItem([
+                        'type'        => 1,
+                        'user_id'     => $user_id,
+                        'orig_amount' => $total_price,
+                        'currency_id' => $defaultCurrency->id,
+                        'cash_id'     => $cash_id,
+                        'category_id' => 1,
+                        'project_id'  => $project_id,
+                        'client_id'   => $client_id,
+                        'note'        => $note,
+                        'date'        => $date,
+                    ], true, true);
+
+                    if ($transactionId) {
+                        OrderTransaction::create([
+                            'order_id' => $id,
+                            'transaction_id' => $transactionId
+                        ]);
+                    }
+                } else {
+                    ClientBalance::updateOrCreate(
+                        ['client_id' => $client_id],
+                        ['balance' => DB::raw("COALESCE(balance, 0) + {$total_price}")]
+                    );
+                }
 
                 DB::commit();
                 return $order;
@@ -895,10 +981,34 @@ class OrdersRepository
                 $this->updateAdditionalFields($order->id, $data['additional_fields']);
             }
 
-            ClientBalance::updateOrCreate(
-                ['client_id' => $client_id],
-                ['balance' => DB::raw("COALESCE(balance, 0) + {$total_price}")]
-            );
+            // Логика баланса как в продажах и поступлениях
+            if ($type === 'cash' && !empty($cash_id)) {
+                $txRepo = new TransactionsRepository();
+                $transactionId = $txRepo->createItem([
+                    'type'        => 1,
+                    'user_id'     => $user_id,
+                    'orig_amount' => $total_price,
+                    'currency_id' => $defaultCurrency->id,
+                    'cash_id'     => $cash_id,
+                    'category_id' => 1,
+                    'project_id'  => $project_id,
+                    'client_id'   => $client_id,
+                    'note'        => $note,
+                    'date'        => $date,
+                ], true, true);
+
+                if ($transactionId) {
+                    OrderTransaction::create([
+                        'order_id' => $id,
+                        'transaction_id' => $transactionId
+                    ]);
+                }
+            } else {
+                ClientBalance::updateOrCreate(
+                    ['client_id' => $client_id],
+                    ['balance' => DB::raw("COALESCE(balance, 0) + {$total_price}")]
+                );
+            }
 
             DB::commit();
 
@@ -931,22 +1041,26 @@ class OrdersRepository
 
             // Удаляем одноразовые товары (каскадное удаление через миграцию)
 
-            // Корректируем баланс клиента
+            // Логика отката баланса как в продажах и поступлениях
             if ($order->client_id) {
-                ClientBalance::where('client_id', $order->client_id)
-                    ->update(['balance' => DB::raw("COALESCE(balance, 0) - {$order->total_price}")]);
-            }
+                // Проверяем, была ли у заказа транзакция
+                $orderTransactions = OrderTransaction::where('order_id', $id)->get();
 
-            // Удаляем связанные транзакции
-            $orderTransactions = OrderTransaction::where('order_id', $id)->get();
-            foreach ($orderTransactions as $orderTransaction) {
-                // Сначала удаляем саму транзакцию
-                $transaction = Transaction::find($orderTransaction->transaction_id);
-                if ($transaction) {
-                    $transaction->delete(); // Это обновит баланс клиента и создаст запись активности
+                if ($orderTransactions->isNotEmpty()) {
+                    // Если была транзакция - удаляем её
+                    foreach ($orderTransactions as $orderTransaction) {
+                        $transaction = Transaction::find($orderTransaction->transaction_id);
+                        if ($transaction) {
+                            $txRepo = new TransactionsRepository();
+                            $txRepo->deleteItem($transaction->id, true);
+                        }
+                        $orderTransaction->delete();
+                    }
+                } else {
+                    // Если не было транзакции - уменьшаем баланс клиента
+                    ClientBalance::where('client_id', $order->client_id)
+                        ->update(['balance' => DB::raw("COALESCE(balance, 0) - {$order->total_price}")]);
                 }
-                // Затем удаляем связь
-                $orderTransaction->delete();
             }
 
             // Удаляем товары

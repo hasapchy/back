@@ -90,6 +90,10 @@ class CategoriesController extends Controller
                 'message' => 'Ошибка создания категории'
             ], 400);
         }
+
+        // Инвалидируем кэш категорий
+        \App\Services\CacheService::invalidateCategoriesCache();
+
         return response()->json([
             'message' => 'Категория создана'
         ]);
@@ -123,6 +127,10 @@ class CategoriesController extends Controller
                 'message' => 'Ошибка обновления категории'
             ], 400);
         }
+
+        // Инвалидируем кэш категорий
+        \App\Services\CacheService::invalidateCategoriesCache();
+
         return response()->json([
             'message' => 'Категория обновлена'
         ]);
@@ -143,6 +151,10 @@ class CategoriesController extends Controller
                 'message' => 'Ошибка удаления категории'
             ], 400);
         }
+
+        // Инвалидируем кэш категорий
+        \App\Services\CacheService::invalidateCategoriesCache();
+
         return response()->json([
             'message' => 'Категория удалена'
         ]);

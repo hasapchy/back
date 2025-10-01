@@ -24,18 +24,8 @@ class AppController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        // Проверяем, есть ли у пользователя доступ ко всем валютам
-        $hasAccessToAllCurrencies = $user->can('currencies_access_all');
-
-        if ($hasAccessToAllCurrencies) {
-            // Если есть доступ ко всем валютам - показываем все активные валюты
-            $items = Currency::where('status', 1)->get();
-        } else {
-            // Если нет доступа ко всем валютам - показываем только базовую валюту (TMT)
-            $items = Currency::where('status', 1)
-                ->where('is_default', true)
-                ->get();
-        }
+        // Возвращаем все активные валюты без проверки специальных прав
+        $items = Currency::where('status', 1)->get();
 
         return response()->json($items);
     }
@@ -83,13 +73,7 @@ class AppController extends Controller
             return response()->json(['error' => 'Валюта не найдена'], 404);
         }
 
-        // Проверяем права доступа к валюте
-        $hasAccessToAllCurrencies = $user->can('currencies_access_all');
-
-        // Если нет доступа ко всем валютам и это не базовая валюта - запрещаем доступ
-        if (!$hasAccessToAllCurrencies && !$currency->is_default) {
-            return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
-        }
+        // Доступ к курсу валюты открыт без специальных прав
 
         $rateHistory = $currency->exchangeRateHistories()
             ->where('start_date', '<=', now()->toDateString())

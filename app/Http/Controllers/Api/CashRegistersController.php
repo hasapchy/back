@@ -135,6 +135,10 @@ class CashRegistersController extends Controller
                 'message' => 'Ошибка создания кассы'
             ], 400);
         }
+
+        // Инвалидируем кэш касс
+        \App\Services\CacheService::invalidateCashRegistersCache();
+
         return response()->json([
             'message' => 'Касса создана'
         ]);
@@ -171,6 +175,10 @@ class CashRegistersController extends Controller
                 'message' => 'Ошибка обновления кассы'
             ], 400);
         }
+
+        // Инвалидируем кэш касс
+        \App\Services\CacheService::invalidateCashRegistersCache();
+
         return response()->json([
             'message' => 'Касса обновлена'
         ]);
@@ -191,8 +199,12 @@ class CashRegistersController extends Controller
                 'message' => 'Ошибка удаления кассы'
             ], 400);
         }
+
+        // Инвалидируем кэш касс
+        \App\Services\CacheService::invalidateCashRegistersCache();
+
         return response()->json([
-            'message' => 'Категория удалена'
+            'message' => 'Касса удалена'
         ]);
     }
 }

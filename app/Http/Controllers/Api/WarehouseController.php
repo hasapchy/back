@@ -70,6 +70,10 @@ class WarehouseController extends Controller
                 'message' => 'Ошибка создания склада'
             ], 400);
         }
+
+        // Инвалидируем кэш складов
+        \App\Services\CacheService::invalidateWarehousesCache();
+
         return response()->json([
             'message' => 'Склад создан',
             'warehouse' => $warehouse_created
@@ -94,6 +98,10 @@ class WarehouseController extends Controller
                 'message' => 'Ошибка обновления склада'
             ], 400);
         }
+
+        // Инвалидируем кэш складов
+        \App\Services\CacheService::invalidateWarehousesCache();
+
         return response()->json([
             'message' => 'Склад обновлен',
             'warehouse' => $warehouse_updated
@@ -111,6 +119,10 @@ class WarehouseController extends Controller
                 'message' => 'Ошибка удаления склада'
             ], 400);
         }
+
+        // Инвалидируем кэш складов
+        \App\Services\CacheService::invalidateWarehousesCache();
+
         return response()->json([
             'message' => 'Склад удален'
         ]);

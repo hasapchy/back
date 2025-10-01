@@ -21,18 +21,36 @@ class ProductsRepository
     }
 
     /**
-     * Добавить фильтрацию по компании к запросу
+     * Получить категории пользователя с учетом компании
      */
-    private function addCompanyFilter($query)
+    private function getUserCategoryIds($userUuid)
     {
         $companyId = $this->getCurrentCompanyId();
+
+        // Получаем категории пользователя
+        $userCategoryIds = DB::table('category_users')
+            ->where('user_id', $userUuid)
+            ->pluck('category_id')
+            ->toArray();
+
+        // Если компания выбрана, дополнительно фильтруем по категориям компании
         if ($companyId) {
-            $query->where('products.company_id', $companyId);
-        } else {
-            // Если компания не выбрана, показываем только продукты без company_id (для обратной совместимости)
-            $query->whereNull('products.company_id');
+            // Получаем категории, которые принадлежат текущей компании
+            $companyCategoryIds = DB::table('categories')
+                ->where('company_id', $companyId)
+                ->pluck('id')
+                ->toArray();
+
+            // Пересечение: только те категории, к которым у пользователя есть доступ И которые принадлежат компании
+            $userCategoryIds = array_intersect($userCategoryIds, $companyCategoryIds);
         }
-        return $query;
+
+        // Если у пользователя нет доступных категорий, показываем товары из категории 1 (по умолчанию)
+        if (empty($userCategoryIds)) {
+            $userCategoryIds = [1]; // Категория 1 по умолчанию
+        }
+
+        return $userCategoryIds;
     }
 
     // Получение с пагинацией
@@ -41,17 +59,9 @@ class ProductsRepository
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = "products_{$userUuid}_{$perPage}_{$type}_{$companyId}_{$warehouseId}";
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId) {
-            // Получаем категории пользователя
-            $userCategoryIds = DB::table('category_users')
-                ->where('user_id', $userUuid)
-                ->pluck('category_id')
-                ->toArray();
-
-            // Если у пользователя нет связей с категориями, показываем товары из категории 1 (по умолчанию)
-            if (empty($userCategoryIds)) {
-                $userCategoryIds = [1]; // Категория 1 по умолчанию
-            }
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $companyId) {
+            // Получаем категории пользователя с учетом компании
+            $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             // Получаем ID продуктов пользователя через категории
             $userProductIds = DB::table('product_categories')
@@ -65,10 +75,21 @@ class ProductsRepository
                 ->whereIn('id', $userProductIds)
                 ->where('type', $type);
 
-            // Фильтруем по текущей компании пользователя
-            $query = $this->addCompanyFilter($query);
-
             $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
+
+            // DEBUG-LOG: подробная информация о пагинации и фильтрах
+            Log::info('Repo:getItemsWithPagination', [
+                'type' => $type ? 'products' : 'services',
+                'page_param' => $page,
+                'current_page' => method_exists($products, 'currentPage') ? $products->currentPage() : null,
+                'last_page' => method_exists($products, 'lastPage') ? $products->lastPage() : null,
+                'per_page' => method_exists($products, 'perPage') ? $products->perPage() : $perPage,
+                'total' => method_exists($products, 'total') ? $products->total() : null,
+                'items_count' => method_exists($products, 'count') ? $products->count() : null,
+                'company_id' => $companyId,
+                'warehouse_id' => $warehouseId,
+                'user_category_ids_count' => is_array($userCategoryIds) ? count($userCategoryIds) : null,
+            ]);
 
             // Добавляем дополнительные поля для обратной совместимости
             $products->getCollection()->each(function ($product) use ($warehouseId) {
@@ -104,16 +125,8 @@ class ProductsRepository
         $cacheKey = "products_search_{$userUuid}_{$search}_{$productsOnly}_{$companyId}_{$warehouseId}";
 
         return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId) {
-            // Получаем категории пользователя
-            $userCategoryIds = DB::table('category_users')
-                ->where('user_id', $userUuid)
-                ->pluck('category_id')
-                ->toArray();
-
-            // Если у пользователя нет связей с категориями, показываем товары из категории 1 (по умолчанию)
-            if (empty($userCategoryIds)) {
-                $userCategoryIds = [1]; // Категория 1 по умолчанию
-            }
+            // Получаем категории пользователя с учетом компании
+            $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             // Получаем ID продуктов пользователя через категории
             $userProductIds = DB::table('product_categories')
@@ -135,9 +148,6 @@ class ProductsRepository
             if ($productsOnly !== null) {
                 $query->where('type', $productsOnly);
             }
-
-            // Фильтруем по текущей компании пользователя
-            $query = $this->addCompanyFilter($query);
 
             $products = $query->limit(50)->get();
 
@@ -178,6 +188,7 @@ class ProductsRepository
         $product->sku = $data['sku'];
         $product->barcode = $data['barcode'];
         $product->unit_id = $data['unit_id'];
+        // company_id теперь хранится на категориях, а не на товарах
         $product->date = $data['date'] ?? now();
         $product->user_id = $data['user_id'] ?? auth()->id();
         $product->save();
