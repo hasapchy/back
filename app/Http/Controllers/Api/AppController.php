@@ -45,19 +45,6 @@ class AppController extends Controller
         return response()->json($items);
     }
 
-    // получение категорий транзакций
-    public function getTransactionCategories()
-    {
-        $userUuid = optional(auth('api')->user())->id;
-
-        $items = TransactionCategory::select('id', 'name', 'type')
-            ->where(function ($query) use ($userUuid) {
-                $query->whereNull('user_id') // системные категории
-                    ->orWhere('user_id', $userUuid); // пользовательские категории
-            })
-            ->get();
-        return response()->json($items);
-    }
 
     // получение актуального курса валюты
     public function getCurrencyExchangeRate($currencyId)

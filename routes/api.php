@@ -39,7 +39,6 @@ Route::middleware('auth:api')->group(function () {
     Route::get('app/currency/{id}/exchange-rate', [AppController::class, 'getCurrencyExchangeRate']);
     Route::get('app/units', [AppController::class, 'getUnitsList']);
     Route::get('app/product_statuses', [AppController::class, 'getProductStatuses']);
-    Route::get('app/transaction_categories', [AppController::class, 'getTransactionCategories']);
 
     // currency history
     // Route::middleware('permission:currency_history_view')->get('currency-history/currencies', [CurrencyHistoryController::class, 'getCurrenciesWithRates']);
