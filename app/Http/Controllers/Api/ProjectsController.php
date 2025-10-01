@@ -141,8 +141,8 @@ class ProjectsController extends Controller
             ], 400);
         }
 
-        // Очищаем кэш проектов для пользователя
-        CacheService::clearUserCache($userUuid, 'projects');
+        // Инвалидируем кэш проектов
+        \App\Services\CacheService::invalidateProjectsCache();
 
         return response()->json([
             'message' => 'Проект создан'
@@ -202,8 +202,8 @@ class ProjectsController extends Controller
             ], 400);
         }
 
-        // Очищаем кэш проектов для пользователя
-        CacheService::clearUserCache($userUuid, 'projects');
+        // Инвалидируем кэш проектов
+        \App\Services\CacheService::invalidateProjectsCache();
 
         return response()->json([
             'message' => 'Проект обновлен'
@@ -405,8 +405,8 @@ class ProjectsController extends Controller
             ], 400);
         }
 
-        // Очищаем кэш проектов для пользователя
-        CacheService::clearUserCache($userUuid, 'projects');
+        // Инвалидируем кэш проектов
+        \App\Services\CacheService::invalidateProjectsCache();
 
         return response()->json([
             'message' => 'Проект удалён'

@@ -124,7 +124,8 @@ class ProjectsRepository
      */
     public function fastSearch($userUuid, $search, $perPage = 20)
     {
-        $cacheKey = "projects_fast_search_{$userUuid}_{$search}_{$perPage}";
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "projects_fast_search_{$userUuid}_" . md5((string)$search) . "_{$perPage}_{$companyId}";
 
         return CacheService::rememberSearch($cacheKey, function () use ($userUuid, $search, $perPage) {
             return Project::select([
@@ -587,26 +588,8 @@ class ProjectsRepository
      */
     private function invalidateProjectsCache()
     {
-        // Очищаем кэш, связанный с проектами
-        $keys = [
-            'projects_paginated_*',
-            'projects_all_*',
-            'projects_active_*',
-            'projects_fast_search_*',
-            'project_item_*',
-            'project_balance_history_*',
-            'project_balance_*'
-        ];
-
-        foreach ($keys as $key) {
-            if (str_contains($key, '*')) {
-                // Для паттернов с wildcard очищаем весь кэш
-                \Illuminate\Support\Facades\Cache::flush();
-                break;
-            } else {
-                \Illuminate\Support\Facades\Cache::forget($key);
-            }
-        }
+        // Делегируем централизованной службе кэша
+        CacheService::invalidateProjectsCache();
     }
 
     /**

@@ -34,6 +34,17 @@ class ProductController extends Controller
         // Получаем продукты с пагинацией
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page, $warehouseId);
 
+        // DEBUG: логируем параметры и результат пагинации
+        Log::info('API:products pagination', [
+            'page_param' => $page,
+            'current_page' => method_exists($items, 'currentPage') ? $items->currentPage() : null,
+            'last_page' => method_exists($items, 'lastPage') ? $items->lastPage() : null,
+            'per_page' => method_exists($items, 'perPage') ? $items->perPage() : null,
+            'total' => method_exists($items, 'total') ? $items->total() : null,
+            'items_count' => method_exists($items, 'count') ? $items->count() : null,
+            'next_page_url' => method_exists($items, 'nextPageUrl') ? $items->nextPageUrl() : null,
+        ]);
+
         Log::info('Products list fetched', [
             'user_id' => $userUuid,
             'company_id' => $request->header('X-Company-ID'),
@@ -98,6 +109,17 @@ class ProductController extends Controller
 
         // Получаем услуги с пагинацией
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page, $warehouseId);
+
+        // DEBUG: логируем параметры и результат пагинации
+        Log::info('API:services pagination', [
+            'page_param' => $page,
+            'current_page' => method_exists($items, 'currentPage') ? $items->currentPage() : null,
+            'last_page' => method_exists($items, 'lastPage') ? $items->lastPage() : null,
+            'per_page' => method_exists($items, 'perPage') ? $items->perPage() : null,
+            'total' => method_exists($items, 'total') ? $items->total() : null,
+            'items_count' => method_exists($items, 'count') ? $items->count() : null,
+            'next_page_url' => method_exists($items, 'nextPageUrl') ? $items->nextPageUrl() : null,
+        ]);
 
         Log::info('Services list fetched', [
             'user_id' => $userUuid,
@@ -167,6 +189,9 @@ class ProductController extends Controller
 
         $product = $this->itemsRepository->createItem($data);
 
+        // Инвалидируем кэш продуктов/услуг
+        \App\Services\CacheService::invalidateProductsCache();
+
         return response()->json([
             'message' => 'Product successfully created',
             'item' => $product
@@ -229,6 +254,9 @@ class ProductController extends Controller
             $product = $this->itemsRepository->updateItem($id, $data);
         }
 
+        // Инвалидируем кэш продуктов/услуг
+        \App\Services\CacheService::invalidateProductsCache();
+
         return response()->json([
             'message' => 'Product successfully updated',
             'item' => $product
@@ -247,6 +275,9 @@ class ProductController extends Controller
         if (!$result['success']) {
             return response()->json(['message' => $result['message']], 400);
         }
+
+        // Инвалидируем кэш продуктов/услуг
+        \App\Services\CacheService::invalidateProductsCache();
 
         return response()->json(['message' => 'Товар/услуга успешно удалена']);
     }

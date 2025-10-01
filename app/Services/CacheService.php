@@ -45,16 +45,10 @@ class CacheService
     {
         $fullKey = "paginated_{$cacheKey}_page_{$page}";
 
-        // Для продуктов используем более длительный TTL
-        $ttl = str_contains($cacheKey, 'products') ? self::CACHE_TTL['reference_data'] : self::CACHE_TTL['sales_list'];
+        // Для списков с пагинацией используем стандартное кэширование
+        $ttl = self::CACHE_TTL['sales_list'];
 
-
-
-        return self::remember(
-            $fullKey,
-            $callback,
-            $ttl
-        );
+        return self::remember($fullKey, $callback, $ttl);
     }
 
     /**
@@ -191,6 +185,95 @@ class CacheService
         Cache::forget('reference_products_search');
     }
 
+    /**
+     * Универсальный помощник: удалить кэш по шаблону ключа
+     * Работает оптимально с database драйвером, fallback для остальных
+     */
+    private static function invalidateByLike(string $like)
+    {
+        $driver = config('cache.default');
+
+        if ($driver === 'database') {
+            try {
+                $cacheTable = config('cache.stores.database.table', 'cache');
+                DB::table($cacheTable)->where('key', 'like', $like)->delete();
+            } catch (\Exception $e) {
+                // Fallback: если что-то пошло не так — очищаем весь кэш
+                Cache::flush();
+            }
+        } else {
+            // Для file/array драйверов: очищаем весь кэш
+            // (точечная инвалидация невозможна без итерации по файлам)
+            Cache::flush();
+        }
+    }
+
+    /**
+     * Инвалидация кэша категорий
+     */
+    public static function invalidateCategoriesCache()
+    {
+        // Чистим все ключи, содержащие categories (reference и любые составные ключи)
+        self::invalidateByLike('%categories%');
+    }
+
+    /**
+     * Инвалидация кэша складов
+     */
+    public static function invalidateWarehousesCache()
+    {
+        self::invalidateByLike('%wareh%'); // warehouses, warehouse_*
+    }
+
+    /**
+     * Инвалидация кэша касс
+     */
+    public static function invalidateCashRegistersCache()
+    {
+        self::invalidateByLike('%cash%'); // cash, cash_registers
+    }
+
+    /**
+     * Инвалидация кэша проектов
+     */
+    public static function invalidateProjectsCache()
+    {
+        self::invalidateByLike('%projects%');
+    }
+
+
+    /**
+     * Инвалидация статусов заказов
+     */
+    public static function invalidateOrderStatusesCache()
+    {
+        self::invalidateByLike('%orderStatuses%');
+    }
+
+    /**
+     * Инвалидация статусов проектов
+     */
+    public static function invalidateProjectStatusesCache()
+    {
+        self::invalidateByLike('%projectStatuses%');
+    }
+
+    /**
+     * Инвалидация категорий транзакций
+     */
+    public static function invalidateTransactionCategoriesCache()
+    {
+        self::invalidateByLike('%transactionCategories%');
+    }
+
+    /**
+     * Инвалидация статусов товаров
+     */
+    public static function invalidateProductStatusesCache()
+    {
+        self::invalidateByLike('%productStatuses%');
+    }
+
         /**
      * Инвалидация кэша заказов
      */
@@ -295,11 +378,6 @@ class CacheService
                 $stats['type'] = 'Database Cache';
                 $stats['table'] = config('cache.stores.database.table');
                 $stats['connection'] = config('cache.stores.database.connection');
-            } elseif ($driver === 'redis') {
-                $stats['type'] = 'Redis Cache';
-                $stats['connection'] = config('cache.stores.redis.connection');
-                $stats['host'] = config('database.redis.cache.host', '127.0.0.1');
-                $stats['port'] = config('database.redis.cache.port', 6379);
             } else {
                 $stats['type'] = ucfirst($driver) . ' Cache';
             }
@@ -366,21 +444,6 @@ class CacheService
                         'size_kb' => round($size / 1024, 2)
                     ];
                 }
-            } elseif ($driver === 'redis') {
-                try {
-                    $redis = app('redis');
-                    $info = $redis->info();
-                    $usedMemory = $info['used_memory'] ?? 0;
-                    return [
-                        'size_bytes' => $usedMemory,
-                        'size_kb' => round($usedMemory / 1024, 2),
-                        'size_mb' => round($usedMemory / (1024 * 1024), 2)
-                    ];
-                } catch (\Exception $e) {
-                    return [
-                        'error' => 'Unable to get Redis cache size: ' . $e->getMessage()
-                    ];
-                }
             } elseif ($driver === 'database') {
                 try {
                     $cacheTable = config('cache.stores.database.table', 'cache');
@@ -429,18 +492,6 @@ class CacheService
         });
     }
 
-    /**
-     * Кэширование с тегами (для Redis)
-     */
-    public static function rememberWithTags(string $key, array $tags, callable $callback, int $ttl = null)
-    {
-        if (config('cache.default') === 'redis') {
-            return Cache::tags($tags)->remember($key, $ttl ?? self::CACHE_TTL['reference_data'], $callback);
-        }
-
-        // Fallback для других драйверов
-        return self::remember($key, $callback, $ttl);
-    }
 
     /**
      * Кэширование результатов поиска
@@ -491,13 +542,6 @@ class CacheService
             } elseif ($driver === 'database') {
                 $cacheTable = config('cache.stores.database.table', 'cache');
                 return \Illuminate\Support\Facades\DB::table($cacheTable)->count();
-            } elseif ($driver === 'redis') {
-                try {
-                    $redis = app('redis');
-                    return $redis->dbsize();
-                } catch (\Exception $e) {
-                    return 0;
-                }
             }
 
             return 0;

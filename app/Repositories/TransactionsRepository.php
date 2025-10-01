@@ -20,8 +20,9 @@ class TransactionsRepository
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null)
     {
         try {
-            // Создаем уникальный ключ кэша
-            $cacheKey = "transactions_paginated_{$userUuid}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$search}_{$transaction_type}_{$source}_{$project_id}";
+            // Создаем уникальный ключ кэша (привязываем к пользователю и фильтрам/кассе, без company_id)
+            $searchKey = $search !== null ? md5((string)$search) : 'null';
+            $cacheKey = "transactions_paginated_{$userUuid}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$searchKey}_{$transaction_type}_{$source}_{$project_id}";
 
             return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id) {
                 // Используем with() для загрузки связей вместо сложных JOIN'ов
@@ -218,7 +219,7 @@ class TransactionsRepository
      */
     public function fastSearch($userUuid, $search, $perPage = 20)
     {
-        $cacheKey = "transactions_fast_search_{$userUuid}_{$search}_{$perPage}";
+        $cacheKey = "transactions_fast_search_{$userUuid}_" . md5((string)$search) . "_{$perPage}";
 
         return CacheService::rememberSearch($cacheKey, function () use ($userUuid, $search, $perPage) {
             return Transaction::select([
@@ -688,24 +689,8 @@ class TransactionsRepository
      */
     public function invalidateTransactionsCache()
     {
-        // Очищаем кэш транзакций и проектов
-        $keys = [
-            'transactions_paginated_*',
-            'transactions_fast_search_*',
-            'project_balance_history_*',
-            'project_balance_*',
-            'projects_paginated_*',
-            'projects_all_*',
-            'projects_fast_search_*'
-        ];
-
-        foreach ($keys as $key) {
-            if (str_contains($key, '*')) {
-                // Для паттернов с wildcard очищаем весь кэш
-                \Illuminate\Support\Facades\Cache::flush();
-                break;
-            }
-        }
+        // Делегируем централизованной службе кэша
+        CacheService::invalidateTransactionsCache();
     }
 
     public function getItemById($id)
