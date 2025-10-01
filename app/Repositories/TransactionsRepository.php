@@ -55,9 +55,15 @@ class TransactionsRepository
                     ->when($date_filter_type, function ($query, $date_filter_type) {
                         switch ($date_filter_type) {
                             case 'today':
-                                return $query->whereDate('transactions.date', '=', now()->toDateString());
+                                return $query->whereBetween('transactions.date', [
+                                    now()->startOfDay()->toDateTimeString(),
+                                    now()->endOfDay()->toDateTimeString()
+                                ]);
                             case 'yesterday':
-                                return $query->whereDate('transactions.date', '=', now()->subDay()->toDateString());
+                                return $query->whereBetween('transactions.date', [
+                                    now()->subDay()->startOfDay()->toDateTimeString(),
+                                    now()->subDay()->endOfDay()->toDateTimeString()
+                                ]);
                             case 'this_week':
                                 return $query->whereBetween('transactions.date', [now()->startOfWeek(), now()->endOfWeek()]);
                             case 'last_week':

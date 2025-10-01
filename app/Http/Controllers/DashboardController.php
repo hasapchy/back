@@ -10,9 +10,15 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $totalSalesToday = Sale::whereDate('created_at', today())->sum('total_price');
+        $totalSalesToday = Sale::whereBetween('created_at', [
+            now()->startOfDay()->toDateTimeString(),
+            now()->endOfDay()->toDateTimeString()
+        ])->sum('total_price');
         $totalExpensesToday = Transaction::where('type', 0) // 0 for expense
-            ->whereDate('date', today())
+            ->whereBetween('date', [
+                now()->startOfDay()->toDateTimeString(),
+                now()->endOfDay()->toDateTimeString()
+            ])
             ->sum('amount');
         $cashRegisters = CashRegister::all();
 

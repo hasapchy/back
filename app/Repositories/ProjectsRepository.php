@@ -155,9 +155,15 @@ class ProjectsRepository
     private function applyDateFilter($query, $dateFilter, $startDate, $endDate)
     {
         if ($dateFilter === 'today') {
-            $query->whereDate('projects.date', now()->toDateString());
+            $query->whereBetween('projects.date', [
+                now()->startOfDay()->toDateTimeString(),
+                now()->endOfDay()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'yesterday') {
-            $query->whereDate('projects.date', now()->subDay()->toDateString());
+            $query->whereBetween('projects.date', [
+                now()->subDay()->startOfDay()->toDateTimeString(),
+                now()->subDay()->endOfDay()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'this_week') {
             $query->whereBetween('projects.date', [now()->startOfWeek(), now()->endOfWeek()]);
         } elseif ($dateFilter === 'this_month') {

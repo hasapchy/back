@@ -350,9 +350,15 @@ class OrdersRepository
     private function applyDateFilter($query, $dateFilter, $startDate, $endDate)
     {
         if ($dateFilter === 'today') {
-            $query->whereDate('orders.date', now()->toDateString());
+            $query->whereBetween('orders.date', [
+                now()->startOfDay()->toDateTimeString(),
+                now()->endOfDay()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'yesterday') {
-            $query->whereDate('orders.date', now()->subDay()->toDateString());
+            $query->whereBetween('orders.date', [
+                now()->subDay()->startOfDay()->toDateTimeString(),
+                now()->subDay()->endOfDay()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'this_week') {
             $query->whereBetween('orders.date', [now()->startOfWeek(), now()->endOfWeek()]);
         } elseif ($dateFilter === 'this_month') {

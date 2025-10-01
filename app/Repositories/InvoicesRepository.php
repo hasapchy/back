@@ -38,7 +38,12 @@ class InvoicesRepository
 
         // Фильтр по дате
         if ($dateFilter !== 'all_time') {
-            $query->whereDate('invoice_date', $this->getDateFilter($dateFilter, $startDate, $endDate));
+            $dateRange = $this->getDateFilter($dateFilter, $startDate, $endDate);
+            if (is_array($dateRange)) {
+                $query->whereBetween('invoice_date', $dateRange);
+            } else {
+                $query->whereDate('invoice_date', $dateRange);
+            }
         }
 
         // Фильтр по типу
@@ -258,17 +263,35 @@ class InvoicesRepository
     {
         switch ($dateFilter) {
             case 'today':
-                return now()->toDateString();
+                return [
+                    now()->startOfDay()->toDateTimeString(),
+                    now()->endOfDay()->toDateTimeString()
+                ];
             case 'yesterday':
-                return now()->subDay()->toDateString();
+                return [
+                    now()->subDay()->startOfDay()->toDateTimeString(),
+                    now()->subDay()->endOfDay()->toDateTimeString()
+                ];
             case 'this_week':
-                return now()->startOfWeek()->toDateString();
+                return [
+                    now()->startOfWeek()->toDateTimeString(),
+                    now()->endOfWeek()->toDateTimeString()
+                ];
             case 'this_month':
-                return now()->startOfMonth()->toDateString();
+                return [
+                    now()->startOfMonth()->toDateTimeString(),
+                    now()->endOfMonth()->toDateTimeString()
+                ];
             case 'last_week':
-                return now()->subWeek()->startOfWeek()->toDateString();
+                return [
+                    now()->subWeek()->startOfWeek()->toDateTimeString(),
+                    now()->subWeek()->endOfWeek()->toDateTimeString()
+                ];
             case 'last_month':
-                return now()->subMonth()->startOfMonth()->toDateString();
+                return [
+                    now()->subMonth()->startOfMonth()->toDateTimeString(),
+                    now()->subMonth()->endOfMonth()->toDateTimeString()
+                ];
             case 'custom':
                 return $startDate ?: now()->toDateString();
             default:

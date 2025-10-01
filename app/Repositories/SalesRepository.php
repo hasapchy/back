@@ -360,9 +360,15 @@ class SalesRepository
     private function applyDateFilter($query, $dateFilter, $startDate = null, $endDate = null)
     {
         if ($dateFilter === 'today') {
-            $query->whereDate('sales.date', now()->toDateString());
+            $query->whereBetween('sales.date', [
+                now()->startOfDay()->toDateTimeString(),
+                now()->endOfDay()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'yesterday') {
-            $query->whereDate('sales.date', now()->subDay()->toDateString());
+            $query->whereBetween('sales.date', [
+                now()->subDay()->startOfDay()->toDateTimeString(),
+                now()->subDay()->endOfDay()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'this_week') {
             $query->whereBetween('sales.date', [now()->startOfWeek(), now()->endOfWeek()]);
         } elseif ($dateFilter === 'this_month') {
@@ -400,8 +406,14 @@ class SalesRepository
             'total_sales' => Sale::count(),
             'total_revenue' => Sale::sum('total_price'),
             'avg_sale_price' => Sale::avg('total_price'),
-            'sales_today' => Sale::whereDate('date', today())->count(),
-            'revenue_today' => Sale::whereDate('date', today())->sum('total_price'),
+            'sales_today' => Sale::whereBetween('date', [
+                now()->startOfDay()->toDateTimeString(),
+                now()->endOfDay()->toDateTimeString()
+            ])->count(),
+            'revenue_today' => Sale::whereBetween('date', [
+                now()->startOfDay()->toDateTimeString(),
+                now()->endOfDay()->toDateTimeString()
+            ])->sum('total_price'),
             'top_clients' => $this->getTopClients(),
             'sales_by_month' => $this->getSalesByMonth()
         ];
