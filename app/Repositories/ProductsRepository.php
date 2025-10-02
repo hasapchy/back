@@ -54,14 +54,19 @@ class ProductsRepository
     }
 
     // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $warehouseId = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $warehouseId = null, $search = null, $categoryId = null)
     {
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = "products_{$userUuid}_{$perPage}_{$type}_{$companyId}_{$warehouseId}";
+        $cacheKey = "products_{$userUuid}_{$perPage}_{$type}_{$companyId}_{$warehouseId}_{$search}_{$categoryId}";
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $companyId) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $companyId, $search, $categoryId) {
             // Получаем категории пользователя с учетом компании
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
+
+            // Если указана конкретная категория, используем только её
+            if ($categoryId) {
+                $userCategoryIds = array_intersect($userCategoryIds, [$categoryId]);
+            }
 
             // Получаем ID продуктов пользователя через категории
             $userProductIds = DB::table('product_categories')
@@ -75,22 +80,16 @@ class ProductsRepository
                 ->whereIn('id', $userProductIds)
                 ->where('type', $type);
 
-            $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
+            // Добавляем поиск по названию, артикулу или штрих-коду
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('sku', 'LIKE', "%{$search}%")
+                      ->orWhere('barcode', 'LIKE', "%{$search}%");
+                });
+            }
 
-            // DEBUG-LOG: подробная информация о пагинации и фильтрах
-            Log::info('Repo:getItemsWithPagination', [
-                'type' => $type ? 'products' : 'services',
-                'page_param' => $page,
-                'current_page' => method_exists($products, 'currentPage') ? $products->currentPage() : null,
-                'last_page' => method_exists($products, 'lastPage') ? $products->lastPage() : null,
-                'per_page' => method_exists($products, 'perPage') ? $products->perPage() : $perPage,
-                'total' => method_exists($products, 'total') ? $products->total() : null,
-                'items_count' => method_exists($products, 'count') ? $products->count() : null,
-                'company_id' => $companyId,
-                'warehouse_id' => $warehouseId,
-                'user_category_ids_count' => is_array($userCategoryIds) ? count($userCategoryIds) : null,
-            ]);
-
+            $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
             // Добавляем дополнительные поля для обратной совместимости
             $products->getCollection()->each(function ($product) use ($warehouseId) {
                 $product->category_name = $product->categories->first()?->name ?? '';
@@ -115,7 +114,7 @@ class ProductsRepository
             });
 
             return $products;
-        }, $page);
+        }, (int)$page);
     }
 
     // Поиск

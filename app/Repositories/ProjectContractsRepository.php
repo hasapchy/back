@@ -45,8 +45,8 @@ class ProjectContractsRepository
 
             return $query->orderBy('project_contracts.date', 'desc')
                 ->orderBy('project_contracts.created_at', 'desc')
-                ->paginate($perPage, ['*'], 'page', $page);
-        }, $page);
+                ->paginate($perPage, ['*'], 'page', (int)$page);
+        }, (int)$page);
     }
 
     // Получение всех контрактов проекта

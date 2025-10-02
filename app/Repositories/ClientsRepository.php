@@ -7,7 +7,6 @@ use App\Models\ClientBalance;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class ClientsRepository
@@ -37,15 +36,15 @@ class ClientsRepository
         return $query;
     }
 
-    function getItemsPaginated($perPage = 20, $search = null, $includeInactive = false, $page = 1)
+    function getItemsPaginated($perPage = 20, $search = null, $includeInactive = false, $page = 1, $statusFilter = null, $typeFilter = null)
     {
-        // Создаем уникальный ключ кэша с учетом компании
+        // Создаем уникальный ключ кэша с учетом компании и фильтров
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = "clients_paginated_{$perPage}_{$search}_{$includeInactive}_{$companyId}";
+        $cacheKey = "clients_paginated_{$perPage}_{$search}_{$includeInactive}_{$statusFilter}_{$typeFilter}_{$companyId}";
 
         // Чтение не должно инвалидировать кэш; инвалидация выполняется при CRUD операциях
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter) {
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
             $query = Client::with(['phones', 'emails', 'user'])
                 ->select([
@@ -55,7 +54,6 @@ class ClientsRepository
 
             // Логируем для отладки
             $companyId = $this->getCurrentCompanyId();
-            Log::info("ClientsRepository::getItemsPaginated - Current company ID: " . ($companyId ?? 'null'));
 
             // Фильтруем по текущей компании пользователя
             $query = $this->addCompanyFilter($query);
@@ -63,6 +61,20 @@ class ClientsRepository
             // Фильтруем только активных клиентов, если не запрошены неактивные
             if (!$includeInactive) {
                 $query->where('clients.status', true);
+            }
+
+            // Фильтр по статусу
+            if ($statusFilter !== null && $statusFilter !== '') {
+                if ($statusFilter === 'active') {
+                    $query->where('clients.status', true);
+                } elseif ($statusFilter === 'inactive') {
+                    $query->where('clients.status', false);
+                }
+            }
+
+            // Фильтр по типу клиента
+            if ($typeFilter !== null && $typeFilter !== '') {
+                $query->where('clients.client_type', $typeFilter);
             }
 
             if ($search) {
@@ -84,8 +96,8 @@ class ClientsRepository
 
             $query->orderBy('clients.created_at', 'desc');
 
-            return $query->paginate($perPage, ['*'], 'page', $page);
-        }, $page);
+            return $query->paginate($perPage, ['*'], 'page', (int)$page);
+        }, (int)$page);
     }
 
     function searchClient(string $search_request)
@@ -126,19 +138,12 @@ class ClientsRepository
             $results = $query->limit(50)->get();
 
             // Логируем результаты поиска для отладки
-            Log::info("=== CLIENT SEARCH BACKEND ===");
-            Log::info("Search request: '{$search_request}'");
-            Log::info("Search terms: " . json_encode($searchTerms));
-            Log::info("Results count: " . $results->count());
 
             if ($results->count() > 0) {
                 foreach ($results as $index => $result) {
-                    Log::info("Result #{$index}: ID={$result->id}, first_name='{$result->first_name}', last_name='{$result->last_name}', balance={$result->balance_amount}");
                 }
             } else {
-                Log::info("No results found for search term: '{$search_request}'");
             }
-            Log::info("=============================");
 
             return $results;
         });
@@ -171,7 +176,6 @@ class ClientsRepository
     {
         $client = DB::transaction(function () use ($data) {
             $companyId = $this->getCurrentCompanyId();
-            Log::info("ClientsRepository::create - Creating client with company_id: " . ($companyId ?? 'null'));
 
             $client = Client::create([
                 'user_id'        => $data['user_id'] ?? null,
@@ -388,11 +392,9 @@ class ClientsRepository
 
         return CacheService::remember($cacheKey, function () use ($clientId) {
             try {
-                Log::info("Начинаем получение истории баланса для клиента {$clientId}");
                 $result = [];
 
                 // Продажи
-                Log::info("Проверяем таблицу sales для клиента {$clientId}");
                 if (Schema::hasTable('sales')) {
                     try {
                         $sales = DB::table('sales')
@@ -408,13 +410,10 @@ class ClientsRepository
                                     'description' => $sale->cash_id ? 'Продажа через кассу' : 'Продажа в баланс(долг)'
                                 ];
                             });
-                        Log::info("Получено продаж для клиента {$clientId}: " . $sales->count());
                     } catch (\Exception $e) {
-                        Log::warning("Ошибка при получении продаж для клиента {$clientId}: " . $e->getMessage());
                         $sales = collect();
                     }
                 } else {
-                    Log::info("Таблица sales не существует");
                     $sales = collect();
                 }
 
@@ -435,7 +434,6 @@ class ClientsRepository
                                 ];
                             });
                     } catch (\Exception $e) {
-                        Log::warning("Ошибка при получении оприходований для клиента {$clientId}: " . $e->getMessage());
                         $receipts = collect();
                     }
                 } else {
@@ -460,7 +458,6 @@ class ClientsRepository
                                 ];
                             });
                     } catch (\Exception $e) {
-                        Log::warning("Ошибка при получении транзакций для клиента {$clientId}: " . $e->getMessage());
                         $transactions = collect();
                     }
                 } else {
@@ -484,7 +481,6 @@ class ClientsRepository
                                 ];
                             });
                     } catch (\Exception $e) {
-                        Log::warning("Ошибка при получении заказов для клиента {$clientId}: " . $e->getMessage());
                         $orders = collect();
                     }
                 } else {
@@ -503,7 +499,6 @@ class ClientsRepository
 
                 return $result;
             } catch (\Exception $e) {
-                Log::error("Критическая ошибка при получении истории баланса для клиента {$clientId}: " . $e->getMessage());
                 return [];
             }
         });

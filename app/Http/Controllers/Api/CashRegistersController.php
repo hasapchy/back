@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Repositories\CahRegistersRepository;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use App\Services\CacheService;
 
 class CashRegistersController extends Controller
 {
@@ -72,13 +72,6 @@ class CashRegistersController extends Controller
             $source = explode(',', $source);
         }
 
-        // Логируем параметры для отладки
-        Log::info('Cash balance filter params', [
-            'transaction_type' => $transactionType,
-            'source' => $source,
-            'start_date' => $startRaw,
-            'end_date' => $endRaw
-        ]);
 
         try {
             $start = $startRaw
@@ -137,7 +130,7 @@ class CashRegistersController extends Controller
         }
 
         // Инвалидируем кэш касс
-        \App\Services\CacheService::invalidateCashRegistersCache();
+        CacheService::invalidateCashRegistersCache();
 
         return response()->json([
             'message' => 'Касса создана'

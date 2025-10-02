@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 
 class UserCompanyController extends Controller
 {
@@ -17,8 +16,6 @@ class UserCompanyController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        // Логируем для отладки
-        Log::info("UserCompanyController::getCurrentCompany - User: {$user->id}");
 
         // Получаем выбранную компанию из заголовка X-Company-ID или параметра
         $selectedCompanyId = $request->header('X-Company-ID') ?? $request->input('company_id');
@@ -70,8 +67,6 @@ class UserCompanyController extends Controller
             }
         }
 
-        // Логируем для отладки
-        Log::info("UserCompanyController::setCurrentCompany - Setting company ID: {$companyId} for user: {$user->id}");
 
         return response()->json(['message' => 'Company selected successfully', 'company' => $company]);
     }

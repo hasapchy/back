@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Repositories\ClientsRepository;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class ClientController extends Controller
 {
@@ -24,7 +23,9 @@ class ClientController extends Controller
         $page = $request->input('page', 1);
         $search = $request->input('search');
         $includeInactive = $request->input('include_inactive', false);
-        $items = $this->itemsRepository->getItemsPaginated($perPage, $search, $includeInactive, $page);
+        $statusFilter = $request->input('status_filter');
+        $typeFilter = $request->input('type_filter');
+        $items = $this->itemsRepository->getItemsPaginated($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter);
 
         return response()->json([
             'items' => $items->items(),  // Список
@@ -99,12 +100,6 @@ class ClientController extends Controller
                 'history' => $history
             ], 200);
         } catch (\Throwable $e) {
-            Log::error("Ошибка в ClientController::getBalanceHistory для клиента {$id}: " . $e->getMessage(), [
-                'client_id' => $id,
-                'exception' => $e,
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'message' => 'Ошибка при получении истории баланса',
                 'error' => $e->getMessage()

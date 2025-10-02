@@ -13,7 +13,6 @@ use App\Services\CacheService;
 use App\Repositories\ClientsRepository;
 use App\Repositories\ProjectsRepository;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class TransactionsRepository
 {
@@ -136,7 +135,7 @@ class TransactionsRepository
                     })
                     ->orderBy('transactions.id', 'desc');
 
-                $paginatedResults = $query->paginate($perPage, ['*'], 'page', $page);
+                $paginatedResults = $query->paginate($perPage, ['*'], 'page', (int)$page);
 
                 // Принудительно загружаем связи для всех элементов пагинации
                 $paginatedResults->getCollection()->load([
@@ -209,13 +208,8 @@ class TransactionsRepository
                 });
 
                 return $paginatedResults;
-            }, $page);
+            }, (int)$page);
         } catch (\Exception $e) {
-            Log::error('TransactionsRepository: Ошибка в getItemsWithPagination', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'userUuid' => $userUuid
-            ]);
             throw $e;
         }
     }

@@ -108,49 +108,16 @@ class ProjectsRepository
                 $query->where('projects.client_id', $clientId);
             }
 
-
             // Фильтр по пользователю
             $query->whereHas('projectUsers', function ($query) use ($userUuid) {
                 $query->where('user_id', $userUuid);
             });
 
             // Получаем результат с пагинацией
-            return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
-        }, $page);
+            return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+        }, (int)$page);
     }
 
-    /**
-     * Быстрый поиск проектов с оптимизированным кэшированием
-     */
-    public function fastSearch($userUuid, $search, $perPage = 20)
-    {
-        $companyId = $this->getCurrentCompanyId();
-        $cacheKey = "projects_fast_search_{$userUuid}_" . md5((string)$search) . "_{$perPage}_{$companyId}";
-
-        return CacheService::rememberSearch($cacheKey, function () use ($userUuid, $search, $perPage) {
-            return Project::select([
-                'projects.id',
-                'projects.name',
-                'projects.budget',
-                'projects.date',
-                'projects.created_at',
-                'clients.first_name as client_first_name',
-                'clients.last_name as client_last_name'
-            ])
-                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
-                ->whereHas('projectUsers', function ($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                })
-                ->where(function ($q) use ($search) {
-                    $q->where('projects.id', 'like', "%{$search}%")
-                        ->orWhere('projects.name', 'like', "%{$search}%")
-                        ->orWhere('clients.first_name', 'like', "%{$search}%")
-                        ->orWhere('clients.last_name', 'like', "%{$search}%");
-                })
-                ->orderBy('projects.created_at', 'desc')
-                ->paginate($perPage);
-        });
-    }
 
     private function applyDateFilter($query, $dateFilter, $startDate, $endDate)
     {
@@ -184,54 +151,13 @@ class ProjectsRepository
     }
 
     // Получение всего списка (включая все статусы для страницы проектов)
-    public function getAllItems($userUuid)
-    {
-        $cacheKey = "projects_all_{$userUuid}";
-
-        return CacheService::remember($cacheKey, function () use ($userUuid) {
-            return Project::select([
-                'projects.id',
-                'projects.name',
-                'projects.budget',
-                'projects.currency_id',
-                'projects.exchange_rate',
-                'projects.date',
-                'projects.user_id',
-                'projects.client_id',
-                'projects.files',
-                'projects.created_at',
-                'projects.updated_at',
-                'clients.first_name as client_first_name',
-                'clients.last_name as client_last_name',
-                'users.name as user_name'
-            ])
-                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
-                ->leftJoin('users', 'projects.user_id', '=', 'users.id')
-                ->with([
-                    'client:id,first_name,last_name,contact_person',
-                    'client.phones:id,client_id,phone',
-                    'client.emails:id,client_id,email',
-                    'client.balance:id,client_id,balance',
-                    'currency:id,name,code,symbol',
-                    'creator:id,name',
-                    'users:id,name'
-                ])
-                ->whereHas('projectUsers', function ($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                })
-                ->orderBy('created_at', 'desc')
-                ->get();
-        }, 1800); // 30 минут
-    }
-
-    // Получение активных проектов (без завершенных и отмененных) для выбора в формах
-    public function getActiveItems($userUuid)
+    public function getAllItems($userUuid, $activeOnly = false)
     {
         // Создаем уникальный ключ кэша с учетом компании
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = "projects_active_{$userUuid}_{$companyId}";
+        $cacheKey = "projects_all_{$userUuid}_{$activeOnly}_{$companyId}";
 
-        return CacheService::remember($cacheKey, function () use ($userUuid) {
+        return CacheService::remember($cacheKey, function () use ($userUuid, $activeOnly) {
             $query = Project::select([
                 'projects.id',
                 'projects.name',
@@ -242,6 +168,7 @@ class ProjectsRepository
                 'projects.user_id',
                 'projects.client_id',
                 'projects.status_id',
+                'projects.files',
                 'projects.created_at',
                 'projects.updated_at',
                 'clients.first_name as client_first_name',
@@ -264,10 +191,14 @@ class ProjectsRepository
             // Фильтруем по текущей компании пользователя
             $query = $this->addCompanyFilter($query);
 
+            // Фильтрация по активным статусам (исключаем "Завершен" и "Отменен")
+            if ($activeOnly) {
+                $query->whereNotIn('projects.status_id', [3, 4]);
+            }
+
             return $query->whereHas('projectUsers', function ($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
                 })
-                ->whereNotIn('projects.status_id', [3, 4]) // Исключаем статусы "Завершен" и "Отменен"
                 ->orderBy('created_at', 'desc')
                 ->get();
         }, 1800); // 30 минут
@@ -360,23 +291,6 @@ class ProjectsRepository
             DB::rollBack();
             throw $e;
         }
-    }
-
-    public function findItem($id)
-    {
-        $cacheKey = "project_item_{$id}";
-
-        return CacheService::remember($cacheKey, function () use ($id) {
-            return Project::with([
-                'client:id,first_name,last_name,contact_person',
-                'client.phones:id,client_id,phone',
-                'client.emails:id,client_id,email',
-                'client.balance:id,client_id,balance',
-                'currency:id,name,code,symbol',
-                'users:id,name',
-                'projectUsers:id,project_id,user_id'
-            ])->find($id);
-        }, 1800); // 30 минут
     }
 
     public function findItemWithRelations($id, $userUuid = null)

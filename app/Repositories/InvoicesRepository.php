@@ -51,7 +51,7 @@ class InvoicesRepository
             $query->where('type', $typeFilter);
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
+        return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
     }
 
     public function getItemById($id)

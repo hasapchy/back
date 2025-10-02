@@ -52,8 +52,8 @@ class UsersRepository
                 $query->where('users.is_active', $statusFilter);
             }
 
-            return $query->orderBy('users.created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
-        }, $page);
+            return $query->orderBy('users.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+        }, (int)$page);
     }
 
     /**

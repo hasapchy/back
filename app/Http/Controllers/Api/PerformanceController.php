@@ -21,7 +21,6 @@ use App\Repositories\TransfersRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class PerformanceController extends Controller
 {
@@ -91,112 +90,96 @@ class PerformanceController extends Controller
                 try {
                     $result['database_info'] = $this->getDatabaseInfo();
                 } catch (\Exception $e) {
-                    Log::error('Error getting database info: ' . $e->getMessage());
                     $result['database_info'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['server_info'] = $this->getServerInfo();
                 } catch (\Exception $e) {
-                    Log::error('Error getting server info: ' . $e->getMessage());
                     $result['server_info'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['sales_performance'] = $this->getCachedSalesPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting sales performance: ' . $e->getMessage());
                     $result['sales_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['clients_performance'] = $this->getCachedClientsPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting clients performance: ' . $e->getMessage());
                     $result['clients_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['products_performance'] = $this->getCachedProductsPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting products performance: ' . $e->getMessage());
                     $result['products_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['transactions_performance'] = $this->getCachedTransactionsPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting transactions performance: ' . $e->getMessage());
                     $result['transactions_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['projects_performance'] = $this->getCachedProjectsPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting projects performance: ' . $e->getMessage());
                     $result['projects_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['users_performance'] = $this->getCachedUsersPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting users performance: ' . $e->getMessage());
                     $result['users_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['comments_performance'] = $this->getCachedCommentsPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting comments performance: ' . $e->getMessage());
                     $result['comments_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['cash_registers_performance'] = $this->getCachedCashRegistersPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting cash registers performance: ' . $e->getMessage());
                     $result['cash_registers_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['invoices_performance'] = $this->getCachedInvoicesPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting invoices performance: ' . $e->getMessage());
                     $result['invoices_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['warehouses_performance'] = $this->getCachedWarehousesPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting warehouses performance: ' . $e->getMessage());
                     $result['warehouses_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['warehouse_receipts_performance'] = $this->getCachedWarehouseReceiptsPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting warehouse receipts performance: ' . $e->getMessage());
                     $result['warehouse_receipts_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['warehouse_writeoffs_performance'] = $this->getCachedWarehouseWriteoffsPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting warehouse writeoffs performance: ' . $e->getMessage());
                     $result['warehouse_writeoffs_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['warehouse_transfers_performance'] = $this->getCachedWarehouseTransfersPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting warehouse transfers performance: ' . $e->getMessage());
                     $result['warehouse_transfers_performance'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['orders_performance'] = $this->getCachedOrdersPerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting orders performance: ' . $e->getMessage());
                     $result['orders_performance'] = ['error' => $e->getMessage()];
                 }
 
@@ -204,7 +187,6 @@ class PerformanceController extends Controller
                 try {
                     $result['timeline_performance'] = $this->getCachedTimelinePerformanceMetrics($userUuid);
                 } catch (\Exception $e) {
-                    Log::error('Error getting timeline performance: ' . $e->getMessage());
                     $result['timeline_performance'] = ['error' => $e->getMessage()];
                 }
 
@@ -212,21 +194,18 @@ class PerformanceController extends Controller
                 try {
                     $result['table_sizes'] = $this->getTableSizesData();
                 } catch (\Exception $e) {
-                    Log::error('Error getting table sizes: ' . $e->getMessage());
                     $result['table_sizes'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['cache_stats'] = CacheService::getCacheStats();
                 } catch (\Exception $e) {
-                    Log::error('Error getting cache stats: ' . $e->getMessage());
                     $result['cache_stats'] = ['error' => $e->getMessage()];
                 }
 
                 try {
                     $result['cache_size'] = CacheService::getCacheSize();
                 } catch (\Exception $e) {
-                    Log::error('Error getting cache size: ' . $e->getMessage());
                     $result['cache_size'] = ['error' => $e->getMessage()];
                 }
 
@@ -235,12 +214,6 @@ class PerformanceController extends Controller
 
             return response()->json($metrics);
         } catch (\Exception $e) {
-            Log::error('Error in getDatabaseMetrics: ' . $e->getMessage(), [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'error' => 'Internal server error',
                 'message' => $e->getMessage()
@@ -258,12 +231,6 @@ class PerformanceController extends Controller
 
             return response()->json($this->getTableSizesData());
         } catch (\Exception $e) {
-            Log::error('Error in getTableSizes: ' . $e->getMessage(), [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'error' => 'Internal server error',
                 'message' => $e->getMessage()
@@ -304,7 +271,6 @@ class PerformanceController extends Controller
                         'variables' => $variablesArray
                     ];
                 } catch (\Exception $e) {
-                    Log::error('Error in getDatabaseInfo MySQL query: ' . $e->getMessage());
                     return [
                         'driver' => $driver,
                         'version' => 'Error: ' . $e->getMessage(),
@@ -315,7 +281,6 @@ class PerformanceController extends Controller
 
             return ['driver' => $driver, 'version' => 'Unknown'];
         } catch (\Exception $e) {
-            Log::error('Error in getDatabaseInfo: ' . $e->getMessage());
             return ['driver' => 'Unknown', 'version' => 'Error: ' . $e->getMessage()];
         }
     }
@@ -352,7 +317,6 @@ class PerformanceController extends Controller
 
             return $serverInfo;
         } catch (\Exception $e) {
-            Log::error('Error in getServerInfo: ' . $e->getMessage());
             return [
                 'error' => 'Server info not available: ' . $e->getMessage()
             ];
@@ -507,14 +471,12 @@ class PerformanceController extends Controller
 
                     return $tableSizes;
                 } catch (\Exception $e) {
-                    Log::error('Error in getTableSizesData MySQL query: ' . $e->getMessage());
                     return ['error' => 'Table size info not available: ' . $e->getMessage()];
                 }
             }
 
             return ['message' => 'Table size monitoring not available for ' . $driver];
         } catch (\Exception $e) {
-            Log::error('Error in getTableSizesData: ' . $e->getMessage());
             return ['error' => 'Database connection error: ' . $e->getMessage()];
         }
     }
@@ -1090,7 +1052,7 @@ class PerformanceController extends Controller
         $startTime = microtime(true);
         $startMemory = memory_get_usage();
 
-        $projectsWithSearch = $this->projectsRepository->fastSearch($userUuid, 'test');
+        $projectsWithSearch = $this->projectsRepository->getItemsWithPagination($userUuid, 20, 1, 'test');
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage();
@@ -1180,7 +1142,6 @@ class PerformanceController extends Controller
                 'cache_size' => $size
             ]);
         } catch (\Exception $e) {
-            Log::error('Error getting cache stats: ' . $e->getMessage());
             return response()->json([
                 'error' => 'Failed to get cache statistics: ' . $e->getMessage()
             ], 500);
@@ -1211,7 +1172,6 @@ class PerformanceController extends Controller
                 'cleared_at' => now()->toISOString()
             ]);
         } catch (\Exception $e) {
-            Log::error('Error clearing cache: ' . $e->getMessage());
             return response()->json([
                 'error' => 'Failed to clear cache: ' . $e->getMessage()
             ], 500);
@@ -1337,7 +1297,7 @@ class PerformanceController extends Controller
         $startTime = microtime(true);
         $startMemory = memory_get_usage();
 
-        $projects = $this->projectsRepository->fastSearch($userUuid, 'test');
+        $projects = $this->projectsRepository->getItemsWithPagination($userUuid, 20, 1, 'test');
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage();
@@ -1541,7 +1501,6 @@ class PerformanceController extends Controller
                 return $this->getCommentsPerformanceMetrics($userUuid);
             });
         } catch (\Exception $e) {
-            Log::error('Error in getCachedCommentsPerformanceMetrics: ' . $e->getMessage());
             return [
                 'error' => 'Comments performance metrics not available: ' . $e->getMessage()
             ];
@@ -1631,7 +1590,6 @@ class PerformanceController extends Controller
                 return $this->getCashRegistersPerformanceMetrics($userUuid);
             });
         } catch (\Exception $e) {
-            Log::error('Error in getCachedCashRegistersPerformanceMetrics: ' . $e->getMessage());
             return [
                 'error' => 'Cash registers performance metrics not available: ' . $e->getMessage()
             ];
@@ -1665,7 +1623,6 @@ class PerformanceController extends Controller
                 return $this->getTimelinePerformanceMetrics($userUuid);
             });
         } catch (\Exception $e) {
-            Log::error('Error in getCachedTimelinePerformanceMetrics: ' . $e->getMessage());
             return [
                 'error' => 'Timeline performance metrics not available: ' . $e->getMessage()
             ];
@@ -1824,8 +1781,6 @@ class PerformanceController extends Controller
 
             return response()->json($logs);
         } catch (\Exception $e) {
-            Log::error('Error in getServerLogs: ' . $e->getMessage());
-
             return response()->json([
                 'error' => 'Internal server error',
                 'message' => $e->getMessage()
@@ -1954,7 +1909,6 @@ class PerformanceController extends Controller
                 return $this->getInvoicesPerformanceMetrics($userUuid);
             });
         } catch (\Exception $e) {
-            Log::error('Error in getCachedInvoicesPerformanceMetrics: ' . $e->getMessage());
             return [
                 'error' => 'Invoices performance metrics not available: ' . $e->getMessage()
             ];
@@ -2024,7 +1978,6 @@ class PerformanceController extends Controller
                 return $this->getWarehousesPerformanceMetrics($userUuid);
             });
         } catch (\Exception $e) {
-            Log::error('Error in getCachedWarehousesPerformanceMetrics: ' . $e->getMessage());
             return [
                 'error' => 'Warehouses performance metrics not available: ' . $e->getMessage()
             ];
@@ -2094,7 +2047,6 @@ class PerformanceController extends Controller
                 return $this->getWarehouseReceiptsPerformanceMetrics($userUuid);
             });
         } catch (\Exception $e) {
-            Log::error('Error in getCachedWarehouseReceiptsPerformanceMetrics: ' . $e->getMessage());
             return [
                 'error' => 'Warehouse receipts performance metrics not available: ' . $e->getMessage()
             ];
@@ -2164,7 +2116,6 @@ class PerformanceController extends Controller
                 return $this->getWarehouseWriteoffsPerformanceMetrics($userUuid);
             });
         } catch (\Exception $e) {
-            Log::error('Error in getCachedWarehouseWriteoffsPerformanceMetrics: ' . $e->getMessage());
             return [
                 'error' => 'Warehouse writeoffs performance metrics not available: ' . $e->getMessage()
             ];
@@ -2234,7 +2185,6 @@ class PerformanceController extends Controller
                 return $this->getWarehouseTransfersPerformanceMetrics($userUuid);
             });
         } catch (\Exception $e) {
-            Log::error('Error in getCachedWarehouseTransfersPerformanceMetrics: ' . $e->getMessage());
             return [
                 'error' => 'Warehouse transfers performance metrics not available: ' . $e->getMessage()
             ];
@@ -2304,7 +2254,6 @@ class PerformanceController extends Controller
                 return $this->getOrdersPerformanceMetrics($userUuid);
             });
         } catch (\Exception $e) {
-            Log::error('Error in getCachedOrdersPerformanceMetrics: ' . $e->getMessage());
             return [
                 'error' => 'Orders performance metrics not available: ' . $e->getMessage()
             ];

@@ -7,12 +7,8 @@ use App\Models\Currency;
 use App\Models\CurrencyHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Spatie\Permission\Traits\HasRoles;
-
 class CurrencyHistoryController extends Controller
 {
-    use HasRoles;
     // Получение истории курсов для конкретной валюты
     public function index(Request $request, $currencyId)
     {
@@ -29,10 +25,10 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем права доступа к валюте
-            $hasAccessToAllCurrencies = $user->can('currencies_access_all');
+            $hasAccessToNonDefaultCurrencies = $user->hasPermissionTo('settings_currencies_view');
 
-            // Если нет доступа ко всем валютам и это не базовая валюта - запрещаем доступ
-            if (!$hasAccessToAllCurrencies && !$currency->is_default) {
+            // Если нет доступа к не-дефолтным валютам и это не базовая валюта - запрещаем доступ
+            if (!$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
                 return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
             }
 
@@ -45,8 +41,7 @@ class CurrencyHistoryController extends Controller
                 'history' => $history
             ]);
         } catch (\Exception $e) {
-            Log::error('Error fetching currency history: ' . $e->getMessage());
-            return response()->json(['error' => 'Ошибка при получении истории курсов'], 500);
+            return response()->json(['error' => 'Ошибка при получении истории курсов: ' . $e->getMessage()], 500);
         }
     }
 
@@ -66,10 +61,10 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем права доступа к валюте
-            $hasAccessToAllCurrencies = $user->can('currencies_access_all');
+            $hasAccessToNonDefaultCurrencies = $user->hasPermissionTo('settings_currencies_view');
 
-            // Если нет доступа ко всем валютам и это не базовая валюта - запрещаем доступ
-            if (!$hasAccessToAllCurrencies && !$currency->is_default) {
+            // Если нет доступа к не-дефолтным валютам и это не базовая валюта - запрещаем доступ
+            if (!$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
                 return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
             }
 
@@ -101,9 +96,8 @@ class CurrencyHistoryController extends Controller
                 'history' => $history
             ]);
         } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Error creating currency history: ' . $e->getMessage());
-            return response()->json(['error' => 'Ошибка при создании записи курса'], 500);
+            DB::rollback();
+            return response()->json(['error' => 'Ошибка при создании записи курса: ' . $e->getMessage()], 500);
         }
     }
 
@@ -123,10 +117,10 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем права доступа к валюте
-            $hasAccessToAllCurrencies = $user->can('currencies_access_all');
+            $hasAccessToNonDefaultCurrencies = $user->hasPermissionTo('settings_currencies_view');
 
-            // Если нет доступа ко всем валютам и это не базовая валюта - запрещаем доступ
-            if (!$hasAccessToAllCurrencies && !$currency->is_default) {
+            // Если нет доступа к не-дефолтным валютам и это не базовая валюта - запрещаем доступ
+            if (!$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
                 return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
             }
 
@@ -167,9 +161,8 @@ class CurrencyHistoryController extends Controller
                 'history' => $history
             ]);
         } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Error updating currency history: ' . $e->getMessage());
-            return response()->json(['error' => 'Ошибка при обновлении записи курса'], 500);
+            DB::rollback();
+            return response()->json(['error' => 'Ошибка при обновлении записи курса: ' . $e->getMessage()], 500);
         }
     }
 
@@ -189,10 +182,10 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем права доступа к валюте
-            $hasAccessToAllCurrencies = $user->can('currencies_access_all');
+            $hasAccessToNonDefaultCurrencies = $user->hasPermissionTo('settings_currencies_view');
 
-            // Если нет доступа ко всем валютам и это не базовая валюта - запрещаем доступ
-            if (!$hasAccessToAllCurrencies && !$currency->is_default) {
+            // Если нет доступа к не-дефолтным валютам и это не базовая валюта - запрещаем доступ
+            if (!$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
                 return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
             }
 
@@ -214,9 +207,8 @@ class CurrencyHistoryController extends Controller
                 'message' => 'Запись курса успешно удалена'
             ]);
         } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Error deleting currency history: ' . $e->getMessage());
-            return response()->json(['error' => 'Ошибка при удалении записи курса'], 500);
+            DB::rollback();
+            return response()->json(['error' => 'Ошибка при удалении записи курса: ' . $e->getMessage()], 500);
         }
     }
 
@@ -230,13 +222,13 @@ class CurrencyHistoryController extends Controller
                 return response()->json(['error' => 'Unauthorized'], 401);
             }
 
-            // Проверяем, есть ли у пользователя доступ ко всем валютам
-            $hasAccessToAllCurrencies = $user->can('currencies_access_all');
+            // Проверяем, есть ли у пользователя доступ к не-дефолтным валютам
+            $hasAccessToNonDefaultCurrencies = $user->hasPermissionTo('settings_currencies_view');
 
             $query = Currency::where('status', 1);
 
-            // Если нет доступа ко всем валютам - показываем только базовую валюту
-            if (!$hasAccessToAllCurrencies) {
+            // Если нет доступа к не-дефолтным валютам - показываем только базовую валюту
+            if (!$hasAccessToNonDefaultCurrencies) {
                 $query->where('is_default', true);
             }
 
@@ -267,8 +259,7 @@ class CurrencyHistoryController extends Controller
 
             return response()->json($result);
         } catch (\Exception $e) {
-            Log::error('Error fetching currencies with rates: ' . $e->getMessage());
-            return response()->json(['error' => 'Ошибка при получении валют с курсами'], 500);
+            return response()->json(['error' => 'Ошибка при получении валют с курсами: ' . $e->getMessage()], 500);
         }
     }
 }

@@ -37,8 +37,8 @@ class WarehouseStockRepository
                     'warehouse_stocks.created_at as created_at'
                 )
                 ->orderBy('warehouse_stocks.created_at', 'desc')
-                ->paginate($perPage, ['*'], 'page', $page);
-        }, $page);
+                ->paginate($perPage, ['*'], 'page', (int)$page);
+        }, (int)$page);
     }
 
     // Получение общего количества товаров на складе

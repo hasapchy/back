@@ -8,7 +8,6 @@ use App\Repositories\ProductsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 
 class ProductController extends Controller
 {
@@ -30,30 +29,13 @@ class ProductController extends Controller
         $page = $request->query('page', 1);
         $filterByCategory1 = filter_var($request->query('filter_by_category_1', false), FILTER_VALIDATE_BOOLEAN);
         $warehouseId = $request->query('warehouse_id');
+        $search = $request->query('search');
+        $categoryId = $request->query('category_id');
 
         // Получаем продукты с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page, $warehouseId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page, $warehouseId, $search, $categoryId);
 
         // DEBUG: логируем параметры и результат пагинации
-        Log::info('API:products pagination', [
-            'page_param' => $page,
-            'current_page' => method_exists($items, 'currentPage') ? $items->currentPage() : null,
-            'last_page' => method_exists($items, 'lastPage') ? $items->lastPage() : null,
-            'per_page' => method_exists($items, 'perPage') ? $items->perPage() : null,
-            'total' => method_exists($items, 'total') ? $items->total() : null,
-            'items_count' => method_exists($items, 'count') ? $items->count() : null,
-            'next_page_url' => method_exists($items, 'nextPageUrl') ? $items->nextPageUrl() : null,
-        ]);
-
-        Log::info('Products list fetched', [
-            'user_id' => $userUuid,
-            'company_id' => $request->header('X-Company-ID'),
-            'page' => $page,
-            'warehouse_id' => $warehouseId,
-            'filter_by_category_1' => $filterByCategory1,
-            'items_count' => $items->count(),
-            'total' => $items->total(),
-        ]);
 
         return response()->json([
             'items' => $items->items(),  // Список
@@ -81,16 +63,6 @@ class ProductController extends Controller
         // productsOnly в репозитории — булево для фильтра типа, filterByCategory1 не используется здесь
         $items = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId);
 
-        Log::info('Products/services search', [
-            'user_id' => $userUuid,
-            'company_id' => $request->header('X-Company-ID'),
-            'query' => $search,
-            'type' => $type,
-            'products_only' => $productsOnly,
-            'warehouse_id' => $warehouseId,
-            'filter_by_category_1' => $filterByCategory1,
-            'items_count' => is_countable($items) ? count($items) : null,
-        ]);
 
         return response()->json($items);
     }
@@ -106,30 +78,13 @@ class ProductController extends Controller
         $filterByCategory1 = filter_var($request->query('filter_by_category_1', false), FILTER_VALIDATE_BOOLEAN);
 
         $warehouseId = $request->query('warehouse_id');
+        $search = $request->query('search');
+        $categoryId = $request->query('category_id');
 
         // Получаем услуги с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page, $warehouseId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page, $warehouseId, $search, $categoryId);
 
         // DEBUG: логируем параметры и результат пагинации
-        Log::info('API:services pagination', [
-            'page_param' => $page,
-            'current_page' => method_exists($items, 'currentPage') ? $items->currentPage() : null,
-            'last_page' => method_exists($items, 'lastPage') ? $items->lastPage() : null,
-            'per_page' => method_exists($items, 'perPage') ? $items->perPage() : null,
-            'total' => method_exists($items, 'total') ? $items->total() : null,
-            'items_count' => method_exists($items, 'count') ? $items->count() : null,
-            'next_page_url' => method_exists($items, 'nextPageUrl') ? $items->nextPageUrl() : null,
-        ]);
-
-        Log::info('Services list fetched', [
-            'user_id' => $userUuid,
-            'company_id' => $request->header('X-Company-ID'),
-            'page' => $page,
-            'warehouse_id' => $warehouseId,
-            'filter_by_category_1' => $filterByCategory1,
-            'items_count' => $items->count(),
-            'total' => $items->total(),
-        ]);
 
         return response()->json([
             'items' => $items->items(),  // Список

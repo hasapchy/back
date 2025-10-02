@@ -81,6 +81,52 @@ Schema::table('transactions', function (Blueprint $table) {
 });
 ```
 
+### 3. Удаление дублирующихся полей из sales
+```php
+Schema::table('sales', function (Blueprint $table) {
+    $table->dropColumn([
+        'total_price',    // → transactions.amount
+        'currency_id',    // → transactions.currency_id
+        'date',          // → transactions.date
+        'note',          // → transactions.note
+        'transaction_id' // → transactions.source_id
+    ]);
+});
+```
+
+### 4. Удаление дублирующихся полей из orders
+```php
+Schema::table('orders', function (Blueprint $table) {
+    $table->dropColumn([
+        'total_price',    // → transactions.amount
+        'cash_id',        // → transactions.cash_id
+        'date',          // → transactions.date
+        'note',          // → transactions.note
+        'price',         // остается в orders (цена без скидки)
+        'discount'       // остается в orders (скидка)
+    ]);
+});
+```
+
+### 5. Удаление таблицы order_transactions
+```php
+Schema::dropIfExists('order_transactions');
+```
+
+### 6. Добавление индексов для производительности
+```php
+Schema::table('transactions', function (Blueprint $table) {
+    // Для расчета баланса клиента
+    $table->index(['client_id', 'source_type', 'source_id'], 'idx_transactions_client_source');
+    
+    // Для поиска транзакций по источнику
+    $table->index(['source_type', 'source_id'], 'idx_transactions_source');
+    
+    // Для фильтрации долговых операций
+    $table->index(['is_debt'], 'idx_transactions_is_debt');
+});
+```
+
 ## Логика создания транзакций
 
 ### Продажи
@@ -138,6 +184,8 @@ Transaction::create([
     'source_id' => $order->id,
 ]);
 ```
+
+**Важно:** После удаления таблицы `order_transactions` заказы будут использовать только morphable связи. Это означает, что **один заказ = одна транзакция**. Для частичных оплат нужно будет создавать отдельные транзакции с разными суммами.
 
 ### Оприходования
 
@@ -271,6 +319,21 @@ public function transactions()
 }
 ```
 
+### Order (упрощение после удаления order_transactions)
+```php
+// Удаляем старую связь многие-ко-многим
+// public function transactions()
+// {
+//     return $this->belongsToMany(Transaction::class, 'order_transactions', 'order_id', 'transaction_id');
+// }
+
+// Оставляем только morphable связь
+public function transactions()
+{
+    return $this->morphMany(Transaction::class, 'source');
+}
+```
+
 ## Миграция существующих данных
 
 ### Скрипт миграции
@@ -314,15 +377,34 @@ foreach ($sales as $sale) {
 
 ## Файлы для изменения
 
-- `database/migrations/` - новые миграции
-- `app/Models/Transaction.php` - добавление полей и связей
-- `app/Models/Sale.php` - добавление morphable связи
-- `app/Models/Order.php` - добавление morphable связи
+### Миграции
+- `database/migrations/` - новые миграции для добавления полей в transactions
+- `database/migrations/` - миграция для удаления полей из sales
+- `database/migrations/` - миграция для удаления таблицы order_transactions
+
+### Модели
+- `app/Models/Transaction.php` - добавление полей и morphable связей
+- `app/Models/Sale.php` - добавление morphable связи, удаление старых полей
+- `app/Models/Order.php` - замена связи многие-ко-многим на morphable
 - `app/Models/WhReceipt.php` - добавление morphable связи
-- `app/Repositories/SalesRepository.php` - создание транзакций для долгов
-- `app/Repositories/OrdersRepository.php` - создание транзакций для долгов
+- `app/Models/OrderTransaction.php` - удалить файл
+
+### Репозитории
+- `app/Repositories/SalesRepository.php` - создание транзакций для долгов, удаление дублирующихся полей
+- `app/Repositories/OrdersRepository.php` - создание транзакций для долгов, удаление логики order_transactions
 - `app/Repositories/WarehouseReceiptRepository.php` - создание транзакций для долгов
 - `app/Repositories/ClientsRepository.php` - новый метод расчета баланса
+- `app/Repositories/TransactionsRepository.php` - удаление логики order_transactions
+
+### Контроллеры
+- `app/Http/Controllers/Api/OrderTransactionController.php` - удалить файл
+- `app/Http/Controllers/Api/SaleController.php` - обновить для работы без дублирующихся полей
+
+### Маршруты
+- `routes/api.php` - удалить маршруты для order_transactions
+
+### Тесты
+- `tests/Feature/OrderDeletionTest.php` - обновить тесты
 - `app/Console/Commands/RecalculateClientBalances.php` - удалить
 
 ## Тестирование

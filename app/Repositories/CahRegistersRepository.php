@@ -6,7 +6,6 @@ use App\Models\CashRegister;
 use App\Models\CashRegisterUser;
 use App\Models\Transaction;
 use App\Services\CacheService;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -50,7 +49,7 @@ class CahRegistersRepository
             $query = $this->addCompanyFilter($query);
 
             return $query->orderBy('created_at', 'desc')
-                ->paginate($perPage, ['*'], 'page', $page);
+                ->paginate($perPage, ['*'], 'page', (int)$page);
         } catch (\Exception $e) {
             // Возвращаем пустую пагинацию вместо ошибки
             return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
@@ -170,14 +169,6 @@ class CahRegistersRepository
                 $income  = (clone $txBase)->where('type', 1)->sum('amount');
                 $outcome = (clone $txBase)->where('type', 0)->sum('amount');
 
-                // Логируем результаты для отладки
-                Log::info('Balance calculation result', [
-                    'cash_register_id' => $cashRegister->id,
-                    'income' => $income,
-                    'outcome' => $outcome,
-                    'calculated_total' => $income - $outcome,
-                    'stored_balance' => $cashRegister->balance
-                ]);
 
                 return [
                     'id'          => $cashRegister->id,

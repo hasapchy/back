@@ -16,7 +16,7 @@ class CategoriesRepository
             ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name')
             ->whereHas('categoryUsers', function($query) use ($userUuid) {
                 $query->where('user_id', $userUuid);
-            })->with('users')->paginate($perPage, ['*'], 'page', $page);
+            })->with('users')->paginate($perPage, ['*'], 'page', (int)$page);
         return $items;
     }
 

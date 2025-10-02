@@ -75,8 +75,8 @@ class SalesRepository
             });
 
             // Получаем результат с пагинацией
-            return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
-        }, $page);
+            return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+        }, (int)$page);
     }
 
     /**

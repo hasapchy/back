@@ -125,7 +125,7 @@ class OrdersRepository
                 ->orWhereDoesntHave('orderProducts');
             });
 
-            $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
+            $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
             // Преобразуем данные для совместимости с фронтендом
             $orders->getCollection()->transform(function ($order) {
@@ -223,7 +223,7 @@ class OrdersRepository
             });
 
             return $orders;
-        }, $page);
+        }, (int)$page);
     }
 
     public function getItemById($id)
@@ -891,8 +891,6 @@ class OrdersRepository
                     // Убеждаемся, что товар действительно удаляется
                     $itemName = $item->name;
                     $item->delete();
-                    // Логируем удаление для отладки
-                    Log::info("Удален временный товар: {$itemName}");
                 });
                 $tempProductsChanged = true;
             }

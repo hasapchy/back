@@ -57,8 +57,8 @@ class WarehouseRepository
             $query = $this->addCompanyFilter($query);
 
             return $query->orderBy('created_at', 'desc')
-                ->paginate($perPage, ['*'], 'page', $page);
-        }, $page);
+                ->paginate($perPage, ['*'], 'page', (int)$page);
+        }, (int)$page);
     }
 
     // Получение списка всех складов

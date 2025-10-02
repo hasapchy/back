@@ -93,22 +93,22 @@ Route::middleware('auth:api')->group(function () {
     // Route::middleware('permission:warehouse_receipts_view')->get('warehouse_receipts', [WarehouseReceiptController::class, 'index']);
     Route::get('warehouse_receipts', [WarehouseReceiptController::class, 'index']);
     Route::middleware('permission:warehouse_receipts_create')->post('warehouse_receipts', [WarehouseReceiptController::class, 'store']);
-    Route::middleware('permission:warehouse_receipts_update')->put('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'update']);
-    Route::middleware('permission:warehouse_receipts_delete')->delete('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'destroy']);
+    Route::middleware(['permission:warehouse_receipts_update', 'time.restriction:WhReceipt'])->put('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'update']);
+    Route::middleware(['permission:warehouse_receipts_delete', 'time.restriction:WhReceipt'])->delete('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'destroy']);
 
     // warehouse_writeoffs
     // Route::middleware('permission:warehouse_writeoffs_view')->get('warehouse_writeoffs', [WarehouseWriteoffController::class, 'index']);
     Route::get('warehouse_writeoffs', [WarehouseWriteoffController::class, 'index']);
     Route::middleware('permission:warehouse_writeoffs_create')->post('warehouse_writeoffs', [WarehouseWriteoffController::class, 'store']);
-    Route::middleware('permission:warehouse_writeoffs_update')->put('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'update']);
-    Route::middleware('permission:warehouse_writeoffs_delete')->delete('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'destroy']);
+    Route::middleware(['permission:warehouse_writeoffs_update', 'time.restriction:WhWriteoff'])->put('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'update']);
+    Route::middleware(['permission:warehouse_writeoffs_delete', 'time.restriction:WhWriteoff'])->delete('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'destroy']);
 
     // warehouse_movements
     // Route::middleware('permission:warehouse_movements_view')->get('warehouse_movements', [WarehouseMovementController::class, 'index']);
     Route::get('warehouse_movements', [WarehouseMovementController::class, 'index']);
     Route::middleware('permission:warehouse_movements_create')->post('warehouse_movements', [WarehouseMovementController::class, 'store']);
-    Route::middleware('permission:warehouse_movements_update')->put('warehouse_movements/{id}', [WarehouseMovementController::class, 'update']);
-    Route::middleware('permission:warehouse_movements_delete')->delete('warehouse_movements/{id}', [WarehouseMovementController::class, 'destroy']);
+    Route::middleware(['permission:warehouse_movements_update', 'time.restriction:WhMovement'])->put('warehouse_movements/{id}', [WarehouseMovementController::class, 'update']);
+    Route::middleware(['permission:warehouse_movements_delete', 'time.restriction:WhMovement'])->delete('warehouse_movements/{id}', [WarehouseMovementController::class, 'destroy']);
 
     // categories
     // Route::middleware('permission:categories_view')->get('categories', [CategoriesController::class, 'index']);
@@ -172,7 +172,6 @@ Route::middleware('auth:api')->group(function () {
     // Route::middleware('permission:projects_view')->get('projects/{id}', [ProjectsController::class, 'show']);
     Route::get('projects', [ProjectsController::class, 'index']);
     Route::get('projects/all', [ProjectsController::class, 'all']);
-    Route::get('projects/active', [ProjectsController::class, 'active']);
     Route::get('projects/{id}', [ProjectsController::class, 'show']);
     Route::middleware('permission:projects_create')->post('projects', [ProjectsController::class, 'store']);
     Route::middleware('permission:projects_update')->put('projects/{id}', [ProjectsController::class, 'update']);
@@ -207,8 +206,8 @@ Route::middleware('auth:api')->group(function () {
     // Route::middleware('permission:transactions_view')->get('transactions', [TransactionsController::class, 'index']);
     Route::get('transactions', [TransactionsController::class, 'index']);
     Route::middleware('permission:transactions_create')->post('transactions', [TransactionsController::class, 'store']);
-    Route::middleware('permission:transactions_update')->put('transactions/{id}', [TransactionsController::class, 'update']);
-    Route::middleware('permission:transactions_delete')->delete('transactions/{id}', [TransactionsController::class, 'destroy']);
+    Route::middleware(['permission:transactions_update', 'time.restriction:Transaction'])->put('transactions/{id}', [TransactionsController::class, 'update']);
+    Route::middleware(['permission:transactions_delete', 'time.restriction:Transaction'])->delete('transactions/{id}', [TransactionsController::class, 'destroy']);
     // Route::middleware('permission:transactions_view')->get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
     // Route::middleware('permission:transactions_view')->get('transactions/{id}', [TransactionsController::class, 'show']);
     // Route::middleware('permission:transactions_view')->get('transactions/project-incomes', [TransactionsController::class, 'getProjectIncomes']);
@@ -220,14 +219,14 @@ Route::middleware('auth:api')->group(function () {
     // Route::middleware('permission:transfers_view')->get('transfers', [TransfersController::class, 'index']);
     Route::get('transfers', [TransfersController::class, 'index']);
     Route::middleware('permission:transfers_create')->post('transfers', [TransfersController::class, 'store']);
-    Route::middleware('permission:transfers_update')->put('transfers/{id}', [TransfersController::class, 'update']);
-    Route::middleware('permission:transfers_delete')->delete('transfers/{id}', [TransfersController::class, 'destroy']);
+    Route::middleware(['permission:transfers_update', 'time.restriction:CashTransfer'])->put('transfers/{id}', [TransfersController::class, 'update']);
+    Route::middleware(['permission:transfers_delete', 'time.restriction:CashTransfer'])->delete('transfers/{id}', [TransfersController::class, 'destroy']);
 
     // sales
     // Route::middleware(['permission:sales_view'])->get('sales', [SaleController::class, 'index']);
     Route::get('sales', [SaleController::class, 'index']);
     Route::middleware(['permission:sales_create'])->post('sales', [SaleController::class, 'store']);
-    Route::middleware(['permission:sales_delete'])->delete('sales/{id}', [SaleController::class, 'destroy']);
+    Route::middleware(['permission:sales_delete', 'time.restriction:Sale'])->delete('sales/{id}', [SaleController::class, 'destroy']);
     // Route::middleware('permission:sales_view')->get('sales/{id}', [SaleController::class, 'show']);
     Route::get('sales/{id}', [SaleController::class, 'show']);
 
@@ -235,8 +234,8 @@ Route::middleware('auth:api')->group(function () {
     // Route::middleware('permission:orders_view')->get('orders', [OrderController::class, 'index']);
     Route::get('orders', [OrderController::class, 'index']);
     Route::middleware('permission:orders_create')->post('orders', [OrderController::class, 'store']);
-    Route::middleware('permission:orders_update')->put('orders/{id}', [OrderController::class, 'update']);
-    Route::middleware('permission:orders_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
+    Route::middleware(['permission:orders_update', 'time.restriction:Order'])->put('orders/{id}', [OrderController::class, 'update']);
+    Route::middleware(['permission:orders_delete', 'time.restriction:Order'])->delete('orders/{id}', [OrderController::class, 'destroy']);
     Route::middleware('permission:orders_update')->post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
     // Route::middleware('permission:orders_view')->get('orders/{id}', [OrderController::class, 'show']);
     // Route::middleware('permission:orders_view')->get('orders/category/{id}/additional-fields', [OrderController::class, 'getAdditionalFields']);
@@ -272,11 +271,11 @@ Route::middleware('auth:api')->group(function () {
     // order_categories
     // Route::middleware('permission:order_categories_view')->get('order_categories', [OrderCategoryController::class, 'index']);
     // Route::middleware('permission:order_categories_view')->get('order_categories/all', [OrderCategoryController::class, 'all']);
-    Route::get('order_categories', [OrderCategoryController::class, 'index']);
-    Route::get('order_categories/all', [OrderCategoryController::class, 'all']);
-    Route::middleware('permission:order_categories_create')->post('order_categories', [OrderCategoryController::class, 'store']);
-    Route::middleware('permission:order_categories_update')->put('order_categories/{id}', [OrderCategoryController::class, 'update']);
-    Route::middleware('permission:order_categories_delete')->delete('order_categories/{id}', [OrderCategoryController::class, 'destroy']);
+    // Route::get('order_categories', [OrderCategoryController::class, 'index']);
+    // Route::get('order_categories/all', [OrderCategoryController::class, 'all']);
+    // Route::middleware('permission:order_categories_create')->post('order_categories', [OrderCategoryController::class, 'store']);
+    // Route::middleware('permission:order_categories_update')->put('order_categories/{id}', [OrderCategoryController::class, 'update']);
+    // Route::middleware('permission:order_categories_delete')->delete('order_categories/{id}', [OrderCategoryController::class, 'destroy']);
 
     // transaction_categories
     // Route::middleware('permission:transaction_categories_view')->get('transaction_categories', [TransactionCategoryController::class, 'index']);

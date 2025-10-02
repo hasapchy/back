@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Models\Project;
-use Illuminate\Support\Facades\Log;
 
 class ProjectsController extends Controller
 {
@@ -53,37 +52,8 @@ class ProjectsController extends Controller
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
 
-        $items = $this->itemsRepository->getAllItems($userUuid);
-
-        return response()->json($items);
-    }
-
-    public function search(Request $request)
-    {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-
-        $searchTerm = $request->input('search');
-        if (!$searchTerm || strlen($searchTerm) < 3) {
-            return response()->json([]);
-        }
-
-        $items = $this->itemsRepository->fastSearch($userUuid, $searchTerm, 20);
-
-        return response()->json($items->items());
-    }
-
-    // Получение активных проектов (без завершенных и отмененных) для выбора в формах
-    public function active(Request $request)
-    {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-
-        $items = $this->itemsRepository->getActiveItems($userUuid);
+        $activeOnly = $request->input('active_only', false);
+        $items = $this->itemsRepository->getAllItems($userUuid, $activeOnly);
 
         return response()->json($items);
     }
@@ -224,17 +194,9 @@ class ProjectsController extends Controller
                 return response()->json(['error' => 'Проект не найден или доступ запрещен'], 404);
             }
 
-            // Отладочная информация
-            Log::info('Project data for ID ' . $id, [
-                'currency_id' => $project->currency_id,
-                'exchange_rate' => $project->exchange_rate,
-                'currency' => $project->currency,
-                'raw_attributes' => $project->getAttributes()
-            ]);
 
             return response()->json($project);
         } catch (\Exception $e) {
-            Log::error('Error fetching project ' . $id . ': ' . $e->getMessage());
             return response()->json(['error' => 'Внутренняя ошибка сервера'], 500);
         }
     }
@@ -285,7 +247,6 @@ class ProjectsController extends Controller
                 'files' => $storedFiles
             ]);
         } catch (\Exception $e) {
-            Log::error('Error uploading files for project ' . $id . ': ' . $e->getMessage());
             return response()->json([
                 'message' => 'Ошибка при загрузке файлов',
                 'error' => 'Internal server error'
@@ -339,18 +300,12 @@ class ProjectsController extends Controller
             $project->files = $updatedFiles;
             $project->save();
 
-            Log::info('File deleted from project', [
-                'project_id' => $id,
-                'file_path' => $filePath,
-                'user_id' => $userId
-            ]);
 
             return response()->json([
                 'message' => 'Файл успешно удалён',
                 'files' => $updatedFiles
             ]);
         } catch (\Exception $e) {
-            Log::error('Error deleting file from project ' . $id . ': ' . $e->getMessage());
             return response()->json(['error' => 'Внутренняя ошибка сервера'], 500);
         }
     }
