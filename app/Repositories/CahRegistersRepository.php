@@ -130,45 +130,64 @@ class CahRegistersRepository
                         return $q->where(function ($subQ) use ($source) {
                             $hasConditions = false;
 
-                            if (in_array('project', $source)) {
-                                $subQ->whereNotNull('project_id');
-                                $hasConditions = true;
-                            }
                             if (in_array('sale', $source)) {
-                                if ($hasConditions) {
-                                    $subQ->orWhereHas('sales');
-                                } else {
-                                    $subQ->whereHas('sales');
-                                }
+                                $subQ->where('source_type', 'App\\Models\\Sale');
                                 $hasConditions = true;
                             }
                             if (in_array('order', $source)) {
                                 if ($hasConditions) {
-                                    $subQ->orWhereHas('orders');
+                                    $subQ->orWhereExists(function ($query) {
+                                        $query->select(DB::raw(1))
+                                            ->from('order_transactions')
+                                            ->whereColumn('order_transactions.transaction_id', 'transactions.id');
+                                    });
                                 } else {
-                                    $subQ->whereHas('orders');
+                                    $subQ->whereExists(function ($query) {
+                                        $query->select(DB::raw(1))
+                                            ->from('order_transactions')
+                                            ->whereColumn('order_transactions.transaction_id', 'transactions.id');
+                                    });
                                 }
                                 $hasConditions = true;
                             }
                             if (in_array('other', $source)) {
                                 if ($hasConditions) {
                                     $subQ->orWhere(function ($otherQ) {
-                                        $otherQ->whereNull('project_id')
-                                            ->whereDoesntHave('sales')
-                                            ->whereDoesntHave('orders');
+                                        $otherQ->whereNull('source_type')
+                                            ->whereDoesntExist(function ($query) {
+                                                $query->select(DB::raw(1))
+                                                    ->from('order_transactions')
+                                                    ->whereColumn('order_transactions.transaction_id', 'transactions.id');
+                                            });
                                     });
                                 } else {
-                                    $subQ->whereNull('project_id')
-                                        ->whereDoesntHave('sales')
-                                        ->whereDoesntHave('orders');
+                                    $subQ->whereNull('source_type')
+                                        ->whereDoesntExist(function ($query) {
+                                            $query->select(DB::raw(1))
+                                                ->from('order_transactions')
+                                                ->whereColumn('order_transactions.transaction_id', 'transactions.id');
+                                        });
                                 }
                             }
                         });
                     });
 
-                $income  = (clone $txBase)->where('type', 1)->sum('amount');
-                $outcome = (clone $txBase)->where('type', 0)->sum('amount');
+                $income  = (clone $txBase)->where('type', 1)->where('is_debt', false)->sum('amount');
+                $outcome = (clone $txBase)->where('type', 0)->where('is_debt', false)->sum('amount');
+                $debtIncome = (clone $txBase)->where('type', 1)->where('is_debt', true)->sum('amount');
+                $debtOutcome = (clone $txBase)->where('type', 0)->where('is_debt', true)->sum('amount');
+                $debtTotal = $debtIncome - $debtOutcome;
 
+                $balance = [
+                    ['value' => $income,  'title' => 'Приход',  'type' => 'income'],
+                    ['value' => $outcome, 'title' => 'Расход',  'type' => 'outcome'],
+                    ['value' => $cashRegister->balance, 'title' => 'Итого', 'type' => 'default'],
+                ];
+
+                // Добавляем долг только если он не равен 0
+                if ($debtTotal != 0) {
+                    $balance[] = ['value' => $debtTotal, 'title' => 'Долг', 'type' => 'debt'];
+                }
 
                 return [
                     'id'          => $cashRegister->id,
@@ -176,11 +195,7 @@ class CahRegistersRepository
                     'currency_id' => $cashRegister->currency_id,
                     'currency_symbol' => $cashRegister->currency ? $cashRegister->currency->symbol : null,
                     'currency_code' => $cashRegister->currency ? $cashRegister->currency->code : null,
-                    'balance'     => [
-                        ['value' => $income,  'title' => 'Приход',  'type' => 'income'],
-                        ['value' => $outcome, 'title' => 'Расход',  'type' => 'outcome'],
-                        ['value' => $cashRegister->balance, 'title' => 'Итого', 'type' => 'default'],
-                    ],
+                    'balance'     => $balance,
                 ];
             });
         return $items;

@@ -20,14 +20,11 @@ class Sale extends Model
     protected $fillable = [
         'cash_id',
         'client_id',
-        'currency_id',
         'date',
         'discount',
         'note',
         'price',
         'project_id',
-        'total_price',
-        'transaction_id',
         'user_id',
         'warehouse_id',
         'no_balance_update',
@@ -56,13 +53,16 @@ class Sale extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
-    public function transaction()
-    {
-        return $this->belongsTo(Transaction::class, 'transaction_id');
-    }
+    // Старая связь удалена, теперь используется morphable связь transactions()
 
     public function project()
     {
         return $this->belongsTo(Project::class, 'project_id');
+    }
+
+    // Morphable связь с транзакциями
+    public function transactions()
+    {
+        return $this->morphMany(Transaction::class, 'source');
     }
 }

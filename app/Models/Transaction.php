@@ -14,6 +14,7 @@ class Transaction extends Model
 {
     use HasFactory, LogsActivity;
     protected $skipClientBalanceUpdate = false;
+    protected $skipCashBalanceUpdate = false;
     protected $fillable = [
         'amount',
         'cash_id',
@@ -27,6 +28,9 @@ class Transaction extends Model
         'type',
         'user_id',
         'company_id',
+        'is_debt',
+        'source_type',
+        'source_id',
     ];
 
     protected static $logAttributes = [
@@ -72,6 +76,7 @@ class Transaction extends Model
 
     protected $hidden = [
         'skipClientBalanceUpdate',
+        'skipCashBalanceUpdate',
     ];
 
     public function setSkipClientBalanceUpdate($value)
@@ -82,6 +87,16 @@ class Transaction extends Model
     public function getSkipClientBalanceUpdate()
     {
         return $this->skipClientBalanceUpdate;
+    }
+
+    public function setSkipCashBalanceUpdate($value)
+    {
+        $this->skipCashBalanceUpdate = $value;
+    }
+
+    public function getSkipCashBalanceUpdate()
+    {
+        return $this->skipCashBalanceUpdate;
     }
 
     protected static function booted()
@@ -120,6 +135,9 @@ class Transaction extends Model
                 }
                 $clientBalance->save();
             }
+
+            // Обновляем баланс кассы (если не долг)
+            $transaction->updateCashBalance();
         });
 
         static::updated(function ($transaction) {
@@ -227,14 +245,9 @@ class Transaction extends Model
         return $this->hasMany(OrderTransaction::class, 'transaction_id');
     }
 
-    public function sales()
+    public function source()
     {
-        return $this->hasMany(Sale::class, 'transaction_id');
-    }
-
-    public function warehouseReceipts()
-    {
-        return $this->hasMany(WhReceipt::class, 'transaction_id');
+        return $this->morphTo();
     }
 
     public function cashTransfersFrom()
@@ -284,5 +297,28 @@ class Transaction extends Model
     public function company()
     {
         return $this->belongsTo(Company::class, 'company_id');
+    }
+
+
+    public function updateCashBalance()
+    {
+        if ($this->getSkipCashBalanceUpdate() || $this->is_debt || !$this->cash_id) {
+            // Пропускаем обновление кассы если:
+            // 1. Установлен флаг skipCashBalanceUpdate (касса уже обновлена в репозитории)
+            // 2. Долг - касса НЕ меняется
+            // 3. Нет кассы
+            return;
+        }
+
+        // Обычная транзакция - касса меняется
+        $cash = CashRegister::find($this->cash_id);
+        if ($cash) {
+            if ($this->type == 1) {
+                $cash->balance += $this->amount; // доход
+            } else {
+                $cash->balance -= $this->amount; // расход
+            }
+            $cash->save();
+        }
     }
 }

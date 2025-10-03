@@ -23,11 +23,11 @@ use Illuminate\Support\Facades\Log;
 
 class OrdersRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null)
     {
-        $cacheKey = "orders_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusFilter}_single";
+        $cacheKey = "orders_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusFilter}_{$projectFilter}_{$clientFilter}_single";
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter) {
             // Используем оптимизированный подход с JOIN'ами для основных данных и Eager Loading для товаров
             $query = Order::select([
                 'orders.*',
@@ -99,6 +99,16 @@ class OrdersRepository
             // Фильтрация по статусу
             if ($statusFilter) {
                 $query->where('orders.status_id', $statusFilter);
+            }
+
+            // Фильтрация по проекту
+            if ($projectFilter) {
+                $query->where('orders.project_id', $projectFilter);
+            }
+
+            // Фильтрация по клиенту
+            if ($clientFilter) {
+                $query->where('orders.client_id', $clientFilter);
             }
 
             // Фильтрация по доступу к проектам

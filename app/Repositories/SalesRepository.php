@@ -37,7 +37,6 @@ class SalesRepository
                 'sales.user_id',
                 'sales.project_id',
                 'sales.date',
-                'sales.total_price',
                 'sales.discount',
                 'sales.created_at',
                 'clients.first_name as client_first_name',
@@ -47,13 +46,14 @@ class SalesRepository
                 ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
                 ->with([
                     'warehouse:id,name',
-                    'cashRegister:id,currency_id',
+                    'cashRegister:id,name,currency_id',
                     'cashRegister.currency:id,name,code,symbol',
                     'user:id,name',
                     'project:id,name',
                     'products:id,sale_id,product_id,quantity,price',
                     'products.product:id,name,image,unit_id',
-                    'products.product.unit:id,name,short_name'
+                    'products.product.unit:id,name,short_name',
+                    'transactions:id,source_id,source_type,amount,is_debt' // Добавляем связь с транзакциями
                 ]);
 
             // Применяем фильтры
@@ -92,12 +92,12 @@ class SalesRepository
                 'sales.id',
                 'sales.client_id',
                 'sales.date',
-                'sales.total_price',
                 'sales.created_at',
                 'clients.first_name as client_first_name',
                 'clients.last_name as client_last_name'
             ])
                 ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
+                ->with(['transactions:id,source_id,source_type,amount'])
                 ->where(function ($q) use ($search) {
                     $q->where('sales.id', 'like', "%{$search}%")
                         ->orWhere('clients.first_name', 'like', "%{$search}%")
@@ -203,12 +203,12 @@ class SalesRepository
                 'sales.id',
                 'sales.client_id',
                 'sales.date',
-                'sales.total_price',
                 'sales.created_at',
                 'clients.first_name as client_first_name',
                 'clients.last_name as client_last_name'
             ])
                 ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
+                ->with(['transactions:id,source_id,source_type,amount'])
                 ->where('sales.warehouse_id', $warehouseId);
 
             if ($dateFilter && $dateFilter !== 'all_time') {
@@ -242,57 +242,6 @@ class SalesRepository
         });
     }
 
-    /**
-     * Новый метод: Получение продаж с группировкой по датам
-     * Для графиков и аналитики
-     */
-    public function getSalesByDateRange($startDate, $endDate, $groupBy = 'day')
-    {
-        $cacheKey = $this->generateCacheKey('by_date', [$startDate, $endDate, $groupBy]);
-        $ttl = $this->getCacheTTL('stats');
-
-        return CacheService::remember($cacheKey, function () use ($startDate, $endDate, $groupBy) {
-            $dateFormat = $groupBy === 'month' ? '%Y-%m' : '%Y-%m-%d';
-
-            return Sale::select([
-                DB::raw("DATE_FORMAT(date, '{$dateFormat}') as period"),
-                DB::raw('COUNT(*) as sales_count'),
-                DB::raw('SUM(total_price) as total_revenue'),
-                DB::raw('AVG(total_price) as avg_sale')
-            ])
-                ->whereBetween('date', [$startDate, $endDate])
-                ->groupBy('period')
-                ->orderBy('period')
-                ->get();
-        }, $ttl);
-    }
-
-    /**
-     * Новый метод: Поиск продаж по продукту
-     */
-    public function getSalesByProduct($productId, $perPage = 20)
-    {
-        $cacheKey = $this->generateCacheKey('by_product', [$productId, $perPage]);
-        $ttl = $this->getCacheTTL('reference');
-
-        return CacheService::remember($cacheKey, function () use ($productId, $perPage) {
-            return Sale::select([
-                'sales.id',
-                'sales.date',
-                'sales.total_price',
-                'sales.created_at',
-                'clients.first_name as client_first_name',
-                'clients.last_name as client_last_name',
-                'sales_products.quantity',
-                'sales_products.price as unit_price'
-            ])
-                ->join('sales_products', 'sales.id', '=', 'sales_products.sale_id')
-                ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
-                ->where('sales_products.product_id', $productId)
-                ->orderBy('sales.date', 'desc')
-                ->paginate($perPage);
-        }, $ttl);
-    }
 
     /**
      * Приватный метод: Генерация ключей кэша
@@ -396,74 +345,17 @@ class SalesRepository
         CacheService::invalidateSalesCache();
     }
 
-    /**
-     * Новый метод: Получение метрик производительности
-     * Для мониторинга производительности
-     */
-    public function getPerformanceMetrics()
-    {
-        return [
-            'total_sales' => Sale::count(),
-            'total_revenue' => Sale::sum('total_price'),
-            'avg_sale_price' => Sale::avg('total_price'),
-            'sales_today' => Sale::whereBetween('date', [
-                now()->startOfDay()->toDateTimeString(),
-                now()->endOfDay()->toDateTimeString()
-            ])->count(),
-            'revenue_today' => Sale::whereBetween('date', [
-                now()->startOfDay()->toDateTimeString(),
-                now()->endOfDay()->toDateTimeString()
-            ])->sum('total_price'),
-            'top_clients' => $this->getTopClients(),
-            'sales_by_month' => $this->getSalesByMonth()
-        ];
-    }
-
-    /**
-     * Приватный метод: Получение топ клиентов
-     */
-    private function getTopClients()
-    {
-        return Sale::select([
-            'client_id',
-            DB::raw('COUNT(*) as sales_count'),
-            DB::raw('SUM(total_price) as total_spent')
-        ])
-            ->with('client:id,first_name,last_name')
-            ->groupBy('client_id')
-            ->orderBy('total_spent', 'desc')
-            ->limit(10)
-            ->get();
-    }
-
-    /**
-     * Приватный метод: Получение продаж по месяцам
-     */
-    private function getSalesByMonth()
-    {
-        return Sale::select([
-            DB::raw('YEAR(date) as year'),
-            DB::raw('MONTH(date) as month'),
-            DB::raw('COUNT(*) as sales_count'),
-            DB::raw('SUM(total_price) as total_revenue')
-        ])
-            ->groupBy('year', 'month')
-            ->orderBy('year', 'desc')
-            ->orderBy('month', 'desc')
-            ->limit(12)
-            ->get();
-    }
-
-
     public function createItem(array $data)
     {
         DB::beginTransaction();
         try {
+            \Log::info('SalesRepository::createItem - Начало создания продажи', $data);
             $userId      = $data['user_id'];
             $clientId    = $data['client_id'];
             $projectId   = $data['project_id'] ?? null;
             $warehouseId = $data['warehouse_id'];
             $cashId      = $data['cash_id'] ?? null;
+            $isDebt      = ($data['type'] === 'balance'); // долговая операция, если тип "balance"
             $discount    = $data['discount'] ?? 0;
             $discountType = $data['discount_type'] ?? 'percent';
             $date        = $data['date'] ?? now();
@@ -498,41 +390,39 @@ class SalesRepository
                 : CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
             $totalPrice = $price - $discountCalc;
 
-            $transactionId = null;
-            if (!empty($cashId)) {
-                $txRepo = new TransactionsRepository();
-                $transactionId = $txRepo->createItem([
-                    'type'        => 1,
-                    'user_id'     => $userId,
-                    'orig_amount' => $totalPrice,
-                    'currency_id' => $defaultCurrency->id,
-                    'cash_id'     => $cashId,
-                    'category_id' => 1,
-                    'project_id'  => $projectId,
-                    'client_id'   => $clientId,
-                    'note'        => $note,
-                    'date'        => $date,
-                ], true, true);
-            } else {
-                ClientBalance::updateOrCreate(
-                    ['client_id' => $clientId],
-                    ['balance' => DB::raw("COALESCE(balance, 0) + {$totalPrice}")]
-                );
-            }
-
+            // Создаем продажу сначала (без дублирующихся полей total_price и transaction_id)
             $sale = Sale::create([
-                'user_id'        => $userId,
-                'client_id'      => $clientId,
-                'project_id'     => $projectId,
-                'cash_id'        => $cashId,
-                'warehouse_id'   => $warehouseId,
-                'price'          => $price,
-                'discount'       => $discountCalc,
-                'total_price'    => $totalPrice,
-                'transaction_id' => $transactionId,
-                'date'           => $date,
-                'note'           => $note,
+                'user_id'      => $userId,
+                'client_id'    => $clientId,
+                'project_id'   => $projectId,
+                'cash_id'      => $cashId,
+                'warehouse_id' => $warehouseId,
+                'price'        => $price,
+                'discount'     => $discountCalc,
+                'date'         => $date,
+                'note'         => $note,
             ]);
+
+            // Создаем транзакцию согласно новой архитектуре
+            $transactionData = [
+                'client_id'    => $clientId,
+                'amount'       => $totalPrice,
+                'orig_amount'  => $totalPrice, // добавляем orig_amount для TransactionsRepository
+                'type'         => 1, // доход
+                'is_debt'      => $isDebt, // используем значение с фронтенда
+                'cash_id'      => $cashId,
+                'category_id'  => 1, // категория по умолчанию для продаж
+                'source_type'  => 'App\Models\Sale',
+                'source_id'    => $sale->id,
+                'date'         => $date,
+                'note'         => $note,
+                'user_id'      => $userId,
+                'project_id'   => $projectId,
+                'currency_id'  => $defaultCurrency->id,
+            ];
+
+            $txRepo = new TransactionsRepository();
+            $transactionId = $txRepo->createItem($transactionData, true, true);
 
             foreach ($products as $prod) {
                 SalesProduct::create([
@@ -557,8 +447,14 @@ class SalesRepository
             $clientsRepo = new \App\Repositories\ClientsRepository();
             $clientsRepo->invalidateClientBalanceCache($clientId);
 
+            \Log::info('SalesRepository::createItem - Продажа успешно создана', ['sale_id' => $sale->id, 'transaction_id' => $transactionId]);
             return true;
         } catch (\Exception $e) {
+            \Log::error('SalesRepository::createItem - Ошибка создания продажи', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'data' => $data
+            ]);
             DB::rollBack();
             return false;
         }
@@ -581,17 +477,8 @@ class SalesRepository
                 $p->delete();
             }
 
-            if ($sale->transaction_id) {
-                $txRepo = new TransactionsRepository();
-                $txRepo->deleteItem($sale->transaction_id, true);
-            }
-
-            if ($sale->client_id && $sale->transaction_id === null) {
-                ClientBalance::updateOrCreate(
-                    ['client_id' => $sale->client_id],
-                    ['balance' => DB::raw("COALESCE(balance, 0) - {$sale->total_price}")]
-                );
-            }
+            // Удаляем связанные транзакции через morphable связь
+            $sale->transactions()->delete();
 
             $sale->delete();
 

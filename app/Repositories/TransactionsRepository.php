@@ -119,7 +119,47 @@ class TransactionsRepository
                         if (empty($source)) return $q;
 
                         return $q->where(function ($subQ) use ($source) {
-                            $this->applySingleSourceFilter($subQ, $source);
+                            $hasConditions = false;
+
+                            if (in_array('sale', $source)) {
+                                $subQ->where('source_type', 'App\\Models\\Sale');
+                                $hasConditions = true;
+                            }
+                            if (in_array('order', $source)) {
+                                if ($hasConditions) {
+                                    $subQ->orWhereExists(function ($query) {
+                                        $query->select(DB::raw(1))
+                                            ->from('order_transactions')
+                                            ->whereColumn('order_transactions.transaction_id', 'transactions.id');
+                                    });
+                                } else {
+                                    $subQ->whereExists(function ($query) {
+                                        $query->select(DB::raw(1))
+                                            ->from('order_transactions')
+                                            ->whereColumn('order_transactions.transaction_id', 'transactions.id');
+                                    });
+                                }
+                                $hasConditions = true;
+                            }
+                            if (in_array('other', $source)) {
+                                if ($hasConditions) {
+                                    $subQ->orWhere(function ($otherQ) {
+                                        $otherQ->whereNull('source_type')
+                                            ->whereDoesntExist(function ($query) {
+                                                $query->select(DB::raw(1))
+                                                    ->from('order_transactions')
+                                                    ->whereColumn('order_transactions.transaction_id', 'transactions.id');
+                                            });
+                                    });
+                                } else {
+                                    $subQ->whereNull('source_type')
+                                        ->whereDoesntExist(function ($query) {
+                                            $query->select(DB::raw(1))
+                                                ->from('order_transactions')
+                                                ->whereColumn('order_transactions.transaction_id', 'transactions.id');
+                                        });
+                                }
+                            }
                         });
                     })
                     // Фильтрация по проекту
@@ -253,11 +293,7 @@ class TransactionsRepository
                 $query->whereNotNull('transactions.project_id');
                 break;
             case 'sale':
-                $query->whereExists(function ($subQuery) {
-                    $subQuery->select(DB::raw(1))
-                        ->from('sales')
-                        ->whereColumn('sales.transaction_id', 'transactions.id');
-                });
+                $query->where('transactions.source_type', 'App\Models\Sale');
                 break;
             case 'order':
                 $query->whereExists(function ($subQuery) {
@@ -268,11 +304,7 @@ class TransactionsRepository
                 break;
             case 'other':
                 $query->whereNull('transactions.project_id')
-                    ->whereNotExists(function ($subQuery) {
-                        $subQuery->select(DB::raw(1))
-                            ->from('sales')
-                            ->whereColumn('sales.transaction_id', 'transactions.id');
-                    })
+                    ->whereNull('transactions.source_type')
                     ->whereNotExists(function ($subQuery) {
                         $subQuery->select(DB::raw(1))
                             ->from('order_transactions')
@@ -331,8 +363,12 @@ class TransactionsRepository
             $transaction->client_id = $data['client_id'];
             $transaction->note = $data['note'];
             $transaction->date = $data['date'];
+            $transaction->is_debt = $data['is_debt'] ?? false;
+            $transaction->source_type = $data['source_type'] ?? null;
+            $transaction->source_id = $data['source_id'] ?? null;
             // Удалено поле order_id - теперь используется связующая таблица
             $transaction->setSkipClientBalanceUpdate(true);
+            $transaction->setSkipCashBalanceUpdate(true); // Касса обновляется в репозитории
             $transaction->save();
 
             // Создаем связь с заказом если указан order_id
@@ -343,12 +379,15 @@ class TransactionsRepository
                 ]);
             }
 
-            if ((int)$data['type'] === 1) {
-                $cashRegister->balance += $convertedAmount;
-            } else {
-                $cashRegister->balance -= $convertedAmount;
+            // Обновляем кассу только если это не долговая операция и касса указана
+            if (!($data['is_debt'] ?? false) && $cashRegister) {
+                if ((int)$data['type'] === 1) {
+                    $cashRegister->balance += $convertedAmount;
+                } else {
+                    $cashRegister->balance -= $convertedAmount;
+                }
+                $cashRegister->save();
             }
-            $cashRegister->save();
 
             if (! $skipClientUpdate && ! empty($data['client_id'])) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $data['client_id']]);
@@ -664,12 +703,12 @@ class TransactionsRepository
 
     private function isSale($transaction)
     {
-        return $transaction->sales()->exists();
+        return $transaction->source_type === 'App\Models\Sale';
     }
 
     private function isReceipt($transaction)
     {
-        return $transaction->warehouseReceipts()->exists();
+        return $transaction->source_type === 'App\Models\WarehouseReceipt';
     }
 
     public function userHasPermissionToCashRegister($userUuid, $cashRegisterId)

@@ -35,8 +35,10 @@ class OrderController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
         $statusFilter = $request->input('status_id');
+        $projectFilter = $request->input('project_id');
+        $clientFilter = $request->input('client_id');
 
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page);
+        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter);
 
         return response()->json([
             'items' => $items->items(),
