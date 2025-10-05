@@ -7,8 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Services\CurrencyConverter;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
-use App\Models\OrderTransaction;
-use App\Models\WhReceipt;
+use App\Services\CacheService;
 
 class Transaction extends Model
 {
@@ -74,6 +73,10 @@ class Transaction extends Model
             ->setDescriptionForEvent(fn(string $eventName) => $this->getDescriptionForEvent($eventName));
     }
 
+    protected $casts = [
+        'is_debt' => 'boolean',
+    ];
+
     protected $hidden = [
         'skipClientBalanceUpdate',
         'skipCashBalanceUpdate',
@@ -134,6 +137,11 @@ class Transaction extends Model
                     $clientBalance->balance -= $convertedAmount;
                 }
                 $clientBalance->save();
+
+                // Инвалидируем кэш клиента и проектов после обновления баланса
+               CacheService::invalidateClientsCache();
+                CacheService::invalidateClientBalanceCache($transaction->client_id);
+                CacheService::invalidateProjectsCache();
             }
 
             // Обновляем баланс кассы (если не долг)
@@ -175,6 +183,11 @@ class Transaction extends Model
                     $clientBalance->balance = $clientBalance->balance - $originalConverted + $currentConverted;
                 }
                 $clientBalance->save();
+
+                // Инвалидируем кэш клиента и проектов после обновления баланса
+                \App\Services\CacheService::invalidateClientsCache();
+                \App\Services\CacheService::invalidateClientBalanceCache($transaction->client_id);
+                \App\Services\CacheService::invalidateProjectsCache();
             }
         });
 
@@ -201,6 +214,11 @@ class Transaction extends Model
                     $clientBalance->balance += $convertedAmount;
                 }
                 $clientBalance->save();
+
+                // Инвалидируем кэш клиента и проектов после обновления баланса
+                \App\Services\CacheService::invalidateClientsCache();
+                \App\Services\CacheService::invalidateClientBalanceCache($transaction->client_id);
+                \App\Services\CacheService::invalidateProjectsCache();
             }
         });
     }
@@ -235,15 +253,6 @@ class Transaction extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function orders()
-    {
-        return $this->belongsToMany(Order::class, 'order_transactions', 'transaction_id', 'order_id');
-    }
-
-    public function orderTransactions()
-    {
-        return $this->hasMany(OrderTransaction::class, 'transaction_id');
-    }
 
     public function source()
     {

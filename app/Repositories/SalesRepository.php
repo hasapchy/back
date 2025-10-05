@@ -13,6 +13,7 @@ use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use App\Repositories\ClientsRepository;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -349,7 +350,7 @@ class SalesRepository
     {
         DB::beginTransaction();
         try {
-            \Log::info('SalesRepository::createItem - Начало создания продажи', $data);
+            Log::info('SalesRepository::createItem - Начало создания продажи', $data);
             $userId      = $data['user_id'];
             $clientId    = $data['client_id'];
             $projectId   = $data['project_id'] ?? null;
@@ -447,10 +448,10 @@ class SalesRepository
             $clientsRepo = new \App\Repositories\ClientsRepository();
             $clientsRepo->invalidateClientBalanceCache($clientId);
 
-            \Log::info('SalesRepository::createItem - Продажа успешно создана', ['sale_id' => $sale->id, 'transaction_id' => $transactionId]);
+            Log::info('SalesRepository::createItem - Продажа успешно создана', ['sale_id' => $sale->id, 'transaction_id' => $transactionId]);
             return true;
         } catch (\Exception $e) {
-            \Log::error('SalesRepository::createItem - Ошибка создания продажи', [
+            Log::error('SalesRepository::createItem - Ошибка создания продажи', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'data' => $data

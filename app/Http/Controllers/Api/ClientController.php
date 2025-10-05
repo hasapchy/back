@@ -19,7 +19,7 @@ class ClientController extends Controller
 
     public function index(Request $request)
     {
-        $perPage = $request->input('per_page', 20);
+        $perPage = $request->input('per_page', 10);
         $page = $request->input('page', 1);
         $search = $request->input('search');
         $includeInactive = $request->input('include_inactive', false);

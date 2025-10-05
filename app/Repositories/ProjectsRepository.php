@@ -4,10 +4,8 @@ namespace App\Repositories;
 
 use App\Models\Project;
 use App\Models\ProjectUser;
-use App\Repositories\ClientsRepository;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class ProjectsRepository
 {
@@ -63,7 +61,8 @@ class ProjectsRepository
                 'clients.first_name as client_first_name',
                 'clients.last_name as client_last_name',
                 'clients.contact_person as client_contact_person',
-                'users.name as user_name'
+                'users.name as user_name',
+                DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as client_balance_amount')
             ])
                 ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
                 ->leftJoin('users', 'projects.user_id', '=', 'users.id')
@@ -71,7 +70,6 @@ class ProjectsRepository
                     'client:id,first_name,last_name,contact_person',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
-                    'client.balance:id,client_id,balance',
                     'currency:id,name,code,symbol',
                     'status:id,name,color',
                     'creator:id,name',
@@ -173,7 +171,8 @@ class ProjectsRepository
                 'projects.updated_at',
                 'clients.first_name as client_first_name',
                 'clients.last_name as client_last_name',
-                'users.name as user_name'
+                'users.name as user_name',
+                DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as client_balance_amount')
             ])
                 ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
                 ->leftJoin('users', 'projects.user_id', '=', 'users.id')
@@ -181,7 +180,6 @@ class ProjectsRepository
                     'client:id,first_name,last_name,contact_person',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
-                    'client.balance:id,client_id,balance',
                     'currency:id,name,code,symbol',
                     'status:id,name,color',
                     'creator:id,name',
@@ -309,7 +307,8 @@ class ProjectsRepository
                 'projects.client_id',
                 'projects.files',
                 'projects.created_at',
-                'projects.updated_at'
+                'projects.updated_at',
+                DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = projects.client_id LIMIT 1) as client_balance_amount')
             ])
                 ->with([
                     'client:id,first_name,last_name,contact_person',
@@ -328,7 +327,10 @@ class ProjectsRepository
                 });
             }
 
-            return $query->first();
+            $result = $query->first();
+
+
+            return $result;
         }, 1800); // 30 минут
     }
 
@@ -370,52 +372,11 @@ class ProjectsRepository
             $projectCurrencyId = $project ? $project->currency_id : null;
             $projectExchangeRate = $project ? $project->exchange_rate : 1;
 
-            // Оптимизированный запрос с UNION вместо отдельных запросов
-            $sales = DB::table('sales')
-                ->leftJoin('cash_registers', 'sales.cash_id', '=', 'cash_registers.id')
-                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
-                ->where('sales.project_id', $projectId)
-                ->select(
-                    'sales.id',
-                    'sales.created_at',
-                    DB::raw("CASE
-                        WHEN sales.cash_id IS NOT NULL AND cash_registers.currency_id != {$projectCurrencyId}
-                        THEN sales.price * {$projectExchangeRate}
-                        ELSE sales.price
-                    END as amount"),
-                    DB::raw("CASE WHEN sales.cash_id IS NOT NULL THEN sales.price ELSE NULL END as orig_amount"),
-                    'sales.cash_id',
-                    DB::raw("NULL as type"),
-                    DB::raw("'sale' as source"),
-                    DB::raw("CASE WHEN sales.cash_id IS NOT NULL THEN 'Продажа через кассу' ELSE 'Продажа в баланс(долг)' END as description"),
-                    'currencies.symbol as cash_currency_symbol',
-                    'currencies.code as cash_currency_code'
-                );
-
-            $receipts = DB::table('wh_receipts')
-                ->leftJoin('cash_registers', 'wh_receipts.cash_id', '=', 'cash_registers.id')
-                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
-                ->where('wh_receipts.project_id', $projectId)
-                ->select(
-                    'wh_receipts.id',
-                    'wh_receipts.created_at',
-                    DB::raw("CASE
-                        WHEN wh_receipts.cash_id IS NOT NULL AND cash_registers.currency_id != {$projectCurrencyId}
-                        THEN wh_receipts.amount * {$projectExchangeRate}
-                        ELSE wh_receipts.amount
-                    END as amount"),
-                    DB::raw("CASE WHEN wh_receipts.cash_id IS NOT NULL THEN wh_receipts.amount ELSE NULL END as orig_amount"),
-                    'wh_receipts.cash_id',
-                    DB::raw("NULL as type"),
-                    DB::raw("'receipt' as source"),
-                    DB::raw("CASE WHEN wh_receipts.cash_id IS NOT NULL THEN 'Долг за оприходование(в кассу)' ELSE 'Долг за оприходование(в баланс)' END as description"),
-                    'currencies.symbol as cash_currency_symbol',
-                    'currencies.code as cash_currency_code'
-                );
-
+            // Новая архитектура: все операции записываются в таблицу transactions с morphable связями
             $transactions = DB::table('transactions')
                 ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
                 ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
+                ->leftJoin('users', 'transactions.user_id', '=', 'users.id')
                 ->where('transactions.project_id', $projectId)
                 ->select(
                     'transactions.id',
@@ -426,62 +387,51 @@ class ProjectsRepository
                         ELSE transactions.amount
                     END as amount"),
                     'transactions.orig_amount',
-                    'transactions.cash_id',
                     'transactions.type',
-                    DB::raw("'transaction' as source"),
-                    DB::raw("CASE WHEN transactions.type = 1 THEN 'Приход в проект' ELSE 'Расход из проекта' END as description"),
-                    'currencies.symbol as cash_currency_symbol',
-                    'currencies.code as cash_currency_code'
-                );
-
-            $orders = DB::table('orders')
-                ->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id')
-                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
-                ->where('orders.project_id', $projectId)
-                ->select(
-                    'orders.id',
-                    'orders.created_at',
+                    'transactions.source_type',
+                    'transactions.source_id',
+                    'transactions.is_debt',
+                    'transactions.user_id',
+                    'users.name as user_name',
                     DB::raw("CASE
-                        WHEN orders.cash_id IS NOT NULL AND cash_registers.currency_id != {$projectCurrencyId}
-                        THEN orders.total_price * {$projectExchangeRate}
-                        ELSE orders.total_price
-                    END as amount"),
-                    DB::raw("CASE WHEN orders.cash_id IS NOT NULL THEN orders.total_price ELSE NULL END as orig_amount"),
-                    'orders.cash_id',
-                    DB::raw("NULL as type"),
-                    DB::raw("'order' as source"),
-                    DB::raw("CASE WHEN orders.cash_id IS NOT NULL THEN 'Заказ через кассу' ELSE 'Заказ через баланс' END as description"),
-                    'currencies.symbol as cash_currency_symbol',
-                    'currencies.code as cash_currency_code'
+                        WHEN transactions.source_type = 'App\\\\Models\\\\Sale' THEN 'sale'
+                        WHEN transactions.source_type = 'App\\\\Models\\\\Order' THEN 'order'
+                        WHEN transactions.source_type = 'App\\\\Models\\\\WarehouseReceipt' THEN 'receipt'
+                        ELSE 'transaction'
+                    END as source"),
+                    'currencies.symbol as cash_currency_symbol'
                 );
 
-            // Объединяем все запросы
-            $result = $sales->union($receipts)
-                ->union($transactions)
-                ->union($orders)
+            // Получаем все транзакции проекта
+            $result = $transactions
                 ->orderBy('created_at')
                 ->get()
                 ->map(function ($item) {
                     $amount = $item->amount;
 
-                    // Корректируем сумму в зависимости от типа
-                    if ($item->source === 'receipt' && isset($item->cash_id) && $item->cash_id) {
-                        $amount = -$amount; // Долг за оприходование
-                    } elseif ($item->source === 'transaction' && isset($item->type)) {
+                    // Корректируем сумму в зависимости от типа и источника
+                    if ($item->source === 'receipt') {
+                        $amount = -$amount; // Долг за оприходование - отрицательная
+                    } elseif ($item->source === 'transaction') {
                         $amount = $item->type == 1 ? +$amount : -$amount; // Приход/расход
-                    } elseif ($item->source === 'sale' && isset($item->cash_id) && $item->cash_id) {
-                        $amount = +$amount; // Продажа через кассу - положительная
+                    } elseif ($item->source === 'sale') {
+                        $amount = +$amount; // Продажа - положительная
                     } elseif ($item->source === 'order') {
-                        $amount = +$amount; // Заказ - положительная (и через кассу, и через баланс)
+                        $amount = +$amount; // Заказ - положительная
                     }
 
                     return [
                         'source' => $item->source,
                         'source_id' => $item->id,
+                        'source_type' => $item->source_type,
+                        'source_source_id' => $item->source_id,
                         'date' => $item->created_at,
                         'amount' => $amount,
-                        'description' => $item->description,
-                        'currency_id' => $item->currency_id ?? null
+                        'orig_amount' => $item->orig_amount,
+                        'is_debt' => $item->is_debt,
+                        'user_id' => $item->user_id,
+                        'user_name' => $item->user_name,
+                        'cash_currency_symbol' => $item->cash_currency_symbol
                     ];
                 })
                 ->values()
@@ -491,16 +441,151 @@ class ProjectsRepository
         }, 900); // 15 минут
     }
 
-    // Получение текущего баланса проекта с кэшированием
-    public function getBalance($projectId)
+    // Получение общего баланса проекта (включая долги)
+    public function getTotalBalance($projectId)
     {
-        $cacheKey = "project_balance_{$projectId}";
+        $cacheKey = "project_total_balance_{$projectId}";
 
         return CacheService::remember($cacheKey, function () use ($projectId) {
             $history = $this->getBalanceHistory($projectId);
             return collect($history)->sum('amount');
         }, 900); // 15 минут
     }
+
+    // Получение реального баланса проекта (только операции с движением денег)
+    public function getRealBalance($projectId)
+    {
+        $cacheKey = "project_real_balance_{$projectId}";
+
+        return CacheService::remember($cacheKey, function () use ($projectId) {
+            // Получаем информацию о проекте для конвертации валют
+            $project = \App\Models\Project::find($projectId);
+            $projectCurrencyId = $project ? $project->currency_id : null;
+            $projectExchangeRate = $project ? $project->exchange_rate : 1;
+
+            $transactions = DB::table('transactions')
+                ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
+                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
+                ->where('transactions.project_id', $projectId)
+                ->where('transactions.is_debt', false) // Только НЕ долговые операции
+                ->select(
+                    'transactions.id',
+                    'transactions.created_at',
+                    DB::raw("CASE
+                        WHEN transactions.cash_id IS NOT NULL AND cash_registers.currency_id != {$projectCurrencyId}
+                        THEN transactions.amount * {$projectExchangeRate}
+                        ELSE transactions.amount
+                    END as amount"),
+                    'transactions.type',
+                    'transactions.source_type',
+                    'transactions.source_id'
+                )
+                ->get();
+
+            $total = 0;
+            foreach ($transactions as $item) {
+                // Определяем тип операции
+                $source = $this->getSourceType($item->source_type);
+
+                // Корректируем сумму в зависимости от типа
+                $amount = $this->calculateAmountBySource($source, $item->amount, $item->type);
+                $total += $amount;
+            }
+
+            return $total;
+        }, 900); // 15 минут
+    }
+
+    // Получение долгового баланса проекта (только долговые операции)
+    public function getDebtBalance($projectId)
+    {
+        $cacheKey = "project_debt_balance_{$projectId}";
+
+        return CacheService::remember($cacheKey, function () use ($projectId) {
+            // Получаем информацию о проекте для конвертации валют
+            $project = \App\Models\Project::find($projectId);
+            $projectCurrencyId = $project ? $project->currency_id : null;
+            $projectExchangeRate = $project ? $project->exchange_rate : 1;
+
+            $transactions = DB::table('transactions')
+                ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
+                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
+                ->where('transactions.project_id', $projectId)
+                ->where('transactions.is_debt', true) // Только долговые операции
+                ->select(
+                    'transactions.id',
+                    'transactions.created_at',
+                    DB::raw("CASE
+                        WHEN transactions.cash_id IS NOT NULL AND cash_registers.currency_id != {$projectCurrencyId}
+                        THEN transactions.amount * {$projectExchangeRate}
+                        ELSE transactions.amount
+                    END as amount"),
+                    'transactions.type',
+                    'transactions.source_type',
+                    'transactions.source_id'
+                )
+                ->get();
+
+            $total = 0;
+            foreach ($transactions as $item) {
+                // Определяем тип операции
+                $source = $this->getSourceType($item->source_type);
+
+                // Корректируем сумму в зависимости от типа
+                $amount = $this->calculateAmountBySource($source, $item->amount, $item->type);
+                $total += $amount;
+            }
+
+            return $total;
+        }, 900); // 15 минут
+    }
+
+    // Получение детального баланса проекта (все три типа)
+    public function getDetailedBalance($projectId)
+    {
+        $cacheKey = "project_detailed_balance_{$projectId}";
+
+        return CacheService::remember($cacheKey, function () use ($projectId) {
+            return [
+                'total_balance' => $this->getTotalBalance($projectId),
+                'real_balance' => $this->getRealBalance($projectId),
+                'debt_balance' => $this->getDebtBalance($projectId)
+            ];
+        }, 900); // 15 минут
+    }
+
+    // Вспомогательный метод для определения типа источника
+    private function getSourceType($sourceType)
+    {
+        switch ($sourceType) {
+            case 'App\\Models\\Sale':
+                return 'sale';
+            case 'App\\Models\\Order':
+                return 'order';
+            case 'App\\Models\\WarehouseReceipt':
+                return 'receipt';
+            default:
+                return 'transaction';
+        }
+    }
+
+    // Вспомогательный метод для расчета суммы по типу операции
+    private function calculateAmountBySource($source, $amount, $type)
+    {
+        switch ($source) {
+            case 'receipt':
+                return -$amount; // Оприходование = расход
+            case 'transaction':
+                return $type == 1 ? +$amount : -$amount; // Приход/расход
+            case 'sale':
+                return +$amount; // Продажа = приход
+            case 'order':
+                return -$amount; // Заказ = расход (тратим ресурсы проекта)
+            default:
+                return $amount;
+        }
+    }
+
 
 
     /**
@@ -520,6 +605,10 @@ class ProjectsRepository
         \Illuminate\Support\Facades\Cache::forget("project_item_{$projectId}");
         \Illuminate\Support\Facades\Cache::forget("project_balance_history_{$projectId}");
         \Illuminate\Support\Facades\Cache::forget("project_balance_{$projectId}");
+        \Illuminate\Support\Facades\Cache::forget("project_total_balance_{$projectId}");
+        \Illuminate\Support\Facades\Cache::forget("project_real_balance_{$projectId}");
+        \Illuminate\Support\Facades\Cache::forget("project_debt_balance_{$projectId}");
+        \Illuminate\Support\Facades\Cache::forget("project_detailed_balance_{$projectId}");
 
         // Очищаем кэш с отношениями для всех пользователей
         \Illuminate\Support\Facades\Cache::forget("project_item_relations_{$projectId}_null");

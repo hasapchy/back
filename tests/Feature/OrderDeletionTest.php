@@ -6,7 +6,6 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Transaction;
-use App\Models\OrderTransaction;
 use App\Models\Client;
 use App\Models\CashRegister;
 use App\Models\Warehouse;
@@ -27,7 +26,7 @@ class OrderDeletionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Создаем тестовые данные
         $this->user = User::factory()->create();
         $this->client = Client::factory()->create();
@@ -47,30 +46,22 @@ class OrderDeletionTest extends TestCase
             'total_price' => 1000,
         ]);
 
-        // Создаем транзакцию
+        // Создаем транзакцию с morphable связью
         $transaction = Transaction::factory()->create([
             'user_id' => $this->user->id,
             'client_id' => $this->client->id,
             'cash_id' => $this->cashRegister->id,
             'amount' => 500,
             'orig_amount' => 500,
+            'source_type' => Order::class,
+            'source_id' => $order->id,
         ]);
 
-        // Связываем транзакцию с заказом
-        OrderTransaction::create([
-            'order_id' => $order->id,
-            'transaction_id' => $transaction->id,
-        ]);
-
-        // Проверяем, что связь создана
-        $this->assertDatabaseHas('order_transactions', [
-            'order_id' => $order->id,
-            'transaction_id' => $transaction->id,
-        ]);
-
-        // Проверяем, что транзакция существует
+        // Проверяем, что транзакция существует с morphable связью
         $this->assertDatabaseHas('transactions', [
             'id' => $transaction->id,
+            'source_type' => Order::class,
+            'source_id' => $order->id,
         ]);
 
         // Удаляем заказ через репозиторий
@@ -82,13 +73,7 @@ class OrderDeletionTest extends TestCase
             'id' => $order->id,
         ]);
 
-        // Проверяем, что связь удалена
-        $this->assertDatabaseMissing('order_transactions', [
-            'order_id' => $order->id,
-            'transaction_id' => $transaction->id,
-        ]);
-
-        // Проверяем, что транзакция тоже удалена (это наше исправление)
+        // Проверяем, что транзакция тоже удалена
         $this->assertDatabaseMissing('transactions', [
             'id' => $transaction->id,
         ]);

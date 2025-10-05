@@ -136,17 +136,9 @@ class CahRegistersRepository
                             }
                             if (in_array('order', $source)) {
                                 if ($hasConditions) {
-                                    $subQ->orWhereExists(function ($query) {
-                                        $query->select(DB::raw(1))
-                                            ->from('order_transactions')
-                                            ->whereColumn('order_transactions.transaction_id', 'transactions.id');
-                                    });
+                                    $subQ->orWhere('source_type', 'App\\Models\\Order');
                                 } else {
-                                    $subQ->whereExists(function ($query) {
-                                        $query->select(DB::raw(1))
-                                            ->from('order_transactions')
-                                            ->whereColumn('order_transactions.transaction_id', 'transactions.id');
-                                    });
+                                    $subQ->where('source_type', 'App\\Models\\Order');
                                 }
                                 $hasConditions = true;
                             }
@@ -154,19 +146,11 @@ class CahRegistersRepository
                                 if ($hasConditions) {
                                     $subQ->orWhere(function ($otherQ) {
                                         $otherQ->whereNull('source_type')
-                                            ->whereDoesntExist(function ($query) {
-                                                $query->select(DB::raw(1))
-                                                    ->from('order_transactions')
-                                                    ->whereColumn('order_transactions.transaction_id', 'transactions.id');
-                                            });
+                                            ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
                                     });
                                 } else {
                                     $subQ->whereNull('source_type')
-                                        ->whereDoesntExist(function ($query) {
-                                            $query->select(DB::raw(1))
-                                                ->from('order_transactions')
-                                                ->whereColumn('order_transactions.transaction_id', 'transactions.id');
-                                        });
+                                        ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
                                 }
                             }
                         });

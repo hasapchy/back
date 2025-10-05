@@ -24,6 +24,7 @@ class TransactionsController extends Controller
         }
 
         $page = $request->input('page', 1);
+        $per_page = $request->input('per_page', 10);
         $cash_register_id = $request->query('cash_id');
         $date_filter_type = $request->query('date_filter_type');
         $order_id = $request->query('order_id');
@@ -34,7 +35,7 @@ class TransactionsController extends Controller
 
         $items = $this->itemsRepository->getItemsWithPagination(
             $userUuid,
-            20,
+            $per_page,
             $page,
             $cash_register_id,
             $date_filter_type,
@@ -72,7 +73,8 @@ class TransactionsController extends Controller
             'client_id' => 'nullable|sometimes|exists:clients,id',
             'order_id' => 'nullable|integer|exists:orders,id',
             'note' => 'nullable|sometimes|string',
-            'date' => 'nullable|sometimes|date'
+            'date' => 'nullable|sometimes|date',
+            'is_debt' => 'nullable|boolean'
         ]);
 
         $userHasPermissionToCashRegister = $this->itemsRepository->userHasPermissionToCashRegister($userUuid, $request->cash_id);
@@ -94,7 +96,8 @@ class TransactionsController extends Controller
             'client_id' => $request->client_id,
             'order_id' => $request->order_id,
             'note' => $request->note,
-            'date' => $request->date ?? now()
+            'date' => $request->date ?? now(),
+            'is_debt' => $request->is_debt ?? false
         ]);
 
         if (!$item_created) {
@@ -121,7 +124,8 @@ class TransactionsController extends Controller
             'note' => 'nullable|sometimes|string',
             'date' => 'nullable|sometimes|date',
             'orig_amount' => 'nullable|sometimes|numeric|min:0.01',
-            'currency_id' => 'nullable|sometimes|exists:currencies,id'
+            'currency_id' => 'nullable|sometimes|exists:currencies,id',
+            'is_debt' => 'nullable|boolean'
         ]);
 
         $transaction_exist = Transaction::where('id', $id)->first();
@@ -148,7 +152,8 @@ class TransactionsController extends Controller
             'project_id' => $request->project_id,
             'client_id' => $request->client_id,
             'note' => $request->note,
-            'date' => $request->date ?? now()
+            'date' => $request->date ?? now(),
+            'is_debt' => $request->is_debt ?? false
         ];
 
         // Добавляем сумму и валюту только если они переданы

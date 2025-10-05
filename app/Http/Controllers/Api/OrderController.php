@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Repositories\OrdersRepository;
 use App\Repositories\OrderAfRepository;
-use App\Services\BasementTimeLimitService;
+// use App\Services\BasementTimeLimitService; // Удалено ограничение по времени
 use Illuminate\Http\Request;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -30,6 +30,7 @@ class OrderController extends Controller
         }
 
         $page = $request->input('page', 1);
+        $per_page = $request->input('per_page', 10);
         $search = $request->input('search');
         $dateFilter = $request->input('date_filter_type', 'all_time');
         $startDate = $request->input('start_date');
@@ -38,7 +39,7 @@ class OrderController extends Controller
         $projectFilter = $request->input('project_id');
         $clientFilter = $request->input('client_id');
 
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter);
+        $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter);
 
         return response()->json([
             'items' => $items->items(),
@@ -157,22 +158,7 @@ class OrderController extends Controller
             return response()->json(['message' => 'Заказ не найден'], 404);
         }
 
-        // Проверяем ограничение по времени для подвальных работников
-        $user = auth('api')->user();
-        if ($user && $user->hasRole(config('basement.worker_role', 'basement_worker'))) {
-            $timeCheck = BasementTimeLimitService::checkEditLimit($order->created_at);
-
-            if (!$timeCheck['allowed']) {
-                return response()->json([
-                    'message' => 'Редактирование заказа запрещено. Заказ можно редактировать через ' . $timeCheck['hours_remaining'] . ' часов.',
-                    'error_code' => 'ORDER_EDIT_TIME_LIMIT_ACTIVE',
-                    'created_at' => $timeCheck['created_at'],
-                    'time_limit' => $timeCheck['time_limit'],
-                    'hours_remaining' => $timeCheck['hours_remaining'],
-                    'unlock_at' => $timeCheck['unlock_at'] ?? null
-                ], 403);
-            }
-        }
+        // Ограничение по времени для подвальных работников удалено
 
         $request->validate([
             'client_id'            => 'required|integer|exists:clients,id',
@@ -268,22 +254,7 @@ class OrderController extends Controller
             return response()->json(['message' => 'Заказ не найден'], 404);
         }
 
-        // Проверяем ограничение по времени для подвальных работников
-        $user = auth('api')->user();
-        if ($user && $user->hasRole(config('basement.worker_role', 'basement_worker'))) {
-            $timeCheck = BasementTimeLimitService::checkDeleteLimit($order->created_at);
-
-            if (!$timeCheck['allowed']) {
-                return response()->json([
-                    'message' => 'Удаление заказа запрещено. Заказ можно удалить через ' . $timeCheck['hours_remaining'] . ' часов.',
-                    'error_code' => 'ORDER_DELETE_TIME_LIMIT_ACTIVE',
-                    'created_at' => $timeCheck['created_at'],
-                    'time_limit' => $timeCheck['time_limit'],
-                    'hours_remaining' => $timeCheck['hours_remaining'],
-                    'unlock_at' => $timeCheck['unlock_at'] ?? null
-                ], 403);
-            }
-        }
+        // Ограничение по времени для подвальных работников удалено
 
         // Проверяем права доступа к кассе
         $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $order->cash_id);

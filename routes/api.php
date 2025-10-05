@@ -181,6 +181,7 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware('permission:projects_delete')->delete('projects/{id}', [ProjectsController::class, 'destroy']);
     // Route::get('projects/{id}/balance-history', [\App\Http\Controllers\Api\ProjectsController::class, 'getBalanceHistory']);
     Route::get('projects/{id}/balance-history', [\App\Http\Controllers\Api\ProjectsController::class, 'getBalanceHistory']);
+    Route::get('projects/{id}/detailed-balance', [\App\Http\Controllers\Api\ProjectsController::class, 'getDetailedBalance']);
 
     // project contracts
     // Route::middleware('permission:projects_view')->get('projects/{projectId}/contracts', [\App\Http\Controllers\ProjectContractsController::class, 'index']);

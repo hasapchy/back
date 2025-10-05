@@ -24,12 +24,13 @@ class SaleController extends Controller
         }
 
         $page = $request->input('page', 1);
+        $per_page = $request->input('per_page', 10);
         $search = $request->input('search');
         $dateFilter = $request->input('date_filter_type', 'all_time');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search, $dateFilter, $startDate, $endDate, $page);
+        $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $page);
 
         return response()->json([
             'items' => $items->items(),

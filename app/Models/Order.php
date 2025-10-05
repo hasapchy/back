@@ -23,7 +23,6 @@ class Order extends Model
         'order_id',
         'price',
         'discount',
-        'total_price',
         'cash_id',
         'warehouse_id',
         'project_id',
@@ -42,7 +41,6 @@ class Order extends Model
         'date',
         'order_id',
         'discount',
-        'total_price',
         'cash_id',
         'warehouse_id',
         'category_id'
@@ -97,10 +95,6 @@ class Order extends Model
     }
 
 
-    public function transaction()
-    {
-        return $this->belongsTo(Transaction::class, 'transaction_id');
-    }
 
     public function orderProducts()
     {
@@ -116,9 +110,10 @@ class Order extends Model
     {
         return $this->hasMany(OrderTempProduct::class, 'order_id');
     }
+    // Morphable связь с транзакциями (новая архитектура)
     public function transactions()
     {
-        return $this->belongsToMany(Transaction::class, 'order_transactions', 'order_id', 'transaction_id');
+        return $this->morphMany(Transaction::class, 'source');
     }
     public function comments()
     {

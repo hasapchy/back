@@ -27,13 +27,14 @@ class ProductController extends Controller
         }
 
         $page = $request->query('page', 1);
+        $per_page = $request->query('per_page', 10);
         $filterByCategory1 = filter_var($request->query('filter_by_category_1', false), FILTER_VALIDATE_BOOLEAN);
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
         $categoryId = $request->query('category_id');
 
         // Получаем продукты с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, true, $page, $warehouseId, $search, $categoryId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, true, $page, $warehouseId, $search, $categoryId);
 
         // DEBUG: логируем параметры и результат пагинации
 

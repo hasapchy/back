@@ -280,7 +280,6 @@ class CommentsRepository
             'order' => \App\Models\Order::class,
             'sale' => \App\Models\Sale::class,
             'transaction' => \App\Models\Transaction::class,
-            'order_transaction' => \App\Models\OrderTransaction::class,
             'client' => \App\Models\Client::class,
             'product' => \App\Models\Product::class,
             'project' => \App\Models\Project::class,

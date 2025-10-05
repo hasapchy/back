@@ -11,13 +11,23 @@ use Illuminate\Support\Facades\Storage;
 
 class CompaniesController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $perPage = $request->get('per_page', 10);
+
         $companies = Company::select(['id', 'name', 'logo', 'created_at', 'updated_at'])
             ->orderBy('name')
-            ->get();
+            ->paginate($perPage);
 
-        return response()->json($companies);
+        return response()->json([
+            'data' => $companies->items(),
+            'current_page' => $companies->currentPage(),
+            'last_page' => $companies->lastPage(),
+            'per_page' => $companies->perPage(),
+            'total' => $companies->total(),
+            'from' => $companies->firstItem(),
+            'to' => $companies->lastItem(),
+        ]);
     }
 
     public function store(Request $request)
@@ -37,7 +47,7 @@ class CompaniesController extends Controller
             $file = $request->file('logo');
             $filename = 'logo_' . time() . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs('uploads/logos', $filename, 'public');
-            $data['logo'] = url('/storage/' . $path);
+            $data['logo'] = 'storage/' . $path;
         }
 
         $company = Company::create($data);
@@ -61,15 +71,15 @@ class CompaniesController extends Controller
 
         if ($request->hasFile('logo')) {
             // Удаляем старый логотип если есть
-            if ($company->logo) {
-                $oldPath = str_replace(url('/storage/'), 'public/', $company->logo);
+            if ($company->logo && $company->logo !== 'logo.jpg') {
+                $oldPath = str_replace('storage/', 'public/', $company->logo);
                 Storage::delete($oldPath);
             }
 
             $file = $request->file('logo');
             $filename = 'logo_' . time() . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs('uploads/logos', $filename, 'public');
-            $data['logo'] = url('/storage/' . $path);
+            $data['logo'] = 'storage/' . $path;
         }
 
         $company->update($data);

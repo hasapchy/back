@@ -336,6 +336,21 @@ class ProjectsController extends Controller
         }
     }
 
+    // Получение детального баланса проекта (общий, реальный, долговый)
+    public function getDetailedBalance($id)
+    {
+        try {
+            $detailedBalance = $this->itemsRepository->getDetailedBalance($id);
+
+            return response()->json($detailedBalance, 200);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Ошибка при получении детального баланса проекта',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 
     public function destroy($id)
     {

@@ -5,7 +5,6 @@ namespace App\Repositories;
 use App\Models\Order;
 use App\Models\OrderProduct;
 use App\Models\OrderTempProduct;
-use App\Models\OrderTransaction;
 use App\Models\OrderAfValue;
 use App\Models\Product;
 use App\Models\WarehouseStock;
@@ -16,7 +15,6 @@ use App\Models\Transaction;
 use App\Models\OrderStatus;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
-use App\Repositories\ClientsRepository;
 use App\Repositories\TransactionsRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -266,7 +264,7 @@ class OrdersRepository
 
                 'orders.price',
                 'orders.discount',
-                'orders.total_price',
+                // 'orders.total_price', // Удалено из таблицы - теперь в transactions
                 'orders.date',
                 'orders.created_at',
                 'orders.updated_at'
@@ -313,7 +311,7 @@ class OrdersRepository
             // Удалено поле transaction_ids
             'orders.price',
             'orders.discount',
-            'orders.total_price',
+            // 'orders.total_price', // Удалено из таблицы - теперь в transactions
             'orders.date',
             'orders.created_at',
             'orders.updated_at',
@@ -523,30 +521,16 @@ class OrdersRepository
             $order->category_id = $category_id;
             $order->price = $price;
             $order->discount = $discount_calculated;
-            $order->total_price = $total_price;
+            // total_price удалено из таблицы orders - теперь хранится только в transactions
             $order->date = $date;
             $order->note = $note;
             $order->description = $description;
             $order->user_id = $userUuid;
             $order->save();
 
-            // Суммируем дубликаты товаров перед сохранением
-            $groupedProducts = [];
-            foreach ($products as $product) {
-                $key = $product['product_id'] . '_' . ($product['width'] ?? 'null') . '_' . ($product['height'] ?? 'null');
-
-                if (isset($groupedProducts[$key])) {
-                    // Суммируем количество и усредняем цену
-                    $groupedProducts[$key]['quantity'] += $product['quantity'];
-                    $groupedProducts[$key]['price'] = ($groupedProducts[$key]['price'] + $product['price']) / 2;
-                } else {
-                    $groupedProducts[$key] = $product;
-                }
-            }
-
-            // Добавляем обычные товары batch insert для оптимизации
+            // Добавляем обычные товары batch insert для оптимизации (без группировки дубликатов)
             $productsData = [];
-            foreach ($groupedProducts as $product) {
+            foreach ($products as $product) {
                 $p_id = $product['product_id'];
                 $q = $product['quantity'];
                 $p = $product['price'];
@@ -599,42 +583,37 @@ class OrdersRepository
             }
 
             // Логика баланса как в продажах и поступлениях
-            if ($type === 'cash' && !empty($cash_id)) {
-                // Если тип "наличные" и указана касса - создаем транзакцию
-                $txRepo = new TransactionsRepository();
-                $transactionId = $txRepo->createItem([
-                    'type'        => 1, // Приход
-                    'user_id'     => $userUuid,
-                    'orig_amount' => $total_price,
-                    'currency_id' => $defaultCurrency->id,
-                    'cash_id'     => $cash_id,
-                    'category_id' => 1,
-                    'project_id'  => $project_id,
-                    'client_id'   => $client_id,
-                    'note'        => $note,
-                    'date'        => $date,
-                ], true, true);
-
-                // Связываем транзакцию с заказом
-                if ($transactionId) {
-                    OrderTransaction::create([
-                        'order_id' => $order->id,
-                        'transaction_id' => $transactionId
-                    ]);
-                }
-            } else {
-                // Если тип "баланс" - обновляем баланс клиента
-                ClientBalance::updateOrCreate(
-                    ['client_id' => $client_id],
-                    ['balance' => DB::raw("COALESCE(balance, 0) + {$total_price}")]
-                );
-            }
+            // Создаем транзакцию по новой архитектуре: всегда пишем в transactions,
+            // is_debt зависит от типа оплаты (balance => true, cash => false)
+            $isDebt = ($type !== 'cash');
+            $txRepo = new TransactionsRepository();
+            $txRepo->createItem([
+                'type'        => 1, // Приход
+                'user_id'     => $userUuid,
+                'orig_amount' => $total_price,
+                'currency_id' => $defaultCurrency->id,
+                'cash_id'     => $cash_id,
+                'category_id' => 1,
+                'project_id'  => $project_id,
+                'client_id'   => $client_id,
+                'note'        => $note,
+                'date'        => $date,
+                'is_debt'     => $isDebt,
+                'source_type' => \App\Models\Order::class,
+                'source_id'   => $order->id,
+            ], true, true);
 
             DB::commit();
 
             // Инвалидируем кэш заказов и баланса клиента
             CacheService::invalidateOrdersCache();
             $this->invalidateClientBalanceCache($client_id);
+
+            // Инвалидируем кэш проекта если заказ связан с проектом
+            if ($project_id) {
+                $projectsRepository = new \App\Repositories\ProjectsRepository();
+                $projectsRepository->invalidateProjectCache($project_id);
+            }
 
             return $order;
         } catch (\Exception $e) {
@@ -660,26 +639,26 @@ class OrdersRepository
                 }
             }
 
-            // 3. Откатываем старую логику баланса
+            // 3. Откат баланса/транзакций по новой архитектуре
             if ($order->client_id) {
-                // Проверяем, была ли у заказа транзакция
-                $hasTransaction = OrderTransaction::where('order_id', $order->id)->exists();
+                $existingTransactions = Transaction::where('source_type', \App\Models\Order::class)
+                    ->where('source_id', $order->id)
+                    ->get();
 
-                if ($hasTransaction) {
-                    // Если была транзакция - удаляем её
-                    $orderTransactions = OrderTransaction::where('order_id', $order->id)->get();
-                    foreach ($orderTransactions as $orderTransaction) {
-                        $transaction = Transaction::find($orderTransaction->transaction_id);
-                        if ($transaction) {
-                            $txRepo = new TransactionsRepository();
-                            $txRepo->deleteItem($transaction->id, true);
-                        }
-                        $orderTransaction->delete();
+                if ($existingTransactions->isNotEmpty()) {
+                    foreach ($existingTransactions as $trx) {
+                        $txRepo = new TransactionsRepository();
+                        $txRepo->deleteItem($trx->id, true);
                     }
                 } else {
-                    // Если не было транзакции - уменьшаем баланс клиента
+                    // Вычисляем total_price из транзакций заказа
+                    $orderTransactions = Transaction::where('source_type', \App\Models\Order::class)
+                        ->where('source_id', $order->id)
+                        ->get();
+                    $totalPrice = $orderTransactions->sum('orig_amount');
+
                     ClientBalance::where('client_id', $order->client_id)
-                        ->update(['balance' => DB::raw("COALESCE(balance, 0) - {$order->total_price}")]);
+                        ->update(['balance' => DB::raw("COALESCE(balance, 0) - {$totalPrice}")]);
                 }
             }
 
@@ -770,7 +749,7 @@ class OrdersRepository
                 'currency_id' => $currency_id,
                 'price' => $price,
                 'discount' => $discount_calculated,
-                'total_price' => $total_price,
+                // total_price удалено из таблицы orders - теперь хранится только в transactions
                 'date' => $date,
                 'note' => $note,
                 'description' => $description,
@@ -791,85 +770,56 @@ class OrdersRepository
                 $order->update($updateData);
             }
 
-            // 8. Обновляем обычные товары более эффективно
-            $existingProducts = OrderProduct::where('order_id', $id)->get()->keyBy('product_id');
-            $newProducts = collect($products)->keyBy('product_id');
-
-            // Проверяем, есть ли изменения в товарах
+            // 8. Обновляем обычные товары - полностью заменяем список
+            $existingProducts = OrderProduct::where('order_id', $id)->get();
             $productsChanged = false;
 
-            // Проверяем удаленные товары
-            $productsToDelete = $existingProducts->keys()->diff($newProducts->keys());
-            if ($productsToDelete->isNotEmpty()) {
+            // Удаляем все существующие товары, если есть новые товары
+            if (!empty($products) && $existingProducts->isNotEmpty()) {
                 $productsChanged = true;
-                // ВАЖНО: удаляем по одному, чтобы сработали события модели и записалось корректное логирование
-                foreach ($productsToDelete as $productIdToDelete) {
-                    $existing = $existingProducts->get($productIdToDelete);
-                    if ($existing) {
-                        $existing->delete();
-                    }
+                foreach ($existingProducts as $existingProduct) {
+                    $existingProduct->delete();
                 }
             }
 
-            // Суммируем дубликаты товаров перед обновлением
-            $groupedProducts = [];
-            foreach ($products as $product) {
-                $key = $product['product_id'] . '_' . ($product['width'] ?? 'null') . '_' . ($product['height'] ?? 'null');
+            // Добавляем новые товары (без группировки дубликатов)
+            if (!empty($products)) {
+                $productsData = [];
+                foreach ($products as $product) {
+                    $p_id = $product['product_id'];
+                    $q = $product['quantity'];
+                    $p = $product['price'];
+                    $width = $product['width'] ?? null;
+                    $height = $product['height'] ?? null;
 
-                if (isset($groupedProducts[$key])) {
-                    // Суммируем количество и усредняем цену
-                    $groupedProducts[$key]['quantity'] += $product['quantity'];
-                    $groupedProducts[$key]['price'] = ($groupedProducts[$key]['price'] + $product['price']) / 2;
-                } else {
-                    $groupedProducts[$key] = $product;
-                }
-            }
+                    $unitPrice = $p;
 
-            // Проверяем новые и измененные товары
-            foreach ($groupedProducts as $product) {
-                $unitPrice = $product['price'];
-                $width = $product['width'] ?? null;
-                $height = $product['height'] ?? null;
-                $quantity = $product['quantity'];
-
-                // Если переданы width и height, рассчитываем quantity автоматически
-                if ($width && $height) {
-                    $productObject = Product::find($product['product_id']);
-                    if ($productObject) {
-                        $unitShortName = $productObject->unit ? $productObject->unit->short_name : '';
-                        $unitName = $productObject->unit ? $productObject->unit->name : '';
-                        $calculatedQuantity = $this->calculateQuantityFromDimensions($width, $height, $unitShortName, $unitName);
-                        $quantity = $calculatedQuantity;
+                    // Если переданы width и height, рассчитываем quantity автоматически
+                    if ($width && $height) {
+                        $productObject = Product::find($p_id);
+                        if ($productObject) {
+                            $unitShortName = $productObject->unit ? $productObject->unit->short_name : '';
+                            $unitName = $productObject->unit ? $productObject->unit->name : '';
+                            $calculatedQuantity = $this->calculateQuantityFromDimensions($width, $height, $unitShortName, $unitName);
+                            $q = $calculatedQuantity;
+                        }
                     }
+
+                    $productsData[] = [
+                        'order_id' => $id,
+                        'product_id' => $p_id,
+                        'quantity' => $q,
+                        'price' => $unitPrice,
+                        'width' => $width,
+                        'height' => $height,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
                 }
 
-                $productData = [
-                    'order_id' => $id,
-                    'product_id' => $product['product_id'],
-                    'quantity' => $quantity,
-                    'price' => $unitPrice,
-                    'width' => $width,
-                    'height' => $height
-                ];
-
-                // Если товар уже существует - проверяем изменения
-                if ($existingProducts->has($product['product_id'])) {
-                    $existingProduct = $existingProducts->get($product['product_id']);
-                    if (
-                        $existingProduct->quantity != $quantity ||
-                        $existingProduct->price != $product['price'] ||
-                        $existingProduct->width != $width ||
-                        $existingProduct->height != $height
-                    ) {
-                        $productsChanged = true;
-                        OrderProduct::where('order_id', $id)
-                            ->where('product_id', $product['product_id'])
-                            ->update($productData);
-                    }
-                } else {
-                    // Новый товар
+                if (!empty($productsData)) {
+                    OrderProduct::insert($productsData);
                     $productsChanged = true;
-                    OrderProduct::create($productData);
                 }
             }
 
@@ -959,46 +909,9 @@ class OrdersRepository
             // Если товары не изменились и заказ не изменился, не создаем запись активности
             if (!$hasChanges && !$productsChanged) {
                 // Просто обновляем баланс/транзакцию без создания записи активности
-                if ($type === 'cash' && !empty($cash_id)) {
-                    $txRepo = new TransactionsRepository();
-                    $transactionId = $txRepo->createItem([
-                        'type'        => 1,
-                        'user_id'     => $user_id,
-                        'orig_amount' => $total_price,
-                        'currency_id' => $defaultCurrency->id,
-                        'cash_id'     => $cash_id,
-                        'category_id' => 1,
-                        'project_id'  => $project_id,
-                        'client_id'   => $client_id,
-                        'note'        => $note,
-                        'date'        => $date,
-                    ], true, true);
-
-                    if ($transactionId) {
-                        OrderTransaction::create([
-                            'order_id' => $id,
-                            'transaction_id' => $transactionId
-                        ]);
-                    }
-                } else {
-                    ClientBalance::updateOrCreate(
-                        ['client_id' => $client_id],
-                        ['balance' => DB::raw("COALESCE(balance, 0) + {$total_price}")]
-                    );
-                }
-
-                DB::commit();
-                return $order;
-            }
-
-            if (isset($data['additional_fields'])) {
-                $this->updateAdditionalFields($order->id, $data['additional_fields']);
-            }
-
-            // Логика баланса как в продажах и поступлениях
-            if ($type === 'cash' && !empty($cash_id)) {
+                $isDebt = ($type !== 'cash');
                 $txRepo = new TransactionsRepository();
-                $transactionId = $txRepo->createItem([
+                $txRepo->createItem([
                     'type'        => 1,
                     'user_id'     => $user_id,
                     'orig_amount' => $total_price,
@@ -1009,26 +922,49 @@ class OrdersRepository
                     'client_id'   => $client_id,
                     'note'        => $note,
                     'date'        => $date,
+                    'is_debt'     => $isDebt,
+                    'source_type' => \App\Models\Order::class,
+                    'source_id'   => $id,
                 ], true, true);
 
-                if ($transactionId) {
-                    OrderTransaction::create([
-                        'order_id' => $id,
-                        'transaction_id' => $transactionId
-                    ]);
-                }
-            } else {
-                ClientBalance::updateOrCreate(
-                    ['client_id' => $client_id],
-                    ['balance' => DB::raw("COALESCE(balance, 0) + {$total_price}")]
-                );
+                DB::commit();
+                return $order;
             }
+
+            if (isset($data['additional_fields'])) {
+                $this->updateAdditionalFields($order->id, $data['additional_fields']);
+            }
+
+            // Логика баланса как в продажах и поступлениях
+            $isDebtFinal = ($type !== 'cash');
+            $txRepo = new TransactionsRepository();
+            $txRepo->createItem([
+                'type'        => 1,
+                'user_id'     => $user_id,
+                'orig_amount' => $total_price,
+                'currency_id' => $defaultCurrency->id,
+                'cash_id'     => $cash_id,
+                'category_id' => 1,
+                'project_id'  => $project_id,
+                'client_id'   => $client_id,
+                'note'        => $note,
+                'date'        => $date,
+                'is_debt'     => $isDebtFinal,
+                'source_type' => \App\Models\Order::class,
+                'source_id'   => $id,
+            ], true, true);
 
             DB::commit();
 
             // Инвалидируем кэш заказов и баланса клиента
             CacheService::invalidateOrdersCache();
             $this->invalidateClientBalanceCache($client_id);
+
+            // Инвалидируем кэш проекта если заказ связан с проектом
+            if ($project_id) {
+                $projectsRepository = new \App\Repositories\ProjectsRepository();
+                $projectsRepository->invalidateProjectCache($project_id);
+            }
 
             return $order;
         } catch (\Throwable $th) {
@@ -1055,25 +991,22 @@ class OrdersRepository
 
             // Удаляем одноразовые товары (каскадное удаление через миграцию)
 
-            // Логика отката баланса как в продажах и поступлениях
+            // Логика отката баланса по новой архитектуре
             if ($order->client_id) {
-                // Проверяем, была ли у заказа транзакция
-                $orderTransactions = OrderTransaction::where('order_id', $id)->get();
+                $orderTransactions = Transaction::where('source_type', \App\Models\Order::class)
+                    ->where('source_id', $id)
+                    ->get();
 
                 if ($orderTransactions->isNotEmpty()) {
-                    // Если была транзакция - удаляем её
-                    foreach ($orderTransactions as $orderTransaction) {
-                        $transaction = Transaction::find($orderTransaction->transaction_id);
-                        if ($transaction) {
-                            $txRepo = new TransactionsRepository();
-                            $txRepo->deleteItem($transaction->id, true);
-                        }
-                        $orderTransaction->delete();
+                    foreach ($orderTransactions as $trx) {
+                        $txRepo = new TransactionsRepository();
+                        $txRepo->deleteItem($trx->id, true);
                     }
                 } else {
-                    // Если не было транзакции - уменьшаем баланс клиента
+                    // Вычисляем total_price из транзакций заказа
+                    $totalPrice = $orderTransactions->sum('orig_amount');
                     ClientBalance::where('client_id', $order->client_id)
-                        ->update(['balance' => DB::raw("COALESCE(balance, 0) - {$order->total_price}")]);
+                        ->update(['balance' => DB::raw("COALESCE(balance, 0) - {$totalPrice}")]);
                 }
             }
 
@@ -1089,11 +1022,23 @@ class OrdersRepository
                 $this->invalidateClientBalanceCache($order->client_id);
             }
 
+            // Инвалидируем кэш проекта если заказ связан с проектом
+            if ($order->project_id) {
+                $projectsRepository = new \App\Repositories\ProjectsRepository();
+                $projectsRepository->invalidateProjectCache($order->project_id);
+            }
+
+            // Вычисляем total_price из транзакций заказа
+            $orderTransactions = Transaction::where('source_type', \App\Models\Order::class)
+                ->where('source_id', $id)
+                ->get();
+            $totalPrice = $orderTransactions->sum('orig_amount');
+
             return [
                 'id' => $order->id,
                 'client_id' => $order->client_id,
                 'warehouse_id' => $order->warehouse_id,
-                'total_price' => $order->total_price,
+                'total_price' => $totalPrice,
                 'products' => $products->map(function ($product) {
                     return [
                         'product_id' => $product->product_id,
@@ -1126,14 +1071,20 @@ class OrdersRepository
             if ($targetStatus->category_id == 4) {
                 $paidTotal = $transactionsRepository->getTotalByOrderId($userId, $order->id);
 
-                if ($paidTotal < $order->total_price) {
-                    $remainingAmount = $order->total_price - $paidTotal;
+                // Вычисляем total_price из транзакций заказа
+                $orderTransactions = Transaction::where('source_type', \App\Models\Order::class)
+                    ->where('source_id', $order->id)
+                    ->get();
+                $orderTotal = $orderTransactions->sum('orig_amount');
+
+                if ($paidTotal < $orderTotal) {
+                    $remainingAmount = $orderTotal - $paidTotal;
                     return [
                         'success' => false,
                         'needs_payment' => true,
                         'order_id' => $order->id,
                         'paid_total' => $paidTotal,
-                        'order_total' => $order->total_price,
+                        'order_total' => $orderTotal,
                         'remaining_amount' => $remainingAmount,
                         'message' => "Заказ не оплачен полностью. Осталось доплатить: {$remainingAmount}"
                     ];

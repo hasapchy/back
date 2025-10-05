@@ -25,7 +25,8 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем права доступа к валюте
-            $hasAccessToNonDefaultCurrencies = $user->hasPermissionTo('settings_currencies_view');
+            $userPermissions = $user->permissions->pluck('name')->toArray();
+            $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
             // Если нет доступа к не-дефолтным валютам и это не базовая валюта - запрещаем доступ
             if (!$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
@@ -61,7 +62,8 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем права доступа к валюте
-            $hasAccessToNonDefaultCurrencies = $user->hasPermissionTo('settings_currencies_view');
+            $userPermissions = $user->permissions->pluck('name')->toArray();
+            $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
             // Если нет доступа к не-дефолтным валютам и это не базовая валюта - запрещаем доступ
             if (!$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
@@ -117,7 +119,8 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем права доступа к валюте
-            $hasAccessToNonDefaultCurrencies = $user->hasPermissionTo('settings_currencies_view');
+            $userPermissions = $user->permissions->pluck('name')->toArray();
+            $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
             // Если нет доступа к не-дефолтным валютам и это не базовая валюта - запрещаем доступ
             if (!$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
@@ -182,7 +185,8 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем права доступа к валюте
-            $hasAccessToNonDefaultCurrencies = $user->hasPermissionTo('settings_currencies_view');
+            $userPermissions = $user->permissions->pluck('name')->toArray();
+            $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
             // Если нет доступа к не-дефолтным валютам и это не базовая валюта - запрещаем доступ
             if (!$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
@@ -223,7 +227,8 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем, есть ли у пользователя доступ к не-дефолтным валютам
-            $hasAccessToNonDefaultCurrencies = $user->hasPermissionTo('settings_currencies_view');
+            $userPermissions = $user->permissions->pluck('name')->toArray();
+            $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
             $query = Currency::where('status', 1);
 

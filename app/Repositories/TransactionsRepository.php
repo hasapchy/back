@@ -6,17 +6,16 @@ use App\Models\CashRegister;
 use App\Models\Client;
 use App\Models\ClientBalance;
 use App\Models\Currency;
-use App\Models\OrderTransaction;
 use App\Models\Transaction;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
-use App\Repositories\ClientsRepository;
 use App\Repositories\ProjectsRepository;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class TransactionsRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null)
+    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null)
     {
         try {
             // Создаем уникальный ключ кэша (привязываем к пользователю и фильтрам/кассе, без company_id)
@@ -36,8 +35,7 @@ class TransactionsRepository
                     'project:id,name',
                     'user:id,name',
                     'cashTransfersFrom:id,tr_id_from',
-                    'cashTransfersTo:id,tr_id_to',
-                    'orderTransactions:id,order_id,transaction_id'
+                    'cashTransfersTo:id,tr_id_to'
                 ])
                     ->addSelect([
                         'client_balance' => DB::table('client_balances')
@@ -76,12 +74,8 @@ class TransactionsRepository
                         }
                     })
                     ->when($order_id, function ($query, $order_id) {
-                        return $query->whereExists(function ($subQuery) use ($order_id) {
-                            $subQuery->select(DB::raw(1))
-                                ->from('order_transactions')
-                                ->whereColumn('order_transactions.transaction_id', 'transactions.id')
-                                ->where('order_transactions.order_id', $order_id);
-                        });
+                        return $query->where('source_type', 'App\\Models\\Order')
+                            ->where('source_id', $order_id);
                     })
                     ->when($search, function ($query, $search) {
                         return $query->where(function ($q) use ($search) {
@@ -127,17 +121,9 @@ class TransactionsRepository
                             }
                             if (in_array('order', $source)) {
                                 if ($hasConditions) {
-                                    $subQ->orWhereExists(function ($query) {
-                                        $query->select(DB::raw(1))
-                                            ->from('order_transactions')
-                                            ->whereColumn('order_transactions.transaction_id', 'transactions.id');
-                                    });
+                                    $subQ->orWhere('source_type', 'App\\Models\\Order');
                                 } else {
-                                    $subQ->whereExists(function ($query) {
-                                        $query->select(DB::raw(1))
-                                            ->from('order_transactions')
-                                            ->whereColumn('order_transactions.transaction_id', 'transactions.id');
-                                    });
+                                    $subQ->where('source_type', 'App\\Models\\Order');
                                 }
                                 $hasConditions = true;
                             }
@@ -145,19 +131,11 @@ class TransactionsRepository
                                 if ($hasConditions) {
                                     $subQ->orWhere(function ($otherQ) {
                                         $otherQ->whereNull('source_type')
-                                            ->whereDoesntExist(function ($query) {
-                                                $query->select(DB::raw(1))
-                                                    ->from('order_transactions')
-                                                    ->whereColumn('order_transactions.transaction_id', 'transactions.id');
-                                            });
+                                            ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
                                     });
                                 } else {
                                     $subQ->whereNull('source_type')
-                                        ->whereDoesntExist(function ($query) {
-                                            $query->select(DB::raw(1))
-                                                ->from('order_transactions')
-                                                ->whereColumn('order_transactions.transaction_id', 'transactions.id');
-                                        });
+                                        ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
                                 }
                             }
                         });
@@ -189,8 +167,7 @@ class TransactionsRepository
                     'project:id,name',
                     'user:id,name',
                     'cashTransfersFrom:id,tr_id_from',
-                    'cashTransfersTo:id,tr_id_to',
-                    'orderTransactions:id,order_id,transaction_id'
+                    'cashTransfersTo:id,tr_id_to'
                 ]);
 
                 // Преобразуем данные в тот же формат, что и в методе getItems
@@ -201,6 +178,7 @@ class TransactionsRepository
                         'is_transfer' => $this->isTransfer($transaction),
                         'is_sale' => $this->isSale($transaction),
                         'is_receipt' => $this->isReceipt($transaction),
+                        'is_debt' => $transaction->is_debt,
                         'cash_id' => $transaction->cash_id,
                         'cash_name' => $transaction->cashRegister?->name,
                         'cash_amount' => $transaction->amount,
@@ -296,20 +274,13 @@ class TransactionsRepository
                 $query->where('transactions.source_type', 'App\Models\Sale');
                 break;
             case 'order':
-                $query->whereExists(function ($subQuery) {
-                    $subQuery->select(DB::raw(1))
-                        ->from('order_transactions')
-                        ->whereColumn('order_transactions.transaction_id', 'transactions.id');
-                });
+                $query->where('transactions.source_type', 'App\Models\Order');
                 break;
             case 'other':
-                $query->whereNull('transactions.project_id')
-                    ->whereNull('transactions.source_type')
-                    ->whereNotExists(function ($subQuery) {
-                        $subQuery->select(DB::raw(1))
-                            ->from('order_transactions')
-                            ->whereColumn('order_transactions.transaction_id', 'transactions.id');
-                    });
+                $query->where(function ($q) {
+                    $q->whereNull('transactions.source_type')
+                        ->orWhereNotIn('transactions.source_type', ['App\Models\Sale', 'App\Models\Order']);
+                });
                 break;
         }
     }
@@ -371,13 +342,7 @@ class TransactionsRepository
             $transaction->setSkipCashBalanceUpdate(true); // Касса обновляется в репозитории
             $transaction->save();
 
-            // Создаем связь с заказом если указан order_id
-            if (!empty($data['order_id'])) {
-                OrderTransaction::create([
-                    'order_id' => $data['order_id'],
-                    'transaction_id' => $transaction->id,
-                ]);
-            }
+            // Связь с заказом теперь устанавливается через morphable поля source_type и source_id
 
             // Обновляем кассу только если это не долговая операция и касса указана
             if (!($data['is_debt'] ?? false) && $cashRegister) {
@@ -399,6 +364,11 @@ class TransactionsRepository
                     $clientBalance->balance -= $convertedAmountDefault;
                 }
                 $clientBalance->save();
+
+                // Инвалидируем кэш клиентов и проектов после обновления баланса
+                CacheService::invalidateClientsCache();
+                CacheService::invalidateClientBalanceCache($data['client_id']);
+                CacheService::invalidateProjectsCache();
             }
 
             DB::commit();
@@ -429,8 +399,8 @@ class TransactionsRepository
             return false;
         }
 
-        // Если изменяется сумма или валюта, нужно пересчитать баланс кассы
-        $needsBalanceUpdate = isset($data['orig_amount']) || isset($data['currency_id']);
+        // Если изменяется сумма, валюта или статус долга, нужно пересчитать баланс кассы
+        $needsBalanceUpdate = isset($data['orig_amount']) || isset($data['currency_id']) || isset($data['is_debt']);
 
         if ($needsBalanceUpdate) {
             return $this->updateItemWithBalanceRecalculation($id, $data);
@@ -478,12 +448,15 @@ class TransactionsRepository
             $oldAmount = $transaction->amount;
             $oldOrigAmount = $transaction->orig_amount;
             $oldCurrencyId = $transaction->currency_id;
+            $oldIsDebt = $transaction->is_debt;
 
-            // Откатываем старый баланс кассы
-            if ($transaction->type == 1) {
-                $cashRegister->balance -= $oldAmount;
-            } else {
-                $cashRegister->balance += $oldAmount;
+            // Откатываем старый баланс кассы только если транзакция не была долговой
+            if (!$oldIsDebt) {
+                if ($transaction->type == 1) {
+                    $cashRegister->balance -= $oldAmount;
+                } else {
+                    $cashRegister->balance += $oldAmount;
+                }
             }
 
             // Обновляем поля транзакции
@@ -499,6 +472,9 @@ class TransactionsRepository
             }
             if (isset($data['currency_id'])) {
                 $transaction->currency_id = $data['currency_id'];
+            }
+            if (isset($data['is_debt'])) {
+                $transaction->is_debt = $data['is_debt'];
             }
 
             // Пересчитываем конвертированную сумму
@@ -531,13 +507,15 @@ class TransactionsRepository
             $transaction->amount = $newConvertedAmount;
             $transaction->save();
 
-            // Применяем новый баланс кассы
-            if ($transaction->type == 1) {
-                $cashRegister->balance += $newConvertedAmount;
-            } else {
-                $cashRegister->balance -= $newConvertedAmount;
+            // Применяем новый баланс кассы только если транзакция не стала долговой
+            if (!$transaction->is_debt) {
+                if ($transaction->type == 1) {
+                    $cashRegister->balance += $newConvertedAmount;
+                } else {
+                    $cashRegister->balance -= $newConvertedAmount;
+                }
+                $cashRegister->save();
             }
-            $cashRegister->save();
 
             // Обновляем баланс клиента если нужно
             if ($transaction->client_id) {
@@ -570,6 +548,11 @@ class TransactionsRepository
                 }
 
                 $clientBalance->save();
+
+                // Инвалидируем кэш клиентов и проектов после обновления баланса
+                CacheService::invalidateClientsCache();
+                CacheService::invalidateClientBalanceCache($transaction->client_id);
+                CacheService::invalidateProjectsCache();
             }
 
             DB::commit();
@@ -637,8 +620,7 @@ class TransactionsRepository
             }
             $cashRegister->save();
 
-            // Удаляем связи с заказами
-            OrderTransaction::where('transaction_id', $transaction->id)->delete();
+            // Связи с заказами теперь автоматически удаляются через morphable связи
 
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->delete();
@@ -656,6 +638,11 @@ class TransactionsRepository
                     $clientBalance->balance += $convertedAmountDefault;
                 }
                 $clientBalance->save();
+
+                // Инвалидируем кэш клиентов и проектов после обновления баланса
+                CacheService::invalidateClientsCache();
+                CacheService::invalidateClientBalanceCache($transaction->client_id);
+                CacheService::invalidateProjectsCache();
             }
 
             DB::commit();
@@ -682,12 +669,8 @@ class TransactionsRepository
     public function getTotalByOrderId($userId, $orderId)
     {
         return Transaction::where('transactions.user_id', $userId)
-            ->whereExists(function ($subQuery) use ($orderId) {
-                $subQuery->select(DB::raw(1))
-                    ->from('order_transactions')
-                    ->whereColumn('order_transactions.transaction_id', 'transactions.id')
-                    ->where('order_transactions.order_id', $orderId);
-            })
+            ->where('source_type', 'App\Models\Order')
+            ->where('source_id', $orderId)
             ->sum('orig_amount');
     }
 
@@ -755,6 +738,7 @@ class TransactionsRepository
         $query->select(
             'transactions.id as id',
             'transactions.type as type',
+            'transactions.is_debt as is_debt',
             DB::raw('CASE
             WHEN cash_transfers_from.tr_id_from IS NOT NULL
               OR cash_transfers_to.tr_id_to IS NOT NULL

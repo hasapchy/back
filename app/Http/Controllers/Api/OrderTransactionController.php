@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\OrderTransaction;
 use App\Models\Transaction;
 use App\Repositories\OrdersRepository;
 use Illuminate\Http\Request;
@@ -42,11 +41,10 @@ class OrderTransactionController extends Controller
             return response()->json(['message' => 'Нет доступа к транзакции'], 403);
         }
 
-        // Создаем связь
-        OrderTransaction::create([
-            'order_id' => $orderId,
-            'transaction_id' => $request->transaction_id,
-        ]);
+        // Устанавливаем morphable связь
+        $transaction->source_type = \App\Models\Order::class;
+        $transaction->source_id = $orderId;
+        $transaction->save();
 
         return response()->json(['message' => 'Транзакция успешно связана с заказом']);
     }
@@ -64,18 +62,12 @@ class OrderTransactionController extends Controller
             return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
         }
 
-        // Находим и удаляем связь по отдельности для создания записи активности
-        $orderTransaction = OrderTransaction::where('order_id', $orderId)
-            ->where('transaction_id', $transactionId)
-            ->first();
-
-        if ($orderTransaction) {
-            // Принудительно создаем активность перед удалением
-            activity()
-                ->performedOn($orderTransaction)
-                ->log('deleted');
-
-            $orderTransaction->delete(); // Это создаст запись активности
+        // Снимаем morphable связь у транзакции
+        $trx = Transaction::findOrFail($transactionId);
+        if ($trx->source_type === \App\Models\Order::class && (int)$trx->source_id === (int)$orderId) {
+            $trx->source_type = null;
+            $trx->source_id = null;
+            $trx->save();
         }
 
         return response()->json(['message' => 'Транзакция успешно отвязана от заказа']);
@@ -94,7 +86,10 @@ class OrderTransactionController extends Controller
             return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
         }
 
-        $transactions = $order->transactions()->get();
+        // Получаем транзакции через morphable связь
+        $transactions = Transaction::where('source_type', \App\Models\Order::class)
+            ->where('source_id', $orderId)
+            ->get();
 
         return response()->json(['transactions' => $transactions]);
     }

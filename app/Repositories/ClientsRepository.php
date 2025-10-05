@@ -36,7 +36,7 @@ class ClientsRepository
         return $query;
     }
 
-    function getItemsPaginated($perPage = 20, $search = null, $includeInactive = false, $page = 1, $statusFilter = null, $typeFilter = null)
+    function getItemsPaginated($perPage = 10, $search = null, $includeInactive = false, $page = 1, $statusFilter = null, $typeFilter = null)
     {
         // Создаем уникальный ключ кэша с учетом компании и фильтров
         $companyId = $this->getCurrentCompanyId();

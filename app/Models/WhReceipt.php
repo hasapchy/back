@@ -50,6 +50,12 @@ class WhReceipt extends Model
         )->withPivot('quantity');
     }
 
+    // Morphable связь с транзакциями (новая архитектура)
+    public function transactions()
+    {
+        return $this->morphMany(Transaction::class, 'source');
+    }
+
     public function project()
     {
         return $this->belongsTo(Project::class, 'project_id');
