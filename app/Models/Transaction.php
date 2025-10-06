@@ -198,12 +198,12 @@ class Transaction extends Model
 
                 if ($transaction->currency_id != $defaultCurrency->id) {
                     $convertedAmount = CurrencyConverter::convert(
-                        $transaction->amount,
+                        $transaction->orig_amount,
                         $transaction->currency,
                         $defaultCurrency
                     );
                 } else {
-                    $convertedAmount = $transaction->amount;
+                    $convertedAmount = $transaction->orig_amount;
                 }
 
                 if ($transaction->type == 1) {

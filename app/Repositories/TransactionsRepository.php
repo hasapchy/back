@@ -612,13 +612,17 @@ class TransactionsRepository
                 $convertedAmountDefault = $transaction->orig_amount;
             }
 
-            // Корректируем баланс кассы
-            if ($transaction->type == 1) {
-                $cashRegister->balance -= $convertedAmount;
-            } else {
-                $cashRegister->balance += $convertedAmount;
+            // Корректируем баланс кассы только если это не долговая операция
+            if (!$transaction->is_debt) {
+                if ($transaction->type == 1) {
+                    // Доход: при удалении уменьшаем баланс кассы
+                    $cashRegister->balance -= $convertedAmount;
+                } else {
+                    // Расход: при удалении увеличиваем баланс кассы
+                    $cashRegister->balance += $convertedAmount;
+                }
+                $cashRegister->save();
             }
-            $cashRegister->save();
 
             // Связи с заказами теперь автоматически удаляются через morphable связи
 

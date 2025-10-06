@@ -214,7 +214,6 @@ Route::middleware('auth:api')->group(function () {
     // Route::middleware('permission:transactions_view')->get('transactions/project-incomes', [TransactionsController::class, 'getProjectIncomes']);
     Route::get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
     Route::get('transactions/{id}', [TransactionsController::class, 'show']);
-    Route::get('transactions/project-incomes', [TransactionsController::class, 'getProjectIncomes']);
 
     // transfers
     // Route::middleware('permission:transfers_view')->get('transfers', [TransfersController::class, 'index']);
