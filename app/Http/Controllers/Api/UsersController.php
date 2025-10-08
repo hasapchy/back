@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Permission;
 
 
@@ -44,10 +45,18 @@ class UsersController extends Controller
         if (isset($data['permissions']) && is_string($data['permissions'])) {
             $data['permissions'] = explode(',', $data['permissions']);
         }
-        if (isset($data['companies']) && is_string($data['companies'])) {
-            $data['companies'] = array_filter(explode(',', $data['companies']), function ($c) {
-                return trim($c) !== '';
-            });
+
+        // Обработка companies - может прийти как строка или как массив
+        if (isset($data['companies'])) {
+            if (is_string($data['companies'])) {
+                $data['companies'] = array_filter(explode(',', $data['companies']), function ($c) {
+                    return trim($c) !== '';
+                });
+            }
+            // Преобразуем все значения в integer (они могут быть строками из FormData)
+            if (is_array($data['companies'])) {
+                $data['companies'] = array_values(array_map('intval', $data['companies']));
+            }
         }
 
         $validator = Validator::make($data, [
@@ -100,10 +109,18 @@ class UsersController extends Controller
         if (isset($data['permissions']) && is_string($data['permissions'])) {
             $data['permissions'] = explode(',', $data['permissions']);
         }
-        if (isset($data['companies']) && is_string($data['companies'])) {
-            $data['companies'] = array_filter(explode(',', $data['companies']), function ($c) {
-                return trim($c) !== '';
-            });
+
+        // Обработка companies - может прийти как строка или как массив
+        if (isset($data['companies'])) {
+            if (is_string($data['companies'])) {
+                $data['companies'] = array_filter(explode(',', $data['companies']), function ($c) {
+                    return trim($c) !== '';
+                });
+            }
+            // Преобразуем все значения в integer (они могут быть строками из FormData)
+            if (is_array($data['companies'])) {
+                $data['companies'] = array_values(array_map('intval', $data['companies']));
+            }
         }
 
         $request->merge($data);
@@ -131,15 +148,41 @@ class UsersController extends Controller
 
         unset($data['photo']);
 
+        // Сохраняем массивы отдельно (даже если они пустые)
+        $companies = $data['companies'] ?? null;
+        $permissions = $data['permissions'] ?? null;
+
+        // Фильтруем только null значения, но оставляем false (для чекбоксов)
         $data = array_filter($data, function ($value) {
-            return !is_null($value);
+            return $value !== null;
         });
+
+        // Возвращаем массивы обратно (даже если они пустые, чтобы sync сработал)
+        if ($companies !== null) {
+            $data['companies'] = $companies;
+        }
+        if ($permissions !== null) {
+            $data['permissions'] = $permissions;
+        }
+
+        Log::info('Updating user', [
+            'id' => $id,
+            'companies' => $data['companies'] ?? 'not set',
+            'companies_type' => isset($data['companies']) ? gettype($data['companies']) : 'null',
+            'permissions' => $data['permissions'] ?? 'not set'
+        ]);
 
         $user = $this->itemsRepository->updateItem($id, $data);
         $user = $this->handlePhotoUpload($request, $user);
 
-        $user = $user->fresh();
+        // Перезагружаем пользователя со всеми связями
+        $user = $user->fresh(['permissions', 'roles', 'companies']);
 
+        Log::info('Returning user data', [
+            'user_id' => $user->id,
+            'companies_count' => $user->companies->count(),
+            'companies_ids' => $user->companies->pluck('id')->toArray()
+        ]);
 
         return response()->json([
             'user' => $user,
@@ -227,14 +270,16 @@ class UsersController extends Controller
 
         unset($data['photo']);
 
+        // Фильтруем только null значения, но оставляем false (для чекбоксов)
         $data = array_filter($data, function ($value) {
-            return !is_null($value);
+            return $value !== null;
         });
 
         $user = $this->itemsRepository->updateItem($user->id, $data);
         $user = $this->handlePhotoUpload($request, $user);
 
-        $user = $user->fresh();
+        // Перезагружаем пользователя со всеми связями
+        $user = $user->fresh(['permissions', 'roles', 'companies']);
 
         return response()->json(['user' => $user]);
     }
