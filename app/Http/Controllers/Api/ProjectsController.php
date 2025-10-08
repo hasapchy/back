@@ -124,9 +124,23 @@ class ProjectsController extends Controller
 
     public function update(Request $request, $id)
     {
-        $userUuid = optional(auth('api')->user())->id;
+        $user = auth('api')->user();
+        $userUuid = optional($user)->id;
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
+        }
+
+        // Проверяем существование проекта и права владельца
+        $project = \App\Models\Project::find($id);
+        if (!$project) {
+            return response()->json(['message' => 'Проект не найден'], 404);
+        }
+
+        // Проверяем права владельца: если не админ, то можно редактировать только свои записи
+        if (!$user->is_admin && $project->user_id != $userUuid) {
+            return response()->json([
+                'message' => 'У вас нет прав на редактирование этого проекта'
+            ], 403);
         }
 
         $validationRules = [
@@ -357,7 +371,8 @@ class ProjectsController extends Controller
 
     public function destroy($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
+        $user = auth('api')->user();
+        $userUuid = optional($user)->id;
         if (!$userUuid) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
@@ -370,20 +385,34 @@ class ProjectsController extends Controller
             ], 404);
         }
 
-        $deleted = $this->itemsRepository->deleteItem($id);
-
-        if (!$deleted) {
+        // Проверяем права владельца: если не админ, то можно удалять только свои записи
+        $projectModel = \App\Models\Project::find($id);
+        if (!$user->is_admin && $projectModel && $projectModel->user_id != $userUuid) {
             return response()->json([
-                'message' => 'Ошибка удаления проекта'
-            ], 400);
+                'message' => 'У вас нет прав на удаление этого проекта'
+            ], 403);
         }
 
-        // Инвалидируем кэш проектов
-        \App\Services\CacheService::invalidateProjectsCache();
+        try {
+            $deleted = $this->itemsRepository->deleteItem($id);
 
-        return response()->json([
-            'message' => 'Проект удалён'
-        ]);
+            if (!$deleted) {
+                return response()->json([
+                    'message' => 'Ошибка удаления проекта'
+                ], 400);
+            }
+
+            // Инвалидируем кэш проектов
+            \App\Services\CacheService::invalidateProjectsCache();
+
+            return response()->json([
+                'message' => 'Проект удалён'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     public function batchUpdateStatus(Request $request)

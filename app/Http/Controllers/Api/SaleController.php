@@ -112,9 +112,23 @@ class SaleController extends Controller
 
     public function destroy($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
+        $user = auth('api')->user();
+        $userUuid = optional($user)->id;
         if (!$userUuid) {
             return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        // Получаем продажу для проверки владельца
+        $sale = $this->itemRepository->getItemById($id);
+        if (!$sale) {
+            return response()->json(['message' => 'Продажа не найдена'], 404);
+        }
+
+        // Проверяем права владельца: если не админ, то можно удалять только свои записи
+        if (!$user->is_admin && $sale->user_id != $userUuid) {
+            return response()->json([
+                'message' => 'У вас нет прав на удаление этой продажи'
+            ], 403);
         }
 
         try {

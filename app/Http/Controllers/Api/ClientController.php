@@ -184,6 +184,8 @@ class ClientController extends Controller
     }
     public function update(Request $request, $id)
     {
+        $user = auth('api')->user();
+
         $validatedData = $request->validate([
             'first_name'       => 'required|string',
             'is_conflict'      => 'sometimes|nullable|boolean',
@@ -203,6 +205,19 @@ class ClientController extends Controller
         ]);
 
         try {
+            // Получаем клиента для проверки владельца
+            $existingClient = \App\Models\Client::find($id);
+            if (!$existingClient) {
+                return response()->json(['message' => 'Клиент не найден'], 404);
+            }
+
+            // Проверяем права владельца: если не админ, то можно редактировать только свои записи
+            if (!$user->is_admin && $existingClient->user_id != $user->id) {
+                return response()->json([
+                    'message' => 'У вас нет прав на редактирование этого клиента'
+                ], 403);
+            }
+
             $client = $this->itemsRepository->update($id, $validatedData);
 
             // Инвалидируем кэш клиентов
@@ -236,6 +251,21 @@ class ClientController extends Controller
     public function destroy($id)
     {
         try {
+            $user = auth('api')->user();
+
+            // Получаем клиента для проверки владельца
+            $client = \App\Models\Client::find($id);
+            if (!$client) {
+                return response()->json(['message' => 'Клиент не найден'], 404);
+            }
+
+            // Проверяем права владельца: если не админ, то можно удалять только свои записи
+            if (!$user->is_admin && $client->user_id != $user->id) {
+                return response()->json([
+                    'message' => 'У вас нет прав на удаление этого клиента'
+                ], 403);
+            }
+
             // Проверка на наличие транзакций
             $hasTransactions = DB::table('transactions')->where('client_id', $id)->exists();
 

@@ -116,7 +116,8 @@ class TransactionsController extends Controller
 
     public function update(Request $request, $id)
     {
-        $userUuid = optional(auth('api')->user())->id;
+        $user = auth('api')->user();
+        $userUuid = optional($user)->id;
         if (!$userUuid) {
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
@@ -135,6 +136,13 @@ class TransactionsController extends Controller
         $transaction_exist = Transaction::where('id', $id)->first();
         if (!$transaction_exist) {
             return response()->json(['message' => 'Транзакция не найдена'], 404);
+        }
+
+        // Проверяем права владельца: если не админ, то можно редактировать только свои записи
+        if (!$user->is_admin && $transaction_exist->user_id != $userUuid) {
+            return response()->json([
+                'message' => 'У вас нет прав на редактирование этой транзакции'
+            ], 403);
         }
 
         // Проверяем, не является ли транзакция ограниченной
@@ -182,7 +190,8 @@ class TransactionsController extends Controller
 
     public function destroy($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
+        $user = auth('api')->user();
+        $userUuid = optional($user)->id;
         if (!$userUuid) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
@@ -190,6 +199,13 @@ class TransactionsController extends Controller
         $transaction_exist = Transaction::where('id', $id)->first();
         if (!$transaction_exist) {
             return response()->json(['message' => 'Транзакция не найдена'], 404);
+        }
+
+        // Проверяем права владельца: если не админ, то можно удалять только свои записи
+        if (!$user->is_admin && $transaction_exist->user_id != $userUuid) {
+            return response()->json([
+                'message' => 'У вас нет прав на удаление этой транзакции'
+            ], 403);
         }
 
         // Проверяем, не является ли транзакция ограниченной

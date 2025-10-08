@@ -143,7 +143,8 @@ class OrderController extends Controller
     }
     public function update(Request $request, $id)
     {
-        $userUuid = optional(auth('api')->user())->id;
+        $user = auth('api')->user();
+        $userUuid = optional($user)->id;
         if (!$userUuid) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
@@ -152,6 +153,13 @@ class OrderController extends Controller
         $order = $this->itemRepository->getItemById($id);
         if (!$order) {
             return response()->json(['message' => 'Заказ не найден'], 404);
+        }
+
+        // Проверяем права владельца: если не админ, то можно редактировать только свои записи
+        if (!$user->is_admin && $order->user_id != $userUuid) {
+            return response()->json([
+                'message' => 'У вас нет прав на редактирование этого заказа'
+            ], 403);
         }
 
         // Ограничение по времени для подвальных работников удалено
@@ -235,7 +243,8 @@ class OrderController extends Controller
 
     public function destroy($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
+        $user = auth('api')->user();
+        $userUuid = optional($user)->id;
         if (!$userUuid) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
@@ -244,6 +253,13 @@ class OrderController extends Controller
         $order = $this->itemRepository->getItemById($id);
         if (!$order) {
             return response()->json(['message' => 'Заказ не найден'], 404);
+        }
+
+        // Проверяем права владельца: если не админ, то можно удалять только свои записи
+        if (!$user->is_admin && $order->user_id != $userUuid) {
+            return response()->json([
+                'message' => 'У вас нет прав на удаление этого заказа'
+            ], 403);
         }
 
         // Ограничение по времени для подвальных работников удалено
