@@ -90,6 +90,7 @@ class ProjectsController extends Controller
             'client_id' => $request->client_id,
             'users' => $request->users,
             'description' => $request->description,
+            'status_id' => 1, // Устанавливаем статус "Новый" по умолчанию
         ];
 
         // Добавляем поля бюджета только если они переданы
