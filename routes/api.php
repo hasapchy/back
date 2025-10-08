@@ -30,8 +30,11 @@ use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\ProjectStatusController;
 
-Route::post('user/login', [AuthController::class, 'login']);
-Route::post('user/refresh', [AuthController::class, 'refresh']);
+// Маршруты авторизации с ограничением 10 запросов в минуту
+Route::middleware(['throttle:auth'])->group(function () {
+    Route::post('user/login', [AuthController::class, 'login']);
+    Route::post('user/refresh', [AuthController::class, 'refresh']);
+});
 
 // transaction_categories without authentication
 Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
