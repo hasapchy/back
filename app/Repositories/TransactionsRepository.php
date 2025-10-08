@@ -15,14 +15,14 @@ use Illuminate\Support\Facades\Log;
 
 class TransactionsRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null)
+    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null)
     {
         try {
             // Создаем уникальный ключ кэша (привязываем к пользователю и фильтрам/кассе, без company_id)
             $searchKey = $search !== null ? md5((string)$search) : 'null';
-            $cacheKey = "transactions_paginated_{$userUuid}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$searchKey}_{$transaction_type}_{$source}_{$project_id}";
+            $cacheKey = "transactions_paginated_{$userUuid}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$searchKey}_{$transaction_type}_{$source}_{$project_id}_{$start_date}_{$end_date}";
 
-            return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id) {
+            return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date) {
                 // Используем with() для загрузки связей вместо сложных JOIN'ов
                 $query = Transaction::with([
                     'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
@@ -49,7 +49,7 @@ class TransactionsRepository
                     ->when($cash_id, function ($query, $cash_id) {
                         return $query->where('transactions.cash_id', $cash_id);
                     })
-                    ->when($date_filter_type, function ($query, $date_filter_type) {
+                    ->when($date_filter_type, function ($query, $date_filter_type) use ($start_date, $end_date) {
                         switch ($date_filter_type) {
                             case 'today':
                                 return $query->whereBetween('transactions.date', [
@@ -62,13 +62,37 @@ class TransactionsRepository
                                     now()->subDay()->endOfDay()->toDateTimeString()
                                 ]);
                             case 'this_week':
-                                return $query->whereBetween('transactions.date', [now()->startOfWeek(), now()->endOfWeek()]);
+                                return $query->whereBetween('transactions.date', [
+                                    now()->startOfWeek()->toDateTimeString(),
+                                    now()->endOfWeek()->toDateTimeString()
+                                ]);
                             case 'last_week':
-                                return $query->whereBetween('transactions.date', [now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek()]);
+                                return $query->whereBetween('transactions.date', [
+                                    now()->subWeek()->startOfWeek()->toDateTimeString(),
+                                    now()->subWeek()->endOfWeek()->toDateTimeString()
+                                ]);
                             case 'this_month':
-                                return $query->whereBetween('transactions.date', [now()->startOfMonth(), now()->endOfMonth()]);
+                                return $query->whereBetween('transactions.date', [
+                                    now()->startOfMonth()->toDateTimeString(),
+                                    now()->endOfMonth()->toDateTimeString()
+                                ]);
                             case 'last_month':
-                                return $query->whereBetween('transactions.date', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()]);
+                                return $query->whereBetween('transactions.date', [
+                                    now()->subMonth()->startOfMonth()->toDateTimeString(),
+                                    now()->subMonth()->endOfMonth()->toDateTimeString()
+                                ]);
+                            case 'custom':
+                                if ($start_date && $end_date) {
+                                    return $query->whereBetween('transactions.date', [
+                                        \Carbon\Carbon::parse($start_date)->startOfDay()->toDateTimeString(),
+                                        \Carbon\Carbon::parse($end_date)->endOfDay()->toDateTimeString()
+                                    ]);
+                                } elseif ($start_date) {
+                                    return $query->where('transactions.date', '>=', \Carbon\Carbon::parse($start_date)->startOfDay()->toDateTimeString());
+                                } elseif ($end_date) {
+                                    return $query->where('transactions.date', '<=', \Carbon\Carbon::parse($end_date)->endOfDay()->toDateTimeString());
+                                }
+                                return $query;
                             default:
                                 return $query;
                         }

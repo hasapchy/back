@@ -32,6 +32,8 @@ class TransactionsController extends Controller
         $transaction_type = $request->query('transaction_type');
         $source = $request->query('source');
         $project_id = $request->query('project_id');
+        $start_date = $request->query('start_date');
+        $end_date = $request->query('end_date');
 
         $items = $this->itemsRepository->getItemsWithPagination(
             $userUuid,
@@ -43,7 +45,9 @@ class TransactionsController extends Controller
             $search,
             $transaction_type,
             $source,
-            $project_id
+            $project_id,
+            $start_date,
+            $end_date
         );
 
         return response()->json([

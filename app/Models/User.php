@@ -67,12 +67,14 @@ class User extends Authenticatable implements JWTSubject
 
     /**
      * Защита от изменения поля is_admin
+     * Запрещаем только снятие прав администратора у пользователя с ID 1 (главный админ)
      */
     public function setIsAdminAttribute($value)
     {
-        // Проверяем только если пользователь уже существует И пытаемся убрать права администратора
-        if ($this->exists && $this->is_admin && !$value) {
-            throw new \Exception('Нельзя убрать права администратора у пользователя.');
+        // Проверяем: если это пользователь с ID 1, является администратором
+        // и пытаются убрать права администратора - блокируем
+        if ($this->exists && $this->id === 1 && $this->is_admin && !$value) {
+            throw new \Exception('Нельзя убрать права администратора у главного администратора (ID: 1).');
         }
 
         $this->attributes['is_admin'] = $value;

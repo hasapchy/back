@@ -109,6 +109,18 @@ class CacheService
                     'error' => $e->getMessage()
                 ]);
             }
+        } else {
+            // Для file, redis и других драйверов - очищаем весь кэш
+            // так как они не поддерживают частичную инвалидацию по паттерну
+            try {
+                Cache::flush();
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Cache flush failed', [
+                    'pattern' => $like,
+                    'driver' => $driver,
+                    'error' => $e->getMessage()
+                ]);
+            }
         }
     }
 
@@ -154,8 +166,7 @@ class CacheService
 
     public static function invalidateOrdersCache()
     {
-        self::invalidateByLike('%orders_paginated%');
-        self::invalidateByLike('%orders_search%');
+        self::invalidateByLike('%orders%');
     }
 
     public static function invalidateTransactionsCache()

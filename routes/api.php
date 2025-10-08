@@ -76,6 +76,7 @@ Route::middleware('auth:api')->group(function () {
     // Route::middleware('permission:companies_view')->get('companies', [App\Http\Controllers\Api\CompaniesController::class, 'index']);
     Route::get('companies', [App\Http\Controllers\Api\CompaniesController::class, 'index']);
     Route::middleware('permission:companies_create')->post('companies', [App\Http\Controllers\Api\CompaniesController::class, 'store']);
+    Route::middleware('permission:companies_update')->post('companies/{id}', [App\Http\Controllers\Api\CompaniesController::class, 'update']);
     Route::middleware('permission:companies_update')->put('companies/{id}', [App\Http\Controllers\Api\CompaniesController::class, 'update']);
     Route::middleware('permission:companies_delete')->delete('companies/{id}', [App\Http\Controllers\Api\CompaniesController::class, 'destroy']);
 

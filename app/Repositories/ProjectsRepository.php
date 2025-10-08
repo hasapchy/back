@@ -130,17 +130,35 @@ class ProjectsRepository
                 now()->subDay()->endOfDay()->toDateTimeString()
             ]);
         } elseif ($dateFilter === 'this_week') {
-            $query->whereBetween('projects.date', [now()->startOfWeek(), now()->endOfWeek()]);
+            $query->whereBetween('projects.date', [
+                now()->startOfWeek()->toDateTimeString(),
+                now()->endOfWeek()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'this_month') {
-            $query->whereBetween('projects.date', [now()->startOfMonth(), now()->endOfMonth()]);
+            $query->whereBetween('projects.date', [
+                now()->startOfMonth()->toDateTimeString(),
+                now()->endOfMonth()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'this_year') {
-            $query->whereBetween('projects.date', [now()->startOfYear(), now()->endOfYear()]);
+            $query->whereBetween('projects.date', [
+                now()->startOfYear()->toDateTimeString(),
+                now()->endOfYear()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'last_week') {
-            $query->whereBetween('projects.date', [now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek()]);
+            $query->whereBetween('projects.date', [
+                now()->subWeek()->startOfWeek()->toDateTimeString(),
+                now()->subWeek()->endOfWeek()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'last_month') {
-            $query->whereBetween('projects.date', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()]);
+            $query->whereBetween('projects.date', [
+                now()->subMonth()->startOfMonth()->toDateTimeString(),
+                now()->subMonth()->endOfMonth()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'last_year') {
-            $query->whereBetween('projects.date', [now()->subYear()->startOfYear(), now()->subYear()->endOfYear()]);
+            $query->whereBetween('projects.date', [
+                now()->subYear()->startOfYear()->toDateTimeString(),
+                now()->subYear()->endOfYear()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'custom') {
             if ($startDate && $endDate) {
                 $query->whereBetween('projects.date', [$startDate, $endDate]);

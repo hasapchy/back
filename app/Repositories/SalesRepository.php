@@ -320,17 +320,35 @@ class SalesRepository
                 now()->subDay()->endOfDay()->toDateTimeString()
             ]);
         } elseif ($dateFilter === 'this_week') {
-            $query->whereBetween('sales.date', [now()->startOfWeek(), now()->endOfWeek()]);
+            $query->whereBetween('sales.date', [
+                now()->startOfWeek()->toDateTimeString(),
+                now()->endOfWeek()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'this_month') {
-            $query->whereBetween('sales.date', [now()->startOfMonth(), now()->endOfMonth()]);
+            $query->whereBetween('sales.date', [
+                now()->startOfMonth()->toDateTimeString(),
+                now()->endOfMonth()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'this_year') {
-            $query->whereBetween('sales.date', [now()->startOfYear(), now()->endOfYear()]);
+            $query->whereBetween('sales.date', [
+                now()->startOfYear()->toDateTimeString(),
+                now()->endOfYear()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'last_week') {
-            $query->whereBetween('sales.date', [now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek()]);
+            $query->whereBetween('sales.date', [
+                now()->subWeek()->startOfWeek()->toDateTimeString(),
+                now()->subWeek()->endOfWeek()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'last_month') {
-            $query->whereBetween('sales.date', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()]);
+            $query->whereBetween('sales.date', [
+                now()->subMonth()->startOfMonth()->toDateTimeString(),
+                now()->subMonth()->endOfMonth()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'last_year') {
-            $query->whereBetween('sales.date', [now()->subYear()->startOfYear(), now()->subYear()->endOfYear()]);
+            $query->whereBetween('sales.date', [
+                now()->subYear()->startOfYear()->toDateTimeString(),
+                now()->subYear()->endOfYear()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'custom') {
             if ($startDate && $endDate) {
                 $query->whereBetween('sales.date', [$startDate, $endDate]);

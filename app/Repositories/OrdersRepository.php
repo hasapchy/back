@@ -367,17 +367,35 @@ class OrdersRepository
                 now()->subDay()->endOfDay()->toDateTimeString()
             ]);
         } elseif ($dateFilter === 'this_week') {
-            $query->whereBetween('orders.date', [now()->startOfWeek(), now()->endOfWeek()]);
+            $query->whereBetween('orders.date', [
+                now()->startOfWeek()->toDateTimeString(),
+                now()->endOfWeek()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'this_month') {
-            $query->whereBetween('orders.date', [now()->startOfMonth(), now()->endOfMonth()]);
+            $query->whereBetween('orders.date', [
+                now()->startOfMonth()->toDateTimeString(),
+                now()->endOfMonth()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'this_year') {
-            $query->whereBetween('orders.date', [now()->startOfYear(), now()->endOfYear()]);
+            $query->whereBetween('orders.date', [
+                now()->startOfYear()->toDateTimeString(),
+                now()->endOfYear()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'last_week') {
-            $query->whereBetween('orders.date', [now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek()]);
+            $query->whereBetween('orders.date', [
+                now()->subWeek()->startOfWeek()->toDateTimeString(),
+                now()->subWeek()->endOfWeek()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'last_month') {
-            $query->whereBetween('orders.date', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()]);
+            $query->whereBetween('orders.date', [
+                now()->subMonth()->startOfMonth()->toDateTimeString(),
+                now()->subMonth()->endOfMonth()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'last_year') {
-            $query->whereBetween('orders.date', [now()->subYear()->startOfYear(), now()->subYear()->endOfYear()]);
+            $query->whereBetween('orders.date', [
+                now()->subYear()->startOfYear()->toDateTimeString(),
+                now()->subYear()->endOfYear()->toDateTimeString()
+            ]);
         } elseif ($dateFilter === 'custom') {
             if ($startDate && $endDate) {
                 $query->whereBetween('orders.date', [$startDate, $endDate]);

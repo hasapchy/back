@@ -34,7 +34,7 @@ class CompaniesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:companies,name',
-            'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048'
+            'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240'
         ]);
 
         if ($validator->fails()) {
@@ -44,13 +44,14 @@ class CompaniesController extends Controller
         $data = $request->only(['name']);
 
         if ($request->hasFile('logo')) {
-            $file = $request->file('logo');
-            $filename = 'logo_' . time() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('uploads/logos', $filename, 'public');
-            $data['logo'] = 'storage/' . $path;
+            $logoPath = $request->file('logo')->store('companies', 'public');
+            $data['logo'] = $logoPath;
+            \Log::info('Company logo stored', ['path' => $logoPath]);
         }
 
         $company = Company::create($data);
+        
+        \Log::info('Company created', ['id' => $company->id, 'logo' => $company->logo]);
 
         return response()->json(['company' => $company]);
     }
@@ -59,7 +60,7 @@ class CompaniesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => "required|string|max:255|unique:companies,name,{$id}",
-            'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048'
+            'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240'
         ]);
 
         if ($validator->fails()) {
@@ -72,17 +73,19 @@ class CompaniesController extends Controller
         if ($request->hasFile('logo')) {
             // Удаляем старый логотип если есть
             if ($company->logo && $company->logo !== 'logo.jpg') {
-                $oldPath = str_replace('storage/', 'public/', $company->logo);
-                Storage::delete($oldPath);
+                Storage::disk('public')->delete($company->logo);
             }
-
-            $file = $request->file('logo');
-            $filename = 'logo_' . time() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('uploads/logos', $filename, 'public');
-            $data['logo'] = 'storage/' . $path;
+            $logoPath = $request->file('logo')->store('companies', 'public');
+            $data['logo'] = $logoPath;
+            \Log::info('Company logo updated', ['id' => $id, 'path' => $logoPath]);
         }
 
         $company->update($data);
+        
+        // Получаем свежие данные из базы
+        $company = $company->fresh();
+        
+        \Log::info('Company updated', ['id' => $company->id, 'logo' => $company->logo]);
 
         return response()->json(['company' => $company]);
     }
