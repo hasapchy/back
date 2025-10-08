@@ -351,25 +351,16 @@ class UsersRepository
      */
     private function invalidateUsersCache()
     {
-        // Очищаем кэш, связанный с пользователями
-        $keys = [
-            'users_paginated_*',
-            'users_all*',
-            'users_fast_search_*',
-            'user_item_*',
-            'users_by_role_*',
-            'users_active'
-        ];
+        // Точное удаление конкретного ключа
+        \Illuminate\Support\Facades\Cache::forget('users_active');
 
-        foreach ($keys as $key) {
-            if (str_contains($key, '*')) {
-                // Для паттернов с wildcard очищаем весь кэш
-                \Illuminate\Support\Facades\Cache::flush();
-                break;
-            } else {
-                \Illuminate\Support\Facades\Cache::forget($key);
-            }
-        }
+        // Используем централизованный метод из CacheService
+        CacheService::invalidateByLike('%users_paginated%');
+        CacheService::invalidateByLike('%users_all%');
+        CacheService::invalidateByLike('%users_fast_search%');
+        CacheService::invalidateByLike('%user_item%');
+        CacheService::invalidateByLike('%users_by_role%');
+        CacheService::invalidateByLike('%users_by_ids%');
     }
 
     /**
@@ -378,7 +369,7 @@ class UsersRepository
     public function invalidateUserCache($userId)
     {
         \Illuminate\Support\Facades\Cache::forget("user_item_{$userId}");
-        \Illuminate\Support\Facades\Cache::forget("users_by_ids_*");
+        CacheService::invalidateByLike("%users_by_ids%");
         $this->invalidateUsersCache();
     }
 }

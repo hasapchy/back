@@ -89,14 +89,10 @@ class OrderController extends Controller
             'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
         ]);
 
-        // Автоматически определяем тип оплаты: если указана касса - наличные, иначе - баланс
-        $type = $request->cash_id ? 'cash' : 'balance';
-
         $data = [
             'user_id'      => $userUuid,
             'client_id'    => $request->client_id,
             'project_id'   => $request->project_id,
-            'type'         => $type,
             'cash_id'      => $request->cash_id,
             'warehouse_id' => $request->warehouse_id,
             'currency_id' => $request->currency_id,
@@ -186,14 +182,10 @@ class OrderController extends Controller
             'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
         ]);
 
-        // Автоматически определяем тип оплаты: если указана касса - наличные, иначе - баланс
-        $type = $request->cash_id ? 'cash' : 'balance';
-
         $data = [
             'user_id'      => $userUuid,
             'client_id'    => $request->client_id,
             'project_id'   => $request->project_id,
-            'type'         => $type,
             'cash_id'      => $request->cash_id,
             'warehouse_id'  => $request->warehouse_id,
             'currency_id'   => $request->currency_id,

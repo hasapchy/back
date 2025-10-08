@@ -69,15 +69,12 @@ class WarehouseStockRepository
         });
     }
 
-    // Инвалидация кэша остатков складов
     public static function invalidateStockCache($userUuid = null, $warehouse_id = null)
     {
         if ($userUuid) {
-            // Инвалидируем кэш для конкретного пользователя
-            CacheService::invalidateByTag("warehouse_stocks_user_{$userUuid}");
+            CacheService::invalidateByLike("%warehouse_stocks_user_{$userUuid}%");
         } else {
-            // Инвалидируем весь кэш остатков
-            CacheService::invalidateByTag('warehouse_stocks');
+            CacheService::invalidateByLike('%warehouse_stocks%');
         }
     }
 }

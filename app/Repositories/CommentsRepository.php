@@ -292,23 +292,14 @@ class CommentsRepository
      */
     private function invalidateCommentsCache(string $type, int $id)
     {
-        $keys = [
-            "comments_{$type}_{$id}",
-            "comments_paginated_{$type}_{$id}_*",
-            "comments_timeline_{$type}_{$id}_*",
-            "comments_stats_{$type}_{$id}",
-            "comments_batch_{$type}_*"
-        ];
+        // Точное удаление конкретных ключей без wildcard
+        \Illuminate\Support\Facades\Cache::forget("comments_{$type}_{$id}");
+        \Illuminate\Support\Facades\Cache::forget("comments_stats_{$type}_{$id}");
 
-        foreach ($keys as $key) {
-            if (str_contains($key, '*')) {
-                // Для паттернов с wildcard очищаем весь кэш
-                \Illuminate\Support\Facades\Cache::flush();
-                break;
-            } else {
-                \Illuminate\Support\Facades\Cache::forget($key);
-            }
-        }
+        // Используем централизованный метод из CacheService
+        CacheService::invalidateByLike("%comments_paginated_{$type}_{$id}%");
+        CacheService::invalidateByLike("%comments_timeline_{$type}_{$id}%");
+        CacheService::invalidateByLike("%comments_batch_{$type}%");
     }
 
     /**
@@ -316,20 +307,7 @@ class CommentsRepository
      */
     public function invalidateCommentsCacheByType(string $type)
     {
-        $keys = [
-            "comments_{$type}_*",
-            "comments_paginated_{$type}_*",
-            "comments_timeline_{$type}_*",
-            "comments_stats_{$type}_*",
-            "comments_batch_{$type}_*"
-        ];
-
-        foreach ($keys as $key) {
-            if (str_contains($key, '*')) {
-                // Для паттернов с wildcard очищаем весь кэш
-                \Illuminate\Support\Facades\Cache::flush();
-                break;
-            }
-        }
+        // Используем централизованный метод из CacheService
+        CacheService::invalidateByLike("%comments_{$type}%");
     }
 }

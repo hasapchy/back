@@ -15,7 +15,6 @@ use App\Models\Transaction;
 use App\Models\OrderStatus;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
-use App\Repositories\TransactionsRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -449,7 +448,6 @@ class OrdersRepository
         $date = $data['date'] ?? now();
         $note = $data['note'] ?? '';
         $description = $data['description'] ?? '';
-        $type = $data['type'] ?? 'balance'; // Получаем тип оплаты
 
         $defaultCurrency = Currency::firstWhere('is_default', true);
         $fromCurrency = Currency::find($currency_id);
@@ -582,26 +580,6 @@ class OrdersRepository
                 $this->saveAdditionalFields($order->id, $data['additional_fields']);
             }
 
-            // Логика баланса как в продажах и поступлениях
-            // Создаем транзакцию по новой архитектуре: всегда пишем в transactions,
-            // is_debt зависит от типа оплаты (balance => true, cash => false)
-            $isDebt = ($type !== 'cash');
-            $txRepo = new TransactionsRepository();
-            $txRepo->createItem([
-                'type'        => 1, // Приход
-                'user_id'     => $userUuid,
-                'orig_amount' => $total_price,
-                'currency_id' => $defaultCurrency->id,
-                'cash_id'     => $cash_id,
-                'category_id' => 1,
-                'project_id'  => $project_id,
-                'client_id'   => $client_id,
-                'note'        => $note,
-                'date'        => $date,
-                'is_debt'     => $isDebt,
-                'source_type' => \App\Models\Order::class,
-                'source_id'   => $order->id,
-            ], true, true);
 
             DB::commit();
 
@@ -639,28 +617,7 @@ class OrdersRepository
                 }
             }
 
-            // 3. Откат баланса/транзакций по новой архитектуре
-            if ($order->client_id) {
-                $existingTransactions = Transaction::where('source_type', \App\Models\Order::class)
-                    ->where('source_id', $order->id)
-                    ->get();
-
-                if ($existingTransactions->isNotEmpty()) {
-                    foreach ($existingTransactions as $trx) {
-                        $txRepo = new TransactionsRepository();
-                        $txRepo->deleteItem($trx->id, true);
-                    }
-                } else {
-                    // Вычисляем total_price из транзакций заказа
-                    $orderTransactions = Transaction::where('source_type', \App\Models\Order::class)
-                        ->where('source_id', $order->id)
-                        ->get();
-                    $totalPrice = $orderTransactions->sum('orig_amount');
-
-                    ClientBalance::where('client_id', $order->client_id)
-                        ->update(['balance' => DB::raw("COALESCE(balance, 0) - {$totalPrice}")]);
-                }
-            }
+            // Транзакции теперь управляются вручную, автоматический откат не нужен
 
             $user_id = $data['user_id'];
             $client_id = $data['client_id'];
@@ -677,7 +634,6 @@ class OrdersRepository
             $note = $data['note'] ?? '';
             $description = $data['description'] ?? '';
             $date = $data['date'] ?? now();
-            $type = $data['type'] ?? 'balance'; // Получаем тип оплаты
 
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $fromCurrency = Currency::find($currency_id);
@@ -906,27 +862,8 @@ class OrdersRepository
                 $productsChanged = true;
             }
 
-            // Если товары не изменились и заказ не изменился, не создаем запись активности
+            // Если товары не изменились и заказ не изменился, просто завершаем
             if (!$hasChanges && !$productsChanged) {
-                // Просто обновляем баланс/транзакцию без создания записи активности
-                $isDebt = ($type !== 'cash');
-                $txRepo = new TransactionsRepository();
-                $txRepo->createItem([
-                    'type'        => 1,
-                    'user_id'     => $user_id,
-                    'orig_amount' => $total_price,
-                    'currency_id' => $defaultCurrency->id,
-                    'cash_id'     => $cash_id,
-                    'category_id' => 1,
-                    'project_id'  => $project_id,
-                    'client_id'   => $client_id,
-                    'note'        => $note,
-                    'date'        => $date,
-                    'is_debt'     => $isDebt,
-                    'source_type' => \App\Models\Order::class,
-                    'source_id'   => $id,
-                ], true, true);
-
                 DB::commit();
                 return $order;
             }
@@ -935,24 +872,7 @@ class OrdersRepository
                 $this->updateAdditionalFields($order->id, $data['additional_fields']);
             }
 
-            // Логика баланса как в продажах и поступлениях
-            $isDebtFinal = ($type !== 'cash');
-            $txRepo = new TransactionsRepository();
-            $txRepo->createItem([
-                'type'        => 1,
-                'user_id'     => $user_id,
-                'orig_amount' => $total_price,
-                'currency_id' => $defaultCurrency->id,
-                'cash_id'     => $cash_id,
-                'category_id' => 1,
-                'project_id'  => $project_id,
-                'client_id'   => $client_id,
-                'note'        => $note,
-                'date'        => $date,
-                'is_debt'     => $isDebtFinal,
-                'source_type' => \App\Models\Order::class,
-                'source_id'   => $id,
-            ], true, true);
+            // Транзакции управляются вручную, автоматическое создание убрано
 
             DB::commit();
 
@@ -991,24 +911,8 @@ class OrdersRepository
 
             // Удаляем одноразовые товары (каскадное удаление через миграцию)
 
-            // Логика отката баланса по новой архитектуре
-            if ($order->client_id) {
-                $orderTransactions = Transaction::where('source_type', \App\Models\Order::class)
-                    ->where('source_id', $id)
-                    ->get();
-
-                if ($orderTransactions->isNotEmpty()) {
-                    foreach ($orderTransactions as $trx) {
-                        $txRepo = new TransactionsRepository();
-                        $txRepo->deleteItem($trx->id, true);
-                    }
-                } else {
-                    // Вычисляем total_price из транзакций заказа
-                    $totalPrice = $orderTransactions->sum('orig_amount');
-                    ClientBalance::where('client_id', $order->client_id)
-                        ->update(['balance' => DB::raw("COALESCE(balance, 0) - {$totalPrice}")]);
-                }
-            }
+            // Транзакции НЕ удаляются автоматически - они независимы от заказа
+            // Пользователь должен сам решить, что делать с транзакциями при удалении заказа
 
             // Удаляем товары
             OrderProduct::where('order_id', $id)->delete();
@@ -1052,7 +956,6 @@ class OrdersRepository
     public function updateStatusByIds(array $ids, int $statusId, string $userId)
     {
         $targetStatus = OrderStatus::findOrFail($statusId);
-        $transactionsRepository = new TransactionsRepository();
 
         $updatedCount = 0;
 
@@ -1069,13 +972,13 @@ class OrdersRepository
 
             // Проверка на категорию "закрытие"
             if ($targetStatus->category_id == 4) {
-                $paidTotal = $transactionsRepository->getTotalByOrderId($userId, $order->id);
+                // Вычисляем сумму заказа (товары минус скидка)
+                $orderTotal = $order->price - $order->discount;
 
-                // Вычисляем total_price из транзакций заказа
-                $orderTransactions = Transaction::where('source_type', \App\Models\Order::class)
+                // Вычисляем сумму оплаты из транзакций, созданных для этого заказа
+                $paidTotal = Transaction::where('source_type', \App\Models\Order::class)
                     ->where('source_id', $order->id)
-                    ->get();
-                $orderTotal = $orderTransactions->sum('orig_amount');
+                    ->sum('orig_amount');
 
                 if ($paidTotal < $orderTotal) {
                     $remainingAmount = $orderTotal - $paidTotal;

@@ -155,10 +155,8 @@ class WarehouseRepository
         return true;
     }
 
-    // Инвалидация кэша складов
     private function invalidateWarehouseCache()
     {
-        // Очищаем кэш складов
-        CacheService::invalidateByTag('warehouses');
+        CacheService::invalidateWarehousesCache();
     }
 }

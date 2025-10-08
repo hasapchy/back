@@ -323,20 +323,7 @@ class CahRegistersRepository
     // Инвалидация кэша касс
     private function invalidateCashRegistersCache()
     {
-        // Очищаем кэш касс
-        $keys = [
-            'cash_registers_paginated_*',
-            'cash_registers_all_*',
-            'cash_registers_fast_search_*',
-            'cash_registers_active_*'
-        ];
-
-        foreach ($keys as $key) {
-            if (str_contains($key, '*')) {
-                // Для паттернов с wildcard очищаем весь кэш
-                \Illuminate\Support\Facades\Cache::flush();
-                break;
-            }
-        }
+        // Очищаем кэш касс через CacheService
+        CacheService::invalidateCashRegistersCache();
     }
 }

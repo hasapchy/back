@@ -403,21 +403,20 @@ class ProjectsRepository
                 );
 
             // Получаем все транзакции проекта
-            $result = $transactions
-                ->orderBy('created_at')
+            $transactionsResult = $transactions
                 ->get()
                 ->map(function ($item) {
                     $amount = $item->amount;
 
                     // Корректируем сумму в зависимости от типа и источника
                     if ($item->source === 'receipt') {
-                        $amount = -$amount; // Долг за оприходование - отрицательная
+                        $amount = -$amount; // Оприходование - отрицательная (расход)
                     } elseif ($item->source === 'transaction') {
                         $amount = $item->type == 1 ? +$amount : -$amount; // Приход/расход
                     } elseif ($item->source === 'sale') {
-                        $amount = +$amount; // Продажа - положительная
+                        $amount = +$amount; // Продажа - положительная (приход)
                     } elseif ($item->source === 'order') {
-                        $amount = +$amount; // Заказ - положительная
+                        $amount = -$amount; // Заказ - отрицательная (расход, тратим ресурсы проекта)
                     }
 
                     return [
@@ -433,7 +432,46 @@ class ProjectsRepository
                         'user_name' => $item->user_name,
                         'cash_currency_symbol' => $item->cash_currency_symbol
                     ];
-                })
+                });
+
+            // Получаем заказы напрямую (без транзакций)
+            // price и discount в заказах уже сохранены в дефолтной валюте, конвертируем в валюту проекта
+            $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
+            $defaultCurrencySymbol = $defaultCurrency ? $defaultCurrency->symbol : '';
+
+            $orders = DB::table('orders')
+                ->leftJoin('users', 'orders.user_id', '=', 'users.id')
+                ->where('orders.project_id', $projectId)
+                ->select(
+                    'orders.id',
+                    'orders.created_at',
+                    // Конвертируем из дефолтной валюты в валюту проекта
+                    DB::raw("-((orders.price - orders.discount) * {$projectExchangeRate}) as amount"),
+                    DB::raw('orders.price - orders.discount as orig_amount'),
+                    'orders.user_id',
+                    'users.name as user_name'
+                )
+                ->get()
+                ->map(function ($item) use ($defaultCurrencySymbol) {
+                    return [
+                        'source' => 'order',
+                        'source_id' => $item->id,
+                        'source_type' => 'App\\Models\\Order',
+                        'source_source_id' => $item->id,
+                        'date' => $item->created_at,
+                        'amount' => (float)$item->amount,
+                        'orig_amount' => (float)$item->orig_amount,
+                        'is_debt' => false,
+                        'user_id' => $item->user_id,
+                        'user_name' => $item->user_name,
+                        'cash_currency_symbol' => $defaultCurrencySymbol
+                    ];
+                });
+
+            // Объединяем транзакции и заказы, сортируем по дате
+            $result = $transactionsResult
+                ->concat($orders)
+                ->sortBy('date')
                 ->values()
                 ->all();
 
@@ -452,145 +490,29 @@ class ProjectsRepository
         }, 900); // 15 минут
     }
 
-    // Получение реального баланса проекта (только операции с движением денег)
+    // Получение реального баланса проекта (теперь включает транзакции + заказы напрямую)
     public function getRealBalance($projectId)
     {
-        $cacheKey = "project_real_balance_{$projectId}";
-
-        return CacheService::remember($cacheKey, function () use ($projectId) {
-            // Получаем информацию о проекте для конвертации валют
-            $project = \App\Models\Project::find($projectId);
-            $projectCurrencyId = $project ? $project->currency_id : null;
-            $projectExchangeRate = $project ? $project->exchange_rate : 1;
-
-            $transactions = DB::table('transactions')
-                ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
-                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
-                ->where('transactions.project_id', $projectId)
-                ->where('transactions.is_debt', false) // Только НЕ долговые операции
-                ->select(
-                    'transactions.id',
-                    'transactions.created_at',
-                    DB::raw("CASE
-                        WHEN transactions.cash_id IS NOT NULL AND cash_registers.currency_id != {$projectCurrencyId}
-                        THEN transactions.amount * {$projectExchangeRate}
-                        ELSE transactions.amount
-                    END as amount"),
-                    'transactions.type',
-                    'transactions.source_type',
-                    'transactions.source_id'
-                )
-                ->get();
-
-            $total = 0;
-            foreach ($transactions as $item) {
-                // Определяем тип операции
-                $source = $this->getSourceType($item->source_type);
-
-                // Корректируем сумму в зависимости от типа
-                $amount = $this->calculateAmountBySource($source, $item->amount, $item->type);
-                $total += $amount;
-            }
-
-            return $total;
-        }, 900); // 15 минут
+        // Реальный баланс = общий баланс (используем единую логику из getBalanceHistory)
+        return $this->getTotalBalance($projectId);
     }
 
-    // Получение долгового баланса проекта (только долговые операции)
-    public function getDebtBalance($projectId)
-    {
-        $cacheKey = "project_debt_balance_{$projectId}";
 
-        return CacheService::remember($cacheKey, function () use ($projectId) {
-            // Получаем информацию о проекте для конвертации валют
-            $project = \App\Models\Project::find($projectId);
-            $projectCurrencyId = $project ? $project->currency_id : null;
-            $projectExchangeRate = $project ? $project->exchange_rate : 1;
-
-            $transactions = DB::table('transactions')
-                ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
-                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
-                ->where('transactions.project_id', $projectId)
-                ->where('transactions.is_debt', true) // Только долговые операции
-                ->select(
-                    'transactions.id',
-                    'transactions.created_at',
-                    DB::raw("CASE
-                        WHEN transactions.cash_id IS NOT NULL AND cash_registers.currency_id != {$projectCurrencyId}
-                        THEN transactions.amount * {$projectExchangeRate}
-                        ELSE transactions.amount
-                    END as amount"),
-                    'transactions.type',
-                    'transactions.source_type',
-                    'transactions.source_id'
-                )
-                ->get();
-
-            $total = 0;
-            foreach ($transactions as $item) {
-                // Определяем тип операции
-                $source = $this->getSourceType($item->source_type);
-
-                // Корректируем сумму в зависимости от типа
-                $amount = $this->calculateAmountBySource($source, $item->amount, $item->type);
-                $total += $amount;
-            }
-
-            return $total;
-        }, 900); // 15 минут
-    }
-
-    // Получение детального баланса проекта (все три типа)
+    // Получение детального баланса проекта (без разделения на долговой)
     public function getDetailedBalance($projectId)
     {
         $cacheKey = "project_detailed_balance_{$projectId}";
 
         return CacheService::remember($cacheKey, function () use ($projectId) {
+            $balance = $this->getTotalBalance($projectId);
             return [
-                'total_balance' => $this->getTotalBalance($projectId),
-                'real_balance' => $this->getRealBalance($projectId),
-                'debt_balance' => $this->getDebtBalance($projectId)
+                'total_balance' => $balance,
+                'real_balance' => $balance // Теперь реальный баланс = общему балансу
             ];
         }, 900); // 15 минут
     }
 
-    // Вспомогательный метод для определения типа источника
-    private function getSourceType($sourceType)
-    {
-        switch ($sourceType) {
-            case 'App\\Models\\Sale':
-                return 'sale';
-            case 'App\\Models\\Order':
-                return 'order';
-            case 'App\\Models\\WarehouseReceipt':
-                return 'receipt';
-            default:
-                return 'transaction';
-        }
-    }
 
-    // Вспомогательный метод для расчета суммы по типу операции
-    private function calculateAmountBySource($source, $amount, $type)
-    {
-        switch ($source) {
-            case 'receipt':
-                return -$amount; // Оприходование = расход
-            case 'transaction':
-                return $type == 1 ? +$amount : -$amount; // Приход/расход
-            case 'sale':
-                return +$amount; // Продажа = приход
-            case 'order':
-                return -$amount; // Заказ = расход (тратим ресурсы проекта)
-            default:
-                return $amount;
-        }
-    }
-
-
-
-    /**
-     * Инвалидация кэша проектов
-     */
     private function invalidateProjectsCache()
     {
         // Делегируем централизованной службе кэша
@@ -607,7 +529,6 @@ class ProjectsRepository
         \Illuminate\Support\Facades\Cache::forget("project_balance_{$projectId}");
         \Illuminate\Support\Facades\Cache::forget("project_total_balance_{$projectId}");
         \Illuminate\Support\Facades\Cache::forget("project_real_balance_{$projectId}");
-        \Illuminate\Support\Facades\Cache::forget("project_debt_balance_{$projectId}");
         \Illuminate\Support\Facades\Cache::forget("project_detailed_balance_{$projectId}");
 
         // Очищаем кэш с отношениями для всех пользователей

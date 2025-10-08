@@ -379,6 +379,9 @@ class TransactionsRepository
                 $this->invalidateClientBalanceCache($data['client_id']);
             }
 
+            // Инвалидируем кэш касс, так как баланс изменился
+            CacheService::invalidateCashRegistersCache();
+
             // Инвалидируем кэш проекта если транзакция связана с проектом
             if (!empty($data['project_id'])) {
                 $projectsRepository = new \App\Repositories\ProjectsRepository();
@@ -419,6 +422,9 @@ class TransactionsRepository
         if ($transaction->client_id) {
             $this->invalidateClientBalanceCache($transaction->client_id);
         }
+
+        // Инвалидируем кэш касс
+        CacheService::invalidateCashRegistersCache();
 
         // Инвалидируем кэш проекта если транзакция связана с проектом
         if ($transaction->project_id) {
@@ -563,6 +569,9 @@ class TransactionsRepository
                 $this->invalidateClientBalanceCache($transaction->client_id);
             }
 
+            // Инвалидируем кэш касс, так как баланс изменился
+            CacheService::invalidateCashRegistersCache();
+
             // Инвалидируем кэш проекта если транзакция связана с проектом
             if ($transaction->project_id) {
                 $projectsRepository = new ProjectsRepository();
@@ -656,6 +665,9 @@ class TransactionsRepository
             if ($transaction->client_id) {
                 $this->invalidateClientBalanceCache($transaction->client_id);
             }
+
+            // Инвалидируем кэш касс, так как баланс изменился
+            CacheService::invalidateCashRegistersCache();
 
             // Инвалидируем кэш проекта если транзакция связана с проектом
             if ($transaction->project_id) {

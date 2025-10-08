@@ -63,300 +63,118 @@ class CacheService
         );
     }
 
-    /**
-     * Инвалидация кэша по тегу
-     */
-    public static function invalidateByTag(string $tag)
-    {
-        // Очищаем кэш, связанный с указанным тегом
-        $driver = config('cache.default');
-
-        if ($driver === 'database') {
-            // Для базы данных удаляем записи по тегу
-            DB::table('cache')->where('key', 'like', "%{$tag}%")->delete();
-        } else {
-            // Для других драйверов очищаем конкретные ключи
-            $keys = [
-                $tag,
-                "client_balance_{$tag}",
-                "client_balance_history_{$tag}",
-                "clients_balance_{$tag}",
-                "clients_balances_{$tag}"
-            ];
-
-            foreach ($keys as $key) {
-                Cache::forget($key);
-            }
-        }
-    }
-
-    /**
-     * Инвалидация кэша продаж
-     */
     public static function invalidateSalesCache()
     {
-        // Очищаем кэш, связанный с продажами
-        $keys = [
-            'performance_sales_list',
-            'performance_sales_search',
-            'performance_sales_date_filter',
-            'paginated_sales_*'
-        ];
-
-        foreach ($keys as $key) {
-            if (str_contains($key, '*')) {
-                // Для паттернов с wildcard очищаем весь кэш
-                Cache::flush();
-                break;
-            } else {
-                Cache::forget($key);
-            }
-        }
+        self::invalidateByLike('%sales%');
     }
 
-    /**
-     * Инвалидация кэша клиентов
-     */
     public static function invalidateClientsCache()
     {
-        $driver = config('cache.default');
-
-        // Очищаем все ключи кэша, содержащие "clients"
-        if ($driver === 'database') {
-            // Для базы данных удаляем все записи с ключами, содержащими "clients"
-            DB::table('cache')->where('key', 'like', '%clients%')->delete();
-        } else {
-            // Для других драйверов используем flush (очистка всего кэша)
-            Cache::flush();
-        }
-
-        // Также очищаем старые ключи для совместимости
-        Cache::forget('reference_clients_list');
-        Cache::forget('reference_clients_search');
+        self::invalidateByLike('%clients%');
     }
 
-    /**
-     * Инвалидация кэша баланса клиента
-     */
     public static function invalidateClientBalanceCache($clientId)
     {
-        $driver = config('cache.default');
-
-        if ($driver === 'database') {
-            // Для базы данных удаляем записи по client_id
-            DB::table('cache')->where('key', 'like', "%client_balance_{$clientId}%")->delete();
-            DB::table('cache')->where('key', 'like', "%client_balance_history_{$clientId}%")->delete();
-            DB::table('cache')->where('key', 'like', "%clients_balance_{$clientId}%")->delete();
-        } else {
-            // Для других драйверов очищаем конкретные ключи
-            $keys = [
-                "client_balance_{$clientId}",
-                "client_balance_history_{$clientId}",
-                "clients_balance_{$clientId}",
-                "clients_balances_{$clientId}"
-            ];
-
-            foreach ($keys as $key) {
-                Cache::forget($key);
-            }
-        }
+        self::invalidateByLike("%client%{$clientId}%");
     }
 
-    /**
-     * Инвалидация кэша продуктов
-     */
     public static function invalidateProductsCache()
     {
-        $driver = config('cache.default');
-
-        // Очищаем все ключи кэша, содержащие "products"
-        // Это включает товары (type=1) и услуги (type=0) для всех пользователей
-        if ($driver === 'database') {
-            // Для базы данных удаляем все записи с ключами, содержащими "products"
-            DB::table('cache')->where('key', 'like', '%products%')->delete();
-        } else {
-            // Для других драйверов используем flush (очистка всего кэша)
-            Cache::flush();
-        }
-
-
-
-        // Также очищаем старые ключи для совместимости
-        Cache::forget('reference_products_list');
-        Cache::forget('reference_products_search');
+        self::invalidateByLike('%products%');
     }
 
-    /**
-     * Универсальный помощник: удалить кэш по шаблону ключа
-     * Работает оптимально с database драйвером, fallback для остальных
-     */
-    private static function invalidateByLike(string $like)
+    public static function invalidateByLike(string $like)
     {
         $driver = config('cache.default');
 
         if ($driver === 'database') {
             try {
                 $cacheTable = config('cache.stores.database.table', 'cache');
+                $prefix = config('cache.prefix');
+                $originalPattern = $like;
+
+                if ($prefix) {
+                    if (strpos($like, '%') === 0) {
+                        $like = '%' . $prefix . substr($like, 1);
+                    } else {
+                        $like = $prefix . $like;
+                    }
+                }
+
                 DB::table($cacheTable)->where('key', 'like', $like)->delete();
             } catch (\Exception $e) {
-                // Fallback: если что-то пошло не так — очищаем весь кэш
-                Cache::flush();
+                \Illuminate\Support\Facades\Log::warning('Cache invalidation failed', [
+                    'original_pattern' => $originalPattern ?? $like,
+                    'final_pattern' => $like,
+                    'error' => $e->getMessage()
+                ]);
             }
-        } else {
-            // Для file/array драйверов: очищаем весь кэш
-            // (точечная инвалидация невозможна без итерации по файлам)
-            Cache::flush();
         }
     }
 
-    /**
-     * Инвалидация кэша категорий
-     */
     public static function invalidateCategoriesCache()
     {
-        // Чистим все ключи, содержащие categories (reference и любые составные ключи)
         self::invalidateByLike('%categories%');
     }
 
-    /**
-     * Инвалидация кэша складов
-     */
     public static function invalidateWarehousesCache()
     {
-        self::invalidateByLike('%wareh%'); // warehouses, warehouse_*
+        self::invalidateByLike('%wareh%');
     }
 
-    /**
-     * Инвалидация кэша касс
-     */
     public static function invalidateCashRegistersCache()
     {
-        self::invalidateByLike('%cash%'); // cash, cash_registers
+        self::invalidateByLike('%cash%');
     }
 
-    /**
-     * Инвалидация кэша проектов
-     */
     public static function invalidateProjectsCache()
     {
         self::invalidateByLike('%projects%');
     }
 
-
-    /**
-     * Инвалидация статусов заказов
-     */
     public static function invalidateOrderStatusesCache()
     {
         self::invalidateByLike('%orderStatuses%');
     }
 
-    /**
-     * Инвалидация статусов проектов
-     */
     public static function invalidateProjectStatusesCache()
     {
         self::invalidateByLike('%projectStatuses%');
     }
 
-    /**
-     * Инвалидация категорий транзакций
-     */
     public static function invalidateTransactionCategoriesCache()
     {
         self::invalidateByLike('%transactionCategories%');
     }
 
-    /**
-     * Инвалидация статусов товаров
-     */
     public static function invalidateProductStatusesCache()
     {
         self::invalidateByLike('%productStatuses%');
     }
 
-        /**
-     * Инвалидация кэша заказов
-     */
     public static function invalidateOrdersCache()
     {
-        // Очищаем кэш, связанный с заказами
-        $keys = [
-            'orders_paginated_*',
-            'orders_search_*'
-        ];
-
-        foreach ($keys as $key) {
-            if (str_contains($key, '*')) {
-                // Для паттернов с wildcard очищаем весь кэш
-                Cache::flush();
-                break;
-            } else {
-                Cache::forget($key);
-            }
-        }
+        self::invalidateByLike('%orders_paginated%');
+        self::invalidateByLike('%orders_search%');
     }
 
-    /**
-     * Инвалидация кэша транзакций
-     */
     public static function invalidateTransactionsCache()
     {
-        // Очищаем кэш, связанный с транзакциями
-        $keys = [
-            'transactions_paginated_*',
-            'transactions_fast_search_*'
-        ];
-
-        foreach ($keys as $key) {
-            if (str_contains($key, '*')) {
-                // Для паттернов с wildcard очищаем весь кэш
-                Cache::flush();
-                break;
-            } else {
-                Cache::forget($key);
-            }
-        }
+        self::invalidateByLike('%transactions_paginated%');
+        self::invalidateByLike('%transactions_fast_search%');
     }
 
-    /**
-     * Инвалидация кэша производительности
-     */
     public static function invalidatePerformanceCache()
     {
-        // Очищаем кэш производительности
-        $keys = [
-            'performance_sales_metrics_*',
-            'performance_clients_metrics_*',
-            'performance_products_metrics_*',
-            'database_metrics_*'
-        ];
-
-        foreach ($keys as $key) {
-            if (str_contains($key, '*')) {
-                // Для паттернов с wildcard очищаем весь кэш
-                Cache::flush();
-                break;
-            } else {
-                Cache::forget($key);
-            }
-        }
+        self::invalidateByLike('%performance_sales_metrics%');
+        self::invalidateByLike('%performance_clients_metrics%');
+        self::invalidateByLike('%performance_products_metrics%');
+        self::invalidateByLike('%database_metrics%');
     }
 
-    /**
-     * Очистка кэша для конкретного пользователя и типа данных
-     */
     public static function clearUserCache($userId, $dataType)
     {
-        $driver = config('cache.default');
-
-        if ($driver === 'database') {
-            // Для базы данных удаляем все записи с ключами, содержащими пользователя и тип данных
-            DB::table('cache')->where('key', 'like', "%{$userId}%{$dataType}%")->delete();
-        } else {
-            // Для других драйверов используем flush (очистка всего кэша)
-            Cache::flush();
-        }
+        self::invalidateByLike("%{$userId}%{$dataType}%");
     }
 
     /**

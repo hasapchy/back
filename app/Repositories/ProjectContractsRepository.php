@@ -187,20 +187,12 @@ class ProjectContractsRepository
      */
     private function invalidateProjectContractsCache($projectId)
     {
-        $keys = [
-            "project_contracts_paginated_{$projectId}_*",
-            "project_contracts_all_{$projectId}",
-            "project_contract_item_*"
-        ];
+        // Точное удаление конкретного ключа
+        \Illuminate\Support\Facades\Cache::forget("project_contracts_all_{$projectId}");
 
-        foreach ($keys as $key) {
-            if (str_contains($key, '*')) {
-                \Illuminate\Support\Facades\Cache::flush();
-                break;
-            } else {
-                \Illuminate\Support\Facades\Cache::forget($key);
-            }
-        }
+        // Используем централизованный метод из CacheService
+        CacheService::invalidateByLike("%project_contracts_paginated_{$projectId}%");
+        CacheService::invalidateByLike("%project_contract_item%");
     }
 
     /**

@@ -166,8 +166,9 @@ class TransfersRepository
             // Фиксируем транзакцию
             DB::commit();
 
-            // Очищаем кэш транзакций после создания трансфера
+            // Очищаем кэш транзакций и касс после создания трансфера
             $transaction_repository->invalidateTransactionsCache();
+            \App\Services\CacheService::invalidateCashRegistersCache();
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -206,8 +207,9 @@ class TransfersRepository
 
             DB::commit();
 
-            // Очищаем кэш транзакций после удаления трансфера
+            // Очищаем кэш транзакций и касс после удаления трансфера
             app(TransactionsRepository::class)->invalidateTransactionsCache();
+            \App\Services\CacheService::invalidateCashRegistersCache();
 
             return true;
         } catch (\Exception $e) {
