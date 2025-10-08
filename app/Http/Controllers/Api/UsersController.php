@@ -10,7 +10,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Permission;
 
 
@@ -165,24 +164,14 @@ class UsersController extends Controller
             $data['permissions'] = $permissions;
         }
 
-        Log::info('Updating user', [
-            'id' => $id,
-            'companies' => $data['companies'] ?? 'not set',
-            'companies_type' => isset($data['companies']) ? gettype($data['companies']) : 'null',
-            'permissions' => $data['permissions'] ?? 'not set'
-        ]);
-
         $user = $this->itemsRepository->updateItem($id, $data);
         $user = $this->handlePhotoUpload($request, $user);
 
         // Перезагружаем пользователя со всеми связями
         $user = $user->fresh(['permissions', 'roles', 'companies']);
 
-        Log::info('Returning user data', [
-            'user_id' => $user->id,
-            'companies_count' => $user->companies->count(),
-            'companies_ids' => $user->companies->pluck('id')->toArray()
-        ]);
+        // Принудительно очищаем весь кэш для гарантии актуальности данных
+        \Illuminate\Support\Facades\Cache::flush();
 
         return response()->json([
             'user' => $user,

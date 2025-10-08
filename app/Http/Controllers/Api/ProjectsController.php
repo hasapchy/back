@@ -7,6 +7,7 @@ use App\Repositories\ProjectsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use App\Models\Project;
 
@@ -27,6 +28,7 @@ class ProjectsController extends Controller
         }
 
         $page = (int) $request->input('page', 1);
+        $perPage = (int) $request->input('per_page', 20);
         $statusId = $request->input('status_id') ? (int) $request->input('status_id') : null;
         $clientId = $request->input('client_id') ? (int) $request->input('client_id') : null;
         $dateFilter = $request->input('date_filter', 'all_time');
@@ -34,7 +36,7 @@ class ProjectsController extends Controller
         $endDate = $request->input('end_date');
 
         // Получаем с пагинацией
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page, null, $dateFilter, $startDate, $endDate, $statusId, $clientId, null);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page, null, $dateFilter, $startDate, $endDate, $statusId, $clientId, null);
 
         return response()->json([
             'items' => $items->items(),  // Список

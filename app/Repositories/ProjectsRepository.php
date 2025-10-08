@@ -225,6 +225,10 @@ class ProjectsRepository
     {
         DB::beginTransaction();
         try {
+            $companyId = $this->getCurrentCompanyId();
+
+
+
             $item = new Project();
             $item->name = $data['name'];
             $item->budget = $data['budget'] ?? 0;
@@ -233,11 +237,13 @@ class ProjectsRepository
             $item->date = $data['date'];
             $item->user_id = $data['user_id'];
             $item->client_id = $data['client_id'];
-            $item->company_id = $this->getCurrentCompanyId();
+            $item->company_id = $companyId;
             $item->description = $data['description'] ?? null;
             $item->files = $data['files'] ?? [];
             $item->status_id = $data['status_id'] ?? 1; // Статус "Новый" по умолчанию
             $item->save();
+
+
 
             // Создаем связи с пользователями
             foreach ($data['users'] as $userId) {
@@ -245,9 +251,11 @@ class ProjectsRepository
                     'project_id' => $item->id,
                     'user_id' => $userId
                 ]);
+
             }
 
             DB::commit();
+
 
             // Инвалидируем кэш проектов
             $this->invalidateProjectsCache();
@@ -452,8 +460,7 @@ class ProjectsRepository
                     ];
                 });
 
-            // Получаем заказы напрямую (без транзакций)
-            // price и discount в заказах уже сохранены в дефолтной валюте, конвертируем в валюту проекта
+
             $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
             $defaultCurrencySymbol = $defaultCurrency ? $defaultCurrency->symbol : '';
 

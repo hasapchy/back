@@ -65,12 +65,14 @@ class CacheService
 
     public static function invalidateSalesCache()
     {
-        self::invalidateByLike('%sales%');
+        // Ищем по "sale" чтобы найти и sales и sale
+        self::invalidateByLike('%sale%');
     }
 
     public static function invalidateClientsCache()
     {
-        self::invalidateByLike('%clients%');
+        // Ищем по "client" чтобы найти и clients и client
+        self::invalidateByLike('%client%');
     }
 
     public static function invalidateClientBalanceCache($clientId)
@@ -80,7 +82,8 @@ class CacheService
 
     public static function invalidateProductsCache()
     {
-        self::invalidateByLike('%products%');
+        // Ищем по "product" чтобы найти и products и product
+        self::invalidateByLike('%product%');
     }
 
     public static function invalidateByLike(string $like)
@@ -93,15 +96,15 @@ class CacheService
                 $prefix = config('cache.prefix');
                 $originalPattern = $like;
 
-                if ($prefix) {
-                    if (strpos($like, '%') === 0) {
-                        $like = '%' . $prefix . substr($like, 1);
-                    } else {
-                        $like = $prefix . $like;
-                    }
+                // Для database driver паттерн должен быть prefix + % + паттерн + %
+                // Например: laravel_cache_%project% найдет laravel_cache_paginated_projects_...
+                if ($prefix && strpos($like, '%') === 0) {
+                    // Убираем % в начале и конце, добавляем префикс правильно
+                    $cleanPattern = trim($like, '%');
+                    $like = $prefix . '%' . $cleanPattern . '%';
                 }
 
-                DB::table($cacheTable)->where('key', 'like', $like)->delete();
+                $deleted = DB::table($cacheTable)->where('key', 'like', $like)->delete();
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::warning('Cache invalidation failed', [
                     'original_pattern' => $originalPattern ?? $like,
@@ -126,53 +129,62 @@ class CacheService
 
     public static function invalidateCategoriesCache()
     {
-        self::invalidateByLike('%categories%');
+        // Ищем по "categor" чтобы найти и categories и category
+        self::invalidateByLike('%categor%');
     }
 
     public static function invalidateWarehousesCache()
     {
+        // Ищем по "wareh" чтобы найти и warehouses и warehouse
         self::invalidateByLike('%wareh%');
     }
 
     public static function invalidateCashRegistersCache()
     {
+        // Ищем по "cash" чтобы найти все связанные ключи
         self::invalidateByLike('%cash%');
     }
 
     public static function invalidateProjectsCache()
     {
-        self::invalidateByLike('%projects%');
+        // Ищем по "project" чтобы найти и projects и project (включая paginated_projects_paginated)
+        self::invalidateByLike('%project%');
     }
 
     public static function invalidateOrderStatusesCache()
     {
-        self::invalidateByLike('%orderStatuses%');
+        // Ищем по "orderStatus" чтобы найти все связанные ключи
+        self::invalidateByLike('%orderStatus%');
     }
 
     public static function invalidateProjectStatusesCache()
     {
-        self::invalidateByLike('%projectStatuses%');
+        // Ищем по "projectStatus" чтобы найти все связанные ключи
+        self::invalidateByLike('%projectStatus%');
     }
 
     public static function invalidateTransactionCategoriesCache()
     {
-        self::invalidateByLike('%transactionCategories%');
+        // Ищем по "transactionCategor" чтобы найти все связанные ключи
+        self::invalidateByLike('%transactionCategor%');
     }
 
     public static function invalidateProductStatusesCache()
     {
-        self::invalidateByLike('%productStatuses%');
+        // Ищем по "productStatus" чтобы найти все связанные ключи
+        self::invalidateByLike('%productStatus%');
     }
 
     public static function invalidateOrdersCache()
     {
-        self::invalidateByLike('%orders%');
+        // Ищем по "order" чтобы найти и orders и order (включая paginated_orders_paginated)
+        self::invalidateByLike('%order%');
     }
 
     public static function invalidateTransactionsCache()
     {
-        self::invalidateByLike('%transactions_paginated%');
-        self::invalidateByLike('%transactions_fast_search%');
+        // Ищем по "transaction" чтобы найти все связанные ключи
+        self::invalidateByLike('%transaction%');
     }
 
     public static function invalidatePerformanceCache()

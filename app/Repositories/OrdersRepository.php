@@ -28,6 +28,7 @@ class OrdersRepository
             // Используем оптимизированный подход с JOIN'ами для основных данных и Eager Loading для товаров
             $query = Order::select([
                 'orders.*',
+                DB::raw('(orders.price - orders.discount) as total_price'),
                 'clients.first_name as client_first_name',
                 'clients.last_name as client_last_name',
                 'clients.contact_person as client_contact_person',
@@ -310,7 +311,7 @@ class OrdersRepository
             // Удалено поле transaction_ids
             'orders.price',
             'orders.discount',
-            // 'orders.total_price', // Удалено из таблицы - теперь в transactions
+            DB::raw('(orders.price - orders.discount) as total_price'),
             'orders.date',
             'orders.created_at',
             'orders.updated_at',
