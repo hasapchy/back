@@ -423,6 +423,7 @@ class ProjectsRepository
                     'transactions.source_type',
                     'transactions.source_id',
                     'transactions.is_debt',
+                    'transactions.note',
                     'transactions.user_id',
                     'users.name as user_name',
                     DB::raw("CASE
@@ -460,6 +461,7 @@ class ProjectsRepository
                         'amount' => $amount,
                         'orig_amount' => $item->orig_amount,
                         'is_debt' => $item->is_debt,
+                        'note' => $item->note,
                         'user_id' => $item->user_id,
                         'user_name' => $item->user_name,
                         'cash_currency_symbol' => $item->cash_currency_symbol
@@ -479,6 +481,7 @@ class ProjectsRepository
                     // Конвертируем из дефолтной валюты в валюту проекта
                     DB::raw("-((orders.price - orders.discount) * {$projectExchangeRate}) as amount"),
                     DB::raw('orders.price - orders.discount as orig_amount'),
+                    'orders.note',
                     'orders.user_id',
                     'users.name as user_name'
                 )
@@ -493,6 +496,7 @@ class ProjectsRepository
                         'amount' => (float)$item->amount,
                         'orig_amount' => (float)$item->orig_amount,
                         'is_debt' => false,
+                        'note' => $item->note,
                         'user_id' => $item->user_id,
                         'user_name' => $item->user_name,
                         'cash_currency_symbol' => $defaultCurrencySymbol

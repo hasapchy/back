@@ -15,14 +15,14 @@ use Illuminate\Support\Facades\Log;
 
 class TransactionsRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null)
+    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null)
     {
         try {
             // Создаем уникальный ключ кэша (привязываем к пользователю и фильтрам/кассе, без company_id)
             $searchKey = $search !== null ? md5((string)$search) : 'null';
-            $cacheKey = "transactions_paginated_{$userUuid}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$searchKey}_{$transaction_type}_{$source}_{$project_id}_{$start_date}_{$end_date}";
+            $cacheKey = "transactions_paginated_{$userUuid}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$searchKey}_{$transaction_type}_{$source}_{$project_id}_{$start_date}_{$end_date}_{$is_debt}";
 
-            return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date) {
+            return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt) {
                 // Используем with() для загрузки связей вместо сложных JOIN'ов
                 $query = Transaction::with([
                     'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
@@ -167,6 +167,15 @@ class TransactionsRepository
                     // Фильтрация по проекту
                     ->when($project_id, function ($q, $project_id) {
                         return $q->where('transactions.project_id', $project_id);
+                    })
+                    // Фильтрация по долгу
+                    ->when($is_debt !== null, function ($q) use ($is_debt) {
+                        if ($is_debt === 'true' || $is_debt === '1' || $is_debt === 1 || $is_debt === true) {
+                            return $q->where('transactions.is_debt', true);
+                        } elseif ($is_debt === 'false' || $is_debt === '0' || $is_debt === 0 || $is_debt === false) {
+                            return $q->where('transactions.is_debt', false);
+                        }
+                        return $q;
                     })
                     // Фильтрация по доступу к проектам
                     ->where(function ($q) use ($userUuid) {

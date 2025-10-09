@@ -34,6 +34,7 @@ class TransactionsController extends Controller
         $project_id = $request->query('project_id');
         $start_date = $request->query('start_date');
         $end_date = $request->query('end_date');
+        $is_debt = $request->query('is_debt');
 
         $items = $this->itemsRepository->getItemsWithPagination(
             $userUuid,
@@ -47,7 +48,8 @@ class TransactionsController extends Controller
             $source,
             $project_id,
             $start_date,
-            $end_date
+            $end_date,
+            $is_debt
         );
 
         return response()->json([
