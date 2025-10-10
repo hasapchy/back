@@ -7,6 +7,7 @@ use App\Models\OrderProduct;
 use App\Models\OrderTempProduct;
 use App\Models\OrderAfValue;
 use App\Models\Product;
+use App\Models\ProductPrice;
 use App\Models\WarehouseStock;
 use App\Models\Warehouse;
 use App\Models\ClientBalance;
@@ -83,6 +84,7 @@ class OrdersRepository
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('orders.id', 'like', "%{$search}%")
+                        ->orWhere('orders.note', 'like', "%{$search}%")
                         ->orWhere('clients.first_name', 'like', "%{$search}%")
                         ->orWhere('clients.last_name', 'like', "%{$search}%")
                         ->orWhere('clients.contact_person', 'like', "%{$search}%");
@@ -483,6 +485,14 @@ class OrdersRepository
                 $q = $product['quantity'];
                 $p = $product['price'];
 
+                // Если выбран проект, используем оптовую цену
+                if ($project_id) {
+                    $productPrice = ProductPrice::where('product_id', $p_id)->first();
+                    if ($productPrice && $productPrice->wholesale_price > 0) {
+                        $p = $productPrice->wholesale_price;
+                    }
+                }
+
                 $product_object = Product::find($p_id);
                 if (!$product_object) {
                     throw new \Exception("Товар ID {$p_id} не найден");
@@ -553,6 +563,14 @@ class OrdersRepository
                 $p = $product['price'];
                 $width = $product['width'] ?? null;
                 $height = $product['height'] ?? null;
+
+                // Если выбран проект, используем оптовую цену
+                if ($project_id) {
+                    $productPrice = ProductPrice::where('product_id', $p_id)->first();
+                    if ($productPrice && $productPrice->wholesale_price > 0) {
+                        $p = $productPrice->wholesale_price;
+                    }
+                }
 
                 $unitPrice = $p;
 
@@ -667,6 +685,14 @@ class OrdersRepository
                 $q = $product['quantity'];
                 $p = $product['price'];
 
+                // Если выбран проект, используем оптовую цену
+                if ($project_id) {
+                    $productPrice = ProductPrice::where('product_id', $p_id)->first();
+                    if ($productPrice && $productPrice->wholesale_price > 0) {
+                        $p = $productPrice->wholesale_price;
+                    }
+                }
+
                 $product_object = Product::find($p_id);
                 if (!$product_object) {
                     throw new \Exception("Товар ID {$p_id} не найден");
@@ -766,6 +792,14 @@ class OrdersRepository
                     $p = $product['price'];
                     $width = $product['width'] ?? null;
                     $height = $product['height'] ?? null;
+
+                    // Если выбран проект, используем оптовую цену
+                    if ($project_id) {
+                        $productPrice = ProductPrice::where('product_id', $p_id)->first();
+                        if ($productPrice && $productPrice->wholesale_price > 0) {
+                            $p = $productPrice->wholesale_price;
+                        }
+                    }
 
                     $unitPrice = $p;
 

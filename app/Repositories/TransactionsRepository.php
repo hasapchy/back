@@ -104,6 +104,7 @@ class TransactionsRepository
                     ->when($search, function ($query, $search) {
                         return $query->where(function ($q) use ($search) {
                             $q->where('transactions.id', 'like', "%{$search}%")
+                                ->orWhere('transactions.note', 'like', "%{$search}%")
                                 ->orWhereHas('client', function ($clientQuery) use ($search) {
                                     $clientQuery->where('first_name', 'like', "%{$search}%")
                                         ->orWhere('last_name', 'like', "%{$search}%")

@@ -39,7 +39,7 @@ Route::middleware(['throttle:auth'])->group(function () {
 // transaction_categories without authentication
 Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
 
-Route::middleware('auth:api')->group(function () {
+Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     // app
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
     Route::get('app/currency/{id}/exchange-rate', [AppController::class, 'getCurrencyExchangeRate']);
