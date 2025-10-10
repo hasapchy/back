@@ -1019,12 +1019,11 @@ class OrdersRepository
                 throw new \Exception("Заказ ID {$id} не найден");
             }
 
-            if ($order->user_id != $userId) {
-                throw new \Exception("Нет доступа к заказу ID {$id}");
-            }
+            // Убрана проверка на создателя - статус может менять любой пользователь
 
             // Проверка на категорию "закрытие"
-            if ($targetStatus->category_id == 4) {
+            // Пропускаем проверку, если в заказе выбран проект
+            if ($targetStatus->category_id == 4 && !$order->project_id) {
                 // Вычисляем сумму заказа (товары минус скидка)
                 $orderTotal = $order->price - $order->discount;
 
