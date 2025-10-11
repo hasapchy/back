@@ -137,31 +137,15 @@ class TransactionsRepository
                     ->when($source, function ($q, $source) {
                         if (empty($source)) return $q;
 
+                        // ✅ Фильтр по источнику (строка, не массив)
                         return $q->where(function ($subQ) use ($source) {
-                            $hasConditions = false;
-
-                            if (in_array('sale', $source)) {
+                            if ($source === 'sale') {
                                 $subQ->where('source_type', 'App\\Models\\Sale');
-                                $hasConditions = true;
-                            }
-                            if (in_array('order', $source)) {
-                                if ($hasConditions) {
-                                    $subQ->orWhere('source_type', 'App\\Models\\Order');
-                                } else {
-                                    $subQ->where('source_type', 'App\\Models\\Order');
-                                }
-                                $hasConditions = true;
-                            }
-                            if (in_array('other', $source)) {
-                                if ($hasConditions) {
-                                    $subQ->orWhere(function ($otherQ) {
-                                        $otherQ->whereNull('source_type')
-                                            ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
-                                    });
-                                } else {
-                                    $subQ->whereNull('source_type')
-                                        ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
-                                }
+                            } elseif ($source === 'order') {
+                                $subQ->where('source_type', 'App\\Models\\Order');
+                            } elseif ($source === 'other') {
+                                $subQ->whereNull('source_type')
+                                    ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
                             }
                         });
                     })
@@ -554,8 +538,10 @@ class TransactionsRepository
                 } else {
                     $cashRegister->balance -= $newConvertedAmount;
                 }
-                $cashRegister->save();
             }
+
+            // Сохраняем кассу в любом случае, если был откат или применение
+            $cashRegister->save();
 
             // Обновляем баланс клиента если нужно
             if ($transaction->client_id) {
@@ -563,28 +549,34 @@ class TransactionsRepository
 
                 // Откатываем старый баланс клиента
                 if ($oldCurrencyId !== $defaultCurrencyId) {
-                    $oldConvertedAmountDefault = CurrencyConverter::convert($oldAmount, $currencies[$oldCurrencyId], $currencies[$defaultCurrencyId]);
+                    $oldConvertedAmountDefault = CurrencyConverter::convert($oldOrigAmount, $currencies[$oldCurrencyId], $currencies[$defaultCurrencyId]);
                 } else {
-                    $oldConvertedAmountDefault = $oldAmount;
+                    $oldConvertedAmountDefault = $oldOrigAmount;
                 }
 
+                // Откат старого баланса: делаем обратную операцию
                 if ($transaction->type == 1) {
-                    $clientBalance->balance += $oldConvertedAmountDefault;
-                } else {
+                    // Доход: при создании был +=, откатываем через -=
                     $clientBalance->balance -= $oldConvertedAmountDefault;
+                } else {
+                    // Расход: при создании был -=, откатываем через +=
+                    $clientBalance->balance += $oldConvertedAmountDefault;
                 }
 
                 // Применяем новый баланс клиента
                 if ($newCurrencyId !== $defaultCurrencyId) {
-                    $newConvertedAmountDefault = CurrencyConverter::convert($newConvertedAmount, $fromCurrency, $currencies[$defaultCurrencyId]);
+                    $newConvertedAmountDefault = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $currencies[$defaultCurrencyId]);
                 } else {
-                    $newConvertedAmountDefault = $newConvertedAmount;
+                    $newConvertedAmountDefault = $newOrigAmount;
                 }
 
+                // Применение нового баланса: как при создании
                 if ($transaction->type == 1) {
-                    $clientBalance->balance -= $newConvertedAmountDefault;
-                } else {
+                    // Доход: клиент нам платит - уменьшаем его долг
                     $clientBalance->balance += $newConvertedAmountDefault;
+                } else {
+                    // Расход: мы клиенту платим - увеличиваем его долг
+                    $clientBalance->balance -= $newConvertedAmountDefault;
                 }
 
                 $clientBalance->save();

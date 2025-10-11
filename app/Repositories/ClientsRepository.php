@@ -7,7 +7,6 @@ use App\Models\ClientBalance;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class ClientsRepository
 {
@@ -392,116 +391,84 @@ class ClientsRepository
 
         return CacheService::remember($cacheKey, function () use ($clientId) {
             try {
-                $result = [];
+                // Новая архитектура: все операции записываются в таблицу transactions с morphable связями
+                $transactions = DB::table('transactions')
+                    ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
+                    ->leftJoin('currencies', 'transactions.currency_id', '=', 'currencies.id')
+                    ->leftJoin('users', 'transactions.user_id', '=', 'users.id')
+                    ->where('transactions.client_id', $clientId)
+                    ->select(
+                        'transactions.id',
+                        'transactions.created_at',
+                        'transactions.amount',
+                        'transactions.orig_amount',
+                        'transactions.type',
+                        'transactions.source_type',
+                        'transactions.source_id',
+                        'transactions.is_debt',
+                        'transactions.note',
+                        'transactions.user_id',
+                        'users.name as user_name',
+                        DB::raw("CASE
+                            WHEN transactions.source_type = 'App\\\\Models\\\\Sale' THEN 'sale'
+                            WHEN transactions.source_type = 'App\\\\Models\\\\Order' THEN 'order'
+                            WHEN transactions.source_type = 'App\\\\Models\\\\WarehouseReceipt' THEN 'receipt'
+                            ELSE 'transaction'
+                        END as source"),
+                        'currencies.symbol as currency_symbol',
+                        'cash_registers.name as cash_name'
+                    )
+                    ->get()
+                    ->map(function ($item) {
+                        $amount = $item->amount;
 
-                // Продажи
-                if (Schema::hasTable('sales')) {
-                    try {
-                        $sales = DB::table('sales')
-                            ->where('client_id', $clientId)
-                            ->select('id', 'created_at', 'total_price', 'cash_id')
-                            ->get()
-                            ->map(function ($sale) {
-                                return [
-                                    'source' => 'sale',
-                                    'source_id' => $sale->id,
-                                    'date' => $sale->created_at,
-                                    'amount' => $sale->cash_id ? $sale->total_price : 0,
-                                    'description' => $sale->cash_id ? 'Продажа через кассу' : 'Продажа в баланс(долг)'
-                                ];
-                            });
-                    } catch (\Exception $e) {
-                        $sales = collect();
-                    }
-                } else {
-                    $sales = collect();
-                }
+                        // Корректируем сумму в зависимости от типа и источника
+                        if ($item->source === 'receipt') {
+                            // Оприходование - расход (мы должны поставщику)
+                            $amount = -$amount;
+                            $description = $item->is_debt ? 'Долг за оприходование (в баланс)' : 'Оприходование через кассу';
+                        } elseif ($item->source === 'transaction') {
+                            // Обычная транзакция: тип 1 = доход (клиент нам платит), тип 0 = расход (мы клиенту платим)
+                            $amount = $item->type == 1 ? -$amount : +$amount;
+                            $description = $item->type == 1 ? 'Клиент оплатил нам' : 'Мы оплатили клиенту';
+                        } elseif ($item->source === 'sale') {
+                            // Продажа - приход (клиент нам должен/оплатил)
+                            $amount = +$amount;
+                            $description = $item->is_debt ? 'Продажа в долг' : 'Продажа через кассу';
+                        } elseif ($item->source === 'order') {
+                            // Заказ - приход (клиент нам должен/оплатил)
+                            $amount = +$amount;
+                            $description = $item->is_debt ? 'Заказ в долг' : 'Заказ через кассу';
+                        } else {
+                            $description = $item->note ?? 'Транзакция';
+                        }
 
-                // Оприходования
-                if (Schema::hasTable('warehouse_receipts')) {
-                    try {
-                        $receipts = DB::table('warehouse_receipts')
-                            ->where('supplier_id', $clientId)
-                            ->select('id', 'created_at', 'amount', 'cash_id')
-                            ->get()
-                            ->map(function ($receipt) {
-                                return [
-                                    'source' => 'receipt',
-                                    'source_id' => $receipt->id,
-                                    'date' => $receipt->created_at,
-                                    'amount' => $receipt->cash_id ? -$receipt->amount : 0,
-                                    'description' => $receipt->cash_id ? 'Долг за оприходование(в кассу)' : 'Долг за оприходование(в баланс)'
-                                ];
-                            });
-                    } catch (\Exception $e) {
-                        $receipts = collect();
-                    }
-                } else {
-                    $receipts = collect();
-                }
-
-                // Транзакции
-                if (Schema::hasTable('transactions')) {
-                    try {
-                        $transactions = DB::table('transactions')
-                            ->where('client_id', $clientId)
-                            ->select('id', 'created_at', 'orig_amount', 'type')
-                            ->get()
-                            ->map(function ($tr) {
-                                $isIncome = $tr->type === 1;
-                                return [
-                                    'source' => 'transaction',
-                                    'source_id' => $tr->id,
-                                    'date' => $tr->created_at,
-                                    'amount' => $isIncome ? -$tr->orig_amount : +$tr->orig_amount,
-                                    'description' => $isIncome ? 'Клиент оплатил нам' : 'Мы оплатили клиенту'
-                                ];
-                            });
-                    } catch (\Exception $e) {
-                        $transactions = collect();
-                    }
-                } else {
-                    $transactions = collect();
-                }
-
-                // Заказы
-                if (Schema::hasTable('orders')) {
-                    try {
-                        $orders = DB::table('orders')
-                            ->where('client_id', $clientId)
-                            ->select('id', 'created_at', 'total_price as amount', 'cash_id')
-                            ->get()
-                            ->map(function ($order) {
-                                return [
-                                    'source' => 'order',
-                                    'source_id' => $order->id,
-                                    'date' => $order->created_at,
-                                    'amount' => $order->cash_id ? +$order->amount : 0,
-                                    'description' => 'Заказ'
-                                ];
-                            });
-                    } catch (\Exception $e) {
-                        $orders = collect();
-                    }
-                } else {
-                    $orders = collect();
-                }
-
-                // Объединение и сортировка
-                $result = collect()
-                    ->merge($sales)
-                    ->merge($receipts)
-                    ->merge($transactions)
-                    ->merge($orders)
+                        return [
+                            'source' => $item->source,
+                            'source_id' => $item->id,
+                            'source_type' => $item->source_type,
+                            'source_source_id' => $item->source_id,
+                            'date' => $item->created_at,
+                            'amount' => $amount,
+                            'orig_amount' => $item->orig_amount,
+                            'is_debt' => $item->is_debt,
+                            'note' => $item->note,
+                            'description' => $description,
+                            'user_id' => $item->user_id,
+                            'user_name' => $item->user_name,
+                            'currency_symbol' => $item->currency_symbol,
+                            'cash_name' => $item->cash_name
+                        ];
+                    })
                     ->sortBy('date')
                     ->values()
                     ->all();
 
-                return $result;
+                return $transactions;
             } catch (\Exception $e) {
                 return [];
             }
-        });
+        }, 900); // 15 минут
     }
 
     // Получение текущего баланса клиента с кэшированием

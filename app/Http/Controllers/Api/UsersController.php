@@ -86,6 +86,8 @@ class UsersController extends Controller
 
         $user = $this->itemsRepository->createItem($data);
 
+        // Инвалидируем кэш пользователей
+        \App\Services\CacheService::invalidateUsersCache();
 
         return response()->json([
             'user' => $user,
@@ -170,8 +172,8 @@ class UsersController extends Controller
         // Перезагружаем пользователя со всеми связями
         $user = $user->fresh(['permissions', 'roles', 'companies']);
 
-        // Принудительно очищаем весь кэш для гарантии актуальности данных
-        \Illuminate\Support\Facades\Cache::flush();
+        // Инвалидируем кэш пользователей (вместо полной очистки!)
+        \App\Services\CacheService::invalidateUsersCache();
 
         return response()->json([
             'user' => $user,
@@ -182,6 +184,10 @@ class UsersController extends Controller
     public function destroy($id)
     {
         $this->itemsRepository->deleteItem($id);
+        
+        // Инвалидируем кэш пользователей
+        \App\Services\CacheService::invalidateUsersCache();
+        
         return response()->json(['message' => 'User deleted']);
     }
 
@@ -203,7 +209,12 @@ class UsersController extends Controller
     }
     public function getAllUsers()
     {
-        return response()->json($this->itemsRepository->getAll());
+        // Кэшируем список всех пользователей на 2 часа
+        $items = \App\Services\CacheService::getReferenceData('users_all', function() {
+            return $this->itemsRepository->getAll();
+        });
+        
+        return response()->json($items);
     }
 
     public function getCurrentUser(Request $request)

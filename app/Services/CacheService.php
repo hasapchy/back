@@ -229,6 +229,12 @@ class CacheService
         self::invalidateByLike('%transfer%');
     }
 
+    public static function invalidateUsersCache()
+    {
+        // Ищем по "user" чтобы найти все связанные ключи
+        self::invalidateByLike('%users_%');
+    }
+
     public static function invalidatePerformanceCache()
     {
         self::invalidateByLike('%performance_sales_metrics%');
