@@ -9,6 +9,7 @@ use App\Models\TransactionCategory;
 use App\Models\Unit;
 use App\Models\OrderCategory;
 use App\Models\OrderStatus;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -24,8 +25,10 @@ class AppController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        // Возвращаем все активные валюты без проверки специальных прав
-        $items = Currency::where('status', 1)->get();
+        // Кэшируем справочник валют на 2 часа
+        $items = CacheService::getReferenceData('currencies_all', function() {
+            return Currency::where('status', 1)->get();
+        });
 
         return response()->json($items);
     }
@@ -33,14 +36,21 @@ class AppController extends Controller
     // получение единиц измерения
     public function getUnitsList()
     {
-        $items = Unit::all();
+        // Кэшируем справочник единиц на 2 часа
+        $items = CacheService::getReferenceData('units_all', function() {
+            return Unit::all();
+        });
+
         return response()->json($items);
     }
 
     // получение статусов товаров
     public function getProductStatuses()
     {
-        $items = ProductStatus::all();
+        // Кэшируем справочник статусов товаров на 2 часа
+        $items = CacheService::getReferenceData('product_statuses_all', function() {
+            return ProductStatus::all();
+        });
 
         return response()->json($items);
     }

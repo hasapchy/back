@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Repositories\OrdersRepository;
 use App\Repositories\OrderAfRepository;
+use App\Services\CacheService;
 // use App\Services\BasementTimeLimitService; // Удалено ограничение по времени
 use Illuminate\Http\Request;
 use Spatie\Permission\Traits\HasRoles;
@@ -136,6 +137,9 @@ class OrderController extends Controller
                 return response()->json(['message' => 'Ошибка создания заказа'], 400);
             }
 
+            // Инвалидируем кэш заказов
+            CacheService::invalidateOrdersCache();
+
             return response()->json(['message' => 'Заказ успешно создан']);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Ошибка заказа: ' . $th->getMessage()], 400);
@@ -235,6 +239,10 @@ class OrderController extends Controller
             if (!$updated) {
                 return response()->json(['message' => 'Ошибка обновления заказа'], 400);
             }
+
+            // Инвалидируем кэш заказов
+            CacheService::invalidateOrdersCache();
+
             return response()->json(['message' => 'Заказ сохранён']);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Ошибка: ' . $th->getMessage()], 400);
@@ -272,6 +280,10 @@ class OrderController extends Controller
 
         try {
             $deleted = $this->itemRepository->deleteItem($id);
+
+            // Инвалидируем кэш заказов
+            CacheService::invalidateOrdersCache();
+
             return response()->json([
                 'message' => 'Заказ успешно удалён',
                 'order' => $deleted
@@ -306,6 +318,9 @@ class OrderController extends Controller
 
             // Обычный успешный ответ
             if ($result > 0) {
+                // Инвалидируем кэш заказов при массовом обновлении статусов
+                CacheService::invalidateOrdersCache();
+
                 return response()->json([
                     'message' => "Статус обновлён у {$result} заказ(ов)"
                 ]);

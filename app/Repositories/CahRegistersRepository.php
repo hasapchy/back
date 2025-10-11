@@ -65,16 +65,22 @@ class CahRegistersRepository
                 throw new \Exception('Table cash_registers does not exist');
             }
 
-            // Возвращаем только кассы, к которым у пользователя есть доступ
-            $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])
-                ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                });
+            // Кэшируем справочник касс на 2 часа
+            $companyId = $this->getCurrentCompanyId();
+            $cacheKey = "cash_registers_all_{$userUuid}_{$companyId}";
 
-            // Фильтруем по текущей компании пользователя
-            $query = $this->addCompanyFilter($query);
+            return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
+                // Возвращаем только кассы, к которым у пользователя есть доступ
+                $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])
+                    ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
+                        $query->where('user_id', $userUuid);
+                    });
 
-            return $query->get();
+                // Фильтруем по текущей компании пользователя
+                $query = $this->addCompanyFilter($query);
+
+                return $query->get();
+            });
         } catch (\Exception $e) {
             // Возвращаем пустую коллекцию вместо ошибки
             return \Illuminate\Support\Collection::make();

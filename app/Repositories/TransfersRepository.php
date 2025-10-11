@@ -6,15 +6,20 @@ use App\Models\CashRegister;
 use App\Models\CashTransfer;
 use App\Models\Transaction;
 use App\Services\CurrencyConverter;
+use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
 class TransfersRepository
 {
 
     // Получение с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $items = DB::table('cash_transfers')
+        $companyId = request()->header('X-Company-ID');
+        $cacheKey = "transfers_paginated_{$userUuid}_{$perPage}_{$companyId}";
+
+        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
+            return DB::table('cash_transfers')
             // присоединяем таблицу касс
             ->leftJoin('cash_registers as cash_from', 'cash_transfers.cash_id_from', '=', 'cash_from.id')
             ->leftJoin('cash_registers as cash_to', 'cash_transfers.cash_id_to', '=', 'cash_to.id')
@@ -52,15 +57,16 @@ class TransfersRepository
                 'cash_transfers.note as note',
 
             )
-            ->paginate($perPage);
+                ->paginate($perPage, ['*'], 'page', (int)$page);
 
-        // Добавляем информацию о категории "Перемещение" к каждому элементу
-        foreach ($items->items() as $item) {
-            $item->category_id = 17;
-            $item->category_name = 'Перемещение';
-        }
+            // Добавляем информацию о категории "Перемещение" к каждому элементу
+            foreach ($items->items() as $item) {
+                $item->category_id = 17;
+                $item->category_name = 'Перемещение';
+            }
 
-        return $items;
+            return $items;
+        }, (int)$page);
     }
 
     // // Получение всего списка

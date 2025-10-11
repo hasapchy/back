@@ -7,6 +7,7 @@ use App\Models\InvoiceProduct;
 use App\Models\Order;
 use App\Models\OrderProduct;
 use App\Models\OrderTempProduct;
+use App\Services\CacheService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -14,7 +15,11 @@ class InvoicesRepository
 {
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $typeFilter = null, $page = 1)
     {
-        $query = Invoice::with([
+        $companyId = request()->header('X-Company-ID');
+        $cacheKey = "invoices_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$typeFilter}_{$companyId}";
+
+        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $page) {
+            $query = Invoice::with([
             'client.phones',
             'client.emails',
             'user',
@@ -51,7 +56,8 @@ class InvoicesRepository
             $query->where('type', $typeFilter);
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+            return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+        }, (int)$page);
     }
 
     public function getItemById($id)

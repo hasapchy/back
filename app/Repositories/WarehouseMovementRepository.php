@@ -5,46 +5,50 @@ namespace App\Repositories;
 use App\Models\WarehouseStock;
 use App\Models\WhMovement;
 use App\Models\WhMovementProduct;
+use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
 class WarehouseMovementRepository
 {
     // Получение стоков с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $items = WhMovement::leftJoin('warehouses as warehouses_from', 'wh_movements.wh_from', '=', 'warehouses_from.id')
-            ->leftJoin('users', 'wh_movements.user_id', '=', 'users.id')
-            ->leftJoin('warehouses as warehouses_to', 'wh_movements.wh_to', '=', 'warehouses_to.id')
-            ->leftJoin('wh_users as wh_users_from', 'warehouses_from.id', '=', 'wh_users_from.warehouse_id')
-            ->leftJoin('wh_users as wh_users_to', 'warehouses_to.id', '=', 'wh_users_to.warehouse_id')
-            ->where('wh_users_from.user_id', $userUuid)
-            ->where('wh_users_to.user_id', $userUuid)
-            ->select(
-                'wh_movements.id as id',
-                'wh_movements.wh_from as warehouse_from_id',
-                'warehouses_from.name as warehouse_from_name',
-                'wh_movements.wh_to as warehouse_to_id',
-                'warehouses_to.name as warehouse_to_name',
-                'wh_movements.note as note',
-                'wh_movements.user_id as user_id',
-                'users.name as user_name',
-                'wh_movements.date as date',
-                'wh_movements.created_at as created_at',
-                'wh_movements.updated_at as updated_at'
-            )
-            ->orderBy('wh_movements.created_at', 'desc')->paginate($perPage);
+        $companyId = request()->header('X-Company-ID');
+        $cacheKey = "warehouse_movements_paginated_{$userUuid}_{$perPage}_{$companyId}";
 
-        $wh_writeoffs_ids = $items->pluck('id')->toArray();
-        $products = $this->getProducts($wh_writeoffs_ids);
+        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
+            $items = WhMovement::leftJoin('warehouses as warehouses_from', 'wh_movements.wh_from', '=', 'warehouses_from.id')
+                ->leftJoin('users', 'wh_movements.user_id', '=', 'users.id')
+                ->leftJoin('warehouses as warehouses_to', 'wh_movements.wh_to', '=', 'warehouses_to.id')
+                ->leftJoin('wh_users as wh_users_from', 'warehouses_from.id', '=', 'wh_users_from.warehouse_id')
+                ->leftJoin('wh_users as wh_users_to', 'warehouses_to.id', '=', 'wh_users_to.warehouse_id')
+                ->where('wh_users_from.user_id', $userUuid)
+                ->where('wh_users_to.user_id', $userUuid)
+                ->select(
+                    'wh_movements.id as id',
+                    'wh_movements.wh_from as warehouse_from_id',
+                    'warehouses_from.name as warehouse_from_name',
+                    'wh_movements.wh_to as warehouse_to_id',
+                    'warehouses_to.name as warehouse_to_name',
+                    'wh_movements.note as note',
+                    'wh_movements.user_id as user_id',
+                    'users.name as user_name',
+                    'wh_movements.date as date',
+                    'wh_movements.created_at as created_at',
+                    'wh_movements.updated_at as updated_at'
+                )
+                ->orderBy('wh_movements.created_at', 'desc')
+                ->paginate($perPage, ['*'], 'page', (int)$page);
 
+            $wh_writeoffs_ids = $items->pluck('id')->toArray();
+            $products = $this->getProducts($wh_writeoffs_ids);
 
-        foreach ($items as $item) {
-            $item->products = $products->get($item->id, collect());
-        }
+            foreach ($items as $item) {
+                $item->products = $products->get($item->id, collect());
+            }
 
-
-
-        return $items;
+            return $items;
+        }, (int)$page);
     }
 
     public function createItem($data)

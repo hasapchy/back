@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\ProjectStatusRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 class ProjectStatusController extends Controller
@@ -58,6 +59,9 @@ class ProjectStatusController extends Controller
         ]);
         if (!$created) return response()->json(['message' => 'Ошибка создания статуса'], 400);
 
+        // Инвалидируем кэш статусов проектов
+        CacheService::invalidateProjectStatusesCache();
+
         return response()->json(['message' => 'Статус создан']);
     }
 
@@ -76,6 +80,9 @@ class ProjectStatusController extends Controller
             'color' => $request->color ?? '#6c757d',
         ]);
         if (!$updated) return response()->json(['message' => 'Ошибка обновления статуса'], 400);
+
+        // Инвалидируем кэш статусов проектов
+        CacheService::invalidateProjectStatusesCache();
 
         return response()->json(['message' => 'Статус обновлен']);
     }
@@ -97,6 +104,9 @@ class ProjectStatusController extends Controller
         if (!$deleted) {
             return response()->json(['message' => 'Ошибка удаления статуса'], 400);
         }
+
+        // Инвалидируем кэш статусов проектов
+        CacheService::invalidateProjectStatusesCache();
 
         return response()->json(['message' => 'Статус удален']);
     }

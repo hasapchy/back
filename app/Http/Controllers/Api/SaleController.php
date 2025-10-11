@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\SalesRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 class SaleController extends Controller
@@ -89,6 +90,10 @@ class SaleController extends Controller
             if (! $ok) {
                 return response()->json(['message' => 'Ошибка создания продажи'], 400);
             }
+
+            // Инвалидируем кэш продаж
+            CacheService::invalidateSalesCache();
+
             return response()->json(['message' => 'Продажа добавлена'], 201);
         } catch (\Throwable $e) {
             return response()->json([
@@ -133,6 +138,10 @@ class SaleController extends Controller
 
         try {
             $sale = $this->itemRepository->deleteItem($id);
+
+            // Инвалидируем кэш продаж
+            CacheService::invalidateSalesCache();
+
             return response()->json([
                 'message' => 'Продажа удалена успешно',
                 'sale' => $sale

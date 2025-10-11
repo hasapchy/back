@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\OrderStatus;
+use App\Services\CacheService;
 
 class OrderStatusRepository
 {
@@ -18,8 +19,10 @@ class OrderStatusRepository
     // Все статусы
     public function getAllItems($userUuid)
     {
-        // Возвращаем все статусы независимо от владельца категории
-        return OrderStatus::with('category')->get();
+        // Кэшируем справочник статусов заказов на 2 часа
+        return CacheService::getReferenceData('order_statuses_all', function() {
+            return OrderStatus::with('category')->get();
+        });
     }
 
     public function createItem($data)

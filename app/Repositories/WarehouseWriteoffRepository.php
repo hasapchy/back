@@ -5,40 +5,44 @@ namespace App\Repositories;
 use App\Models\WarehouseStock;
 use App\Models\WhWriteoff;
 use App\Models\WhWriteoffProduct;
+use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
 class WarehouseWriteoffRepository
 {
     // Получение стоков с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
-            ->leftJoin('users', 'wh_write_offs.user_id', '=', 'users.id')
-            ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
-            ->where('wh_users.user_id', $userUuid)
-            ->select(
-                'wh_write_offs.id as id',
-                'wh_write_offs.warehouse_id as warehouse_id',
-                'warehouses.name as warehouse_name',
-                'wh_write_offs.note as note',
-                'wh_write_offs.user_id as user_id',
-                'users.name as user_name',
-                'wh_write_offs.created_at as created_at',
-                'wh_write_offs.updated_at as updated_at'
-            )
-            ->orderBy('wh_write_offs.created_at', 'desc')->paginate($perPage);
+        $companyId = request()->header('X-Company-ID');
+        $cacheKey = "warehouse_writeoffs_paginated_{$userUuid}_{$perPage}_{$companyId}";
 
-        $wh_writeoffs_ids = $items->pluck('id')->toArray();
-        $products = $this->getProducts($wh_writeoffs_ids);
+        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
+            $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
+                ->leftJoin('users', 'wh_write_offs.user_id', '=', 'users.id')
+                ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
+                ->where('wh_users.user_id', $userUuid)
+                ->select(
+                    'wh_write_offs.id as id',
+                    'wh_write_offs.warehouse_id as warehouse_id',
+                    'warehouses.name as warehouse_name',
+                    'wh_write_offs.note as note',
+                    'wh_write_offs.user_id as user_id',
+                    'users.name as user_name',
+                    'wh_write_offs.created_at as created_at',
+                    'wh_write_offs.updated_at as updated_at'
+                )
+                ->orderBy('wh_write_offs.created_at', 'desc')
+                ->paginate($perPage, ['*'], 'page', (int)$page);
 
+            $wh_writeoffs_ids = $items->pluck('id')->toArray();
+            $products = $this->getProducts($wh_writeoffs_ids);
 
-        foreach ($items as $item) {
-            $item->products = $products->get($item->id, collect());
-        }
+            foreach ($items as $item) {
+                $item->products = $products->get($item->id, collect());
+            }
 
-
-
-        return $items;
+            return $items;
+        }, (int)$page);
     }
 
     public function createItem($data)

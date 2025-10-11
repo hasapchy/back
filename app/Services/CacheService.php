@@ -175,6 +175,18 @@ class CacheService
         self::invalidateByLike('%productStatus%');
     }
 
+    public static function invalidateUnitsCache()
+    {
+        // Ищем по "unit" чтобы найти units и unit
+        self::invalidateByLike('%unit%');
+    }
+
+    public static function invalidateCurrenciesCache()
+    {
+        // Ищем по "currenc" чтобы найти currencies и currency
+        self::invalidateByLike('%currenc%');
+    }
+
     public static function invalidateOrdersCache()
     {
         // Ищем по "order" чтобы найти и orders и order (включая paginated_orders_paginated)
@@ -185,6 +197,36 @@ class CacheService
     {
         // Ищем по "transaction" чтобы найти все связанные ключи
         self::invalidateByLike('%transaction%');
+    }
+
+    public static function invalidateWarehouseReceiptsCache()
+    {
+        self::invalidateByLike('%receipt%');
+    }
+
+    public static function invalidateWarehouseWriteoffsCache()
+    {
+        self::invalidateByLike('%writeoff%');
+    }
+
+    public static function invalidateWarehouseMovementsCache()
+    {
+        self::invalidateByLike('%movement%');
+    }
+
+    public static function invalidateWarehouseStocksCache()
+    {
+        self::invalidateByLike('%stock%');
+    }
+
+    public static function invalidateInvoicesCache()
+    {
+        self::invalidateByLike('%invoice%');
+    }
+
+    public static function invalidateTransfersCache()
+    {
+        self::invalidateByLike('%transfer%');
     }
 
     public static function invalidatePerformanceCache()

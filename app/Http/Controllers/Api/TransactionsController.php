@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Transaction;
 use App\Repositories\TransactionsRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 class TransactionsController extends Controller
@@ -111,6 +112,10 @@ class TransactionsController extends Controller
                 'message' => 'Ошибка создания транзакции'
             ], 400);
         }
+
+        // Инвалидируем кэш транзакций
+        CacheService::invalidateTransactionsCache();
+
         return response()->json([
             'message' => 'Транзакция создана'
         ]);
@@ -185,6 +190,10 @@ class TransactionsController extends Controller
                 'message' => 'Ошибка обновления транзакции'
             ], 400);
         }
+
+        // Инвалидируем кэш транзакций
+        CacheService::invalidateTransactionsCache();
+
         return response()->json([
             'message' => 'Транзакция обновлена'
         ]);
@@ -224,6 +233,9 @@ class TransactionsController extends Controller
                 'message' => 'Ошибка удаления транзакции'
             ], 400);
         }
+
+        // Инвалидируем кэш транзакций
+        CacheService::invalidateTransactionsCache();
 
         return response()->json([
             'message' => 'Транзакция удалена'

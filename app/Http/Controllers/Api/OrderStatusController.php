@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\OrderStatusRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 class OrderStatusController extends Controller
@@ -57,6 +58,9 @@ class OrderStatusController extends Controller
         ]);
         if (!$created) return response()->json(['message' => 'Ошибка создания статуса'], 400);
 
+        // Инвалидируем кэш статусов заказов
+        CacheService::invalidateOrderStatusesCache();
+
         return response()->json(['message' => 'Статус создан']);
     }
 
@@ -75,6 +79,9 @@ class OrderStatusController extends Controller
             'category_id' => $request->category_id,
         ]);
         if (!$updated) return response()->json(['message' => 'Ошибка обновления статуса'], 400);
+
+        // Инвалидируем кэш статусов заказов
+        CacheService::invalidateOrderStatusesCache();
 
         return response()->json(['message' => 'Статус обновлен']);
     }
@@ -95,6 +102,9 @@ class OrderStatusController extends Controller
         if (!$deleted) {
             return response()->json(['message' => 'Ошибка удаления статуса'], 400);
         }
+
+        // Инвалидируем кэш статусов заказов
+        CacheService::invalidateOrderStatusesCache();
 
         return response()->json(['message' => 'Статус удален']);
     }

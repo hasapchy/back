@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\TransactionCategory;
+use App\Services\CacheService;
 
 class TransactionCategoryRepository
 {
@@ -17,7 +18,10 @@ class TransactionCategoryRepository
     // Получение всего списка без фильтрации по пользователю
     public function getAllItems()
     {
-        return TransactionCategory::with('user')->get();
+        // Кэшируем справочник категорий транзакций на 2 часа
+        return CacheService::getReferenceData('transaction_categories_all', function() {
+            return TransactionCategory::with('user')->get();
+        });
     }
 
     // Создание

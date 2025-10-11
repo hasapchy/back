@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\TransactionCategoryRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 class TransactionCategoryController extends Controller
@@ -75,6 +76,10 @@ class TransactionCategoryController extends Controller
         ]);
 
         if (!$created) return response()->json(['message' => 'Ошибка создания категории транзакции'], 400);
+
+        // Инвалидируем кэш категорий транзакций
+        CacheService::invalidateTransactionCategoriesCache();
+
         return response()->json(['message' => 'Категория транзакции создана']);
     }
 
@@ -96,6 +101,10 @@ class TransactionCategoryController extends Controller
             ]);
 
             if (!$updated) return response()->json(['message' => 'Категория транзакции не найдена'], 404);
+
+            // Инвалидируем кэш категорий транзакций
+            CacheService::invalidateTransactionCategoriesCache();
+
             return response()->json(['message' => 'Категория транзакции обновлена']);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
@@ -110,6 +119,9 @@ class TransactionCategoryController extends Controller
         try {
             $deleted = $this->repo->deleteItem($id);
             if (!$deleted) return response()->json(['message' => 'Категория транзакции не найдена'], 404);
+
+            // Инвалидируем кэш категорий транзакций
+            CacheService::invalidateTransactionCategoriesCache();
 
             return response()->json(['message' => 'Категория транзакции удалена']);
         } catch (\Exception $e) {

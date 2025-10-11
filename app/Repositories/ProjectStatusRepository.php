@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\ProjectStatus;
+use App\Services\CacheService;
 
 class ProjectStatusRepository
 {
@@ -18,8 +19,10 @@ class ProjectStatusRepository
     // Все статусы
     public function getAllItems($userUuid)
     {
-        // Возвращаем все статусы независимо от владельца
-        return ProjectStatus::with('user')->get();
+        // Кэшируем справочник статусов проектов на 2 часа
+        return CacheService::getReferenceData('project_statuses_all', function() {
+            return ProjectStatus::with('user')->get();
+        });
     }
 
     public function createItem($data)

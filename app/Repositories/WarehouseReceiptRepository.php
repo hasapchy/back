@@ -10,19 +10,24 @@ use App\Models\WhReceipt;
 use App\Models\WhReceiptProduct;
 use App\Models\CashRegister;
 use App\Services\CurrencyConverter;
+use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class WarehouseReceiptRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $warehouseIds = DB::table('wh_users')
-            ->where('user_id', $userUuid)
-            ->pluck('warehouse_id')
-            ->toArray();
+        $companyId = request()->header('X-Company-ID');
+        $cacheKey = "warehouse_receipts_paginated_{$userUuid}_{$perPage}_{$companyId}";
 
-        $items = WhReceipt::select([
+        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
+            $warehouseIds = DB::table('wh_users')
+                ->where('user_id', $userUuid)
+                ->pluck('warehouse_id')
+                ->toArray();
+
+            return WhReceipt::select([
                 'wh_receipts.id as id',
                 'wh_receipts.warehouse_id as warehouse_id',
                 'wh_receipts.supplier_id as supplier_id',
@@ -41,30 +46,31 @@ class WarehouseReceiptRepository
                 DB::raw('(SELECT code FROM currencies WHERE currencies.id = (SELECT currency_id FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id)) as currency_code'),
                 DB::raw('(SELECT symbol FROM currencies WHERE currencies.id = (SELECT currency_id FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id)) as currency_symbol')
             ])
-            ->whereIn('wh_receipts.warehouse_id', $warehouseIds)
-            // Фильтрация по доступу к проектам
-            ->where(function($q) use ($userUuid) {
-                $q->whereNull('wh_receipts.project_id') // Оприходования без проекта
-                  ->orWhereHas('project.projectUsers', function($subQuery) use ($userUuid) {
-                      $subQuery->where('user_id', $userUuid);
-                  });
-            })
-            ->orderBy('wh_receipts.created_at', 'desc')
-            ->paginate($perPage);
+                ->whereIn('wh_receipts.warehouse_id', $warehouseIds)
+                // Фильтрация по доступу к проектам
+                ->where(function($q) use ($userUuid) {
+                    $q->whereNull('wh_receipts.project_id') // Оприходования без проекта
+                      ->orWhereHas('project.projectUsers', function($subQuery) use ($userUuid) {
+                          $subQuery->where('user_id', $userUuid);
+                      });
+                })
+                ->orderBy('wh_receipts.created_at', 'desc')
+                ->paginate($perPage, ['*'], 'page', (int)$page);
 
-        $client_ids = $items->pluck('supplier_id')->toArray();
-        $client_repository = new ClientsRepository();
-        $clients = $client_repository->getItemsByIds($client_ids);
+            $client_ids = $items->pluck('supplier_id')->toArray();
+            $client_repository = new ClientsRepository();
+            $clients = $client_repository->getItemsByIds($client_ids);
 
-        $wh_receipt_ids = $items->pluck('id')->toArray();
-        $products = $this->getProducts($wh_receipt_ids);
+            $wh_receipt_ids = $items->pluck('id')->toArray();
+            $products = $this->getProducts($wh_receipt_ids);
 
-        foreach ($items as $item) {
-            $item->client = $clients->firstWhere('id', $item->supplier_id);
-            $item->products = $products->get($item->id, collect());
-        }
+            foreach ($items as $item) {
+                $item->client = $clients->firstWhere('id', $item->supplier_id);
+                $item->products = $products->get($item->id, collect());
+            }
 
-        return $items;
+            return $items;
+        }, (int)$page);
     }
 
 

@@ -5,9 +5,18 @@ namespace App\Repositories;
 use App\Models\Category;
 use App\Models\CategoryUser;
 use App\Models\Warehouse;
+use App\Services\CacheService;
 
 class CategoriesRepository
 {
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        return request()->header('X-Company-ID');
+    }
+
     // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
@@ -23,28 +32,38 @@ class CategoriesRepository
     // Получение всего списка
     public function getAllItems($userUuid)
     {
-        $items = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
-            ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
-            ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name')
-            ->whereHas('categoryUsers', function($query) use ($userUuid) {
-                $query->where('user_id', $userUuid);
-            })->with('users')->get();
-        return $items;
+        // Кэшируем справочник категорий на 2 часа
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "categories_all_{$userUuid}_{$companyId}";
+
+        return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
+            return Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
+                ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
+                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name')
+                ->whereHas('categoryUsers', function($query) use ($userUuid) {
+                    $query->where('user_id', $userUuid);
+                })->with('users')->get();
+        });
     }
 
     // Получение только родительских категорий (первого уровня)
     public function getParentCategories($userUuid)
     {
-        $items = Category::leftJoin('users as users', 'categories.user_id', '=', 'users.id')
-            ->select('categories.*', 'users.name as user_name')
-            ->whereNull('categories.parent_id') // Только родительские категории
-            ->whereHas('categoryUsers', function($query) use ($userUuid) {
-                $query->where('user_id', $userUuid);
-            })
-            ->whereHas('children') // Только те, у которых есть подкатегории
-            ->with('users')
-            ->get();
-        return $items;
+        // Кэшируем справочник родительских категорий на 2 часа
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = "categories_parents_{$userUuid}_{$companyId}";
+
+        return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
+            return Category::leftJoin('users as users', 'categories.user_id', '=', 'users.id')
+                ->select('categories.*', 'users.name as user_name')
+                ->whereNull('categories.parent_id') // Только родительские категории
+                ->whereHas('categoryUsers', function($query) use ($userUuid) {
+                    $query->where('user_id', $userUuid);
+                })
+                ->whereHas('children') // Только те, у которых есть подкатегории
+                ->with('users')
+                ->get();
+        });
     }
 
     // Создание

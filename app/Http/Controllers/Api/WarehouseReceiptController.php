@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\WarehouseReceiptRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -79,6 +80,11 @@ class WarehouseReceiptController extends Controller
                     'message' => 'Ошибка оприходования'
                 ], 400);
             }
+
+            // Инвалидируем кэш приходов и остатков
+            CacheService::invalidateWarehouseReceiptsCache();
+            CacheService::invalidateWarehouseStocksCache();
+
             return response()->json([
                 'message' => 'Оприходование создано'
             ]);
@@ -99,6 +105,11 @@ class WarehouseReceiptController extends Controller
                 'message' => 'Ошибка удаления склада'
             ], 400);
         }
+
+        // Инвалидируем кэш приходов и остатков
+        CacheService::invalidateWarehouseReceiptsCache();
+        CacheService::invalidateWarehouseStocksCache();
+
         return response()->json([
             'message' => 'Склад удален'
         ]);
