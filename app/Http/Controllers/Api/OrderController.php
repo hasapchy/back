@@ -65,7 +65,7 @@ class OrderController extends Controller
             'cash_id' => 'nullable|integer|exists:cash_registers,id',
             'warehouse_id' => 'required|integer|exists:warehouses,id',
             'currency_id' => 'nullable|integer|exists:currencies,id',
-            'category_id' => 'nullable|integer|exists:categories,id',
+            'category_id' => 'required|integer|exists:categories,id',
             'discount'      => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|in:fixed,percent|required_with:discount',
             'description' => 'nullable|string',
@@ -90,6 +90,13 @@ class OrderController extends Controller
             'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
         ]);
 
+        // Хардкод для basement пользователей: категория 2 = юзер 6, 3 = 7, 14 = 8
+        $categoryId = $request->category_id;
+        if (in_array($userUuid, [6, 7, 8]) && !$categoryId) {
+            $basementCategoryMap = [6 => 2, 7 => 3, 8 => 14];
+            $categoryId = $basementCategoryMap[$userUuid] ?? null;
+        }
+
         $data = [
             'user_id'      => $userUuid,
             'client_id'    => $request->client_id,
@@ -97,7 +104,7 @@ class OrderController extends Controller
             'cash_id'      => $request->cash_id,
             'warehouse_id' => $request->warehouse_id,
             'currency_id' => $request->currency_id,
-            'category_id' => $request->category_id,
+            'category_id' => $categoryId,
             'discount' => $request->discount ?? 0,
             'discount_type' => $request->discount_type ?? 'percent',
             'description' => $request->description,
@@ -194,6 +201,13 @@ class OrderController extends Controller
             'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
         ]);
 
+        // Хардкод для basement пользователей: категория 2 = юзер 6, 3 = 7, 14 = 8
+        $categoryId = $request->category_id;
+        if (in_array($userUuid, [6, 7, 8]) && !$categoryId) {
+            $basementCategoryMap = [6 => 2, 7 => 3, 8 => 14];
+            $categoryId = $basementCategoryMap[$userUuid] ?? null;
+        }
+
         $data = [
             'user_id'      => $userUuid,
             'client_id'    => $request->client_id,
@@ -201,7 +215,7 @@ class OrderController extends Controller
             'cash_id'      => $request->cash_id,
             'warehouse_id'  => $request->warehouse_id,
             'currency_id'   => $request->currency_id,
-            'category_id' => $request->category_id,
+            'category_id' => $categoryId,
             'discount'      => $request->discount  ?? 0,
             'discount_type' => $request->discount_type ?? 'percent',
             'warehouse_id' => $request->warehouse_id,

@@ -184,10 +184,10 @@ class UsersController extends Controller
     public function destroy($id)
     {
         $this->itemsRepository->deleteItem($id);
-        
+
         // Инвалидируем кэш пользователей
         \App\Services\CacheService::invalidateUsersCache();
-        
+
         return response()->json(['message' => 'User deleted']);
     }
 
@@ -213,7 +213,7 @@ class UsersController extends Controller
         $items = \App\Services\CacheService::getReferenceData('users_all', function() {
             return $this->itemsRepository->getAll();
         });
-        
+
         return response()->json($items);
     }
 

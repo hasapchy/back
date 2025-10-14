@@ -39,6 +39,52 @@ Route::middleware(['throttle:auth'])->group(function () {
 // transaction_categories without authentication
 Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
 
+// Basement routes - доступ только для пользователей с ролью basement_worker
+Route::middleware(['auth:api', 'role:basement_worker'])->prefix('basement')->group(function () {
+    // user
+    Route::get('user/me', [AuthController::class, 'me']);
+    Route::post('user/logout', [AuthController::class, 'logout']);
+
+    // orders
+    Route::get('orders', [OrderController::class, 'index']);
+    Route::get('orders/{id}', [OrderController::class, 'show']);
+    Route::post('orders', [OrderController::class, 'store']);
+    Route::put('orders/{id}', [OrderController::class, 'update']);
+
+    // order statuses
+    Route::get('order_statuses', [OrderStatusController::class, 'index']);
+    Route::get('order_statuses/all', [OrderStatusController::class, 'all']);
+
+    // clients
+    Route::get('clients', [ClientController::class, 'index']);
+    Route::get('clients/all', [ClientController::class, 'all']);
+    Route::get('clients/search', [ClientController::class, 'search']);
+    Route::get('clients/{id}', [ClientController::class, 'show']);
+    Route::post('clients', [ClientController::class, 'store']);
+
+    // products
+    Route::get('products', [ProductController::class, 'products']);
+    Route::get('services', [ProductController::class, 'services']);
+    Route::get('products/search', [ProductController::class, 'search']);
+
+    // projects
+    Route::get('projects', [ProjectsController::class, 'index']);
+    Route::get('projects/all', [ProjectsController::class, 'all']);
+    Route::get('projects/{id}', [ProjectsController::class, 'show']);
+
+    // warehouses
+    Route::get('warehouses', [WarehouseController::class, 'index']);
+    Route::get('warehouses/all', [WarehouseController::class, 'all']);
+
+    // cash registers
+    Route::get('cash_registers', [CashRegistersController::class, 'index']);
+    Route::get('cash_registers/all', [CashRegistersController::class, 'all']);
+
+    // app utilities
+    Route::get('app/currency', [AppController::class, 'getCurrencyList']);
+    Route::get('app/units', [AppController::class, 'getUnitsList']);
+});
+
 Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     // app
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
@@ -213,6 +259,8 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::middleware('permission:transactions_create')->post('transactions', [TransactionsController::class, 'store']);
     Route::middleware(['permission:transactions_update', 'time.restriction:Transaction'])->put('transactions/{id}', [TransactionsController::class, 'update']);
     Route::middleware(['permission:transactions_delete', 'time.restriction:Transaction'])->delete('transactions/{id}', [TransactionsController::class, 'destroy']);
+    // Обновление статуса долга без ограничения по времени
+    Route::middleware('permission:transactions_update')->patch('transactions/{id}/debt-status', [TransactionsController::class, 'updateDebtStatus']);
     // Route::middleware('permission:transactions_view')->get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
     // Route::middleware('permission:transactions_view')->get('transactions/{id}', [TransactionsController::class, 'show']);
     // Route::middleware('permission:transactions_view')->get('transactions/project-incomes', [TransactionsController::class, 'getProjectIncomes']);

@@ -119,20 +119,15 @@ class OrdersRepository
                     });
             });
 
-            // Фильтрация по доступу к категориям товаров
-            // Пользователь видит заказ только если хотя бы один товар в заказе
-            // принадлежит к категории, к которой у пользователя есть доступ через category_users
+            // Фильтрация по доступу к категории заказа
+            // Пользователь видит заказ только если у него есть доступ к категории заказа через category_users
             $query->where(function ($q) use ($userUuid) {
-                // Заказы, где есть товары с категориями, доступными пользователю
-                $q->whereHas('orderProducts.product.categories.categoryUsers', function ($subQuery) use ($userUuid) {
+                // Заказы, где категория заказа доступна пользователю
+                $q->whereHas('category.categoryUsers', function ($subQuery) use ($userUuid) {
                     $subQuery->where('user_id', $userUuid);
                 })
-                // ИЛИ заказы, где есть товары без категорий
-                ->orWhereHas('orderProducts.product', function ($subQuery) {
-                    $subQuery->whereDoesntHave('categories');
-                })
-                // ИЛИ заказы без товаров (только temp_products)
-                ->orWhereDoesntHave('orderProducts');
+                // ИЛИ заказы без категории
+                ->orWhereNull('orders.category_id');
             });
 
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
