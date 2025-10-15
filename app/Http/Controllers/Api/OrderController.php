@@ -209,7 +209,6 @@ class OrderController extends Controller
         }
 
         $data = [
-            'user_id'      => $userUuid,
             'client_id'    => $request->client_id,
             'project_id'   => $request->project_id,
             'cash_id'      => $request->cash_id,

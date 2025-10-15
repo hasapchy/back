@@ -651,7 +651,6 @@ class OrdersRepository
 
             // Транзакции теперь управляются вручную, автоматический откат не нужен
 
-            $user_id = $data['user_id'];
             $client_id = $data['client_id'];
             $warehouse_id = $data['warehouse_id'];
             $cash_id = $data['cash_id'];
@@ -748,8 +747,8 @@ class OrdersRepository
                 // total_price удалено из таблицы orders - теперь хранится только в transactions
                 'date' => $date,
                 'note' => $note,
-                'description' => $description,
-                'user_id' => $user_id
+                'description' => $description
+                // user_id НЕ обновляется - он устанавливается только при создании заказа
             ];
 
             // Проверяем, есть ли реальные изменения
