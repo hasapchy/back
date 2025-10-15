@@ -155,6 +155,16 @@ class CacheService
     {
         // Ищем по "orderStatus" чтобы найти все связанные ключи
         self::invalidateByLike('%orderStatus%');
+        // Также инвалидируем категории статусов, т.к. они используются вместе
+        self::invalidateByLike('%order_status_categories%');
+    }
+
+    public static function invalidateOrderStatusCategoriesCache()
+    {
+        // Ищем по "order_status_categories" чтобы найти все связанные ключи
+        self::invalidateByLike('%order_status_categories%');
+        // Также инвалидируем статусы заказов, т.к. они зависят от категорий
+        self::invalidateByLike('%orderStatus%');
     }
 
     public static function invalidateProjectStatusesCache()

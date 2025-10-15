@@ -6,6 +6,15 @@ use App\Models\OrderStatusCategory;
 
 class OrderStatusCategoryRepository
 {
+    // Пагинация
+    public function getItemsWithPagination($userUuid, $perPage = 20)
+    {
+        $items = OrderStatusCategory::where('user_id', $userUuid)
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+        return $items;
+    }
+
     public function getAllItems($userUuid)
     {
         return OrderStatusCategory::where('user_id', $userUuid)->get();
