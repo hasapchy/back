@@ -80,6 +80,12 @@ class CacheService
         self::invalidateByLike("%client%{$clientId}%");
     }
 
+    public static function invalidateClientCategoriesCache()
+    {
+        // Ищем по "client_categor" чтобы найти client_categories и client_category
+        self::invalidateByLike('%client_categor%');
+    }
+
     public static function invalidateProductsCache()
     {
         // Ищем по "product" чтобы найти и products и product
