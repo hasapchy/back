@@ -68,6 +68,23 @@ class ProductController extends Controller
         return response()->json($items);
     }
 
+    // Получение товара по ID
+    public function show(Request $request, $id)
+    {
+        $userUuid = optional(auth('api')->user())->id;
+        if (!$userUuid) {
+            return response()->json(array('message' => 'Unauthorized'), 401);
+        }
+
+        $product = $this->itemsRepository->getItemById($id, $userUuid);
+
+        if (!$product) {
+            return response()->json(['message' => 'Product not found'], 404);
+        }
+
+        return response()->json($product);
+    }
+
     public function services(Request $request)
     {
         $userUuid = optional(auth('api')->user())->id;

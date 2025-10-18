@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\WarehouseWriteoffRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 class WarehouseWriteoffController extends Controller
@@ -71,6 +72,12 @@ class WarehouseWriteoffController extends Controller
                     'message' => 'Ошибка списания'
                 ], 400);
             }
+            
+            // Инвалидируем кэш остатков и продуктов (т.к. stock_quantity изменился)
+            CacheService::invalidateWarehouseWriteoffsCache();
+            CacheService::invalidateWarehouseStocksCache();
+            CacheService::invalidateProductsCache();
+            
             return response()->json([
                 'message' => 'Списание создано'
             ]);
@@ -115,6 +122,12 @@ class WarehouseWriteoffController extends Controller
                     'message' => 'Ошибка списания'
                 ], 400);
             }
+            
+            // Инвалидируем кэш остатков и продуктов (т.к. stock_quantity изменился)
+            CacheService::invalidateWarehouseWriteoffsCache();
+            CacheService::invalidateWarehouseStocksCache();
+            CacheService::invalidateProductsCache();
+            
             return response()->json([
                 'message' => 'Списание обновлено'
             ]);
@@ -137,6 +150,12 @@ class WarehouseWriteoffController extends Controller
                 'message' => 'Ошибка удаления списания'
             ], 400);
         }
+        
+        // Инвалидируем кэш остатков и продуктов (т.к. stock_quantity изменился)
+        CacheService::invalidateWarehouseWriteoffsCache();
+        CacheService::invalidateWarehouseStocksCache();
+        CacheService::invalidateProductsCache();
+        
         return response()->json([
             'message' => 'Списание удалено'
         ]);

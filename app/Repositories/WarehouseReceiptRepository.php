@@ -84,14 +84,6 @@ class WarehouseReceiptRepository
         $note         = $data['note'] ?? '';
         $products     = $data['products'];
 
-        Log::info('WarehouseReceiptRepository::createItem - Начало', [
-            'client_id' => $client_id,
-            'warehouse_id' => $warehouse_id,
-            'type' => $type,
-            'cash_id' => $cash_id,
-            'products_count' => count($products)
-        ]);
-
         DB::beginTransaction();
 
         try {
@@ -110,12 +102,6 @@ class WarehouseReceiptRepository
                 $total_amount += $product['price'] * $product['quantity'];
             }
 
-            Log::info('Создание записи WhReceipt', [
-                'supplier_id' => $client_id,
-                'warehouse_id' => $warehouse_id,
-                'amount' => $total_amount
-            ]);
-
             $receipt = new WhReceipt();
             $receipt->supplier_id  = $client_id;
             $receipt->warehouse_id = $warehouse_id;
@@ -127,24 +113,13 @@ class WarehouseReceiptRepository
             $receipt->user_id      = auth('api')->id();
             $receipt->save();
 
-            Log::info('WhReceipt сохранен', ['receipt_id' => $receipt->id]);
-
             foreach ($products as $product) {
-                Log::info('Сохранение товара приходования', [
-                    'receipt_id' => $receipt->id,
-                    'product_id' => $product['product_id'],
-                    'quantity' => $product['quantity'],
-                    'price' => $product['price']
-                ]);
-
                 $receiptProduct = new WhReceiptProduct();
                 $receiptProduct->receipt_id = $receipt->id;
                 $receiptProduct->product_id = $product['product_id'];
                 $receiptProduct->quantity   = $product['quantity'];
                 $receiptProduct->price      = $product['price'];
                 $receiptProduct->save();
-
-                Log::info('Товар сохранен', ['receipt_product_id' => $receiptProduct->id]);
 
                 if (!$this->updateStock($warehouse_id, $product['product_id'], $product['quantity'])) {
                     throw new \Exception('Ошибка обновления стоков');
@@ -153,8 +128,6 @@ class WarehouseReceiptRepository
                     throw new \Exception('Ошибка обновления цены покупки продукта');
                 }
             }
-
-            Log::info('Все товары сохранены, создание транзакции');
 
             // Создаем транзакцию для всех типов оприходований (новая архитектура)
             $txRepo = new TransactionsRepository();

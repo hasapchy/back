@@ -178,6 +178,7 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::get('products', [ProductController::class, 'products']);
     Route::get('services', [ProductController::class, 'services']);
     Route::get('products/search', [ProductController::class, 'search']);
+    Route::get('products/{id}', [ProductController::class, 'show']);
     Route::middleware('permission:products_create')->post('products', [ProductController::class, 'store']);
     Route::middleware('permission:products_update')->post('products/{id}', [ProductController::class, 'update']);
     Route::middleware('permission:products_delete')->delete('products/{id}', [ProductController::class, 'destroy']);

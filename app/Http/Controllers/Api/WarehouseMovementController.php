@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\WarehouseMovementRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 class WarehouseMovementController extends Controller
@@ -75,6 +76,12 @@ class WarehouseMovementController extends Controller
                     'message' => 'Ошибка перемещения'
                 ], 400);
             }
+            
+            // Инвалидируем кэш остатков и продуктов (т.к. stock_quantity изменился)
+            CacheService::invalidateWarehouseMovementsCache();
+            CacheService::invalidateWarehouseStocksCache();
+            CacheService::invalidateProductsCache();
+            
             return response()->json([
                 'message' => 'Перемещение создано'
             ]);
@@ -124,6 +131,12 @@ class WarehouseMovementController extends Controller
                     'message' => 'Ошибка обновления перемещения'
                 ], 400);
             }
+            
+            // Инвалидируем кэш остатков и продуктов (т.к. stock_quantity изменился)
+            CacheService::invalidateWarehouseMovementsCache();
+            CacheService::invalidateWarehouseStocksCache();
+            CacheService::invalidateProductsCache();
+            
             return response()->json([
                 'message' => 'Перемещение обновлено'
             ]);
@@ -145,6 +158,12 @@ class WarehouseMovementController extends Controller
                 'message' => 'Ошибка удаления перемещения'
             ], 400);
         }
+        
+        // Инвалидируем кэш остатков и продуктов (т.к. stock_quantity изменился)
+        CacheService::invalidateWarehouseMovementsCache();
+        CacheService::invalidateWarehouseStocksCache();
+        CacheService::invalidateProductsCache();
+        
         return response()->json([
             'message' => 'Перемещение удалено'
         ]);

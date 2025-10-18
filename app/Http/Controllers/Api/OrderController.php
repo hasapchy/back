@@ -148,8 +148,10 @@ class OrderController extends Controller
                 return response()->json(['message' => 'Ошибка создания заказа'], 400);
             }
 
-            // Инвалидируем кэш заказов
+            // Инвалидируем кэш заказов, остатков и продуктов (т.к. stock_quantity изменился)
             CacheService::invalidateOrdersCache();
+            CacheService::invalidateWarehouseStocksCache();
+            CacheService::invalidateProductsCache();
 
             return response()->json(['message' => 'Заказ успешно создан']);
         } catch (\Throwable $th) {
@@ -194,12 +196,16 @@ class OrderController extends Controller
             'products.*.product_id' => 'required_with:products|integer|exists:products,id',
             'products.*.quantity'  => 'required_with:products|numeric|min:0',
             'products.*.price'     => 'required_with:products|numeric|min:0',
+            'products.*.width'      => 'nullable|numeric|min:0',
+            'products.*.height'    => 'nullable|numeric|min:0',
             'temp_products'         => 'nullable|array',
             'temp_products.*.name'  => 'required_with:temp_products|string|max:255',
             'temp_products.*.description' => 'nullable|string',
             'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0',
             'temp_products.*.price'       => 'required_with:temp_products|numeric|min:0',
             'temp_products.*.unit_id'     => 'nullable|exists:units,id',
+            'temp_products.*.width'       => 'nullable|numeric|min:0',
+            'temp_products.*.height'      => 'nullable|numeric|min:0',
             'additional_fields' => 'sometimes|array',
             'additional_fields.*.field_id' => 'required_with:additional_fields|integer|exists:order_af,id',
             'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
@@ -259,8 +265,10 @@ class OrderController extends Controller
                 return response()->json(['message' => 'Ошибка обновления заказа'], 400);
             }
 
-            // Инвалидируем кэш заказов
+            // Инвалидируем кэш заказов, остатков и продуктов (т.к. stock_quantity изменился)
             CacheService::invalidateOrdersCache();
+            CacheService::invalidateWarehouseStocksCache();
+            CacheService::invalidateProductsCache();
 
             return response()->json(['message' => 'Заказ сохранён']);
         } catch (\Throwable $th) {
@@ -300,8 +308,10 @@ class OrderController extends Controller
         try {
             $deleted = $this->itemRepository->deleteItem($id);
 
-            // Инвалидируем кэш заказов
+            // Инвалидируем кэш заказов, остатков и продуктов (т.к. stock_quantity изменился)
             CacheService::invalidateOrdersCache();
+            CacheService::invalidateWarehouseStocksCache();
+            CacheService::invalidateProductsCache();
 
             return response()->json([
                 'message' => 'Заказ успешно удалён',
