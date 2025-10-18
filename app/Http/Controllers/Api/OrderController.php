@@ -85,6 +85,8 @@ class OrderController extends Controller
             'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0',
             'temp_products.*.price'       => 'required_with:temp_products|numeric|min:0',
             'temp_products.*.unit_id'     => 'nullable|exists:units,id',
+            'temp_products.*.width'       => 'nullable|numeric|min:0',
+            'temp_products.*.height'      => 'nullable|numeric|min:0',
             'additional_fields' => 'sometimes|array',
             'additional_fields.*.field_id' => 'required_with:additional_fields|integer|exists:order_af,id',
             'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
@@ -125,6 +127,8 @@ class OrderController extends Controller
                 'quantity'    => $p['quantity'],
                 'price'       => $p['price'],
                 'unit_id'     => $p['unit_id'] ?? null,
+                'width'       => $p['width'] ?? null,
+                'height'      => $p['height'] ?? null,
             ], $request->temp_products ?? []),
             'additional_fields' => $request->additional_fields ?? [],
         ];
@@ -235,6 +239,8 @@ class OrderController extends Controller
                 'quantity'    => $p['quantity'],
                 'price'       => $p['price'],
                 'unit_id'     => $p['unit_id'] ?? null,
+                'width'       => $p['width'] ?? null,
+                'height'      => $p['height'] ?? null,
             ], $request->temp_products ?? []),
             'additional_fields' => $request->additional_fields ?? [],
         ];

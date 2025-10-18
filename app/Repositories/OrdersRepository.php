@@ -68,7 +68,7 @@ class OrdersRepository
                     'orderProducts:id,order_id,product_id,quantity,price,width,height',
                     'orderProducts.product:id,name,image,unit_id',
                     'orderProducts.product.unit:id,name,short_name',
-                    'tempProducts:id,order_id,name,description,quantity,price,unit_id',
+                    'tempProducts:id,order_id,name,description,quantity,price,unit_id,width,height',
                     'tempProducts.unit:id,name,short_name',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
@@ -217,6 +217,8 @@ class OrdersRepository
                             'unit_short_name' => $tempProduct->unit->short_name ?? null,
                             'quantity' => $tempProduct->quantity,
                             'price' => $tempProduct->price,
+                            'width' => $tempProduct->width,
+                            'height' => $tempProduct->height,
                             'product_type' => 'temp'
                         ]);
                     }
@@ -438,6 +440,8 @@ class OrdersRepository
                 'units.short_name as unit_short_name',
                 'order_temp_products.quantity',
                 'order_temp_products.price',
+                'order_temp_products.width',
+                'order_temp_products.height',
                 DB::raw("'temp' as product_type")
             )
             ->get();
@@ -605,6 +609,8 @@ class OrdersRepository
                     'quantity' => $temp_product['quantity'],
                     'price' => $temp_product['price'],
                     'unit_id' => $temp_product['unit_id'] ?? null,
+                    'width' => $temp_product['width'] ?? null,
+                    'height' => $temp_product['height'] ?? null,
                 ]);
             }
 
@@ -876,7 +882,9 @@ class OrdersRepository
                         $existing->description != ($temp_product['description'] ?? null) ||
                         $existing->quantity != $temp_product['quantity'] ||
                         $existing->price != $temp_product['price'] ||
-                        $existing->unit_id != ($temp_product['unit_id'] ?? null)
+                        $existing->unit_id != ($temp_product['unit_id'] ?? null) ||
+                        $existing->width != ($temp_product['width'] ?? null) ||
+                        $existing->height != ($temp_product['height'] ?? null)
                     ) {
                         $tempProductChanged = true;
                     }
@@ -888,6 +896,8 @@ class OrdersRepository
                             'quantity' => $temp_product['quantity'],
                             'price' => $temp_product['price'],
                             'unit_id' => $temp_product['unit_id'] ?? null,
+                            'width' => $temp_product['width'] ?? null,
+                            'height' => $temp_product['height'] ?? null,
                         ]);
                         $tempProductsChanged = true;
                     }
@@ -900,6 +910,8 @@ class OrdersRepository
                         'quantity' => $temp_product['quantity'],
                         'price' => $temp_product['price'],
                         'unit_id' => $temp_product['unit_id'] ?? null,
+                        'width' => $temp_product['width'] ?? null,
+                        'height' => $temp_product['height'] ?? null,
                     ]);
                     $tempProductsChanged = true;
                 }

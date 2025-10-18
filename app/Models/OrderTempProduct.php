@@ -21,6 +21,8 @@ class OrderTempProduct extends Model
         'quantity',
         'price',
         'unit_id',
+        'width',
+        'height',
     ];
 
     protected static $logAttributes = [

@@ -404,20 +404,34 @@ class ProjectsRepository
             $projectCurrencyId = $project ? $project->currency_id : null;
             $projectExchangeRate = $project ? $project->exchange_rate : 1;
 
+            // Получаем курсы валют заранее
+            $currencyRates = [];
+            $currencyHistories = DB::table('currency_histories')
+                ->where('start_date', '<=', now()->toDateString())
+                ->where(function($query) {
+                    $query->whereNull('end_date')
+                          ->orWhere('end_date', '>=', now()->toDateString());
+                })
+                ->orderBy('currency_id')
+                ->orderBy('start_date', 'desc')
+                ->get()
+                ->groupBy('currency_id');
+
+            foreach ($currencyHistories as $currencyId => $histories) {
+                $currencyRates[$currencyId] = $histories->first()->exchange_rate ?? 1;
+            }
+
             // Новая архитектура: все операции записываются в таблицу transactions с morphable связями
             $transactions = DB::table('transactions')
                 ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
-                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
+                ->leftJoin('currencies as cash_currencies', 'cash_registers.currency_id', '=', 'cash_currencies.id')
+                ->leftJoin('currencies as transaction_currencies', 'transactions.currency_id', '=', 'transaction_currencies.id')
                 ->leftJoin('users', 'transactions.user_id', '=', 'users.id')
                 ->where('transactions.project_id', $projectId)
                 ->select(
                     'transactions.id',
                     'transactions.created_at',
-                    DB::raw("CASE
-                        WHEN transactions.cash_id IS NOT NULL AND cash_registers.currency_id != {$projectCurrencyId}
-                        THEN transactions.amount * {$projectExchangeRate}
-                        ELSE transactions.amount
-                    END as amount"),
+                    'transactions.currency_id',
                     'transactions.orig_amount',
                     'transactions.type',
                     'transactions.source_type',
@@ -432,14 +446,21 @@ class ProjectsRepository
                         WHEN transactions.source_type = 'App\\\\Models\\\\WarehouseReceipt' THEN 'receipt'
                         ELSE 'transaction'
                     END as source"),
-                    'currencies.symbol as cash_currency_symbol'
+                    'transaction_currencies.symbol as cash_currency_symbol'
                 );
 
             // Получаем все транзакции проекта
             $transactionsResult = $transactions
                 ->get()
-                ->map(function ($item) {
-                    $amount = $item->amount;
+                ->map(function ($item) use ($projectCurrencyId, $projectExchangeRate, $currencyRates) {
+                    // Вычисляем сумму в валюте проекта
+                    $amount = $item->orig_amount;
+
+                    // Если валюта транзакции != валюта проекта, конвертируем
+                    if ($item->currency_id != $projectCurrencyId) {
+                        $transactionRate = $currencyRates[$item->currency_id] ?? 1;
+                        $amount = ($item->orig_amount * $transactionRate) * $projectExchangeRate;
+                    }
 
                     // Корректируем сумму в зависимости от типа и источника
                     if ($item->source === 'receipt') {
@@ -464,7 +485,12 @@ class ProjectsRepository
                         'note' => $item->note,
                         'user_id' => $item->user_id,
                         'user_name' => $item->user_name,
-                        'cash_currency_symbol' => $item->cash_currency_symbol
+                        'cash_currency_symbol' => $item->cash_currency_symbol,
+                        // Отладочная информация
+                        'debug_transaction_currency' => $item->currency_id,
+                        'debug_transaction_rate' => $currencyRates[$item->currency_id] ?? 1,
+                        'debug_project_currency' => $projectCurrencyId,
+                        'debug_project_rate' => $projectExchangeRate
                     ];
                 });
 
