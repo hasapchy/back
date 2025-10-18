@@ -30,6 +30,16 @@ class WhReceipt extends Model
         return $this->belongsTo(Warehouse::class);
     }
 
+    public function cashRegister()
+    {
+        return $this->belongsTo(CashRegister::class, 'cash_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function currency()
     {
         return $this->belongsTo(Currency::class);

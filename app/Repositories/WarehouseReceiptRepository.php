@@ -27,25 +27,37 @@ class WarehouseReceiptRepository
                 ->pluck('warehouse_id')
                 ->toArray();
 
-            return WhReceipt::select([
-                'wh_receipts.id as id',
-                'wh_receipts.warehouse_id as warehouse_id',
-                'wh_receipts.supplier_id as supplier_id',
-                'wh_receipts.amount as amount',
-                'wh_receipts.cash_id as cash_id',
-                'wh_receipts.note as note',
-                'wh_receipts.user_id as user_id',
-                'wh_receipts.date as date',
-                'wh_receipts.created_at as created_at',
-                'wh_receipts.updated_at as updated_at',
-                DB::raw('(SELECT name FROM warehouses WHERE warehouses.id = wh_receipts.warehouse_id) as warehouse_name'),
-                DB::raw('(SELECT name FROM users WHERE users.id = wh_receipts.user_id) as user_name'),
-                DB::raw('(SELECT name FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id) as cash_name'),
-                DB::raw('(SELECT id FROM currencies WHERE currencies.id = (SELECT currency_id FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id)) as currency_id'),
-                DB::raw('(SELECT name FROM currencies WHERE currencies.id = (SELECT currency_id FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id)) as currency_name'),
-                DB::raw('(SELECT code FROM currencies WHERE currencies.id = (SELECT currency_id FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id)) as currency_code'),
-                DB::raw('(SELECT symbol FROM currencies WHERE currencies.id = (SELECT currency_id FROM cash_registers WHERE cash_registers.id = wh_receipts.cash_id)) as currency_symbol')
+            $items = WhReceipt::select([
+                'wh_receipts.id',
+                'wh_receipts.warehouse_id',
+                'wh_receipts.supplier_id',
+                'wh_receipts.amount',
+                'wh_receipts.cash_id',
+                'wh_receipts.project_id',
+                'wh_receipts.note',
+                'wh_receipts.user_id',
+                'wh_receipts.date',
+                'wh_receipts.created_at',
+                'wh_receipts.updated_at',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name',
+                'clients.contact_person as client_contact_person'
             ])
+                ->leftJoin('clients', 'wh_receipts.supplier_id', '=', 'clients.id')
+                ->with([
+                    'warehouse:id,name',
+                    'cashRegister:id,name,currency_id',
+                    'cashRegister.currency:id,name,code,symbol',
+                    'user:id,name',
+                    'project:id,name',
+                    'supplier:id,first_name,last_name,contact_person,status', // Клиент-поставщик
+                    'supplier.phones:id,client_id,phone',
+                    'supplier.emails:id,client_id,email',
+                    'supplier.balance:id,client_id,balance', // Баланс клиента из отдельной таблицы
+                    'products:id,receipt_id,product_id,quantity,price', // Товары приходования
+                    'products.product:id,name,image,unit_id', // Данные товара
+                    'products.product.unit:id,name,short_name' // Единица измерения
+                ])
                 ->whereIn('wh_receipts.warehouse_id', $warehouseIds)
                 // Фильтрация по доступу к проектам
                 ->where(function($q) use ($userUuid) {
@@ -56,18 +68,6 @@ class WarehouseReceiptRepository
                 })
                 ->orderBy('wh_receipts.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
-
-            $client_ids = $items->pluck('supplier_id')->toArray();
-            $client_repository = new ClientsRepository();
-            $clients = $client_repository->getItemsByIds($client_ids);
-
-            $wh_receipt_ids = $items->pluck('id')->toArray();
-            $products = $this->getProducts($wh_receipt_ids);
-
-            foreach ($items as $item) {
-                $item->client = $clients->firstWhere('id', $item->supplier_id);
-                $item->products = $products->get($item->id, collect());
-            }
 
             return $items;
         }, (int)$page);
@@ -83,6 +83,14 @@ class WarehouseReceiptRepository
         $date         = $data['date'] ?? now();
         $note         = $data['note'] ?? '';
         $products     = $data['products'];
+
+        Log::info('WarehouseReceiptRepository::createItem - Начало', [
+            'client_id' => $client_id,
+            'warehouse_id' => $warehouse_id,
+            'type' => $type,
+            'cash_id' => $cash_id,
+            'products_count' => count($products)
+        ]);
 
         DB::beginTransaction();
 
@@ -102,6 +110,12 @@ class WarehouseReceiptRepository
                 $total_amount += $product['price'] * $product['quantity'];
             }
 
+            Log::info('Создание записи WhReceipt', [
+                'supplier_id' => $client_id,
+                'warehouse_id' => $warehouse_id,
+                'amount' => $total_amount
+            ]);
+
             $receipt = new WhReceipt();
             $receipt->supplier_id  = $client_id;
             $receipt->warehouse_id = $warehouse_id;
@@ -113,13 +127,24 @@ class WarehouseReceiptRepository
             $receipt->user_id      = auth('api')->id();
             $receipt->save();
 
+            Log::info('WhReceipt сохранен', ['receipt_id' => $receipt->id]);
+
             foreach ($products as $product) {
+                Log::info('Сохранение товара приходования', [
+                    'receipt_id' => $receipt->id,
+                    'product_id' => $product['product_id'],
+                    'quantity' => $product['quantity'],
+                    'price' => $product['price']
+                ]);
+
                 $receiptProduct = new WhReceiptProduct();
                 $receiptProduct->receipt_id = $receipt->id;
                 $receiptProduct->product_id = $product['product_id'];
                 $receiptProduct->quantity   = $product['quantity'];
                 $receiptProduct->price      = $product['price'];
                 $receiptProduct->save();
+
+                Log::info('Товар сохранен', ['receipt_product_id' => $receiptProduct->id]);
 
                 if (!$this->updateStock($warehouse_id, $product['product_id'], $product['quantity'])) {
                     throw new \Exception('Ошибка обновления стоков');
@@ -128,6 +153,8 @@ class WarehouseReceiptRepository
                     throw new \Exception('Ошибка обновления цены покупки продукта');
                 }
             }
+
+            Log::info('Все товары сохранены, создание транзакции');
 
             // Создаем транзакцию для всех типов оприходований (новая архитектура)
             $txRepo = new TransactionsRepository();
@@ -350,26 +377,5 @@ class WarehouseReceiptRepository
         return true;
     }
 
-    private function getProducts($wh_receipt_ids)
-    {
-        return WhReceiptProduct::whereIn('receipt_id', $wh_receipt_ids)
-            ->leftJoin('products', 'wh_receipt_products.product_id', '=', 'products.id')
-            ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-            ->select(
-                'wh_receipt_products.id as id',
-                'wh_receipt_products.receipt_id as receipt_id',
-                'wh_receipt_products.product_id as product_id',
-                'products.name as product_name',
-                'products.image as product_image',
-                'products.unit_id as unit_id',
-                'units.name as unit_name',
-                'units.short_name as unit_short_name',
-                'wh_receipt_products.quantity as quantity',
-                'wh_receipt_products.price as price',
-                'wh_receipt_products.sn_id as sn_id'
-            )
-            ->get()
-            ->groupBy('receipt_id');
-    }
 
 }

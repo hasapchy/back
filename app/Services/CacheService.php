@@ -251,6 +251,12 @@ class CacheService
         self::invalidateByLike('%users_%');
     }
 
+    public static function invalidateCompaniesCache()
+    {
+        // Ищем по "compan" чтобы найти и companies и company
+        self::invalidateByLike('%compan%');
+    }
+
     public static function invalidatePerformanceCache()
     {
         self::invalidateByLike('%performance_sales_metrics%');

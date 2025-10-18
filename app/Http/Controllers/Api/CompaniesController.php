@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -49,6 +50,9 @@ class CompaniesController extends Controller
 
         $company = Company::create($data);
 
+        // Инвалидируем кэш компаний
+        CacheService::invalidateCompaniesCache();
+
         return response()->json(['company' => $company]);
     }
 
@@ -76,6 +80,9 @@ class CompaniesController extends Controller
 
         $company->update($data);
 
+        // Инвалидируем кэш компаний
+        CacheService::invalidateCompaniesCache();
+
         // Получаем свежие данные из базы
         $company = $company->fresh();
 
@@ -86,6 +93,9 @@ class CompaniesController extends Controller
     {
         $company = Company::findOrFail($id);
         $company->delete();
+
+        // Инвалидируем кэш компаний
+        CacheService::invalidateCompaniesCache();
 
         return response()->json(['message' => 'Company deleted']);
     }

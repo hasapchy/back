@@ -26,6 +26,22 @@ class WarehouseReceiptController extends Controller
 
         $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20);
 
+        // Логирование для отладки
+        $items = $warehouses->items();
+        if (count($items) > 0) {
+            $firstItem = $items[0];
+            Log::info('Первое приходование для отправки на фронт', [
+                'id' => $firstItem->id,
+                'supplier_id' => $firstItem->supplier_id,
+                'has_supplier' => isset($firstItem->supplier),
+                'supplier_name' => $firstItem->supplier ? ($firstItem->supplier->first_name . ' ' . $firstItem->supplier->last_name) : null,
+                'has_products' => isset($firstItem->products),
+                'products_count' => $firstItem->products ? count($firstItem->products) : 0,
+                'has_cashRegister' => isset($firstItem->cashRegister),
+                'cash_name' => $firstItem->cashRegister ? $firstItem->cashRegister->name : null,
+            ]);
+        }
+
         return response()->json([
             'items' => $warehouses->items(),
             'current_page' => $warehouses->currentPage(),
@@ -73,13 +89,25 @@ class WarehouseReceiptController extends Controller
             }, $request->products)
         );
 
+        // Логирование полученных данных
+        Log::info('Создание приходования', [
+            'client_id' => $data['client_id'],
+            'warehouse_id' => $data['warehouse_id'],
+            'type' => $data['type'],
+            'products_count' => count($data['products']),
+            'products' => $data['products']
+        ]);
+
         try {
             $warehouse_created = $this->warehouseRepository->createItem($data);
             if (!$warehouse_created) {
+                Log::error('Ошибка: createItem вернул false');
                 return response()->json([
                     'message' => 'Ошибка оприходования'
                 ], 400);
             }
+
+            Log::info('Приходование успешно создано');
 
             // Инвалидируем кэш приходов и остатков
             CacheService::invalidateWarehouseReceiptsCache();
@@ -89,8 +117,12 @@ class WarehouseReceiptController extends Controller
                 'message' => 'Оприходование создано'
             ]);
         } catch (\Throwable $th) {
+            Log::error('Ошибка при создании приходования', [
+                'message' => $th->getMessage(),
+                'trace' => $th->getTraceAsString()
+            ]);
             return response()->json([
-                'message' => 'Ошибка оприходования' . $th->getMessage()
+                'message' => 'Ошибка оприходования: ' . $th->getMessage()
             ], 400);
         }
     }
