@@ -77,7 +77,9 @@ class CacheService
 
     public static function invalidateClientBalanceCache($clientId)
     {
-        self::invalidateByLike("%client%{$clientId}%");
+        // Инвалидируем все ключи, содержащие client_{$clientId}
+        // Это покроет: reference_client_{$clientId}_{companyId}, paginated_clients_*, clients_search_*
+        self::invalidateByLike("%client_{$clientId}_%");
     }
 
     public static function invalidateClientCategoriesCache()

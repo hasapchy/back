@@ -396,6 +396,10 @@ class ClientsRepository
 
         return CacheService::remember($cacheKey, function () use ($clientId) {
             try {
+                // Получаем валюту по умолчанию для конвертации
+                $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
+                $defaultCurrencySymbol = $defaultCurrency ? $defaultCurrency->symbol : '';
+
                 // Новая архитектура: все операции записываются в таблицу transactions с morphable связями
                 $transactions = DB::table('transactions')
                     ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
@@ -464,12 +468,50 @@ class ClientsRepository
                             'currency_symbol' => $item->currency_symbol,
                             'cash_name' => $item->cash_name
                         ];
-                    })
+                    });
+
+                // Получаем заказы клиента напрямую из таблицы orders (как в балансе проекта)
+                $orders = DB::table('orders')
+                    ->leftJoin('users', 'orders.user_id', '=', 'users.id')
+                    ->where('orders.client_id', $clientId)
+                    ->select(
+                        'orders.id',
+                        'orders.created_at',
+                        // Заказ = клиент нам должен (положительная сумма)
+                        DB::raw('(orders.price - orders.discount) as amount'),
+                        DB::raw('orders.price - orders.discount as orig_amount'),
+                        'orders.note',
+                        'orders.user_id',
+                        'users.name as user_name'
+                    )
+                    ->get()
+                    ->map(function ($item) use ($defaultCurrencySymbol) {
+                        return [
+                            'source' => 'order',
+                            'source_id' => $item->id,
+                            'source_type' => 'App\\Models\\Order',
+                            'source_source_id' => $item->id,
+                            'date' => $item->created_at,
+                            'amount' => (float)$item->amount,
+                            'orig_amount' => (float)$item->orig_amount,
+                            'is_debt' => false,
+                            'note' => $item->note,
+                            'description' => 'Заказ',
+                            'user_id' => $item->user_id,
+                            'user_name' => $item->user_name,
+                            'currency_symbol' => $defaultCurrencySymbol,
+                            'cash_name' => null
+                        ];
+                    });
+
+                // Объединяем транзакции и заказы, сортируем по дате
+                $result = $transactions
+                    ->concat($orders)
                     ->sortBy('date')
                     ->values()
                     ->all();
 
-                return $transactions;
+                return $result;
             } catch (\Exception $e) {
                 return [];
             }
@@ -484,9 +526,9 @@ class ClientsRepository
         // Чтение не инвалидирует кэш; инвалидация выполняется при CRUD операциях
 
         return CacheService::remember($cacheKey, function () use ($clientId) {
-            return DB::table('client_balances')
-                ->where('client_id', $clientId)
-                ->value('balance') ?? 0;
+            // Получаем историю баланса и считаем сумму (включая заказы)
+            $history = $this->getBalanceHistory($clientId);
+            return collect($history)->sum('amount');
         });
     }
 
@@ -496,10 +538,12 @@ class ClientsRepository
         $cacheKey = "clients_balances_" . md5(implode(',', $clientIds));
 
         return CacheService::remember($cacheKey, function () use ($clientIds) {
-            return DB::table('client_balances')
-                ->whereIn('client_id', $clientIds)
-                ->pluck('balance', 'client_id')
-                ->toArray();
+            // Получаем балансы каждого клиента через getClientBalance (который учитывает заказы)
+            $balances = [];
+            foreach ($clientIds as $clientId) {
+                $balances[$clientId] = $this->getClientBalance($clientId);
+            }
+            return $balances;
         });
     }
 
@@ -522,8 +566,11 @@ class ClientsRepository
     // Инвалидация кэша баланса клиента
     public function invalidateClientBalanceCache($clientId)
     {
-        // Используем новый метод из CacheService
+        // Инвалидируем кэш конкретного клиента (включая баланс)
         CacheService::invalidateClientBalanceCache($clientId);
+
+        // Также инвалидируем список всех клиентов (чтобы Store обновился)
+        CacheService::invalidateClientsCache();
     }
 
 }
