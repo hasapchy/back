@@ -156,6 +156,10 @@ class ClientController extends Controller
 
             // Инвалидируем кэш клиентов
             \App\Services\CacheService::invalidateClientsCache();
+            // Инвалидируем кэш сущностей где клиент embedded (заказы, продажи, транзакции)
+            \App\Services\CacheService::invalidateOrdersCache();
+            \App\Services\CacheService::invalidateSalesCache();
+            \App\Services\CacheService::invalidateTransactionsCache();
 
             return response()->json([
                 'message' => 'Client created successfully',
@@ -224,6 +228,10 @@ class ClientController extends Controller
 
             // Инвалидируем кэш клиентов
             \App\Services\CacheService::invalidateClientsCache();
+            // Инвалидируем кэш сущностей где клиент embedded (заказы, продажи, транзакции)
+            \App\Services\CacheService::invalidateOrdersCache();
+            \App\Services\CacheService::invalidateSalesCache();
+            \App\Services\CacheService::invalidateTransactionsCache();
 
             return response()->json([
                 'message' => 'Client updated successfully',
@@ -300,6 +308,10 @@ class ClientController extends Controller
             if ($deleted) {
                 // Инвалидируем кэш клиентов
                 \App\Services\CacheService::invalidateClientsCache();
+                // Инвалидируем кэш сущностей где клиент embedded
+                \App\Services\CacheService::invalidateOrdersCache();
+                \App\Services\CacheService::invalidateSalesCache();
+                \App\Services\CacheService::invalidateTransactionsCache();
 
                 return response()->json(['message' => 'Клиент успешно удалён'], 200);
             } else {
