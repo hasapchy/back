@@ -1027,9 +1027,9 @@ class OrdersRepository
 
             // Убрана проверка на создателя - статус может менять любой пользователь
 
-            // Проверка на категорию "закрытие"
+            // Проверка на категорию "оплачено" (category_id = 3) и "закрытие" (category_id = 4)
             // Пропускаем проверку, если в заказе выбран проект
-            if ($targetStatus->category_id == 4 && !$order->project_id) {
+            if (($targetStatus->category_id == 3 || $targetStatus->category_id == 4) && !$order->project_id) {
                 // Вычисляем сумму заказа (товары минус скидка)
                 $orderTotal = $order->price - $order->discount;
 
@@ -1038,7 +1038,8 @@ class OrdersRepository
                     ->where('source_id', $order->id)
                     ->sum('orig_amount');
 
-                if ($paidTotal < $orderTotal) {
+                // Проверяем: оплата должна быть > 0 для статусов "оплачено" и "закрыто"
+                if ($paidTotal <= 0 || $paidTotal < $orderTotal) {
                     $remainingAmount = $orderTotal - $paidTotal;
                     return [
                         'success' => false,
@@ -1047,7 +1048,9 @@ class OrdersRepository
                         'paid_total' => $paidTotal,
                         'order_total' => $orderTotal,
                         'remaining_amount' => $remainingAmount,
-                        'message' => "Заказ не оплачен полностью. Осталось доплатить: {$remainingAmount}"
+                        'message' => $paidTotal <= 0
+                            ? "Заказ не оплачен. Необходимо создать транзакцию оплаты на сумму: {$remainingAmount}"
+                            : "Заказ не оплачен полностью. Осталось доплатить: {$remainingAmount}"
                     ];
                 }
             }
