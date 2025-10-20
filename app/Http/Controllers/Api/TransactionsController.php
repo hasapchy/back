@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Transaction;
+use App\Models\Order;
 use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -92,6 +93,14 @@ class TransactionsController extends Controller
             ], 403);
         }
 
+        // Поддержка новой morph-связи источника (заказ)
+        $sourceType = null;
+        $sourceId = null;
+        if ($request->order_id) {
+            $sourceType = Order::class;
+            $sourceId = $request->order_id;
+        }
+
         $item_created = $this->itemsRepository->createItem([
             'type' => $request->type,
             'user_id' => $userUuid,
@@ -101,7 +110,9 @@ class TransactionsController extends Controller
             'category_id' => $request->category_id,
             'project_id' => $request->project_id,
             'client_id' => $request->client_id,
-            'order_id' => $request->order_id,
+            // morph-источник вместо order_id
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
             'note' => $request->note,
             'date' => $request->date ?? now(),
             'is_debt' => $request->is_debt ?? false
@@ -115,6 +126,16 @@ class TransactionsController extends Controller
 
         // Инвалидируем кэш транзакций
         CacheService::invalidateTransactionsCache();
+        // Инвалидируем кэш клиентов (баланс клиента изменился)
+        if ($request->client_id) {
+            CacheService::invalidateClientsCache();
+        }
+        // Инвалидируем кэш проектов (если транзакция привязана к проекту)
+        if ($request->project_id) {
+            CacheService::invalidateProjectsCache();
+        }
+        // Инвалидируем кэш касс (баланс кассы изменился)
+        CacheService::invalidateCashRegistersCache();
 
         return response()->json([
             'message' => 'Транзакция создана'
@@ -166,6 +187,20 @@ class TransactionsController extends Controller
                 'message' => 'У вас нет прав на эту кассу'
             ], 403);
         }
+        // Поддержка изменения привязки к заказу: маппим order_id -> source_type/source_id
+        $updateSourceType = null;
+        $updateSourceId = null;
+        if ($request->has('order_id')) {
+            if ($request->order_id) {
+                $updateSourceType = Order::class;
+                $updateSourceId = $request->order_id;
+            } else {
+                // Снять привязку к заказу
+                $updateSourceType = null;
+                $updateSourceId = null;
+            }
+        }
+
         $updateData = [
             'category_id' => $request->category_id,
             'project_id' => $request->project_id,
@@ -183,6 +218,11 @@ class TransactionsController extends Controller
             $updateData['currency_id'] = $request->currency_id;
         }
 
+        if ($request->has('order_id')) {
+            $updateData['source_type'] = $updateSourceType;
+            $updateData['source_id'] = $updateSourceId;
+        }
+
         $category_updated = $this->itemsRepository->updateItem($id, $updateData);
 
         if (!$category_updated) {
@@ -193,6 +233,16 @@ class TransactionsController extends Controller
 
         // Инвалидируем кэш транзакций
         CacheService::invalidateTransactionsCache();
+        // Инвалидируем кэш клиентов (баланс клиента мог измениться)
+        if ($request->client_id || $transaction_exist->client_id) {
+            CacheService::invalidateClientsCache();
+        }
+        // Инвалидируем кэш проектов (если транзакция привязана к проекту)
+        if ($request->project_id || $transaction_exist->project_id) {
+            CacheService::invalidateProjectsCache();
+        }
+        // Инвалидируем кэш касс (баланс кассы мог измениться)
+        CacheService::invalidateCashRegistersCache();
 
         return response()->json([
             'message' => 'Транзакция обновлена'
@@ -236,6 +286,16 @@ class TransactionsController extends Controller
 
         // Инвалидируем кэш транзакций
         CacheService::invalidateTransactionsCache();
+        // Инвалидируем кэш клиентов (баланс клиента изменился)
+        if ($transaction_exist->client_id) {
+            CacheService::invalidateClientsCache();
+        }
+        // Инвалидируем кэш проектов (если транзакция была привязана к проекту)
+        if ($transaction_exist->project_id) {
+            CacheService::invalidateProjectsCache();
+        }
+        // Инвалидируем кэш касс (баланс кассы изменился)
+        CacheService::invalidateCashRegistersCache();
 
         return response()->json([
             'message' => 'Транзакция удалена'

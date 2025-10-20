@@ -129,7 +129,8 @@ class ClientController extends Controller
             'is_supplier'      => 'sometimes|nullable|boolean',
             'last_name'        => 'nullable|string',
             'contact_person'   => 'nullable|string',
-            'client_type'      => 'required|string|in:company,individual',
+            'client_type'      => 'required|string|in:company,individual,employee,investor',
+            'employee_id'      => 'nullable|exists:users,id',
             'address'          => 'nullable|string',
             'phones'           => 'required|array',
             'phones.*'         => 'string|distinct|min:6',
@@ -158,7 +159,7 @@ class ClientController extends Controller
 
             return response()->json([
                 'message' => 'Client created successfully',
-                'item' => $client->load('balance', 'phones', 'emails'),
+                'item' => $client->load('balance', 'phones', 'emails', 'employee'),
             ], 200);
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -192,7 +193,8 @@ class ClientController extends Controller
             'is_supplier'      => 'sometimes|nullable|boolean',
             'last_name'        => 'nullable|string',
             'contact_person'   => 'nullable|string',
-            'client_type'      => 'required|string|in:company,individual',
+            'client_type'      => 'required|string|in:company,individual,employee,investor',
+            'employee_id'      => 'nullable|exists:users,id',
             'address'          => 'nullable|string',
             'phones'           => 'required|array',
             'phones.*'         => 'string|distinct|min:6',

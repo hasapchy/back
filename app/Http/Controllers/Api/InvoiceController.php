@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\InvoicesRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 class InvoiceController extends Controller
@@ -92,6 +93,9 @@ class InvoiceController extends Controller
                 return response()->json(['message' => 'Ошибка создания счета'], 400);
             }
 
+            // Инвалидируем кэш счетов
+            CacheService::invalidateInvoicesCache();
+
             return response()->json(['message' => 'Счет успешно создан', 'invoice' => $created]);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Ошибка создания счета: ' . $th->getMessage()], 400);
@@ -131,6 +135,10 @@ class InvoiceController extends Controller
             if (!$updated) {
                 return response()->json(['message' => 'Ошибка обновления счета'], 400);
             }
+            
+            // Инвалидируем кэш счетов
+            CacheService::invalidateInvoicesCache();
+            
             return response()->json(['message' => 'Счет сохранён']);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Ошибка: ' . $th->getMessage()], 400);
@@ -146,6 +154,10 @@ class InvoiceController extends Controller
 
         try {
             $deleted = $this->itemRepository->deleteItem($id);
+            
+            // Инвалидируем кэш счетов
+            CacheService::invalidateInvoicesCache();
+            
             return response()->json([
                 'message' => 'Счет успешно удалён',
                 'invoice' => $deleted

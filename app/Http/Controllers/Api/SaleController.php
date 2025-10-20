@@ -93,6 +93,12 @@ class SaleController extends Controller
 
             // Инвалидируем кэш продаж
             CacheService::invalidateSalesCache();
+            // Инвалидируем кэш клиентов (баланс клиента изменился)
+            CacheService::invalidateClientsCache();
+            // Инвалидируем кэш проектов (если продажа привязана к проекту)
+            if ($request->project_id) {
+                CacheService::invalidateProjectsCache();
+            }
 
             return response()->json(['message' => 'Продажа добавлена'], 201);
         } catch (\Throwable $e) {
@@ -137,14 +143,28 @@ class SaleController extends Controller
         }
 
         try {
-            $sale = $this->itemRepository->deleteItem($id);
+            // Сохраняем данные продажи перед удалением (метод deleteItem возвращает bool)
+            $projectId = $sale->project_id ?? null;
+            $saleData = [
+                'id' => $sale->id,
+                'client_id' => $sale->client_id,
+                'project_id' => $projectId,
+            ];
+
+            $result = $this->itemRepository->deleteItem($id);
 
             // Инвалидируем кэш продаж
             CacheService::invalidateSalesCache();
+            // Инвалидируем кэш клиентов (баланс клиента изменился)
+            CacheService::invalidateClientsCache();
+            // Инвалидируем кэш проектов (если продажа была привязана к проекту)
+            if ($projectId) {
+                CacheService::invalidateProjectsCache();
+            }
 
             return response()->json([
                 'message' => 'Продажа удалена успешно',
-                'sale' => $sale
+                'sale' => $saleData
             ], 200);
         } catch (\Throwable $th) {
             return response()->json([

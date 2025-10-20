@@ -152,6 +152,12 @@ class OrderController extends Controller
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
+            // Инвалидируем кэш клиентов (баланс клиента изменился через транзакции)
+            CacheService::invalidateClientsCache();
+            // Инвалидируем кэш проектов (если заказ привязан к проекту)
+            if ($request->project_id) {
+                CacheService::invalidateProjectsCache();
+            }
 
             return response()->json(['message' => 'Заказ успешно создан']);
         } catch (\Throwable $th) {
@@ -172,12 +178,7 @@ class OrderController extends Controller
             return response()->json(['message' => 'Заказ не найден'], 404);
         }
 
-        // Проверяем права владельца: если не админ, то можно редактировать только свои записи
-        if (!$user->is_admin && $order->user_id != $userUuid) {
-            return response()->json([
-                'message' => 'У вас нет прав на редактирование этого заказа'
-            ], 403);
-        }
+        // Удаляем ограничение на редактирование только владельцем: любой авторизованный пользователь может редактировать
 
         // Ограничение по времени для подвальных работников удалено
 
@@ -269,6 +270,12 @@ class OrderController extends Controller
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
+            // Инвалидируем кэш клиентов (баланс клиента мог измениться)
+            CacheService::invalidateClientsCache();
+            // Инвалидируем кэш проектов (если заказ привязан к проекту)
+            if ($request->project_id) {
+                CacheService::invalidateProjectsCache();
+            }
 
             return response()->json(['message' => 'Заказ сохранён']);
         } catch (\Throwable $th) {
@@ -290,12 +297,7 @@ class OrderController extends Controller
             return response()->json(['message' => 'Заказ не найден'], 404);
         }
 
-        // Проверяем права владельца: если не админ, то можно удалять только свои записи
-        if (!$user->is_admin && $order->user_id != $userUuid) {
-            return response()->json([
-                'message' => 'У вас нет прав на удаление этого заказа'
-            ], 403);
-        }
+        // Удаляем ограничение на удаление только владельцем: любой авторизованный пользователь может удалять
 
         // Ограничение по времени для подвальных работников удалено
 
@@ -312,6 +314,12 @@ class OrderController extends Controller
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
+            // Инвалидируем кэш клиентов (баланс клиента изменился)
+            CacheService::invalidateClientsCache();
+            // Инвалидируем кэш проектов (если заказ был привязан к проекту)
+            if ($order->project_id) {
+                CacheService::invalidateProjectsCache();
+            }
 
             return response()->json([
                 'message' => 'Заказ успешно удалён',

@@ -45,7 +45,7 @@ class ClientsRepository
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter) {
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
-            $query = Client::with(['phones', 'emails', 'user'])
+            $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
                     DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
@@ -108,7 +108,7 @@ class ClientsRepository
             $searchTerms = explode(' ', $search_request);
 
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
-            $query = Client::with(['phones', 'emails', 'user'])
+            $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
                     DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
@@ -157,7 +157,7 @@ class ClientsRepository
 
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
             // Используем подзапрос для получения баланса, чтобы избежать дублирования
-            $query = Client::with(['phones', 'emails', 'user'])
+            $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
                     DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
@@ -179,6 +179,7 @@ class ClientsRepository
             $client = Client::create([
                 'user_id'        => $data['user_id'] ?? null,
                 'company_id'     => $companyId,
+                'employee_id'    => $data['employee_id'] ?? null,
                 'first_name'     => $data['first_name'],
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,
@@ -225,7 +226,7 @@ class ClientsRepository
         CacheService::invalidateClientsCache();
         $this->invalidateClientBalanceCache($client->id);
 
-        return $client;
+        return $client->load('phones', 'emails', 'user', 'employee');
     }
 
     /**
@@ -271,6 +272,7 @@ class ClientsRepository
             $client = Client::findOrFail($id);
             $client->update([
                 'user_id'        => $data['user_id'] ?? $client->user_id,
+                'employee_id'    => $data['employee_id'] ?? $client->employee_id,
                 'first_name'     => $data['first_name'],
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,
@@ -329,13 +331,14 @@ class ClientsRepository
         CacheService::invalidateClientsCache();
         $this->invalidateClientBalanceCache($id);
 
-        return $client;
+        return $client->load('phones', 'emails', 'user', 'employee');
     }
 
     function getItemsByIds(array $ids)
     {
 
         $query = DB::table('clients')
+            ->leftJoin('users', 'clients.employee_id', '=', 'users.id')
             ->select(
                 'clients.id as id',
                 'clients.client_type as client_type',
@@ -350,6 +353,8 @@ class ClientsRepository
                 'clients.status as status',
                 'clients.discount_type as discount_type',
                 'clients.discount      as discount',
+                'clients.employee_id as employee_id',
+                'users.name as employee_name',
                 'clients.created_at as created_at',
                 'clients.updated_at as updated_at'
             )

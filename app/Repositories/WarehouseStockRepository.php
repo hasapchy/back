@@ -10,11 +10,11 @@ use Illuminate\Support\Facades\DB;
 class WarehouseStockRepository
 {
     // Получение стоков с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20, $warehouse_id = null, $category_id = null, $page = 1)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $warehouse_id = null, $category_id = null, $page = 1, $search = null)
     {
-        $cacheKey = "warehouse_stocks_paginated_{$userUuid}_{$perPage}_{$warehouse_id}_{$category_id}";
+        $cacheKey = "warehouse_stocks_paginated_{$userUuid}_{$perPage}_{$warehouse_id}_{$category_id}_" . md5((string)$search);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id, $page) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id, $page, $search) {
             return WarehouseStock::leftJoin('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id')
                 ->leftJoin('products', 'warehouse_stocks.product_id', '=', 'products.id')
                 ->leftJoin('units', 'products.unit_id', '=', 'units.id')
@@ -22,6 +22,15 @@ class WarehouseStockRepository
                 ->where('wh_users.user_id', $userUuid)
                 ->when($warehouse_id, function ($query, $warehouse_id) {
                     return $query->where('warehouse_stocks.warehouse_id', $warehouse_id);
+                })
+                ->when($search, function ($query, $search) {
+                    $like = '%' . trim($search) . '%';
+                    return $query->where(function($q) use ($like) {
+                        $q->where('products.name', 'like', $like)
+                          ->orWhere('warehouses.name', 'like', $like)
+                          ->orWhere('units.name', 'like', $like)
+                          ->orWhere('units.short_name', 'like', $like);
+                    });
                 })
                 ->select(
                     'warehouse_stocks.id as id',

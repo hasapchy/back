@@ -24,19 +24,21 @@ class WarehouseStockController extends Controller
             return response()->json(array('message' => 'Unauthorized'), 401);
         }
 
-        $page = $request->input('page', 1);
+        $page = (int)$request->input('page', 1);
+        $perPage = (int)$request->input('per_page', 20);
         $warehouse_id = $request->query('warehouse_id');
+        $search = $request->query('search');
         // category_id больше не поддерживается, так как столбец был удален из products
 
         // Получаем сток с пагинацией
-        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20, $warehouse_id, null);
+        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage, $warehouse_id, null, $page, $search);
 
         return response()->json([
-            'items' => $warehouses->items(),  // Список
-            'current_page' => $warehouses->currentPage(),  // Текущая страница
-            'next_page' => $warehouses->nextPageUrl(),  // Следующая страница
-            'last_page' => $warehouses->lastPage(),  // Общее количество страниц
-            'total' => $warehouses->total()  // Общее количество
+            'items' => $warehouses->items(),
+            'current_page' => $warehouses->currentPage(),
+            'next_page' => $warehouses->nextPageUrl(),
+            'last_page' => $warehouses->lastPage(),
+            'total' => $warehouses->total()
         ]);
     }
 }

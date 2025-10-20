@@ -85,6 +85,12 @@ class WarehouseReceiptController extends Controller
             CacheService::invalidateWarehouseReceiptsCache();
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
+            // Инвалидируем кэш клиентов (баланс поставщика/клиента изменился)
+            CacheService::invalidateClientsCache();
+            // Инвалидируем кэш проектов (если оприходование привязано к проекту)
+            if ($request->project_id) {
+                CacheService::invalidateProjectsCache();
+            }
 
             return response()->json([
                 'message' => 'Оприходование создано'
@@ -131,6 +137,12 @@ class WarehouseReceiptController extends Controller
             CacheService::invalidateWarehouseReceiptsCache();
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
+            // Инвалидируем кэш клиентов (баланс поставщика/клиента мог измениться)
+            CacheService::invalidateClientsCache();
+            // Инвалидируем кэш проектов (если оприходование привязано к проекту)
+            if ($request->project_id) {
+                CacheService::invalidateProjectsCache();
+            }
 
             return response()->json([
                 'message' => 'Приходование обновлено'
@@ -156,6 +168,8 @@ class WarehouseReceiptController extends Controller
         CacheService::invalidateWarehouseReceiptsCache();
         CacheService::invalidateWarehouseStocksCache();
         CacheService::invalidateProductsCache();
+        // Инвалидируем кэш клиентов (баланс поставщика/клиента изменился)
+        CacheService::invalidateClientsCache();
 
         return response()->json([
             'message' => 'Склад удален'

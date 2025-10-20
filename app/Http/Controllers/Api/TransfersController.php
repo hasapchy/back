@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Repositories\TransactionsRepository;
 use App\Repositories\TransfersRepository;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 class TransfersController extends Controller
@@ -75,6 +76,11 @@ class TransfersController extends Controller
                 'message' => 'Ошибка создания трансфера'
             ], 400);
         }
+        
+        // Инвалидируем кэш переводов и касс (баланс касс изменился)
+        CacheService::invalidateTransfersCache();
+        CacheService::invalidateCashRegistersCache();
+        
         return response()->json([
             'message' => 'Трансфер создан'
         ]);
@@ -115,6 +121,10 @@ class TransfersController extends Controller
             return response()->json(['message' => 'Ошибка обновления'], 400);
         }
 
+        // Инвалидируем кэш переводов и касс (баланс касс изменился)
+        CacheService::invalidateTransfersCache();
+        CacheService::invalidateCashRegistersCache();
+
         return response()->json(['message' => 'Трансфер обновлён']);
     }
 
@@ -131,6 +141,10 @@ class TransfersController extends Controller
         if (!$deleted) {
             return response()->json(['message' => 'Ошибка удаления'], 400);
         }
+
+        // Инвалидируем кэш переводов и касс (баланс касс изменился)
+        CacheService::invalidateTransfersCache();
+        CacheService::invalidateCashRegistersCache();
 
         return response()->json(['message' => 'Трансфер удалён']);
     }

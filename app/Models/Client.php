@@ -15,6 +15,7 @@ class Client extends Model
     protected $fillable = [
         'user_id',
         'company_id',
+        'employee_id',
         'client_type',
         'is_supplier',
         'is_conflict',
@@ -29,10 +30,16 @@ class Client extends Model
         'sort',
     ];
 
-    // Связь с пользователем
+    // Связь с пользователем (кто создал клиента)
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    // Связь с сотрудником (для типов employee/investor)
+    public function employee()
+    {
+        return $this->belongsTo(User::class, 'employee_id');
     }
 
     // Связь с компанией
