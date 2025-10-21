@@ -372,7 +372,8 @@ class TransactionsRepository
                 $cashRegister->save();
             }
 
-            if (! $skipClientUpdate && ! empty($data['client_id'])) {
+            // Обновляем баланс клиента ТОЛЬКО если это долговая операция
+            if (! $skipClientUpdate && ! empty($data['client_id']) && ($data['is_debt'] ?? false)) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $data['client_id']]);
                 if ($data['type'] === 1) {
                     // Доход: клиент нам платит - уменьшаем его долг (увеличиваем баланс)
@@ -543,48 +544,55 @@ class TransactionsRepository
             // Сохраняем кассу в любом случае, если был откат или применение
             $cashRegister->save();
 
-            // Обновляем баланс клиента если нужно
+            // Обновляем баланс клиента с учетом флага is_debt
             if ($transaction->client_id) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
 
-                // Откатываем старый баланс клиента
-                if ($oldCurrencyId !== $defaultCurrencyId) {
-                    $oldConvertedAmountDefault = CurrencyConverter::convert($oldOrigAmount, $currencies[$oldCurrencyId], $currencies[$defaultCurrencyId]);
-                } else {
-                    $oldConvertedAmountDefault = $oldOrigAmount;
+                // Откатываем старый баланс клиента ТОЛЬКО если была долговая операция
+                if ($oldIsDebt) {
+                    if ($oldCurrencyId !== $defaultCurrencyId) {
+                        $oldConvertedAmountDefault = CurrencyConverter::convert($oldOrigAmount, $currencies[$oldCurrencyId], $currencies[$defaultCurrencyId]);
+                    } else {
+                        $oldConvertedAmountDefault = $oldOrigAmount;
+                    }
+
+                    // Откат старого баланса: делаем обратную операцию
+                    if ($transaction->type == 1) {
+                        // Доход: при создании был +=, откатываем через -=
+                        $clientBalance->balance -= $oldConvertedAmountDefault;
+                    } else {
+                        // Расход: при создании был -=, откатываем через +=
+                        $clientBalance->balance += $oldConvertedAmountDefault;
+                    }
                 }
 
-                // Откат старого баланса: делаем обратную операцию
-                if ($transaction->type == 1) {
-                    // Доход: при создании был +=, откатываем через -=
-                    $clientBalance->balance -= $oldConvertedAmountDefault;
-                } else {
-                    // Расход: при создании был -=, откатываем через +=
-                    $clientBalance->balance += $oldConvertedAmountDefault;
+                // Применяем новый баланс клиента ТОЛЬКО если это долговая операция
+                if ($transaction->is_debt) {
+                    if ($newCurrencyId !== $defaultCurrencyId) {
+                        $newConvertedAmountDefault = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $currencies[$defaultCurrencyId]);
+                    } else {
+                        $newConvertedAmountDefault = $newOrigAmount;
+                    }
+
+                    // Применение нового баланса: как при создании
+                    if ($transaction->type == 1) {
+                        // Доход: клиент нам платит - уменьшаем его долг
+                        $clientBalance->balance += $newConvertedAmountDefault;
+                    } else {
+                        // Расход: мы клиенту платим - увеличиваем его долг
+                        $clientBalance->balance -= $newConvertedAmountDefault;
+                    }
                 }
 
-                // Применяем новый баланс клиента
-                if ($newCurrencyId !== $defaultCurrencyId) {
-                    $newConvertedAmountDefault = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $currencies[$defaultCurrencyId]);
-                } else {
-                    $newConvertedAmountDefault = $newOrigAmount;
+                // Сохраняем только если были изменения
+                if ($oldIsDebt || $transaction->is_debt) {
+                    $clientBalance->save();
+
+                    // Инвалидируем кэш клиентов и проектов после обновления баланса
+                    CacheService::invalidateClientsCache();
+                    CacheService::invalidateClientBalanceCache($transaction->client_id);
+                    CacheService::invalidateProjectsCache();
                 }
-
-                // Применение нового баланса: как при создании
-                if ($transaction->type == 1) {
-                    // Доход: клиент нам платит - уменьшаем его долг
-                    $clientBalance->balance += $newConvertedAmountDefault;
-                } else {
-                    // Расход: мы клиенту платим - увеличиваем его долг
-                    $clientBalance->balance -= $newConvertedAmountDefault;
-                }
-
-                $clientBalance->save();
-
-                // Инвалидируем кэш клиентов и проектов после обновления баланса
-                CacheService::invalidateClientsCache();
-                CacheService::invalidateClientBalanceCache($transaction->client_id);
-                CacheService::invalidateProjectsCache();
             }
 
             DB::commit();
@@ -664,7 +672,8 @@ class TransactionsRepository
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->delete();
 
-            if (! $skipClientUpdate && $transaction->client_id) {
+            // Обновляем баланс клиента ТОЛЬКО если это была долговая операция
+            if (! $skipClientUpdate && $transaction->client_id && $transaction->is_debt) {
                 $clientBalance = ClientBalance::firstOrCreate(
                     ['client_id' => $transaction->client_id],
                     ['balance' => 0]

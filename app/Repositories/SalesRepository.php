@@ -39,6 +39,7 @@ class SalesRepository
                 'sales.project_id',
                 'sales.date',
                 'sales.discount',
+                'sales.note',
                 'sales.created_at',
                 'clients.first_name as client_first_name',
                 'clients.last_name as client_last_name',
@@ -93,6 +94,7 @@ class SalesRepository
                 'sales.id',
                 'sales.client_id',
                 'sales.date',
+                'sales.note',
                 'sales.created_at',
                 'clients.first_name as client_first_name',
                 'clients.last_name as client_last_name'
@@ -124,6 +126,7 @@ class SalesRepository
                 'sales.client_id',
                 'sales.date',
                 'sales.total_price',
+                'sales.note',
                 'sales.created_at',
                 'clients.first_name as client_first_name',
                 'clients.last_name as client_last_name'
@@ -179,6 +182,7 @@ class SalesRepository
                 'sales.date',
                 'sales.total_price',
                 'sales.discount',
+                'sales.note',
                 'sales.created_at',
                 'warehouses.name as warehouse_name',
                 'users.name as user_name'
@@ -204,6 +208,7 @@ class SalesRepository
                 'sales.id',
                 'sales.client_id',
                 'sales.date',
+                'sales.note',
                 'sales.created_at',
                 'clients.first_name as client_first_name',
                 'clients.last_name as client_last_name'

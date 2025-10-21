@@ -375,13 +375,37 @@ class CommentController extends Controller
 
         $activities = $activities->merge($orderProductLogs);
 
-        // Активность транзакций заказа с оптимизацией
-        $orderTransactionLogs = \App\Models\OrderTransaction::select(['id', 'order_id', 'transaction_id'])
+        // Активность временных товаров заказа с оптимизацией
+        $orderTempProductLogs = \App\Models\OrderTempProduct::select(['id', 'order_id', 'name'])
             ->where('order_id', $orderId)
-            ->with(['transaction:id,amount'])
             ->get()
-            ->flatMap(function ($orderTransaction) {
-                return $orderTransaction->activities()
+            ->flatMap(function ($orderTempProduct) {
+                return $orderTempProduct->activities()
+                    ->select(['activity_log.id', 'activity_log.description', 'activity_log.causer_id', 'activity_log.created_at'])
+                    ->with(['causer:id,name'])
+                    ->latest()
+                    ->limit(1)
+                    ->get();
+            })->map(function ($log) {
+                return [
+                    'type' => 'log',
+                    'id' => $log->id,
+                    'description' => $log->description,
+                    'changes' => null,
+                    'user' => $this->getUserForActivity($log, \App\Models\Order::class),
+                    'created_at' => $log->created_at,
+                ];
+            })->filter();
+
+        $activities = $activities->merge($orderTempProductLogs);
+
+        // Активность транзакций заказа с оптимизацией (через полиморфную связь)
+        $orderTransactionLogs = \App\Models\Transaction::select(['id', 'source_id', 'source_type', 'amount'])
+            ->where('source_type', \App\Models\Order::class)
+            ->where('source_id', $orderId)
+            ->get()
+            ->flatMap(function ($transaction) {
+                return $transaction->activities()
                     ->select(['activity_log.id', 'activity_log.description', 'activity_log.causer_id', 'activity_log.created_at'])
                     ->with(['causer:id,name'])
                     ->latest()
@@ -399,28 +423,6 @@ class CommentController extends Controller
             })->filter();
 
         $activities = $activities->merge($orderTransactionLogs);
-
-        // Активность удаленных транзакций с оптимизацией
-        $transactionLogs = Activity::select([
-            'activity_log.id', 'activity_log.description', 'activity_log.causer_id', 'activity_log.created_at'
-        ])
-            ->where('subject_type', \App\Models\Transaction::class)
-            ->where('description', 'Транзакция удалена')
-            ->where('created_at', '>=', now()->subHours(1))
-            ->with(['causer:id,name'])
-            ->get()
-            ->map(function ($log) {
-                return [
-                    'type' => 'log',
-                    'id' => $log->id,
-                    'description' => 'Транзакция удалена из заказа',
-                    'changes' => null,
-                    'user' => $this->getUserForActivity($log, \App\Models\Order::class),
-                    'created_at' => $log->created_at,
-                ];
-            });
-
-        $activities = $activities->merge($transactionLogs);
 
         return $activities;
     }

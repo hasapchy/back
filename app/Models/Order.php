@@ -40,9 +40,11 @@ class Order extends Model
         'note',
         'date',
         'order_id',
+        'price',
         'discount',
         'cash_id',
         'warehouse_id',
+        'project_id',
         'category_id'
     ];
 

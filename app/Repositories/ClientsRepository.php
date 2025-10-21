@@ -518,7 +518,7 @@ class ClientsRepository
                             'source_type' => $item->source_type,
                             'source_source_id' => $item->source_id,
                             'date' => $item->created_at,
-                            'amount' => $amount,
+                            'amount' => $amount, // Полная сумма для отображения и расчета
                             'orig_amount' => $item->orig_amount,
                             'is_debt' => $item->is_debt,
                             'note' => $item->note,
@@ -546,15 +546,17 @@ class ClientsRepository
                     )
                     ->get()
                     ->map(function ($item) use ($defaultCurrencySymbol) {
+                        // Заказы всегда учитываются в балансе как долг клиента
+                        $amount = (float)$item->amount;
                         return [
                             'source' => 'order',
                             'source_id' => $item->id,
                             'source_type' => 'App\\Models\\Order',
                             'source_source_id' => $item->id,
                             'date' => $item->created_at,
-                            'amount' => (float)$item->amount,
+                            'amount' => $amount, // Заказы всегда учитываются в балансе
                             'orig_amount' => (float)$item->orig_amount,
-                            'is_debt' => false,
+                            'is_debt' => true, // Заказы - это всегда долг до полной оплаты
                             'note' => $item->note,
                             'description' => 'Заказ',
                             'user_id' => $item->user_id,
@@ -586,9 +588,11 @@ class ClientsRepository
         // Чтение не инвалидирует кэш; инвалидация выполняется при CRUD операциях
 
         return CacheService::remember($cacheKey, function () use ($clientId) {
-            // Получаем историю баланса и считаем сумму (включая заказы)
+            // Получаем историю баланса и считаем сумму ТОЛЬКО долговых операций (включая заказы)
             $history = $this->getBalanceHistory($clientId);
-            return collect($history)->sum('amount');
+            return collect($history)
+                ->filter(fn($item) => $item['is_debt']) // Учитываем только долговые операции
+                ->sum('amount');
         });
     }
 
