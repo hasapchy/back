@@ -16,6 +16,10 @@ class WhMovementProduct extends Model
         'sn_id',
     ];
 
+    protected $casts = [
+        'quantity' => 'decimal:2',
+    ];
+
     public function movement()
     {
         return $this->belongsTo(WhMovement::class, 'movement_id');

@@ -17,6 +17,11 @@ class WhReceiptProduct extends Model
         'price',
     ];
 
+    protected $casts = [
+        'quantity' => 'decimal:2',
+        'price' => 'decimal:2',
+    ];
+
     public function receipt()
     {
         return $this->belongsTo(WhReceipt::class, 'receipt_id');

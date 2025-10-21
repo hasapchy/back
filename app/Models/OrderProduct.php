@@ -23,6 +23,12 @@ class OrderProduct extends Model
         'height',
     ];
 
+    protected $casts = [
+        'quantity' => 'decimal:2',
+        'price' => 'decimal:2',
+        'discount' => 'decimal:2',
+    ];
+
     protected static $logAttributes = [];
     protected static $logName = 'order_product';
     protected static $logFillable = true;

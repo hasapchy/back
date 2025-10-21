@@ -17,6 +17,11 @@ class SalesProduct extends Model
         'quantity',
     ];
 
+    protected $casts = [
+        'quantity' => 'decimal:2',
+        'price' => 'decimal:2',
+    ];
+
     public function sale()
     {
         return $this->belongsTo(Sale::class, 'sale_id');

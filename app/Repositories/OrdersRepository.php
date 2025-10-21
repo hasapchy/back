@@ -623,6 +623,7 @@ class OrdersRepository
 
             // Инвалидируем кэш заказов и баланса клиента
             CacheService::invalidateOrdersCache();
+            CacheService::invalidateClientsCache(); // Инвалидируем кэш клиентов, так как баланс зависит от заказов
             $this->invalidateClientBalanceCache($client_id);
 
             // Инвалидируем кэш проекта если заказ связан с проектом
@@ -937,6 +938,7 @@ class OrdersRepository
 
             // Инвалидируем кэш заказов и баланса клиента
             CacheService::invalidateOrdersCache();
+            CacheService::invalidateClientsCache(); // Инвалидируем кэш клиентов, так как баланс зависит от заказов
             $this->invalidateClientBalanceCache($client_id);
 
             // Инвалидируем кэш проекта если заказ связан с проектом
@@ -981,6 +983,7 @@ class OrdersRepository
 
             // Инвалидируем кэш заказов и баланса клиента
             CacheService::invalidateOrdersCache();
+            CacheService::invalidateClientsCache(); // Инвалидируем кэш клиентов, так как баланс зависит от заказов
             if ($order->client_id) {
                 $this->invalidateClientBalanceCache($order->client_id);
             }

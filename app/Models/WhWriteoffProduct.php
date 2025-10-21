@@ -11,6 +11,10 @@ class WhWriteoffProduct extends Model
     protected $table = 'wh_write_off_products';
     protected $fillable = ['write_off_id', 'product_id', 'quantity', 'sn_id'];
 
+    protected $casts = [
+        'quantity' => 'decimal:2',
+    ];
+
     public function writeOff()
     {
         return $this->belongsTo(WhWriteoff::class, 'write_off_id');

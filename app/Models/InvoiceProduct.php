@@ -69,7 +69,7 @@ class InvoiceProduct extends Model
     }
 
     protected $casts = [
-        'quantity' => 'decimal:3',
+        'quantity' => 'decimal:2',
         'price' => 'decimal:2',
         'total_price' => 'decimal:2',
     ];

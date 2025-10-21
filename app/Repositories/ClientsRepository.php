@@ -44,11 +44,31 @@ class ClientsRepository
         // Чтение не должно инвалидировать кэш; инвалидация выполняется при CRUD операциях
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter) {
-            // Используем подзапрос для получения баланса, чтобы избежать дублирования
+            // Используем подзапрос для расчета баланса из транзакций + заказов
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
-                    DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
+                    // Считаем баланс из транзакций + заказов (как в getBalanceHistory)
+                    DB::raw('(
+                        -- Транзакции клиента
+                        SELECT COALESCE(
+                            SUM(
+                                CASE
+                                    WHEN t.type = 1 THEN -t.amount
+                                    ELSE t.amount
+                                END
+                            ), 0
+                        )
+                        FROM transactions t
+                        WHERE t.client_id = clients.id
+                    ) + (
+                        -- Заказы клиента (без транзакций)
+                        SELECT COALESCE(
+                            SUM(o.price - o.discount), 0
+                        )
+                        FROM orders o
+                        WHERE o.client_id = clients.id
+                    ) as balance_amount')
                 ]);
 
             // Логируем для отладки
@@ -107,11 +127,31 @@ class ClientsRepository
         return CacheService::rememberSearch($cacheKey, function () use ($search_request) {
             $searchTerms = explode(' ', $search_request);
 
-            // Используем подзапрос для получения баланса, чтобы избежать дублирования
+            // Используем подзапрос для расчета баланса из транзакций + заказов
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
-                    DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
+                    // Считаем баланс из транзакций + заказов (как в getBalanceHistory)
+                    DB::raw('(
+                        -- Транзакции клиента
+                        SELECT COALESCE(
+                            SUM(
+                                CASE
+                                    WHEN t.type = 1 THEN -t.amount
+                                    ELSE t.amount
+                                END
+                            ), 0
+                        )
+                        FROM transactions t
+                        WHERE t.client_id = clients.id
+                    ) + (
+                        -- Заказы клиента
+                        SELECT COALESCE(
+                            SUM(o.price - o.discount), 0
+                        )
+                        FROM orders o
+                        WHERE o.client_id = clients.id
+                    ) as balance_amount')
                 ])
                 ->where('clients.status', true); // Фильтруем только активных клиентов
 
@@ -156,11 +196,31 @@ class ClientsRepository
         // Чтение не инвалидирует кэш; инвалидация выполняется при CRUD операциях
 
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
-            // Используем подзапрос для получения баланса, чтобы избежать дублирования
+            // Используем подзапрос для расчета баланса из транзакций + заказов
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
-                    DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
+                    // Считаем баланс из транзакций + заказов (как в getBalanceHistory)
+                    DB::raw('(
+                        -- Транзакции клиента
+                        SELECT COALESCE(
+                            SUM(
+                                CASE
+                                    WHEN t.type = 1 THEN -t.amount
+                                    ELSE t.amount
+                                END
+                            ), 0
+                        )
+                        FROM transactions t
+                        WHERE t.client_id = clients.id
+                    ) + (
+                        -- Заказы клиента
+                        SELECT COALESCE(
+                            SUM(o.price - o.discount), 0
+                        )
+                        FROM orders o
+                        WHERE o.client_id = clients.id
+                    ) as balance_amount')
                 ])
                 ->where('clients.id', $id);
 

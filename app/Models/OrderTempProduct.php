@@ -25,6 +25,11 @@ class OrderTempProduct extends Model
         'height',
     ];
 
+    protected $casts = [
+        'quantity' => 'decimal:2',
+        'price' => 'decimal:2',
+    ];
+
     protected static $logAttributes = [
     ];
 
