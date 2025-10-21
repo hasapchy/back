@@ -175,8 +175,9 @@ class TransactionsController extends Controller
 
         // Проверяем, не является ли транзакция ограниченной
         if ($this->isRestrictedTransaction($transaction_exist)) {
+            $message = $this->getRestrictedTransactionMessage($transaction_exist);
             return response()->json([
-                'message' => 'Нельзя редактировать эту транзакцию'
+                'message' => $message
             ], 403);
         }
 
@@ -271,8 +272,9 @@ class TransactionsController extends Controller
 
         // Проверяем, не является ли транзакция ограниченной
         if ($this->isRestrictedTransaction($transaction_exist)) {
+            $message = $this->getRestrictedTransactionMessage($transaction_exist);
             return response()->json([
-                'message' => 'Нельзя удалить эту транзакцию'
+                'message' => $message
             ], 403);
         }
 
@@ -333,8 +335,44 @@ class TransactionsController extends Controller
 
     private function isRestrictedTransaction($transaction)
     {
-        return $transaction->cashTransfersFrom()->exists() ||
-            $transaction->cashTransfersTo()->exists();
+        // Нельзя редактировать/удалять транзакции, созданные через:
+        // 1. Переводы между кассами
+        if ($transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists()) {
+            return true;
+        }
+
+        // 2. Продажи, заказы, складские поступления и другие источники
+        // Такие транзакции должны управляться только через свои родительские записи
+        if ($transaction->source_type && $transaction->source_id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function getRestrictedTransactionMessage($transaction)
+    {
+        // Проверяем тип источника транзакции
+        if ($transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists()) {
+            return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с переводом между кассами';
+        }
+
+        if ($transaction->source_type && $transaction->source_id) {
+            $sourceType = class_basename($transaction->source_type);
+            
+            switch ($sourceType) {
+                case 'Sale':
+                    return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через продажу. Управляйте ей через раздел "Продажи"';
+                case 'Order':
+                    return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через заказ. Управляйте ей через раздел "Заказы"';
+                case 'WhReceipt':
+                    return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через складское поступление. Управляйте ей через раздел "Склад"';
+                default:
+                    return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с другой операцией в системе';
+            }
+        }
+
+        return 'Нельзя редактировать/удалить эту транзакцию';
     }
 
     /**
@@ -366,8 +404,9 @@ class TransactionsController extends Controller
 
         // Проверяем, не является ли транзакция ограниченной
         if ($this->isRestrictedTransaction($transaction)) {
+            $message = $this->getRestrictedTransactionMessage($transaction);
             return response()->json([
-                'message' => 'Нельзя редактировать эту транзакцию'
+                'message' => $message
             ], 403);
         }
 
