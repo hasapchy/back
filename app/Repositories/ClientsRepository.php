@@ -47,29 +47,7 @@ class ClientsRepository
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
-<<<<<<< HEAD
-                    // Баланс клиента = сумма ТОЛЬКО долговых транзакций (is_debt=true)
-                    // Баланс клиента = сумма транзакций с учетом типа:
-                    // 1. Долговые (is_debt=1): type=1 → +amount (клиент должен), type=0 → -amount (мы должны)
-                    // 2. Обычные (source_type=NULL): type=1 → -amount (клиент заплатил), type=0 → +amount (мы заплатили)
-                    DB::raw('(
-                        SELECT COALESCE(
-                            SUM(
-                                CASE
-                                    WHEN t.is_debt = 1 THEN
-                                        CASE WHEN t.type = 1 THEN t.amount ELSE -t.amount END
-                                    ELSE
-                                        CASE WHEN t.type = 1 THEN -t.amount ELSE t.amount END
-                                END
-                            ), 0
-                        )
-                        FROM transactions t
-                        WHERE t.client_id = clients.id
-                          AND (t.is_debt = 1 OR t.source_type IS NULL)
-                    ) as balance_amount')
-=======
                     'clients.balance as balance'
->>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
                 ]);
 
             // Логируем для отладки
@@ -132,29 +110,7 @@ class ClientsRepository
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
-<<<<<<< HEAD
-                    // Баланс клиента = сумма ТОЛЬКО долговых транзакций (is_debt=true)
-                    // Баланс клиента = сумма транзакций с учетом типа:
-                    // 1. Долговые (is_debt=1): type=1 → +amount (клиент должен), type=0 → -amount (мы должны)
-                    // 2. Обычные (source_type=NULL): type=1 → -amount (клиент заплатил), type=0 → +amount (мы заплатили)
-                    DB::raw('(
-                        SELECT COALESCE(
-                            SUM(
-                                CASE
-                                    WHEN t.is_debt = 1 THEN
-                                        CASE WHEN t.type = 1 THEN t.amount ELSE -t.amount END
-                                    ELSE
-                                        CASE WHEN t.type = 1 THEN -t.amount ELSE t.amount END
-                                END
-                            ), 0
-                        )
-                        FROM transactions t
-                        WHERE t.client_id = clients.id
-                          AND (t.is_debt = 1 OR t.source_type IS NULL)
-                    ) as balance_amount')
-=======
                     'clients.balance as balance'
->>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
                 ])
                 ->where('clients.status', true); // Фильтруем только активных клиентов
 
@@ -199,25 +155,11 @@ class ClientsRepository
         // Чтение не инвалидирует кэш; инвалидация выполняется при CRUD операциях
 
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
-<<<<<<< HEAD
-            // Используем подзапрос для расчета баланса из транзакций + неоплаченная часть заказов
-            $query = Client::with(['phones', 'emails', 'user', 'employee'])
-                ->select([
-                    'clients.*',
-                    // Берем баланс напрямую из client_balances, чтобы форма редактирования всегда видела актуальное значение
-                    DB::raw('(
-                        SELECT COALESCE(balance, 0)
-                        FROM client_balances
-                        WHERE client_id = clients.id
-                        LIMIT 1
-                    ) as balance_amount')
-=======
             // Используем простую колонку balance вместо сложных вычислений
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
                     'clients.balance as balance'
->>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
                 ])
                 ->where('clients.id', $id);
 

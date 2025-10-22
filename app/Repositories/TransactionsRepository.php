@@ -10,6 +10,7 @@ use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use App\Repositories\ProjectsRepository;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class TransactionsRepository
 {
@@ -350,55 +351,6 @@ class TransactionsRepository
                 $cashRegister->save();
             }
 
-<<<<<<< HEAD
-            // Обновляем баланс клиента если:
-            // 1. Долговая операция (is_debt = true)
-            // 2. Обычная транзакция без связи (source_type = null)
-            $isRegularTransaction = empty($data['source_type']);
-            $shouldUpdateClientBalance = ($data['is_debt'] ?? false) || $isRegularTransaction;
-
-            Log::info('Client balance update check', [
-                'client_id' => $data['client_id'] ?? null,
-                'is_debt' => $data['is_debt'] ?? false,
-                'source_type' => $data['source_type'] ?? null,
-                'isRegularTransaction' => $isRegularTransaction,
-                'shouldUpdateClientBalance' => $shouldUpdateClientBalance,
-                'skipClientUpdate' => $skipClientUpdate
-            ]);
-
-            if (! $skipClientUpdate && ! empty($data['client_id']) && $shouldUpdateClientBalance) {
-                $clientBalance = ClientBalance::firstOrCreate(['client_id' => $data['client_id']]);
-
-                Log::info('Updating client balance', [
-                    'client_id' => $data['client_id'],
-                    'type' => $data['type'],
-                    'amount' => $convertedAmountDefault,
-                    'is_debt' => $data['is_debt'] ?? false
-                ]);
-
-                // Логика зависит от того, долговая операция или обычная
-                if ($data['is_debt'] ?? false) {
-                    // ДОЛГОВАЯ операция (is_debt = true):
-                    if ($data['type'] === 1) {
-                        // type=1: клиент нам платит → уменьшаем его долг
-                        $clientBalance->balance -= $convertedAmountDefault;
-                    } else {
-                        // type=0: мы клиенту платим → увеличиваем его долг
-                        $clientBalance->balance += $convertedAmountDefault;
-                    }
-                } else {
-                    // ОБЫЧНАЯ транзакция (is_debt = false) - расчет:
-                    if ($data['type'] === 1) {
-                        // type=1: приход в кассу = клиент нам ЗАПЛАТИЛ → уменьшаем его долг
-                        $clientBalance->balance -= $convertedAmountDefault;
-                    } else {
-                        // type=0: расход из кассы = мы клиенту ЗАПЛАТИЛИ → увеличиваем его долг
-                        $clientBalance->balance += $convertedAmountDefault;
-                    }
-                }
-
-                $clientBalance->save();
-=======
             // Обновляем баланс клиента ТОЛЬКО если это долговая операция
             if (! $skipClientUpdate && ! empty($data['client_id']) && ($data['is_debt'] ?? false)) {
                 if ($data['type'] === 1) {
@@ -410,7 +362,6 @@ class TransactionsRepository
                         'balance' => DB::raw('balance - ' . ($convertedAmountDefault + 0))
                     ]);
                 }
->>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
 
                 // Инвалидируем кэш клиентов и проектов после обновления баланса
                 CacheService::invalidateClientsCache();
@@ -617,36 +568,41 @@ class TransactionsRepository
             // Если клиент изменился, нужно откатить баланс у старого клиента
             $oldIsRegularTransaction = empty($oldSourceType);
             if ($oldClientId && $oldClientId !== $transaction->client_id && ($oldIsDebt || $oldIsRegularTransaction)) {
-                $oldClientBalance = ClientBalance::firstOrCreate(['client_id' => $oldClientId]);
-
                 if ($oldCurrencyId !== $defaultCurrencyId) {
                     $oldConvertedAmountDefault = CurrencyConverter::convert($oldOrigAmount, $currencies[$oldCurrencyId], $currencies[$defaultCurrencyId]);
                 } else {
                     $oldConvertedAmountDefault = $oldOrigAmount;
                 }
 
-                // Откат старого баланса: делаем обратную операцию
+                // Откат старого баланса: делаем обратную операцию через DB::table
                 if ($oldIsDebt) {
                     // Долговая операция: откатываем как было при создании
                     if ($transaction->type == 1) {
                         // Доход: при создании был -=, откатываем через +=
-                        $oldClientBalance->balance += $oldConvertedAmountDefault;
+                        DB::table('clients')->where('id', $oldClientId)->update([
+                            'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
+                        ]);
                     } else {
                         // Расход: при создании был +=, откатываем через -=
-                        $oldClientBalance->balance -= $oldConvertedAmountDefault;
+                        DB::table('clients')->where('id', $oldClientId)->update([
+                            'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
+                        ]);
                     }
                 } else {
                     // Обычная транзакция: откатываем как было при создании
                     if ($transaction->type == 1) {
                         // Доход: при создании был -=, откатываем через +=
-                        $oldClientBalance->balance += $oldConvertedAmountDefault;
+                        DB::table('clients')->where('id', $oldClientId)->update([
+                            'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
+                        ]);
                     } else {
                         // Расход: при создании был +=, откатываем через -=
-                        $oldClientBalance->balance -= $oldConvertedAmountDefault;
+                        DB::table('clients')->where('id', $oldClientId)->update([
+                            'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
+                        ]);
                     }
                 }
 
-                $oldClientBalance->save();
                 CacheService::invalidateClientBalanceCache($oldClientId);
             }
 
@@ -659,8 +615,7 @@ class TransactionsRepository
                     'client_id' => $transaction->client_id,
                     'source_type' => $transaction->source_type,
                     'is_debt' => $transaction->is_debt,
-                    'type' => $transaction->type,
-                    'current_balance' => $clientBalance->balance
+                    'type' => $transaction->type
                 ]);
 
                 // Откатываем старый баланс клиента если была долговая операция ИЛИ обычная транзакция И клиент не изменился
@@ -673,26 +628,6 @@ class TransactionsRepository
                     }
 
                     // Откат старого баланса: делаем обратную операцию
-<<<<<<< HEAD
-                    if ($oldIsDebt) {
-                        // Долговая операция: откатываем как было при создании
-                        if ($transaction->type == 1) {
-                            // Доход: при создании был -=, откатываем через +=
-                            $clientBalance->balance += $oldConvertedAmountDefault;
-                        } else {
-                            // Расход: при создании был +=, откатываем через -=
-                            $clientBalance->balance -= $oldConvertedAmountDefault;
-                        }
-                    } else {
-                        // Обычная транзакция: откатываем как было при создании
-                        if ($transaction->type == 1) {
-                            // Доход: клиент нам платил → баланс уменьшался, откатываем через +=
-                            $clientBalance->balance += $oldConvertedAmountDefault;
-                        } else {
-                            // Расход: мы клиенту платили → баланс увеличивался, откатываем через -=
-                            $clientBalance->balance -= $oldConvertedAmountDefault;
-                        }
-=======
                     if ($transaction->type == 1) {
                         DB::table('clients')->where('id', $transaction->client_id)->update([
                             'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
@@ -701,7 +636,6 @@ class TransactionsRepository
                         DB::table('clients')->where('id', $transaction->client_id)->update([
                             'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
                         ]);
->>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
                     }
                 }
 
@@ -716,8 +650,7 @@ class TransactionsRepository
                     'is_debt' => $transaction->is_debt,
                     'shouldUpdateClientBalance' => $shouldUpdateClientBalance,
                     'type' => $transaction->type,
-                    'newAmount' => $newOrigAmount,
-                    'oldBalance' => $clientBalance->balance
+                    'newAmount' => $newOrigAmount
                 ]);
 
                 if ($shouldUpdateClientBalance) {
@@ -727,27 +660,6 @@ class TransactionsRepository
                         $newConvertedAmountDefault = $newOrigAmount;
                     }
 
-<<<<<<< HEAD
-                    // Применяем новую сумму как при создании транзакции
-                    if ($transaction->is_debt) {
-                        // Долговая операция: применяем новую сумму как при создании
-                        if ($transaction->type == 1) {
-                            // Доход: клиент нам платит - уменьшаем его долг
-                            $clientBalance->balance -= $newConvertedAmountDefault;
-                        } else {
-                            // Расход: мы клиенту платим - увеличиваем его долг
-                            $clientBalance->balance += $newConvertedAmountDefault;
-                        }
-                    } else {
-                        // Обычная транзакция: применяем новую сумму как при создании
-                        if ($transaction->type == 1) {
-                            // Доход: клиент нам платит → баланс уменьшается
-                            $clientBalance->balance -= $newConvertedAmountDefault;
-                        } else {
-                            // Расход: мы клиенту платим → баланс увеличивается
-                            $clientBalance->balance += $newConvertedAmountDefault;
-                        }
-=======
                     // Применение нового баланса: как при создании
                     if ($transaction->type == 1) {
                         DB::table('clients')->where('id', $transaction->client_id)->update([
@@ -757,25 +669,17 @@ class TransactionsRepository
                         DB::table('clients')->where('id', $transaction->client_id)->update([
                             'balance' => DB::raw('balance - ' . ($newConvertedAmountDefault + 0))
                         ]);
->>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
                     }
 
                     Log::info('Client balance updated', [
                         'transaction_id' => $id,
-                        'newBalance' => $clientBalance->balance,
                         'oldAmount' => $oldConvertedAmountDefault,
                         'newAmount' => $newConvertedAmountDefault
                     ]);
                 }
 
                 // Сохраняем только если были изменения
-<<<<<<< HEAD
-                $oldIsRegularTransaction = empty($oldSourceType ?? '');
-                if ($oldIsDebt || $transaction->is_debt || $oldIsRegularTransaction || $isRegularTransaction) {
-                    $clientBalance->save();
-=======
                 if ($oldIsDebt || $transaction->is_debt) {
->>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
 
                     // Инвалидируем кэш клиентов и проектов после обновления баланса
                     CacheService::invalidateClientsCache();
@@ -861,35 +765,6 @@ class TransactionsRepository
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->delete();
 
-<<<<<<< HEAD
-            // Обновляем баланс клиента если это была долговая операция ИЛИ обычная транзакция
-            $isRegularTransaction = empty($transaction->source_type);
-            $shouldUpdateClientBalance = $transaction->is_debt || $isRegularTransaction;
-
-            if (! $skipClientUpdate && $transaction->client_id && $shouldUpdateClientBalance) {
-                $clientBalance = ClientBalance::firstOrCreate(
-                    ['client_id' => $transaction->client_id],
-                    ['balance' => 0]
-                );
-                if ($transaction->is_debt) {
-                    // Долговая операция: откатываем как было при создании
-                    if ($transaction->type == 1) {
-                        // Доход: клиент нам платил - при удалении уменьшаем баланс
-                        $clientBalance->balance -= $convertedAmountDefault;
-                    } else {
-                        // Расход: мы клиенту платили - при удалении увеличиваем баланс
-                        $clientBalance->balance += $convertedAmountDefault;
-                    }
-                } else {
-                    // Обычная транзакция: откатываем как было при создании
-                    if ($transaction->type == 1) {
-                        // Доход: клиент нам платил → баланс уменьшался, при удалении увеличиваем
-                        $clientBalance->balance += $convertedAmountDefault;
-                    } else {
-                        // Расход: мы клиенту платили → баланс увеличивался, при удалении уменьшаем
-                        $clientBalance->balance -= $convertedAmountDefault;
-                    }
-=======
             // Обновляем баланс клиента ТОЛЬКО если это была долговая операция
             if (! $skipClientUpdate && $transaction->client_id && $transaction->is_debt) {
                 if ($transaction->type == 1) {
@@ -902,7 +777,6 @@ class TransactionsRepository
                     DB::table('clients')->where('id', $transaction->client_id)->update([
                         'balance' => DB::raw('balance + ' . ($convertedAmountDefault + 0))
                     ]);
->>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
                 }
 
                 // Инвалидируем кэш клиентов и проектов после обновления баланса
