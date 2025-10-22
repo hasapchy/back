@@ -148,9 +148,7 @@ class ClientController extends Controller
             $validatedData['user_id'] = auth('api')->id();
             $client = $this->itemsRepository->create($validatedData);
 
-            $client->balance()->create([
-                'balance' => 0,
-            ]);
+            // Баланс уже создается в репозитории, не нужно создавать здесь
 
             DB::commit();
 
