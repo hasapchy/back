@@ -27,6 +27,7 @@ class CahRegistersRepository
     {
         $companyId = $this->getCurrentCompanyId();
         if ($companyId) {
+            // СТРОГО фильтруем по компании - показываем только кассы текущей компании
             $query->where('cash_registers.company_id', $companyId);
         } else {
             // Если компания не выбрана, показываем только кассы без company_id (для обратной совместимости)
@@ -101,6 +102,9 @@ class CahRegistersRepository
             ->whereHas('cashRegisterUsers', function($q) use ($userUuid) {
                 $q->where('user_id', $userUuid);
             });
+
+        // Фильтруем по текущей компании пользователя
+        $query = $this->addCompanyFilter($query);
 
         // Применяем фильтр по конкретным кассам
         if (!$all && !empty($cash_register_ids)) {

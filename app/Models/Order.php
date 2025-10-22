@@ -26,7 +26,6 @@ class Order extends Model
         'cash_id',
         'warehouse_id',
         'project_id',
-        'company_id',
         'category_id',
     ];
 

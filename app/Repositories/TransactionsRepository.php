@@ -14,6 +14,35 @@ use Illuminate\Support\Facades\Log;
 
 class TransactionsRepository
 {
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
+
+    /**
+     * Добавить фильтрацию по компании к запросу транзакций
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            // Фильтруем транзакции по кассам текущей компании
+            $query->whereHas('cashRegister', function($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            });
+        } else {
+            // Если компания не выбрана, показываем только транзакции из касс без company_id
+            $query->whereHas('cashRegister', function($q) {
+                $q->whereNull('company_id');
+            });
+        }
+        return $query;
+    }
+
     public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null)
     {
         try {
@@ -44,8 +73,12 @@ class TransactionsRepository
                     ])
                     ->whereHas('cashRegister.cashRegisterUsers', function ($q) use ($userUuid) {
                         $q->where('user_id', $userUuid);
-                    })
-                    ->when($cash_id, function ($query, $cash_id) {
+                    });
+
+                // Фильтруем по текущей компании пользователя
+                $query = $this->addCompanyFilter($query);
+
+                $query->when($cash_id, function ($query, $cash_id) {
                         return $query->where('transactions.cash_id', $cash_id);
                     })
                     ->when($date_filter_type, function ($query, $date_filter_type) use ($start_date, $end_date) {

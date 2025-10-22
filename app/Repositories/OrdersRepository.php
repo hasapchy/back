@@ -20,6 +20,35 @@ use Illuminate\Support\Facades\Log;
 
 class OrdersRepository
 {
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
+
+    /**
+     * Добавить фильтрацию по компании к запросу заказов через кассы
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            // Фильтруем заказы по кассам текущей компании
+            $query->whereHas('cash', function($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            });
+        } else {
+            // Если компания не выбрана, показываем только заказы из касс без company_id
+            $query->whereHas('cash', function($q) {
+                $q->whereNull('company_id');
+            });
+        }
+        return $query;
+    }
+
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null)
     {
         $cacheKey = "orders_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusFilter}_{$projectFilter}_{$clientFilter}_single";
@@ -127,6 +156,9 @@ class OrdersRepository
                 // ИЛИ заказы без категории
                 ->orWhereNull('orders.category_id');
             });
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
 
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
