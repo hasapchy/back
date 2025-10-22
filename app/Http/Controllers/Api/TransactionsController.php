@@ -59,7 +59,10 @@ class TransactionsController extends Controller
             'current_page' => $items->currentPage(),
             'next_page' => $items->nextPageUrl(),
             'last_page' => $items->lastPage(),
-            'total' => $items->total()
+            'total' => $items->total(),
+            'total_debt_positive' => $items->total_debt_positive ?? 0,
+            'total_debt_negative' => $items->total_debt_negative ?? 0,
+            'total_debt_balance' => $items->total_debt_balance ?? 0
         ]);
     }
 
@@ -359,7 +362,7 @@ class TransactionsController extends Controller
 
         if ($transaction->source_type && $transaction->source_id) {
             $sourceType = class_basename($transaction->source_type);
-            
+
             switch ($sourceType) {
                 case 'Sale':
                     return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через продажу. Управляйте ей через раздел "Продажи"';
@@ -375,72 +378,4 @@ class TransactionsController extends Controller
         return 'Нельзя редактировать/удалить эту транзакцию';
     }
 
-    /**
-     * Обновить статус долга транзакции (доступно всегда, без ограничения по времени)
-     */
-    public function updateDebtStatus(Request $request, $id)
-    {
-        $user = auth('api')->user();
-        $userUuid = optional($user)->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
-
-        $request->validate([
-            'is_debt' => 'required|boolean'
-        ]);
-
-        $transaction = Transaction::find($id);
-        if (!$transaction) {
-            return response()->json(['message' => 'Транзакция не найдена'], 404);
-        }
-
-        // Проверяем права владельца: если не админ, то можно редактировать только свои записи
-        if (!$user->is_admin && $transaction->user_id != $userUuid) {
-            return response()->json([
-                'message' => 'У вас нет прав на редактирование этой транзакции'
-            ], 403);
-        }
-
-        // Проверяем, не является ли транзакция ограниченной
-        if ($this->isRestrictedTransaction($transaction)) {
-            $message = $this->getRestrictedTransactionMessage($transaction);
-            return response()->json([
-                'message' => $message
-            ], 403);
-        }
-
-        $userHasPermissionToCashRegister = $this->itemsRepository->userHasPermissionToCashRegister($userUuid, $transaction->cash_id);
-
-        if (!$userHasPermissionToCashRegister) {
-            return response()->json([
-                'message' => 'У вас нет прав на эту кассу'
-            ], 403);
-        }
-
-        // Используем репозиторий для обновления с пересчетом балансов
-        $updateData = [
-            'client_id' => $transaction->client_id,
-            'category_id' => $transaction->category_id,
-            'project_id' => $transaction->project_id,
-            'date' => $transaction->date,
-            'note' => $transaction->note,
-            'is_debt' => $request->is_debt
-        ];
-
-        $updated = $this->itemsRepository->updateItem($id, $updateData);
-
-        if (!$updated) {
-            return response()->json([
-                'message' => 'Ошибка обновления статуса долга'
-            ], 400);
-        }
-
-        // Инвалидируем кэш транзакций
-        CacheService::invalidateTransactionsCache();
-
-        return response()->json([
-            'message' => 'Статус долга обновлён'
-        ]);
-    }
 }

@@ -260,8 +260,6 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::middleware('permission:transactions_create')->post('transactions', [TransactionsController::class, 'store']);
     Route::middleware(['permission:transactions_update', 'time.restriction:Transaction'])->put('transactions/{id}', [TransactionsController::class, 'update']);
     Route::middleware(['permission:transactions_delete', 'time.restriction:Transaction'])->delete('transactions/{id}', [TransactionsController::class, 'destroy']);
-    // Обновление статуса долга без ограничения по времени
-    Route::middleware('permission:transactions_update')->patch('transactions/{id}/debt-status', [TransactionsController::class, 'updateDebtStatus']);
     // Route::middleware('permission:transactions_view')->get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
     // Route::middleware('permission:transactions_view')->get('transactions/{id}', [TransactionsController::class, 'show']);
     // Route::middleware('permission:transactions_view')->get('transactions/project-incomes', [TransactionsController::class, 'getProjectIncomes']);

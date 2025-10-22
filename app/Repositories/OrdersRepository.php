@@ -618,6 +618,27 @@ class OrdersRepository
                 $this->saveAdditionalFields($order->id, $data['additional_fields']);
             }
 
+            // Создаем автоматическую долговую транзакцию для заказа
+            // Это упрощает расчет баланса - один источник правды (transactions)
+            $transactionData = [
+                'client_id'    => $client_id,
+                'amount'       => $total_price,
+                'orig_amount'  => $total_price,
+                'type'         => 1, // доход (клиент нам должен)
+                'is_debt'      => true, // долг (касса не меняется)
+                'cash_id'      => $cash_id,
+                'category_id'  => 1, // категория по умолчанию
+                'source_type'  => Order::class,
+                'source_id'    => $order->id,
+                'date'         => $date,
+                'note'         => $note,
+                'user_id'      => $userUuid,
+                'project_id'   => $project_id,
+                'currency_id'  => $defaultCurrency->id,
+            ];
+
+            $txRepo = new TransactionsRepository();
+            $txRepo->createItem($transactionData, true, true);
 
             DB::commit();
 
@@ -932,7 +953,31 @@ class OrdersRepository
                 $this->updateAdditionalFields($order->id, $data['additional_fields']);
             }
 
-            // Транзакции управляются вручную, автоматическое создание убрано
+            // Обновляем автоматическую долговую транзакцию заказа
+            // Ищем ИМЕННО автоматическую транзакцию (type=1, is_debt=true)
+            $orderTransaction = Transaction::where('source_type', Order::class)
+                ->where('source_id', $order->id)
+                ->where('type', 1)      // автоматическая транзакция заказа (доход)
+                ->where('is_debt', true) // долговая
+                ->first();
+            
+            if ($orderTransaction) {
+                // Автоматическая транзакция = ПОЛНАЯ сумма заказа (БЕЗ вычета оплат!)
+                // Оплаты учитываются отдельными транзакциями type=0
+                if ($orderTransaction->amount != $total_price) {
+                    $txRepo = new TransactionsRepository();
+                    $txRepo->updateItem($orderTransaction->id, [
+                        'amount' => $total_price,
+                        'orig_amount' => $total_price,
+                        'client_id' => $client_id,
+                        'project_id' => $project_id,
+                        'cash_id' => $cash_id,
+                        'category_id' => 1,
+                        'date' => $date,
+                        'note' => $note,
+                    ]);
+                }
+            }
 
             DB::commit();
 
@@ -972,11 +1017,11 @@ class OrdersRepository
 
             // Удаляем одноразовые товары (каскадное удаление через миграцию)
 
-            // Транзакции НЕ удаляются автоматически - они независимы от заказа
-            // Пользователь должен сам решить, что делать с транзакциями при удалении заказа
-
             // Удаляем товары
             OrderProduct::where('order_id', $id)->delete();
+
+            // Удаляем автоматическую долговую транзакцию заказа через morphable связь
+            $order->transactions()->delete();
 
             // Удаляем заказ
             $order->delete();

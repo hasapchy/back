@@ -188,6 +188,18 @@ class TransactionsRepository
                     'cashTransfersTo:id,tr_id_to'
                 ]);
 
+                // Подсчитываем ТЕКУЩИЕ непогашенные долги клиентов (из client_balances)
+                // Это правильно, потому что долги могут быть погашены обычными транзакциями
+                $debtStats = DB::table('client_balances')
+                    ->select([
+                        DB::raw('SUM(CASE WHEN balance > 0 THEN balance ELSE 0 END) as positive'),
+                        DB::raw('SUM(CASE WHEN balance < 0 THEN ABS(balance) ELSE 0 END) as negative'),
+                    ])
+                    ->first();
+
+                $totalDebtPositive = $debtStats->positive ?? 0; // Должны нам
+                $totalDebtNegative = $debtStats->negative ?? 0; // Мы должны
+
                 // Преобразуем данные в тот же формат, что и в методе getItems
                 $paginatedResults->getCollection()->transform(function ($transaction) {
                     return (object) [
@@ -242,6 +254,11 @@ class TransactionsRepository
                         'updated_at' => $transaction->updated_at,
                     ];
                 });
+
+                // Добавляем статистику по долгам в ответ
+                $paginatedResults->total_debt_positive = $totalDebtPositive;
+                $paginatedResults->total_debt_negative = $totalDebtNegative;
+                $paginatedResults->total_debt_balance = $totalDebtPositive - $totalDebtNegative;
 
                 return $paginatedResults;
             }, (int)$page);
@@ -362,26 +379,60 @@ class TransactionsRepository
 
             // Связь с заказом теперь устанавливается через morphable поля source_type и source_id
 
-            // Обновляем кассу только если это не долговая операция и касса указана
-            if (!($data['is_debt'] ?? false) && $cashRegister) {
+            // Обновляем кассу:
+            // 1. Обычные транзакции (is_debt=false) - касса меняется
+            // 2. СПЕЦИАЛЬНО для оплат заказов (source_type=Order, type=0, is_debt=true) - касса ТОЖЕ меняется!
+            $isOrderPayment = ($data['is_debt'] ?? false) &&
+                              !empty($data['source_type']) &&
+                              $data['source_type'] === 'App\Models\Order' &&
+                              $data['type'] === 0;
+
+            if ((!($data['is_debt'] ?? false) || $isOrderPayment) && $cashRegister) {
                 if ((int)$data['type'] === 1) {
                     $cashRegister->balance += $convertedAmount;
                 } else {
-                    $cashRegister->balance -= $convertedAmount;
+                    // Для type=0:
+                    // - Обычная транзакция: касса уменьшается (мы платим)
+                    // - Оплата заказа: касса УВЕЛИЧИВАЕТСЯ (клиент платит нам)
+                    if ($isOrderPayment) {
+                        $cashRegister->balance += $convertedAmount; // приход денег от клиента
+                    } else {
+                        $cashRegister->balance -= $convertedAmount; // обычный расход
+                    }
                 }
                 $cashRegister->save();
             }
 
-            // Обновляем баланс клиента ТОЛЬКО если это долговая операция
-            if (! $skipClientUpdate && ! empty($data['client_id']) && ($data['is_debt'] ?? false)) {
+            // Обновляем баланс клиента если:
+            // 1. Долговая операция (is_debt = true)
+            // 2. Обычная транзакция без связи (source_type = null)
+            $isRegularTransaction = empty($data['source_type']);
+            $shouldUpdateClientBalance = ($data['is_debt'] ?? false) || $isRegularTransaction;
+
+            if (! $skipClientUpdate && ! empty($data['client_id']) && $shouldUpdateClientBalance) {
                 $clientBalance = ClientBalance::firstOrCreate(['client_id' => $data['client_id']]);
-                if ($data['type'] === 1) {
-                    // Доход: клиент нам платит - уменьшаем его долг (увеличиваем баланс)
-                    $clientBalance->balance += $convertedAmountDefault;
+
+                // Логика зависит от того, долговая операция или обычная
+                if ($data['is_debt'] ?? false) {
+                    // ДОЛГОВАЯ операция (is_debt = true):
+                    if ($data['type'] === 1) {
+                        // type=1: клиент взял в долг → увеличиваем его долг
+                        $clientBalance->balance += $convertedAmountDefault;
+                    } else {
+                        // type=0: мы взяли в долг у клиента → уменьшаем его долг (увеличиваем наш)
+                        $clientBalance->balance -= $convertedAmountDefault;
+                    }
                 } else {
-                    // Расход: мы клиенту платим - увеличиваем его долг (уменьшаем баланс)
-                    $clientBalance->balance -= $convertedAmountDefault;
+                    // ОБЫЧНАЯ транзакция (is_debt = false) - расчет:
+                    if ($data['type'] === 1) {
+                        // type=1: приход в кассу = клиент нам ЗАПЛАТИЛ → уменьшаем его долг
+                        $clientBalance->balance -= $convertedAmountDefault;
+                    } else {
+                        // type=0: расход из кассы = мы клиенту ЗАПЛАТИЛИ → увеличиваем его долг
+                        $clientBalance->balance += $convertedAmountDefault;
+                    }
                 }
+
                 $clientBalance->save();
 
                 // Инвалидируем кэш клиентов и проектов после обновления баланса
@@ -530,6 +581,10 @@ class TransactionsRepository
 
             // Обновляем конвертированную сумму
             $transaction->amount = $newConvertedAmount;
+
+            // Блокируем автоматическое обновление баланса через события модели
+            // т.к. мы обновляем баланс вручную ниже
+            $transaction->setSkipClientBalanceUpdate(true);
             $transaction->save();
 
             // Применяем новый баланс кассы только если транзакция не стала долговой

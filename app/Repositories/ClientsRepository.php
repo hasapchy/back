@@ -48,26 +48,24 @@ class ClientsRepository
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
-                    // Считаем баланс из транзакций + заказов (как в getBalanceHistory)
+                    // Баланс клиента = сумма ТОЛЬКО долговых транзакций (is_debt=true)
+                    // Баланс клиента = сумма транзакций с учетом типа:
+                    // 1. Долговые (is_debt=1): type=1 → +amount (клиент должен), type=0 → -amount (мы должны)
+                    // 2. Обычные (source_type=NULL): type=1 → -amount (клиент заплатил), type=0 → +amount (мы заплатили)
                     DB::raw('(
-                        -- Транзакции клиента
                         SELECT COALESCE(
                             SUM(
                                 CASE
-                                    WHEN t.type = 1 THEN -t.amount
-                                    ELSE t.amount
+                                    WHEN t.is_debt = 1 THEN
+                                        CASE WHEN t.type = 1 THEN t.amount ELSE -t.amount END
+                                    ELSE
+                                        CASE WHEN t.type = 1 THEN -t.amount ELSE t.amount END
                                 END
                             ), 0
                         )
                         FROM transactions t
                         WHERE t.client_id = clients.id
-                    ) + (
-                        -- Заказы клиента (без транзакций)
-                        SELECT COALESCE(
-                            SUM(o.price - o.discount), 0
-                        )
-                        FROM orders o
-                        WHERE o.client_id = clients.id
+                          AND (t.is_debt = 1 OR t.source_type IS NULL)
                     ) as balance_amount')
                 ]);
 
@@ -131,26 +129,24 @@ class ClientsRepository
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
-                    // Считаем баланс из транзакций + заказов (как в getBalanceHistory)
+                    // Баланс клиента = сумма ТОЛЬКО долговых транзакций (is_debt=true)
+                    // Баланс клиента = сумма транзакций с учетом типа:
+                    // 1. Долговые (is_debt=1): type=1 → +amount (клиент должен), type=0 → -amount (мы должны)
+                    // 2. Обычные (source_type=NULL): type=1 → -amount (клиент заплатил), type=0 → +amount (мы заплатили)
                     DB::raw('(
-                        -- Транзакции клиента
                         SELECT COALESCE(
                             SUM(
                                 CASE
-                                    WHEN t.type = 1 THEN -t.amount
-                                    ELSE t.amount
+                                    WHEN t.is_debt = 1 THEN
+                                        CASE WHEN t.type = 1 THEN t.amount ELSE -t.amount END
+                                    ELSE
+                                        CASE WHEN t.type = 1 THEN -t.amount ELSE t.amount END
                                 END
                             ), 0
                         )
                         FROM transactions t
                         WHERE t.client_id = clients.id
-                    ) + (
-                        -- Заказы клиента
-                        SELECT COALESCE(
-                            SUM(o.price - o.discount), 0
-                        )
-                        FROM orders o
-                        WHERE o.client_id = clients.id
+                          AND (t.is_debt = 1 OR t.source_type IS NULL)
                     ) as balance_amount')
                 ])
                 ->where('clients.status', true); // Фильтруем только активных клиентов
@@ -196,30 +192,28 @@ class ClientsRepository
         // Чтение не инвалидирует кэш; инвалидация выполняется при CRUD операциях
 
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
-            // Используем подзапрос для расчета баланса из транзакций + заказов
+            // Используем подзапрос для расчета баланса из транзакций + неоплаченная часть заказов
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
-                    // Считаем баланс из транзакций + заказов (как в getBalanceHistory)
+                    // Баланс клиента = сумма ТОЛЬКО долговых транзакций (is_debt=true)
+                    // Баланс клиента = сумма транзакций с учетом типа:
+                    // 1. Долговые (is_debt=1): type=1 → +amount (клиент должен), type=0 → -amount (мы должны)
+                    // 2. Обычные (source_type=NULL): type=1 → -amount (клиент заплатил), type=0 → +amount (мы заплатили)
                     DB::raw('(
-                        -- Транзакции клиента
                         SELECT COALESCE(
                             SUM(
                                 CASE
-                                    WHEN t.type = 1 THEN -t.amount
-                                    ELSE t.amount
+                                    WHEN t.is_debt = 1 THEN
+                                        CASE WHEN t.type = 1 THEN t.amount ELSE -t.amount END
+                                    ELSE
+                                        CASE WHEN t.type = 1 THEN -t.amount ELSE t.amount END
                                 END
                             ), 0
                         )
                         FROM transactions t
                         WHERE t.client_id = clients.id
-                    ) + (
-                        -- Заказы клиента
-                        SELECT COALESCE(
-                            SUM(o.price - o.discount), 0
-                        )
-                        FROM orders o
-                        WHERE o.client_id = clients.id
+                          AND (t.is_debt = 1 OR t.source_type IS NULL)
                     ) as balance_amount')
                 ])
                 ->where('clients.id', $id);
@@ -488,83 +482,132 @@ class ClientsRepository
                         'cash_registers.name as cash_name'
                     )
                     ->get()
-                    ->map(function ($item) {
+                    ->flatMap(function ($item) use ($defaultCurrencySymbol) {
                         $amount = $item->amount;
+                        $results = []; // Массив результатов (может быть 1 или 2 записи для недолговых операций)
 
-                        // Корректируем сумму в зависимости от типа и источника
+                        // История баланса показывает движение товаров/денег с точки зрения долга
                         if ($item->source === 'receipt') {
-                            // Оприходование - расход (мы должны поставщику)
-                            $amount = -$amount;
-                            $description = $item->is_debt ? 'Долг за оприходование (в баланс)' : 'Оприходование через кассу';
+                            // Оприходование от поставщика (type=0 всегда - расход)
+                            $receiptId = $item->source_id;
+                            $results[] = [
+                                'source' => $item->source,
+                                'source_id' => $item->id,
+                                'source_type' => $item->source_type,
+                                'source_source_id' => $item->source_id,
+                                'date' => $item->created_at,
+                                'amount' => -$amount, // type=0 → минус (расход)
+                                'orig_amount' => $item->orig_amount,
+                                'is_debt' => $item->is_debt,
+                                'note' => $item->note,
+                                'description' => '📦 Оприходование #' . $receiptId . ($item->is_debt ? ' (в долг)' : ''),
+                                'user_id' => $item->user_id,
+                                'user_name' => $item->user_name,
+                                'currency_symbol' => $item->currency_symbol,
+                                'cash_name' => $item->cash_name
+                            ];
                         } elseif ($item->source === 'transaction') {
-                            // Обычная транзакция: тип 1 = доход (клиент нам платит), тип 0 = расход (мы клиенту платим)
-                            $amount = $item->type == 1 ? -$amount : +$amount;
-                            $description = $item->type == 1 ? 'Клиент оплатил нам' : 'Мы оплатили клиенту';
+                            // Обычная транзакция: type=1 (приход), type=0 (расход)
+                            $transactionId = $item->id;
+                            $amount = $item->type == 1 ? +$amount : -$amount;
+
+                            // Формируем описание с явным указанием типа
+                            if ($item->is_debt) {
+                                $description = $item->type == 1
+                                    ? '💸 Долг клиента #' . $transactionId
+                                    : '💸 Наш долг #' . $transactionId;
+                            } else {
+                                $description = $item->type == 1
+                                    ? '✅ Приход #' . $transactionId
+                                    : '🔺 Расход #' . $transactionId;
+                            }
+
+                            $results[] = [
+                                'source' => $item->source,
+                                'source_id' => $item->id,
+                                'source_type' => $item->source_type,
+                                'source_source_id' => $item->source_id,
+                                'date' => $item->created_at,
+                                'amount' => $amount, // type=1 → плюс, type=0 → минус
+                                'orig_amount' => $item->orig_amount,
+                                'is_debt' => $item->is_debt,
+                                'note' => $item->note,
+                                'description' => $description,
+                                'user_id' => $item->user_id,
+                                'user_name' => $item->user_name,
+                                'currency_symbol' => $item->currency_symbol,
+                                'cash_name' => $item->cash_name
+                            ];
                         } elseif ($item->source === 'sale') {
-                            // Продажа - приход (клиент нам должен/оплатил)
-                            $amount = +$amount;
-                            $description = $item->is_debt ? 'Продажа в долг' : 'Продажа через кассу';
+                            // Продажа (type=1 всегда - приход)
+                            $saleId = $item->source_id;
+                            $results[] = [
+                                'source' => $item->source,
+                                'source_id' => $item->id,
+                                'source_type' => $item->source_type,
+                                'source_source_id' => $item->source_id,
+                                'date' => $item->created_at,
+                                'amount' => +$amount, // type=1 → плюс (приход)
+                                'orig_amount' => $item->orig_amount,
+                                'is_debt' => $item->is_debt,
+                                'note' => $item->note,
+                                'description' => '🛒 Продажа #' . $saleId . ($item->is_debt ? ' (в долг)' : ''),
+                                'user_id' => $item->user_id,
+                                'user_name' => $item->user_name,
+                                'currency_symbol' => $item->currency_symbol,
+                                'cash_name' => $item->cash_name
+                            ];
                         } elseif ($item->source === 'order') {
-                            // Заказ - приход (клиент нам должен/оплатил)
-                            $amount = +$amount;
-                            $description = $item->is_debt ? 'Заказ в долг' : 'Заказ через кассу';
+                            // Заказ: type=1 (приход - создание), type=0 (расход - оплата)
+                            $orderId = $item->source_id;
+                            $amount = $item->type == 1 ? +$amount : -$amount;
+
+                            $description = $item->type == 1
+                                ? '📋 Заказ #' . $orderId
+                                : '💰 Оплата заказа #' . $orderId;
+
+                            $results[] = [
+                                'source' => $item->source,
+                                'source_id' => $item->id,
+                                'source_type' => $item->source_type,
+                                'source_source_id' => $item->source_id,
+                                'date' => $item->created_at,
+                                'amount' => $amount, // type=1 → плюс, type=0 → минус
+                                'orig_amount' => $item->orig_amount,
+                                'is_debt' => $item->is_debt,
+                                'note' => $item->note,
+                                'description' => $description,
+                                'user_id' => $item->user_id,
+                                'user_name' => $item->user_name,
+                                'currency_symbol' => $item->currency_symbol,
+                                'cash_name' => $item->cash_name
+                            ];
                         } else {
                             $description = $item->note ?? 'Транзакция';
+                            $results[] = [
+                                'source' => $item->source,
+                                'source_id' => $item->id,
+                                'source_type' => $item->source_type,
+                                'source_source_id' => $item->source_id,
+                                'date' => $item->created_at,
+                                'amount' => $amount,
+                                'orig_amount' => $item->orig_amount,
+                                'is_debt' => $item->is_debt,
+                                'note' => $item->note,
+                                'description' => $description,
+                                'user_id' => $item->user_id,
+                                'user_name' => $item->user_name,
+                                'currency_symbol' => $item->currency_symbol,
+                                'cash_name' => $item->cash_name
+                            ];
                         }
 
-                        return [
-                            'source' => $item->source,
-                            'source_id' => $item->id,
-                            'source_type' => $item->source_type,
-                            'source_source_id' => $item->source_id,
-                            'date' => $item->created_at,
-                            'amount' => $amount, // Полная сумма для отображения и расчета
-                            'orig_amount' => $item->orig_amount,
-                            'is_debt' => $item->is_debt,
-                            'note' => $item->note,
-                            'description' => $description,
-                            'user_id' => $item->user_id,
-                            'user_name' => $item->user_name,
-                            'currency_symbol' => $item->currency_symbol,
-                            'cash_name' => $item->cash_name
-                        ];
+                        return $results; // Возвращаем массив (1 или 2 записи)
                     });
 
-                // Получаем заказы клиента напрямую из таблицы orders (как в балансе проекта)
-                $orders = DB::table('orders')
-                    ->leftJoin('users', 'orders.user_id', '=', 'users.id')
-                    ->where('orders.client_id', $clientId)
-                    ->select(
-                        'orders.id',
-                        'orders.created_at',
-                        // Заказ = клиент нам должен (положительная сумма)
-                        DB::raw('(orders.price - orders.discount) as amount'),
-                        DB::raw('orders.price - orders.discount as orig_amount'),
-                        'orders.note',
-                        'orders.user_id',
-                        'users.name as user_name'
-                    )
-                    ->get()
-                    ->map(function ($item) use ($defaultCurrencySymbol) {
-                        // Заказы всегда учитываются в балансе как долг клиента
-                        $amount = (float)$item->amount;
-                        return [
-                            'source' => 'order',
-                            'source_id' => $item->id,
-                            'source_type' => 'App\\Models\\Order',
-                            'source_source_id' => $item->id,
-                            'date' => $item->created_at,
-                            'amount' => $amount, // Заказы всегда учитываются в балансе
-                            'orig_amount' => (float)$item->orig_amount,
-                            'is_debt' => true, // Заказы - это всегда долг до полной оплаты
-                            'note' => $item->note,
-                            'description' => 'Заказ',
-                            'user_id' => $item->user_id,
-                            'user_name' => $item->user_name,
-                            'currency_symbol' => $defaultCurrencySymbol,
-                            'cash_name' => null
-                        ];
-                    });
+                // Заказы теперь создают автоматические транзакции (type=1, is_debt=true, source_type=Order)
+                // Поэтому НЕ добавляем их отдельно - они уже есть в $transactionsResult выше
+                $orders = collect([]);
 
                 // Объединяем транзакции и заказы, сортируем по дате
                 $result = $transactions

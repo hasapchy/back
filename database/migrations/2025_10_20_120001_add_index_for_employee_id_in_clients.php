@@ -11,7 +11,7 @@ return new class extends Migration
     {
         // Изменяем тип поля client_type на ENUM с новыми значениями
         DB::statement("ALTER TABLE clients MODIFY COLUMN client_type ENUM('individual', 'company', 'employee', 'investor') NOT NULL");
-        
+
         // Добавляем индекс для employee_id для оптимизации поиска
         Schema::table('clients', function (Blueprint $table) {
             $table->index('employee_id', 'clients_employee_id_index');
@@ -24,7 +24,7 @@ return new class extends Migration
         Schema::table('clients', function (Blueprint $table) {
             $table->dropIndex('clients_employee_id_index');
         });
-        
+
         // Возвращаем обратно только старые значения ENUM
         DB::statement("ALTER TABLE clients MODIFY COLUMN client_type ENUM('individual', 'company') NOT NULL");
     }
