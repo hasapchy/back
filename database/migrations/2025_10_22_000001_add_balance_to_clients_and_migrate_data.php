@@ -11,7 +11,7 @@ return new class extends Migration
     {
         if (!Schema::hasColumn('clients', 'balance')) {
             Schema::table('clients', function (Blueprint $table) {
-                $table->decimal('balance', 20, 2)->default(0)->after('sort');
+                $table->decimal('balance', 20, 2)->default(0);
             });
         }
 
