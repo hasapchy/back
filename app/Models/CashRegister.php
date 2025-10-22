@@ -18,6 +18,10 @@ class CashRegister extends Model
         'company_id',
     ];
 
+    protected $casts = [
+        'balance' => 'decimal:2',
+    ];
+
     public static function boot()
     {
         parent::boot();

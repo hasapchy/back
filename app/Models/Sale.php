@@ -30,6 +30,11 @@ class Sale extends Model
         'no_balance_update',
     ];
 
+    protected $casts = [
+        'price' => 'decimal:2',
+        'discount' => 'decimal:2',
+    ];
+
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');

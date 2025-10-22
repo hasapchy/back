@@ -722,7 +722,7 @@ class PerformanceController extends Controller
         $startTime = microtime(true);
         $startMemory = memory_get_usage();
 
-        $sales = $this->salesRepository->fastSearch($userUuid, 'test');
+        $sales = $this->salesRepository->getItemsWithPagination($userUuid, 20, 1);
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage();
@@ -776,7 +776,7 @@ class PerformanceController extends Controller
         $startTime = microtime(true);
         $startMemory = memory_get_usage();
 
-        $transactions = $this->transactionsRepository->fastSearch($userUuid, 'test');
+        $transactions = $this->transactionsRepository->getItemsWithPagination($userUuid, 20, 1, null, null, null, 'test');
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage();
@@ -1001,7 +1001,7 @@ class PerformanceController extends Controller
         $startTime = microtime(true);
         $startMemory = memory_get_usage();
 
-        $transactionsWithSearch = $this->transactionsRepository->fastSearch($userUuid, 'test');
+        $transactionsWithSearch = $this->transactionsRepository->getItemsWithPagination($userUuid, 20, 1, null, null, null, 'test');
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage();
@@ -1103,7 +1103,7 @@ class PerformanceController extends Controller
         $startTime = microtime(true);
         $startMemory = memory_get_usage();
 
-        $usersWithSearch = $this->usersRepository->fastSearch('test', 20);
+        $usersWithSearch = $this->usersRepository->getItemsWithPagination(1, 20, 'test');
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage();
@@ -1351,7 +1351,7 @@ class PerformanceController extends Controller
         $startTime = microtime(true);
         $startMemory = memory_get_usage();
 
-        $users = $this->usersRepository->fastSearch('test', 20);
+        $users = $this->usersRepository->getItemsWithPagination(1, 20, 'test');
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage();
@@ -1562,7 +1562,7 @@ class PerformanceController extends Controller
         $startTime = microtime(true);
         $startMemory = memory_get_usage();
 
-        $cashRegisters = $this->cashRegistersRepository->fastSearch('test', 20);
+        $cashRegisters = $this->cashRegistersRepository->getItemsWithPagination(1, 20);
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage();

@@ -43,20 +43,12 @@ class ClientController extends Controller
         if (!$search_request || empty($search_request)) {
             $items = [];
         } else {
-            // Создаем недостающие балансы перед поиском
-            $this->itemsRepository->createMissingBalances();
+            // Балансы теперь в колонке clients.balance
 
             $items = $this->itemsRepository->searchClient($search_request);
         }
 
-        // Приводим балансы к числам для всех клиентов
-        if (is_array($items)) {
-            foreach ($items as &$item) {
-                if (isset($item['balance_amount'])) {
-                    $item['balance_amount'] = (float) $item['balance_amount'];
-                }
-            }
-        }
+        // Баланс теперь уже число из колонки clients.balance
 
         return response()->json($items);
     }
@@ -64,8 +56,7 @@ class ClientController extends Controller
         public function show($id)
     {
         try {
-            // Создаем недостающие балансы перед получением клиента
-            $this->itemsRepository->createMissingBalances();
+            // Балансы теперь в колонке clients.balance
 
             // Инвалидируем кэш клиента, чтобы всегда получать актуальный баланс для формы редактирования
             if (method_exists($this->itemsRepository, 'invalidateClientBalanceCache')) {
@@ -80,10 +71,7 @@ class ClientController extends Controller
                 ], 404);
             }
 
-            // Приводим баланс к числу
-            if (isset($client['balance_amount'])) {
-                $client['balance_amount'] = (float) $client['balance_amount'];
-            }
+            // Баланс теперь уже число из колонки clients.balance
 
             return response()->json([
                 'item' => $client
@@ -153,20 +141,22 @@ class ClientController extends Controller
             $validatedData['user_id'] = auth('api')->id();
             $client = $this->itemsRepository->create($validatedData);
 
+<<<<<<< HEAD
             // Баланс уже создается в репозитории, не нужно создавать здесь
 
+=======
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
             DB::commit();
 
             // Инвалидируем кэш клиентов
             \App\Services\CacheService::invalidateClientsCache();
-            // Инвалидируем кэш сущностей где клиент embedded (заказы, продажи, транзакции)
             \App\Services\CacheService::invalidateOrdersCache();
             \App\Services\CacheService::invalidateSalesCache();
             \App\Services\CacheService::invalidateTransactionsCache();
 
             return response()->json([
                 'message' => 'Client created successfully',
-                'item' => $client->load('balance', 'phones', 'emails', 'employee'),
+                'item' => $client->load('phones', 'emails', 'employee'),
             ], 200);
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -298,7 +288,7 @@ class ClientController extends Controller
             }
 
             // Проверка баланса
-            $balance = DB::table('client_balances')->where('client_id', $id)->value('balance');
+            $balance = DB::table('clients')->where('id', $id)->value('balance');
 
             if ($balance > 0 || $balance < 0) {
                 return response()->json([

@@ -3,7 +3,6 @@
 namespace App\Repositories;
 
 use App\Models\Client;
-use App\Models\ClientBalance;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -44,10 +43,11 @@ class ClientsRepository
         // Чтение не должно инвалидировать кэш; инвалидация выполняется при CRUD операциях
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter) {
-            // Используем подзапрос для расчета баланса из транзакций + заказов
+            // Используем простую колонку balance вместо сложных вычислений
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
+<<<<<<< HEAD
                     // Баланс клиента = сумма ТОЛЬКО долговых транзакций (is_debt=true)
                     // Баланс клиента = сумма транзакций с учетом типа:
                     // 1. Долговые (is_debt=1): type=1 → +amount (клиент должен), type=0 → -amount (мы должны)
@@ -67,6 +67,9 @@ class ClientsRepository
                         WHERE t.client_id = clients.id
                           AND (t.is_debt = 1 OR t.source_type IS NULL)
                     ) as balance_amount')
+=======
+                    'clients.balance as balance'
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
                 ]);
 
             // Логируем для отладки
@@ -125,10 +128,11 @@ class ClientsRepository
         return CacheService::rememberSearch($cacheKey, function () use ($search_request) {
             $searchTerms = explode(' ', $search_request);
 
-            // Используем подзапрос для расчета баланса из транзакций + заказов
+            // Используем простую колонку balance вместо сложных вычислений
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
+<<<<<<< HEAD
                     // Баланс клиента = сумма ТОЛЬКО долговых транзакций (is_debt=true)
                     // Баланс клиента = сумма транзакций с учетом типа:
                     // 1. Долговые (is_debt=1): type=1 → +amount (клиент должен), type=0 → -amount (мы должны)
@@ -148,6 +152,9 @@ class ClientsRepository
                         WHERE t.client_id = clients.id
                           AND (t.is_debt = 1 OR t.source_type IS NULL)
                     ) as balance_amount')
+=======
+                    'clients.balance as balance'
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
                 ])
                 ->where('clients.status', true); // Фильтруем только активных клиентов
 
@@ -192,6 +199,7 @@ class ClientsRepository
         // Чтение не инвалидирует кэш; инвалидация выполняется при CRUD операциях
 
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
+<<<<<<< HEAD
             // Используем подзапрос для расчета баланса из транзакций + неоплаченная часть заказов
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
@@ -203,6 +211,13 @@ class ClientsRepository
                         WHERE client_id = clients.id
                         LIMIT 1
                     ) as balance_amount')
+=======
+            // Используем простую колонку balance вместо сложных вычислений
+            $query = Client::with(['phones', 'emails', 'user', 'employee'])
+                ->select([
+                    'clients.*',
+                    'clients.balance as balance'
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
                 ])
                 ->where('clients.id', $id);
 
@@ -253,13 +268,7 @@ class ClientsRepository
                 }
             }
 
-            // Создаем запись баланса для клиента
-            DB::table('client_balances')->insert([
-                'client_id' => $client->id,
-                'balance' => 0.00,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // Колонка clients.balance по умолчанию = 0
 
             return $client;
         });
@@ -274,39 +283,7 @@ class ClientsRepository
     /**
      * Создает записи баланса для клиентов, у которых их нет
      */
-    public function createMissingBalances()
-    {
-        $query = DB::table('clients')
-            ->leftJoin('client_balances', 'clients.id', '=', 'client_balances.client_id')
-            ->whereNull('client_balances.client_id')
-            ->select('clients.id');
-
-        // Фильтруем по текущей компании пользователя
-        $companyId = $this->getCurrentCompanyId();
-        if ($companyId) {
-            $query->where('clients.company_id', $companyId);
-        }
-
-        $clientsWithoutBalance = $query->get();
-
-        $created = 0;
-        foreach ($clientsWithoutBalance as $client) {
-            DB::table('client_balances')->insert([
-                'client_id' => $client->id,
-                'balance' => 0.00,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            $created++;
-        }
-
-        if ($created > 0) {
-            // Очищаем кэш клиентов после создания недостающих балансов
-            CacheService::invalidateClientsCache();
-        }
-
-        return $created;
-    }
+    // createMissingBalances больше не требуется (баланс в clients.balance)
 
     public function update($id, array $data)
     {
@@ -384,7 +361,7 @@ class ClientsRepository
             ->select(
                 'clients.id as id',
                 'clients.client_type as client_type',
-                DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance'),
+                'clients.balance as balance',
                 'clients.is_supplier as is_supplier',
                 'clients.is_conflict as is_conflict',
                 'clients.first_name as first_name',
@@ -611,43 +588,13 @@ class ClientsRepository
         }, 900); // 15 минут
     }
 
-    // Получение текущего баланса клиента с кэшированием
-    public function getClientBalance($clientId)
-    {
-        $cacheKey = "client_balance_{$clientId}";
-
-        // Чтение не инвалидирует кэш; инвалидация выполняется при CRUD операциях
-
-        return CacheService::remember($cacheKey, function () use ($clientId) {
-            // Получаем историю баланса и считаем сумму ТОЛЬКО долговых операций (включая заказы)
-            $history = $this->getBalanceHistory($clientId);
-            return collect($history)
-                ->filter(fn($item) => $item['is_debt']) // Учитываем только долговые операции
-                ->sum('amount');
-        });
-    }
-
-    // Получение балансов нескольких клиентов с кэшированием
-    public function getClientsBalances(array $clientIds)
-    {
-        $cacheKey = "clients_balances_" . md5(implode(',', $clientIds));
-
-        return CacheService::remember($cacheKey, function () use ($clientIds) {
-            // Получаем балансы каждого клиента через getClientBalance (который учитывает заказы)
-            $balances = [];
-            foreach ($clientIds as $clientId) {
-                $balances[$clientId] = $this->getClientBalance($clientId);
-            }
-            return $balances;
-        });
-    }
 
     public function deleteItem($id)
     {
         $result = DB::transaction(function () use ($id) {
             DB::table('clients_emails')->where('client_id', $id)->delete();
             DB::table('clients_phones')->where('client_id', $id)->delete();
-            DB::table('client_balances')->where('client_id', $id)->delete();
+            // Колонка clients.balance остаётся, удаляем только связанные записи
             return DB::table('clients')->where('id', $id)->delete();
         });
 

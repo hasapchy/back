@@ -10,7 +10,6 @@ use App\Models\Product;
 use App\Models\ProductPrice;
 use App\Models\WarehouseStock;
 use App\Models\Warehouse;
-use App\Models\ClientBalance;
 use App\Models\Currency;
 use App\Models\Transaction;
 use App\Models\OrderStatus;
@@ -71,8 +70,7 @@ class OrdersRepository
                     'tempProducts:id,order_id,name,description,quantity,price,unit_id,width,height',
                     'tempProducts.unit:id,name,short_name',
                     'client.phones:id,client_id,phone',
-                    'client.emails:id,client_id,email',
-                    'client.balance:id,client_id,balance'
+                    'client.emails:id,client_id,email'
                 ])
                 ->where(function ($q) use ($userUuid) {
                     $q->whereNull('orders.cash_id') // Заказы без кассы (оплата через баланс)
@@ -151,7 +149,7 @@ class OrdersRepository
                         'discount' => $order->client_discount,
                         'created_at' => $order->client_created_at,
                         'updated_at' => $order->client_updated_at,
-                        'balance' => $order->client->balance->balance ?? 0
+                        'balance' => $order->client->balance ?? 0
                     ];
                 }
 

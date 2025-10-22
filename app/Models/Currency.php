@@ -16,6 +16,12 @@ class Currency extends Model
         'is_report'
     ];
 
+    protected $casts = [
+        'exchange_rate' => 'decimal:4',
+        'is_default' => 'boolean',
+        'is_report' => 'boolean',
+    ];
+
     public function exchangeRateHistories()
     {
         return $this->hasMany(CurrencyHistory::class, 'currency_id');

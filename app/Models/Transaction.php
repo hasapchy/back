@@ -75,6 +75,8 @@ class Transaction extends Model
 
     protected $casts = [
         'is_debt' => 'boolean',
+        'amount' => 'decimal:2',
+        'orig_amount' => 'decimal:2',
     ];
 
     protected $hidden = [
@@ -116,12 +118,17 @@ class Transaction extends Model
                 $transaction->client_id
                 && !$transaction->getSkipClientBalanceUpdate()
             ) {
+<<<<<<< HEAD
                 // Баланс клиента меняется если:
                 // 1. Долговая операция (is_debt = true)
                 // 2. Обычная транзакция без связи (source_type IS NULL) - прямой расчет с клиентом
                 if ($transaction->is_debt || $transaction->source_type === null) {
                     $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
                     $defaultCurrency = Currency::where('is_default', true)->first();
+=======
+                $client = Client::find($transaction->client_id);
+                $defaultCurrency = Currency::where('is_default', true)->first();
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
 
                     if ($transaction->currency_id != $defaultCurrency->id) {
                         $convertedAmount = CurrencyConverter::convert(
@@ -159,18 +166,43 @@ class Transaction extends Model
                     CacheService::invalidateClientBalanceCache($transaction->client_id);
                     CacheService::invalidateProjectsCache();
                 }
+<<<<<<< HEAD
+=======
+
+                if ($client) {
+                    if ($transaction->type == 1) {
+                        $client->balance = ($client->balance ?? 0) + $convertedAmount;
+                    } else {
+                        $client->balance = ($client->balance ?? 0) - $convertedAmount;
+                    }
+                    $client->save();
+                }
+
+                // Инвалидируем кэш клиента и проектов после обновления баланса
+               CacheService::invalidateClientsCache();
+                CacheService::invalidateClientBalanceCache($transaction->client_id);
+                CacheService::invalidateProjectsCache();
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
             }
 
             // Обновляем баланс кассы (если не долг)
             $transaction->updateCashBalance();
+
+            // Инвалидируем кэш списков транзакций
+            \App\Services\CacheService::invalidateTransactionsCache();
         });
 
         static::updated(function ($transaction) {
             if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
+<<<<<<< HEAD
                 // Баланс клиента меняется при долговых операциях или обычных транзакциях
                 $originalIsDebt = $transaction->getOriginal('is_debt');
                 $currentIsDebt = $transaction->is_debt;
                 $isRegularTransaction = $transaction->source_type === null;
+=======
+                $client = Client::find($transaction->client_id);
+                $defaultCurrency = Currency::where('is_default', true)->first();
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
 
                 // Если это долговая или обычная транзакция
                 if ($originalIsDebt || $currentIsDebt || $isRegularTransaction) {
@@ -226,15 +258,50 @@ class Transaction extends Model
                     \App\Services\CacheService::invalidateClientBalanceCache($transaction->client_id);
                     \App\Services\CacheService::invalidateProjectsCache();
                 }
+<<<<<<< HEAD
+=======
+
+                if ($transaction->currency_id != $defaultCurrency->id) {
+                    $currentConverted = CurrencyConverter::convert(
+                        $transaction->amount,
+                        $transaction->currency,
+                        $defaultCurrency
+                    );
+                } else {
+                    $currentConverted = $transaction->amount;
+                }
+
+                if ($client) {
+                    if ($transaction->type == 1) {
+                        $client->balance = ($client->balance ?? 0) + $originalConverted - $currentConverted;
+                    } else {
+                        $client->balance = ($client->balance ?? 0) - $originalConverted + $currentConverted;
+                    }
+                    $client->save();
+                }
+
+                // Инвалидируем кэш клиента и проектов после обновления баланса
+                \App\Services\CacheService::invalidateClientsCache();
+                \App\Services\CacheService::invalidateClientBalanceCache($transaction->client_id);
+                \App\Services\CacheService::invalidateProjectsCache();
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
             }
+
+            // Инвалидируем кэш списков транзакций
+            \App\Services\CacheService::invalidateTransactionsCache();
         });
 
         static::deleted(function ($transaction) {
             if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
+<<<<<<< HEAD
                 // Баланс клиента меняется при удалении долговых или обычных транзакций
                 if ($transaction->is_debt || $transaction->source_type === null) {
                     $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
                     $defaultCurrency = Currency::where('is_default', true)->first();
+=======
+                $client = Client::find($transaction->client_id);
+                $defaultCurrency = Currency::where('is_default', true)->first();
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
 
                     if ($transaction->currency_id != $defaultCurrency->id) {
                         $convertedAmount = CurrencyConverter::convert(
@@ -272,7 +339,27 @@ class Transaction extends Model
                     \App\Services\CacheService::invalidateClientBalanceCache($transaction->client_id);
                     \App\Services\CacheService::invalidateProjectsCache();
                 }
+<<<<<<< HEAD
+=======
+
+                if ($client) {
+                    if ($transaction->type == 1) {
+                        $client->balance = ($client->balance ?? 0) - $convertedAmount;
+                    } else {
+                        $client->balance = ($client->balance ?? 0) + $convertedAmount;
+                    }
+                    $client->save();
+                }
+
+                // Инвалидируем кэш клиента и проектов после обновления баланса
+                \App\Services\CacheService::invalidateClientsCache();
+                \App\Services\CacheService::invalidateClientBalanceCache($transaction->client_id);
+                \App\Services\CacheService::invalidateProjectsCache();
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
             }
+
+            // Инвалидируем кэш списков транзакций
+            \App\Services\CacheService::invalidateTransactionsCache();
         });
     }
 

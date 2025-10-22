@@ -20,8 +20,13 @@ class Template extends Model
         'transaction_date',
         'note',
         'client_id',
-        'user_id', 
+        'user_id',
         'project_id',
+    ];
+
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'transaction_date' => 'date',
     ];
 
     public function cashRegister()
@@ -47,10 +52,5 @@ class Template extends Model
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');
-    }
-
-    public function clientBalance()
-    {
-        return $this->hasOne(ClientBalance::class, 'client_id');
     }
 }

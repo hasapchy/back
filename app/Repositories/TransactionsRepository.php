@@ -4,14 +4,12 @@ namespace App\Repositories;
 
 use App\Models\CashRegister;
 use App\Models\Client;
-use App\Models\ClientBalance;
 use App\Models\Currency;
 use App\Models\Transaction;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use App\Repositories\ProjectsRepository;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class TransactionsRepository
 {
@@ -38,9 +36,9 @@ class TransactionsRepository
                     'cashTransfersTo:id,tr_id_to'
                 ])
                     ->addSelect([
-                        'client_balance' => DB::table('client_balances')
+                        'client_balance' => DB::table('clients')
                             ->select('balance')
-                            ->whereColumn('client_id', 'transactions.client_id')
+                            ->whereColumn('clients.id', 'transactions.client_id')
                             ->limit(1)
                     ])
                     ->whereHas('cashRegister.cashRegisterUsers', function ($q) use ($userUuid) {
@@ -246,7 +244,7 @@ class TransactionsRepository
                             'updated_at' => $transaction->client->updated_at,
                             'phones' => $transaction->client->phones ? $transaction->client->phones->toArray() : [],
                             'emails' => $transaction->client->emails ? $transaction->client->emails->toArray() : [],
-                            'balance_amount' => $transaction->client_balance ?? 0,
+                            'balance' => $transaction->client_balance ?? 0,
                         ] : null,
                         'note' => $transaction->note,
                         'date' => $transaction->date,
@@ -267,58 +265,7 @@ class TransactionsRepository
         }
     }
 
-    /**
-     * Быстрый поиск транзакций с оптимизированным кэшированием
-     */
-    public function fastSearch($userUuid, $search, $perPage = 20)
-    {
-        $cacheKey = "transactions_fast_search_{$userUuid}_" . md5((string)$search) . "_{$perPage}";
 
-        return CacheService::rememberSearch($cacheKey, function () use ($userUuid, $search, $perPage) {
-            return Transaction::select([
-                'transactions.id',
-                'transactions.type',
-                'transactions.amount',
-                'transactions.cash_id',
-                'transactions.date',
-                'transactions.created_at'
-            ])
-                ->leftJoin('cash_registers as cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
-                ->leftJoin('cash_register_users as cash_register_users', 'cash_registers.id', '=', 'cash_register_users.cash_register_id')
-                ->where('cash_register_users.user_id', $userUuid)
-                ->where(function ($q) use ($search) {
-                    $q->where('transactions.id', 'like', "%{$search}%")
-                        ->orWhere('transactions.amount', 'like', "%{$search}%")
-                        ->orWhere('transactions.note', 'like', "%{$search}%");
-                })
-                ->orderBy('transactions.created_at', 'desc')
-                ->paginate($perPage);
-        });
-    }
-
-    /**
-     * Применяет фильтр по одному источнику средств
-     */
-    private function applySingleSourceFilter($query, $source)
-    {
-        switch ($source) {
-            case 'project':
-                $query->whereNotNull('transactions.project_id');
-                break;
-            case 'sale':
-                $query->where('transactions.source_type', 'App\Models\Sale');
-                break;
-            case 'order':
-                $query->where('transactions.source_type', 'App\Models\Order');
-                break;
-            case 'other':
-                $query->where(function ($q) {
-                    $q->whereNull('transactions.source_type')
-                        ->orWhereNotIn('transactions.source_type', ['App\Models\Sale', 'App\Models\Order']);
-                });
-                break;
-        }
-    }
 
     public function createItem($data, $return_id = false, bool $skipClientUpdate = false)
     {
@@ -403,6 +350,7 @@ class TransactionsRepository
                 $cashRegister->save();
             }
 
+<<<<<<< HEAD
             // Обновляем баланс клиента если:
             // 1. Долговая операция (is_debt = true)
             // 2. Обычная транзакция без связи (source_type = null)
@@ -450,6 +398,19 @@ class TransactionsRepository
                 }
 
                 $clientBalance->save();
+=======
+            // Обновляем баланс клиента ТОЛЬКО если это долговая операция
+            if (! $skipClientUpdate && ! empty($data['client_id']) && ($data['is_debt'] ?? false)) {
+                if ($data['type'] === 1) {
+                    DB::table('clients')->where('id', $data['client_id'])->update([
+                        'balance' => DB::raw('balance + ' . ($convertedAmountDefault + 0))
+                    ]);
+                } else {
+                    DB::table('clients')->where('id', $data['client_id'])->update([
+                        'balance' => DB::raw('balance - ' . ($convertedAmountDefault + 0))
+                    ]);
+                }
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
 
                 // Инвалидируем кэш клиентов и проектов после обновления баланса
                 CacheService::invalidateClientsCache();
@@ -691,7 +652,7 @@ class TransactionsRepository
 
             // Обновляем баланс нового клиента
             if ($transaction->client_id) {
-                $clientBalance = ClientBalance::firstOrCreate(['client_id' => $transaction->client_id]);
+                // Работаем с колонкой clients.balance
 
                 Log::info('Starting client balance update', [
                     'transaction_id' => $id,
@@ -712,6 +673,7 @@ class TransactionsRepository
                     }
 
                     // Откат старого баланса: делаем обратную операцию
+<<<<<<< HEAD
                     if ($oldIsDebt) {
                         // Долговая операция: откатываем как было при создании
                         if ($transaction->type == 1) {
@@ -730,6 +692,16 @@ class TransactionsRepository
                             // Расход: мы клиенту платили → баланс увеличивался, откатываем через -=
                             $clientBalance->balance -= $oldConvertedAmountDefault;
                         }
+=======
+                    if ($transaction->type == 1) {
+                        DB::table('clients')->where('id', $transaction->client_id)->update([
+                            'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
+                        ]);
+                    } else {
+                        DB::table('clients')->where('id', $transaction->client_id)->update([
+                            'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
+                        ]);
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
                     }
                 }
 
@@ -755,6 +727,7 @@ class TransactionsRepository
                         $newConvertedAmountDefault = $newOrigAmount;
                     }
 
+<<<<<<< HEAD
                     // Применяем новую сумму как при создании транзакции
                     if ($transaction->is_debt) {
                         // Долговая операция: применяем новую сумму как при создании
@@ -774,6 +747,17 @@ class TransactionsRepository
                             // Расход: мы клиенту платим → баланс увеличивается
                             $clientBalance->balance += $newConvertedAmountDefault;
                         }
+=======
+                    // Применение нового баланса: как при создании
+                    if ($transaction->type == 1) {
+                        DB::table('clients')->where('id', $transaction->client_id)->update([
+                            'balance' => DB::raw('balance + ' . ($newConvertedAmountDefault + 0))
+                        ]);
+                    } else {
+                        DB::table('clients')->where('id', $transaction->client_id)->update([
+                            'balance' => DB::raw('balance - ' . ($newConvertedAmountDefault + 0))
+                        ]);
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
                     }
 
                     Log::info('Client balance updated', [
@@ -785,9 +769,13 @@ class TransactionsRepository
                 }
 
                 // Сохраняем только если были изменения
+<<<<<<< HEAD
                 $oldIsRegularTransaction = empty($oldSourceType ?? '');
                 if ($oldIsDebt || $transaction->is_debt || $oldIsRegularTransaction || $isRegularTransaction) {
                     $clientBalance->save();
+=======
+                if ($oldIsDebt || $transaction->is_debt) {
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
 
                     // Инвалидируем кэш клиентов и проектов после обновления баланса
                     CacheService::invalidateClientsCache();
@@ -873,6 +861,7 @@ class TransactionsRepository
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->delete();
 
+<<<<<<< HEAD
             // Обновляем баланс клиента если это была долговая операция ИЛИ обычная транзакция
             $isRegularTransaction = empty($transaction->source_type);
             $shouldUpdateClientBalance = $transaction->is_debt || $isRegularTransaction;
@@ -900,8 +889,21 @@ class TransactionsRepository
                         // Расход: мы клиенту платили → баланс увеличивался, при удалении уменьшаем
                         $clientBalance->balance -= $convertedAmountDefault;
                     }
+=======
+            // Обновляем баланс клиента ТОЛЬКО если это была долговая операция
+            if (! $skipClientUpdate && $transaction->client_id && $transaction->is_debt) {
+                if ($transaction->type == 1) {
+                    // Доход: клиент нам платил - при удалении уменьшаем баланс
+                    DB::table('clients')->where('id', $transaction->client_id)->update([
+                        'balance' => DB::raw('balance - ' . ($convertedAmountDefault + 0))
+                    ]);
+                } else {
+                    // Расход: мы клиенту платили - при удалении увеличиваем баланс
+                    DB::table('clients')->where('id', $transaction->client_id)->update([
+                        'balance' => DB::raw('balance + ' . ($convertedAmountDefault + 0))
+                    ]);
+>>>>>>> d7c5020 (Обновлена логика работы с балансами клиентов, теперь баланс хранится непосредственно в таблице clients вместо отдельной таблицы client_balances. Упрощены запросы на получение баланса и инвалидацию кэша. Оптимизированы методы в репозиториях для работы с балансом, включая обновление и удаление транзакций, а также создание клиентов. Добавлены новые поля с десятичным форматом для различных моделей.)
                 }
-                $clientBalance->save();
 
                 // Инвалидируем кэш клиентов и проектов после обновления баланса
                 CacheService::invalidateClientsCache();
@@ -1062,7 +1064,7 @@ class TransactionsRepository
                     'discount',
                     'created_at',
                     'updated_at',
-                    DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as balance_amount')
+                    'clients.balance as balance'
                 ])
                 ->get()
                 ->keyBy('id');

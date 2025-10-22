@@ -56,33 +56,6 @@ class UsersRepository
         }, (int)$page);
     }
 
-    /**
-     * Быстрый поиск пользователей с оптимизированным кэшированием
-     */
-    public function fastSearch($search, $perPage = 20)
-    {
-        $cacheKey = "users_fast_search_{$search}_{$perPage}";
-
-        return CacheService::rememberSearch($cacheKey, function () use ($search, $perPage) {
-            return User::select([
-                'users.id',
-                'users.name',
-                'users.email',
-                'users.is_active',
-                'users.position',
-                'users.photo',
-                'users.created_at'
-            ])
-                ->with(['roles:id,name'])
-                ->where(function ($q) use ($search) {
-                    $q->where('users.name', 'like', "%{$search}%")
-                        ->orWhere('users.email', 'like', "%{$search}%")
-                        ->orWhere('users.position', 'like', "%{$search}%");
-                })
-                ->orderBy('users.created_at', 'desc')
-                ->paginate($perPage);
-        });
-    }
 
     public function getAllItems()
     {
@@ -161,26 +134,14 @@ class UsersRepository
             $user = User::findOrFail($id);
 
 
-            if (isset($data['name'])) {
-                $user->name = $data['name'];
-            }
-            if (isset($data['email'])) {
-                $user->email = $data['email'];
-            }
-            if (isset($data['hire_date'])) {
-                $user->hire_date = $data['hire_date'];
-            }
-            if (isset($data['is_active'])) {
-                $user->is_active = $data['is_active'];
-            }
-            if (isset($data['position'])) {
-                $user->position = $data['position'];
-            }
-            if (isset($data['is_admin'])) {
-                $user->is_admin = $data['is_admin'];
-            }
+            $user->name = $data['name'] ?? $user->name;
+            $user->email = $data['email'] ?? $user->email;
+            $user->hire_date = $data['hire_date'] ?? $user->hire_date;
+            $user->is_active = $data['is_active'] ?? $user->is_active;
+            $user->position = $data['position'] ?? $user->position;
+            $user->is_admin = $data['is_admin'] ?? $user->is_admin;
 
-            // Обрабатываем фото (как в ProductsRepository)
+            // Обрабатываем фото
             if (isset($data['photo'])) {
                 $user->photo = $data['photo'];
             }
@@ -247,120 +208,15 @@ class UsersRepository
         }, 1800); // 30 минут
     }
 
-    /**
-     * Получить пользователя с полными данными
-     */
-    public function findItem($id)
-    {
-        $cacheKey = "user_item_{$id}";
-
-        return CacheService::remember($cacheKey, function () use ($id) {
-            return User::select([
-                'users.id',
-                'users.name',
-                'users.email',
-                'users.is_active',
-                'users.hire_date',
-                'users.position',
-                'users.is_admin',
-                'users.photo',
-                'users.created_at',
-                'users.updated_at',
-                'users.last_login_at'
-            ])
-                ->with([
-                    'roles:id,name',
-                    'permissions:id,name',
-                    'companies:id,name'
-                ])
-                ->find($id);
-        }, 1800); // 30 минут
-    }
-
-    /**
-     * Получить пользователей по ID с оптимизацией
-     */
-    public function getItemsByIds(array $userIds)
-    {
-        if (empty($userIds)) {
-            return collect();
-        }
-
-        $cacheKey = "users_by_ids_" . md5(implode(',', $userIds));
-
-        return CacheService::remember($cacheKey, function () use ($userIds) {
-            return User::select([
-                'users.id',
-                'users.name',
-                'users.email',
-                'users.is_active',
-                'users.position'
-            ])
-                ->whereIn('users.id', $userIds)
-                ->orderBy('users.name')
-                ->get();
-        }, 1800); // 30 минут
-    }
-
-    /**
-     * Получить активных пользователей
-     */
-    public function getActiveUsers()
-    {
-        $cacheKey = "users_active";
-
-        return CacheService::remember($cacheKey, function () {
-            return User::select([
-                'users.id',
-                'users.name',
-                'users.email',
-                'users.position'
-            ])
-                ->where('users.is_active', true)
-                ->orderBy('users.name')
-                ->get();
-        }, 1800); // 30 минут
-    }
-
-    /**
-     * Получить пользователей по роли
-     */
-    public function getUsersByRole($roleName)
-    {
-        $cacheKey = "users_by_role_{$roleName}";
-
-        return CacheService::remember($cacheKey, function () use ($roleName) {
-            return User::select([
-                'users.id',
-                'users.name',
-                'users.email',
-                'users.is_active',
-                'users.position'
-            ])
-                ->whereHas('roles', function ($query) use ($roleName) {
-                    $query->where('name', $roleName);
-                })
-                ->where('users.is_active', true)
-                ->orderBy('users.name')
-                ->get();
-        }, 1800); // 30 минут
-    }
 
     /**
      * Инвалидация кэша пользователей
      */
     private function invalidateUsersCache()
     {
-        // Точное удаление конкретного ключа
-        \Illuminate\Support\Facades\Cache::forget('users_active');
-
         // Используем централизованный метод из CacheService
         CacheService::invalidateByLike('%users_paginated%');
         CacheService::invalidateByLike('%users_all%');
-        CacheService::invalidateByLike('%users_fast_search%');
-        CacheService::invalidateByLike('%user_item%');
-        CacheService::invalidateByLike('%users_by_role%');
-        CacheService::invalidateByLike('%users_by_ids%');
     }
 
     /**
@@ -368,8 +224,6 @@ class UsersRepository
      */
     public function invalidateUserCache($userId)
     {
-        \Illuminate\Support\Facades\Cache::forget("user_item_{$userId}");
-        CacheService::invalidateByLike("%users_by_ids%");
         $this->invalidateUsersCache();
     }
 }

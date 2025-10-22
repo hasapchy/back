@@ -2,7 +2,7 @@
 
 namespace App\Repositories;
 
-use App\Models\ClientBalance;
+use App\Models\Client;
 use App\Models\Currency;
 use App\Models\ProductPrice;
 use App\Models\WarehouseStock;
@@ -53,7 +53,7 @@ class WarehouseReceiptRepository
                     'supplier:id,first_name,last_name,contact_person,status', // Клиент-поставщик
                     'supplier.phones:id,client_id,phone',
                     'supplier.emails:id,client_id,email',
-                    'supplier.balance:id,client_id,balance', // Баланс клиента из отдельной таблицы
+                    'supplier.balance', // Баланс клиента из колонки clients.balance
                     'products:id,receipt_id,product_id,quantity,price', // Товары приходования
                     'products.product:id,name,image,unit_id', // Данные товара
                     'products.product.unit:id,name,short_name' // Единица измерения
@@ -134,10 +134,9 @@ class WarehouseReceiptRepository
 
             if ($type === 'balance') {
                 // Оприходование в долг - обновляем баланс клиента и создаем долговую транзакцию
-                ClientBalance::updateOrCreate(
-                    ['client_id' => $client_id],
-                    ['balance' => DB::raw("COALESCE(balance, 0) - {$total_amount}")]
-                );
+                DB::table('clients')->where('id', $client_id)->update([
+                    'balance' => DB::raw("balance - {$total_amount}")
+                ]);
 
                 $transaction_id = $txRepo->createItem([
                     'type'        => 0, // Расход (мы должны поставщику)
@@ -296,10 +295,9 @@ class WarehouseReceiptRepository
 
             // 3) Если это было зачисление на баланс, откатываем баланс клиента
             if (! $receipt->transaction_id) {
-                ClientBalance::updateOrCreate(
-                    ['client_id' => $receipt->supplier_id],
-                    ['balance' => DB::raw("COALESCE(balance,0) + {$receipt->amount}")]
-                );
+                DB::table('clients')->where('id', $receipt->supplier_id)->update([
+                    'balance' => DB::raw("balance + {$receipt->amount}")
+                ]);
             }
 
             $receipt->delete();
@@ -343,10 +341,9 @@ class WarehouseReceiptRepository
 
     private function updateClientBalance($client_id, $amount)
     {
-        ClientBalance::updateOrCreate(
-            ['client_id' => $client_id],
-            ['balance'   => DB::raw('balance - ' . $amount)]
-        );
+        DB::table('clients')->where('id', $client_id)->update([
+            'balance' => DB::raw('balance - ' . $amount)
+        ]);
         return true;
     }
 

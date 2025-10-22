@@ -78,7 +78,8 @@ class Order extends Model
     }
 
     protected $casts = [
-        // Удалено поле transaction_ids
+        'price' => 'decimal:2',
+        'discount' => 'decimal:2',
     ];
 
     public function client()

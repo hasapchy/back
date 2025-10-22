@@ -2,7 +2,6 @@
 
 namespace App\Repositories;
 
-use App\Models\ClientBalance;
 use App\Models\Currency;
 use App\Models\Product;
 use App\Models\Sale;
@@ -11,18 +10,12 @@ use App\Models\WarehouseStock;
 use App\Models\CashRegister;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
-use App\Repositories\ClientsRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Eloquent\Builder;
 
 class SalesRepository
 {
-    /**
-     * Оптимизированный метод получения продаж с пагинацией
-     * Улучшен eager loading и кэширование
-     */
+
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $page = 1)
     {
         $cacheKey = $this->generateCacheKey('paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate]);
@@ -81,149 +74,7 @@ class SalesRepository
         }, (int)$page);
     }
 
-    /**
-     * Быстрый поиск продаж с оптимизированным кэшированием
-     * Улучшен для лучшей производительности
-     */
-    public function fastSearch($userUuid, $search, $perPage = 20)
-    {
-        $cacheKey = $this->generateCacheKey('fast_search', [$userUuid, $search, $perPage]);
 
-        return CacheService::rememberSearch($cacheKey, function () use ($userUuid, $search, $perPage) {
-            return Sale::select([
-                'sales.id',
-                'sales.client_id',
-                'sales.date',
-                'sales.note',
-                'sales.created_at',
-                'clients.first_name as client_first_name',
-                'clients.last_name as client_last_name'
-            ])
-                ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
-                ->with(['transactions:id,source_id,source_type,amount'])
-                ->where(function ($q) use ($search) {
-                    $q->where('sales.id', 'like', "%{$search}%")
-                        ->orWhere('clients.first_name', 'like', "%{$search}%")
-                        ->orWhere('clients.last_name', 'like', "%{$search}%");
-                })
-                ->orderBy('sales.created_at', 'desc')
-                ->paginate($perPage);
-        });
-    }
-
-    /**
-     * Новый метод: Получение продаж с минимальной загрузкой данных
-     * Для списков где не нужны все детали
-     */
-    public function getSalesList($userUuid, $perPage = 20, $dateFilter = 'all_time')
-    {
-        $cacheKey = $this->generateCacheKey('list', [$userUuid, $perPage, $dateFilter]);
-        $ttl = $this->getCacheTTL('list', $dateFilter !== 'all_time');
-
-        return CacheService::remember($cacheKey, function () use ($userUuid, $perPage, $dateFilter) {
-            $query = Sale::select([
-                'sales.id',
-                'sales.client_id',
-                'sales.date',
-                'sales.total_price',
-                'sales.note',
-                'sales.created_at',
-                'clients.first_name as client_first_name',
-                'clients.last_name as client_last_name'
-            ])
-                ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
-                ->with(['warehouse:id,name']); // Минимальная загрузка связей
-
-            if ($dateFilter && $dateFilter !== 'all_time') {
-                $this->applyDateFilter($query, $dateFilter);
-            }
-
-            return $query->orderBy('sales.created_at', 'desc')->paginate($perPage);
-        }, $ttl);
-    }
-
-    /**
-     * Новый метод: Получение статистики продаж
-     * Для дашбордов и аналитики
-     */
-    public function getSalesStatistics($userUuid, $dateFilter = 'this_month')
-    {
-        $cacheKey = $this->generateCacheKey('stats', [$userUuid, $dateFilter]);
-        $ttl = $this->getCacheTTL('stats', $dateFilter !== 'all_time');
-
-        return CacheService::remember($cacheKey, function () use ($userUuid, $dateFilter) {
-            $query = Sale::select([
-                DB::raw('COUNT(*) as total_sales'),
-                DB::raw('SUM(total_price) as total_revenue'),
-                DB::raw('AVG(total_price) as avg_sale'),
-                DB::raw('COUNT(DISTINCT client_id) as unique_clients'),
-                DB::raw('COUNT(DISTINCT DATE(date)) as active_days')
-            ]);
-
-            if ($dateFilter && $dateFilter !== 'all_time') {
-                $this->applyDateFilter($query, $dateFilter);
-            }
-
-            return $query->first();
-        }, $ttl);
-    }
-
-    /**
-     * Новый метод: Получение продаж по клиенту с оптимизацией
-     */
-    public function getSalesByClient($clientId, $perPage = 20)
-    {
-        $cacheKey = $this->generateCacheKey('by_client', [$clientId, $perPage]);
-        $ttl = $this->getCacheTTL('reference');
-
-        return CacheService::remember($cacheKey, function () use ($clientId, $perPage) {
-            return Sale::select([
-                'sales.id',
-                'sales.date',
-                'sales.total_price',
-                'sales.discount',
-                'sales.note',
-                'sales.created_at',
-                'warehouses.name as warehouse_name',
-                'users.name as user_name'
-            ])
-                ->leftJoin('warehouses', 'sales.warehouse_id', '=', 'warehouses.id')
-                ->leftJoin('users', 'sales.user_id', '=', 'users.id')
-                ->where('sales.client_id', $clientId)
-                ->orderBy('sales.date', 'desc')
-                ->paginate($perPage);
-        }, $ttl);
-    }
-
-    /**
-     * Новый метод: Получение продаж по складу
-     */
-    public function getSalesByWarehouse($warehouseId, $perPage = 20, $dateFilter = 'this_month')
-    {
-        $cacheKey = $this->generateCacheKey('by_warehouse', [$warehouseId, $perPage, $dateFilter]);
-        $ttl = $this->getCacheTTL('list', $dateFilter !== 'all_time');
-
-        return CacheService::remember($cacheKey, function () use ($warehouseId, $perPage, $dateFilter) {
-            $query = Sale::select([
-                'sales.id',
-                'sales.client_id',
-                'sales.date',
-                'sales.note',
-                'sales.created_at',
-                'clients.first_name as client_first_name',
-                'clients.last_name as client_last_name'
-            ])
-                ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
-                ->with(['transactions:id,source_id,source_type,amount'])
-                ->where('sales.warehouse_id', $warehouseId);
-
-            if ($dateFilter && $dateFilter !== 'all_time') {
-                $this->applyDateFilter($query, $dateFilter);
-            }
-
-            return $query->orderBy('sales.date', 'desc')->paginate($perPage);
-        }, $ttl);
-    }
 
     /**
      * Улучшенный метод: Получение детальной информации о продаже
@@ -276,19 +127,11 @@ class SalesRepository
 
         switch ($type) {
             case 'search':
-            case 'fast_search':
                 return CacheService::CACHE_TTL['search_results']; // 5 минут
-            case 'list':
             case 'paginated':
-            case 'by_warehouse':
                 return CacheService::CACHE_TTL['sales_list']; // 10 минут
-            case 'stats':
-            case 'by_date':
-                return CacheService::CACHE_TTL['performance_metrics']; // 30 минут
             case 'reference':
             case 'item':
-            case 'by_client':
-            case 'by_product':
             default:
                 return CacheService::CACHE_TTL['reference_data']; // 2 часа
         }

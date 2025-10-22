@@ -62,7 +62,7 @@ class ProjectsRepository
                 'clients.last_name as client_last_name',
                 'clients.contact_person as client_contact_person',
                 'users.name as user_name',
-                DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as client_balance_amount')
+                'clients.balance as client_balance'
             ])
                 ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
                 ->leftJoin('users', 'projects.user_id', '=', 'users.id')
@@ -190,7 +190,7 @@ class ProjectsRepository
                 'clients.first_name as client_first_name',
                 'clients.last_name as client_last_name',
                 'users.name as user_name',
-                DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = clients.id LIMIT 1) as client_balance_amount')
+                'clients.balance as client_balance'
             ])
                 ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
                 ->leftJoin('users', 'projects.user_id', '=', 'users.id')
@@ -333,14 +333,13 @@ class ProjectsRepository
                 'projects.client_id',
                 'projects.files',
                 'projects.created_at',
-                'projects.updated_at',
-                DB::raw('(SELECT COALESCE(balance, 0) FROM client_balances WHERE client_id = projects.client_id LIMIT 1) as client_balance_amount')
+                'projects.updated_at'
             ])
                 ->with([
-                    'client:id,first_name,last_name,contact_person',
+                    'client:id,first_name,last_name,contact_person,balance',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
-                    'client.balance:id,client_id,balance',
+
                     'currency:id,name,code,symbol',
                     'users:id,name',
                     'projectUsers:id,project_id,user_id'

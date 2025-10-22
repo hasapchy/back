@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ClientsPhone;
 use App\Models\ClientsEmail;
-use App\Models\ClientBalance;
 
 class Client extends Model
 {
@@ -28,6 +27,11 @@ class Client extends Model
         'discount',
         'status',
         'sort',
+        'balance',
+    ];
+
+    protected $casts = [
+        'balance' => 'decimal:2',
     ];
 
     // Связь с пользователем (кто создал клиента)
@@ -59,14 +63,5 @@ class Client extends Model
         return $this->hasMany(ClientsEmail::class, 'client_id');
     }
 
-    public function balance()
-    {
-        return $this->hasOne(ClientBalance::class, 'client_id');
-    }
-
-    // Геттер для получения баланса
-    public function getBalanceAttribute()
-    {
-        return $this->balance()->first()?->balance ?? 0;
-    }
+    // Column `balance` now stored directly on clients table
 }

@@ -12,6 +12,12 @@ class CurrencyHistory extends Model
         'end_date',
     ];
 
+    protected $casts = [
+        'exchange_rate' => 'decimal:4',
+        'start_date' => 'date',
+        'end_date' => 'date',
+    ];
+
     public function currency()
     {
         return $this->belongsTo(Currency::class);

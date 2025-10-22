@@ -13,7 +13,9 @@ class Project extends Model
 
     protected $casts = [
         'files' => 'array',
-        'date' => 'datetime'
+        'date' => 'datetime',
+        'budget' => 'decimal:2',
+        'exchange_rate' => 'decimal:4',
     ];
 
     public function client()

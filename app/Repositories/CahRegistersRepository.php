@@ -289,51 +289,6 @@ class CahRegistersRepository
         }
     }
 
-    // Быстрый поиск касс
-    public function fastSearch($search, $perPage = 20)
-    {
-        try {
-            // Возвращаем результаты поиска с валютой
-            return CashRegister::with(['currency:id,name,code,symbol'])
-                ->where('name', 'like', "%{$search}%")
-                ->orderBy('created_at', 'desc')
-                ->paginate($perPage);
-        } catch (\Exception $e) {
-            // Возвращаем пустую пагинацию вместо ошибки
-            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
-        }
-    }
-
-    // Получение кассы по ID
-    public function findItem($id)
-    {
-        try {
-            // Возвращаем кассу с валютой и пользователями
-            return CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])->find($id);
-        } catch (\Exception $e) {
-            // Возвращаем null вместо ошибки
-            return null;
-        }
-    }
-
-    // Получение активных касс
-    public function getActiveCashRegisters($userUuid)
-    {
-        try {
-            // Возвращаем только активные кассы, к которым у пользователя есть доступ
-            return CashRegister::with(['currency:id,code,symbol'])
-                ->where('is_active', true)
-                ->whereHas('cashRegisterUsers', function ($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                })
-                ->get();
-        } catch (\Exception $e) {
-            // Возвращаем пустую коллекцию вместо ошибки
-            return \Illuminate\Support\Collection::make();
-        }
-    }
-
-    // Инвалидация кэша касс
     private function invalidateCashRegistersCache()
     {
         // Очищаем кэш касс через CacheService

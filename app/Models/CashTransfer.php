@@ -20,6 +20,10 @@ class CashTransfer extends Model
         'date',
     ];
 
+    protected $casts = [
+        'amount' => 'decimal:2',
+    ];
+
     public function fromCashRegister()
     {
         return $this->belongsTo(CashRegister::class, 'cash_id_from');
