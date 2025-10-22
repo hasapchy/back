@@ -617,7 +617,9 @@ class OrdersRepository
             }
 
             // Создаем автоматическую долговую транзакцию для заказа
-            // Это упрощает расчет баланса - один источник правды (transactions)
+            // Автоматическое создание долговой транзакции при создании заказа отключено
+            // Долги создаются только при явном создании транзакций пользователем
+            /*
             $transactionData = [
                 'client_id'    => $client_id,
                 'amount'       => $total_price,
@@ -637,6 +639,7 @@ class OrdersRepository
 
             $txRepo = new TransactionsRepository();
             $txRepo->createItem($transactionData, true, true);
+            */
 
             DB::commit();
 
@@ -951,6 +954,9 @@ class OrdersRepository
                 $this->updateAdditionalFields($order->id, $data['additional_fields']);
             }
 
+            // Автоматическое обновление долговой транзакции заказа отключено
+            // Долги создаются и обновляются только при явном создании транзакций пользователем
+            /*
             // Обновляем автоматическую долговую транзакцию заказа
             // Ищем ИМЕННО автоматическую транзакцию (type=1, is_debt=true)
             $orderTransaction = Transaction::where('source_type', Order::class)
@@ -958,7 +964,7 @@ class OrdersRepository
                 ->where('type', 1)      // автоматическая транзакция заказа (доход)
                 ->where('is_debt', true) // долговая
                 ->first();
-            
+
             if ($orderTransaction) {
                 // Автоматическая транзакция = ПОЛНАЯ сумма заказа (БЕЗ вычета оплат!)
                 // Оплаты учитываются отдельными транзакциями type=0
@@ -976,6 +982,7 @@ class OrdersRepository
                     ]);
                 }
             }
+            */
 
             DB::commit();
 
