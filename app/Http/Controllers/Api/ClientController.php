@@ -67,6 +67,11 @@ class ClientController extends Controller
             // Создаем недостающие балансы перед получением клиента
             $this->itemsRepository->createMissingBalances();
 
+            // Инвалидируем кэш клиента, чтобы всегда получать актуальный баланс для формы редактирования
+            if (method_exists($this->itemsRepository, 'invalidateClientBalanceCache')) {
+                $this->itemsRepository->invalidateClientBalanceCache($id);
+            }
+
             $client = $this->itemsRepository->getItem($id);
 
             if (!$client) {

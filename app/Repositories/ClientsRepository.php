@@ -196,24 +196,12 @@ class ClientsRepository
             $query = Client::with(['phones', 'emails', 'user', 'employee'])
                 ->select([
                     'clients.*',
-                    // Баланс клиента = сумма ТОЛЬКО долговых транзакций (is_debt=true)
-                    // Баланс клиента = сумма транзакций с учетом типа:
-                    // 1. Долговые (is_debt=1): type=1 → +amount (клиент должен), type=0 → -amount (мы должны)
-                    // 2. Обычные (source_type=NULL): type=1 → -amount (клиент заплатил), type=0 → +amount (мы заплатили)
+                    // Берем баланс напрямую из client_balances, чтобы форма редактирования всегда видела актуальное значение
                     DB::raw('(
-                        SELECT COALESCE(
-                            SUM(
-                                CASE
-                                    WHEN t.is_debt = 1 THEN
-                                        CASE WHEN t.type = 1 THEN t.amount ELSE -t.amount END
-                                    ELSE
-                                        CASE WHEN t.type = 1 THEN -t.amount ELSE t.amount END
-                                END
-                            ), 0
-                        )
-                        FROM transactions t
-                        WHERE t.client_id = clients.id
-                          AND (t.is_debt = 1 OR t.source_type IS NULL)
+                        SELECT COALESCE(balance, 0)
+                        FROM client_balances
+                        WHERE client_id = clients.id
+                        LIMIT 1
                     ) as balance_amount')
                 ])
                 ->where('clients.id', $id);

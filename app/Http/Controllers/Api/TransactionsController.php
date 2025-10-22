@@ -217,6 +217,9 @@ class TransactionsController extends Controller
         // Добавляем сумму и валюту только если они переданы
         if ($request->has('orig_amount')) {
             $updateData['orig_amount'] = $request->orig_amount;
+        } elseif ($request->has('amount')) {
+            // Fallback: если приходит amount (например, из UI), используем его как orig_amount
+            $updateData['orig_amount'] = $request->amount;
         }
         if ($request->has('currency_id')) {
             $updateData['currency_id'] = $request->currency_id;
