@@ -16,6 +16,35 @@ use Illuminate\Support\Facades\Log;
 
 class WarehouseReceiptRepository
 {
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
+
+    /**
+     * Добавить фильтрацию по компании к запросу поступлений через склады
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            // Фильтруем поступления по складам текущей компании
+            $query->whereHas('warehouse', function($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            });
+        } else {
+            // Если компания не выбрана, показываем только поступления из складов без company_id
+            $query->whereHas('warehouse', function($q) {
+                $q->whereNull('company_id');
+            });
+        }
+        return $query;
+    }
+
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         $companyId = request()->header('X-Company-ID');
@@ -65,8 +94,12 @@ class WarehouseReceiptRepository
                       ->orWhereHas('project.projectUsers', function($subQuery) use ($userUuid) {
                           $subQuery->where('user_id', $userUuid);
                       });
-                })
-                ->orderBy('wh_receipts.created_at', 'desc')
+                });
+
+            // Фильтруем по текущей компании пользователя
+            $items = $this->addCompanyFilter($items);
+
+            return $items->orderBy('wh_receipts.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
 
             return $items;

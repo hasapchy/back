@@ -15,6 +15,34 @@ use Illuminate\Support\Facades\Log;
 
 class SalesRepository
 {
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
+
+    /**
+     * Добавить фильтрацию по компании к запросу продаж через кассы
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            // Фильтруем продажи по кассам текущей компании
+            $query->whereHas('cashRegister', function($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            });
+        } else {
+            // Если компания не выбрана, показываем только продажи из касс без company_id
+            $query->whereHas('cashRegister', function($q) {
+                $q->whereNull('company_id');
+            });
+        }
+        return $query;
+    }
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $page = 1)
     {
@@ -68,6 +96,9 @@ class SalesRepository
                         $subQuery->where('user_id', $userUuid);
                     });
             });
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
 
             // Получаем результат с пагинацией
             return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);

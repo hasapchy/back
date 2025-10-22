@@ -9,18 +9,47 @@ use Illuminate\Support\Facades\DB;
 
 class WarehouseStockRepository
 {
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
+
+    /**
+     * Добавить фильтрацию по компании к запросу стоков через склады
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            // Фильтруем стоки по складам текущей компании
+            $query->where('warehouses.company_id', $companyId);
+        } else {
+            // Если компания не выбрана, показываем только стоки из складов без company_id
+            $query->whereNull('warehouses.company_id');
+        }
+        return $query;
+    }
+
     // Получение стоков с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $warehouse_id = null, $category_id = null, $page = 1, $search = null)
     {
         $cacheKey = "warehouse_stocks_paginated_{$userUuid}_{$perPage}_{$warehouse_id}_{$category_id}_" . md5((string)$search);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id, $page, $search) {
-            return WarehouseStock::leftJoin('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id')
+            $query = WarehouseStock::leftJoin('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id')
                 ->leftJoin('products', 'warehouse_stocks.product_id', '=', 'products.id')
                 ->leftJoin('units', 'products.unit_id', '=', 'units.id')
                 ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
-                ->where('wh_users.user_id', $userUuid)
-                ->when($warehouse_id, function ($query, $warehouse_id) {
+                ->where('wh_users.user_id', $userUuid);
+
+            // Фильтруем по текущей компании пользователя (дополнительно к правам доступа)
+            $query = $this->addCompanyFilter($query);
+
+            $query->when($warehouse_id, function ($query, $warehouse_id) {
                     return $query->where('warehouse_stocks.warehouse_id', $warehouse_id);
                 })
                 ->when($search, function ($query, $search) {
@@ -44,8 +73,9 @@ class WarehouseStockRepository
                     'units.short_name as unit_short_name',
                     'warehouse_stocks.quantity as quantity',
                     'warehouse_stocks.created_at as created_at'
-                )
-                ->orderBy('warehouse_stocks.created_at', 'desc')
+                );
+
+            return $query->orderBy('warehouse_stocks.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
         }, (int)$page);
     }
