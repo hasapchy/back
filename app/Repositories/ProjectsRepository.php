@@ -62,6 +62,7 @@ class ProjectsRepository
                 'clients.last_name as client_last_name',
                 'clients.contact_person as client_contact_person',
                 'users.name as user_name',
+                'users.photo as user_photo',
                 'clients.balance as client_balance'
             ])
                 ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
@@ -190,6 +191,7 @@ class ProjectsRepository
                 'clients.first_name as client_first_name',
                 'clients.last_name as client_last_name',
                 'users.name as user_name',
+                'users.photo as user_photo',
                 'clients.balance as client_balance'
             ])
                 ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')

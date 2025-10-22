@@ -72,6 +72,7 @@ class OrdersRepository
                 'clients.created_at as client_created_at',
                 'clients.updated_at as client_updated_at',
                 'users.name as user_name',
+                'users.photo as user_photo',
                 'order_statuses.name as status_name',
                 'order_status_categories.name as status_category_name',
                 'order_status_categories.color as status_category_color',
@@ -190,6 +191,7 @@ class OrdersRepository
                 $order->client_last_name = $order->client_last_name ?? null;
                 $order->client_contact_person = $order->client_contact_person ?? null;
                 $order->user_name = $order->user_name ?? null;
+                $order->user_photo = $order->user_photo ?? null;
                 $order->status_name = $order->status_name ?? null;
                 $order->status_category_name = $order->status_category_name ?? null;
                 $order->status_category_color = $order->status_category_color ?? null;
@@ -352,6 +354,7 @@ class OrdersRepository
             'cash_currency.symbol as currency_symbol',
             'projects.name as project_name',
             'users.name as user_name',
+            'users.photo as user_photo',
             'categories.name as category_name'
         );
 
