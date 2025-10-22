@@ -187,9 +187,9 @@ class TransactionsRepository
                     'cashTransfersTo:id,tr_id_to'
                 ]);
 
-                // Подсчитываем ТЕКУЩИЕ непогашенные долги клиентов (из client_balances)
+                // Подсчитываем ТЕКУЩИЕ непогашенные долги клиентов (из clients.balance)
                 // Это правильно, потому что долги могут быть погашены обычными транзакциями
-                $debtStats = DB::table('client_balances')
+                $debtStats = DB::table('clients')
                     ->select([
                         DB::raw('SUM(CASE WHEN balance > 0 THEN balance ELSE 0 END) as positive'),
                         DB::raw('SUM(CASE WHEN balance < 0 THEN ABS(balance) ELSE 0 END) as negative'),
