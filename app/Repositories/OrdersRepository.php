@@ -51,7 +51,10 @@ class OrdersRepository
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null)
     {
-        $cacheKey = "orders_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusFilter}_{$projectFilter}_{$clientFilter}_single";
+        // ✅ Получаем компанию из заголовка для включения в кэш ключ
+        $companyId = $this->getCurrentCompanyId() ?? 'default';
+
+        $cacheKey = "orders_paginated_{$userUuid}_{$companyId}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusFilter}_{$projectFilter}_{$clientFilter}_single";
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter) {
             // Используем оптимизированный подход с JOIN'ами для основных данных и Eager Loading для товаров

@@ -46,7 +46,10 @@ class SalesRepository
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $page = 1)
     {
-        $cacheKey = $this->generateCacheKey('paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate]);
+        // ✅ Получаем компанию из заголовка для включения в кэш ключ
+        $companyId = $this->getCurrentCompanyId() ?? 'default';
+
+        $cacheKey = $this->generateCacheKey('paginated', [$userUuid, $companyId, $perPage, $search, $dateFilter, $startDate, $endDate]);
         $ttl = $this->getCacheTTL('paginated', $search || $dateFilter !== 'all_time');
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page) {

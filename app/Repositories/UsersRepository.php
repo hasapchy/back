@@ -10,10 +10,22 @@ use Illuminate\Support\Facades\DB;
 
 class UsersRepository
 {
+    /**
+     * Получить текущую компанию пользователя из заголовка запроса
+     */
+    private function getCurrentCompanyId()
+    {
+        // Получаем company_id из заголовка запроса
+        return request()->header('X-Company-ID');
+    }
+
     public function getItemsWithPagination($page = 1, $perPage = 20, $search = null, $statusFilter = null)
     {
+        // ✅ Получаем компанию из заголовка для включения в кэш ключ
+        $companyId = $this->getCurrentCompanyId() ?? 'default';
+
         // Создаем уникальный ключ кэша
-        $cacheKey = "users_paginated_{$perPage}_{$search}_{$statusFilter}";
+        $cacheKey = "users_paginated_{$companyId}_{$perPage}_{$search}_{$statusFilter}";
 
         // Для списка без фильтров используем более длительное кэширование
         $ttl = (!$search && !$statusFilter) ? 1800 : 600; // 30 мин для списка, 10 мин для фильтров
@@ -59,7 +71,10 @@ class UsersRepository
 
     public function getAllItems()
     {
-        $cacheKey = "users_all";
+        // ✅ Получаем компанию из заголовка для включения в кэш ключ
+        $companyId = $this->getCurrentCompanyId() ?? 'default';
+
+        $cacheKey = "users_all_{$companyId}";
 
         return CacheService::remember($cacheKey, function () {
             return User::select([

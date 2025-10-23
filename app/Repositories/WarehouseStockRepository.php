@@ -37,7 +37,10 @@ class WarehouseStockRepository
     // Получение стоков с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $warehouse_id = null, $category_id = null, $page = 1, $search = null)
     {
-        $cacheKey = "warehouse_stocks_paginated_{$userUuid}_{$perPage}_{$warehouse_id}_{$category_id}_" . md5((string)$search);
+        // ✅ Получаем компанию из заголовка для включения в кэш ключ
+        $companyId = $this->getCurrentCompanyId() ?? 'default';
+
+        $cacheKey = "warehouse_stocks_paginated_{$userUuid}_{$companyId}_{$perPage}_{$warehouse_id}_{$category_id}_" . md5((string)$search);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id, $page, $search) {
             $query = WarehouseStock::leftJoin('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id')
@@ -83,7 +86,10 @@ class WarehouseStockRepository
     // Получение общего количества товаров на складе
     public function getTotalQuantityByWarehouse($userUuid, $warehouse_id = null)
     {
-        $cacheKey = "warehouse_stocks_total_{$userUuid}_{$warehouse_id}";
+        // ✅ Получаем компанию из заголовка для включения в кэш ключ
+        $companyId = $this->getCurrentCompanyId() ?? 'default';
+
+        $cacheKey = "warehouse_stocks_total_{$userUuid}_{$companyId}_{$warehouse_id}";
 
         return CacheService::remember($cacheKey, function () use ($userUuid, $warehouse_id) {
             $query = WarehouseStock::leftJoin('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id')
@@ -101,7 +107,10 @@ class WarehouseStockRepository
     // Получение количества товаров по категориям
     public function getQuantityByCategories($userUuid, $warehouse_id = null)
     {
-        $cacheKey = "warehouse_stocks_categories_{$userUuid}_{$warehouse_id}";
+        // ✅ Получаем компанию из заголовка для включения в кэш ключ
+        $companyId = $this->getCurrentCompanyId() ?? 'default';
+
+        $cacheKey = "warehouse_stocks_categories_{$userUuid}_{$companyId}_{$warehouse_id}";
 
         return CacheService::remember($cacheKey, function () use ($userUuid, $warehouse_id) {
             return collect([]);

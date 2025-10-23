@@ -46,9 +46,12 @@ class TransactionsRepository
     public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null)
     {
         try {
-            // Создаем уникальный ключ кэша (привязываем к пользователю и фильтрам/кассе, без company_id)
+            // ✅ Получаем компанию из заголовка для включения в кэш ключ
+            $companyId = $this->getCurrentCompanyId() ?? 'default';
+
+            // Создаем уникальный ключ кэша (привязываем к пользователю, компании и фильтрам)
             $searchKey = $search !== null ? md5((string)$search) : 'null';
-            $cacheKey = "transactions_paginated_{$userUuid}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$searchKey}_{$transaction_type}_{$source}_{$project_id}_{$start_date}_{$end_date}_{$is_debt}";
+            $cacheKey = "transactions_paginated_{$userUuid}_{$companyId}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$searchKey}_{$transaction_type}_{$source}_{$project_id}_{$start_date}_{$end_date}_{$is_debt}";
 
             return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt) {
                 // Используем with() для загрузки связей вместо сложных JOIN'ов
