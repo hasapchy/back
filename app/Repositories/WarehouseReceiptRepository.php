@@ -79,10 +79,9 @@ class WarehouseReceiptRepository
                     'cashRegister.currency:id,name,code,symbol',
                     'user:id,name',
                     'project:id,name',
-                    'supplier:id,first_name,last_name,contact_person,status', // Клиент-поставщик
+                    'supplier:id,first_name,last_name,contact_person,status,balance', // Клиент-поставщик с балансом
                     'supplier.phones:id,client_id,phone',
                     'supplier.emails:id,client_id,email',
-                    'supplier.balance', // Баланс клиента из колонки clients.balance
                     'products:id,receipt_id,product_id,quantity,price', // Товары приходования
                     'products.product:id,name,image,unit_id', // Данные товара
                     'products.product.unit:id,name,short_name' // Единица измерения
