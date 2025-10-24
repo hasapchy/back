@@ -655,14 +655,11 @@ class OrdersRepository
             }
 
             // Создаем автоматическую долговую транзакцию для заказа
-            // Автоматическое создание долговой транзакции при создании заказа отключено
-            // Долги создаются только при явном создании транзакций пользователем
-            /*
             $transactionData = [
                 'client_id'    => $client_id,
                 'amount'       => $total_price,
                 'orig_amount'  => $total_price,
-                'type'         => 1, // доход (клиент нам должен)
+                'type'         => 0, // расход для клиента (долг)
                 'is_debt'      => true, // долг (касса не меняется)
                 'cash_id'      => $cash_id,
                 'category_id'  => 1, // категория по умолчанию
@@ -677,7 +674,6 @@ class OrdersRepository
 
             $txRepo = new TransactionsRepository();
             $txRepo->createItem($transactionData, true, true);
-            */
 
             DB::commit();
 
@@ -992,20 +988,17 @@ class OrdersRepository
                 $this->updateAdditionalFields($order->id, $data['additional_fields']);
             }
 
-            // Автоматическое обновление долговой транзакции заказа отключено
-            // Долги создаются и обновляются только при явном создании транзакций пользователем
-            /*
             // Обновляем автоматическую долговую транзакцию заказа
-            // Ищем ИМЕННО автоматическую транзакцию (type=1, is_debt=true)
+            // Ищем ИМЕННО автоматическую транзакцию (type=0, is_debt=true)
             $orderTransaction = Transaction::where('source_type', Order::class)
                 ->where('source_id', $order->id)
-                ->where('type', 1)      // автоматическая транзакция заказа (доход)
+                ->where('type', 0)      // автоматическая транзакция заказа (расход для клиента)
                 ->where('is_debt', true) // долговая
                 ->first();
 
             if ($orderTransaction) {
                 // Автоматическая транзакция = ПОЛНАЯ сумма заказа (БЕЗ вычета оплат!)
-                // Оплаты учитываются отдельными транзакциями type=0
+                // Оплаты учитываются отдельными транзакциями type=1
                 if ($orderTransaction->amount != $total_price) {
                     $txRepo = new TransactionsRepository();
                     $txRepo->updateItem($orderTransaction->id, [
@@ -1020,7 +1013,6 @@ class OrdersRepository
                     ]);
                 }
             }
-            */
 
             DB::commit();
 
