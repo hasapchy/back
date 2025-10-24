@@ -74,6 +74,8 @@ class WarehouseStockRepository
                     'products.unit_id as unit_id',
                     'units.name as unit_name',
                     'units.short_name as unit_short_name',
+                    DB::raw('NULL as category_id'),
+                    DB::raw('NULL as category_name'),
                     'warehouse_stocks.quantity as quantity',
                     'warehouse_stocks.created_at as created_at'
                 );

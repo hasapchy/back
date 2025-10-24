@@ -76,6 +76,41 @@ class Order extends Model
             ->setDescriptionForEvent(fn(string $eventName) => $this->getDescriptionForEvent($eventName));
     }
 
+    protected static function booted()
+    {
+        static::deleting(function ($order) {
+            \Illuminate\Support\Facades\Log::info('Order::deleting - START', [
+                'order_id' => $order->id,
+                'client_id' => $order->client_id
+            ]);
+
+            // Удаляем все связанные транзакции
+            $transactionsCount = $order->transactions()->count();
+            $order->transactions()->delete();
+
+            \Illuminate\Support\Facades\Log::info('Order::deleting - Transactions deleted', [
+                'order_id' => $order->id,
+                'transactions_deleted' => $transactionsCount
+            ]);
+
+            // Инвалидируем кэши
+            \App\Services\CacheService::invalidateTransactionsCache();
+            if ($order->client_id) {
+                \App\Services\CacheService::invalidateClientsCache();
+                \App\Services\CacheService::invalidateClientBalanceCache($order->client_id);
+            }
+            \App\Services\CacheService::invalidateCashRegistersCache();
+            if ($order->project_id) {
+                $projectsRepository = new \App\Repositories\ProjectsRepository();
+                $projectsRepository->invalidateProjectCache($order->project_id);
+            }
+
+            \Illuminate\Support\Facades\Log::info('Order::deleting - COMPLETED', [
+                'order_id' => $order->id
+            ]);
+        });
+    }
+
     protected $casts = [
         'price' => 'decimal:2',
         'discount' => 'decimal:2',

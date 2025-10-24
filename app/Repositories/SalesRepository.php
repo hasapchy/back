@@ -323,7 +323,17 @@ class SalesRepository
             ];
 
             $txRepo = new TransactionsRepository();
-            $transactionId = $txRepo->createItem($transactionData, true, true);
+            if ($isDebt) {
+                // Продажа в баланс - одна долговая транзакция
+                $transactionId = $txRepo->createItem($transactionData, true, false);
+            } else {
+                // Продажа в кассу - две транзакции (долг + платеж)
+                $debtTx = $transactionData;
+                $debtTx['is_debt'] = true;
+                $txRepo->createItem($debtTx, true, false);
+                $transactionData['is_debt'] = false;
+                $transactionId = $txRepo->createItem($transactionData, true, false);
+            }
 
             foreach ($products as $prod) {
                 SalesProduct::create([

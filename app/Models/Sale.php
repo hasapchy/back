@@ -35,6 +35,41 @@ class Sale extends Model
         'discount' => 'decimal:2',
     ];
 
+    protected static function booted()
+    {
+        static::deleting(function ($sale) {
+            \Illuminate\Support\Facades\Log::info('Sale::deleting - START', [
+                'sale_id' => $sale->id,
+                'client_id' => $sale->client_id
+            ]);
+
+            // Удаляем все связанные транзакции
+            $transactionsCount = $sale->transactions()->count();
+            $sale->transactions()->delete();
+
+            \Illuminate\Support\Facades\Log::info('Sale::deleting - Transactions deleted', [
+                'sale_id' => $sale->id,
+                'transactions_deleted' => $transactionsCount
+            ]);
+
+            // Инвалидируем кэши
+            \App\Services\CacheService::invalidateTransactionsCache();
+            if ($sale->client_id) {
+                \App\Services\CacheService::invalidateClientsCache();
+                \App\Services\CacheService::invalidateClientBalanceCache($sale->client_id);
+            }
+            \App\Services\CacheService::invalidateCashRegistersCache();
+            if ($sale->project_id) {
+                $projectsRepository = new \App\Repositories\ProjectsRepository();
+                $projectsRepository->invalidateProjectCache($sale->project_id);
+            }
+
+            \Illuminate\Support\Facades\Log::info('Sale::deleting - COMPLETED', [
+                'sale_id' => $sale->id
+            ]);
+        });
+    }
+
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');

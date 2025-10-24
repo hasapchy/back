@@ -17,15 +17,35 @@ class CategoriesRepository
         return request()->header('X-Company-ID');
     }
 
+    /**
+     * Добавить фильтрацию по компании к запросу
+     */
+    private function addCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->where('categories.company_id', $companyId);
+        } else {
+            // Если компания не выбрана, показываем только категории без company_id (для обратной совместимости)
+            $query->whereNull('categories.company_id');
+        }
+        return $query;
+    }
+
     // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $items = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
+        $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
             ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
             ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name')
             ->whereHas('categoryUsers', function($query) use ($userUuid) {
                 $query->where('user_id', $userUuid);
-            })->with('users')->paginate($perPage, ['*'], 'page', (int)$page);
+            });
+
+        // Фильтруем по текущей компании пользователя
+        $query = $this->addCompanyFilter($query);
+
+        $items = $query->with('users')->paginate($perPage, ['*'], 'page', (int)$page);
         return $items;
     }
 
@@ -37,12 +57,17 @@ class CategoriesRepository
         $cacheKey = "categories_all_{$userUuid}_{$companyId}";
 
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
-            return Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
+            $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
                 ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
                 ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name')
                 ->whereHas('categoryUsers', function($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
-                })->with('users')->get();
+                });
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
+
+            return $query->with('users')->get();
         });
     }
 
@@ -54,25 +79,31 @@ class CategoriesRepository
         $cacheKey = "categories_parents_{$userUuid}_{$companyId}";
 
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
-            return Category::leftJoin('users as users', 'categories.user_id', '=', 'users.id')
+            $query = Category::leftJoin('users as users', 'categories.user_id', '=', 'users.id')
                 ->select('categories.*', 'users.name as user_name')
                 ->whereNull('categories.parent_id') // Только родительские категории
                 ->whereHas('categoryUsers', function($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
                 })
-                ->whereHas('children') // Только те, у которых есть подкатегории
-                ->with('users')
-                ->get();
+                ->whereHas('children'); // Только те, у которых есть подкатегории
+
+            // Фильтруем по текущей компании пользователя
+            $query = $this->addCompanyFilter($query);
+
+            return $query->with('users')->get();
         });
     }
 
     // Создание
     public function createItem($data)
     {
+        $companyId = $this->getCurrentCompanyId();
+
         $item = new Category();
         $item->name = $data['name'];
         $item->parent_id = $data['parent_id'];
         $item->user_id = $data['user_id'];
+        $item->company_id = $companyId;
         $item->save();
 
         // Создаем связи с пользователями
@@ -89,10 +120,13 @@ class CategoriesRepository
     // Обновление
     public function updateItem($id, $data)
     {
+        $companyId = $this->getCurrentCompanyId();
+
         $item = Category::find($id);
         $item->name = $data['name'];
         $item->parent_id = $data['parent_id'];
         $item->user_id = $data['user_id'];
+        $item->company_id = $companyId;
         $item->save();
 
         // Удаляем старые связи

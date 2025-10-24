@@ -33,12 +33,12 @@ class WarehouseReceiptRepository
         $companyId = $this->getCurrentCompanyId();
         if ($companyId) {
             // Фильтруем поступления по складам текущей компании
-            $query->whereHas('warehouse', function($q) use ($companyId) {
+            $query->whereHas('warehouse', function ($q) use ($companyId) {
                 $q->where('company_id', $companyId);
             });
         } else {
             // Если компания не выбрана, показываем только поступления из складов без company_id
-            $query->whereHas('warehouse', function($q) {
+            $query->whereHas('warehouse', function ($q) {
                 $q->whereNull('company_id');
             });
         }
@@ -50,7 +50,7 @@ class WarehouseReceiptRepository
         $companyId = request()->header('X-Company-ID');
         $cacheKey = "warehouse_receipts_paginated_{$userUuid}_{$perPage}_{$companyId}";
 
-        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
             $warehouseIds = DB::table('wh_users')
                 ->where('user_id', $userUuid)
                 ->pluck('warehouse_id')
@@ -89,11 +89,11 @@ class WarehouseReceiptRepository
                 ])
                 ->whereIn('wh_receipts.warehouse_id', $warehouseIds)
                 // Фильтрация по доступу к проектам
-                ->where(function($q) use ($userUuid) {
+                ->where(function ($q) use ($userUuid) {
                     $q->whereNull('wh_receipts.project_id') // Оприходования без проекта
-                      ->orWhereHas('project.projectUsers', function($subQuery) use ($userUuid) {
-                          $subQuery->where('user_id', $userUuid);
-                      });
+                        ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
+                            $subQuery->where('user_id', $userUuid);
+                        });
                 });
 
             // Фильтруем по текущей компании пользователя
@@ -166,30 +166,30 @@ class WarehouseReceiptRepository
             $txRepo = new TransactionsRepository();
 
             if ($type === 'balance') {
-                // Оприходование в долг - обновляем баланс клиента и создаем долговую транзакцию
-                DB::table('clients')->where('id', $client_id)->update([
-                    'balance' => DB::raw("balance - {$total_amount}")
-                ]);
-
-                $transaction_id = $txRepo->createItem([
-                    'type'        => 0, // Расход (мы должны поставщику)
-                    'user_id'     => auth('api')->id(),
-                    'orig_amount' => $total_amount,
-                    'currency_id' => $currency->id,
-                    'cash_id'     => $cash_id, // Касса указана, но не меняется
-                    'category_id' => 6,
-                    'project_id'  => $data['project_id'] ?? null,
-                    'client_id'   => $client_id,
-                    'note'        => $note,
-                    'date'        => $date,
-                    'is_debt'     => true, // Долговая операция
-                    'source_type' => \App\Models\WhReceipt::class,
-                    'source_id'   => $receipt->id,
-                ], false, true); // Не обновляем баланс кассы, обновляем баланс клиента
+                // Оприходование в долг - создаем долговую транзакцию
+                $transaction_id = $txRepo->createItem(
+                    [
+                        'type'        => 0, // Расход (мы должны поставщику)
+                        'user_id'     => auth('api')->id(),
+                        'orig_amount' => $total_amount,
+                        'currency_id' => $currency->id,
+                        'cash_id'     => $cash_id, // Касса указана, но не меняется
+                        'category_id' => 6,
+                        'project_id'  => $data['project_id'] ?? null,
+                        'client_id'   => $client_id,
+                        'note'        => $note,
+                        'date'        => $date,
+                        'is_debt'     => true, // Долговая операция
+                        'source_type' => \App\Models\WhReceipt::class,
+                        'source_id'   => $receipt->id,
+                    ],
+                    false,
+                    true
+                ); // Не обновляем баланс кассы, обновляем баланс клиента
             } else {
-                // Оприходование за наличные - обычная транзакция
-                $transaction_id = $txRepo->createItem([
-                    'type'        => 0, // Расход (мы платим поставщику)
+                // Оприходование в кассу - две транзакции (долг + платеж)
+                $debtTxData = [
+                    'type'        => 0,
                     'user_id'     => auth('api')->id(),
                     'orig_amount' => $total_amount,
                     'currency_id' => $currency->id,
@@ -199,10 +199,15 @@ class WarehouseReceiptRepository
                     'client_id'   => $client_id,
                     'note'        => $note,
                     'date'        => $date,
-                    'is_debt'     => false, // Обычная операция
+                    'is_debt'     => true,
                     'source_type' => \App\Models\WhReceipt::class,
                     'source_id'   => $receipt->id,
-                ], true, true); // Обновляем баланс кассы и клиента
+                ];
+                $txRepo->createItem($debtTxData, false, true);
+
+                $paymentTxData = $debtTxData;
+                $paymentTxData['is_debt'] = false;
+                $transaction_id = $txRepo->createItem($paymentTxData, true, true);
             }
 
             DB::commit();
@@ -379,6 +384,4 @@ class WarehouseReceiptRepository
         ]);
         return true;
     }
-
-
 }

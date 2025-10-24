@@ -188,7 +188,7 @@ class TransactionsRepository
                     ->when($project_id, function ($q, $project_id) {
                         return $q->where('transactions.project_id', $project_id);
                     })
-                    // Фильтрация по долгу
+                    // Фильтрация по кредиту
                     ->when($is_debt !== null, function ($q) use ($is_debt) {
                         if ($is_debt === 'true' || $is_debt === '1' || $is_debt === 1 || $is_debt === true) {
                             return $q->where('transactions.is_debt', true);
@@ -310,6 +310,12 @@ class TransactionsRepository
         $originalAmount = $data['orig_amount'];
         $defaultCurrencyId = Currency::where('is_default', true)->value('id');
 
+        Log::info('TransactionsRepository::createItem - START', [
+            'data' => $data,
+            'skipClientUpdate' => $skipClientUpdate,
+            'timestamp' => now()
+        ]);
+
         $currencyIds = array_unique([
             $data['currency_id'],
             $cashRegister->currency_id,
@@ -338,6 +344,14 @@ class TransactionsRepository
             $convertedAmountDefault = $originalAmount;
         }
 
+        Log::info('TransactionsRepository::createItem - Amounts calculated', [
+            'originalAmount' => $originalAmount,
+            'convertedAmount' => $convertedAmount,
+            'convertedAmountDefault' => $convertedAmountDefault,
+            'fromCurrency' => $fromCurrency->code,
+            'defaultCurrency' => $defaultCurrency->code,
+        ]);
+
         DB::beginTransaction();
 
         try {
@@ -357,9 +371,21 @@ class TransactionsRepository
             $transaction->source_type = $data['source_type'] ?? null;
             $transaction->source_id = $data['source_id'] ?? null;
             // Удалено поле order_id - теперь используется связующая таблица
-            $transaction->setSkipClientBalanceUpdate(true);
+
+            // ВАЖНО: Для обычных транзакций (is_debt=false) позволяем Transaction::created обновить баланс
+            // Для долговых операций (is_debt=true) пропускаем, и обновляем вручную ниже
+            $shouldSkipClientBalanceUpdate = ($data['is_debt'] ?? false);
+            $transaction->setSkipClientBalanceUpdate($shouldSkipClientBalanceUpdate);
             $transaction->setSkipCashBalanceUpdate(true); // Касса обновляется в репозитории
             $transaction->save();
+
+            Log::info('TransactionsRepository::createItem - Transaction saved', [
+                'transaction_id' => $transaction->id,
+                'client_id' => $transaction->client_id,
+                'is_debt' => $transaction->is_debt,
+                'type' => $transaction->type,
+                'skipClientBalanceUpdate' => $shouldSkipClientBalanceUpdate
+            ]);
 
             // Связь с заказом теперь устанавливается через morphable поля source_type и source_id
 
@@ -385,24 +411,72 @@ class TransactionsRepository
                     }
                 }
                 $cashRegister->save();
+
+                Log::info('TransactionsRepository::createItem - Cash balance updated', [
+                    'cashRegister_id' => $cashRegister->id,
+                    'new_balance' => $cashRegister->balance,
+                    'isOrderPayment' => $isOrderPayment
+                ]);
             }
 
             // Обновляем баланс клиента ТОЛЬКО если это долговая операция
+            Log::info('TransactionsRepository::createItem - Before client balance update', [
+                'client_id' => $data['client_id'],
+                'is_debt' => $data['is_debt'] ?? false,
+                'skipClientUpdate' => $skipClientUpdate,
+                'convertedAmountDefault' => $convertedAmountDefault,
+                'type' => $data['type'],
+                'note' => 'Regular transactions (is_debt=false) are updated via Transaction::created'
+            ]);
+
+            // ДЛЯ ДОЛГОВЫХ ОПЕРАЦИЙ: обновляем баланс клиента вручную через DB
+            // ДЛЯ ОБЫЧНЫХ ТРАНЗАКЦИЙ: баланс обновляется автоматически через Transaction::created hook
             if (! $skipClientUpdate && ! empty($data['client_id']) && ($data['is_debt'] ?? false)) {
+                Log::info('TransactionsRepository::createItem - UPDATING CLIENT BALANCE FOR DEBT TRANSACTION', [
+                    'client_id' => $data['client_id'],
+                    'operation_type' => $data['type'] === 1 ? 'income (ADD - client buys on credit)' : 'outcome (SUBTRACT - client pays)',
+                    'amount' => $convertedAmountDefault,
+                    'is_debt' => true
+                ]);
+
+                // ЛОГИКА ДЛЯ ДОЛГОВЫХ ОПЕРАЦИЙ (is_debt=true):
+                // type=1 (доход): Клиент купил В ДОЛГ → должен НАМ → баланс УВЕЛИЧИВАЕТСЯ
+                // type=0 (расход): Клиент ПЛАТИТ ДОЛГ → баланс УМЕНЬШАЕТСЯ
                 if ($data['type'] === 1) {
                     DB::table('clients')->where('id', $data['client_id'])->update([
                         'balance' => DB::raw('balance + ' . ($convertedAmountDefault + 0))
+                    ]);
+                    Log::info('TransactionsRepository::createItem - DEBT: CLIENT BALANCE DECREASED (Income)', [
+                        'client_id' => $data['client_id'],
+                        'amount_added' => $convertedAmountDefault
                     ]);
                 } else {
                     DB::table('clients')->where('id', $data['client_id'])->update([
                         'balance' => DB::raw('balance - ' . ($convertedAmountDefault + 0))
                     ]);
+                    Log::info('TransactionsRepository::createItem - DEBT: CLIENT BALANCE DECREASED (Payment)', [
+                        'client_id' => $data['client_id'],
+                        'amount_subtracted' => $convertedAmountDefault
+                    ]);
                 }
+
+                // Получаем обновленный баланс для проверки
+                $updatedClient = DB::table('clients')->where('id', $data['client_id'])->first();
+                Log::info('TransactionsRepository::createItem - UPDATED CLIENT BALANCE VERIFICATION', [
+                    'client_id' => $data['client_id'],
+                    'new_balance_from_db' => $updatedClient->balance ?? 'NOT FOUND'
+                ]);
 
                 // Инвалидируем кэш клиентов и проектов после обновления баланса
                 CacheService::invalidateClientsCache();
                 CacheService::invalidateClientBalanceCache($data['client_id']);
                 CacheService::invalidateProjectsCache();
+            } else {
+                Log::info('TransactionsRepository::createItem - CLIENT BALANCE UPDATE (Regular Transaction)', [
+                    'reason' => 'Will be updated via Transaction::created model event',
+                    'is_debt' => $data['is_debt'] ?? false,
+                    'client_id' => $data['client_id'] ?? null
+                ]);
             }
 
             DB::commit();
@@ -421,8 +495,17 @@ class TransactionsRepository
                 $projectsRepository = new \App\Repositories\ProjectsRepository();
                 $projectsRepository->invalidateProjectCache($data['project_id']);
             }
+
+            Log::info('TransactionsRepository::createItem - SUCCESS', [
+                'transaction_id' => $transaction->id,
+                'client_id' => $transaction->client_id,
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('TransactionsRepository::createItem - ERROR', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             throw $e;
         }
 
@@ -573,10 +656,28 @@ class TransactionsRepository
             // Обновляем конвертированную сумму
             $transaction->amount = $newConvertedAmount;
 
-            // Блокируем автоматическое обновление баланса через события модели
-            // т.к. мы обновляем баланс вручную ниже
-            $transaction->setSkipClientBalanceUpdate(true);
+            // ВАЖНО: Для обычных транзакций (is_debt=false) позволяем Transaction::updated обновить баланс
+            // Для долговых операций (is_debt=true) пропускаем, и обновляем вручную ниже
+            $shouldSkipClientBalanceUpdate = $transaction->is_debt;
+            $transaction->setSkipClientBalanceUpdate($shouldSkipClientBalanceUpdate);
+
+            Log::info('TransactionsRepository::updateItemWithBalanceRecalculation - Before transaction save', [
+                'transaction_id' => $id,
+                'skipClientBalanceUpdate' => $shouldSkipClientBalanceUpdate,
+                'is_debt' => $transaction->is_debt,
+                'old_amount' => $oldAmount,
+                'new_amount' => $newConvertedAmount
+            ]);
+
             $transaction->save();
+
+            Log::info('TransactionsRepository::updateItemWithBalanceRecalculation - Transaction saved', [
+                'transaction_id' => $transaction->id,
+                'client_id' => $transaction->client_id,
+                'is_debt' => $transaction->is_debt,
+                'type' => $transaction->type,
+                'skipClientBalanceUpdate' => $shouldSkipClientBalanceUpdate
+            ]);
 
             // Применяем новый баланс кассы только если транзакция не стала долговой
             if (!$transaction->is_debt) {
@@ -614,25 +715,25 @@ class TransactionsRepository
                 if ($oldIsDebt) {
                     // Долговая операция: откатываем как было при создании
                     if ($transaction->type == 1) {
-                        // Доход: при создании был -=, откатываем через +=
-                        DB::table('clients')->where('id', $oldClientId)->update([
-                            'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
-                        ]);
-                    } else {
-                        // Расход: при создании был +=, откатываем через -=
+                        // Было type=1 (доход): было +=, откатываем -=
                         DB::table('clients')->where('id', $oldClientId)->update([
                             'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
+                        ]);
+                    } else {
+                        // Было type=0 (расход): было -=, откатываем +=
+                        DB::table('clients')->where('id', $oldClientId)->update([
+                            'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
                         ]);
                     }
                 } else {
                     // Обычная транзакция: откатываем как было при создании
                     if ($transaction->type == 1) {
-                        // Доход: при создании был -=, откатываем через +=
+                        // Было type=1 (доход): было -=, откатываем +=
                         DB::table('clients')->where('id', $oldClientId)->update([
                             'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
                         ]);
                     } else {
-                        // Расход: при создании был +=, откатываем через -=
+                        // Было type=0 (расход): было +=, откатываем -=
                         DB::table('clients')->where('id', $oldClientId)->update([
                             'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
                         ]);
@@ -651,76 +752,120 @@ class TransactionsRepository
                     'client_id' => $transaction->client_id,
                     'source_type' => $transaction->source_type,
                     'is_debt' => $transaction->is_debt,
-                    'type' => $transaction->type
+                    'type' => $transaction->type,
+                    'note' => 'Regular transactions will be handled by Transaction::updated hook'
                 ]);
 
-                // Откатываем старый баланс клиента если была долговая операция ИЛИ обычная транзакция И клиент не изменился
+                // ЛОГИКА:
+                // Для ОБЫЧНЫХ транзакций (is_debt=false) - Transaction::updated hook уже сработает
+                // Для ДОЛГОВЫХ операций (is_debt=true) - обновляем вручную
+
+                // Если клиент изменился и была долговая операция - откатываем баланс старого клиента
                 $oldIsRegularTransaction = empty($oldSourceType);
-                if (($oldIsDebt || $oldIsRegularTransaction) && $oldClientId === $transaction->client_id) {
+                if ($oldClientId && $oldClientId !== $transaction->client_id && ($oldIsDebt || $oldIsRegularTransaction)) {
                     if ($oldCurrencyId !== $defaultCurrencyId) {
                         $oldConvertedAmountDefault = CurrencyConverter::convert($oldOrigAmount, $currencies[$oldCurrencyId], $currencies[$defaultCurrencyId]);
                     } else {
                         $oldConvertedAmountDefault = $oldOrigAmount;
                     }
 
-                    // Откат старого баланса: делаем обратную операцию
+                    // Откат для старого клиента
                     if ($transaction->type == 1) {
-                        DB::table('clients')->where('id', $transaction->client_id)->update([
-                            'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
-                        ]);
-                    } else {
-                        DB::table('clients')->where('id', $transaction->client_id)->update([
+                        DB::table('clients')->where('id', $oldClientId)->update([
                             'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
                         ]);
+                    } else {
+                        DB::table('clients')->where('id', $oldClientId)->update([
+                            'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
+                        ]);
                     }
+
+                    CacheService::invalidateClientBalanceCache($oldClientId);
+
+                    Log::info('Old client balance rolled back', [
+                        'transaction_id' => $id,
+                        'old_client_id' => $oldClientId,
+                        'operation' => $transaction->type == 1 ? 'ADD (reverse of income)' : 'SUBTRACT (reverse of expense)'
+                    ]);
                 }
 
-                // Применяем новый баланс клиента если это долговая операция ИЛИ обычная транзакция
-                $isRegularTransaction = empty($transaction->source_type);
-                $shouldUpdateClientBalance = $transaction->is_debt || $isRegularTransaction;
+                // Применяем новый баланс клиента ТОЛЬКО если это долговая операция
+                // Для обычных транзакций это сделает Transaction::updated hook
+                if ($transaction->is_debt) {
+                    Log::info('Manual balance update for DEBT transaction', [
+                        'transaction_id' => $id,
+                        'client_id' => $transaction->client_id,
+                        'is_debt' => true,
+                        'type' => $transaction->type
+                    ]);
 
-                Log::info('Client balance update details', [
-                    'transaction_id' => $id,
-                    'source_type' => $transaction->source_type,
-                    'isRegularTransaction' => $isRegularTransaction,
-                    'is_debt' => $transaction->is_debt,
-                    'shouldUpdateClientBalance' => $shouldUpdateClientBalance,
-                    'type' => $transaction->type,
-                    'newAmount' => $newOrigAmount
-                ]);
+                    // Откатываем старый баланс если транзакция осталась для этого же клиента
+                    $if_need_rollback = $oldClientId === $transaction->client_id && ($oldIsDebt || empty($oldSourceType));
+                    if ($if_need_rollback) {
+                        if ($oldCurrencyId !== $defaultCurrencyId) {
+                            $oldConvertedAmountDefault = CurrencyConverter::convert($oldOrigAmount, $currencies[$oldCurrencyId], $currencies[$defaultCurrencyId]);
+                        } else {
+                            $oldConvertedAmountDefault = $oldOrigAmount;
+                        }
 
-                if ($shouldUpdateClientBalance) {
+                        // Откат старого баланса: делаем обратную операцию
+                        // Для обычных/долговых транзакций - откатываем противоположно
+                        if ($transaction->type == 1) {
+                            DB::table('clients')->where('id', $transaction->client_id)->update([
+                                'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
+                            ]);
+                        } else {
+                            DB::table('clients')->where('id', $transaction->client_id)->update([
+                                'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
+                            ]);
+                        }
+
+                        Log::info('Rolled back old balance for same client', [
+                            'transaction_id' => $id,
+                            'client_id' => $transaction->client_id
+                        ]);
+                    }
+
+                    // Применяем новый баланс
                     if ($newCurrencyId !== $defaultCurrencyId) {
                         $newConvertedAmountDefault = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $currencies[$defaultCurrencyId]);
                     } else {
                         $newConvertedAmountDefault = $newOrigAmount;
                     }
 
-                    // Применение нового баланса: как при создании
+                    // Применение нового баланса для долговых операций:
+                    // type=1 (доход): клиент купил в долг → баланс +=
+                    // type=0 (расход): клиент платит → баланс -=
                     if ($transaction->type == 1) {
                         DB::table('clients')->where('id', $transaction->client_id)->update([
                             'balance' => DB::raw('balance + ' . ($newConvertedAmountDefault + 0))
+                        ]);
+                        Log::info('Debt transaction balance: ADDED (credit sale)', [
+                            'transaction_id' => $id,
+                            'client_id' => $transaction->client_id,
+                            'amount' => $newConvertedAmountDefault
                         ]);
                     } else {
                         DB::table('clients')->where('id', $transaction->client_id)->update([
                             'balance' => DB::raw('balance - ' . ($newConvertedAmountDefault + 0))
                         ]);
+                        Log::info('Debt transaction balance: SUBTRACTED (payment)', [
+                            'transaction_id' => $id,
+                            'client_id' => $transaction->client_id,
+                            'amount' => $newConvertedAmountDefault
+                        ]);
                     }
 
-                    Log::info('Client balance updated', [
-                        'transaction_id' => $id,
-                        'oldAmount' => $oldConvertedAmountDefault,
-                        'newAmount' => $newConvertedAmountDefault
-                    ]);
-                }
-
-                // Сохраняем только если были изменения
-                if ($oldIsDebt || $transaction->is_debt) {
-
-                    // Инвалидируем кэш клиентов и проектов после обновления баланса
+                    // Инвалидируем кэш для долговых операций
                     CacheService::invalidateClientsCache();
                     CacheService::invalidateClientBalanceCache($transaction->client_id);
                     CacheService::invalidateProjectsCache();
+                } else {
+                    Log::info('Balance will be auto-updated via Transaction::updated hook for REGULAR transaction', [
+                        'transaction_id' => $id,
+                        'client_id' => $transaction->client_id,
+                        'is_debt' => false
+                    ]);
                 }
             }
 
@@ -798,20 +943,47 @@ class TransactionsRepository
 
             // Связи с заказами теперь автоматически удаляются через morphable связи
 
-            $transaction->setSkipClientBalanceUpdate(true);
+            // ВАЖНО: Для обычных транзакций (is_debt=false) позволяем Transaction::deleted обновить баланс
+            // Для долговых операций (is_debt=true) пропускаем, и обновляем вручную ниже
+            $shouldSkipClientBalanceUpdate = $transaction->is_debt;
+            $transaction->setSkipClientBalanceUpdate($shouldSkipClientBalanceUpdate);
             $transaction->delete();
+
+            Log::info('TransactionsRepository::deleteItem - Transaction deleted', [
+                'transaction_id' => $transaction->id,
+                'client_id' => $transaction->client_id,
+                'is_debt' => $transaction->is_debt,
+                'type' => $transaction->type,
+                'skipClientBalanceUpdate' => $shouldSkipClientBalanceUpdate
+            ]);
 
             // Обновляем баланс клиента ТОЛЬКО если это была долговая операция
             if (! $skipClientUpdate && $transaction->client_id && $transaction->is_debt) {
+                Log::info('TransactionsRepository::deleteItem - UPDATING CLIENT BALANCE FOR DEBT TRANSACTION', [
+                    'client_id' => $transaction->client_id,
+                    'operation_type' => $transaction->type === 1 ? 'income (SUBTRACT back - reverse of ADD)' : 'outcome (ADD back - reverse of SUBTRACT)',
+                    'amount' => $convertedAmountDefault,
+                    'is_debt' => true
+                ]);
+
+                // При удалении долговой операции откатываем её
+                // type=1 (доход): было +=, откатываем -=
+                // type=0 (расход): было -=, откатываем +=
                 if ($transaction->type == 1) {
-                    // Доход: клиент нам платил - при удалении уменьшаем баланс
                     DB::table('clients')->where('id', $transaction->client_id)->update([
                         'balance' => DB::raw('balance - ' . ($convertedAmountDefault + 0))
                     ]);
+                    Log::info('TransactionsRepository::deleteItem - DEBT: CLIENT BALANCE DECREASED (reverse of credit sale)', [
+                        'client_id' => $transaction->client_id,
+                        'amount_subtracted' => $convertedAmountDefault
+                    ]);
                 } else {
-                    // Расход: мы клиенту платили - при удалении увеличиваем баланс
                     DB::table('clients')->where('id', $transaction->client_id)->update([
                         'balance' => DB::raw('balance + ' . ($convertedAmountDefault + 0))
+                    ]);
+                    Log::info('TransactionsRepository::deleteItem - DEBT: CLIENT BALANCE INCREASED (reverse of payment)', [
+                        'client_id' => $transaction->client_id,
+                        'amount_added' => $convertedAmountDefault
                     ]);
                 }
 
@@ -819,6 +991,12 @@ class TransactionsRepository
                 CacheService::invalidateClientsCache();
                 CacheService::invalidateClientBalanceCache($transaction->client_id);
                 CacheService::invalidateProjectsCache();
+            } else {
+                Log::info('TransactionsRepository::deleteItem - CLIENT BALANCE UPDATE (Regular Transaction)', [
+                    'reason' => 'Will be updated via Transaction::deleted model event',
+                    'is_debt' => $transaction->is_debt,
+                    'client_id' => $transaction->client_id
+                ]);
             }
 
             DB::commit();

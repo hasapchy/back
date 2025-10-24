@@ -1118,9 +1118,9 @@ class OrdersRepository
 
             // Убрана проверка на создателя - статус может менять любой пользователь
 
-            // Проверка на категорию "оплачено" (category_id = 3) и "закрытие" (category_id = 4)
+            // Проверка на статусы "Оплачено" (id=3) и "Готово" (id=4)
             // Пропускаем проверку, если в заказе выбран проект
-            if (($targetStatus->category_id == 3 || $targetStatus->category_id == 4) && !$order->project_id) {
+            if (($statusId == 3 || $statusId == 4) && !$order->project_id) {
                 // Вычисляем сумму заказа (товары минус скидка)
                 $orderTotal = $order->price - $order->discount;
 
@@ -1129,7 +1129,7 @@ class OrdersRepository
                     ->where('source_id', $order->id)
                     ->sum('orig_amount');
 
-                // Проверяем: оплата должна быть > 0 для статусов "оплачено" и "закрыто"
+                // Проверяем: оплата должна быть > 0 для статусов "оплачено" и "готово"
                 if ($paidTotal <= 0 || $paidTotal < $orderTotal) {
                     $remainingAmount = $orderTotal - $paidTotal;
                     return [
