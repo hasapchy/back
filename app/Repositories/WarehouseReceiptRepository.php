@@ -165,10 +165,10 @@ class WarehouseReceiptRepository
             $txRepo = new TransactionsRepository();
 
             if ($type === 'balance') {
-                // Оприходование в долг - создаем долговую транзакцию
+                // Оприходование в долг - создаем долговую транзакцию (как в продаже)
                 $transaction_id = $txRepo->createItem(
                     [
-                        'type'        => 0, // Расход (мы должны поставщику)
+                        'type'        => 1, // Доход - поставщик нам должен (мы ему должны)
                         'user_id'     => auth('api')->id(),
                         'orig_amount' => $total_amount,
                         'currency_id' => $currency->id,
@@ -182,15 +182,16 @@ class WarehouseReceiptRepository
                         'source_type' => \App\Models\WhReceipt::class,
                         'source_id'   => $receipt->id,
                     ],
-                    false,
-                    true
-                ); // Не обновляем баланс кассы, обновляем баланс клиента
+                    true,
+                    false
+                ); // Как в продаже: return_id=true, skipClientUpdate=false
             } else {
-                // Оприходование в кассу - две транзакции (долг + платеж)
+                // Оприходование в кассу - две транзакции (долг + платеж) - как в продаже
                 $debtTxData = [
-                    'type'        => 0,
+                    'type'        => 1, // Доход - поставщик нам должен (мы ему должны)
                     'user_id'     => auth('api')->id(),
                     'orig_amount' => $total_amount,
+                    'amount'      => $total_amount,
                     'currency_id' => $currency->id,
                     'cash_id'     => $cash_id,
                     'category_id' => 6,
@@ -202,11 +203,11 @@ class WarehouseReceiptRepository
                     'source_type' => \App\Models\WhReceipt::class,
                     'source_id'   => $receipt->id,
                 ];
-                $txRepo->createItem($debtTxData, false, true);
+                $txRepo->createItem($debtTxData, true, false);
 
                 $paymentTxData = $debtTxData;
-                $paymentTxData['is_debt'] = false;
-                $transaction_id = $txRepo->createItem($paymentTxData, true, true);
+                $paymentTxData['is_debt'] = false; // Обычная транзакция - касса меняется
+                $transaction_id = $txRepo->createItem($paymentTxData, true, false);
             }
 
             DB::commit();
@@ -314,8 +315,7 @@ class WarehouseReceiptRepository
 
     public function deleteItem($receipt_id)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($receipt_id) {
             $receipt = WhReceipt::findOrFail($receipt_id);
 
             // 1) Откатываем стоки
@@ -324,27 +324,12 @@ class WarehouseReceiptRepository
                 $p->delete();
             }
 
-            // 2) Удаляем транзакцию — пропускаем client-balance корректировку
-            if ($receipt->transaction_id) {
-                $txRepo = new TransactionsRepository();
-                $txRepo->deleteItem($receipt->transaction_id, true);
-            }
-
-            // 3) Если это было зачисление на баланс, откатываем баланс клиента
-            if (! $receipt->transaction_id) {
-                DB::table('clients')->where('id', $receipt->supplier_id)->update([
-                    'balance' => DB::raw("balance + {$receipt->amount}")
-                ]);
-            }
-
+            // 2) Удаляем приходную накладную (транзакции удалятся автоматически через booted() модели)
+            $clientId = $receipt->supplier_id;
             $receipt->delete();
 
-            DB::commit();
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return false;
-        }
+        });
     }
 
 

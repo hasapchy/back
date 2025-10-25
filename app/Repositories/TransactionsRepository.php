@@ -389,33 +389,25 @@ class TransactionsRepository
 
             // Связь с заказом теперь устанавливается через morphable поля source_type и source_id
 
-            // Обновляем кассу:
-            // 1. Обычные транзакции (is_debt=false) - касса меняется
-            // 2. СПЕЦИАЛЬНО для оплат заказов (source_type=Order, type=0, is_debt=true) - касса ТОЖЕ меняется!
-            $isOrderPayment = ($data['is_debt'] ?? false) &&
-                              !empty($data['source_type']) &&
-                              $data['source_type'] === 'App\Models\Order' &&
-                              $data['type'] === 0;
-
-            if ((!($data['is_debt'] ?? false) || $isOrderPayment) && $cashRegister) {
+            // Обновляем кассу ТОЛЬКО для обычных транзакций (is_debt=false)
+            // Долговые транзакции (is_debt=true) НЕ должны влиять на кассу
+            if (!($data['is_debt'] ?? false) && $cashRegister) {
                 if ((int)$data['type'] === 1) {
-                    $cashRegister->balance += $convertedAmount;
+                    $cashRegister->balance += $convertedAmount; // доход
                 } else {
-                    // Для type=0:
-                    // - Обычная транзакция: касса уменьшается (мы платим)
-                    // - Оплата заказа: касса УВЕЛИЧИВАЕТСЯ (клиент платит нам)
-                    if ($isOrderPayment) {
-                        $cashRegister->balance += $convertedAmount; // приход денег от клиента
-                    } else {
-                        $cashRegister->balance -= $convertedAmount; // обычный расход
-                    }
+                    $cashRegister->balance -= $convertedAmount; // расход
                 }
                 $cashRegister->save();
 
                 Log::info('TransactionsRepository::createItem - Cash balance updated', [
                     'cashRegister_id' => $cashRegister->id,
                     'new_balance' => $cashRegister->balance,
-                    'isOrderPayment' => $isOrderPayment
+                    'is_debt' => false
+                ]);
+            } else {
+                Log::info('TransactionsRepository::createItem - Cash balance NOT updated (debt transaction)', [
+                    'cashRegister_id' => $cashRegister->id ?? null,
+                    'is_debt' => $data['is_debt'] ?? false
                 ]);
             }
 

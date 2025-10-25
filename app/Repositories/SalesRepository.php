@@ -388,20 +388,11 @@ class SalesRepository
                 $p->delete();
             }
 
-            // Удаляем связанные транзакции через morphable связь
-            $sale->transactions()->delete();
-
-            $clientId = $sale->client_id;
+            // Удаляем продажу (транзакции удалятся автоматически через booted() модели)
             $sale->delete();
 
             // Инвалидируем кэш продаж
             $this->clearSalesCache();
-
-            // Инвалидируем кэш клиента
-            if ($clientId) {
-                $clientsRepo = new \App\Repositories\ClientsRepository();
-                $clientsRepo->invalidateClientBalanceCache($clientId);
-            }
 
             return true;
         });

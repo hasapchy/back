@@ -659,7 +659,7 @@ class OrdersRepository
                 'client_id'    => $client_id,
                 'amount'       => $total_price,
                 'orig_amount'  => $total_price,
-                'type'         => 0, // расход для клиента (долг)
+                'type'         => 1, // доход (клиент покупает в долг, баланс увеличивается)
                 'is_debt'      => true, // долг (касса не меняется)
                 'cash_id'      => $cash_id,
                 'category_id'  => 1, // категория по умолчанию
@@ -673,7 +673,7 @@ class OrdersRepository
             ];
 
             $txRepo = new TransactionsRepository();
-            $txRepo->createItem($transactionData, true, true);
+            $txRepo->createItem($transactionData, true, false); // Как в продаже: return_id=true, skipClientUpdate=false
 
             DB::commit();
 
@@ -989,16 +989,16 @@ class OrdersRepository
             }
 
             // Обновляем автоматическую долговую транзакцию заказа
-            // Ищем ИМЕННО автоматическую транзакцию (type=0, is_debt=true)
+            // Ищем ИМЕННО автоматическую транзакцию (type=1, is_debt=true)
             $orderTransaction = Transaction::where('source_type', Order::class)
                 ->where('source_id', $order->id)
-                ->where('type', 0)      // автоматическая транзакция заказа (расход для клиента)
+                ->where('type', 1)      // автоматическая транзакция заказа (доход - клиент покупает в долг)
                 ->where('is_debt', true) // долговая
                 ->first();
 
             if ($orderTransaction) {
                 // Автоматическая транзакция = ПОЛНАЯ сумма заказа (БЕЗ вычета оплат!)
-                // Оплаты учитываются отдельными транзакциями type=1
+                // Оплаты учитываются отдельными транзакциями type=1, is_debt=false
                 if ($orderTransaction->amount != $total_price) {
                     $txRepo = new TransactionsRepository();
                     $txRepo->updateItem($orderTransaction->id, [
@@ -1055,36 +1055,11 @@ class OrdersRepository
             // Удаляем товары
             OrderProduct::where('order_id', $id)->delete();
 
-            // Удаляем автоматическую долговую транзакцию заказа через morphable связь
-            $order->transactions()->delete();
-
-            // Удаляем заказ
-            $order->delete();
-
-            // Инвалидируем кэш заказов и баланса клиента
-            CacheService::invalidateOrdersCache();
-            CacheService::invalidateClientsCache(); // Инвалидируем кэш клиентов, так как баланс зависит от заказов
-            if ($order->client_id) {
-                $this->invalidateClientBalanceCache($order->client_id);
-            }
-
-            // Инвалидируем кэш проекта если заказ связан с проектом
-            if ($order->project_id) {
-                $projectsRepository = new \App\Repositories\ProjectsRepository();
-                $projectsRepository->invalidateProjectCache($order->project_id);
-            }
-
-            // Вычисляем total_price из транзакций заказа
-            $orderTransactions = Transaction::where('source_type', \App\Models\Order::class)
-                ->where('source_id', $id)
-                ->get();
-            $totalPrice = $orderTransactions->sum('orig_amount');
-
-            return [
+            // Сохраняем данные для возврата перед удалением
+            $orderData = [
                 'id' => $order->id,
                 'client_id' => $order->client_id,
                 'warehouse_id' => $order->warehouse_id,
-                'total_price' => $totalPrice,
                 'products' => $products->map(function ($product) {
                     return [
                         'product_id' => $product->product_id,
@@ -1093,6 +1068,14 @@ class OrdersRepository
                     ];
                 })->toArray()
             ];
+
+            // Удаляем заказ (транзакции и кэши обрабатываются автоматически через booted() модели)
+            $order->delete();
+
+            // Вычисляем total_price из транзакций заказа (транзакции уже удалены, возвращаем 0)
+            $orderData['total_price'] = 0;
+
+            return $orderData;
         });
     }
     public function updateStatusByIds(array $ids, int $statusId, string $userId)
