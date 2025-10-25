@@ -84,9 +84,12 @@ class Order extends Model
                 'client_id' => $order->client_id
             ]);
 
-            // Удаляем все связанные транзакции
-            $transactionsCount = $order->transactions()->count();
-            $order->transactions()->delete();
+            // Удаляем все связанные транзакции (по одной, чтобы сработали hooks)
+            $transactions = $order->transactions()->get();
+            $transactionsCount = $transactions->count();
+            foreach ($transactions as $transaction) {
+                $transaction->delete(); // Вызываем delete() для каждой транзакции отдельно
+            }
 
             \Illuminate\Support\Facades\Log::info('Order::deleting - Transactions deleted', [
                 'order_id' => $order->id,

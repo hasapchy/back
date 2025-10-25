@@ -32,9 +32,12 @@ class WhReceipt extends Model
                 'supplier_id' => $receipt->supplier_id
             ]);
 
-            // Удаляем все связанные транзакции
-            $transactionsCount = $receipt->transactions()->count();
-            $receipt->transactions()->delete();
+            // Удаляем все связанные транзакции (по одной, чтобы сработали hooks)
+            $transactions = $receipt->transactions()->get();
+            $transactionsCount = $transactions->count();
+            foreach ($transactions as $transaction) {
+                $transaction->delete(); // Вызываем delete() для каждой транзакции отдельно
+            }
 
             \Illuminate\Support\Facades\Log::info('WhReceipt::deleting - Transactions deleted', [
                 'receipt_id' => $receipt->id,

@@ -43,9 +43,12 @@ class Sale extends Model
                 'client_id' => $sale->client_id
             ]);
 
-            // Удаляем все связанные транзакции
-            $transactionsCount = $sale->transactions()->count();
-            $sale->transactions()->delete();
+            // Удаляем все связанные транзакции (по одной, чтобы сработали hooks)
+            $transactions = $sale->transactions()->get();
+            $transactionsCount = $transactions->count();
+            foreach ($transactions as $transaction) {
+                $transaction->delete(); // Вызываем delete() для каждой транзакции отдельно
+            }
 
             \Illuminate\Support\Facades\Log::info('Sale::deleting - Transactions deleted', [
                 'sale_id' => $sale->id,
