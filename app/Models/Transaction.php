@@ -216,7 +216,7 @@ class Transaction extends Model
             ]);
 
             // Обновляем баланс клиента только если это НЕ долговая операция (is_debt=false)
-            if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
+            if ($transaction->client_id && !$transaction->getSkipClientBalanceUpdate()) {
                 $client = Client::find($transaction->client_id);
                 $defaultCurrency = Currency::where('is_default', true)->first();
 
@@ -303,7 +303,7 @@ class Transaction extends Model
                 'skipClientBalanceUpdate' => $transaction->getSkipClientBalanceUpdate()
             ]);
 
-            if ($transaction->client_id && empty($transaction->getSkipClientBalanceUpdate())) {
+            if ($transaction->client_id && !$transaction->getSkipClientBalanceUpdate()) {
                 $client = Client::find($transaction->client_id);
                 $defaultCurrency = Currency::where('is_default', true)->first();
 
@@ -319,13 +319,25 @@ class Transaction extends Model
 
                 if ($client) {
                     $oldBalance = $client->balance;
-                    // Откатываем операцию (противоположная операция при удалении)
-                    // type=1 (доход): был -=, откатываем +=
-                    // type=0 (расход): был +=, откатываем -=
-                    if ($transaction->type == 1) {
-                        $client->balance = ($client->balance ?? 0) + $convertedAmount;
+                    // Откатываем операцию при удалении транзакции
+                    if ($transaction->is_debt) {
+                        // Долговые транзакции:
+                        // type=1 (доход): при создании было balance +=, откатываем balance -=
+                        // type=0 (расход): при создании было balance -=, откатываем balance +=
+                        if ($transaction->type == 1) {
+                            $client->balance = ($client->balance ?? 0) - $convertedAmount;
+                        } else {
+                            $client->balance = ($client->balance ?? 0) + $convertedAmount;
+                        }
                     } else {
-                        $client->balance = ($client->balance ?? 0) - $convertedAmount;
+                        // Обычные транзакции:
+                        // type=1 (доход): при создании было balance -=, откатываем balance +=
+                        // type=0 (расход): при создании было balance +=, откатываем balance -=
+                        if ($transaction->type == 1) {
+                            $client->balance = ($client->balance ?? 0) + $convertedAmount;
+                        } else {
+                            $client->balance = ($client->balance ?? 0) - $convertedAmount;
+                        }
                     }
                     $client->save();
 

@@ -591,10 +591,11 @@ class TransactionsRepository
             $oldIsDebt = $transaction->is_debt;
             $oldClientId = $transaction->client_id;
             $oldSourceType = $transaction->source_type;
+            $oldType = $transaction->type; // Сохраняем старый type для правильного отката
 
             // Откатываем старый баланс кассы только если транзакция не была долговой
             if (!$oldIsDebt) {
-                if ($transaction->type == 1) {
+                if ($oldType == 1) {
                     $cashRegister->balance -= $oldAmount;
                 } else {
                     $cashRegister->balance += $oldAmount;
@@ -706,7 +707,7 @@ class TransactionsRepository
                 // Откат старого баланса: делаем обратную операцию через DB::table
                 if ($oldIsDebt) {
                     // Долговая операция: откатываем как было при создании
-                    if ($transaction->type == 1) {
+                    if ($oldType == 1) {
                         // Было type=1 (доход): было +=, откатываем -=
                         DB::table('clients')->where('id', $oldClientId)->update([
                             'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
@@ -719,7 +720,7 @@ class TransactionsRepository
                     }
                 } else {
                     // Обычная транзакция: откатываем как было при создании
-                    if ($transaction->type == 1) {
+                    if ($oldType == 1) {
                         // Было type=1 (доход): было -=, откатываем +=
                         DB::table('clients')->where('id', $oldClientId)->update([
                             'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
@@ -761,8 +762,8 @@ class TransactionsRepository
                         $oldConvertedAmountDefault = $oldOrigAmount;
                     }
 
-                    // Откат для старого клиента
-                    if ($transaction->type == 1) {
+                    // Откат для старого клиента - используем $oldType для правильного отката
+                    if ($oldType == 1) {
                         DB::table('clients')->where('id', $oldClientId)->update([
                             'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
                         ]);
@@ -777,7 +778,7 @@ class TransactionsRepository
                     Log::info('Old client balance rolled back', [
                         'transaction_id' => $id,
                         'old_client_id' => $oldClientId,
-                        'operation' => $transaction->type == 1 ? 'ADD (reverse of income)' : 'SUBTRACT (reverse of expense)'
+                        'operation' => $oldType == 1 ? 'ADD (reverse of income)' : 'SUBTRACT (reverse of expense)'
                     ]);
                 }
 
@@ -800,15 +801,16 @@ class TransactionsRepository
                             $oldConvertedAmountDefault = $oldOrigAmount;
                         }
 
-                        // Откат старого баланса: делаем обратную операцию
-                        // Для обычных/долговых транзакций - откатываем противоположно
+                        // Откат старого баланса: делаем обратную операцию для долговых транзакций
+                        // type=1 при создании: balance += amount → при откате: balance -= amount
+                        // type=0 при создании: balance -= amount → при откате: balance += amount
                         if ($transaction->type == 1) {
                             DB::table('clients')->where('id', $transaction->client_id)->update([
-                                'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
+                                'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
                             ]);
                         } else {
                             DB::table('clients')->where('id', $transaction->client_id)->update([
-                                'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
+                                'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
                             ]);
                         }
 
