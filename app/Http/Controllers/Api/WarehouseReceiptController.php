@@ -156,23 +156,43 @@ class WarehouseReceiptController extends Controller
 
     public function destroy($id)
     {
-        $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
+        try {
+            Log::info('WarehouseReceiptController::destroy - START', ['id' => $id]);
 
-        if (!$warehouse_deleted) {
+            $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
+
+            if (!$warehouse_deleted) {
+                Log::warning('WarehouseReceiptController::destroy - deleteItem returned false', ['id' => $id]);
+                return response()->json([
+                    'message' => 'Ошибка удаления оприходования'
+                ], 400);
+            }
+
+            // Инвалидируем кэш приходов, остатков и продуктов (т.к. stock_quantity изменился)
+            CacheService::invalidateWarehouseReceiptsCache();
+            CacheService::invalidateWarehouseStocksCache();
+            CacheService::invalidateProductsCache();
+            // Инвалидируем кэш клиентов (баланс поставщика/клиента изменился)
+            CacheService::invalidateClientsCache();
+
+            Log::info('WarehouseReceiptController::destroy - SUCCESS', ['id' => $id]);
             return response()->json([
-                'message' => 'Ошибка удаления склада'
+                'message' => 'Оприходование удалено'
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::warning('WarehouseReceiptController::destroy - Not found', ['id' => $id]);
+            return response()->json([
+                'message' => 'Оприходование не найдено'
+            ], 404);
+        } catch (\Throwable $th) {
+            Log::error('WarehouseReceiptController::destroy error', [
+                'id' => $id,
+                'error' => $th->getMessage(),
+                'trace' => $th->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Ошибка удаления оприходования: ' . $th->getMessage()
             ], 400);
         }
-
-        // Инвалидируем кэш приходов, остатков и продуктов (т.к. stock_quantity изменился)
-        CacheService::invalidateWarehouseReceiptsCache();
-        CacheService::invalidateWarehouseStocksCache();
-        CacheService::invalidateProductsCache();
-        // Инвалидируем кэш клиентов (баланс поставщика/клиента изменился)
-        CacheService::invalidateClientsCache();
-
-        return response()->json([
-            'message' => 'Склад удален'
-        ]);
     }
 }

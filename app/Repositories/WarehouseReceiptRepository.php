@@ -165,10 +165,13 @@ class WarehouseReceiptRepository
             $txRepo = new TransactionsRepository();
 
             if ($type === 'balance') {
-                // Оприходование в долг - создаем долговую транзакцию (как в продаже)
+                // Оприходование в долг - создаем долговую транзакцию
+                // ВАЖНО: При оприходовании мы покупаем товар у поставщика в долг
+                // Мы должны поставщику → его баланс УВЕЛИЧИВАЕТСЯ (положительный баланс)
+                // TransactionsRepository: type=1 для долговых операций делает balance +=
                 $transaction_id = $txRepo->createItem(
                     [
-                        'type'        => 1, // Доход - поставщик нам должен (мы ему должны)
+                        'type'        => 1, // Доход для поставщика, чтобы его баланс УВЕЛИЧИЛСЯ
                         'user_id'     => auth('api')->id(),
                         'orig_amount' => $total_amount,
                         'currency_id' => $currency->id,
@@ -184,11 +187,13 @@ class WarehouseReceiptRepository
                     ],
                     true,
                     false
-                ); // Как в продаже: return_id=true, skipClientUpdate=false
+                );
             } else {
-                // Оприходование в кассу - две транзакции (долг + платеж) - как в продаже
+                // Оприходование в кассу - две транзакции (долг + платеж)
+                // ВАЖНО: При оприходовании мы покупаем товар у поставщика в долг
+                // Мы должны поставщику → его баланс УВЕЛИЧИВАЕТСЯ (положительный баланс)
                 $debtTxData = [
-                    'type'        => 1, // Доход - поставщик нам должен (мы ему должны)
+                    'type'        => 1, // Доход для поставщика, чтобы его баланс УВЕЛИЧИЛСЯ
                     'user_id'     => auth('api')->id(),
                     'orig_amount' => $total_amount,
                     'amount'      => $total_amount,
@@ -207,7 +212,8 @@ class WarehouseReceiptRepository
 
                 $paymentTxData = $debtTxData;
                 $paymentTxData['is_debt'] = false; // Обычная транзакция - касса меняется
-                $transaction_id = $txRepo->createItem($paymentTxData, true, false);
+                $paymentTxData['type'] = 0; // Расход - мы платим поставщику
+                $transaction_id = $txRepo->createItem($paymentTxData, true, true); // skipClientUpdate=true - баланс уже учтен долговой транзакцией
             }
 
             DB::commit();

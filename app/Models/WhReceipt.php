@@ -36,7 +36,15 @@ class WhReceipt extends Model
             $transactions = $receipt->transactions()->get();
             $transactionsCount = $transactions->count();
             foreach ($transactions as $transaction) {
-                $transaction->delete(); // Вызываем delete() для каждой транзакции отдельно
+                try {
+                    $transaction->delete(); // Вызываем delete() для каждой транзакции отдельно
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('WhReceipt::deleting - Error deleting transaction', [
+                        'transaction_id' => $transaction->id,
+                        'error' => $e->getMessage()
+                    ]);
+                    throw $e; // Пробрасываем исключение дальше
+                }
             }
 
             \Illuminate\Support\Facades\Log::info('WhReceipt::deleting - Transactions deleted', [
