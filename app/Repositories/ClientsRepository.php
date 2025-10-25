@@ -395,19 +395,31 @@ class ClientsRepository
 
                         // История баланса показывает движение товаров/денег с точки зрения долга
                         if ($item->source === 'receipt') {
-                            // Оприходование от поставщика (type=0 всегда - расход)
+                            // Оприходование от поставщика
                             $receiptId = $item->source_id;
+
+                            // Определяем описание и знак по is_debt
+                            if ($item->is_debt) {
+                                // Долговая транзакция: поставщик нам должен (долг увеличивается)
+                                $description = '📦 Оприходование #' . $receiptId . ' (в кредит)';
+                                $amount = +$amount; // Положительный - долг растет
+                            } else {
+                                // Обычная транзакция: мы платим поставщику (долг уменьшается)
+                                $description = '💰 Оплата поставщику #' . $receiptId;
+                                $amount = -$amount; // Отрицательный - платим деньги
+                            }
+
                             $results[] = [
                                 'source' => $item->source,
                                 'source_id' => $item->id,
                                 'source_type' => $item->source_type,
                                 'source_source_id' => $item->source_id,
                                 'date' => $item->created_at,
-                                'amount' => -$amount, // type=0 → минус (расход)
+                                'amount' => $amount,
                                 'orig_amount' => $item->orig_amount,
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
-                                'description' => '📦 Оприходование #' . $receiptId . ($item->is_debt ? ' (в долг)' : ''),
+                                'description' => $description,
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user_name,
                                 'currency_symbol' => $item->currency_symbol,
@@ -421,8 +433,8 @@ class ClientsRepository
                             // Формируем описание с явным указанием типа
                             if ($item->is_debt) {
                                 $description = $item->type == 1
-                                    ? '💸 Долг клиента #' . $transactionId
-                                    : '💸 Наш долг #' . $transactionId;
+                                    ? '💸 Кредит клиента #' . $transactionId
+                                    : '💸 Наш кредит #' . $transactionId;
                             } else {
                                 $description = $item->type == 1
                                     ? '✅ Приход #' . $transactionId
@@ -458,7 +470,7 @@ class ClientsRepository
                                 'orig_amount' => $item->orig_amount,
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
-                                'description' => '🛒 Продажа #' . $saleId . ($item->is_debt ? ' (в долг)' : ''),
+                                'description' => '🛒 Продажа #' . $saleId . ($item->is_debt ? ' (в кредит)' : ''),
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user_name,
                                 'currency_symbol' => $item->currency_symbol,
