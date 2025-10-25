@@ -45,10 +45,17 @@ class ProductsRepository
             $userCategoryIds = array_intersect($userCategoryIds, $companyCategoryIds);
         }
 
-        // Если у пользователя нет доступных категорий, показываем товары из категории 1 (по умолчанию)
-        if (empty($userCategoryIds)) {
-            $userCategoryIds = [1]; // Категория 1 по умолчанию
-        }
+        // ✅ ИСПРАВЛЕНО: Не используем fallback на категорию 1 - это может показать товары из чужой компании!
+        // Если у пользователя нет доступных категорий в текущей компании - возвращаем пустой массив
+        // Это безопаснее, чем показывать потенциально чужие товары
+
+        // 🔍 DEBUG: Логируем для отладки
+        \Log::info('getUserCategoryIds', [
+            'user_id' => $userUuid,
+            'company_id' => $companyId,
+            'user_category_ids' => $userCategoryIds,
+            'count' => count($userCategoryIds)
+        ]);
 
         return $userCategoryIds;
     }
@@ -68,12 +75,35 @@ class ProductsRepository
                 $userCategoryIds = array_intersect($userCategoryIds, [$categoryId]);
             }
 
+            // ✅ ЗАЩИТА: Если у пользователя нет категорий в текущей компании - возвращаем пустой результат
+            if (empty($userCategoryIds)) {
+                // Возвращаем пустую пагинацию
+                return new \Illuminate\Pagination\LengthAwarePaginator(
+                    collect([]),
+                    0,
+                    $perPage,
+                    $page,
+                    ['path' => request()->url(), 'query' => request()->query()]
+                );
+            }
+
             // Получаем ID продуктов пользователя через категории
             $userProductIds = DB::table('product_categories')
                 ->whereIn('category_id', $userCategoryIds)
                 ->pluck('product_id')
                 ->unique()
                 ->toArray();
+
+            // ✅ ЗАЩИТА: Если товаров нет в категориях пользователя - возвращаем пустой результат
+            if (empty($userProductIds)) {
+                return new \Illuminate\Pagination\LengthAwarePaginator(
+                    collect([]),
+                    0,
+                    $perPage,
+                    $page,
+                    ['path' => request()->url(), 'query' => request()->query()]
+                );
+            }
 
             // Загружаем продукты с категориями через Eloquent
             $query = Product::with(['categories', 'unit', 'prices', 'creator'])
@@ -138,12 +168,22 @@ class ProductsRepository
             // Получаем категории пользователя с учетом компании
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
+            // ✅ ЗАЩИТА: Если у пользователя нет категорий в текущей компании - возвращаем пустой результат
+            if (empty($userCategoryIds)) {
+                return collect([]);
+            }
+
             // Получаем ID продуктов пользователя через категории
             $userProductIds = DB::table('product_categories')
                 ->whereIn('category_id', $userCategoryIds)
                 ->pluck('product_id')
                 ->unique()
                 ->toArray();
+
+            // ✅ ЗАЩИТА: Если товаров нет в категориях пользователя - возвращаем пустой результат
+            if (empty($userProductIds)) {
+                return collect([]);
+            }
 
             // Загружаем продукты с категориями через Eloquent
             $query = Product::with(['categories', 'unit', 'prices', 'creator'])
@@ -325,6 +365,11 @@ class ProductsRepository
     {
         // Получаем категории пользователя с учетом компании
         $userCategoryIds = $this->getUserCategoryIds($userUuid);
+
+        // ✅ ЗАЩИТА: Если у пользователя нет категорий в текущей компании - товар недоступен
+        if (empty($userCategoryIds)) {
+            return null;
+        }
 
         // Получаем ID продуктов пользователя через категории
         $userProductIds = DB::table('product_categories')
