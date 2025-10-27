@@ -342,15 +342,21 @@ class WarehouseReceiptRepository
     // Обновление стоков
     private function updateStock($warehouse_id, $product_id, $add_quantity)
     {
-        WarehouseStock::updateOrCreate(
-            [
-                'warehouse_id' => $warehouse_id,
-                'product_id'   => $product_id,
-            ],
-            [
-                'quantity' => DB::raw('quantity + ' . $add_quantity)
-            ]
-        );
+        // Преобразуем add_quantity в число, если это Decimal объект
+        $quantity = is_numeric($add_quantity) ? $add_quantity : (float)$add_quantity;
+
+        $stock = WarehouseStock::firstOrNew([
+            'warehouse_id' => $warehouse_id,
+            'product_id'   => $product_id,
+        ]);
+
+        if ($stock->exists) {
+            $stock->increment('quantity', $quantity);
+        } else {
+            $stock->quantity = $quantity;
+            $stock->save();
+        }
+
         return true;
     }
 
