@@ -62,6 +62,7 @@ class SalesRepository
                 'sales.user_id',
                 'sales.project_id',
                 'sales.date',
+                'sales.price',
                 'sales.discount',
                 'sales.note',
                 'sales.created_at',
@@ -78,8 +79,7 @@ class SalesRepository
                     'project:id,name',
                     'products:id,sale_id,product_id,quantity,price',
                     'products.product:id,name,image,unit_id',
-                    'products.product.unit:id,name,short_name',
-                    'transactions:id,source_id,source_type,amount,is_debt' // Добавляем связь с транзакциями
+                    'products.product.unit:id,name,short_name'
                 ]);
 
             // Применяем фильтры
@@ -260,7 +260,7 @@ class SalesRepository
             $discount    = $data['discount'] ?? 0;
             $discountType = $data['discount_type'] ?? 'percent';
             $date        = $data['date'] ?? now();
-            $note        = $data['note'] ?? '';
+            $note        = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
             $products    = $data['products'];
 
             $defaultCurrency = Currency::firstWhere('is_default', true);
@@ -380,10 +380,20 @@ class SalesRepository
             foreach ($products as $p) {
                 $prod = Product::find($p->product_id);
                 if ($prod && $prod->type == 1) {
-                    WarehouseStock::updateOrCreate(
-                        ['warehouse_id' => $sale->warehouse_id, 'product_id' => $p->product_id],
-                        ['quantity'     => DB::raw("quantity + {$p->quantity}")]
-                    );
+                    $stock = WarehouseStock::where('warehouse_id', $sale->warehouse_id)
+                        ->where('product_id', $p->product_id)
+                        ->first();
+
+                    if ($stock) {
+                        $stock->quantity = $stock->quantity + $p->quantity;
+                        $stock->save();
+                    } else {
+                        WarehouseStock::create([
+                            'warehouse_id' => $sale->warehouse_id,
+                            'product_id' => $p->product_id,
+                            'quantity' => $p->quantity
+                        ]);
+                    }
                 }
                 $p->delete();
             }

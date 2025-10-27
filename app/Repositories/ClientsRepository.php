@@ -382,7 +382,7 @@ class ClientsRepository
                         DB::raw("CASE
                             WHEN transactions.source_type = 'App\\\\Models\\\\Sale' THEN 'sale'
                             WHEN transactions.source_type = 'App\\\\Models\\\\Order' THEN 'order'
-                            WHEN transactions.source_type = 'App\\\\Models\\\\WarehouseReceipt' THEN 'receipt'
+                            WHEN transactions.source_type = 'App\\\\Models\\\\WhReceipt' THEN 'receipt'
                             ELSE 'transaction'
                         END as source"),
                         'currencies.symbol as currency_symbol',

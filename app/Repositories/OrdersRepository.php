@@ -509,7 +509,7 @@ class OrdersRepository
         $discount = $data['discount'] ?? 0;
         $discount_type = $data['discount_type'] ?? 'fixed';
         $date = $data['date'] ?? now();
-        $note = $data['note'] ?? '';
+        $note = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
         $description = $data['description'] ?? '';
 
         $defaultCurrency = Currency::firstWhere('is_default', true);
@@ -732,7 +732,7 @@ class OrdersRepository
             $currency_id = $data['currency_id'] ?? $order->currency_id;
             $discount = $data['discount'] ?? 0;
             $discount_type = $data['discount_type'] ?? 'fixed';
-            $note = $data['note'] ?? '';
+            $note = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
             $description = $data['description'] ?? '';
             $date = $data['date'] ?? now();
 

@@ -113,7 +113,7 @@ class WarehouseReceiptRepository
         $type         = $data['type'];
         $cash_id      = $data['cash_id'] ?? null;
         $date         = $data['date'] ?? now();
-        $note         = $data['note'] ?? '';
+        $note         = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
         $products     = $data['products'];
 
         DB::beginTransaction();
@@ -231,7 +231,7 @@ class WarehouseReceiptRepository
         $warehouse_id = $data['warehouse_id'];
         $cash_id      = $data['cash_id'] ?? null;
         $date         = $data['date'];
-        $note         = $data['note'];
+        $note         = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
         $products     = $data['products'];
         $project_id   = $data['project_id'] ?? null;
 

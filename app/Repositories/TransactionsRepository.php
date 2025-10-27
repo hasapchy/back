@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\CashRegister;
 use App\Models\Client;
 use App\Models\Currency;
+use App\Models\Project;
 use App\Models\Transaction;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
@@ -367,7 +368,7 @@ class TransactionsRepository
             $transaction->category_id = $data['category_id'];
             $transaction->project_id = $data['project_id'];
             $transaction->client_id = $data['client_id'];
-            $transaction->note = $data['note'];
+            $transaction->note = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
             $transaction->date = $data['date'];
             $transaction->is_debt = $data['is_debt'] ?? false;
             $transaction->source_type = $data['source_type'] ?? null;
@@ -535,7 +536,7 @@ class TransactionsRepository
         $transaction->category_id = $data['category_id'];
         $transaction->project_id = $data['project_id'];
         $transaction->date = $data['date'];
-        $transaction->note = $data['note'];
+        $transaction->note = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
 
         // Обновляем is_debt если передано
         if (isset($data['is_debt'])) {
@@ -609,7 +610,7 @@ class TransactionsRepository
             $transaction->category_id = $data['category_id'];
             $transaction->project_id = $data['project_id'];
             $transaction->date = $data['date'];
-            $transaction->note = $data['note'];
+            $transaction->note = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
 
             // Обновляем сумму и валюту если переданы
             if (isset($data['orig_amount'])) {
@@ -1016,7 +1017,7 @@ class TransactionsRepository
 
     private function isReceipt($transaction)
     {
-        return $transaction->source_type === 'App\Models\WarehouseReceipt';
+        return $transaction->source_type === 'App\Models\WhReceipt';
     }
 
     public function userHasPermissionToCashRegister($userUuid, $cashRegisterId)

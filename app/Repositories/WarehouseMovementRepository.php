@@ -184,15 +184,20 @@ class WarehouseMovementRepository
     // Обновление стоков
     private function updateStock($warehouse_id, $product_id, $remove_quantity)
     {
-        WarehouseStock::updateOrCreate(
-            [
+        $stock = WarehouseStock::where('warehouse_id', $warehouse_id)
+            ->where('product_id', $product_id)
+            ->first();
+
+        if ($stock) {
+            $stock->quantity = $stock->quantity + $remove_quantity;
+            $stock->save();
+        } else {
+            WarehouseStock::create([
                 'warehouse_id' => $warehouse_id,
-                'product_id'   => $product_id,
-            ],
-            [
-                'quantity' => DB::raw('quantity + ' . $remove_quantity)
-            ]
-        );
+                'product_id' => $product_id,
+                'quantity' => $remove_quantity
+            ]);
+        }
         return true;
     }
 
