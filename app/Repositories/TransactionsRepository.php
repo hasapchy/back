@@ -287,6 +287,8 @@ class TransactionsRepository
                         'date' => $transaction->date,
                         'created_at' => $transaction->created_at,
                         'updated_at' => $transaction->updated_at,
+                        'source_type' => $transaction->source_type,
+                        'source_id' => $transaction->source_id,
                     ];
                 });
 
@@ -753,35 +755,6 @@ class TransactionsRepository
                 // Для ОБЫЧНЫХ транзакций (is_debt=false) - Transaction::updated hook уже сработает
                 // Для ДОЛГОВЫХ операций (is_debt=true) - обновляем вручную
 
-                // Если клиент изменился и была долговая операция - откатываем баланс старого клиента
-                $oldIsRegularTransaction = empty($oldSourceType);
-                if ($oldClientId && $oldClientId !== $transaction->client_id && ($oldIsDebt || $oldIsRegularTransaction)) {
-                    if ($oldCurrencyId !== $defaultCurrencyId) {
-                        $oldConvertedAmountDefault = CurrencyConverter::convert($oldOrigAmount, $currencies[$oldCurrencyId], $currencies[$defaultCurrencyId]);
-                    } else {
-                        $oldConvertedAmountDefault = $oldOrigAmount;
-                    }
-
-                    // Откат для старого клиента - используем $oldType для правильного отката
-                    if ($oldType == 1) {
-                        DB::table('clients')->where('id', $oldClientId)->update([
-                            'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
-                        ]);
-                    } else {
-                        DB::table('clients')->where('id', $oldClientId)->update([
-                            'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
-                        ]);
-                    }
-
-                    CacheService::invalidateClientBalanceCache($oldClientId);
-
-                    Log::info('Old client balance rolled back', [
-                        'transaction_id' => $id,
-                        'old_client_id' => $oldClientId,
-                        'operation' => $oldType == 1 ? 'ADD (reverse of income)' : 'SUBTRACT (reverse of expense)'
-                    ]);
-                }
-
                 // Применяем новый баланс клиента ТОЛЬКО если это долговая операция
                 // Для обычных транзакций это сделает Transaction::updated hook
                 if ($transaction->is_debt) {
@@ -1022,6 +995,7 @@ class TransactionsRepository
         return Transaction::where('transactions.user_id', $userId)
             ->where('source_type', 'App\Models\Order')
             ->where('source_id', $orderId)
+            ->where('is_debt', 0) // Учитываем только реальные платежи, не долговые транзакции
             ->sum('orig_amount');
     }
 

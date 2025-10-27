@@ -496,43 +496,8 @@ class ProjectsRepository
                 });
 
 
-            $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
-            $defaultCurrencySymbol = $defaultCurrency ? $defaultCurrency->symbol : '';
-
-            $orders = DB::table('orders')
-                ->leftJoin('users', 'orders.user_id', '=', 'users.id')
-                ->where('orders.project_id', $projectId)
-                ->select(
-                    'orders.id',
-                    'orders.created_at',
-                    // Конвертируем из дефолтной валюты в валюту проекта
-                    DB::raw("-((orders.price - orders.discount) * {$projectExchangeRate}) as amount"),
-                    DB::raw('orders.price - orders.discount as orig_amount'),
-                    'orders.note',
-                    'orders.user_id',
-                    'users.name as user_name'
-                )
-                ->get()
-                ->map(function ($item) use ($defaultCurrencySymbol) {
-                    return [
-                        'source' => 'order',
-                        'source_id' => $item->id,
-                        'source_type' => 'App\\Models\\Order',
-                        'source_source_id' => $item->id,
-                        'date' => $item->created_at,
-                        'amount' => (float)$item->amount,
-                        'orig_amount' => (float)$item->orig_amount,
-                        'is_debt' => false,
-                        'note' => $item->note,
-                        'user_id' => $item->user_id,
-                        'user_name' => $item->user_name,
-                        'cash_currency_symbol' => $defaultCurrencySymbol
-                    ];
-                });
-
-            // Объединяем транзакции и заказы, сортируем по дате
+            // Сортируем транзакции по дате
             $result = $transactionsResult
-                ->concat($orders)
                 ->sortBy('date')
                 ->values()
                 ->all();

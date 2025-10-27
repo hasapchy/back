@@ -26,7 +26,6 @@ class PermissionsSeeder extends Seeder
             'orders',
             'order_statuses',
             'order_statuscategories',
-            'order_categories',
             'transaction_categories',
             'invoices',
             'users',

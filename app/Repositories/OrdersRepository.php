@@ -361,7 +361,12 @@ class OrdersRepository
             'categories.name as category_name'
         );
 
-        $items = $query->get()->map(function ($item) {
+        // Загружаем дополнительные поля для всех заказов сразу
+        $query->with(['additionalFieldValues.additionalField:id,name,type,options']);
+
+        $orderModels = $query->get();
+
+        $items = $orderModels->map(function ($item) {
             return (object) $item->toArray();
         });
 
@@ -370,7 +375,7 @@ class OrdersRepository
         $client_repository = new ClientsRepository();
         $clients = $client_repository->getItemsByIds($client_ids);
 
-        foreach ($items as $item) {
+        foreach ($items as $index => $item) {
             $item->products = $products->get($item->id, collect());
             $item->client = $clients->firstWhere('id', $item->client_id);
             $item->status = [
@@ -384,7 +389,9 @@ class OrdersRepository
                 ] : null,
             ];
 
-            $item->additional_fields = $this->getAdditionalFields($item->id);
+            // Преобразуем загруженные дополнительные поля в нужный формат
+            $orderModel = $orderModels->get($index);
+            $item->additional_fields = $this->formatAdditionalFields($orderModel);
         }
 
         return $items;
@@ -1093,19 +1100,21 @@ class OrdersRepository
 
             // Убрана проверка на создателя - статус может менять любой пользователь
 
-            // Проверка на статусы "Оплачено" (id=3) и "Готово" (id=4)
+            // Проверка на статус "Оплачено" (id=3)
             // Пропускаем проверку, если в заказе выбран проект
-            if (($statusId == 3 || $statusId == 4) && !$order->project_id) {
+            if ($statusId == 3 && !$order->project_id) {
                 // Вычисляем сумму заказа (товары минус скидка)
                 $orderTotal = $order->price - $order->discount;
 
                 // Вычисляем сумму оплаты из транзакций, созданных для этого заказа
+                // Учитываем только реальные платежи (is_debt=0), не долговые транзакции
                 $paidTotal = Transaction::where('source_type', \App\Models\Order::class)
                     ->where('source_id', $order->id)
+                    ->where('is_debt', 0)
                     ->sum('orig_amount');
 
-                // Проверяем: оплата должна быть > 0 для статусов "оплачено" и "готово"
-                if ($paidTotal <= 0 || $paidTotal < $orderTotal) {
+                // Проверяем: оплата должна быть > 0 для статуса "оплачено"
+                if ($paidTotal <= 0) {
                     $remainingAmount = $orderTotal - $paidTotal;
                     return [
                         'success' => false,
@@ -1114,9 +1123,7 @@ class OrdersRepository
                         'paid_total' => $paidTotal,
                         'order_total' => $orderTotal,
                         'remaining_amount' => $remainingAmount,
-                        'message' => $paidTotal <= 0
-                            ? "Заказ не оплачен. Необходимо создать транзакцию оплаты на сумму: {$remainingAmount}"
-                            : "Заказ не оплачен полностью. Осталось доплатить: {$remainingAmount}"
+                        'message' => "Заказ не оплачен. Необходимо создать транзакцию оплаты"
                     ];
                 }
             }
@@ -1193,6 +1200,24 @@ class OrdersRepository
                     'formatted_value' => $value->getFormattedValue()
                 ];
             });
+    }
+
+    private function formatAdditionalFields($order)
+    {
+        // Если у заказа уже загружены дополнительные поля через eager loading
+        if (isset($order->additionalFieldValues) && is_iterable($order->additionalFieldValues)) {
+            return collect($order->additionalFieldValues)->map(function ($value) {
+                return [
+                    'field_id' => $value->order_af_id,
+                    'value' => $value->value,
+                    'field' => $value->additionalField,
+                    'formatted_value' => $value->getFormattedValue()
+                ];
+            })->values();
+        }
+
+        // Fallback на старый метод, если данные не загружены
+        return $this->getAdditionalFields($order->id);
     }
 
     public function userHasPermissionToCashRegister($userUuid, $cashRegisterId)

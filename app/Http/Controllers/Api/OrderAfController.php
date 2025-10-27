@@ -65,8 +65,6 @@ class OrderAfController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'type' => 'required|in:string,int,date,boolean,select,datetime',
-            'category_ids' => 'required|array|min:1',
-            'category_ids.*' => 'integer|exists:order_categories,id',
             'options' => 'nullable|array',
             'options.*' => 'string|max:255',
             'required' => 'boolean',
@@ -84,7 +82,6 @@ class OrderAfController extends Controller
             $data = [
                 'name' => $request->name,
                 'type' => $request->type,
-                'category_ids' => $request->category_ids,
                 'options' => $request->options,
                 'required' => $request->boolean('required', false),
                 'default' => $request->default,
@@ -95,7 +92,7 @@ class OrderAfController extends Controller
 
             return response()->json([
                 'message' => 'Дополнительное поле успешно создано',
-                'field' => $field->load('categories')
+                'field' => $field
             ], 201);
         } catch (\Throwable $th) {
             return response()->json([
@@ -115,8 +112,6 @@ class OrderAfController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
             'type' => 'sometimes|required|in:string,int,date,boolean,select,datetime',
-            'category_ids' => 'sometimes|required|array|min:1',
-            'category_ids.*' => 'integer|exists:order_categories,id',
             'options' => 'nullable|array',
             'options.*' => 'string|max:255',
             'required' => 'sometimes|boolean',
@@ -134,7 +129,6 @@ class OrderAfController extends Controller
             $data = $request->only([
                 'name',
                 'type',
-                'category_ids',
                 'options',
                 'required',
                 'default'
@@ -148,7 +142,7 @@ class OrderAfController extends Controller
 
             return response()->json([
                 'message' => 'Поле успешно обновлено',
-                'field' => $field->load('categories')
+                'field' => $field
             ]);
         } catch (\Throwable $th) {
             return response()->json([
@@ -180,56 +174,12 @@ class OrderAfController extends Controller
     }
 
 
-    public function getByCategory($categoryId)
-    {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
-
-        $fields = $this->repository->getFieldsByCategory($categoryId, $userUuid);
-
-        return response()->json([
-            'category_id' => $categoryId,
-            'fields' => $fields
-        ]);
-    }
-
-
     public function getFieldTypes()
     {
         $types = $this->repository->getFieldTypes();
 
         return response()->json([
             'types' => $types
-        ]);
-    }
-
-
-    public function getByCategories(Request $request)
-    {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'category_ids' => 'required|array|min:1',
-            'category_ids.*' => 'integer|exists:order_categories,id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Ошибка валидации',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $fields = $this->repository->getFieldsByCategories($request->category_ids, $userUuid);
-
-        return response()->json([
-            'category_ids' => $request->category_ids,
-            'fields' => $fields
         ]);
     }
 }

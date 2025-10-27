@@ -102,6 +102,33 @@ class TransactionsController extends Controller
         if ($request->order_id) {
             $sourceType = Order::class;
             $sourceId = $request->order_id;
+
+            // Валидация минимальной суммы для оплаты заказа
+            $order = Order::find($request->order_id);
+            if ($order) {
+                // Вычисляем сумму заказа (товары минус скидка)
+                $orderTotal = $order->price - $order->discount;
+
+                // Вычисляем сумму оплаты из транзакций, созданных для этого заказа
+                // Учитываем только реальные платежи (is_debt=0), не долговые транзакции
+                $paidTotal = Transaction::where('source_type', Order::class)
+                    ->where('source_id', $order->id)
+                    ->where('is_debt', 0)
+                    ->sum('orig_amount');
+
+                // Вычисляем оставшуюся сумму к оплате
+                $remainingAmount = $orderTotal - $paidTotal;
+
+                // Проверяем, что указанная сумма не меньше минимальной необходимой
+                if ($request->orig_amount < $remainingAmount) {
+                    return response()->json([
+                        'message' => "Минимальная сумма оплаты: {$remainingAmount}. Указано: {$request->orig_amount}",
+                        'error' => 'INSUFFICIENT_PAYMENT_AMOUNT',
+                        'minimum_amount' => $remainingAmount,
+                        'provided_amount' => $request->orig_amount
+                    ], 422);
+                }
+            }
         }
 
         $item_created = $this->itemsRepository->createItem([
