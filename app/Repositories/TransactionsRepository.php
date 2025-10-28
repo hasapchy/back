@@ -365,7 +365,16 @@ class TransactionsRepository
             $transaction->amount = $convertedAmount;
             $transaction->currency_id = $data['currency_id'];
             $transaction->cash_id = $cashRegister->id;
-            $transaction->category_id = $data['category_id'];
+
+            // Если это корректировка баланса (is_adjustment = true), автоматически выбираем категорию "Корректировка остатка"
+            // ID категорий: 31 - тип 0 (расход), 32 - тип 1 (приход)
+            if (isset($data['is_adjustment']) && $data['is_adjustment']) {
+                $adjustmentCategoryId = $data['type'] == 1 ? 22 : 21;
+                $transaction->category_id = $adjustmentCategoryId;
+            } else {
+                $transaction->category_id = $data['category_id'];
+            }
+
             $transaction->project_id = $data['project_id'];
             $transaction->client_id = $data['client_id'];
             $transaction->note = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
@@ -373,10 +382,7 @@ class TransactionsRepository
             $transaction->is_debt = $data['is_debt'] ?? false;
             $transaction->source_type = $data['source_type'] ?? null;
             $transaction->source_id = $data['source_id'] ?? null;
-            // Удалено поле order_id - теперь используется связующая таблица
 
-            // ВАЖНО: Для обычных транзакций (is_debt=false) позволяем Transaction::created обновить баланс
-            // Для долговых операций (is_debt=true) пропускаем, и обновляем вручную ниже
             $shouldSkipClientBalanceUpdate = ($data['is_debt'] ?? false);
             $transaction->setSkipClientBalanceUpdate($shouldSkipClientBalanceUpdate);
             $transaction->setSkipCashBalanceUpdate(true); // Касса обновляется в репозитории
