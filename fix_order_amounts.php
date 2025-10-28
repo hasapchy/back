@@ -68,7 +68,7 @@ function calculateQuantityFromDimensions($width, $height, $unitShortName, $unitN
 
 // Создаем backup таблиц
 echo "1. Создание backup таблиц...\n";
-$timestamp = date('Y-m-d_H-i-s');
+$timestamp = date('Y_m_d_H_i_s'); // Заменяем дефисы на подчеркивания для SQL
 
 try {
     DB::statement("CREATE TABLE order_products_backup_{$timestamp} AS SELECT * FROM order_products");
@@ -264,8 +264,7 @@ try {
     echo "Для отката изменений выполните SQL:\n";
     echo "  TRUNCATE order_products; INSERT INTO order_products SELECT * FROM order_products_backup_{$timestamp};\n";
     echo "  TRUNCATE orders; INSERT INTO orders SELECT * FROM orders_backup_{$timestamp};\n";
-    echo "  TRUNCATE transactions; INSERT INTO transactions SELECT * FROM transactions_backup_{$timestamp};\n";
-    echo "  TRUNCATE clients; INSERT INTO clients SELECT * FROM (SELECT * FROM clients_backup_{$timestamp}) as backup;\n\n";
+    echo "  TRUNCATE transactions; INSERT INTO transactions SELECT * FROM transactions_backup_{$timestamp};\n\n";
 
 } catch (\Exception $e) {
     DB::rollBack();
