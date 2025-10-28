@@ -117,6 +117,8 @@ class Order extends Model
     protected $casts = [
         'price' => 'decimal:2',
         'discount' => 'decimal:2',
+        'client_id' => 'integer',
+        'project_id' => 'integer',
     ];
 
     public function client()

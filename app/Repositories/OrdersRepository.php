@@ -662,25 +662,27 @@ class OrdersRepository
             }
 
             // Создаем автоматическую долговую транзакцию для заказа
-            $transactionData = [
-                'client_id'    => $client_id,
-                'amount'       => $total_price,
-                'orig_amount'  => $total_price,
-                'type'         => 1, // доход (клиент покупает в долг, баланс увеличивается)
-                'is_debt'      => true, // долг (касса не меняется)
-                'cash_id'      => $cash_id,
-                'category_id'  => 1, // категория по умолчанию
-                'source_type'  => Order::class,
-                'source_id'    => $order->id,
-                'date'         => $date,
-                'note'         => $note,
-                'user_id'      => $userUuid,
-                'project_id'   => $project_id,
-                'currency_id'  => $defaultCurrency->id,
-            ];
+            if ($client_id) {
+                $transactionData = [
+                    'client_id'    => $client_id,
+                    'amount'       => $total_price,
+                    'orig_amount'  => $total_price,
+                    'type'         => 1, // доход (клиент покупает в долг, баланс увеличивается)
+                    'is_debt'      => true, // долг (касса не меняется)
+                    'cash_id'      => $cash_id,
+                    'category_id'  => 1, // категория по умолчанию
+                    'source_type'  => Order::class,
+                    'source_id'    => $order->id,
+                    'date'         => $date,
+                    'note'         => $note,
+                    'user_id'      => $userUuid,
+                    'project_id'   => $project_id,
+                    'currency_id'  => $defaultCurrency->id,
+                ];
 
-            $txRepo = new TransactionsRepository();
-            $txRepo->createItem($transactionData, true, false); // Как в продаже: return_id=true, skipClientUpdate=false
+                $txRepo = new TransactionsRepository();
+                $txRepo->createItem($transactionData, true, false); // Как в продаже: return_id=true, skipClientUpdate=false
+            }
 
             DB::commit();
 
@@ -708,6 +710,21 @@ class OrdersRepository
         try {
             $order = Order::findOrFail($id);
             $oldProducts = OrderProduct::where('order_id', $id)->get();
+
+            // 0. Запрещаем менять тип контрагента после создания:
+            // если заказ создан с клиентом (client-mode), запрещаем проставлять project_id
+            // если заказ создан с проектом (project-mode), запрещаем проставлять client_id
+            $isClientModeInitial = !empty($order->client_id) && empty($order->project_id);
+            $isProjectModeInitial = empty($order->client_id) && !empty($order->project_id);
+            $newClientId = $data['client_id'] ?? $order->client_id;
+            $newProjectId = $data['project_id'] ?? $order->project_id;
+
+            if ($isClientModeInitial && !empty($newProjectId)) {
+                throw new \Exception('Нельзя поменять заказ с клиента на проект. Разрешается только смена клиента.');
+            }
+            if ($isProjectModeInitial && !empty($newClientId)) {
+                throw new \Exception('Нельзя поменять заказ с проекта на клиента. Разрешается только смена проекта.');
+            }
 
             // 1. Возвращаем старые товары на склад
             foreach ($oldProducts as $product) {
@@ -1004,21 +1021,44 @@ class OrdersRepository
                 ->first();
 
             if ($orderTransaction) {
-                // Автоматическая транзакция = ПОЛНАЯ сумма заказа (БЕЗ вычета оплат!)
-                // Оплаты учитываются отдельными транзакциями type=1, is_debt=false
-                if ($orderTransaction->amount != $total_price) {
-                    $txRepo = new TransactionsRepository();
-                    $txRepo->updateItem($orderTransaction->id, [
-                        'amount' => $total_price,
-                        'orig_amount' => $total_price,
-                        'client_id' => $client_id,
-                        'project_id' => $project_id,
-                        'cash_id' => $cash_id,
-                        'category_id' => 1,
-                        'date' => $date,
-                        'note' => $note,
-                    ]);
+                if ($client_id) {
+                    // Автоматическая транзакция = ПОЛНАЯ сумма заказа (БЕЗ вычета оплат!)
+                    if ($orderTransaction->amount != $total_price) {
+                        $txRepo = new TransactionsRepository();
+                        $txRepo->updateItem($orderTransaction->id, [
+                            'amount' => $total_price,
+                            'orig_amount' => $total_price,
+                            'client_id' => $client_id,
+                            'project_id' => $project_id,
+                            'cash_id' => $cash_id,
+                            'category_id' => 1,
+                            'date' => $date,
+                            'note' => $note,
+                        ]);
+                    }
+                } else {
+                    // Если клиент удален из заказа — удаляем автоматическую долговую транзакцию
+                    $orderTransaction->delete();
                 }
+            } else if ($client_id) {
+                // Если транзакции нет, но теперь выбран клиент — создаем её
+                $txRepo = new TransactionsRepository();
+                $txRepo->createItem([
+                    'client_id'    => $client_id,
+                    'amount'       => $total_price,
+                    'orig_amount'  => $total_price,
+                    'type'         => 1,
+                    'is_debt'      => true,
+                    'cash_id'      => $cash_id,
+                    'category_id'  => 1,
+                    'source_type'  => Order::class,
+                    'source_id'    => $order->id,
+                    'date'         => $date,
+                    'note'         => $note,
+                    'user_id'      => $order->user_id,
+                    'project_id'   => $project_id,
+                    'currency_id'  => $defaultCurrency->id,
+                ], true, false);
             }
 
             DB::commit();
