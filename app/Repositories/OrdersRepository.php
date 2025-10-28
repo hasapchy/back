@@ -1286,23 +1286,23 @@ class OrdersRepository
 
         // Логика расчета на основе единиц измерения
         if ($unitShortName === 'м²' || $unitName === 'Квадратный метр') {
-            // Квадратный метр: ширина × высота
-            return $width * $height;
+            // Квадратный метр: ширина × высота - округляем до 2 знаков
+            return round($width * $height, 2);
         } elseif ($unitShortName === 'м' || $unitName === 'Метр') {
-            // Метр: периметр (2 × ширина + 2 × высота)
-            return 2 * $width + 2 * $height;
+            // Метр: периметр (2 × ширина + 2 × высота) - округляем до 2 знаков
+            return round(2 * $width + 2 * $height, 2);
         } elseif ($unitShortName === 'л' || $unitName === 'Литр') {
-            // Литр: ширина × высота (площадь для расчета объема)
-            return $width * $height;
+            // Литр: ширина × высота (площадь для расчета объема) - округляем до 2 знаков
+            return round($width * $height, 2);
         } elseif (
             $unitShortName === 'кг' || $unitName === 'Килограмм' ||
             $unitShortName === 'г' || $unitName === 'Грамм'
         ) {
-            // Вес: ширина × высота (площадь для расчета веса)
-            return $width * $height;
+            // Вес: ширина × высота (площадь для расчета веса) - округляем до 2 знаков
+            return round($width * $height, 2);
         } elseif ($unitShortName === 'шт' || $unitName === 'Штука') {
-            // Штука: ширина × высота
-            return $width * $height;
+            // Штука: ширина × высота - округляем до 2 знаков
+            return round($width * $height, 2);
         } elseif (
             $unitShortName === 'уп' || $unitName === 'Упаковка' ||
             $unitShortName === 'кор' || $unitName === 'Коробка' ||
@@ -1310,11 +1310,11 @@ class OrdersRepository
             $unitShortName === 'комп' || $unitName === 'Комплект' ||
             $unitShortName === 'рул' || $unitName === 'Рулон'
         ) {
-            // Упаковочные единицы: ширина × высота
-            return $width * $height;
+            // Упаковочные единицы: ширина × высота - округляем до 2 знаков
+            return round($width * $height, 2);
         } else {
-            // Для остальных единиц: ширина × высота
-            return $width * $height;
+            // Для остальных единиц: ширина × высота - округляем до 2 знаков
+            return round($width * $height, 2);
         }
     }
 }

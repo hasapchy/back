@@ -171,7 +171,7 @@ class WarehouseReceiptRepository
                 // TransactionsRepository: type=1 для долговых операций делает balance +=
                 $transaction_id = $txRepo->createItem(
                     [
-                        'type'        => 1, // Доход для поставщика, чтобы его баланс УВЕЛИЧИЛСЯ
+                        'type'        => 0, // Доход для поставщика, чтобы его баланс УВЕЛИЧИЛСЯ
                         'user_id'     => auth('api')->id(),
                         'orig_amount' => $total_amount,
                         'currency_id' => $currency->id,
