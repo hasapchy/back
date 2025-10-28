@@ -356,6 +356,26 @@ class Transaction extends Model
                 \App\Services\CacheService::invalidateProjectsCache();
             }
 
+            // Откатываем баланс кассы
+            if ($transaction->cash_id && !$transaction->is_debt) {
+                $cash = CashRegister::find($transaction->cash_id);
+                if ($cash) {
+                    if ($transaction->type == 1) {
+                        $cash->balance -= $transaction->amount; // доход → откатываем
+                    } else {
+                        $cash->balance += $transaction->amount; // расход → откатываем
+                    }
+                    $cash->save();
+
+                    \Illuminate\Support\Facades\Log::info('Transaction::deleted - CASH BALANCE CHANGED', [
+                        'transaction_id' => $transaction->id,
+                        'cash_id' => $transaction->cash_id,
+                        'new_balance' => $cash->balance,
+                        'amount' => $transaction->amount
+                    ]);
+                }
+            }
+
             // Инвалидируем кэш списков транзакций
             \App\Services\CacheService::invalidateTransactionsCache();
 

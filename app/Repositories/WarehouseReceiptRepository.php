@@ -166,14 +166,14 @@ class WarehouseReceiptRepository
 
             if ($type === 'balance') {
                 // Оприходование в долг - создаем долговую транзакцию
-                // ВАЖНО: При оприходовании мы покупаем товар у поставщика в долг
-                // Мы должны поставщику → его баланс УВЕЛИЧИВАЕТСЯ (положительный баланс)
-                // TransactionsRepository: type=1 для долговых операций делает balance +=
+                // ВАЖНО: При оприходовании МЫ ТРАТИМ деньги (расход type=0)
+                // Мы должны поставщику → его баланс УМЕНЬШАЕТСЯ (в TransactionsRepository при is_debt=true, type=0: balance -=)
                 $transaction_id = $txRepo->createItem(
                     [
-                        'type'        => 0, // Доход для поставщика, чтобы его баланс УВЕЛИЧИЛСЯ
+                        'type'        => 0, // РАСХОД - мы тратим деньги
                         'user_id'     => auth('api')->id(),
                         'orig_amount' => $total_amount,
+                        'amount'      => $total_amount,
                         'currency_id' => $currency->id,
                         'cash_id'     => $cash_id, // Касса указана, но не меняется
                         'category_id' => 6,
@@ -190,13 +190,13 @@ class WarehouseReceiptRepository
                 );
             } else {
                 // Оприходование в кассу - две транзакции (долг + платеж)
-                // ВАЖНО: При оприходовании мы покупаем товар у поставщика в долг
-                // Мы должны поставщику → его баланс УВЕЛИЧИВАЕТСЯ (положительный баланс)
+                // Долговая: type=0, is_debt=true → balance -= (мы должны поставщику)
+                // Платёжная: type=0, is_debt=false → касса -= (реальный расход), баланс не меняем
                 $debtTxData = [
-                    'type'        => 1, // Доход для поставщика, чтобы его баланс УВЕЛИЧИЛСЯ
+                    'type'        => 0, // РАСХОД - мы тратим деньги
+                    'amount'      => $total_amount,
                     'user_id'     => auth('api')->id(),
                     'orig_amount' => $total_amount,
-                    'amount'      => $total_amount,
                     'currency_id' => $currency->id,
                     'cash_id'     => $cash_id,
                     'category_id' => 6,
@@ -208,12 +208,13 @@ class WarehouseReceiptRepository
                     'source_type' => \App\Models\WhReceipt::class,
                     'source_id'   => $receipt->id,
                 ];
-                $txRepo->createItem($debtTxData, true, false);
+                $txRepo->createItem($debtTxData, true, false); // Баланс уменьшается
 
                 $paymentTxData = $debtTxData;
                 $paymentTxData['is_debt'] = false; // Обычная транзакция - касса меняется
-                $paymentTxData['type'] = 0; // Расход - мы платим поставщику
-                $transaction_id = $txRepo->createItem($paymentTxData, true, true); // skipClientUpdate=true - баланс уже учтен долговой транзакцией
+                // type=0 остается (расход)
+                // skipClientUpdate=true - баланс уже учтен долговой транзакцией
+                $transaction_id = $txRepo->createItem($paymentTxData, true, true);
             }
 
             DB::commit();
