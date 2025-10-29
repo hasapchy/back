@@ -284,8 +284,8 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     // Route::middleware('permission:orders_view')->get('orders', [OrderController::class, 'index']);
     Route::get('orders', [OrderController::class, 'index']);
     Route::middleware('permission:orders_create')->post('orders', [OrderController::class, 'store']);
-    Route::middleware(['permission:orders_update', 'time.restriction:Order'])->put('orders/{id}', [OrderController::class, 'update']);
-    Route::middleware(['permission:orders_delete', 'time.restriction:Order'])->delete('orders/{id}', [OrderController::class, 'destroy']);
+    Route::middleware('permission:orders_update')->put('orders/{id}', [OrderController::class, 'update']);
+    Route::middleware('permission:orders_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
     Route::middleware('permission:orders_update')->post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
     // Route::middleware('permission:orders_view')->get('orders/{id}', [OrderController::class, 'show']);
     // Route::middleware('permission:orders_view')->get('orders/category/{id}/additional-fields', [OrderController::class, 'getAdditionalFields']);
