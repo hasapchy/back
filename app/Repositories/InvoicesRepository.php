@@ -191,9 +191,10 @@ class InvoicesRepository
             'orders.cash_id',
             'orders.warehouse_id',
             'orders.project_id',
+            'orders.category_id',
             'orders.price',
             'orders.discount',
-            'orders.total_price',
+            DB::raw('(orders.price - orders.discount) as total_price'),
             'orders.date',
             'orders.created_at',
             'orders.updated_at',
@@ -205,6 +206,8 @@ class InvoicesRepository
             'cash_currency.symbol as currency_symbol',
             'projects.name as project_name',
             'users.name as user_name',
+            'users.photo as user_photo',
+            'categories.name as category_name'
         );
 
         $orders = $query->get();

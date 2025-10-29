@@ -83,6 +83,8 @@ class TransactionsController extends Controller
             'project_id' => 'nullable|sometimes|exists:projects,id',
             'client_id' => 'nullable|sometimes|exists:clients,id',
             'order_id' => 'nullable|integer|exists:orders,id',
+            'source_type' => 'nullable|string',
+            'source_id' => 'nullable|integer',
             'note' => 'nullable|sometimes|string',
             'date' => 'nullable|sometimes|date',
             'is_debt' => 'nullable|boolean'
@@ -96,15 +98,24 @@ class TransactionsController extends Controller
             ], 403);
         }
 
-        // Поддержка новой morph-связи источника (заказ)
+        // Поддержка новой morph-связи источника (заказ, продажа, оприходование)
         $sourceType = null;
         $sourceId = null;
-        if ($request->order_id) {
+
+        // Если переданы source_type и source_id напрямую (новая логика)
+        if ($request->has('source_type') || $request->has('source_id')) {
+            $sourceType = $request->source_type;
+            $sourceId = $request->source_id;
+        }
+        // Старая логика: если передан order_id, маппим его
+        elseif ($request->order_id) {
             $sourceType = Order::class;
             $sourceId = $request->order_id;
+        }
 
-            // Валидация минимальной суммы для оплаты заказа
-            $order = Order::find($request->order_id);
+        // Валидация минимальной суммы для оплаты заказа (только для Order)
+        if ($sourceType === Order::class && $sourceId) {
+            $order = Order::find($sourceId);
             if ($order) {
                 // Вычисляем сумму заказа (товары минус скидка)
                 $orderTotal = $order->price - $order->discount;
@@ -188,7 +199,9 @@ class TransactionsController extends Controller
             'date' => 'nullable|sometimes|date',
             'orig_amount' => 'nullable|sometimes|numeric|min:0.01',
             'currency_id' => 'nullable|sometimes|exists:currencies,id',
-            'is_debt' => 'nullable|boolean'
+            'is_debt' => 'nullable|boolean',
+            'source_type' => 'nullable|string',
+            'source_id' => 'nullable|integer'
         ]);
 
         $transaction_exist = Transaction::where('id', $id)->first();
@@ -218,10 +231,17 @@ class TransactionsController extends Controller
                 'message' => 'У вас нет прав на эту кассу'
             ], 403);
         }
-        // Поддержка изменения привязки к заказу: маппим order_id -> source_type/source_id
+        // Поддержка изменения привязки к источнику: маппим order_id -> source_type/source_id или используем source_type/source_id напрямую
         $updateSourceType = null;
         $updateSourceId = null;
-        if ($request->has('order_id')) {
+
+        // Если переданы source_type и source_id напрямую (новая логика) - приоритет
+        if ($request->has('source_type') || $request->has('source_id')) {
+            $updateSourceType = $request->input('source_type');
+            $updateSourceId = $request->input('source_id');
+        }
+        // Старая логика: если передан order_id (но нет новых полей), маппим его
+        elseif ($request->has('order_id')) {
             if ($request->order_id) {
                 $updateSourceType = Order::class;
                 $updateSourceId = $request->order_id;
@@ -252,7 +272,9 @@ class TransactionsController extends Controller
             $updateData['currency_id'] = $request->currency_id;
         }
 
-        if ($request->has('order_id')) {
+        // Добавляем source_type и source_id если они переданы (включая null для снятия привязки)
+        // Проверяем явно, чтобы можно было снять привязку (передать null)
+        if ($request->has('source_type') || $request->has('source_id') || $request->has('order_id')) {
             $updateData['source_type'] = $updateSourceType;
             $updateData['source_id'] = $updateSourceId;
         }

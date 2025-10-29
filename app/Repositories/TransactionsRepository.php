@@ -549,6 +549,14 @@ class TransactionsRepository
             $transaction->is_debt = $data['is_debt'];
         }
 
+        // Обновляем source_type и source_id если передано
+        if (array_key_exists('source_type', $data)) {
+            $transaction->source_type = $data['source_type'];
+        }
+        if (array_key_exists('source_id', $data)) {
+            $transaction->source_id = $data['source_id'];
+        }
+
         $transaction->save();
 
         // Инвалидируем кэш транзакций и баланса клиента
@@ -617,6 +625,14 @@ class TransactionsRepository
             $transaction->project_id = $data['project_id'];
             $transaction->date = $data['date'];
             $transaction->note = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
+
+            // Обновляем source_type и source_id если передано
+            if (array_key_exists('source_type', $data)) {
+                $transaction->source_type = $data['source_type'];
+            }
+            if (array_key_exists('source_id', $data)) {
+                $transaction->source_id = $data['source_id'];
+            }
 
             // Обновляем сумму и валюту если переданы
             if (isset($data['orig_amount'])) {
@@ -999,8 +1015,9 @@ class TransactionsRepository
 
     public function getTotalByOrderId($userId, $orderId)
     {
-        return Transaction::where('transactions.user_id', $userId)
-            ->where('source_type', 'App\Models\Order')
+        // Сумма оплат по заказу должна считаться для всех пользователей,
+        // а не только для текущего, так как заказ один и оплаты могут быть от разных пользователей
+        return Transaction::where('source_type', 'App\Models\Order')
             ->where('source_id', $orderId)
             ->where('is_debt', 0) // Учитываем только реальные платежи, не долговые транзакции
             ->sum('orig_amount');
@@ -1099,7 +1116,8 @@ class TransactionsRepository
             'transactions.client_id as client_id',
             'transactions.note as note',
             'transactions.date as date',
-            // Удалено поле order_id - теперь используется связующая таблица
+            'transactions.source_type as source_type',
+            'transactions.source_id as source_id',
             'transactions.updated_at as updated_at',
             'transactions.created_at as created_at',
         );
