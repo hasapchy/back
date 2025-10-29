@@ -13,12 +13,12 @@ use Illuminate\Support\Facades\DB;
 
 class InvoicesRepository
 {
-    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $typeFilter = null, $page = 1)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $typeFilter = null, $statusFilter = null, $page = 1)
     {
         $companyId = request()->header('X-Company-ID');
-        $cacheKey = "invoices_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$typeFilter}_{$companyId}";
+        $cacheKey = "invoices_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$typeFilter}_{$statusFilter}_{$companyId}";
 
-        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $page) {
+        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page) {
             $query = Invoice::with([
             'client.phones',
             'client.emails',
@@ -56,13 +56,35 @@ class InvoicesRepository
             $query->where('type', $typeFilter);
         }
 
-            return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+        // Фильтр по статусу
+        if ($statusFilter) {
+            $query->where('status', $statusFilter);
+        }
+
+            $invoices = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+
+            // Добавляем плоские поля валюты для заказов (для совместимости с фронтендом)
+            foreach ($invoices->items() as $invoice) {
+                if ($invoice->orders) {
+                    foreach ($invoice->orders as $order) {
+                        if ($order->cash && $order->cash->currency) {
+                            $currency = $order->cash->currency;
+                            $order->currency_id = $currency->id;
+                            $order->currency_name = $currency->name;
+                            $order->currency_code = $currency->code;
+                            $order->currency_symbol = $currency->symbol;
+                        }
+                    }
+                }
+            }
+
+            return $invoices;
         }, (int)$page);
     }
 
     public function getItemById($id)
     {
-        return Invoice::with([
+        $invoice = Invoice::with([
             'client.phones',
             'client.emails',
             'user',
@@ -71,6 +93,21 @@ class InvoicesRepository
             'products.order'
         ])
             ->find($id);
+
+        if ($invoice && $invoice->orders) {
+            // Добавляем плоские поля валюты для заказов (для совместимости с фронтендом)
+            foreach ($invoice->orders as $order) {
+                if ($order->cash && $order->cash->currency) {
+                    $currency = $order->cash->currency;
+                    $order->currency_id = $currency->id;
+                    $order->currency_name = $currency->name;
+                    $order->currency_code = $currency->code;
+                    $order->currency_symbol = $currency->symbol;
+                }
+            }
+        }
+
+        return $invoice;
     }
 
     public function createItem($data)
@@ -123,6 +160,7 @@ class InvoicesRepository
                 'invoice_date' => $data['invoice_date'] ?? $invoice->invoice_date,
                 'note' => $data['note'] ?? $invoice->note,
                 'total_amount' => $data['total_amount'] ?? $invoice->total_amount,
+                'status' => $data['status'] ?? $invoice->status,
             ]);
 
             // Обновляем связи с заказами

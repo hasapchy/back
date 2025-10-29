@@ -29,8 +29,10 @@ class InvoiceController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
         $typeFilter = $request->input('type');
+        $statusFilter = $request->input('status');
+        $perPage = $request->input('per_page', 20);
 
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, 20, $search, $dateFilter, $startDate, $endDate, $typeFilter, $page);
+        $items = $this->itemRepository->getItemsWithPagination($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page);
 
         return response()->json([
             'items' => $items->items(),
@@ -113,6 +115,7 @@ class InvoiceController extends Controller
             'client_id' => 'required|integer|exists:clients,id',
             'invoice_date' => 'nullable|date',
             'note' => 'nullable|string',
+            'status' => 'nullable|string|in:new,in_progress,paid,cancelled',
             'order_ids' => 'nullable|array',
             'order_ids.*' => 'integer|exists:orders,id',
             'products' => 'nullable|array',
@@ -126,6 +129,7 @@ class InvoiceController extends Controller
                 'client_id' => $request->client_id,
                 'invoice_date' => $request->invoice_date,
                 'note' => $request->note,
+                'status' => $request->status,
                 'order_ids' => $request->order_ids,
                 'products' => $request->products,
                 'total_amount' => $request->total_amount,
@@ -135,10 +139,10 @@ class InvoiceController extends Controller
             if (!$updated) {
                 return response()->json(['message' => 'Ошибка обновления счета'], 400);
             }
-            
+
             // Инвалидируем кэш счетов
             CacheService::invalidateInvoicesCache();
-            
+
             return response()->json(['message' => 'Счет сохранён']);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Ошибка: ' . $th->getMessage()], 400);
@@ -154,10 +158,10 @@ class InvoiceController extends Controller
 
         try {
             $deleted = $this->itemRepository->deleteItem($id);
-            
+
             // Инвалидируем кэш счетов
             CacheService::invalidateInvoicesCache();
-            
+
             return response()->json([
                 'message' => 'Счет успешно удалён',
                 'invoice' => $deleted
