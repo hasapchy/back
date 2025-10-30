@@ -356,8 +356,8 @@ class Transaction extends Model
                 \App\Services\CacheService::invalidateProjectsCache();
             }
 
-            // Откатываем баланс кассы
-            if ($transaction->cash_id && !$transaction->is_debt) {
+            // Откатываем баланс кассы (если не установлен флаг пропуска)
+            if ($transaction->cash_id && !$transaction->is_debt && !$transaction->getSkipCashBalanceUpdate()) {
                 $cash = CashRegister::find($transaction->cash_id);
                 if ($cash) {
                     if ($transaction->type == 1) {

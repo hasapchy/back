@@ -933,10 +933,12 @@ class TransactionsRepository
 
             // Связи с заказами теперь автоматически удаляются через morphable связи
 
-            // ВАЖНО: Для обычных транзакций (is_debt=false) позволяем Transaction::deleted обновить баланс
-            // Для долговых операций (is_debt=true) пропускаем, и обновляем вручную ниже
+            // ВАЖНО: Мы уже откатили кассу вручную выше для обычных транзакций,
+            // поэтому запрещаем модели повторно менять баланс кассы в deleted-хуке
+            // Также: для долговых операций баланс клиента обновляем вручную ниже
             $shouldSkipClientBalanceUpdate = $transaction->is_debt;
             $transaction->setSkipClientBalanceUpdate($shouldSkipClientBalanceUpdate);
+            $transaction->setSkipCashBalanceUpdate(true);
             $transaction->delete();
 
             Log::info('TransactionsRepository::deleteItem - Transaction deleted', [
