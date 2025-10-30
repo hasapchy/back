@@ -60,7 +60,7 @@ class OrderController extends Controller
 
 
         $request->validate([
-            'client_id' => 'required|integer|exists:clients,id',
+            'client_id' => 'nullable|sometimes|integer|exists:clients,id',
             'project_id' => 'nullable|sometimes|integer|exists:projects,id',
             'cash_id' => 'nullable|integer|exists:cash_registers,id',
             'warehouse_id' => 'required|integer|exists:warehouses,id',
@@ -183,7 +183,7 @@ class OrderController extends Controller
         // Ограничение по времени для подвальных работников удалено
 
         $request->validate([
-            'client_id'            => 'required|integer|exists:clients,id',
+            'client_id'            => 'nullable|sometimes|integer|exists:clients,id',
             'project_id'           => 'nullable|sometimes|integer|exists:projects,id',
             'cash_id'              => 'nullable|integer|exists:cash_registers,id',
             'warehouse_id'         => 'required|integer|exists:warehouses,id',
