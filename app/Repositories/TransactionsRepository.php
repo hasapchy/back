@@ -11,6 +11,7 @@ use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use App\Repositories\ProjectsRepository;
 use Illuminate\Support\Facades\DB;
+use App\Services\RoundingService;
 use Illuminate\Support\Facades\Log;
 
 class TransactionsRepository
@@ -338,8 +339,10 @@ class TransactionsRepository
             $convertedAmount = CurrencyConverter::convert($originalAmount, $fromCurrency, $toCurrency);
         }
 
-        // Применяем округление если оно включено в кассе
-        $convertedAmount = $cashRegister->roundAmount($convertedAmount);
+        // Применяем правила округления компании для контекста транзакций
+        $roundingService = new RoundingService();
+        $companyId = $this->getCurrentCompanyId();
+        $convertedAmount = $roundingService->roundForCompany($companyId, RoundingService::CONTEXT_TRANSACTIONS, (float) $convertedAmount);
 
         if ($fromCurrency->id !== $defaultCurrency->id) {
             $convertedAmountDefault = CurrencyConverter::convert($originalAmount, $fromCurrency, $defaultCurrency);
@@ -432,7 +435,8 @@ class TransactionsRepository
 
             // ДЛЯ ДОЛГОВЫХ ОПЕРАЦИЙ: обновляем баланс клиента вручную через DB
             // ДЛЯ ОБЫЧНЫХ ТРАНЗАКЦИЙ: баланс обновляется автоматически через Transaction::created hook
-            if (! $skipClientUpdate && ! empty($data['client_id']) && ($data['is_debt'] ?? false)) {
+            // НОВОЕ: если указано project_id, ДОЛГ НЕ списывается/начисляется на клиента
+            if (! $skipClientUpdate && ! empty($data['client_id']) && ($data['is_debt'] ?? false) && empty($data['project_id'])) {
                 Log::info('TransactionsRepository::createItem - UPDATING CLIENT BALANCE FOR DEBT TRANSACTION', [
                     'client_id' => $data['client_id'],
                     'operation_type' => $data['type'] === 1 ? 'income (ADD - client buys on credit)' : 'outcome (SUBTRACT - client pays)',
@@ -668,8 +672,10 @@ class TransactionsRepository
                 $newConvertedAmount = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $toCurrency);
             }
 
-            // Применяем округление если оно включено в кассе
-            $newConvertedAmount = $cashRegister->roundAmount($newConvertedAmount);
+            // Применяем правила округления компании для контекста транзакций
+            $roundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
+            $newConvertedAmount = $roundingService->roundForCompany($companyId, RoundingService::CONTEXT_TRANSACTIONS, (float) $newConvertedAmount);
 
             // Обновляем конвертированную сумму
             $transaction->amount = $newConvertedAmount;
@@ -778,9 +784,9 @@ class TransactionsRepository
                 // Для ОБЫЧНЫХ транзакций (is_debt=false) - Transaction::updated hook уже сработает
                 // Для ДОЛГОВЫХ операций (is_debt=true) - обновляем вручную
 
-                // Применяем новый баланс клиента ТОЛЬКО если это долговая операция
+                // Применяем новый баланс клиента ТОЛЬКО если это долговая операция и нет проекта
                 // Для обычных транзакций это сделает Transaction::updated hook
-                if ($transaction->is_debt) {
+                if ($transaction->is_debt && empty($transaction->project_id)) {
                     Log::info('Manual balance update for DEBT transaction', [
                         'transaction_id' => $id,
                         'client_id' => $transaction->client_id,
@@ -949,8 +955,8 @@ class TransactionsRepository
                 'skipClientBalanceUpdate' => $shouldSkipClientBalanceUpdate
             ]);
 
-            // Обновляем баланс клиента ТОЛЬКО если это была долговая операция
-            if (! $skipClientUpdate && $transaction->client_id && $transaction->is_debt) {
+            // Обновляем баланс клиента ТОЛЬКО если это была долговая операция без проекта
+            if (! $skipClientUpdate && $transaction->client_id && $transaction->is_debt && empty($transaction->project_id)) {
                 Log::info('TransactionsRepository::deleteItem - UPDATING CLIENT BALANCE FOR DEBT TRANSACTION', [
                     'client_id' => $transaction->client_id,
                     'operation_type' => $transaction->type === 1 ? 'income (SUBTRACT back - reverse of ADD)' : 'outcome (ADD back - reverse of SUBTRACT)',

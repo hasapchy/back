@@ -16,6 +16,7 @@ use App\Models\OrderStatus;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
+use App\Services\RoundingService;
 use Illuminate\Support\Facades\Log;
 
 class OrdersRepository
@@ -1284,25 +1285,20 @@ class OrdersRepository
         $width = (float) $width;
         $height = (float) $height;
 
-        // Логика расчета на основе единиц измерения
+        // Логика расчета на основе единиц измерения (без финального округления)
         if ($unitShortName === 'м²' || $unitName === 'Квадратный метр') {
-            // Квадратный метр: ширина × высота - округляем до 2 знаков
-            return round($width * $height, 2);
+            $raw = $width * $height;
         } elseif ($unitShortName === 'м' || $unitName === 'Метр') {
-            // Метр: периметр (2 × ширина + 2 × высота) - округляем до 2 знаков
-            return round(2 * $width + 2 * $height, 2);
+            $raw = 2 * $width + 2 * $height;
         } elseif ($unitShortName === 'л' || $unitName === 'Литр') {
-            // Литр: ширина × высота (площадь для расчета объема) - округляем до 2 знаков
-            return round($width * $height, 2);
+            $raw = $width * $height;
         } elseif (
             $unitShortName === 'кг' || $unitName === 'Килограмм' ||
             $unitShortName === 'г' || $unitName === 'Грамм'
         ) {
-            // Вес: ширина × высота (площадь для расчета веса) - округляем до 2 знаков
-            return round($width * $height, 2);
+            $raw = $width * $height;
         } elseif ($unitShortName === 'шт' || $unitName === 'Штука') {
-            // Штука: ширина × высота - округляем до 2 знаков
-            return round($width * $height, 2);
+            $raw = $width * $height;
         } elseif (
             $unitShortName === 'уп' || $unitName === 'Упаковка' ||
             $unitShortName === 'кор' || $unitName === 'Коробка' ||
@@ -1310,11 +1306,14 @@ class OrdersRepository
             $unitShortName === 'комп' || $unitName === 'Комплект' ||
             $unitShortName === 'рул' || $unitName === 'Рулон'
         ) {
-            // Упаковочные единицы: ширина × высота - округляем до 2 знаков
-            return round($width * $height, 2);
+            $raw = $width * $height;
         } else {
-            // Для остальных единиц: ширина × высота - округляем до 2 знаков
-            return round($width * $height, 2);
+            $raw = $width * $height;
         }
+
+        // Применяем правила округления компании для контекста заказов
+        $roundingService = new RoundingService();
+        $companyId = $this->getCurrentCompanyId();
+        return $roundingService->roundForCompany($companyId, RoundingService::CONTEXT_ORDERS, (float) $raw);
     }
 }

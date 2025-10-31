@@ -12,6 +12,7 @@ use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\RoundingService;
 
 class SalesRepository
 {
@@ -291,6 +292,13 @@ class SalesRepository
                 : CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
             $totalPrice = $price - $discountCalc;
 
+            // Применяем правила округления компании для продаж
+            $roundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
+            $price = $roundingService->roundForCompany($companyId, RoundingService::CONTEXT_SALES, (float) $price);
+            $discountCalc = $roundingService->roundForCompany($companyId, RoundingService::CONTEXT_SALES, (float) $discountCalc);
+            $totalPrice = $roundingService->roundForCompany($companyId, RoundingService::CONTEXT_SALES, (float) $totalPrice);
+
             // Создаем продажу сначала (без дублирующихся полей total_price и transaction_id)
             $sale = Sale::create([
                 'user_id'      => $userId,
@@ -340,10 +348,14 @@ class SalesRepository
                     'sale_id'    => $sale->id,
                     'product_id' => $prod['product_id'],
                     'quantity'   => $prod['quantity'],
-                    'price'      => CurrencyConverter::convert(
-                        $prod['price'],
-                        $fromCurrency,
-                        $defaultCurrency
+                    'price'      => (new RoundingService())->roundForCompany(
+                        $this->getCurrentCompanyId(),
+                        RoundingService::CONTEXT_SALES,
+                        (float) CurrencyConverter::convert(
+                            $prod['price'],
+                            $fromCurrency,
+                            $defaultCurrency
+                        )
                     ),
                 ]);
             }

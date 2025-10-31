@@ -18,8 +18,8 @@ class WhReceiptProduct extends Model
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:2',
-        'price' => 'decimal:2',
+        'quantity' => 'decimal:5',
+        'price' => 'decimal:5',
     ];
 
     public function receipt()

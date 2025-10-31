@@ -115,8 +115,8 @@ class Order extends Model
     }
 
     protected $casts = [
-        'price' => 'decimal:2',
-        'discount' => 'decimal:2',
+        'price' => 'decimal:5',
+        'discount' => 'decimal:5',
         'client_id' => 'integer',
         'project_id' => 'integer',
     ];

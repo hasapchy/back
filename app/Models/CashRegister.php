@@ -13,7 +13,6 @@ class CashRegister extends Model
     protected $fillable = [
         'name',
         'balance',
-        'is_rounding',
         'currency_id',
         'company_id',
     ];
@@ -78,14 +77,5 @@ class CashRegister extends Model
         return $this->users()->get();
     }
 
-    /**
-     * Округляет сумму до целых чисел если включено округление
-     */
-    public function roundAmount($amount)
-    {
-        if ($this->is_rounding) {
-            return round($amount);
-        }
-        return $amount;
-    }
+    // roundAmount удален — логика округления теперь на уровне компании
 }

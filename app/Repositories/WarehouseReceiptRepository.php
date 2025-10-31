@@ -13,6 +13,7 @@ use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\RoundingService;
 
 class WarehouseReceiptRepository
 {
@@ -133,6 +134,11 @@ class WarehouseReceiptRepository
             foreach ($products as $product) {
                 $total_amount += $product['price'] * $product['quantity'];
             }
+
+            // Применяем правила округления компании для оприходований
+            $roundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
+            $total_amount = $roundingService->roundForCompany($companyId, RoundingService::CONTEXT_RECEIPTS, (float) $total_amount);
 
             $receipt = new WhReceipt();
             $receipt->supplier_id  = $client_id;
@@ -290,6 +296,11 @@ class WarehouseReceiptRepository
                 }
                 $total_amount += $price * $quantity;
             }
+
+            // Применяем правила округления компании для оприходований
+            $roundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
+            $total_amount = $roundingService->roundForCompany($companyId, RoundingService::CONTEXT_RECEIPTS, (float) $total_amount);
 
             $receipt->amount = $total_amount;
             $receipt->save();

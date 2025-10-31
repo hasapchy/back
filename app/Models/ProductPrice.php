@@ -14,9 +14,9 @@ class ProductPrice extends Model
     ];
 
     protected $casts = [
-        'retail_price' => 'decimal:2',
-        'wholesale_price' => 'decimal:2',
-        'purchase_price' => 'decimal:2',
+        'retail_price' => 'decimal:5',
+        'wholesale_price' => 'decimal:5',
+        'purchase_price' => 'decimal:5',
     ];
 
     protected $attributes = [

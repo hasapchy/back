@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\ProjectStatusController;
+use App\Http\Controllers\Api\CompanyRoundingRulesController;
 
 // Маршруты авторизации с ограничением 10 запросов в минуту
 Route::middleware(['throttle:auth'])->group(function () {
@@ -124,6 +125,10 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::middleware('permission:companies_update')->post('companies/{id}', [App\Http\Controllers\Api\CompaniesController::class, 'update']);
     Route::middleware('permission:companies_update')->put('companies/{id}', [App\Http\Controllers\Api\CompaniesController::class, 'update']);
     Route::middleware('permission:companies_delete')->delete('companies/{id}', [App\Http\Controllers\Api\CompaniesController::class, 'destroy']);
+
+    // company rounding rules
+    Route::get('company-rounding-rules', [CompanyRoundingRulesController::class, 'index']);
+    Route::post('company-rounding-rules', [CompanyRoundingRulesController::class, 'upsert']);
 
     // warehouses
     // Route::middleware('permission:warehouses_view')->get('warehouses', [WarehouseController::class, 'index']);

@@ -18,7 +18,6 @@ class CashRegisterSeeder extends Seeder
             // Если касса уже существует, обновляем только необходимые поля, но не название
             $existingCashRegister->update([
                 'balance' => $existingCashRegister->balance, // Сохраняем существующий баланс
-                'is_rounding' => false,
                 'currency_id' => 1,
             ]);
             $cashRegister = $existingCashRegister;
@@ -28,7 +27,6 @@ class CashRegisterSeeder extends Seeder
                 'id' => 1,
                 'name' => 'Главная касса',
                 'balance' => 0,
-                'is_rounding' => false,
                 'currency_id' => 1,
             ]);
         }

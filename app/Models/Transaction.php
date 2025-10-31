@@ -75,8 +75,8 @@ class Transaction extends Model
 
     protected $casts = [
         'is_debt' => 'boolean',
-        'amount' => 'decimal:2',
-        'orig_amount' => 'decimal:2',
+        'amount' => 'decimal:5',
+        'orig_amount' => 'decimal:5',
     ];
 
     protected $hidden = [

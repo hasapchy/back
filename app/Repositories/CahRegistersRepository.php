@@ -210,7 +210,6 @@ class CahRegistersRepository
             $item = new CashRegister();
             $item->name = $data['name'];
             $item->balance = $data['balance'];
-            $item->is_rounding = $data['is_rounding'] ?? false;
             $item->currency_id = $data['currency_id'];
             $item->company_id = $this->getCurrentCompanyId();
             $item->save();
@@ -242,7 +241,6 @@ class CahRegistersRepository
         try {
             $item = CashRegister::find($id);
             $item->name = $data['name'];
-            $item->is_rounding = $data['is_rounding'] ?? false;
             // $item->balance = $data['balance'];
             // $item->currency_id = $data['currency_id'];
             $item->save();

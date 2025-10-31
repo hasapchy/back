@@ -25,9 +25,20 @@ class AppController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
+        // Определяем, есть ли доступ к не-дефолтным валютам
+        $userPermissions = $user->permissions->pluck('name')->toArray();
+        $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
+
         // Кэшируем справочник валют на 2 часа
-        $items = CacheService::getReferenceData('currencies_all', function() {
-            return Currency::where('status', 1)->get();
+        // Для пользователей без доступа возвращаем только дефолтную валюту
+        $cacheKey = $hasAccessToNonDefaultCurrencies ? 'currencies_all' : 'currencies_default_only';
+
+        $items = CacheService::getReferenceData($cacheKey, function() use ($hasAccessToNonDefaultCurrencies) {
+            $query = Currency::where('status', 1);
+            if (!$hasAccessToNonDefaultCurrencies) {
+                $query->where('is_default', true);
+            }
+            return $query->get();
         });
 
         return response()->json($items);

@@ -21,7 +21,7 @@ class WhReceipt extends Model
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        'amount' => 'decimal:5',
     ];
 
     protected static function booted()
