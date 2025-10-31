@@ -30,6 +30,7 @@ class Transaction extends Model
         'is_debt',
         'source_type',
         'source_id',
+        'is_deleted',
     ];
 
     protected static $logAttributes = [
@@ -75,6 +76,7 @@ class Transaction extends Model
 
     protected $casts = [
         'is_debt' => 'boolean',
+        'is_deleted' => 'boolean',
         'amount' => 'decimal:5',
         'orig_amount' => 'decimal:5',
     ];

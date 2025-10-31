@@ -1019,6 +1019,7 @@ class OrdersRepository
                 ->where('source_id', $order->id)
                 ->where('type', 1)      // автоматическая транзакция заказа (доход - клиент покупает в долг)
                 ->where('is_debt', true) // долговая
+                ->where('is_deleted', false) // только неудаленные
                 ->first();
 
             if ($orderTransaction) {
@@ -1152,6 +1153,7 @@ class OrdersRepository
                 $paidTotal = Transaction::where('source_type', \App\Models\Order::class)
                     ->where('source_id', $order->id)
                     ->where('is_debt', 0)
+                    ->where('is_deleted', false)
                     ->sum('orig_amount');
 
                 // Проверяем: оплата должна быть > 0 для статуса "оплачено"

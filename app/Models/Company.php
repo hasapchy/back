@@ -12,10 +12,16 @@ class Company extends Model
     protected $fillable = [
         'name',
         'logo',
+        'show_deleted_transactions',
     ];
 
     protected $attributes = [
         'logo' => 'logo.jpg',
+        'show_deleted_transactions' => false,
+    ];
+
+    protected $casts = [
+        'show_deleted_transactions' => 'boolean',
     ];
 
     /**

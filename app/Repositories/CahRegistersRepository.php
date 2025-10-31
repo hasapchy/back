@@ -116,6 +116,7 @@ class CahRegistersRepository
 
                 // базовый запрос по транзакциям
                 $txBase = Transaction::where('cash_id', $cashRegister->id)
+                    ->where('is_deleted', false)
                     ->when($startDate || $endDate, function ($q) use ($startDate, $endDate) {
                         if ($startDate && $endDate) {
                             return $q->whereBetween('date', [$startDate, $endDate]);

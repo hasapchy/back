@@ -372,7 +372,9 @@ class ProjectsRepository
             }
 
             // Проверяем, есть ли привязанные транзакции
-            $transactionsCount = \App\Models\Transaction::where('project_id', $id)->count();
+            $transactionsCount = \App\Models\Transaction::where('project_id', $id)
+                ->where('is_deleted', false)
+                ->count();
             if ($transactionsCount > 0) {
                 throw new \Exception('Невозможно удалить проект, к нему привязано транзакций: ' . $transactionsCount);
             }

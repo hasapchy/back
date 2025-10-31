@@ -16,7 +16,7 @@ class CompaniesController extends Controller
     {
         $perPage = $request->get('per_page', 10);
 
-        $companies = Company::select(['id', 'name', 'logo', 'created_at', 'updated_at'])
+        $companies = Company::select(['id', 'name', 'logo', 'show_deleted_transactions', 'created_at', 'updated_at'])
             ->orderBy('name')
             ->paginate($perPage);
 
@@ -42,7 +42,7 @@ class CompaniesController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $request->only(['name']);
+        $data = $request->only(['name', 'show_deleted_transactions']);
 
         if ($request->hasFile('logo')) {
             $data['logo'] = $request->file('logo')->store('companies', 'public');
@@ -68,7 +68,7 @@ class CompaniesController extends Controller
         }
 
         $company = Company::findOrFail($id);
-        $data = $request->only(['name']);
+        $data = $request->only(['name', 'show_deleted_transactions']);
 
         if ($request->hasFile('logo')) {
             // Удаляем старый логотип если есть

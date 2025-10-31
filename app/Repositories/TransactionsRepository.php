@@ -51,11 +51,19 @@ class TransactionsRepository
             // ✅ Получаем компанию из заголовка для включения в кэш ключ
             $companyId = $this->getCurrentCompanyId() ?? 'default';
 
+            // Получаем настройку компании для показа удаленных транзакций
+            $showDeleted = false;
+            if ($companyId && $companyId !== 'default') {
+                $company = \App\Models\Company::find($companyId);
+                $showDeleted = $company ? $company->show_deleted_transactions : false;
+            }
+
             // Создаем уникальный ключ кэша (привязываем к пользователю, компании и фильтрам)
             $searchKey = $search !== null ? md5((string)$search) : 'null';
-            $cacheKey = "transactions_paginated_{$userUuid}_{$companyId}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$searchKey}_{$transaction_type}_{$source}_{$project_id}_{$start_date}_{$end_date}_{$is_debt}";
+            $showDeletedKey = $showDeleted ? '1' : '0';
+            $cacheKey = "transactions_paginated_{$userUuid}_{$companyId}_{$perPage}_{$cash_id}_{$date_filter_type}_{$order_id}_{$searchKey}_{$transaction_type}_{$source}_{$project_id}_{$start_date}_{$end_date}_{$is_debt}_{$showDeletedKey}";
 
-            return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt) {
+            return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeleted) {
                 // Используем with() для загрузки связей вместо сложных JOIN'ов
                 $query = Transaction::with([
                     'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
@@ -82,6 +90,13 @@ class TransactionsRepository
 
                 // Фильтруем по текущей компании пользователя
                 $query = $this->addCompanyFilter($query);
+
+                // Фильтруем удаленные транзакции в зависимости от настройки компании
+                // Если настройка НЕ включена, показываем только неудаленные
+                if (!$showDeleted) {
+                    $query->where('transactions.is_deleted', false);
+                }
+                // Если настройка включена, показываем все транзакции (включая удаленные)
 
                 $query->when($cash_id, function ($query, $cash_id) {
                         return $query->where('transactions.cash_id', $cash_id);
@@ -291,6 +306,7 @@ class TransactionsRepository
                         'updated_at' => $transaction->updated_at,
                         'source_type' => $transaction->source_type,
                         'source_id' => $transaction->source_id,
+                        'is_deleted' => $transaction->is_deleted ?? false,
                     ];
                 });
 
@@ -939,13 +955,16 @@ class TransactionsRepository
 
             // Связи с заказами теперь автоматически удаляются через morphable связи
 
+            // SOFT DELETE: Вместо физического удаления ставим флаг is_deleted = true
             // ВАЖНО: Мы уже откатили кассу вручную выше для обычных транзакций,
             // поэтому запрещаем модели повторно менять баланс кассы в deleted-хуке
             // Также: для долговых операций баланс клиента обновляем вручную ниже
             $shouldSkipClientBalanceUpdate = $transaction->is_debt;
             $transaction->setSkipClientBalanceUpdate($shouldSkipClientBalanceUpdate);
             $transaction->setSkipCashBalanceUpdate(true);
-            $transaction->delete();
+
+            // Используем массив данных для обновления, чтобы избежать вызова событий модели
+            DB::table('transactions')->where('id', $transaction->id)->update(['is_deleted' => true]);
 
             Log::info('TransactionsRepository::deleteItem - Transaction deleted', [
                 'transaction_id' => $transaction->id,
@@ -955,46 +974,63 @@ class TransactionsRepository
                 'skipClientBalanceUpdate' => $shouldSkipClientBalanceUpdate
             ]);
 
-            // Обновляем баланс клиента ТОЛЬКО если это была долговая операция без проекта
-            if (! $skipClientUpdate && $transaction->client_id && $transaction->is_debt && empty($transaction->project_id)) {
-                Log::info('TransactionsRepository::deleteItem - UPDATING CLIENT BALANCE FOR DEBT TRANSACTION', [
+            // Обновляем баланс клиента для всех транзакций (так как хук модели не сработает при soft delete)
+            if (! $skipClientUpdate && $transaction->client_id && empty($transaction->project_id)) {
+                Log::info('TransactionsRepository::deleteItem - UPDATING CLIENT BALANCE', [
                     'client_id' => $transaction->client_id,
-                    'operation_type' => $transaction->type === 1 ? 'income (SUBTRACT back - reverse of ADD)' : 'outcome (ADD back - reverse of SUBTRACT)',
+                    'operation_type' => $transaction->type === 1 ? 'income' : 'outcome',
                     'amount' => $convertedAmountDefault,
-                    'is_debt' => true
+                    'is_debt' => $transaction->is_debt
                 ]);
 
-                // При удалении долговой операции откатываем её
-                // type=1 (доход): было +=, откатываем -=
-                // type=0 (расход): было -=, откатываем +=
-                if ($transaction->type == 1) {
-                    DB::table('clients')->where('id', $transaction->client_id)->update([
-                        'balance' => DB::raw('balance - ' . ($convertedAmountDefault + 0))
-                    ]);
-                    Log::info('TransactionsRepository::deleteItem - DEBT: CLIENT BALANCE DECREASED (reverse of credit sale)', [
-                        'client_id' => $transaction->client_id,
-                        'amount_subtracted' => $convertedAmountDefault
-                    ]);
+                if ($transaction->is_debt) {
+                    // Долговые операции:
+                    // type=1 (доход): было +=, откатываем -=
+                    // type=0 (расход): было -=, откатываем +=
+                    if ($transaction->type == 1) {
+                        DB::table('clients')->where('id', $transaction->client_id)->update([
+                            'balance' => DB::raw('balance - ' . ($convertedAmountDefault + 0))
+                        ]);
+                        Log::info('TransactionsRepository::deleteItem - DEBT: CLIENT BALANCE DECREASED (reverse of credit sale)', [
+                            'client_id' => $transaction->client_id,
+                            'amount_subtracted' => $convertedAmountDefault
+                        ]);
+                    } else {
+                        DB::table('clients')->where('id', $transaction->client_id)->update([
+                            'balance' => DB::raw('balance + ' . ($convertedAmountDefault + 0))
+                        ]);
+                        Log::info('TransactionsRepository::deleteItem - DEBT: CLIENT BALANCE INCREASED (reverse of payment)', [
+                            'client_id' => $transaction->client_id,
+                            'amount_added' => $convertedAmountDefault
+                        ]);
+                    }
                 } else {
-                    DB::table('clients')->where('id', $transaction->client_id)->update([
-                        'balance' => DB::raw('balance + ' . ($convertedAmountDefault + 0))
-                    ]);
-                    Log::info('TransactionsRepository::deleteItem - DEBT: CLIENT BALANCE INCREASED (reverse of payment)', [
-                        'client_id' => $transaction->client_id,
-                        'amount_added' => $convertedAmountDefault
-                    ]);
+                    // Обычные транзакции:
+                    // type=1 (доход): было -=, откатываем +=
+                    // type=0 (расход): было +=, откатываем -=
+                    if ($transaction->type == 1) {
+                        DB::table('clients')->where('id', $transaction->client_id)->update([
+                            'balance' => DB::raw('balance + ' . ($convertedAmountDefault + 0))
+                        ]);
+                        Log::info('TransactionsRepository::deleteItem - REGULAR: CLIENT BALANCE INCREASED (reverse of payment)', [
+                            'client_id' => $transaction->client_id,
+                            'amount_added' => $convertedAmountDefault
+                        ]);
+                    } else {
+                        DB::table('clients')->where('id', $transaction->client_id)->update([
+                            'balance' => DB::raw('balance - ' . ($convertedAmountDefault + 0))
+                        ]);
+                        Log::info('TransactionsRepository::deleteItem - REGULAR: CLIENT BALANCE DECREASED (reverse of expense)', [
+                            'client_id' => $transaction->client_id,
+                            'amount_subtracted' => $convertedAmountDefault
+                        ]);
+                    }
                 }
 
                 // Инвалидируем кэш клиентов и проектов после обновления баланса
                 CacheService::invalidateClientsCache();
                 CacheService::invalidateClientBalanceCache($transaction->client_id);
                 CacheService::invalidateProjectsCache();
-            } else {
-                Log::info('TransactionsRepository::deleteItem - CLIENT BALANCE UPDATE (Regular Transaction)', [
-                    'reason' => 'Will be updated via Transaction::deleted model event',
-                    'is_debt' => $transaction->is_debt,
-                    'client_id' => $transaction->client_id
-                ]);
             }
 
             DB::commit();
@@ -1028,6 +1064,7 @@ class TransactionsRepository
         return Transaction::where('source_type', 'App\Models\Order')
             ->where('source_id', $orderId)
             ->where('is_debt', 0) // Учитываем только реальные платежи, не долговые транзакции
+            ->where('is_deleted', false) // Учитываем только неудаленные транзакции
             ->sum('orig_amount');
     }
 
@@ -1128,6 +1165,7 @@ class TransactionsRepository
             'transactions.source_id as source_id',
             'transactions.updated_at as updated_at',
             'transactions.created_at as created_at',
+            'transactions.is_deleted as is_deleted',
         );
         $items = $query->get();
 
