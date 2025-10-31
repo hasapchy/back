@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 
@@ -77,9 +78,13 @@ class CompaniesController extends Controller
             $data['rounding_custom_threshold'] = null;
         }
         // Если округление выключено, гасим связанные поля
-        if (isset($data['rounding_enabled']) && $data['rounding_enabled'] === false) {
-            $data['rounding_direction'] = null;
-            $data['rounding_custom_threshold'] = null;
+        // Проверяем как boolean false, так и строки 'false', '0', 0
+        if (isset($data['rounding_enabled'])) {
+            $roundingEnabled = $data['rounding_enabled'];
+            if ($roundingEnabled === false || $roundingEnabled === 'false' || $roundingEnabled === '0' || $roundingEnabled === 0) {
+                $data['rounding_direction'] = null;
+                $data['rounding_custom_threshold'] = null;
+            }
         }
 
         if ($request->hasFile('logo')) {
@@ -141,9 +146,13 @@ class CompaniesController extends Controller
             $data['rounding_custom_threshold'] = null;
         }
         // Если округление выключено, гасим связанные поля
-        if (isset($data['rounding_enabled']) && $data['rounding_enabled'] === false) {
-            $data['rounding_direction'] = null;
-            $data['rounding_custom_threshold'] = null;
+        // Проверяем как boolean false, так и строки 'false', '0', 0
+        if (isset($data['rounding_enabled'])) {
+            $roundingEnabled = $data['rounding_enabled'];
+            if ($roundingEnabled === false || $roundingEnabled === 'false' || $roundingEnabled === '0' || $roundingEnabled === 0) {
+                $data['rounding_direction'] = null;
+                $data['rounding_custom_threshold'] = null;
+            }
         }
 
         if ($request->hasFile('logo')) {
@@ -154,7 +163,13 @@ class CompaniesController extends Controller
             $data['logo'] = $request->file('logo')->store('companies', 'public');
         }
 
-        $company->update($data);
+        try {
+            $company->update($data);
+        } catch (\Exception $e) {
+            Log::error('Ошибка обновления компании: ' . $e->getMessage());
+            Log::error('Данные: ' . json_encode($data));
+            throw $e;
+        }
 
         // Инвалидируем кэш компаний
         CacheService::invalidateCompaniesCache();
