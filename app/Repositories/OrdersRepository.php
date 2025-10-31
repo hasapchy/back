@@ -1313,9 +1313,9 @@ class OrdersRepository
             $raw = $width * $height;
         }
 
-        // Применяем правила округления компании для контекста заказов
+        // Применяем правила округления компании
         $roundingService = new RoundingService();
         $companyId = $this->getCurrentCompanyId();
-        return $roundingService->roundForCompany($companyId, RoundingService::CONTEXT_ORDERS, (float) $raw);
+        return $roundingService->roundForCompany($companyId, (float) $raw);
     }
 }

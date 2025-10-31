@@ -16,7 +16,7 @@ class CompaniesController extends Controller
     {
         $perPage = $request->get('per_page', 10);
 
-        $companies = Company::select(['id', 'name', 'logo', 'show_deleted_transactions', 'created_at', 'updated_at'])
+        $companies = Company::select(['id', 'name', 'logo', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'created_at', 'updated_at'])
             ->orderBy('name')
             ->paginate($perPage);
 
@@ -39,22 +39,30 @@ class CompaniesController extends Controller
         if (isset($data['show_deleted_transactions'])) {
             $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
         }
+        if (isset($data['rounding_enabled'])) {
+            $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
+        }
 
         $validator = Validator::make($data, [
             'name' => 'required|string|max:255|unique:companies,name',
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
-            'show_deleted_transactions' => 'nullable|boolean'
+            'show_deleted_transactions' => 'nullable|boolean',
+            'rounding_decimals' => 'nullable|integer|min:0|max:5',
+            'rounding_enabled' => 'nullable|boolean'
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $request->only(['name', 'show_deleted_transactions']);
+        $data = $request->only(['name', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled']);
 
         // Повторно обрабатываем boolean после only()
         if (isset($data['show_deleted_transactions'])) {
             $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($data['rounding_enabled'])) {
+            $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
 
         if ($request->hasFile('logo')) {
@@ -77,11 +85,16 @@ class CompaniesController extends Controller
         if (isset($data['show_deleted_transactions'])) {
             $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
         }
+        if (isset($data['rounding_enabled'])) {
+            $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
+        }
 
         $validator = Validator::make($data, [
             'name' => "required|string|max:255|unique:companies,name,{$id}",
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
-            'show_deleted_transactions' => 'nullable|boolean'
+            'show_deleted_transactions' => 'nullable|boolean',
+            'rounding_decimals' => 'nullable|integer|min:0|max:5',
+            'rounding_enabled' => 'nullable|boolean'
         ]);
 
         if ($validator->fails()) {
@@ -89,11 +102,14 @@ class CompaniesController extends Controller
         }
 
         $company = Company::findOrFail($id);
-        $data = $request->only(['name', 'show_deleted_transactions']);
+        $data = $request->only(['name', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled']);
 
         // Повторно обрабатываем boolean после only()
         if (isset($data['show_deleted_transactions'])) {
             $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($data['rounding_enabled'])) {
+            $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
 
         if ($request->hasFile('logo')) {

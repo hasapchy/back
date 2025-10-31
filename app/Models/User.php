@@ -127,4 +127,12 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->belongsToMany(\App\Models\Category::class, 'category_users', 'user_id', 'category_id');
     }
+
+    /**
+     * Клиенты, где пользователь является сотрудником (employee/investor)
+     */
+    public function clientAccounts()
+    {
+        return $this->hasMany(\App\Models\Client::class, 'employee_id');
+    }
 }

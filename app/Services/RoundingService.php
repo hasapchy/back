@@ -18,51 +18,45 @@ class RoundingService
     public const DIRECTION_CUSTOM = 'custom';
 
     /**
-     * Apply company-specific rounding rule for a given context.
-     * Old records remain untouched because this is only called during new calculations.
+     * Apply company-specific rounding rule.
+     * Uses company-wide settings instead of per-context rules.
      */
-    public function roundForCompany(?int $companyId, string $context, float $value): float
+    public function roundForCompany(?int $companyId, float $value): float
     {
         if (!$companyId) {
             return $value;
         }
 
-        /** @var CompanyRoundingRule|null $rule */
-        $rule = CompanyRoundingRule::query()
-            ->where('company_id', $companyId)
-            ->where('context', $context)
-            ->first();
+        /** @var Company|null $company */
+        $company = Company::find($companyId);
 
-        if (!$rule) {
+        if (!$company || !$company->rounding_enabled) {
             return $value;
         }
 
-        $decimals = max(2, min(5, (int) $rule->decimals));
-        $direction = $rule->direction;
+        $decimals = max(0, min(5, (int) $company->rounding_decimals));
 
-        if ($direction === self::DIRECTION_UP) {
-            $factor = pow(10, $decimals);
-            return ceil($value * $factor) / $factor;
-        }
-
-        if ($direction === self::DIRECTION_DOWN) {
-            $factor = pow(10, $decimals);
-            return floor($value * $factor) / $factor;
-        }
-
-        if ($direction === self::DIRECTION_CUSTOM) {
-            $threshold = $rule->custom_threshold ?? 0.5; // e.g. 0.6 -> up, <= -> down
-            $factor = pow(10, $decimals);
-            $scaled = $value * $factor;
-            $fraction = $scaled - floor($scaled);
-            if ($fraction >= $threshold) {
-                return (floor($scaled) + 1) / $factor;
-            }
-            return floor($scaled) / $factor;
-        }
-
-        // Standard banker-style half away from zero is PHP round default
+        // Standard banker-style half away from zero
         return round($value, $decimals);
+    }
+
+    /**
+     * Get decimals for company
+     */
+    public function getDecimalsForCompany(?int $companyId): int
+    {
+        if (!$companyId) {
+            return 2;
+        }
+
+        /** @var Company|null $company */
+        $company = Company::find($companyId);
+
+        if (!$company) {
+            return 2;
+        }
+
+        return max(0, min(5, (int) $company->rounding_decimals));
     }
 }
 

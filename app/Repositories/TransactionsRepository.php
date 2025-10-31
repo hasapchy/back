@@ -355,10 +355,10 @@ class TransactionsRepository
             $convertedAmount = CurrencyConverter::convert($originalAmount, $fromCurrency, $toCurrency);
         }
 
-        // Применяем правила округления компании для контекста транзакций
+        // Применяем правила округления компании
         $roundingService = new RoundingService();
         $companyId = $this->getCurrentCompanyId();
-        $convertedAmount = $roundingService->roundForCompany($companyId, RoundingService::CONTEXT_TRANSACTIONS, (float) $convertedAmount);
+        $convertedAmount = $roundingService->roundForCompany($companyId, (float) $convertedAmount);
 
         if ($fromCurrency->id !== $defaultCurrency->id) {
             $convertedAmountDefault = CurrencyConverter::convert($originalAmount, $fromCurrency, $defaultCurrency);
@@ -688,10 +688,10 @@ class TransactionsRepository
                 $newConvertedAmount = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $toCurrency);
             }
 
-            // Применяем правила округления компании для контекста транзакций
+            // Применяем правила округления компании
             $roundingService = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
-            $newConvertedAmount = $roundingService->roundForCompany($companyId, RoundingService::CONTEXT_TRANSACTIONS, (float) $newConvertedAmount);
+            $newConvertedAmount = $roundingService->roundForCompany($companyId, (float) $newConvertedAmount);
 
             // Обновляем конвертированную сумму
             $transaction->amount = $newConvertedAmount;

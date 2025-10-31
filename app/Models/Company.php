@@ -13,15 +13,20 @@ class Company extends Model
         'name',
         'logo',
         'show_deleted_transactions',
+        'rounding_decimals',
+        'rounding_enabled',
     ];
 
     protected $attributes = [
         'logo' => 'logo.jpg',
         'show_deleted_transactions' => false,
+        'rounding_decimals' => 2,
+        'rounding_enabled' => true,
     ];
 
     protected $casts = [
         'show_deleted_transactions' => 'boolean',
+        'rounding_enabled' => 'boolean',
     ];
 
     /**
