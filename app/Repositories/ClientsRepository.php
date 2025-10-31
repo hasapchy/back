@@ -367,6 +367,7 @@ class ClientsRepository
                     ->leftJoin('currencies', 'transactions.currency_id', '=', 'currencies.id')
                     ->leftJoin('users', 'transactions.user_id', '=', 'users.id')
                     ->where('transactions.client_id', $clientId)
+                    ->where('transactions.is_deleted', false)
                     ->select(
                         'transactions.id',
                         'transactions.created_at',

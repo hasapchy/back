@@ -431,6 +431,7 @@ class ProjectsRepository
                 ->leftJoin('currencies as transaction_currencies', 'transactions.currency_id', '=', 'transaction_currencies.id')
                 ->leftJoin('users', 'transactions.user_id', '=', 'users.id')
                 ->where('transactions.project_id', $projectId)
+                ->where('transactions.is_deleted', false)
                 ->select(
                     'transactions.id',
                     'transactions.created_at',
