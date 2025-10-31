@@ -35,7 +35,8 @@ class CompaniesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:companies,name',
-            'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240'
+            'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
+            'show_deleted_transactions' => 'nullable|boolean'
         ]);
 
         if ($validator->fails()) {
@@ -60,7 +61,8 @@ class CompaniesController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => "required|string|max:255|unique:companies,name,{$id}",
-            'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240'
+            'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
+            'show_deleted_transactions' => 'nullable|boolean'
         ]);
 
         if ($validator->fails()) {
