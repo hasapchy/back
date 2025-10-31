@@ -76,6 +76,11 @@ class CompaniesController extends Controller
         if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
             $data['rounding_custom_threshold'] = null;
         }
+        // Если округление выключено, гасим связанные поля
+        if (isset($data['rounding_enabled']) && $data['rounding_enabled'] === false) {
+            $data['rounding_direction'] = null;
+            $data['rounding_custom_threshold'] = null;
+        }
 
         if ($request->hasFile('logo')) {
             $data['logo'] = $request->file('logo')->store('companies', 'public');
@@ -133,6 +138,11 @@ class CompaniesController extends Controller
 
         // Преобразуем пустую строку в null для rounding_custom_threshold после only()
         if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
+            $data['rounding_custom_threshold'] = null;
+        }
+        // Если округление выключено, гасим связанные поля
+        if (isset($data['rounding_enabled']) && $data['rounding_enabled'] === false) {
+            $data['rounding_direction'] = null;
             $data['rounding_custom_threshold'] = null;
         }
 
