@@ -227,37 +227,6 @@ class UsersController extends Controller
         return response()->json($user);
     }
 
-    public function getUserClientBalance(Request $request)
-    {
-        $user = $request->user();
-
-        // Находим клиентскую запись пользователя для текущей компании
-        $companyId = $request->user()->company_id ?? $request->input('company_id');
-
-        if (!$companyId) {
-            return response()->json(['error' => 'Company ID is required'], 400);
-        }
-
-        $clientAccount = $user->clientAccounts()
-            ->where('company_id', $companyId)
-            ->where('status', 'active')
-            ->first();
-
-        if (!$clientAccount) {
-            return response()->json([
-                'balance' => 0,
-                'client_id' => null,
-                'message' => 'No active client account found'
-            ]);
-        }
-
-        return response()->json([
-            'balance' => $clientAccount->balance,
-            'client_id' => $clientAccount->id,
-            'client_name' => $clientAccount->first_name
-        ]);
-    }
-
     public function updateProfile(Request $request)
     {
         $user = $request->user();

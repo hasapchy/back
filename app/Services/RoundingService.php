@@ -3,15 +3,9 @@
 namespace App\Services;
 
 use App\Models\Company;
-use App\Models\CompanyRoundingRule;
 
 class RoundingService
 {
-    public const CONTEXT_ORDERS = 'orders';
-    public const CONTEXT_RECEIPTS = 'receipts';
-    public const CONTEXT_SALES = 'sales';
-    public const CONTEXT_TRANSACTIONS = 'transactions';
-
     public const DIRECTION_STANDARD = 'standard';
     public const DIRECTION_UP = 'up';
     public const DIRECTION_DOWN = 'down';
@@ -35,9 +29,46 @@ class RoundingService
         }
 
         $decimals = max(0, min(5, (int) $company->rounding_decimals));
+        $direction = $company->rounding_direction ?? self::DIRECTION_STANDARD;
+        $customThreshold = $company->rounding_custom_threshold;
 
-        // Standard banker-style half away from zero
-        return round($value, $decimals);
+        return $this->applyRounding($value, $decimals, $direction, $customThreshold);
+    }
+
+    /**
+     * Apply rounding based on direction
+     */
+    protected function applyRounding(float $value, int $decimals, string $direction, ?float $customThreshold): float
+    {
+        $multiplier = pow(10, $decimals);
+        $multiplied = $value * $multiplier;
+
+        switch ($direction) {
+            case self::DIRECTION_UP:
+                // Всегда в большую сторону (ceiling)
+                return ceil($multiplied) / $multiplier;
+
+            case self::DIRECTION_DOWN:
+                // Всегда в меньшую сторону (floor)
+                return floor($multiplied) / $multiplier;
+
+            case self::DIRECTION_CUSTOM:
+                if ($customThreshold !== null) {
+                    // Округляем в большую сторону если >= threshold, иначе стандартное
+                    $fraction = abs($multiplied) - floor(abs($multiplied));
+                    if ($fraction >= $customThreshold) {
+                        return ($value >= 0 ? ceil($multiplied) : floor($multiplied)) / $multiplier;
+                    } else {
+                        return round($value, $decimals);
+                    }
+                }
+                // Fall through to standard if threshold not set
+
+            case self::DIRECTION_STANDARD:
+            default:
+                // Standard banker-style half away from zero
+                return round($value, $decimals);
+        }
     }
 
     /**

@@ -16,7 +16,7 @@ class CompaniesController extends Controller
     {
         $perPage = $request->get('per_page', 10);
 
-        $companies = Company::select(['id', 'name', 'logo', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'created_at', 'updated_at'])
+        $companies = Company::select(['id', 'name', 'logo', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold', 'created_at', 'updated_at'])
             ->orderBy('name')
             ->paginate($perPage);
 
@@ -48,14 +48,16 @@ class CompaniesController extends Controller
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
             'show_deleted_transactions' => 'nullable|boolean',
             'rounding_decimals' => 'nullable|integer|min:0|max:5',
-            'rounding_enabled' => 'nullable|boolean'
+            'rounding_enabled' => 'nullable|boolean',
+            'rounding_direction' => 'nullable|in:standard,up,down,custom',
+            'rounding_custom_threshold' => 'nullable|numeric|min:0|max:1'
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $request->only(['name', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled']);
+        $data = $request->only(['name', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold']);
 
         // Повторно обрабатываем boolean после only()
         if (isset($data['show_deleted_transactions'])) {
@@ -94,7 +96,9 @@ class CompaniesController extends Controller
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
             'show_deleted_transactions' => 'nullable|boolean',
             'rounding_decimals' => 'nullable|integer|min:0|max:5',
-            'rounding_enabled' => 'nullable|boolean'
+            'rounding_enabled' => 'nullable|boolean',
+            'rounding_direction' => 'nullable|in:standard,up,down,custom',
+            'rounding_custom_threshold' => 'nullable|numeric|min:0|max:1'
         ]);
 
         if ($validator->fails()) {
@@ -102,7 +106,7 @@ class CompaniesController extends Controller
         }
 
         $company = Company::findOrFail($id);
-        $data = $request->only(['name', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled']);
+        $data = $request->only(['name', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold']);
 
         // Повторно обрабатываем boolean после only()
         if (isset($data['show_deleted_transactions'])) {

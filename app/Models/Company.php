@@ -15,6 +15,8 @@ class Company extends Model
         'show_deleted_transactions',
         'rounding_decimals',
         'rounding_enabled',
+        'rounding_direction',
+        'rounding_custom_threshold',
     ];
 
     protected $attributes = [
@@ -22,6 +24,7 @@ class Company extends Model
         'show_deleted_transactions' => false,
         'rounding_decimals' => 2,
         'rounding_enabled' => true,
+        'rounding_direction' => 'standard',
     ];
 
     protected $casts = [
