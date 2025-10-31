@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Repositories\ClientsRepository;
+use App\Models\Client;
 use Illuminate\Support\Facades\DB;
 
 class ClientController extends Controller
@@ -135,6 +136,25 @@ class ClientController extends Controller
             'discount_type'    => 'nullable|in:fixed,percent',
         ]);
 
+        // Проверка на дублирование employee_id (для любых типов клиентов)
+        if (!empty($validatedData['employee_id'])) {
+            $companyId = $request->header('X-Company-ID');
+            $existingClient = Client::where('employee_id', $validatedData['employee_id'])
+                ;
+
+            if ($companyId) {
+                $existingClient->where('company_id', $companyId);
+            } else {
+                $existingClient->whereNull('company_id');
+            }
+
+            if ($existingClient->exists()) {
+                return response()->json([
+                    'message' => 'Этот пользователь уже привязан к другому клиенту'
+                ], 422);
+            }
+        }
+
         DB::beginTransaction();
         try {
             // Добавляем user_id к данным
@@ -200,7 +220,7 @@ class ClientController extends Controller
 
         try {
             // Получаем клиента для проверки владельца
-            $existingClient = \App\Models\Client::find($id);
+            $existingClient = Client::find($id);
             if (!$existingClient) {
                 return response()->json(['message' => 'Клиент не найден'], 404);
             }
@@ -210,6 +230,25 @@ class ClientController extends Controller
                 return response()->json([
                     'message' => 'У вас нет прав на редактирование этого клиента'
                 ], 403);
+            }
+
+            // Проверка на дублирование employee_id (для любых типов клиентов)
+            if (!empty($validatedData['employee_id'])) {
+                $companyId = $request->header('X-Company-ID');
+                $duplicateClient = Client::where('employee_id', $validatedData['employee_id'])
+                    ->where('id', '!=', $id); // Исключаем текущего клиента
+
+                if ($companyId) {
+                    $duplicateClient->where('company_id', $companyId);
+                } else {
+                    $duplicateClient->whereNull('company_id');
+                }
+
+                if ($duplicateClient->exists()) {
+                    return response()->json([
+                        'message' => 'Этот пользователь уже привязан к другому клиенту'
+                    ], 422);
+                }
             }
 
             $client = $this->itemsRepository->update($id, $validatedData);
@@ -252,7 +291,7 @@ class ClientController extends Controller
             $user = auth('api')->user();
 
             // Получаем клиента для проверки владельца
-            $client = \App\Models\Client::find($id);
+            $client = Client::find($id);
             if (!$client) {
                 return response()->json(['message' => 'Клиент не найден'], 404);
             }

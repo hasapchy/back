@@ -43,6 +43,11 @@ class CompaniesController extends Controller
             $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
 
+        // Преобразуем пустую строку в null для rounding_custom_threshold
+        if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
+            $data['rounding_custom_threshold'] = null;
+        }
+
         $validator = Validator::make($data, [
             'name' => 'required|string|max:255|unique:companies,name',
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
@@ -65,6 +70,11 @@ class CompaniesController extends Controller
         }
         if (isset($data['rounding_enabled'])) {
             $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        // Преобразуем пустую строку в null для rounding_custom_threshold после only()
+        if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
+            $data['rounding_custom_threshold'] = null;
         }
 
         if ($request->hasFile('logo')) {
@@ -91,6 +101,11 @@ class CompaniesController extends Controller
             $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
 
+        // Преобразуем пустую строку в null для rounding_custom_threshold
+        if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
+            $data['rounding_custom_threshold'] = null;
+        }
+
         $validator = Validator::make($data, [
             'name' => "required|string|max:255|unique:companies,name,{$id}",
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
@@ -114,6 +129,11 @@ class CompaniesController extends Controller
         }
         if (isset($data['rounding_enabled'])) {
             $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        // Преобразуем пустую строку в null для rounding_custom_threshold после only()
+        if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
+            $data['rounding_custom_threshold'] = null;
         }
 
         if ($request->hasFile('logo')) {
