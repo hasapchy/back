@@ -14,6 +14,9 @@ class RoundingService
     /**
      * Apply company-specific rounding rule.
      * Uses company-wide settings instead of per-context rules.
+     *
+     * If rounding_enabled = false: truncates to rounding_decimals (no rounding)
+     * If rounding_enabled = true: rounds to rounding_decimals according to rounding_direction
      */
     public function roundForCompany(?int $companyId, float $value): float
     {
@@ -24,15 +27,35 @@ class RoundingService
         /** @var Company|null $company */
         $company = Company::find($companyId);
 
-        if (!$company || !$company->rounding_enabled) {
+        if (!$company) {
             return $value;
         }
 
         $decimals = max(0, min(5, (int) $company->rounding_decimals));
+
+        // Если округление выключено, просто ограничиваем количество знаков (обрезаем)
+        if (!$company->rounding_enabled) {
+            return $this->truncate($value, $decimals);
+        }
+
+        // Если округление включено, применяем правила округления
         $direction = $company->rounding_direction ?? self::DIRECTION_STANDARD;
         $customThreshold = $company->rounding_custom_threshold;
 
         return $this->applyRounding($value, $decimals, $direction, $customThreshold);
+    }
+
+    /**
+     * Truncate value to specified number of decimal places (without rounding)
+     */
+    protected function truncate(float $value, int $decimals): float
+    {
+        if ($decimals === 0) {
+            return floor(abs($value)) * ($value >= 0 ? 1 : -1);
+        }
+
+        $multiplier = pow(10, $decimals);
+        return floor(abs($value) * $multiplier) / $multiplier * ($value >= 0 ? 1 : -1);
     }
 
     /**
