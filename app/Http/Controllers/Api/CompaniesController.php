@@ -33,7 +33,14 @@ class CompaniesController extends Controller
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $data = $request->all();
+
+        // Обрабатываем boolean поля
+        if (isset($data['show_deleted_transactions'])) {
+            $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        $validator = Validator::make($data, [
             'name' => 'required|string|max:255|unique:companies,name',
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
             'show_deleted_transactions' => 'nullable|boolean'
@@ -44,6 +51,11 @@ class CompaniesController extends Controller
         }
 
         $data = $request->only(['name', 'show_deleted_transactions']);
+
+        // Повторно обрабатываем boolean после only()
+        if (isset($data['show_deleted_transactions'])) {
+            $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
+        }
 
         if ($request->hasFile('logo')) {
             $data['logo'] = $request->file('logo')->store('companies', 'public');
@@ -59,7 +71,14 @@ class CompaniesController extends Controller
 
     public function update(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
+        $data = $request->all();
+
+        // Обрабатываем boolean поля
+        if (isset($data['show_deleted_transactions'])) {
+            $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        $validator = Validator::make($data, [
             'name' => "required|string|max:255|unique:companies,name,{$id}",
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
             'show_deleted_transactions' => 'nullable|boolean'
@@ -71,6 +90,11 @@ class CompaniesController extends Controller
 
         $company = Company::findOrFail($id);
         $data = $request->only(['name', 'show_deleted_transactions']);
+
+        // Повторно обрабатываем boolean после only()
+        if (isset($data['show_deleted_transactions'])) {
+            $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
+        }
 
         if ($request->hasFile('logo')) {
             // Удаляем старый логотип если есть
