@@ -43,7 +43,7 @@ class CurrencyConverter
 
         // Если обе валюты не манат - конвертируем через манат
         // Сначала в манат, потом в целевую валюту
-        $amountInManat = $amount / $fromCurrency->exchange_rate;
-        return $amountInManat * $toCurrency->exchange_rate;
+        $amountInManat = $amount * $fromCurrency->exchange_rate;
+        return $amountInManat / $toCurrency->exchange_rate;
     }
 }

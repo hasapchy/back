@@ -25,11 +25,13 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем права доступа к валюте
+            // Если пользователь имеет доступ к истории курсов, он должен иметь доступ ко всем валютам
             $userPermissions = $user->permissions->pluck('name')->toArray();
+            $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
             $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
-            // Если нет доступа к не-дефолтным валютам и это не базовая валюта - запрещаем доступ
-            if (!$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
+            // Если нет доступа к истории курсов И нет доступа к не-дефолтным валютам И это не базовая валюта - запрещаем доступ
+            if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
                 return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
             }
 
@@ -62,11 +64,13 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем права доступа к валюте
+            // Если пользователь имеет доступ к истории курсов, он должен иметь доступ ко всем валютам
             $userPermissions = $user->permissions->pluck('name')->toArray();
+            $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
             $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
-            // Если нет доступа к не-дефолтным валютам и это не базовая валюта - запрещаем доступ
-            if (!$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
+            // Если нет доступа к истории курсов И нет доступа к не-дефолтным валютам И это не базовая валюта - запрещаем доступ
+            if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
                 return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
             }
 
@@ -119,11 +123,13 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем права доступа к валюте
+            // Если пользователь имеет доступ к истории курсов, он должен иметь доступ ко всем валютам
             $userPermissions = $user->permissions->pluck('name')->toArray();
+            $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
             $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
-            // Если нет доступа к не-дефолтным валютам и это не базовая валюта - запрещаем доступ
-            if (!$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
+            // Если нет доступа к истории курсов И нет доступа к не-дефолтным валютам И это не базовая валюта - запрещаем доступ
+            if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
                 return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
             }
 
@@ -185,11 +191,13 @@ class CurrencyHistoryController extends Controller
             }
 
             // Проверяем права доступа к валюте
+            // Если пользователь имеет доступ к истории курсов, он должен иметь доступ ко всем валютам
             $userPermissions = $user->permissions->pluck('name')->toArray();
+            $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
             $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
-            // Если нет доступа к не-дефолтным валютам и это не базовая валюта - запрещаем доступ
-            if (!$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
+            // Если нет доступа к истории курсов И нет доступа к не-дефолтным валютам И это не базовая валюта - запрещаем доступ
+            if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
                 return response()->json(['error' => 'Нет доступа к этой валюте'], 403);
             }
 
@@ -226,16 +234,9 @@ class CurrencyHistoryController extends Controller
                 return response()->json(['error' => 'Unauthorized'], 401);
             }
 
-            // Проверяем, есть ли у пользователя доступ к не-дефолтным валютам
-            $userPermissions = $user->permissions->pluck('name')->toArray();
-            $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
-
+            // Для истории курсов показываем все активные валюты, у которых есть история
+            // Если пользователь имеет доступ к странице истории курсов, он должен видеть все валюты
             $query = Currency::where('status', 1);
-
-            // Если нет доступа к не-дефолтным валютам - показываем только базовую валюту
-            if (!$hasAccessToNonDefaultCurrencies) {
-                $query->where('is_default', true);
-            }
 
             $currencies = $query->with(['exchangeRateHistories' => function ($query) {
                 $query->where('start_date', '<=', now()->toDateString())

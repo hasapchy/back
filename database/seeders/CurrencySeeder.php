@@ -28,6 +28,15 @@ class CurrencySeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now()
             ],
+            [
+                'code' => 'RUB',
+                'name' => 'Российский рубль',
+                'symbol' => '₽',
+                'is_default' => false,
+                'status' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
         ];
 
 
@@ -49,6 +58,7 @@ class CurrencySeeder extends Seeder
         $realRates = [
             'TMT' => 1.00,        // 1 манат = 1 манат
             'USD' => 19.65,       // 1 доллар = 19.65 манат
+            'RUB' => 0.234,       // 1 рубль = 0.234 маната (100 руб = 23.4 манат по курсу USD=83, TMT=19.5)
         ];
 
         foreach ($currencies as $currency) {
