@@ -155,6 +155,28 @@ class ClientController extends Controller
             }
         }
 
+        // Проверка уникальности телефонов внутри компании
+        $companyId = $request->header('X-Company-ID');
+        if (!empty($validatedData['phones'])) {
+            foreach ($validatedData['phones'] as $phone) {
+                $existingPhone = DB::table('clients_phones')
+                    ->join('clients', 'clients_phones.client_id', '=', 'clients.id')
+                    ->where('clients_phones.phone', $phone);
+
+                if ($companyId) {
+                    $existingPhone->where('clients.company_id', $companyId);
+                } else {
+                    $existingPhone->whereNull('clients.company_id');
+                }
+
+                if ($existingPhone->exists()) {
+                    return response()->json([
+                        'message' => "Телефон {$phone} уже используется другим клиентом в этой компании"
+                    ], 422);
+                }
+            }
+        }
+
         DB::beginTransaction();
         try {
             // Добавляем user_id к данным
@@ -176,13 +198,6 @@ class ClientController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            // Проверяем на ошибку дублирования телефона
-            if (str_contains($e->getMessage(), 'clients_phones_phone_unique')) {
-                return response()->json([
-                    'message' => 'Телефон уже используется другим клиентом'
-                ], 422);
-            }
-
             // Проверяем на ошибку дублирования email
             if (str_contains($e->getMessage(), 'clients_emails_email_unique')) {
                 return response()->json([
@@ -191,7 +206,8 @@ class ClientController extends Controller
             }
 
             return response()->json([
-                'message' => 'Ошибка при создании клиента'
+                'message' => 'Ошибка при создании клиента',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -251,6 +267,29 @@ class ClientController extends Controller
                 }
             }
 
+            // Проверка уникальности телефонов внутри компании
+            $companyId = $request->header('X-Company-ID');
+            if (!empty($validatedData['phones'])) {
+                foreach ($validatedData['phones'] as $phone) {
+                    $existingPhone = DB::table('clients_phones')
+                        ->join('clients', 'clients_phones.client_id', '=', 'clients.id')
+                        ->where('clients_phones.phone', $phone)
+                        ->where('clients_phones.client_id', '!=', $id); // Исключаем текущего клиента
+
+                    if ($companyId) {
+                        $existingPhone->where('clients.company_id', $companyId);
+                    } else {
+                        $existingPhone->whereNull('clients.company_id');
+                    }
+
+                    if ($existingPhone->exists()) {
+                        return response()->json([
+                            'message' => "Телефон {$phone} уже используется другим клиентом в этой компании"
+                        ], 422);
+                    }
+                }
+            }
+
             $client = $this->itemsRepository->update($id, $validatedData);
 
             // Инвалидируем кэш клиентов
@@ -265,13 +304,6 @@ class ClientController extends Controller
                 'client' => $client
             ], 200);
         } catch (\Throwable $e) {
-            // Проверяем на ошибку дублирования телефона
-            if (str_contains($e->getMessage(), 'clients_phones_phone_unique')) {
-                return response()->json([
-                    'message' => 'Телефон уже используется другим клиентом'
-                ], 422);
-            }
-
             // Проверяем на ошибку дублирования email
             if (str_contains($e->getMessage(), 'clients_emails_email_unique')) {
                 return response()->json([
@@ -280,7 +312,8 @@ class ClientController extends Controller
             }
 
             return response()->json([
-                'message' => 'Ошибка при обновлении клиента'
+                'message' => 'Ошибка при обновлении клиента',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
