@@ -234,9 +234,18 @@ class CurrencyHistoryController extends Controller
                 return response()->json(['error' => 'Unauthorized'], 401);
             }
 
-            // Для истории курсов показываем все активные валюты, у которых есть история
-            // Если пользователь имеет доступ к странице истории курсов, он должен видеть все валюты
+            // Проверяем права доступа пользователя
+            $userPermissions = $user->permissions->pluck('name')->toArray();
+            $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
+            $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
+
+            // Показываем все активные валюты если есть доступ к истории курсов или к не-дефолтным валютам
+            // Иначе показываем только базовую валюту
             $query = Currency::where('status', 1);
+            
+            if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies) {
+                $query->where('is_default', true);
+            }
 
             $currencies = $query->with(['exchangeRateHistories' => function ($query) {
                 $query->where('start_date', '<=', now()->toDateString())

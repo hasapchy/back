@@ -76,14 +76,31 @@ class CurrencySeeder extends Seeder
 
         // Вставка истории валют только если записи не существует
         foreach ($currencyHistories as $history) {
-            DB::table('currency_histories')
-                ->updateOrInsert(
-                    [
-                        'currency_id' => $history['currency_id'],
-                        'start_date' => $history['start_date']
-                    ],
-                    $history
-                );
+            // Проверяем, существует ли уже активная запись для этой валюты
+            $existingActiveHistory = DB::table('currency_histories')
+                ->where('currency_id', $history['currency_id'])
+                ->where('start_date', '<=', $history['start_date'])
+                ->where(function ($query) use ($history) {
+                    $query->whereNull('end_date')
+                        ->orWhere('end_date', '>=', $history['start_date']);
+                })
+                ->exists();
+
+            // Если активная запись уже существует, пропускаем
+            if ($existingActiveHistory) {
+                continue;
+            }
+
+            // Проверяем, существует ли запись с такой же датой начала
+            $existingHistory = DB::table('currency_histories')
+                ->where('currency_id', $history['currency_id'])
+                ->where('start_date', $history['start_date'])
+                ->exists();
+
+            // Если записи нет, создаем новую
+            if (!$existingHistory) {
+                DB::table('currency_histories')->insert($history);
+            }
         }
     }
 }
