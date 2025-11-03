@@ -259,7 +259,7 @@ class CommentController extends Controller
                     $txnId = $log->subject->id ?? null;
                     $amount = $log->subject->amount ?? null;
                     $currencySymbol = null;
-                    $companyId = $log->subject->company_id ?? null;
+                    $companyId = null;
                     // Пытаемся получить символ валюты (через связь или по currency_id)
                     try {
                         if (isset($log->subject->currency) && isset($log->subject->currency->symbol)) {
@@ -431,7 +431,7 @@ class CommentController extends Controller
         $activities = $activities->merge($productActivities);
 
         // Активность транзакций заказа с оптимизацией (через полиморфную связь)
-        $orderTransactionLogs = \App\Models\Transaction::select(['id', 'source_id', 'source_type', 'amount', 'currency_id', 'company_id'])
+        $orderTransactionLogs = \App\Models\Transaction::select(['id', 'source_id', 'source_type', 'amount', 'currency_id'])
             ->where('source_type', \App\Models\Order::class)
             ->where('source_id', $orderId)
             ->with(['currency:id,symbol'])
@@ -447,7 +447,7 @@ class CommentController extends Controller
                         $parts[] = '#' . $transaction->id;
                         if (!is_null($transaction->amount)) {
                             $symbol = optional($transaction->currency)->symbol;
-                            $formatted = $this->formatAmountForCompany($transaction->company_id ?? null, (float)$transaction->amount);
+                            $formatted = $this->formatAmountForCompany(null, (float)$transaction->amount);
                             $parts[] = 'сумма: ' . $formatted . ($symbol ? (' ' . $symbol) : '');
                         }
                         $desc = rtrim($desc) . ' (' . implode(', ', $parts) . ')';
