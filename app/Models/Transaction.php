@@ -146,14 +146,15 @@ class Transaction extends Model
                 $client = Client::find($transaction->client_id);
                 $defaultCurrency = Currency::where('is_default', true)->first();
 
+                // ВАЖНО: для баланса клиента используем ИСХОДНУЮ сумму и валюту (orig_amount, currency)
                 if ($transaction->currency_id != $defaultCurrency->id) {
                     $convertedAmount = CurrencyConverter::convert(
-                        $transaction->amount,
+                        $transaction->orig_amount,
                         $transaction->currency,
                         $defaultCurrency
                     );
                 } else {
-                    $convertedAmount = $transaction->amount;
+                    $convertedAmount = $transaction->orig_amount;
                 }
 
                 if ($client) {
@@ -222,7 +223,8 @@ class Transaction extends Model
                 $client = Client::find($transaction->client_id);
                 $defaultCurrency = Currency::where('is_default', true)->first();
 
-                $originalAmount = $transaction->getOriginal('amount');
+                // ВАЖНО: сравнение и откат считаем по исходной сумме/валюте
+                $originalAmount = $transaction->getOriginal('orig_amount');
                 $originalCurrency = Currency::find($transaction->getOriginal('currency_id'));
                 $originalIsDebt = $transaction->getOriginal('is_debt');
 
@@ -238,47 +240,83 @@ class Transaction extends Model
 
                 if ($transaction->currency_id != $defaultCurrency->id) {
                     $currentConverted = CurrencyConverter::convert(
-                        $transaction->amount,
+                        $transaction->orig_amount,
                         $transaction->currency,
                         $defaultCurrency
                     );
                 } else {
-                    $currentConverted = $transaction->amount;
+                    $currentConverted = $transaction->orig_amount;
                 }
 
                 if ($client) {
-                    $oldBalance = $client->balance;
+                    $oldClientId = $transaction->getOriginal('client_id');
                     $originalType = $transaction->getOriginal('type');
 
-                    // Откатываем старое значение (противоположная операция)
-                    // Было type=1 (доход): был -=, откатываем +=
-                    // Было type=0 (расход): был +=, откатываем -=
-                    if ($originalType == 1) {
-                        $client->balance = ($client->balance ?? 0) + $originalConverted;
+                    if ($oldClientId && $oldClientId != $transaction->client_id) {
+                        // Клиент изменился: откатить на старом клиенте, применить на новом
+                        $oldClient = Client::find($oldClientId);
+                        if ($oldClient) {
+                            if ($originalType == 1) {
+                                $oldClient->balance = ($oldClient->balance ?? 0) + $originalConverted;
+                            } else {
+                                $oldClient->balance = ($oldClient->balance ?? 0) - $originalConverted;
+                            }
+                            $oldClient->save();
+                        }
+
+                        $oldBalance = $client->balance;
+                        if ($transaction->type == 1) {
+                            $client->balance = ($client->balance ?? 0) - $currentConverted;
+                        } else {
+                            $client->balance = ($client->balance ?? 0) + $currentConverted;
+                        }
+                        $client->save();
+
+                        \Illuminate\Support\Facades\Log::info('Transaction::updated - CLIENT BALANCE CHANGED (client switched)', [
+                            'transaction_id' => $transaction->id,
+                            'old_client_id' => $oldClientId,
+                            'new_client_id' => $transaction->client_id,
+                            'new_client_old_balance' => $oldBalance,
+                            'new_client_new_balance' => $client->balance
+                        ]);
+                    } elseif (!$oldClientId) {
+                        // Ранее клиента не было: просто применить на новом клиенте
+                        $oldBalance = $client->balance;
+                        if ($transaction->type == 1) {
+                            $client->balance = ($client->balance ?? 0) - $currentConverted;
+                        } else {
+                            $client->balance = ($client->balance ?? 0) + $currentConverted;
+                        }
+                        $client->save();
+
+                        \Illuminate\Support\Facades\Log::info('Transaction::updated - CLIENT BALANCE CHANGED (client attached)', [
+                            'transaction_id' => $transaction->id,
+                            'client_id' => $transaction->client_id,
+                            'old_balance' => $oldBalance,
+                            'new_balance' => $client->balance
+                        ]);
                     } else {
-                        $client->balance = ($client->balance ?? 0) - $originalConverted;
+                        // Тот же клиент: откатить старое и применить новое
+                        $oldBalance = $client->balance;
+                        if ($originalType == 1) {
+                            $client->balance = ($client->balance ?? 0) + $originalConverted;
+                        } else {
+                            $client->balance = ($client->balance ?? 0) - $originalConverted;
+                        }
+                        if ($transaction->type == 1) {
+                            $client->balance = ($client->balance ?? 0) - $currentConverted;
+                        } else {
+                            $client->balance = ($client->balance ?? 0) + $currentConverted;
+                        }
+                        $client->save();
+
+                        \Illuminate\Support\Facades\Log::info('Transaction::updated - CLIENT BALANCE CHANGED', [
+                            'transaction_id' => $transaction->id,
+                            'client_id' => $transaction->client_id,
+                            'old_balance' => $oldBalance,
+                            'new_balance' => $client->balance
+                        ]);
                     }
-
-                    // Применяем новое значение (прямая операция)
-                    // ЛОГИКА: Положительный баланс = "клиент должен НАМ"
-                    // type=1 (доход): клиент ПЛАТИТ → долг УМЕНЬШАЕТСЯ
-                    // type=0 (расход): мы ПЛАТИМ → долг УВЕЛИЧИВАЕТСЯ
-                    if ($transaction->type == 1) {
-                        $client->balance = ($client->balance ?? 0) - $currentConverted;
-                    } else {
-                        $client->balance = ($client->balance ?? 0) + $currentConverted;
-                    }
-
-                    $client->save();
-
-                    \Illuminate\Support\Facades\Log::info('Transaction::updated - CLIENT BALANCE CHANGED', [
-                        'transaction_id' => $transaction->id,
-                        'client_id' => $transaction->client_id,
-                        'old_balance' => $oldBalance,
-                        'new_balance' => $client->balance,
-                        'old_amount' => $originalAmount,
-                        'new_amount' => $transaction->amount
-                    ]);
                 }
 
                 // Инвалидируем кэш клиента и проектов после обновления баланса
