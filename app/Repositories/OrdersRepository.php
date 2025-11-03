@@ -715,17 +715,7 @@ class OrdersRepository
             // 0. Запрещаем менять тип контрагента после создания:
             // если заказ создан с клиентом (client-mode), запрещаем проставлять project_id
             // если заказ создан с проектом (project-mode), запрещаем проставлять client_id
-            $isClientModeInitial = !empty($order->client_id) && empty($order->project_id);
-            $isProjectModeInitial = empty($order->client_id) && !empty($order->project_id);
-            $newClientId = $data['client_id'] ?? $order->client_id;
-            $newProjectId = $data['project_id'] ?? $order->project_id;
-
-            if ($isClientModeInitial && !empty($newProjectId)) {
-                throw new \Exception('Нельзя поменять заказ с клиента на проект. Разрешается только смена клиента.');
-            }
-            if ($isProjectModeInitial && !empty($newClientId)) {
-                throw new \Exception('Нельзя поменять заказ с проекта на клиента. Разрешается только смена проекта.');
-            }
+			// Убрана логика запрета смены типа контрагента: теперь можно переключать между клиентом и проектом
 
             // 1. Возвращаем старые товары на склад
             foreach ($oldProducts as $product) {

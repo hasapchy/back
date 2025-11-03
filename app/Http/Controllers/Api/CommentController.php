@@ -227,7 +227,7 @@ class CommentController extends Controller
                 'activity_log.id', 'activity_log.description', 'activity_log.properties',
                 'activity_log.causer_id', 'activity_log.created_at'
             ])
-            ->with(['causer:id,name'])
+            ->with(['causer:id,name', 'subject'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($log) use ($modelClass) {
@@ -243,14 +243,62 @@ class CommentController extends Controller
         // Получаем пользователя из causer или пытаемся найти его другим способом
         $user = $this->getUserForActivity($log, $modelClass);
 
+        $description = $log->description;
+
+        // Обогащаем описание для заказов и транзакций
+        try {
+            if ($log->subject) {
+                // Для заказа добавляем ID заказа
+                if (get_class($log->subject) === \App\Models\Order::class && isset($log->subject->id)) {
+                    // Если текст уже локализован как "Создан заказ", просто добавим ID
+                    $description = rtrim($description) . ' #' . $log->subject->id;
+                }
+
+                // Для транзакции добавляем ID и сумму
+                if (get_class($log->subject) === \App\Models\Transaction::class) {
+                    $txnId = $log->subject->id ?? null;
+                    $amount = $log->subject->amount ?? null;
+                    $currencySymbol = null;
+                    $companyId = $log->subject->company_id ?? null;
+                    // Пытаемся получить символ валюты (через связь или по currency_id)
+                    try {
+                        if (isset($log->subject->currency) && isset($log->subject->currency->symbol)) {
+                            $currencySymbol = $log->subject->currency->symbol;
+                        } elseif (isset($log->subject->currency_id) && $log->subject->currency_id) {
+                            $currencySymbol = optional(\App\Models\Currency::select('id','symbol')->find($log->subject->currency_id))->symbol;
+                        }
+                    } catch (\Throwable $e) {}
+
+                    if ($txnId !== null || $amount !== null) {
+                        $parts = [];
+                        if ($txnId !== null) { $parts[] = '#' . $txnId; }
+                        if ($amount !== null) {
+                            $formatted = $this->formatAmountForCompany($companyId, (float)$amount);
+                            $parts[] = 'сумма: ' . $formatted . ($currencySymbol ? (' ' . $currencySymbol) : '');
+                        }
+                        $description = rtrim($description) . ' (' . implode(', ', $parts) . ')';
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Безопасно игнорируем любые ошибки при обогащении
+        }
+
         if ($log->description === 'created' || $log->description === 'Создан заказ') {
             return [
                 'type' => 'log',
                 'id' => $log->id,
-                'description' => $log->description,
+                'description' => $description,
                 'changes' => null,
                 'user' => $user,
                 'created_at' => $log->created_at,
+                'meta' => ($log->subject && get_class($log->subject) === \App\Models\Transaction::class)
+                    ? [
+                        'transaction_id' => $log->subject->id ?? null,
+                        'amount' => isset($log->subject->amount) ? (float) $log->subject->amount : null,
+                        'currency_symbol' => isset($currencySymbol) ? $currencySymbol : null,
+                    ]
+                    : null,
             ];
         }
 
@@ -259,10 +307,17 @@ class CommentController extends Controller
         return [
             'type' => 'log',
             'id' => $log->id,
-            'description' => $log->description,
+            'description' => $description,
             'changes' => $changes,
             'user' => $user,
             'created_at' => $log->created_at,
+            'meta' => ($log->subject && get_class($log->subject) === \App\Models\Transaction::class)
+                ? [
+                    'transaction_id' => $log->subject->id ?? null,
+                    'amount' => isset($log->subject->amount) ? (float) $log->subject->amount : null,
+                    'currency_symbol' => isset($currencySymbol) ? $currencySymbol : null,
+                ]
+                : null,
         ];
     }
 
@@ -350,67 +405,54 @@ class CommentController extends Controller
     {
         $activities = collect();
 
-        // Активность товаров заказа с оптимизацией
-        $orderProductLogs = \App\Models\OrderProduct::select(['id', 'order_id', 'product_id'])
-            ->where('order_id', $orderId)
-            ->with(['product:id,name'])
+        // Ищем активности где subject - это Order, но причиной (causer) были OrderProduct или OrderTempProduct
+        // tapActivity переназначает subject на Order, поэтому ищем напрямую через Activity
+        $productActivities = Activity::where('subject_type', \App\Models\Order::class)
+            ->where('subject_id', $orderId)
+            ->where(function ($query) {
+                $query->where('causer_type', \App\Models\OrderProduct::class)
+                      ->orWhere('causer_type', \App\Models\OrderTempProduct::class)
+                      ->orWhere('description', 'like', '%товар%')
+                      ->orWhere('description', 'like', '%Товар%')
+                      ->orWhere('description', 'like', '%услуг%')
+                      ->orWhere('description', 'like', '%Услуг%')
+                      ->orWhere('log_name', 'order_product')
+                      ->orWhere('log_name', 'order_temp_product');
+            })
+            ->select(['activity_log.id', 'activity_log.description', 'activity_log.properties', 'activity_log.causer_id', 'activity_log.causer_type', 'activity_log.created_at'])
+            ->with(['causer:id,name', 'subject'])
+            ->orderBy('created_at', 'desc')
             ->get()
-            ->flatMap(function ($orderProduct) {
-                return $orderProduct->activities()
-                    ->select(['activity_log.id', 'activity_log.description', 'activity_log.causer_id', 'activity_log.created_at'])
-                    ->with(['causer:id,name'])
-                    ->latest()
-                    ->limit(1)
-                    ->get();
-            })->map(function ($log) {
-                return [
-                    'type' => 'log',
-                    'id' => $log->id,
-                    'description' => $log->description,
-                    'changes' => null,
-                    'user' => $this->getUserForActivity($log, \App\Models\Order::class),
-                    'created_at' => $log->created_at,
-                ];
-            })->filter();
+            ->map(function ($log) {
+                return $this->processActivityLog($log, \App\Models\Order::class);
+            })
+            ->filter();
 
-        $activities = $activities->merge($orderProductLogs);
-
-        // Активность временных товаров заказа с оптимизацией
-        $orderTempProductLogs = \App\Models\OrderTempProduct::select(['id', 'order_id', 'name'])
-            ->where('order_id', $orderId)
-            ->get()
-            ->flatMap(function ($orderTempProduct) {
-                return $orderTempProduct->activities()
-                    ->select(['activity_log.id', 'activity_log.description', 'activity_log.causer_id', 'activity_log.created_at'])
-                    ->with(['causer:id,name'])
-                    ->latest()
-                    ->limit(1)
-                    ->get();
-            })->map(function ($log) {
-                return [
-                    'type' => 'log',
-                    'id' => $log->id,
-                    'description' => $log->description,
-                    'changes' => null,
-                    'user' => $this->getUserForActivity($log, \App\Models\Order::class),
-                    'created_at' => $log->created_at,
-                ];
-            })->filter();
-
-        $activities = $activities->merge($orderTempProductLogs);
+        $activities = $activities->merge($productActivities);
 
         // Активность транзакций заказа с оптимизацией (через полиморфную связь)
-        $orderTransactionLogs = \App\Models\Transaction::select(['id', 'source_id', 'source_type', 'amount'])
+        $orderTransactionLogs = \App\Models\Transaction::select(['id', 'source_id', 'source_type', 'amount', 'currency_id', 'company_id'])
             ->where('source_type', \App\Models\Order::class)
             ->where('source_id', $orderId)
+            ->with(['currency:id,symbol'])
             ->get()
             ->flatMap(function ($transaction) {
                 return $transaction->activities()
                     ->select(['activity_log.id', 'activity_log.description', 'activity_log.causer_id', 'activity_log.created_at'])
-                    ->with(['causer:id,name'])
-                    ->latest()
-                    ->limit(1)
-                    ->get();
+                    ->with(['causer:id,name', 'subject'])
+                    ->get()->map(function ($log) use ($transaction) {
+                        // Обогащаем описание ID и суммой транзакции
+                        $desc = $log->description;
+                        $parts = [];
+                        $parts[] = '#' . $transaction->id;
+                        if (!is_null($transaction->amount)) {
+                            $symbol = optional($transaction->currency)->symbol;
+                            $formatted = $this->formatAmountForCompany($transaction->company_id ?? null, (float)$transaction->amount);
+                            $parts[] = 'сумма: ' . $formatted . ($symbol ? (' ' . $symbol) : '');
+                        }
+                        $desc = rtrim($desc) . ' (' . implode(', ', $parts) . ')';
+                        return $log->setAttribute('description', $desc);
+                    });
             })->map(function ($log) {
                 return [
                     'type' => 'log',
@@ -425,6 +467,18 @@ class CommentController extends Controller
         $activities = $activities->merge($orderTransactionLogs);
 
         return $activities;
+    }
+
+    private function formatAmountForCompany(?int $companyId, float $amount): string
+    {
+        try {
+            $rounding = new \App\Services\RoundingService();
+            $decimals = $rounding->getDecimalsForCompany($companyId);
+            $rounded = $rounding->roundForCompany($companyId, $amount);
+            return number_format($rounded, $decimals, '.', ' ');
+        } catch (\Throwable $e) {
+            return (string)$amount;
+        }
     }
 
     private function getRelatedModelName(string $key, string $modelClass): ?string
@@ -444,7 +498,8 @@ class CommentController extends Controller
         // Специфичные маппинги для разных типов сущностей
         $specificFieldToModelMap = [
             \App\Models\Order::class => [
-                'category_id' => \App\Models\OrderCategory::class,
+                // В заказе категория теперь тянется из общей таблицы категорий товаров
+                'category_id' => \App\Models\Category::class,
                 'status_id' => \App\Models\OrderStatus::class,
             ],
             \App\Models\Transaction::class => [
