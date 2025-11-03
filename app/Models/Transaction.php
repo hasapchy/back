@@ -219,7 +219,10 @@ class Transaction extends Model
             ]);
 
             // Обновляем баланс клиента только если это НЕ долговая операция (is_debt=false)
-            if ($transaction->client_id && !$transaction->getSkipClientBalanceUpdate()) {
+            // Не трогаем баланс клиента при удалении ТОЛЬКО если это оплата из заказа с проектом
+            // (ручные транзакции с project_id должны влиять на баланс)
+            $isOrderWithProject = ($transaction->source_type === 'App\\Models\\Order') && !empty($transaction->project_id);
+            if ($transaction->client_id && !$transaction->getSkipClientBalanceUpdate() && !$isOrderWithProject) {
                 $client = Client::find($transaction->client_id);
                 $defaultCurrency = Currency::where('is_default', true)->first();
 
