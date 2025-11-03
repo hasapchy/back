@@ -225,7 +225,7 @@ class CommentController extends Controller
         return $model->activities()
             ->select([
                 'activity_log.id', 'activity_log.description', 'activity_log.properties',
-                'activity_log.causer_id', 'activity_log.created_at'
+                'activity_log.causer_id', 'activity_log.created_at', 'activity_log.log_name'
             ])
             ->with(['causer:id,name', 'subject'])
             ->orderBy('created_at', 'desc')
@@ -244,6 +244,7 @@ class CommentController extends Controller
         $user = $this->getUserForActivity($log, $modelClass);
 
         $description = $log->description;
+        $meta = null;
 
         // Обогащаем описание для заказов и транзакций
         try {
@@ -278,6 +279,34 @@ class CommentController extends Controller
                         }
                         $description = rtrim($description) . ' (' . implode(', ', $parts) . ')';
                     }
+                    $meta = [
+                        'transaction_id' => $txnId,
+                        'amount' => $amount !== null ? (float)$amount : null,
+                        'currency_symbol' => isset($currencySymbol) ? $currencySymbol : null,
+                    ];
+                }
+
+                // Добавляем meta для строк товаров (кол-во и цена)
+                $logName = $log->log_name ?? null;
+                if (in_array($logName, ['order_product', 'order_temp_product'])) {
+                    $props = $log->properties;
+                    $attrs = null;
+                    if (method_exists($props, 'toArray')) {
+                        $arr = $props->toArray();
+                        $attrs = $arr['attributes'] ?? null;
+                    } elseif (is_object($props)) {
+                        $attrs = $props->attributes ?? null;
+                    } elseif (is_array($props)) {
+                        $attrs = $props['attributes'] ?? null;
+                    }
+                    if (is_array($attrs)) {
+                        $q = isset($attrs['quantity']) ? (float)$attrs['quantity'] : null;
+                        $p = isset($attrs['price']) ? (float)$attrs['price'] : null;
+                        $meta = array_merge($meta ?? [], [
+                            'product_quantity' => $q,
+                            'product_price' => $p,
+                        ]);
+                    }
                 }
             }
         } catch (\Throwable $e) {
@@ -292,13 +321,7 @@ class CommentController extends Controller
                 'changes' => null,
                 'user' => $user,
                 'created_at' => $log->created_at,
-                'meta' => ($log->subject && get_class($log->subject) === \App\Models\Transaction::class)
-                    ? [
-                        'transaction_id' => $log->subject->id ?? null,
-                        'amount' => isset($log->subject->amount) ? (float) $log->subject->amount : null,
-                        'currency_symbol' => isset($currencySymbol) ? $currencySymbol : null,
-                    ]
-                    : null,
+                'meta' => $meta,
             ];
         }
 
@@ -311,13 +334,7 @@ class CommentController extends Controller
             'changes' => $changes,
             'user' => $user,
             'created_at' => $log->created_at,
-            'meta' => ($log->subject && get_class($log->subject) === \App\Models\Transaction::class)
-                ? [
-                    'transaction_id' => $log->subject->id ?? null,
-                    'amount' => isset($log->subject->amount) ? (float) $log->subject->amount : null,
-                    'currency_symbol' => isset($currencySymbol) ? $currencySymbol : null,
-                ]
-                : null,
+            'meta' => $meta,
         ];
     }
 
@@ -419,7 +436,7 @@ class CommentController extends Controller
                       ->orWhere('log_name', 'order_product')
                       ->orWhere('log_name', 'order_temp_product');
             })
-            ->select(['activity_log.id', 'activity_log.description', 'activity_log.properties', 'activity_log.causer_id', 'activity_log.causer_type', 'activity_log.created_at'])
+            ->select(['activity_log.id', 'activity_log.description', 'activity_log.properties', 'activity_log.causer_id', 'activity_log.causer_type', 'activity_log.created_at', 'activity_log.log_name'])
             ->with(['causer:id,name', 'subject'])
             ->orderBy('created_at', 'desc')
             ->get()
