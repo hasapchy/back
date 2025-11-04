@@ -1303,9 +1303,7 @@ class OrdersRepository
             $raw = $width * $height;
         }
 
-        // Применяем правила округления компании
-        $roundingService = new RoundingService();
-        $companyId = $this->getCurrentCompanyId();
-        return $roundingService->roundForCompany($companyId, (float) $raw);
+        // Возвращаем сырое значение без округления (округляется только сумма)
+        return (float) $raw;
     }
 }

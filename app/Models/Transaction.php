@@ -133,9 +133,13 @@ class Transaction extends Model
             ]);
 
             // Обновляем баланс клиента только если это НЕ долговая операция (is_debt=false)
+            // Не трогаем баланс клиента ТОЛЬКО если это оплата из заказа с проектом
+            // (ручные транзакции с project_id должны влиять на баланс клиента)
+            $isOrderWithProject = ($transaction->source_type === 'App\\Models\\Order') && !empty($transaction->project_id);
             if (
                 $transaction->client_id
                 && !$transaction->getSkipClientBalanceUpdate()
+                && !$isOrderWithProject
             ) {
                 \Illuminate\Support\Facades\Log::info('Transaction::created - UPDATING CLIENT BALANCE', [
                     'transaction_id' => $transaction->id,
@@ -192,8 +196,12 @@ class Transaction extends Model
                 \Illuminate\Support\Facades\Log::info('Transaction::created - CLIENT BALANCE UPDATE SKIPPED', [
                     'transaction_id' => $transaction->id,
                     'client_id' => $transaction->client_id,
+                    'project_id' => $transaction->project_id,
+                    'source_type' => $transaction->source_type,
+                    'isOrderWithProject' => $isOrderWithProject ?? false,
                     'reason_client_id' => empty($transaction->client_id) ? 'no_client_id' : 'has_client_id',
-                    'reason_skip' => $transaction->getSkipClientBalanceUpdate() ? 'skip_flag_set' : 'skip_flag_not_set'
+                    'reason_skip' => $transaction->getSkipClientBalanceUpdate() ? 'skip_flag_set' : 'skip_flag_not_set',
+                    'reason_order_with_project' => ($isOrderWithProject ?? false) ? 'order_with_project' : 'not_order_with_project'
                 ]);
             }
 
