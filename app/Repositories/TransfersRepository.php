@@ -113,7 +113,13 @@ class TransfersRepository
 
         // Если валюты касс отличаются, конвертируем сумму
         if ($fromCurrency->id !== $toCurrency->id) {
-            $amountInTargetCurrency = CurrencyConverter::convert($amount, $fromCurrency, $toCurrency);
+            // Если передан курс вручную, используем его
+            if (isset($data['exchange_rate']) && $data['exchange_rate'] > 0) {
+                $amountInTargetCurrency = $amount * $data['exchange_rate'];
+            } else {
+                // Иначе используем автоматический расчет
+                $amountInTargetCurrency = CurrencyConverter::convert($amount, $fromCurrency, $toCurrency);
+            }
         } else {
             $amountInTargetCurrency = $amount;
         }

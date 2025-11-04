@@ -47,7 +47,8 @@ class TransfersController extends Controller
             'cash_id_from' => 'required|exists:cash_registers,id',
             'cash_id_to' => 'required|exists:cash_registers,id',
             'amount' => 'required|numeric|min:0.01',
-            'note' => 'nullable|sometimes|string'
+            'note' => 'nullable|sometimes|string',
+            'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001'
         ]);
         // Проверяем права пользователя на кассу
         $transactions_repository = new TransactionsRepository();
@@ -68,7 +69,8 @@ class TransfersController extends Controller
             'cash_id_to' => $request->cash_id_to,
             'amount' => $request->amount,
             'user_id' => $userUuid,
-            'note' => $request->note
+            'note' => $request->note,
+            'exchange_rate' => $request->exchange_rate
         ]);
 
         if (!$item_created) {
@@ -76,11 +78,11 @@ class TransfersController extends Controller
                 'message' => 'Ошибка создания трансфера'
             ], 400);
         }
-        
+
         // Инвалидируем кэш переводов и касс (баланс касс изменился)
         CacheService::invalidateTransfersCache();
         CacheService::invalidateCashRegistersCache();
-        
+
         return response()->json([
             'message' => 'Трансфер создан'
         ]);
@@ -97,7 +99,8 @@ class TransfersController extends Controller
             'cash_id_from' => 'required|exists:cash_registers,id',
             'cash_id_to' => 'required|exists:cash_registers,id',
             'amount' => 'required|numeric|min:0.01',
-            'note' => 'nullable|string'
+            'note' => 'nullable|string',
+            'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001'
         ]);
 
         $transactions_repository = new TransactionsRepository();
@@ -115,6 +118,7 @@ class TransfersController extends Controller
             'amount' => $request->amount,
             'note' => $request->note,
             'user_id' => $userUuid,
+            'exchange_rate' => $request->exchange_rate
         ]);
 
         if (!$updated) {
