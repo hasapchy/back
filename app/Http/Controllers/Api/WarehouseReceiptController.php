@@ -26,6 +26,17 @@ class WarehouseReceiptController extends Controller
         return $this->paginatedResponse($warehouses);
     }
 
+    public function show($id)
+    {
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $item = $this->warehouseRepository->getItemById($id, $userUuid);
+        if (!$item) {
+            return $this->notFoundResponse('Оприходование не найдено');
+        }
+
+        return response()->json(['item' => $item]);
+    }
+
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();

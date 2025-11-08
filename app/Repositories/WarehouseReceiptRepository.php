@@ -22,56 +22,69 @@ class WarehouseReceiptRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('warehouse_receipts_paginated', [$userUuid, $perPage]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
-            $warehouseIds = DB::table('wh_users')
-                ->where('user_id', $userUuid)
-                ->pluck('warehouse_id')
-                ->toArray();
-
-            $items = WhReceipt::select([
-                'wh_receipts.id',
-                'wh_receipts.warehouse_id',
-                'wh_receipts.supplier_id',
-                'wh_receipts.amount',
-                'wh_receipts.cash_id',
-                'wh_receipts.project_id',
-                'wh_receipts.note',
-                'wh_receipts.user_id',
-                'wh_receipts.date',
-                'wh_receipts.created_at',
-                'wh_receipts.updated_at',
-                'clients.first_name as client_first_name',
-                'clients.last_name as client_last_name',
-                'clients.contact_person as client_contact_person'
-            ])
-                ->leftJoin('clients', 'wh_receipts.supplier_id', '=', 'clients.id')
-                ->with([
-                    'warehouse:id,name',
-                    'cashRegister:id,name,currency_id',
-                    'cashRegister.currency:id,name,code,symbol',
-                    'user:id,name',
-                    'project:id,name',
-                    'supplier:id,first_name,last_name,contact_person,status,balance', // Клиент-поставщик с балансом
-                    'supplier.phones:id,client_id,phone',
-                    'supplier.emails:id,client_id,email',
-                    'products:id,receipt_id,product_id,quantity,price', // Товары приходования
-                    'products.product:id,name,image,unit_id', // Данные товара
-                    'products.product.unit:id,name,short_name' // Единица измерения
-                ])
-                ->whereIn('wh_receipts.warehouse_id', $warehouseIds)
-                ->where(function ($q) use ($userUuid) {
-                    $q->whereNull('wh_receipts.project_id')
-                        ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
-                            $subQuery->where('user_id', $userUuid);
-                        });
-                });
-
-            $items = $this->addCompanyFilterThroughRelation($items, 'warehouse');
-
-            return $items->orderBy('wh_receipts.created_at', 'desc')
+            return $this->buildBaseQuery($userUuid)
+                ->orderBy('wh_receipts.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
-
-            return $items;
         }, (int)$page);
+    }
+
+    public function getItemById($id, $userUuid)
+    {
+        $cacheKey = $this->generateCacheKey('warehouse_receipts_item', [$id, $userUuid]);
+
+        return CacheService::getReferenceData($cacheKey, function () use ($id, $userUuid) {
+            return $this->buildBaseQuery($userUuid)
+                ->where('wh_receipts.id', $id)
+                ->first();
+        });
+    }
+
+    protected function buildBaseQuery($userUuid)
+    {
+        $warehouseIds = DB::table('wh_users')
+            ->where('user_id', $userUuid)
+            ->pluck('warehouse_id')
+            ->toArray();
+
+        $query = WhReceipt::select([
+            'wh_receipts.id',
+            'wh_receipts.warehouse_id',
+            'wh_receipts.supplier_id',
+            'wh_receipts.amount',
+            'wh_receipts.cash_id',
+            'wh_receipts.project_id',
+            'wh_receipts.note',
+            'wh_receipts.user_id',
+            'wh_receipts.date',
+            'wh_receipts.created_at',
+            'wh_receipts.updated_at',
+            'clients.first_name as client_first_name',
+            'clients.last_name as client_last_name',
+            'clients.contact_person as client_contact_person'
+        ])
+            ->leftJoin('clients', 'wh_receipts.supplier_id', '=', 'clients.id')
+            ->with([
+                'warehouse:id,name',
+                'cashRegister:id,name,currency_id',
+                'cashRegister.currency:id,name,code,symbol',
+                'user:id,name',
+                'project:id,name',
+                'supplier:id,first_name,last_name,contact_person,status,balance',
+                'supplier.phones:id,client_id,phone',
+                'supplier.emails:id,client_id,email',
+                'products:id,receipt_id,product_id,quantity,price',
+                'products.product:id,name,image,unit_id',
+                'products.product.unit:id,name,short_name'
+            ])
+            ->whereIn('wh_receipts.warehouse_id', $warehouseIds)
+            ->where(function ($q) use ($userUuid) {
+                $q->whereNull('wh_receipts.project_id')
+                    ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
+                        $subQuery->where('user_id', $userUuid);
+                    });
+            });
+
+        return $this->addCompanyFilterThroughRelation($query, 'warehouse');
     }
 
 

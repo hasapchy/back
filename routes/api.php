@@ -140,6 +140,7 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     // warehouse_receipts
     // Route::middleware('permission:warehouse_receipts_view')->get('warehouse_receipts', [WarehouseReceiptController::class, 'index']);
     Route::get('warehouse_receipts', [WarehouseReceiptController::class, 'index']);
+    Route::get('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'show']);
     Route::middleware('permission:warehouse_receipts_create')->post('warehouse_receipts', [WarehouseReceiptController::class, 'store']);
     Route::middleware(['permission:warehouse_receipts_update', 'time.restriction:WhReceipt'])->put('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'update']);
     Route::middleware(['permission:warehouse_receipts_delete', 'time.restriction:WhReceipt'])->delete('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'destroy']);
