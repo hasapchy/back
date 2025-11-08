@@ -17,207 +17,138 @@ use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
-use Illuminate\Support\Facades\Log;
 
-class OrdersRepository
+class OrdersRepository extends BaseRepository
 {
-    /**
-     * Получить текущую компанию пользователя из заголовка запроса
-     */
-    private function getCurrentCompanyId()
-    {
-        // Получаем company_id из заголовка запроса
-        return request()->header('X-Company-ID');
-    }
 
-    /**
-     * Добавить фильтрацию по компании к запросу заказов через кассы
-     */
-    private function addCompanyFilter($query)
-    {
-        $companyId = $this->getCurrentCompanyId();
-        if ($companyId) {
-            // Фильтруем заказы по кассам текущей компании
-            $query->whereHas('cash', function($q) use ($companyId) {
-                $q->where('company_id', $companyId);
-            });
-        } else {
-            // Если компания не выбрана, показываем только заказы из касс без company_id
-            $query->whereHas('cash', function($q) {
-                $q->whereNull('company_id');
-            });
-        }
-        return $query;
-    }
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null)
     {
-        // ✅ Получаем компанию из заголовка для включения в кэш ключ
-        $companyId = $this->getCurrentCompanyId() ?? 'default';
-
-        $cacheKey = "orders_paginated_{$userUuid}_{$companyId}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusFilter}_{$projectFilter}_{$clientFilter}_single";
+        $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, 'single']);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter) {
-            // Используем оптимизированный подход с JOIN'ами для основных данных и Eager Loading для товаров
             $query = Order::select([
                 'orders.*',
-                DB::raw('(orders.price - orders.discount) as total_price'),
-                'clients.first_name as client_first_name',
-                'clients.last_name as client_last_name',
-                'clients.contact_person as client_contact_person',
-                'clients.client_type as client_type',
-                'clients.is_supplier as client_is_supplier',
-                'clients.is_conflict as client_is_conflict',
-                'clients.address as client_address',
-                'clients.note as client_note',
-                'clients.status as client_status',
-                'clients.discount_type as client_discount_type',
-                'clients.discount as client_discount',
-                'clients.created_at as client_created_at',
-                'clients.updated_at as client_updated_at',
-                'users.name as user_name',
-                'users.photo as user_photo',
-                'order_statuses.name as status_name',
-                'order_status_categories.name as status_category_name',
-                'order_status_categories.color as status_category_color',
-                'warehouses.name as warehouse_name',
-                'cash_registers.name as cash_name',
-                'currencies.name as currency_name',
-                'currencies.code as currency_code',
-                'currencies.symbol as currency_symbol',
-                'projects.name as project_name',
-                'categories.name as category_name'
+                DB::raw('(orders.price - orders.discount) as total_price')
             ])
-                ->leftJoin('clients', 'orders.client_id', '=', 'clients.id')
-                ->leftJoin('users', 'orders.user_id', '=', 'users.id')
-                ->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id')
-                ->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id')
-                ->leftJoin('warehouses', 'orders.warehouse_id', '=', 'warehouses.id')
-                ->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id')
-                ->leftJoin('currencies', 'cash_registers.currency_id', '=', 'currencies.id')
-                ->leftJoin('projects', 'orders.project_id', '=', 'projects.id')
-                ->leftJoin('categories', 'orders.category_id', '=', 'categories.id')
                 ->with([
+                    'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at,balance',
+                    'client.phones:id,client_id,phone',
+                    'client.emails:id,client_id,email',
+                    'user:id,name,photo',
+                    'status:id,name',
+                    'status.category:id,name,color',
+                    'warehouse:id,name',
+                    'cash:id,name,currency_id',
+                    'cash.currency:id,name,code,symbol',
+                    'project:id,name',
+                    'category:id,name',
                     'orderProducts:id,order_id,product_id,quantity,price,width,height',
                     'orderProducts.product:id,name,image,unit_id',
                     'orderProducts.product.unit:id,name,short_name',
                     'tempProducts:id,order_id,name,description,quantity,price,unit_id,width,height',
-                    'tempProducts.unit:id,name,short_name',
-                    'client.phones:id,client_id,phone',
-                    'client.emails:id,client_id,email'
+                    'tempProducts.unit:id,name,short_name'
                 ])
                 ->where(function ($q) use ($userUuid) {
-                    $q->whereNull('orders.cash_id') // Заказы без кассы (оплата через баланс)
+                    $q->whereNull('orders.cash_id')
                         ->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($userUuid) {
                             $subQuery->where('user_id', $userUuid);
                         });
                 });
 
-            if ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('orders.id', 'like', "%{$search}%")
-                        ->orWhere('orders.note', 'like', "%{$search}%")
-                        ->orWhere('clients.first_name', 'like', "%{$search}%")
-                        ->orWhere('clients.last_name', 'like', "%{$search}%")
-                        ->orWhere('clients.contact_person', 'like', "%{$search}%");
+            if ($search && strlen(trim($search)) >= 3) {
+                $searchTrimmed = trim($search);
+                $query->where(function ($q) use ($searchTrimmed) {
+                    $q->where('orders.id', 'like', "%{$searchTrimmed}%")
+                        ->orWhere('orders.note', 'like', "%{$searchTrimmed}%")
+                        ->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
+                            $clientQuery->where(function ($subQuery) use ($searchTrimmed) {
+                                $subQuery->where('first_name', 'like', "%{$searchTrimmed}%")
+                                    ->orWhere('last_name', 'like', "%{$searchTrimmed}%")
+                                    ->orWhere('contact_person', 'like', "%{$searchTrimmed}%");
+                            });
+                        })
+                        ->orWhereHas('client.phones', function ($phoneQuery) use ($searchTrimmed) {
+                            $phoneQuery->where('phone', 'like', "%{$searchTrimmed}%");
+                        });
                 });
             }
 
-            // Фильтрация по дате
             if ($dateFilter && $dateFilter !== 'all_time') {
-                $this->applyDateFilter($query, $dateFilter, $startDate, $endDate);
+                $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'orders.date');
             }
 
-            // Фильтрация по статусу
             if ($statusFilter) {
                 $query->where('orders.status_id', $statusFilter);
             }
 
-            // Фильтрация по проекту
             if ($projectFilter) {
                 $query->where('orders.project_id', $projectFilter);
             }
 
-            // Фильтрация по клиенту
             if ($clientFilter) {
                 $query->where('orders.client_id', $clientFilter);
             }
 
-            // Фильтрация по доступу к проектам
             $query->where(function ($q) use ($userUuid) {
-                $q->whereNull('orders.project_id') // Заказы без проекта
+                $q->whereNull('orders.project_id')
                     ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
                         $subQuery->where('user_id', $userUuid);
                     });
             });
 
-            // Фильтрация по доступу к категории заказа
-            // Пользователь видит заказ только если у него есть доступ к категории заказа через category_users
             $query->where(function ($q) use ($userUuid) {
-                // Заказы, где категория заказа доступна пользователю
                 $q->whereHas('category.categoryUsers', function ($subQuery) use ($userUuid) {
                     $subQuery->where('user_id', $userUuid);
                 })
-                // ИЛИ заказы без категории
                 ->orWhereNull('orders.category_id');
             });
 
-            // Фильтруем по текущей компании пользователя
-            $query = $this->addCompanyFilter($query);
+            $query = $this->addCompanyFilterThroughRelation($query, 'cash');
 
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
-            // Преобразуем данные для совместимости с фронтендом
             $orders->getCollection()->transform(function ($order) {
-                // Создаем объект клиента для совместимости с фронтендом
-                if ($order->client_id) {
-                    $order->client = (object) [
-                        'id' => $order->client_id,
-                        'first_name' => $order->client_first_name,
-                        'last_name' => $order->client_last_name,
-                        'contact_person' => $order->client_contact_person,
-                        'client_type' => $order->client_type,
-                        'is_supplier' => $order->client_is_supplier,
-                        'is_conflict' => $order->client_is_conflict,
-                        'address' => $order->client_address,
-                        'note' => $order->client_note,
-                        'status' => $order->client_status,
-                        'discount_type' => $order->client_discount_type,
-                        'discount' => $order->client_discount,
-                        'created_at' => $order->client_created_at,
-                        'updated_at' => $order->client_updated_at,
-                        'balance' => $order->client->balance ?? 0
-                    ];
+                if ($order->client) {
+                    $order->client_first_name = $order->client->first_name;
+                    $order->client_last_name = $order->client->last_name;
+                    $order->client_contact_person = $order->client->contact_person;
                 }
 
-                // Добавляем поля для совместимости
-                $order->client_first_name = $order->client_first_name ?? null;
-                $order->client_last_name = $order->client_last_name ?? null;
-                $order->client_contact_person = $order->client_contact_person ?? null;
-                $order->user_name = $order->user_name ?? null;
-                $order->user_photo = $order->user_photo ?? null;
-                $order->status_name = $order->status_name ?? null;
-                $order->status_category_name = $order->status_category_name ?? null;
-                $order->status_category_color = $order->status_category_color ?? null;
-                $order->category_name = $order->category_name ?? null;
-                $order->warehouse_name = $order->warehouse_name ?? null;
-                $order->cash_name = $order->cash_name ?? null;
-                $order->currency_id = null; // Будет загружено через Eager Loading
-                $order->currency_name = $order->currency_name ?? null;
-                $order->currency_code = $order->currency_code ?? null;
-                $order->currency_symbol = $order->currency_symbol ?? null;
-                $order->project_name = $order->project_name ?? null;
-                $order->category_name = $order->category_name ?? null;
-
-                // Создаем объект проекта для совместимости с фронтендом
-                if ($order->project_id && $order->project_name) {
-                    $order->project = (object) [
-                        'id' => $order->project_id,
-                        'name' => $order->project_name
-                    ];
+                if ($order->user) {
+                    $order->user_name = $order->user->name;
+                    $order->user_photo = $order->user->photo;
                 }
 
-                // Объединяем обычные и временные товары
+                if ($order->status) {
+                    $order->status_name = $order->status->name;
+                    if ($order->status->category) {
+                        $order->status_category_name = $order->status->category->name;
+                        $order->status_category_color = $order->status->category->color;
+                    }
+                }
+
+                if ($order->warehouse) {
+                    $order->warehouse_name = $order->warehouse->name;
+                }
+
+                if ($order->cash) {
+                    $order->cash_name = $order->cash->name;
+                    if ($order->cash->currency) {
+                        $order->currency_name = $order->cash->currency->name;
+                        $order->currency_code = $order->cash->currency->code;
+                        $order->currency_symbol = $order->cash->currency->symbol;
+                    }
+                }
+
+                if ($order->project) {
+                    $order->project_name = $order->project->name;
+                }
+
+                if ($order->category) {
+                    $order->category_name = $order->category->name;
+                }
+
                 $allProducts = collect();
 
                 if ($order->orderProducts) {
@@ -283,7 +214,7 @@ class OrdersRepository
             return collect();
         }
 
-        $cacheKey = "orders_by_ids_" . md5(implode(',', $order_ids));
+        $cacheKey = $this->generateCacheKey('orders_by_ids_' . md5(implode(',', $order_ids)), []);
 
         return CacheService::remember($cacheKey, function () use ($order_ids) {
             return Order::select([
@@ -299,7 +230,6 @@ class OrdersRepository
 
                 'orders.price',
                 'orders.discount',
-                // 'orders.total_price', // Удалено из таблицы - теперь в transactions
                 'orders.date',
                 'orders.created_at',
                 'orders.updated_at'
@@ -343,7 +273,6 @@ class OrdersRepository
             'orders.cash_id',
             'orders.warehouse_id',
             'orders.project_id',
-            // Удалено поле transaction_ids
             'orders.price',
             'orders.discount',
             DB::raw('(orders.price - orders.discount) as total_price'),
@@ -362,7 +291,6 @@ class OrdersRepository
             'categories.name as category_name'
         );
 
-        // Загружаем дополнительные поля для всех заказов сразу
         $query->with(['additionalFieldValues.additionalField:id,name,type,options']);
 
         $orderModels = $query->get();
@@ -390,7 +318,6 @@ class OrdersRepository
                 ] : null,
             ];
 
-            // Преобразуем загруженные дополнительные поля в нужный формат
             $orderModel = $orderModels->get($index);
             $item->additional_fields = $this->formatAdditionalFields($orderModel);
         }
@@ -398,58 +325,9 @@ class OrdersRepository
         return $items;
     }
 
-    private function applyDateFilter($query, $dateFilter, $startDate, $endDate)
-    {
-        if ($dateFilter === 'today') {
-            $query->whereBetween('orders.date', [
-                now()->startOfDay()->toDateTimeString(),
-                now()->endOfDay()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'yesterday') {
-            $query->whereBetween('orders.date', [
-                now()->subDay()->startOfDay()->toDateTimeString(),
-                now()->subDay()->endOfDay()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'this_week') {
-            $query->whereBetween('orders.date', [
-                now()->startOfWeek()->toDateTimeString(),
-                now()->endOfWeek()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'this_month') {
-            $query->whereBetween('orders.date', [
-                now()->startOfMonth()->toDateTimeString(),
-                now()->endOfMonth()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'this_year') {
-            $query->whereBetween('orders.date', [
-                now()->startOfYear()->toDateTimeString(),
-                now()->endOfYear()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'last_week') {
-            $query->whereBetween('orders.date', [
-                now()->subWeek()->startOfWeek()->toDateTimeString(),
-                now()->subWeek()->endOfWeek()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'last_month') {
-            $query->whereBetween('orders.date', [
-                now()->subMonth()->startOfMonth()->toDateTimeString(),
-                now()->subMonth()->endOfMonth()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'last_year') {
-            $query->whereBetween('orders.date', [
-                now()->subYear()->startOfYear()->toDateTimeString(),
-                now()->subYear()->endOfYear()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'custom') {
-            if ($startDate && $endDate) {
-                $query->whereBetween('orders.date', [$startDate, $endDate]);
-            }
-        }
-    }
 
     private function getProducts(array $order_ids)
     {
-        // Получаем обычные товары
         $regularProducts = OrderProduct::whereIn('order_id', $order_ids)
             ->leftJoin('products', 'order_products.product_id', '=', 'products.id')
             ->leftJoin('units', 'products.unit_id', '=', 'units.id')
@@ -470,7 +348,6 @@ class OrdersRepository
             )
             ->get();
 
-        // Получаем одноразовые товары
         $tempProducts = OrderTempProduct::whereIn('order_id', $order_ids)
             ->leftJoin('units', 'order_temp_products.unit_id', '=', 'units.id')
             ->select(
@@ -490,7 +367,6 @@ class OrdersRepository
             )
             ->get();
 
-        // Объединяем и группируем
         $allProducts = $regularProducts->concat($tempProducts);
         return $allProducts->groupBy('order_id');
     }
@@ -510,7 +386,7 @@ class OrdersRepository
         $discount = $data['discount'] ?? 0;
         $discount_type = $data['discount_type'] ?? 'fixed';
         $date = $data['date'] ?? now();
-        $note = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
+        $note = !empty($data['note']) ? $data['note'] : null;
         $description = $data['description'] ?? '';
 
         $defaultCurrency = Currency::firstWhere('is_default', true);
@@ -522,13 +398,13 @@ class OrdersRepository
 
         DB::beginTransaction();
         try {
-            // Рассчитываем цену заказа (обычные товары)
+            $quantityRoundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
             foreach ($products as $product) {
                 $p_id = $product['product_id'];
-                $q = $product['quantity'];
+                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
                 $p = $product['price'];
 
-                // Если выбран проект, используем оптовую цену
                 if ($project_id) {
                     $productPrice = ProductPrice::where('product_id', $p_id)->first();
                     if ($productPrice && $productPrice->wholesale_price > 0) {
@@ -562,25 +438,32 @@ class OrdersRepository
                 $price += $origPrice;
             }
 
-            // Рассчитываем цену заказа (одноразовые товары)
             foreach ($temp_products as $temp_product) {
-                $q = $temp_product['quantity'];
+                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity']));
                 $p = $temp_product['price'];
                 $origPrice = $q * $p;
                 $price += $origPrice;
             }
 
-            // Рассчитываем скидку
-            // $discount_calculated = $discount_type == 'percent' ?
-            //     $price * $discount / 100 :
-            //     CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
             if ($discount_type == 'percent') {
                 $percent = max(0, min(100, $discount));
                 $discount_calculated = $price * $percent / 100;
             } else {
-                $discount_calculated = max(0, min($discount, $price)); // Без конвертации, не больше суммы
+                $discount_calculated = max(0, min($discount, $price));
             }
             $total_price = max(0, $price - $discount_calculated);
+
+            // Apply company rounding for order monetary fields before saving
+            $roundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
+            $price = $roundingService->roundForCompany($companyId, (float) $price);
+            $discount_calculated = $roundingService->roundForCompany($companyId, (float) $discount_calculated);
+
+            if ($discount_calculated > $price) {
+                throw new \Exception('Скидка не может превышать сумму заказа');
+            }
+
+            $total_price = $roundingService->roundForCompany($companyId, (float) $total_price);
 
             $order = new Order();
             $order->client_id = $client_id;
@@ -591,23 +474,20 @@ class OrdersRepository
             $order->category_id = $category_id;
             $order->price = $price;
             $order->discount = $discount_calculated;
-            // total_price удалено из таблицы orders - теперь хранится только в transactions
             $order->date = $date;
             $order->note = $note;
             $order->description = $description;
             $order->user_id = $userUuid;
             $order->save();
 
-            // Добавляем обычные товары batch insert для оптимизации (без группировки дубликатов)
             $productsData = [];
             foreach ($products as $product) {
                 $p_id = $product['product_id'];
-                $q = $product['quantity'];
+                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
                 $p = $product['price'];
                 $width = $product['width'] ?? null;
                 $height = $product['height'] ?? null;
 
-                // Если выбран проект, используем оптовую цену
                 if ($project_id) {
                     $productPrice = ProductPrice::where('product_id', $p_id)->first();
                     if ($productPrice && $productPrice->wholesale_price > 0) {
@@ -617,7 +497,6 @@ class OrdersRepository
 
                 $unitPrice = $p;
 
-                // Если переданы width и height, рассчитываем quantity автоматически
                 if ($width && $height) {
                     $productObject = Product::find($p_id);
                     if ($productObject) {
@@ -644,7 +523,6 @@ class OrdersRepository
                 OrderProduct::insert($productsData);
             }
 
-            // Добавляем одноразовые товары
             foreach ($temp_products as $temp_product) {
                 OrderTempProduct::create([
                     'order_id' => $order->id,
@@ -662,37 +540,29 @@ class OrdersRepository
                 $this->saveAdditionalFields($order->id, $data['additional_fields']);
             }
 
-            // Создаем автоматическую долговую транзакцию для заказа
             if ($client_id) {
-                $transactionData = [
+                $this->createTransactionForSource([
                     'client_id'    => $client_id,
                     'amount'       => $total_price,
                     'orig_amount'  => $total_price,
-                    'type'         => 1, // доход (клиент покупает в долг, баланс увеличивается)
-                    'is_debt'      => true, // долг (касса не меняется)
+                    'type'         => 1,
+                    'is_debt'      => true,
                     'cash_id'      => $cash_id,
-                    'category_id'  => 1, // категория по умолчанию
-                    'source_type'  => Order::class,
-                    'source_id'    => $order->id,
+                    'category_id'  => 1,
                     'date'         => $date,
                     'note'         => $note,
                     'user_id'      => $userUuid,
                     'project_id'   => $project_id,
                     'currency_id'  => $defaultCurrency->id,
-                ];
-
-                $txRepo = new TransactionsRepository();
-                $txRepo->createItem($transactionData, true, false); // Как в продаже: return_id=true, skipClientUpdate=false
+                ], Order::class, $order->id, true);
             }
 
             DB::commit();
 
-            // Инвалидируем кэш заказов и баланса клиента
             CacheService::invalidateOrdersCache();
-            CacheService::invalidateClientsCache(); // Инвалидируем кэш клиентов, так как баланс зависит от заказов
+            CacheService::invalidateClientsCache();
             $this->invalidateClientBalanceCache($client_id);
 
-            // Инвалидируем кэш проекта если заказ связан с проектом
             if ($project_id) {
                 $projectsRepository = new \App\Repositories\ProjectsRepository();
                 $projectsRepository->invalidateProjectCache($project_id);
@@ -712,12 +582,6 @@ class OrdersRepository
             $order = Order::findOrFail($id);
             $oldProducts = OrderProduct::where('order_id', $id)->get();
 
-            // 0. Запрещаем менять тип контрагента после создания:
-            // если заказ создан с клиентом (client-mode), запрещаем проставлять project_id
-            // если заказ создан с проектом (project-mode), запрещаем проставлять client_id
-			// Убрана логика запрета смены типа контрагента: теперь можно переключать между клиентом и проектом
-
-            // 1. Возвращаем старые товары на склад
             foreach ($oldProducts as $product) {
                 $productObj = Product::find($product->product_id);
                 if ($productObj && $productObj->type == 1) {
@@ -726,8 +590,6 @@ class OrdersRepository
                         ->update(['quantity' => DB::raw('quantity + ' . $product->quantity)]);
                 }
             }
-
-            // Транзакции теперь управляются вручную, автоматический откат не нужен
 
             $client_id = $data['client_id'];
             $warehouse_id = $data['warehouse_id'];
@@ -740,7 +602,7 @@ class OrdersRepository
             $currency_id = $data['currency_id'] ?? $order->currency_id;
             $discount = $data['discount'] ?? 0;
             $discount_type = $data['discount_type'] ?? 'fixed';
-            $note = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
+            $note = !empty($data['note']) ? $data['note'] : null;
             $description = $data['description'] ?? '';
             $date = $data['date'] ?? now();
 
@@ -751,13 +613,13 @@ class OrdersRepository
             $discount_calculated = 0;
             $total_price = 0;
 
-            // 6. Списание обычных товаров
+            $quantityRoundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
             foreach ($products as $product) {
                 $p_id = $product['product_id'];
-                $q = $product['quantity'];
+                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
                 $p = $product['price'];
 
-                // Если выбран проект, используем оптовую цену
                 if ($project_id) {
                     $productPrice = ProductPrice::where('product_id', $p_id)->first();
                     if ($productPrice && $productPrice->wholesale_price > 0) {
@@ -791,18 +653,13 @@ class OrdersRepository
                 $price += $origPrice;
             }
 
-            // 6.1. Расчет цены одноразовых товаров
             foreach ($temp_products as $temp_product) {
-                $q = $temp_product['quantity'];
+                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity']));
                 $p = $temp_product['price'];
                 $origPrice = $q * $p;
                 $price += $origPrice;
             }
 
-            // Рассчитываем скидку
-            // $discount_calculated = $discount_type == 'percent' ?
-            //     $price * $discount / 100 :
-            //     CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
             if ($discount_type == 'percent') {
                 $percent = max(0, min(100, $discount));
                 $discount_calculated = $price * $percent / 100;
@@ -811,7 +668,18 @@ class OrdersRepository
             }
             $total_price = max(0, $price - $discount_calculated);
 
-            // 7. Проверяем, есть ли реальные изменения в заказе
+            // Apply company rounding for order monetary fields before update
+            $roundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
+            $price = $roundingService->roundForCompany($companyId, (float) $price);
+            $discount_calculated = $roundingService->roundForCompany($companyId, (float) $discount_calculated);
+
+            if ($discount_calculated > $price) {
+                throw new \Exception('Скидка не может превышать сумму заказа');
+            }
+
+            $total_price = $roundingService->roundForCompany($companyId, (float) $total_price);
+
             $updateData = [
                 'client_id' => $client_id,
                 'project_id' => $project_id,
@@ -822,14 +690,11 @@ class OrdersRepository
                 'currency_id' => $currency_id,
                 'price' => $price,
                 'discount' => $discount_calculated,
-                // total_price удалено из таблицы orders - теперь хранится только в transactions
                 'date' => $date,
                 'note' => $note,
                 'description' => $description
-                // user_id НЕ обновляется - он устанавливается только при создании заказа
             ];
 
-            // Проверяем, есть ли реальные изменения
             $hasChanges = false;
             foreach ($updateData as $key => $value) {
                 if ($order->$key != $value) {
@@ -838,16 +703,13 @@ class OrdersRepository
                 }
             }
 
-            // Обновляем только если есть изменения
             if ($hasChanges) {
                 $order->update($updateData);
             }
 
-            // 8. Обновляем обычные товары - полностью заменяем список
             $existingProducts = OrderProduct::where('order_id', $id)->get();
             $productsChanged = false;
 
-            // Удаляем все существующие товары, если есть новые товары
             if (!empty($products) && $existingProducts->isNotEmpty()) {
                 $productsChanged = true;
                 foreach ($existingProducts as $existingProduct) {
@@ -855,28 +717,25 @@ class OrdersRepository
                 }
             }
 
-            // Добавляем новые товары (без группировки дубликатов)
             if (!empty($products)) {
                 $productsData = [];
                 foreach ($products as $product) {
                     $p_id = $product['product_id'];
-                    $q = $product['quantity'];
+                    $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
                     $p = $product['price'];
-                    $width = $product['width'] ?? null;
-                    $height = $product['height'] ?? null;
+                                    $width = $product['width'] ?? null;
+                $height = $product['height'] ?? null;
 
-                    // Если выбран проект, используем оптовую цену
-                    if ($project_id) {
+                if ($project_id) {
                         $productPrice = ProductPrice::where('product_id', $p_id)->first();
                         if ($productPrice && $productPrice->wholesale_price > 0) {
                             $p = $productPrice->wholesale_price;
                         }
                     }
 
-                    $unitPrice = $p;
+                                    $unitPrice = $p;
 
-                    // Если переданы width и height, рассчитываем quantity автоматически
-                    if ($width && $height) {
+                if ($width && $height) {
                         $productObject = Product::find($p_id);
                         if ($productObject) {
                             $unitShortName = $productObject->unit ? $productObject->unit->short_name : '';
@@ -904,13 +763,9 @@ class OrdersRepository
                 }
             }
 
-            // 8.1. Обновляем одноразовые товары
-            // Получаем существующие временные товары
             $existingTempProducts = OrderTempProduct::where('order_id', $id)->get();
             $tempProductsChanged = false;
 
-            // Сначала удаляем товары, которых больше нет в новом списке
-            // Это обеспечит правильное логирование удаления
             if (isset($data['remove_temp_products']) && is_array($data['remove_temp_products'])) {
                 $explicitlyRemoved = collect($data['remove_temp_products']);
                 $toDelete = $existingTempProducts->whereIn('name', $explicitlyRemoved->toArray());
@@ -923,30 +778,24 @@ class OrdersRepository
                 }
             }
 
-            // Удаляем временные товары, которых нет в новом списке
             $newTempProductNames = collect($temp_products)->pluck('name')->toArray();
             $tempProductsToDelete = $existingTempProducts->whereNotIn('name', $newTempProductNames);
 
             if ($tempProductsToDelete->count() > 0) {
                 $tempProductsToDelete->each(function ($item) {
-                    // Убеждаемся, что товар действительно удаляется
                     $itemName = $item->name;
                     $item->delete();
                 });
                 $tempProductsChanged = true;
             }
 
-            // Создаем хеш-мап существующих товаров для быстрого поиска
-            // После удаления товаров обновляем коллекцию
             $existingTempProducts = OrderTempProduct::where('order_id', $id)->get();
             $existingMap = $existingTempProducts->keyBy('name');
 
-            // Обрабатываем каждый новый товар
             foreach ($temp_products as $temp_product) {
                 $productName = $temp_product['name'];
 
                 if ($existingMap->has($productName)) {
-                    // Товар существует - проверяем, изменился ли он
                     $existing = $existingMap->get($productName);
                     $tempProductChanged = false;
 
@@ -962,7 +811,6 @@ class OrdersRepository
                     }
 
                     if ($tempProductChanged) {
-                        // Обновляем существующий товар
                         $existing->update([
                             'description' => $temp_product['description'] ?? null,
                             'quantity' => $temp_product['quantity'],
@@ -974,7 +822,6 @@ class OrdersRepository
                         $tempProductsChanged = true;
                     }
                 } else {
-                    // Новый товар - создаем его
                     OrderTempProduct::create([
                         'order_id' => $id,
                         'name' => $productName,
@@ -993,7 +840,6 @@ class OrdersRepository
                 $productsChanged = true;
             }
 
-            // Если товары не изменились и заказ не изменился, просто завершаем
             if (!$hasChanges && !$productsChanged) {
                 DB::commit();
                 return $order;
@@ -1003,18 +849,15 @@ class OrdersRepository
                 $this->updateAdditionalFields($order->id, $data['additional_fields']);
             }
 
-            // Обновляем автоматическую долговую транзакцию заказа
-            // Ищем ИМЕННО автоматическую транзакцию (type=1, is_debt=true)
             $orderTransaction = Transaction::where('source_type', Order::class)
                 ->where('source_id', $order->id)
-                ->where('type', 1)      // автоматическая транзакция заказа (доход - клиент покупает в долг)
-                ->where('is_debt', true) // долговая
-                ->where('is_deleted', false) // только неудаленные
+                ->where('type', 1)
+                ->where('is_debt', true)
+                ->where('is_deleted', false)
                 ->first();
 
             if ($orderTransaction) {
                 if ($client_id) {
-                    // Автоматическая транзакция = ПОЛНАЯ сумма заказа (БЕЗ вычета оплат!)
                     if ($orderTransaction->amount != $total_price) {
                         $txRepo = new TransactionsRepository();
                         $txRepo->updateItem($orderTransaction->id, [
@@ -1029,13 +872,10 @@ class OrdersRepository
                         ]);
                     }
                 } else {
-                    // Если клиент удален из заказа — удаляем автоматическую долговую транзакцию
                     $orderTransaction->delete();
                 }
             } else if ($client_id) {
-                // Если транзакции нет, но теперь выбран клиент — создаем её
-                $txRepo = new TransactionsRepository();
-                $txRepo->createItem([
+                $this->createTransactionForSource([
                     'client_id'    => $client_id,
                     'amount'       => $total_price,
                     'orig_amount'  => $total_price,
@@ -1043,24 +883,20 @@ class OrdersRepository
                     'is_debt'      => true,
                     'cash_id'      => $cash_id,
                     'category_id'  => 1,
-                    'source_type'  => Order::class,
-                    'source_id'    => $order->id,
                     'date'         => $date,
                     'note'         => $note,
                     'user_id'      => $order->user_id,
                     'project_id'   => $project_id,
                     'currency_id'  => $defaultCurrency->id,
-                ], true, false);
+                ], Order::class, $order->id, true);
             }
 
             DB::commit();
 
-            // Инвалидируем кэш заказов и баланса клиента
             CacheService::invalidateOrdersCache();
-            CacheService::invalidateClientsCache(); // Инвалидируем кэш клиентов, так как баланс зависит от заказов
+            CacheService::invalidateClientsCache();
             $this->invalidateClientBalanceCache($client_id);
 
-            // Инвалидируем кэш проекта если заказ связан с проектом
             if ($project_id) {
                 $projectsRepository = new \App\Repositories\ProjectsRepository();
                 $projectsRepository->invalidateProjectCache($project_id);
@@ -1079,7 +915,6 @@ class OrdersRepository
             $order = Order::findOrFail($id);
             $products = OrderProduct::where('order_id', $id)->get();
 
-            // Возвращаем товары на склад
             foreach ($products as $product) {
                 $productObject = Product::find($product->product_id);
                 if ($productObject && $productObject->type == 1) {
@@ -1089,12 +924,8 @@ class OrdersRepository
                 }
             }
 
-            // Удаляем одноразовые товары (каскадное удаление через миграцию)
-
-            // Удаляем товары
             OrderProduct::where('order_id', $id)->delete();
 
-            // Сохраняем данные для возврата перед удалением
             $orderData = [
                 'id' => $order->id,
                 'client_id' => $order->client_id,
@@ -1108,10 +939,8 @@ class OrdersRepository
                 })->toArray()
             ];
 
-            // Удаляем заказ (транзакции и кэши обрабатываются автоматически через booted() модели)
             $order->delete();
 
-            // Вычисляем total_price из транзакций заказа (транзакции уже удалены, возвращаем 0)
             $orderData['total_price'] = 0;
 
             return $orderData;
@@ -1130,23 +959,15 @@ class OrdersRepository
                 throw new \Exception("Заказ ID {$id} не найден");
             }
 
-            // Убрана проверка на создателя - статус может менять любой пользователь
-
-            // Проверка на статусы, требующие оплаты перед переводом: "Оплачено" (id=3) и "Завершено" (id=5)
-            // Пропускаем проверку, если в заказе выбран проект
             if (in_array($statusId, [3, 5], true) && !$order->project_id) {
-                // Вычисляем сумму заказа (товары минус скидка)
                 $orderTotal = $order->price - $order->discount;
 
-                // Вычисляем сумму оплаты из транзакций, созданных для этого заказа
-                // Учитываем только реальные платежи (is_debt=0), не долговые транзакции
                 $paidTotal = Transaction::where('source_type', \App\Models\Order::class)
                     ->where('source_id', $order->id)
                     ->where('is_debt', 0)
                     ->where('is_deleted', false)
                     ->sum('orig_amount');
 
-                // Проверяем: оплата должна быть > 0 для статуса "оплачено"
                 if ($paidTotal <= 0) {
                     $remainingAmount = $orderTotal - $paidTotal;
                     return [
@@ -1161,7 +982,6 @@ class OrdersRepository
                 }
             }
 
-            // Обновляем статус только если он изменился
             if ($order->status_id != $statusId) {
                 $order->status_id = $statusId;
                 $order->save();
@@ -1169,11 +989,9 @@ class OrdersRepository
             }
         }
 
-        // Инвалидируем кэш заказов если были изменения
         if ($updatedCount > 0) {
             CacheService::invalidateOrdersCache();
 
-            // Инвалидируем кэш баланса клиентов для измененных заказов
             foreach ($ids as $id) {
                 $order = Order::find($id);
                 if ($order && $order->client_id) {
@@ -1185,12 +1003,6 @@ class OrdersRepository
         return $updatedCount;
     }
 
-    // Инвалидация кэша баланса клиента
-    private function invalidateClientBalanceCache($clientId)
-    {
-        $clientsRepository = new ClientsRepository();
-        $clientsRepository->invalidateClientBalanceCache($clientId);
-    }
 
     private function saveAdditionalFields($orderId, array $additionalFields)
     {
@@ -1237,7 +1049,6 @@ class OrdersRepository
 
     private function formatAdditionalFields($order)
     {
-        // Если у заказа уже загружены дополнительные поля через eager loading
         if (isset($order->additionalFieldValues) && is_iterable($order->additionalFieldValues)) {
             return collect($order->additionalFieldValues)->map(function ($value) {
                 return [
@@ -1249,7 +1060,6 @@ class OrdersRepository
             })->values();
         }
 
-        // Fallback на старый метод, если данные не загружены
         return $this->getAdditionalFields($order->id);
     }
 
@@ -1265,9 +1075,6 @@ class OrdersRepository
             })->exists();
     }
 
-    /**
-     * Рассчитывает количество на основе width и height
-     */
     public function calculateQuantityFromDimensions($width, $height, $unitShortName, $unitName)
     {
         if (!$width || !$height || $width <= 0 || $height <= 0) {
@@ -1277,7 +1084,6 @@ class OrdersRepository
         $width = (float) $width;
         $height = (float) $height;
 
-        // Логика расчета на основе единиц измерения (без финального округления)
         if ($unitShortName === 'м²' || $unitName === 'Квадратный метр') {
             $raw = $width * $height;
         } elseif ($unitShortName === 'м' || $unitName === 'Метр') {
@@ -1303,7 +1109,8 @@ class OrdersRepository
             $raw = $width * $height;
         }
 
-        // Возвращаем сырое значение без округления (округляется только сумма)
-        return (float) $raw;
+        $roundingService = new RoundingService();
+        $companyId = $this->getCurrentCompanyId();
+        return $roundingService->roundQuantityForCompany($companyId, (float) $raw);
     }
 }

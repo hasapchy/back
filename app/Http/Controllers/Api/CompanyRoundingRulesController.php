@@ -11,14 +11,14 @@ class CompanyRoundingRulesController extends Controller
 {
     public function index(Request $request)
     {
-        $companyId = $request->header('X-Company-ID');
+        $companyId = $this->getCurrentCompanyId();
         $rules = CompanyRoundingRule::where('company_id', $companyId)->get();
-        return response()->json(['data' => $rules]);
+        return response()->json($rules);
     }
 
     public function upsert(Request $request)
     {
-        $companyId = $request->header('X-Company-ID');
+        $companyId = $this->getCurrentCompanyId();
 
         $validator = Validator::make($request->all(), [
             'context' => 'required|string|in:orders,receipts,sales,transactions',
@@ -28,7 +28,7 @@ class CompanyRoundingRulesController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return $this->validationErrorResponse($validator);
         }
 
         $data = $validator->validated();

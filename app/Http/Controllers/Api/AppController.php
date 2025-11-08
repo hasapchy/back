@@ -16,21 +16,16 @@ use Spatie\Permission\Traits\HasRoles;
 class AppController extends Controller
 {
     use HasRoles;
-    // Получение списка валют
     public function getCurrencyList()
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthenticatedUser();
 
         if (!$user) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return $this->unauthorizedResponse();
         }
 
-        // Определяем, есть ли доступ к не-дефолтным валютам
         $userPermissions = $user->permissions->pluck('name')->toArray();
         $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
-
-        // Кэшируем справочник валют на 2 часа
-        // Для пользователей без доступа возвращаем только дефолтную валюту
         $cacheKey = $hasAccessToNonDefaultCurrencies ? 'currencies_all' : 'currencies_default_only';
 
         $items = CacheService::getReferenceData($cacheKey, function() use ($hasAccessToNonDefaultCurrencies) {
@@ -44,10 +39,8 @@ class AppController extends Controller
         return response()->json($items);
     }
 
-    // получение единиц измерения
     public function getUnitsList()
     {
-        // Кэшируем справочник единиц на 2 часа
         $items = CacheService::getReferenceData('units_all', function() {
             return Unit::all();
         });
@@ -55,10 +48,9 @@ class AppController extends Controller
         return response()->json($items);
     }
 
-    // получение статусов товаров
     public function getProductStatuses()
     {
-        // Кэшируем справочник статусов товаров на 2 часа
+
         $items = CacheService::getReferenceData('product_statuses_all', function() {
             return ProductStatus::all();
         });
@@ -67,32 +59,27 @@ class AppController extends Controller
     }
 
 
-    // получение актуального курса валюты
     public function getCurrencyExchangeRate($currencyId)
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthenticatedUser();
 
         if (!$user) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return $this->unauthorizedResponse();
         }
 
         $currency = Currency::find($currencyId);
         if (!$currency) {
-            return response()->json(['error' => 'Валюта не найдена'], 404);
+            return $this->notFoundResponse('Валюта не найдена');
         }
 
-        // Доступ к курсу валюты открыт без специальных прав
+        $companyId = $this->getCurrentCompanyId();
 
-        $rateHistory = $currency->exchangeRateHistories()
-            ->where('start_date', '<=', now()->toDateString())
-            ->where(function ($query) {
-                $query->whereNull('end_date')
-                    ->orWhere('end_date', '>=', now()->toDateString());
-            })
-            ->orderBy('start_date', 'desc')
-            ->first();
+        $cacheKey = "currency_exchange_rate_{$currencyId}_{$companyId}";
 
-        $exchangeRate = $rateHistory ? $rateHistory->exchange_rate : 1;
+        $exchangeRate = CacheService::getReferenceData($cacheKey, function () use ($currency, $companyId) {
+            $rateHistory = $currency->getCurrentExchangeRateForCompany($companyId);
+            return $rateHistory ? $rateHistory->exchange_rate : 1;
+        });
 
         return response()->json([
             'currency_id' => $currencyId,
@@ -103,21 +90,4 @@ class AppController extends Controller
         ]);
     }
 
-
-    // public function getOrderCategories()
-    // {
-    //     $items = OrderCategory::select('id', 'name')->orderBy('name')->get();
-    //     return response()->json($items);
-    // }
-
-    // public function getOrderStatuses()
-    // {
-
-    //     $items = OrderStatus::with(['category' => function ($q) {
-    //         $q->select('id', 'name', 'user_id', 'color');
-    //     }])
-    //         ->get(['id', 'name', 'category_id']);
-
-    //     return response()->json($items);
-    // }
 }

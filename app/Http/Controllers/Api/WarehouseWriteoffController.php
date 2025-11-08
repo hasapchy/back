@@ -16,35 +16,19 @@ class WarehouseWriteoffController extends Controller
         $this->warehouseRepository = $warehouseRepository;
     }
 
-    // Метод для получения списаний с пагинацией
     public function index(Request $request)
     {
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-
-        // Получаем сток с пагинацией
         $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20);
 
-        return response()->json([
-            'items' => $warehouses->items(),  // Список 
-            'current_page' => $warehouses->currentPage(),  // Текущая страница
-            'next_page' => $warehouses->nextPageUrl(),  // Следующая страница
-            'last_page' => $warehouses->lastPage(),  // Общее количество страниц
-            'total' => $warehouses->total()  // Общее количество
-        ]);
+        return $this->paginatedResponse($warehouses);
     }
 
-    // Метод списания товара
     public function store(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-        // Валидация данных
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+
         $request->validate([
             'warehouse_id' => 'required|integer|exists:warehouses,id',
             'note' => 'nullable|string',
@@ -64,37 +48,25 @@ class WarehouseWriteoffController extends Controller
             }, $request->products)
         );
 
-        // Списываем
         try {
             $warehouse_created = $this->warehouseRepository->createItem($data);
             if (!$warehouse_created) {
-                return response()->json([
-                    'message' => 'Ошибка списания'
-                ], 400);
+                return $this->errorResponse('Ошибка списания', 400);
             }
-            
-            // Инвалидируем кэш остатков и продуктов (т.к. stock_quantity изменился)
+
             CacheService::invalidateWarehouseWriteoffsCache();
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
-            
-            return response()->json([
-                'message' => 'Списание создано'
-            ]);
+
+            return response()->json(['message' => 'Списание создано']);
         } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'Ошибка списания' . $th->getMessage()
-            ], 400);
+            return $this->errorResponse('Ошибка списания' . $th->getMessage(), 400);
         }
     }
 
     public function update(Request $request, $id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-        // Валидация данных
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
         $request->validate([
             'warehouse_id' => 'required|integer|exists:warehouses,id',
             'note' => 'nullable|string',
@@ -114,50 +86,34 @@ class WarehouseWriteoffController extends Controller
             }, $request->products)
         );
 
-        // Оприходуем
         try {
             $warehouse_created = $this->warehouseRepository->updateItem($id, $data);
             if (!$warehouse_created) {
-                return response()->json([
-                    'message' => 'Ошибка списания'
-                ], 400);
+                return $this->errorResponse('Ошибка списания', 400);
             }
-            
-            // Инвалидируем кэш остатков и продуктов (т.к. stock_quantity изменился)
+
             CacheService::invalidateWarehouseWriteoffsCache();
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
-            
-            return response()->json([
-                'message' => 'Списание обновлено'
-            ]);
+
+            return response()->json(['message' => 'Списание обновлено']);
         } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'Ошибка списания' . $th->getMessage()
-            ], 400);
+            return $this->errorResponse('Ошибка списания' . $th->getMessage(), 400);
         }
     }
 
-
-    // // Метод для удаления cписания
     public function destroy($id)
     {
-        // Удаляем склад
         $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 
         if (!$warehouse_deleted) {
-            return response()->json([
-                'message' => 'Ошибка удаления списания'
-            ], 400);
+            return $this->errorResponse('Ошибка удаления списания', 400);
         }
-        
-        // Инвалидируем кэш остатков и продуктов (т.к. stock_quantity изменился)
+
         CacheService::invalidateWarehouseWriteoffsCache();
         CacheService::invalidateWarehouseStocksCache();
         CacheService::invalidateProductsCache();
-        
-        return response()->json([
-            'message' => 'Списание удалено'
-        ]);
+
+        return response()->json(['message' => 'Списание удалено']);
     }
 }

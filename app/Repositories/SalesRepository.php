@@ -11,50 +11,18 @@ use App\Models\CashRegister;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use App\Services\RoundingService;
 
-class SalesRepository
+class SalesRepository extends BaseRepository
 {
-    /**
-     * Получить текущую компанию пользователя из заголовка запроса
-     */
-    private function getCurrentCompanyId()
-    {
-        // Получаем company_id из заголовка запроса
-        return request()->header('X-Company-ID');
-    }
 
-    /**
-     * Добавить фильтрацию по компании к запросу продаж через кассы
-     */
-    private function addCompanyFilter($query)
-    {
-        $companyId = $this->getCurrentCompanyId();
-        if ($companyId) {
-            // Фильтруем продажи по кассам текущей компании
-            $query->whereHas('cashRegister', function($q) use ($companyId) {
-                $q->where('company_id', $companyId);
-            });
-        } else {
-            // Если компания не выбрана, показываем только продажи из касс без company_id
-            $query->whereHas('cashRegister', function($q) {
-                $q->whereNull('company_id');
-            });
-        }
-        return $query;
-    }
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $page = 1)
     {
-        // ✅ Получаем компанию из заголовка для включения в кэш ключ
-        $companyId = $this->getCurrentCompanyId() ?? 'default';
-
-        $cacheKey = $this->generateCacheKey('paginated', [$userUuid, $companyId, $perPage, $search, $dateFilter, $startDate, $endDate]);
+        $cacheKey = $this->generateCacheKey('sales_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate]);
         $ttl = $this->getCacheTTL('paginated', $search || $dateFilter !== 'all_time');
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page) {
-            // Оптимизированный запрос с селективным выбором полей и JOIN для клиентов
             $query = Sale::select([
                 'sales.id',
                 'sales.client_id',
@@ -73,6 +41,9 @@ class SalesRepository
             ])
                 ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
                 ->with([
+                    'client:id,first_name,last_name,contact_person,status,balance',
+                    'client.phones:id,client_id,phone',
+                    'client.emails:id,client_id,email',
                     'warehouse:id,name',
                     'cashRegister:id,name,currency_id',
                     'cashRegister.currency:id,name,code,symbol',
@@ -83,45 +54,38 @@ class SalesRepository
                     'products.product.unit:id,name,short_name'
                 ]);
 
-            // Применяем фильтры
-            if ($search) {
+            if ($search !== null) {
                 $this->applySearchFilter($query, $search);
             }
 
-            // Фильтрация по дате
             if ($dateFilter && $dateFilter !== 'all_time') {
-                $this->applyDateFilter($query, $dateFilter, $startDate, $endDate);
+                $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'sales.date');
             }
 
-            // Фильтрация по доступу к проектам
             $query->where(function ($q) use ($userUuid) {
-                $q->whereNull('sales.project_id') // Продажи без проекта
+                $q->whereNull('sales.project_id')
                     ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
                         $subQuery->where('user_id', $userUuid);
                     });
             });
 
-            // Фильтруем по текущей компании пользователя
-            $query = $this->addCompanyFilter($query);
+            $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
 
-            // Получаем результат с пагинацией
             return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
         }, (int)$page);
     }
 
 
 
-    /**
-     * Улучшенный метод: Получение детальной информации о продаже
-     * С оптимизированным eager loading
-     */
     public function getItemById($id)
     {
-        $cacheKey = $this->generateCacheKey('item', [$id]);
+        $cacheKey = $this->generateCacheKey('sales_item', [$id]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
             return Sale::with([
                 'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
+                'client.phones:id,client_id,phone',
+                'client.emails:id,client_id,email',
                 'warehouse:id,name',
                 'cashRegister:id,currency_id',
                 'cashRegister.currency:id,name,code,symbol',
@@ -135,109 +99,51 @@ class SalesRepository
     }
 
 
-    /**
-     * Приватный метод: Генерация ключей кэша
-     * Убирает дублирование логики создания ключей
-     */
-    private function generateCacheKey(string $type, array $params): string
-    {
-        $key = "sales_{$type}";
-        foreach ($params as $param) {
-            if ($param !== null && $param !== '') {
-                $key .= "_{$param}";
-            }
-        }
-        return $key;
-    }
 
-    /**
-     * Приватный метод: Определение TTL для кэша
-     * Использует константы из CacheService
-     */
     private function getCacheTTL(string $type, bool $hasFilters = false): int
     {
         if (!$hasFilters) {
-            return CacheService::CACHE_TTL['reference_data']; // 2 часа
+            return CacheService::CACHE_TTL['reference_data'];
         }
 
         switch ($type) {
             case 'search':
-                return CacheService::CACHE_TTL['search_results']; // 5 минут
+                return CacheService::CACHE_TTL['search_results'];
             case 'paginated':
-                return CacheService::CACHE_TTL['sales_list']; // 10 минут
+                return CacheService::CACHE_TTL['sales_list'];
             case 'reference':
             case 'item':
             default:
-                return CacheService::CACHE_TTL['reference_data']; // 2 часа
+                return CacheService::CACHE_TTL['reference_data'];
         }
     }
 
-    /**
-     * Приватный метод: Применение поискового фильтра
-     * Вынесен в отдельный метод для переиспользования
-     */
     private function applySearchFilter($query, $search)
     {
-        $query->where(function ($q) use ($search) {
-            $q->where('sales.id', 'like', "%{$search}%")
-                ->orWhere('clients.first_name', 'like', "%{$search}%")
-                ->orWhere('clients.last_name', 'like', "%{$search}%")
-                ->orWhere('clients.contact_person', 'like', "%{$search}%");
+        $searchTrimmed = trim((string) $search);
+        if ($searchTrimmed === '') {
+            return;
+        }
+
+        $query->where(function ($q) use ($searchTrimmed) {
+            $q->where('sales.id', 'like', "%{$searchTrimmed}%")
+                ->orWhere('sales.note', 'like', "%{$searchTrimmed}%")
+                ->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
+                    $clientQuery->where(function ($inner) use ($searchTrimmed) {
+                        $inner->where('first_name', 'like', "%{$searchTrimmed}%")
+                            ->orWhere('last_name', 'like', "%{$searchTrimmed}%")
+                            ->orWhere('contact_person', 'like', "%{$searchTrimmed}%");
+                    })
+                    ->orWhereHas('phones', function ($phoneQuery) use ($searchTrimmed) {
+                        $phoneQuery->where('phone', 'like', "%{$searchTrimmed}%");
+                    })
+                    ->orWhereHas('emails', function ($emailQuery) use ($searchTrimmed) {
+                        $emailQuery->where('email', 'like', "%{$searchTrimmed}%");
+                    });
+                });
         });
     }
 
-    /**
-     * Улучшенный метод: Применение фильтров по дате
-     * С оптимизацией для индексов
-     */
-    private function applyDateFilter($query, $dateFilter, $startDate = null, $endDate = null)
-    {
-        if ($dateFilter === 'today') {
-            $query->whereBetween('sales.date', [
-                now()->startOfDay()->toDateTimeString(),
-                now()->endOfDay()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'yesterday') {
-            $query->whereBetween('sales.date', [
-                now()->subDay()->startOfDay()->toDateTimeString(),
-                now()->subDay()->endOfDay()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'this_week') {
-            $query->whereBetween('sales.date', [
-                now()->startOfWeek()->toDateTimeString(),
-                now()->endOfWeek()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'this_month') {
-            $query->whereBetween('sales.date', [
-                now()->startOfMonth()->toDateTimeString(),
-                now()->endOfMonth()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'this_year') {
-            $query->whereBetween('sales.date', [
-                now()->startOfYear()->toDateTimeString(),
-                now()->endOfYear()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'last_week') {
-            $query->whereBetween('sales.date', [
-                now()->subWeek()->startOfWeek()->toDateTimeString(),
-                now()->subWeek()->endOfWeek()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'last_month') {
-            $query->whereBetween('sales.date', [
-                now()->subMonth()->startOfMonth()->toDateTimeString(),
-                now()->subMonth()->endOfMonth()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'last_year') {
-            $query->whereBetween('sales.date', [
-                now()->subYear()->startOfYear()->toDateTimeString(),
-                now()->subYear()->endOfYear()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'custom') {
-            if ($startDate && $endDate) {
-                $query->whereBetween('sales.date', [$startDate, $endDate]);
-            }
-        }
-    }
 
     /**
      * Новый метод: Очистка кэша продаж
@@ -251,17 +157,16 @@ class SalesRepository
     {
         DB::beginTransaction();
         try {
-            Log::info('SalesRepository::createItem - Начало создания продажи', $data);
             $userId      = $data['user_id'];
             $clientId    = $data['client_id'];
             $projectId   = $data['project_id'] ?? null;
             $warehouseId = $data['warehouse_id'];
             $cashId      = $data['cash_id'] ?? null;
-            $isDebt      = ($data['type'] === 'balance'); // долговая операция, если тип "balance"
+            $isDebt      = ($data['type'] === 'balance');
             $discount    = $data['discount'] ?? 0;
             $discountType = $data['discount_type'] ?? 'percent';
             $date        = $data['date'] ?? now();
-            $note        = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
+            $note        = !empty($data['note']) ? $data['note'] : null;
             $products    = $data['products'];
 
             $defaultCurrency = Currency::firstWhere('is_default', true);
@@ -276,30 +181,36 @@ class SalesRepository
             }
 
             $price = 0;
+            $quantityRoundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
             foreach ($products as $prod) {
-                $orig = $prod['price'] * $prod['quantity'];
+                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($prod['quantity']));
+                $orig = $prod['price'] * $q;
                 $price += CurrencyConverter::convert($orig, $fromCurrency, $defaultCurrency);
                 $p = Product::findOrFail($prod['product_id']);
                 if ($p->type == 1) {
                     WarehouseStock::where('product_id', $p->id)
                         ->where('warehouse_id', $warehouseId)
-                        ->decrement('quantity', $prod['quantity']);
+                        ->decrement('quantity', $q);
                 }
             }
 
             $discountCalc = $discountType === 'percent'
                 ? $price * $discount / 100
                 : CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
-            $totalPrice = $price - $discountCalc;
 
-            // Применяем правила округления компании
             $roundingService = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
             $price = $roundingService->roundForCompany($companyId, (float) $price);
             $discountCalc = $roundingService->roundForCompany($companyId, (float) $discountCalc);
+
+            if ($discountCalc > $price) {
+                throw new \Exception('Скидка не может превышать сумму продажи');
+            }
+
+            $totalPrice = $price - $discountCalc;
             $totalPrice = $roundingService->roundForCompany($companyId, (float) $totalPrice);
 
-            // Создаем продажу сначала (без дублирующихся полей total_price и transaction_id)
             $sale = Sale::create([
                 'user_id'      => $userId,
                 'client_id'    => $clientId,
@@ -312,17 +223,14 @@ class SalesRepository
                 'note'         => $note,
             ]);
 
-            // Создаем транзакцию согласно новой архитектуре
             $transactionData = [
                 'client_id'    => $clientId,
                 'amount'       => $totalPrice,
-                'orig_amount'  => $totalPrice, // добавляем orig_amount для TransactionsRepository
-                'type'         => 1, // доход
-                'is_debt'      => $isDebt, // используем значение с фронтенда
+                'orig_amount'  => $totalPrice,
+                'type'         => 1,
+                'is_debt'      => $isDebt,
                 'cash_id'      => $cashId,
-                'category_id'  => 1, // категория по умолчанию для продаж
-                'source_type'  => 'App\Models\Sale',
-                'source_id'    => $sale->id,
+                'category_id'  => 1,
                 'date'         => $date,
                 'note'         => $note,
                 'user_id'      => $userId,
@@ -330,24 +238,23 @@ class SalesRepository
                 'currency_id'  => $defaultCurrency->id,
             ];
 
-            $txRepo = new TransactionsRepository();
             if ($isDebt) {
-                // Продажа в баланс - одна долговая транзакция
-                $transactionId = $txRepo->createItem($transactionData, true, false);
+                $this->createTransactionForSource($transactionData, \App\Models\Sale::class, $sale->id, true);
             } else {
-                // Продажа в кассу - две транзакции (долг + платеж)
                 $debtTx = $transactionData;
                 $debtTx['is_debt'] = true;
-                $txRepo->createItem($debtTx, true, false);
+                $this->createTransactionForSource($debtTx, \App\Models\Sale::class, $sale->id, true);
+
                 $transactionData['is_debt'] = false;
-                $transactionId = $txRepo->createItem($transactionData, true, false);
+                $this->createTransactionForSource($transactionData, \App\Models\Sale::class, $sale->id, true);
             }
 
             foreach ($products as $prod) {
+                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($prod['quantity']));
                 SalesProduct::create([
                     'sale_id'    => $sale->id,
                     'product_id' => $prod['product_id'],
-                    'quantity'   => $prod['quantity'],
+                    'quantity'   => $q,
                     'price'      => (new RoundingService())->roundForCompany(
                         $this->getCurrentCompanyId(),
                         (float) CurrencyConverter::convert(
@@ -361,24 +268,14 @@ class SalesRepository
 
             DB::commit();
 
-            // Инвалидируем кэш продаж и баланса клиента
             $this->clearSalesCache();
             CacheService::invalidateClientsCache();
+            $this->invalidateClientBalanceCache($clientId);
 
-            // Очищаем кэш баланса клиента
-            $clientsRepo = new \App\Repositories\ClientsRepository();
-            $clientsRepo->invalidateClientBalanceCache($clientId);
-
-            Log::info('SalesRepository::createItem - Продажа успешно создана', ['sale_id' => $sale->id, 'transaction_id' => $transactionId]);
             return true;
         } catch (\Exception $e) {
-            Log::error('SalesRepository::createItem - Ошибка создания продажи', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'data' => $data
-            ]);
             DB::rollBack();
-            return false;
+            throw $e;
         }
     }
 
@@ -409,10 +306,8 @@ class SalesRepository
                 $p->delete();
             }
 
-            // Удаляем продажу (транзакции удалятся автоматически через booted() модели)
             $sale->delete();
 
-            // Инвалидируем кэш продаж
             $this->clearSalesCache();
 
             return true;

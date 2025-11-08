@@ -9,86 +9,50 @@ use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-class CahRegistersRepository
+class CahRegistersRepository extends BaseRepository
 {
-    /**
-     * Получить текущую компанию пользователя из заголовка запроса
-     */
-    private function getCurrentCompanyId()
-    {
-        // Получаем company_id из заголовка запроса
-        return request()->header('X-Company-ID');
-    }
 
-    /**
-     * Добавить фильтрацию по компании к запросу
-     */
-    private function addCompanyFilter($query)
-    {
-        $companyId = $this->getCurrentCompanyId();
-        if ($companyId) {
-            // СТРОГО фильтруем по компании - показываем только кассы текущей компании
-            $query->where('cash_registers.company_id', $companyId);
-        } else {
-            // Если компания не выбрана, показываем только кассы без company_id (для обратной совместимости)
-            $query->whereNull('cash_registers.company_id');
-        }
-        return $query;
-    }
-
-    // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         try {
-            // Возвращаем только кассы, к которым у пользователя есть доступ
             $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])
                 ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
                 });
 
-            // Фильтруем по текущей компании пользователя
-            $query = $this->addCompanyFilter($query);
+            $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
             return $query->orderBy('created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
         } catch (\Exception $e) {
-            // Возвращаем пустую пагинацию вместо ошибки
             return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
         }
     }
 
-    // Получение всего списка
     public function getAllItems($userUuid)
     {
         try {
-            // Проверяем, существует ли таблица
             if (!\Illuminate\Support\Facades\Schema::hasTable('cash_registers')) {
                 throw new \Exception('Table cash_registers does not exist');
             }
 
-            // Кэшируем справочник касс на 2 часа
-            $companyId = $this->getCurrentCompanyId();
-            $cacheKey = "cash_registers_all_{$userUuid}_{$companyId}";
+            $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid]);
 
             return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
-                // Возвращаем только кассы, к которым у пользователя есть доступ
                 $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])
                     ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
                         $query->where('user_id', $userUuid);
                     });
 
-                // Фильтруем по текущей компании пользователя
-                $query = $this->addCompanyFilter($query);
+                $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
                 return $query->get();
             });
         } catch (\Exception $e) {
-            // Возвращаем пустую коллекцию вместо ошибки
             return \Illuminate\Support\Collection::make();
         }
     }
 
-    // Получение баланса касс
     public function getCashBalance(
         $userUuid,
         $cash_register_ids = [],
@@ -103,10 +67,8 @@ class CahRegistersRepository
                 $q->where('user_id', $userUuid);
             });
 
-        // Фильтруем по текущей компании пользователя
-        $query = $this->addCompanyFilter($query);
+        $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
-        // Применяем фильтр по конкретным кассам
         if (!$all && !empty($cash_register_ids)) {
             $query->whereIn('id', $cash_register_ids);
         }
@@ -114,7 +76,6 @@ class CahRegistersRepository
         $items = $query->get()
             ->map(function ($cashRegister) use ($userUuid, $startDate, $endDate, $transactionType, $source) {
 
-                // базовый запрос по транзакциям
                 $txBase = Transaction::where('cash_id', $cashRegister->id)
                     ->where('is_deleted', false)
                     ->when($startDate || $endDate, function ($q) use ($startDate, $endDate) {
@@ -183,10 +144,9 @@ class CahRegistersRepository
                 $balance = [
                     ['value' => $income,  'title' => 'Приход',  'type' => 'income'],
                     ['value' => $outcome, 'title' => 'Расход',  'type' => 'outcome'],
-                    ['value' => $cashRegister->balance, 'title' => 'Итого', 'type' => 'default'],
+                    ['value' => $cashRegister->balance, 'title' => 'Итого',                     'type' => 'default'],
                 ];
 
-                // Добавляем долг только если он не равен 0
                 if ($debtTotal != 0) {
                     $balance[] = ['value' => $debtTotal, 'title' => 'Долг', 'type' => 'debt'];
                 }
@@ -203,7 +163,6 @@ class CahRegistersRepository
         return $items;
     }
 
-    // Создание
     public function createItem($data)
     {
         DB::beginTransaction();
@@ -215,7 +174,6 @@ class CahRegistersRepository
             $item->company_id = $this->getCurrentCompanyId();
             $item->save();
 
-            // Создаем связи с пользователями
             foreach ($data['users'] as $userId) {
                 CashRegisterUser::create([
                     'cash_register_id' => $item->id,
@@ -225,7 +183,6 @@ class CahRegistersRepository
 
             DB::commit();
 
-            // Инвалидируем кэш касс
             $this->invalidateCashRegistersCache();
 
             return true;
@@ -235,21 +192,16 @@ class CahRegistersRepository
         }
     }
 
-    // Обновление
     public function updateItem($id, $data)
     {
         DB::beginTransaction();
         try {
             $item = CashRegister::find($id);
             $item->name = $data['name'];
-            // $item->balance = $data['balance'];
-            // $item->currency_id = $data['currency_id'];
             $item->save();
 
-            // Удаляем старые связи
             CashRegisterUser::where('cash_register_id', $id)->delete();
 
-            // Создаем новые связи
             foreach ($data['users'] as $userId) {
                 CashRegisterUser::create([
                     'cash_register_id' => $id,
@@ -259,7 +211,6 @@ class CahRegistersRepository
 
             DB::commit();
 
-            // Инвалидируем кэш касс
             $this->invalidateCashRegistersCache();
 
             return true;
@@ -269,7 +220,6 @@ class CahRegistersRepository
         }
     }
 
-    // Удаление
     public function deleteItem($id)
     {
         DB::beginTransaction();
@@ -277,12 +227,10 @@ class CahRegistersRepository
             $item = CashRegister::find($id);
             $item->delete();
 
-            // Удаляем связи с пользователями
             CashRegisterUser::where('cash_register_id', $id)->delete();
 
             DB::commit();
 
-            // Инвалидируем кэш касс
             $this->invalidateCashRegistersCache();
 
             return true;
@@ -294,7 +242,6 @@ class CahRegistersRepository
 
     private function invalidateCashRegistersCache()
     {
-        // Очищаем кэш касс через CacheService
         CacheService::invalidateCashRegistersCache();
     }
 }

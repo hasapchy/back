@@ -18,11 +18,7 @@ class SaleController extends Controller
 
     public function index(Request $request)
     {
-
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
         $per_page = $request->input('per_page', 10);
@@ -33,21 +29,12 @@ class SaleController extends Controller
 
         $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $page);
 
-        return response()->json([
-            'items' => $items->items(),
-            'current_page' => $items->currentPage(),
-            'next_page' => $items->nextPageUrl(),
-            'last_page' => $items->lastPage(),
-            'total' => $items->total()
-        ]);
+        return $this->paginatedResponse($items);
     }
 
     public function store(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
             'client_id'     => 'required|integer|exists:clients,id',
@@ -86,64 +73,45 @@ class SaleController extends Controller
         ];
 
         try {
-            $ok = $this->itemRepository->createItem($data);
-            if (! $ok) {
-                return response()->json(['message' => 'Ошибка создания продажи'], 400);
-            }
+            $this->itemRepository->createItem($data);
 
-            // Инвалидируем кэш продаж
             CacheService::invalidateSalesCache();
-            // Инвалидируем кэш клиентов (баланс клиента изменился)
             CacheService::invalidateClientsCache();
-            // Инвалидируем кэш проектов (если продажа привязана к проекту)
             if ($request->project_id) {
                 CacheService::invalidateProjectsCache();
             }
 
             return response()->json(['message' => 'Продажа добавлена'], 201);
         } catch (\Throwable $e) {
-            return response()->json([
-                'message' => 'Ошибка продажи: ' . $e->getMessage()
-            ], 400);
+            return $this->errorResponse($e->getMessage(), 400);
         }
     }
 
     public function show($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->itemRepository->getItemById($id);
         if (!$item) {
-            return response()->json(['message' => 'Not found'], 404);
+            return $this->notFoundResponse('Not found');
         }
         return response()->json(['item' => $item]);
     }
 
     public function destroy($id)
     {
-        $user = auth('api')->user();
-        $userUuid = optional($user)->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $user = $this->requireAuthenticatedUser();
+        $userUuid = $user->id;
 
-        // Получаем продажу для проверки владельца
         $sale = $this->itemRepository->getItemById($id);
         if (!$sale) {
-            return response()->json(['message' => 'Продажа не найдена'], 404);
+            return $this->notFoundResponse('Продажа не найдена');
         }
 
-        // Проверяем права владельца: если не админ, то можно удалять только свои записи
         if (!$user->is_admin && $sale->user_id != $userUuid) {
-            return response()->json([
-                'message' => 'У вас нет прав на удаление этой продажи'
-            ], 403);
+            return $this->forbiddenResponse('У вас нет прав на удаление этой продажи');
         }
 
         try {
-            // Сохраняем данные продажи перед удалением (метод deleteItem возвращает bool)
             $projectId = $sale->project_id ?? null;
             $saleData = [
                 'id' => $sale->id,
@@ -153,23 +121,15 @@ class SaleController extends Controller
 
             $result = $this->itemRepository->deleteItem($id);
 
-            // Инвалидируем кэш продаж
             CacheService::invalidateSalesCache();
-            // Инвалидируем кэш клиентов (баланс клиента изменился)
             CacheService::invalidateClientsCache();
-            // Инвалидируем кэш проектов (если продажа была привязана к проекту)
             if ($projectId) {
                 CacheService::invalidateProjectsCache();
             }
 
-            return response()->json([
-                'message' => 'Продажа удалена успешно',
-                'sale' => $saleData
-            ], 200);
+            return response()->json(['sale' => $saleData, 'message' => 'Продажа удалена успешно']);
         } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'Ошибка при удалении продажи: ' . $th->getMessage()
-            ], 400);
+            return $this->errorResponse('Ошибка при удалении продажи: ' . $th->getMessage(), 400);
         }
     }
 }

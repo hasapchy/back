@@ -6,12 +6,11 @@ use App\Models\ProjectContract;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
-class ProjectContractsRepository
+class ProjectContractsRepository extends BaseRepository
 {
-    // Получение контрактов проекта с пагинацией
     public function getProjectContractsWithPagination($projectId, $perPage = 20, $page = 1, $search = null)
     {
-        $cacheKey = "project_contracts_paginated_{$projectId}_{$perPage}_{$page}_{$search}";
+        $cacheKey = $this->generateCacheKey('project_contracts_paginated', [$projectId, $perPage, $page, $search]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($projectId, $perPage, $search, $page) {
             $query = ProjectContract::select([
@@ -34,7 +33,6 @@ class ProjectContractsRepository
                 ->where('project_contracts.project_id', $projectId)
                 ->with(['currency:id,name,code,symbol']);
 
-            // Применяем поиск
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('project_contracts.number', 'like', "%{$search}%")
@@ -49,12 +47,11 @@ class ProjectContractsRepository
         }, (int)$page);
     }
 
-    // Получение всех контрактов проекта
-    public function getAllProjectContracts($projectId)
+    public function getAllItems($projectId)
     {
-        $cacheKey = "project_contracts_all_{$projectId}";
+        $cacheKey = $this->generateCacheKey('project_contracts_all', [$projectId]);
 
-        return CacheService::remember($cacheKey, function () use ($projectId) {
+        return CacheService::getReferenceData($cacheKey, function () use ($projectId) {
             return ProjectContract::select([
                 'project_contracts.id',
                 'project_contracts.project_id',
@@ -77,10 +74,9 @@ class ProjectContractsRepository
                 ->orderBy('project_contracts.date', 'desc')
                 ->orderBy('project_contracts.created_at', 'desc')
                 ->get();
-        }, 1800); // 30 минут
+        });
     }
 
-    // Создание контракта
     public function createContract($data)
     {
         DB::beginTransaction();
@@ -98,7 +94,6 @@ class ProjectContractsRepository
 
             DB::commit();
 
-            // Инвалидируем кэш контрактов
             $this->invalidateProjectContractsCache($data['project_id']);
 
             return $contract;
@@ -108,7 +103,6 @@ class ProjectContractsRepository
         }
     }
 
-    // Обновление контракта
     public function updateContract($id, $data)
     {
         DB::beginTransaction();
@@ -125,7 +119,6 @@ class ProjectContractsRepository
             $contract->returned = $data['returned'] ?? false;
             $contract->note = $data['note'] ?? null;
 
-            // Защита: если files переданы, убедись, что это массив
             if (isset($data['files']) && is_array($data['files'])) {
                 $contract->files = $data['files'];
             }
@@ -134,7 +127,6 @@ class ProjectContractsRepository
 
             DB::commit();
 
-            // Инвалидируем кэш контрактов
             $this->invalidateProjectContractsCache($contract->project_id);
 
             return $contract;
@@ -144,20 +136,18 @@ class ProjectContractsRepository
         }
     }
 
-    // Получение контракта по ID
     public function findContract($id)
     {
-        $cacheKey = "project_contract_item_{$id}";
+        $cacheKey = $this->generateCacheKey('project_contract_item', [$id]);
 
         return CacheService::remember($cacheKey, function () use ($id) {
             return ProjectContract::with([
                 'project:id,name',
                 'currency:id,name,code,symbol'
             ])->find($id);
-        }, 1800); // 30 минут
+        }, 1800);
     }
 
-    // Удаление контракта
     public function deleteContract($id)
     {
         DB::beginTransaction();
@@ -172,7 +162,6 @@ class ProjectContractsRepository
 
             DB::commit();
 
-            // Инвалидируем кэш контрактов
             $this->invalidateProjectContractsCache($projectId);
 
             return true;
@@ -187,19 +176,14 @@ class ProjectContractsRepository
      */
     private function invalidateProjectContractsCache($projectId)
     {
-        // Точное удаление конкретного ключа
-        \Illuminate\Support\Facades\Cache::forget("project_contracts_all_{$projectId}");
-
-        // Используем централизованный метод из CacheService
-        CacheService::invalidateByLike("%project_contracts_paginated_{$projectId}%");
-        CacheService::invalidateByLike("%project_contract_item%");
+        $companyId = $this->getCurrentCompanyId() ?? 'default';
+        \Illuminate\Support\Facades\Cache::forget($this->generateCacheKey('project_contracts_all', [$projectId]));
+        CacheService::invalidateByLike("%project_contracts_paginated_{$projectId}_{$companyId}%");
+        CacheService::invalidateByLike("%project_contract_item_{$companyId}%");
     }
 
-    /**
-     * Инвалидация кэша конкретного контракта
-     */
     public function invalidateContractCache($contractId)
     {
-        \Illuminate\Support\Facades\Cache::forget("project_contract_item_{$contractId}");
+        \Illuminate\Support\Facades\Cache::forget($this->generateCacheKey('project_contract_item', [$contractId]));
     }
 }

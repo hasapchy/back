@@ -15,48 +15,26 @@ class CashRegistersController extends Controller
     {
         $this->itemsRepository = $itemsRepository;
     }
-    // Метод для получения касс с пагинацией
     public function index(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
-
-        // Получаем склад с пагинацией
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page);
 
-        return response()->json([
-            'items' => $items->items(),  // Список
-            'current_page' => $items->currentPage(),  // Текущая страница
-            'next_page' => $items->nextPageUrl(),  // Следующая страница
-            'last_page' => $items->lastPage(),  // Общее количество страниц
-            'total' => $items->total()  // Общее количество
-        ]);
+        return $this->paginatedResponse($items);
     }
 
-    // Метод для получения всех касс
     public function all(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-        // Получаем кассы
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
         $items = $this->itemsRepository->getAllItems($userUuid);
-
         return response()->json($items);
     }
 
-    // Получение баланса касс
     public function getCashBalance(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $cashRegisterIds = $request->query('cash_register_ids', '');
         $all = empty($cashRegisterIds);
@@ -67,7 +45,6 @@ class CashRegistersController extends Controller
         $transactionType = $request->query('transaction_type');
         $source = $request->query('source');
 
-        // Преобразуем source из строки в массив
         if ($source && is_string($source)) {
             $source = explode(',', $source);
         }
@@ -81,7 +58,7 @@ class CashRegistersController extends Controller
                 ? \Carbon\Carbon::createFromFormat('d.m.Y', $endRaw)->endOfDay()
                 : null;
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Неверный формат даты'], 422);
+            return $this->errorResponse('Неверный формат даты', 422);
         }
 
         $balances = $this->itemsRepository->getCashBalance(
@@ -97,14 +74,10 @@ class CashRegistersController extends Controller
         return response()->json($balances);
     }
 
-    // Метод для создания кассы
     public function store(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-        // Валидация данных
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+
         $request->validate([
             'name' => 'required|string',
             'balance' => 'required|numeric',
@@ -113,7 +86,6 @@ class CashRegistersController extends Controller
             'users.*' => 'exists:users,id'
         ]);
 
-        // Создаем категорию
         $item_created = $this->itemsRepository->createItem([
             'name' => $request->name,
             'balance' => $request->balance,
@@ -122,78 +94,47 @@ class CashRegistersController extends Controller
         ]);
 
         if (!$item_created) {
-            return response()->json([
-                'message' => 'Ошибка создания кассы'
-            ], 400);
+            return $this->errorResponse('Ошибка создания кассы', 400);
         }
 
-        // Инвалидируем кэш касс
         CacheService::invalidateCashRegistersCache();
-
-        return response()->json([
-            'message' => 'Касса создана'
-        ]);
+        return response()->json(['message' => 'Касса создана']);
     }
 
-    // Метод для обновления кассы
     public function update(Request $request, $id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-        // Валидация данных
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+
         $request->validate([
             'name' => 'required|string',
-            // 'balance' => 'required|numeric',
-            // 'currency_id' => 'nullable|exists:currencies,id',
             'users' => 'required|array',
             'users.*' => 'exists:users,id'
         ]);
 
-        // Обновляем категорию
         $category_updated = $this->itemsRepository->updateItem($id, [
             'name' => $request->name,
-            // 'balance' => $request->balance,
-            // 'currency_id' => $request->currency_id,
             'users' => $request->users
         ]);
 
         if (!$category_updated) {
-            return response()->json([
-                'message' => 'Ошибка обновления кассы'
-            ], 400);
+            return $this->errorResponse('Ошибка обновления кассы', 400);
         }
 
-        // Инвалидируем кэш касс
-        \App\Services\CacheService::invalidateCashRegistersCache();
-
-        return response()->json([
-            'message' => 'Касса обновлена'
-        ]);
+        CacheService::invalidateCashRegistersCache();
+        return response()->json(['message' => 'Касса обновлена']);
     }
 
-    // Метод для удаления кассы
     public function destroy($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-        // Удаляем кассу
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+
         $category_deleted = $this->itemsRepository->deleteItem($id);
 
         if (!$category_deleted) {
-            return response()->json([
-                'message' => 'Ошибка удаления кассы'
-            ], 400);
+            return $this->errorResponse('Ошибка удаления кассы', 400);
         }
 
-        // Инвалидируем кэш касс
-        \App\Services\CacheService::invalidateCashRegistersCache();
-
-        return response()->json([
-            'message' => 'Касса удалена'
-        ]);
+        CacheService::invalidateCashRegistersCache();
+        return response()->json(['message' => 'Касса удалена']);
     }
 }

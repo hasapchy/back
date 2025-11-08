@@ -8,13 +8,12 @@ use App\Models\WhWriteoffProduct;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
-class WarehouseWriteoffRepository
+class WarehouseWriteoffRepository extends BaseRepository
 {
     // Получение стоков с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $companyId = request()->header('X-Company-ID');
-        $cacheKey = "warehouse_writeoffs_paginated_{$userUuid}_{$perPage}_{$companyId}";
+        $cacheKey = $this->generateCacheKey('warehouse_writeoffs_paginated', [$userUuid, $perPage]);
 
         return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
             $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
@@ -77,6 +76,11 @@ class WarehouseWriteoffRepository
                 }
             }
             DB::commit();
+
+            CacheService::invalidateWarehouseWriteoffsCache();
+            CacheService::invalidateWarehouseStocksCache();
+
+            return true;
         } catch (\Exception $e) {
             DB::rollBack();
             return false;
@@ -131,6 +135,11 @@ class WarehouseWriteoffRepository
             }
 
             DB::commit();
+
+            CacheService::invalidateWarehouseWriteoffsCache();
+            CacheService::invalidateWarehouseStocksCache();
+
+            return true;
         } catch (\Exception $e) {
             DB::rollBack();
             return false;
@@ -163,6 +172,11 @@ class WarehouseWriteoffRepository
             $writeoff->delete();
 
             DB::commit();
+
+            CacheService::invalidateWarehouseWriteoffsCache();
+            CacheService::invalidateWarehouseStocksCache();
+
+            return true;
         } catch (\Exception $e) {
             DB::rollBack();
             return false;

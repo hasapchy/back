@@ -12,14 +12,57 @@ class RoundingService
     public const DIRECTION_CUSTOM = 'custom';
 
     /**
-     * Apply company-specific rounding rule.
-     * Uses company-wide settings instead of per-context rules.
+     * Apply company-specific rounding rule for amounts (sums).
+     * Uses company-wide settings for amounts.
      *
      * If rounding_enabled = false: truncates to rounding_decimals (no rounding)
      * If rounding_enabled = true: rounds to rounding_decimals according to rounding_direction
      */
     public function roundForCompany(?int $companyId, float $value): float
     {
+        return $this->roundWithSettings(
+            $companyId,
+            $value,
+            'rounding_decimals',
+            'rounding_enabled',
+            'rounding_direction',
+            'rounding_custom_threshold',
+            2
+        );
+    }
+
+    /**
+     * Apply company-specific rounding rule for quantity (product quantity).
+     * Uses separate company settings for quantity.
+     *
+     * If rounding_quantity_enabled = false: truncates to rounding_quantity_decimals (no rounding)
+     * If rounding_quantity_enabled = true: rounds to rounding_quantity_decimals according to rounding_quantity_direction
+     */
+    public function roundQuantityForCompany(?int $companyId, float $value): float
+    {
+        return $this->roundWithSettings(
+            $companyId,
+            $value,
+            'rounding_quantity_decimals',
+            'rounding_quantity_enabled',
+            'rounding_quantity_direction',
+            'rounding_quantity_custom_threshold',
+            2
+        );
+    }
+
+    /**
+     * Apply rounding with company settings
+     */
+    protected function roundWithSettings(
+        ?int $companyId,
+        float $value,
+        string $decimalsField,
+        string $enabledField,
+        string $directionField,
+        string $thresholdField,
+        int $defaultDecimals
+    ): float {
         if (!$companyId) {
             return $value;
         }
@@ -31,16 +74,15 @@ class RoundingService
             return $value;
         }
 
-        $decimals = max(0, min(5, (int) $company->rounding_decimals));
+        $decimals = max(0, min(5, (int) ($company->$decimalsField ?? $defaultDecimals)));
+        $enabled = $company->$enabledField ?? true;
 
-        // Если округление выключено, просто ограничиваем количество знаков (обрезаем)
-        if (!$company->rounding_enabled) {
+        if (!$enabled) {
             return $this->truncate($value, $decimals);
         }
 
-        // Если округление включено, применяем правила округления
-        $direction = $company->rounding_direction ?? self::DIRECTION_STANDARD;
-        $customThreshold = $company->rounding_custom_threshold;
+        $direction = $company->$directionField ?? self::DIRECTION_STANDARD;
+        $customThreshold = $company->$thresholdField;
 
         return $this->applyRounding($value, $decimals, $direction, $customThreshold);
     }
@@ -68,16 +110,13 @@ class RoundingService
 
         switch ($direction) {
             case self::DIRECTION_UP:
-                // Всегда в большую сторону (ceiling)
                 return ceil($multiplied) / $multiplier;
 
             case self::DIRECTION_DOWN:
-                // Всегда в меньшую сторону (floor)
                 return floor($multiplied) / $multiplier;
 
             case self::DIRECTION_CUSTOM:
                 if ($customThreshold !== null) {
-                    // Округляем в большую сторону если >= threshold, иначе стандартное
                     $fraction = abs($multiplied) - floor(abs($multiplied));
                     if ($fraction >= $customThreshold) {
                         return ($value >= 0 ? ceil($multiplied) : floor($multiplied)) / $multiplier;
@@ -85,11 +124,9 @@ class RoundingService
                         return round($value, $decimals);
                     }
                 }
-                // Fall through to standard if threshold not set
 
             case self::DIRECTION_STANDARD:
             default:
-                // Standard banker-style half away from zero
                 return round($value, $decimals);
         }
     }
@@ -113,5 +150,3 @@ class RoundingService
         return max(0, min(5, (int) $company->rounding_decimals));
     }
 }
-
-

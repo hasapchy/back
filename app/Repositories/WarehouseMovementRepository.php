@@ -8,13 +8,11 @@ use App\Models\WhMovementProduct;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
-class WarehouseMovementRepository
+class WarehouseMovementRepository extends BaseRepository
 {
-    // Получение стоков с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $companyId = request()->header('X-Company-ID');
-        $cacheKey = "warehouse_movements_paginated_{$userUuid}_{$perPage}_{$companyId}";
+        $cacheKey = $this->generateCacheKey('warehouse_movements_paginated', [$userUuid, $perPage]);
 
         return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
             $items = WhMovement::leftJoin('warehouses as warehouses_from', 'wh_movements.wh_from', '=', 'warehouses_from.id')
@@ -87,6 +85,11 @@ class WarehouseMovementRepository
                 }
             }
             DB::commit();
+
+            CacheService::invalidateWarehouseMovementsCache();
+            CacheService::invalidateWarehouseStocksCache();
+
+            return true;
         } catch (\Exception $e) {
             DB::rollBack();
             return false;
@@ -147,6 +150,11 @@ class WarehouseMovementRepository
             }
 
             DB::commit();
+
+            CacheService::invalidateWarehouseMovementsCache();
+            CacheService::invalidateWarehouseStocksCache();
+
+            return true;
         } catch (\Exception $e) {
             DB::rollBack();
             return false;
@@ -173,6 +181,11 @@ class WarehouseMovementRepository
 
             $movement->delete();
             DB::commit();
+
+            CacheService::invalidateWarehouseMovementsCache();
+            CacheService::invalidateWarehouseStocksCache();
+
+            return true;
         } catch (\Exception $e) {
             DB::rollBack();
             return false;
@@ -181,7 +194,6 @@ class WarehouseMovementRepository
         return true;
     }
 
-    // Обновление стоков
     private function updateStock($warehouse_id, $product_id, $remove_quantity)
     {
         $stock = WarehouseStock::where('warehouse_id', $warehouse_id)

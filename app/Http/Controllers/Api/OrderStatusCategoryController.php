@@ -18,25 +18,17 @@ class OrderStatusCategoryController extends Controller
 
     public function index(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) return response()->json(['message' => 'Unauthorized'], 401);
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
         $items = $this->repo->getItemsWithPagination($userUuid, $perPage);
 
-        return response()->json([
-            'items' => $items->items(),
-            'current_page' => $items->currentPage(),
-            'next_page' => $items->nextPageUrl(),
-            'last_page' => $items->lastPage(),
-            'total' => $items->total()
-        ]);
+        return $this->paginatedResponse($items);
     }
 
     public function all(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) return response()->json(['message' => 'Unauthorized'], 401);
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $items = $this->repo->getAllItems($userUuid);
 
@@ -45,8 +37,7 @@ class OrderStatusCategoryController extends Controller
 
     public function store(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) return response()->json(['message' => 'Unauthorized'], 401);
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
             'name' => 'required|string',
@@ -58,9 +49,8 @@ class OrderStatusCategoryController extends Controller
             'color' => $request->color ?? null,
             'user_id' => $userUuid
         ]);
-        if (!$created) return response()->json(['message' => 'Ошибка создания категории статусов'], 400);
+        if (!$created) return $this->errorResponse('Ошибка создания категории статусов', 400);
 
-        // Инвалидируем кэш категорий статусов заказов
         CacheService::invalidateOrderStatusCategoriesCache();
 
         return response()->json(['message' => 'Категория статусов создана']);
@@ -68,8 +58,7 @@ class OrderStatusCategoryController extends Controller
 
     public function update(Request $request, $id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) return response()->json(['message' => 'Unauthorized'], 401);
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
             'name' => 'required|string',
@@ -80,9 +69,8 @@ class OrderStatusCategoryController extends Controller
             'name' => $request->name,
             'color' => $request->color ?? null,
         ]);
-        if (!$updated) return response()->json(['message' => 'Ошибка обновления'], 400);
+        if (!$updated) return $this->errorResponse('Ошибка обновления', 400);
 
-        // Инвалидируем кэш категорий статусов заказов
         CacheService::invalidateOrderStatusCategoriesCache();
 
         return response()->json(['message' => 'Категория статусов обновлена']);
@@ -90,13 +78,11 @@ class OrderStatusCategoryController extends Controller
 
     public function destroy($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) return response()->json(['message' => 'Unauthorized'], 401);
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $deleted = $this->repo->deleteItem($id);
-        if (!$deleted) return response()->json(['message' => 'Ошибка удаления'], 400);
+        if (!$deleted) return $this->errorResponse('Ошибка удаления', 400);
 
-        // Инвалидируем кэш категорий статусов заказов
         CacheService::invalidateOrderStatusCategoriesCache();
 
         return response()->json(['message' => 'Категория статусов удалена']);

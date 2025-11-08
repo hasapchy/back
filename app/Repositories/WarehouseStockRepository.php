@@ -5,93 +5,147 @@ namespace App\Repositories;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Services\CacheService;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
-class WarehouseStockRepository
+class WarehouseStockRepository extends BaseRepository
 {
-    /**
-     * Получить текущую компанию пользователя из заголовка запроса
-     */
-    private function getCurrentCompanyId()
+
+    public function getItemsWithPagination($userUuid, $perPage = 20, $warehouse_id = null, $category_id = null, $page = 1, $search = null, $availability = null)
     {
-        // Получаем company_id из заголовка запроса
-        return request()->header('X-Company-ID');
-    }
+        $searchNormalized = trim((string)$search);
+        $cacheKey = $this->generateCacheKey('warehouse_stocks_paginated', [
+            $userUuid,
+            $perPage,
+            $warehouse_id,
+            $category_id,
+            $availability,
+            md5($searchNormalized)
+        ]);
 
-    /**
-     * Добавить фильтрацию по компании к запросу стоков через склады
-     */
-    private function addCompanyFilter($query)
-    {
-        $companyId = $this->getCurrentCompanyId();
-        if ($companyId) {
-            // Фильтруем стоки по складам текущей компании
-            $query->where('warehouses.company_id', $companyId);
-        } else {
-            // Если компания не выбрана, показываем только стоки из складов без company_id
-            $query->whereNull('warehouses.company_id');
-        }
-        return $query;
-    }
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id, $page, $searchNormalized, $availability) {
+            $userWarehouseIds = DB::table('wh_users')
+                ->where('user_id', $userUuid)
+                ->pluck('warehouse_id')
+                ->toArray();
 
-    // Получение стоков с пагинацией
-    public function getItemsWithPagination($userUuid, $perPage = 20, $warehouse_id = null, $category_id = null, $page = 1, $search = null)
-    {
-        // ✅ Получаем компанию из заголовка для включения в кэш ключ
-        $companyId = $this->getCurrentCompanyId() ?? 'default';
-
-        $cacheKey = "warehouse_stocks_paginated_{$userUuid}_{$companyId}_{$perPage}_{$warehouse_id}_{$category_id}_" . md5((string)$search);
-
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id, $page, $search) {
-            $query = WarehouseStock::leftJoin('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id')
-                ->leftJoin('products', 'warehouse_stocks.product_id', '=', 'products.id')
-                ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-                ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
-                ->where('wh_users.user_id', $userUuid);
-
-            // Фильтруем по текущей компании пользователя (дополнительно к правам доступа)
-            $query = $this->addCompanyFilter($query);
-
-            $query->when($warehouse_id, function ($query, $warehouse_id) {
-                    return $query->where('warehouse_stocks.warehouse_id', $warehouse_id);
-                })
-                ->when($search, function ($query, $search) {
-                    $like = '%' . trim($search) . '%';
-                    return $query->where(function($q) use ($like) {
-                        $q->where('products.name', 'like', $like)
-                          ->orWhere('warehouses.name', 'like', $like)
-                          ->orWhere('units.name', 'like', $like)
-                          ->orWhere('units.short_name', 'like', $like);
-                    });
-                })
-                ->select(
-                    'warehouse_stocks.id as id',
-                    'warehouse_stocks.warehouse_id as warehouse_id',
-                    'warehouses.name as warehouse_name',
-                    'warehouse_stocks.product_id as product_id',
-                    'products.name as product_name',
-                    'products.image as product_image',
-                    'products.unit_id as unit_id',
-                    'units.name as unit_name',
-                    'units.short_name as unit_short_name',
-                    DB::raw('NULL as category_id'),
-                    DB::raw('NULL as category_name'),
-                    'warehouse_stocks.quantity as quantity',
-                    'warehouse_stocks.created_at as created_at'
+            if (empty($userWarehouseIds)) {
+                return new LengthAwarePaginator(
+                    collect([]),
+                    0,
+                    $perPage,
+                    $page,
+                    ['path' => request()->url(), 'query' => request()->query()]
                 );
+            }
 
-            return $query->orderBy('warehouse_stocks.created_at', 'desc')
-                ->paginate($perPage, ['*'], 'page', (int)$page);
+            $warehouseName = null;
+            if ($warehouse_id) {
+                if (!in_array((int)$warehouse_id, $userWarehouseIds, true)) {
+                    return new LengthAwarePaginator(
+                        collect([]),
+                        0,
+                        $perPage,
+                        $page,
+                        ['path' => request()->url(), 'query' => request()->query()]
+                    );
+                }
+
+                $warehouseName = Warehouse::find($warehouse_id)?->name;
+            }
+
+            $primaryCategorySub = DB::table('product_categories')
+                ->select('product_categories.product_id', DB::raw('MIN(product_categories.category_id) as category_id'))
+                ->groupBy('product_categories.product_id');
+
+            $productsQuery = DB::table('products')
+                ->leftJoinSub($primaryCategorySub, 'primary_category', function ($join) {
+                    $join->on('products.id', '=', 'primary_category.product_id');
+                })
+                ->leftJoin('categories', 'primary_category.category_id', '=', 'categories.id')
+                ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+                ->where(function ($q) {
+                    $q->where('products.type', 'product')
+                        ->orWhere('products.type', 1)
+                        ->orWhere('products.type', true);
+                });
+
+            if ($category_id) {
+                $productsQuery->whereExists(function ($q) use ($category_id) {
+                    $q->select(DB::raw(1))
+                        ->from('product_categories as pc_filter')
+                        ->whereColumn('pc_filter.product_id', 'products.id')
+                        ->where('pc_filter.category_id', $category_id);
+                });
+            }
+
+            if ($searchNormalized !== '') {
+                $like = '%' . $searchNormalized . '%';
+                $productsQuery->where(function ($q) use ($like) {
+                    $q->where('products.name', 'like', $like)
+                        ->orWhere('products.sku', 'like', $like)
+                        ->orWhere('products.barcode', 'like', $like)
+                        ->orWhere('categories.name', 'like', $like);
+                });
+            }
+
+            $stockQuery = DB::table('warehouse_stocks')
+                ->select('warehouse_stocks.product_id', DB::raw('SUM(warehouse_stocks.quantity) as quantity'))
+                ->whereIn('warehouse_stocks.warehouse_id', $userWarehouseIds);
+
+            if ($warehouse_id) {
+                $stockQuery->where('warehouse_stocks.warehouse_id', $warehouse_id);
+            }
+
+            $stockQuery->groupBy('warehouse_stocks.product_id');
+
+            $productsQuery->leftJoinSub($stockQuery, 'stock_totals', function ($join) {
+                $join->on('products.id', '=', 'stock_totals.product_id');
+            });
+
+            $productsQuery->select(
+                DB::raw('products.id as id'),
+                'products.id as product_id',
+                'products.name as product_name',
+                'products.image as product_image',
+                'units.id as unit_id',
+                'units.name as unit_name',
+                'units.short_name as unit_short_name',
+                DB::raw('primary_category.category_id as category_id'),
+                'categories.name as category_name',
+                DB::raw('COALESCE(stock_totals.quantity, 0) as quantity'),
+                'products.created_at as created_at'
+            );
+
+            if ($warehouse_id) {
+                $productsQuery->selectRaw('? as warehouse_id', [$warehouse_id]);
+                $productsQuery->selectRaw('? as warehouse_name', [$warehouseName ?? '']);
+            } else {
+                $productsQuery->selectRaw('NULL as warehouse_id');
+                $productsQuery->selectRaw('? as warehouse_name', ['Все склады']);
+            }
+
+            if ($availability === 'in_stock') {
+                $productsQuery->whereRaw('COALESCE(stock_totals.quantity, 0) > 0');
+            } elseif ($availability === 'out_of_stock') {
+                $productsQuery->whereRaw('COALESCE(stock_totals.quantity, 0) = 0');
+            }
+
+            $productsQuery->orderBy('products.name');
+
+            $paginated = $productsQuery->paginate($perPage, ['*'], 'page', (int)$page);
+
+            foreach ($paginated as $item) {
+                $item->quantity = (float)($item->quantity ?? 0);
+            }
+
+            return $paginated;
         }, (int)$page);
     }
 
-    // Получение общего количества товаров на складе
     public function getTotalQuantityByWarehouse($userUuid, $warehouse_id = null)
     {
-        // ✅ Получаем компанию из заголовка для включения в кэш ключ
-        $companyId = $this->getCurrentCompanyId() ?? 'default';
-
-        $cacheKey = "warehouse_stocks_total_{$userUuid}_{$companyId}_{$warehouse_id}";
+        $cacheKey = $this->generateCacheKey('warehouse_stocks_total', [$userUuid, $warehouse_id]);
 
         return CacheService::remember($cacheKey, function () use ($userUuid, $warehouse_id) {
             $query = WarehouseStock::leftJoin('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id')
@@ -106,13 +160,9 @@ class WarehouseStockRepository
         });
     }
 
-    // Получение количества товаров по категориям
     public function getQuantityByCategories($userUuid, $warehouse_id = null)
     {
-        // ✅ Получаем компанию из заголовка для включения в кэш ключ
-        $companyId = $this->getCurrentCompanyId() ?? 'default';
-
-        $cacheKey = "warehouse_stocks_categories_{$userUuid}_{$companyId}_{$warehouse_id}";
+        $cacheKey = $this->generateCacheKey('warehouse_stocks_categories', [$userUuid, $warehouse_id]);
 
         return CacheService::remember($cacheKey, function () use ($userUuid, $warehouse_id) {
             return collect([]);

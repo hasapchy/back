@@ -7,209 +7,82 @@ use App\Models\ProjectUser;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
-class ProjectsRepository
+class ProjectsRepository extends BaseRepository
 {
-    /**
-     * Получить текущую компанию пользователя из заголовка запроса
-     */
-    private function getCurrentCompanyId()
-    {
-        // Получаем company_id из заголовка запроса
-        return request()->header('X-Company-ID');
-    }
 
-    /**
-     * Добавить фильтрацию по компании к запросу
-     */
-    private function addCompanyFilter($query)
-    {
-        $companyId = $this->getCurrentCompanyId();
-        if ($companyId) {
-            $query->where('projects.company_id', $companyId);
-        } else {
-            // Если компания не выбрана, показываем только проекты без company_id (для обратной совместимости)
-            $query->whereNull('projects.company_id');
-        }
-        return $query;
-    }
-
-    // Получение с пагинацией
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null, $clientId = null, $contractType = null)
     {
-        // Создаем уникальный ключ кэша с учетом компании
-        $companyId = $this->getCurrentCompanyId();
-        $cacheKey = "projects_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$statusId}_{$clientId}_{$contractType}_{$companyId}";
+        $cacheKey = $this->generateCacheKey('projects_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, $contractType]);
 
-        // Для списка без фильтров используем более длительное кэширование
-        $ttl = (!$search && $dateFilter === 'all_time' && !$statusId && !$clientId && $contractType === null) ? 1800 : 600; // 30 мин для списка, 10 мин для фильтров
+        $ttl = (!$search && $dateFilter === 'all_time' && !$statusId && !$clientId && $contractType === null) ? 1800 : 600;
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId, $clientId, $contractType) {
-            // Оптимизированный запрос с селективным выбором полей и JOIN для клиентов
             $query = Project::select([
-                'projects.id',
-                'projects.name',
-                'projects.budget',
-                'projects.currency_id',
-                'projects.exchange_rate',
-                'projects.date',
-                'projects.user_id',
-                'projects.client_id',
-                'projects.status_id',
-                'projects.files',
-                'projects.created_at',
-                'projects.updated_at',
-                'clients.first_name as client_first_name',
-                'clients.last_name as client_last_name',
-                'clients.contact_person as client_contact_person',
-                'users.name as user_name',
-                'users.photo as user_photo',
-                'clients.balance as client_balance'
+                'projects.*'
             ])
-                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
-                ->leftJoin('users', 'projects.user_id', '=', 'users.id')
                 ->with([
-                    'client:id,first_name,last_name,contact_person',
+                    'client:id,first_name,last_name,contact_person,balance',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
                     'currency:id,name,code,symbol',
                     'status:id,name,color',
-                    'creator:id,name',
+                    'creator:id,name,photo',
                     'users:id,name',
                     'projectUsers:id,project_id,user_id'
                 ]);
 
-            // Фильтруем по текущей компании пользователя
-            $query = $this->addCompanyFilter($query);
+            $query = $this->addCompanyFilterDirect($query, 'projects');
 
-            // Применяем фильтры
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('projects.id', 'like', "%{$search}%")
-                        ->orWhere('projects.name', 'like', "%{$search}%")
-                        ->orWhere('clients.first_name', 'like', "%{$search}%")
-                        ->orWhere('clients.last_name', 'like', "%{$search}%")
-                        ->orWhere('clients.contact_person', 'like', "%{$search}%");
+                        ->orWhere('projects.name', 'like', "%{$search}%");
+                    $this->applyClientSearchFilterThroughRelation($q, 'client', $search);
                 });
             }
 
-            // Фильтрация по дате
             if ($dateFilter && $dateFilter !== 'all_time') {
-                $this->applyDateFilter($query, $dateFilter, $startDate, $endDate);
+                $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'projects.date');
             }
 
-            // Фильтрация по статусу
             if ($statusId) {
                 $query->where('projects.status_id', $statusId);
             }
 
-            // Фильтрация по клиенту
             if ($clientId) {
                 $query->where('projects.client_id', $clientId);
             }
 
-            // Фильтр по пользователю
             $query->whereHas('projectUsers', function ($query) use ($userUuid) {
                 $query->where('user_id', $userUuid);
             });
 
-            // Получаем результат с пагинацией
             return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
         }, (int)$page);
     }
 
 
-    private function applyDateFilter($query, $dateFilter, $startDate, $endDate)
-    {
-        if ($dateFilter === 'today') {
-            $query->whereBetween('projects.date', [
-                now()->startOfDay()->toDateTimeString(),
-                now()->endOfDay()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'yesterday') {
-            $query->whereBetween('projects.date', [
-                now()->subDay()->startOfDay()->toDateTimeString(),
-                now()->subDay()->endOfDay()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'this_week') {
-            $query->whereBetween('projects.date', [
-                now()->startOfWeek()->toDateTimeString(),
-                now()->endOfWeek()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'this_month') {
-            $query->whereBetween('projects.date', [
-                now()->startOfMonth()->toDateTimeString(),
-                now()->endOfMonth()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'this_year') {
-            $query->whereBetween('projects.date', [
-                now()->startOfYear()->toDateTimeString(),
-                now()->endOfYear()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'last_week') {
-            $query->whereBetween('projects.date', [
-                now()->subWeek()->startOfWeek()->toDateTimeString(),
-                now()->subWeek()->endOfWeek()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'last_month') {
-            $query->whereBetween('projects.date', [
-                now()->subMonth()->startOfMonth()->toDateTimeString(),
-                now()->subMonth()->endOfMonth()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'last_year') {
-            $query->whereBetween('projects.date', [
-                now()->subYear()->startOfYear()->toDateTimeString(),
-                now()->subYear()->endOfYear()->toDateTimeString()
-            ]);
-        } elseif ($dateFilter === 'custom') {
-            if ($startDate && $endDate) {
-                $query->whereBetween('projects.date', [$startDate, $endDate]);
-            }
-        }
-    }
 
-    // Получение всего списка (включая все статусы для страницы проектов)
     public function getAllItems($userUuid, $activeOnly = false)
     {
-        // Создаем уникальный ключ кэша с учетом компании
-        $companyId = $this->getCurrentCompanyId();
-        $cacheKey = "projects_all_{$userUuid}_{$activeOnly}_{$companyId}";
+        $cacheKey = $this->generateCacheKey('projects_all', [$userUuid, $activeOnly]);
 
-        return CacheService::remember($cacheKey, function () use ($userUuid, $activeOnly) {
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $activeOnly) {
             $query = Project::select([
-                'projects.id',
-                'projects.name',
-                'projects.budget',
-                'projects.currency_id',
-                'projects.exchange_rate',
-                'projects.date',
-                'projects.user_id',
-                'projects.client_id',
-                'projects.status_id',
-                'projects.files',
-                'projects.created_at',
-                'projects.updated_at',
-                'clients.first_name as client_first_name',
-                'clients.last_name as client_last_name',
-                'users.name as user_name',
-                'users.photo as user_photo',
-                'clients.balance as client_balance'
+                'projects.*'
             ])
-                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
-                ->leftJoin('users', 'projects.user_id', '=', 'users.id')
                 ->with([
-                    'client:id,first_name,last_name,contact_person',
+                    'client:id,first_name,last_name,contact_person,balance',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
                     'currency:id,name,code,symbol',
                     'status:id,name,color',
-                    'creator:id,name',
+                    'creator:id,name,photo',
                     'users:id,name'
                 ]);
 
-            // Фильтруем по текущей компании пользователя
-            $query = $this->addCompanyFilter($query);
+            $query = $this->addCompanyFilterDirect($query, 'projects');
 
-            // Фильтрация по активным статусам (исключаем "Завершен" и "Отменен")
             if ($activeOnly) {
                 $query->whereNotIn('projects.status_id', [3, 4]);
             }
@@ -219,10 +92,9 @@ class ProjectsRepository
                 })
                 ->orderBy('created_at', 'desc')
                 ->get();
-        }, 1800); // 30 минут
+        }, 1800);
     }
 
-    // Создание
     public function createItem($data)
     {
         DB::beginTransaction();
@@ -242,12 +114,9 @@ class ProjectsRepository
             $item->company_id = $companyId;
             $item->description = $data['description'] ?? null;
             $item->files = $data['files'] ?? [];
-            $item->status_id = $data['status_id'] ?? 1; // Статус "Новый" по умолчанию
+            $item->status_id = $data['status_id'] ?? 1;
             $item->save();
 
-
-
-            // Создаем связи с пользователями
             foreach ($data['users'] as $userId) {
                 ProjectUser::create([
                     'project_id' => $item->id,
@@ -258,8 +127,6 @@ class ProjectsRepository
 
             DB::commit();
 
-
-            // Инвалидируем кэш проектов
             $this->invalidateProjectsCache();
 
             return true;
@@ -269,7 +136,6 @@ class ProjectsRepository
         }
     }
 
-    // Обновление
     public function updateItem($id, $data)
     {
         DB::beginTransaction();
@@ -279,7 +145,6 @@ class ProjectsRepository
                 throw new \Exception('Project not found');
             }
 
-            // Защита: если files переданы, убедись, что это массив с нужной структурой
             if (isset($data['files']) && is_array($data['files'])) {
                 $item->files = $data['files'];
             }
@@ -296,10 +161,8 @@ class ProjectsRepository
 
             $item->save();
 
-            // Удаляем старые связи
             ProjectUser::where('project_id', $id)->delete();
 
-            // Создаем новые связи
             foreach ($data['users'] as $userId) {
                 ProjectUser::create([
                     'project_id' => $id,
@@ -321,7 +184,7 @@ class ProjectsRepository
 
     public function findItemWithRelations($id, $userUuid = null)
     {
-        $cacheKey = "project_item_relations_{$id}_{$userUuid}";
+        $cacheKey = $this->generateCacheKey('project_item_relations', [$id, $userUuid]);
 
         return CacheService::remember($cacheKey, function () use ($id, $userUuid) {
             $query = Project::select([
@@ -358,10 +221,9 @@ class ProjectsRepository
 
 
             return $result;
-        }, 1800); // 30 минут
+        }, 1800);
     }
 
-    // Удаление
     public function deleteItem($id)
     {
         DB::beginTransaction();
@@ -371,7 +233,6 @@ class ProjectsRepository
                 return false;
             }
 
-            // Проверяем, есть ли привязанные транзакции
             $transactionsCount = \App\Models\Transaction::where('project_id', $id)
                 ->where('is_deleted', false)
                 ->count();
@@ -379,7 +240,6 @@ class ProjectsRepository
                 throw new \Exception('Невозможно удалить проект, к нему привязано транзакций: ' . $transactionsCount);
             }
 
-            // Удаляем связи с пользователями
             ProjectUser::where('project_id', $id)->delete();
 
             $item->delete();
@@ -396,25 +256,32 @@ class ProjectsRepository
         }
     }
 
-    // Получение истории баланса проекта с кэшированием
     public function getBalanceHistory($projectId)
     {
-        $cacheKey = "project_balance_history_{$projectId}";
+        $cacheKey = $this->generateCacheKey('project_balance_history', [$projectId]);
 
         return CacheService::remember($cacheKey, function () use ($projectId) {
-            // Получаем информацию о проекте для конвертации валют
             $project = \App\Models\Project::find($projectId);
             $projectCurrencyId = $project ? $project->currency_id : null;
             $projectExchangeRate = $project ? $project->exchange_rate : 1;
 
-            // Получаем курсы валют заранее
+            $companyId = $project ? $project->company_id : null;
             $currencyRates = [];
-            $currencyHistories = DB::table('currency_histories')
+
+            $currencyHistoriesQuery = DB::table('currency_histories')
                 ->where('start_date', '<=', now()->toDateString())
                 ->where(function($query) {
                     $query->whereNull('end_date')
                           ->orWhere('end_date', '>=', now()->toDateString());
-                })
+                });
+
+            if ($companyId) {
+                $currencyHistoriesQuery->where('company_id', $companyId);
+            } else {
+                $currencyHistoriesQuery->whereNull('company_id');
+            }
+
+            $currencyHistories = $currencyHistoriesQuery
                 ->orderBy('currency_id')
                 ->orderBy('start_date', 'desc')
                 ->get()
@@ -424,7 +291,6 @@ class ProjectsRepository
                 $currencyRates[$currencyId] = $histories->first()->exchange_rate ?? 1;
             }
 
-            // Новая архитектура: все операции записываются в таблицу transactions с morphable связями
             $transactions = DB::table('transactions')
                 ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
                 ->leftJoin('currencies as cash_currencies', 'cash_registers.currency_id', '=', 'cash_currencies.id')
@@ -453,28 +319,24 @@ class ProjectsRepository
                     'transaction_currencies.symbol as cash_currency_symbol'
                 );
 
-            // Получаем все транзакции проекта
             $transactionsResult = $transactions
                 ->get()
                 ->map(function ($item) use ($projectCurrencyId, $projectExchangeRate, $currencyRates) {
-                    // Вычисляем сумму в валюте проекта
                     $amount = $item->orig_amount;
 
-                    // Если валюта транзакции != валюта проекта, конвертируем
                     if ($item->currency_id != $projectCurrencyId) {
                         $transactionRate = $currencyRates[$item->currency_id] ?? 1;
                         $amount = ($item->orig_amount * $transactionRate) * $projectExchangeRate;
                     }
 
-                    // Корректируем сумму в зависимости от типа и источника
                     if ($item->source === 'receipt') {
-                        $amount = -$amount; // Оприходование - отрицательная (расход)
+                        $amount = -$amount;
                     } elseif ($item->source === 'transaction') {
-                        $amount = $item->type == 1 ? +$amount : -$amount; // Приход/расход
+                        $amount = $item->type == 1 ? +$amount : -$amount;
                     } elseif ($item->source === 'sale') {
-                        $amount = +$amount; // Продажа - положительная (приход)
+                        $amount = +$amount;
                     } elseif ($item->source === 'order') {
-                        $amount = -$amount; // Заказ - отрицательная (расход, тратим ресурсы проекта)
+                        $amount = -$amount;
                     }
 
                     return [
@@ -490,7 +352,6 @@ class ProjectsRepository
                         'user_id' => $item->user_id,
                         'user_name' => $item->user_name,
                         'cash_currency_symbol' => $item->cash_currency_symbol,
-                        // Отладочная информация
                         'debug_transaction_currency' => $item->currency_id,
                         'debug_transaction_rate' => $currencyRates[$item->currency_id] ?? 1,
                         'debug_project_currency' => $projectCurrencyId,
@@ -498,60 +359,48 @@ class ProjectsRepository
                     ];
                 });
 
-
-            // Сортируем транзакции по дате
             $result = $transactionsResult
                 ->sortBy('date')
                 ->values()
                 ->all();
 
             return $result;
-        }, 900); // 15 минут
+        }, 900);
     }
 
-    // Получение общего баланса проекта (включая долги)
     public function getTotalBalance($projectId)
     {
-        $cacheKey = "project_total_balance_{$projectId}";
+        $cacheKey = $this->generateCacheKey('project_total_balance', [$projectId]);
 
         return CacheService::remember($cacheKey, function () use ($projectId) {
             $history = $this->getBalanceHistory($projectId);
             return collect($history)->sum('amount');
-        }, 900); // 15 минут
+        }, 900);
     }
 
-    // Получение реального баланса проекта (теперь включает транзакции + заказы напрямую)
     public function getRealBalance($projectId)
     {
-        // Реальный баланс = общий баланс (используем единую логику из getBalanceHistory)
         return $this->getTotalBalance($projectId);
     }
 
-
-    // Получение детального баланса проекта (без разделения на долговой)
     public function getDetailedBalance($projectId)
     {
-        $cacheKey = "project_detailed_balance_{$projectId}";
+        $cacheKey = $this->generateCacheKey('project_detailed_balance', [$projectId]);
 
         return CacheService::remember($cacheKey, function () use ($projectId) {
             $balance = $this->getTotalBalance($projectId);
             return [
                 'total_balance' => $balance,
-                'real_balance' => $balance // Теперь реальный баланс = общему балансу
+                'real_balance' => $balance
             ];
-        }, 900); // 15 минут
+        }, 900);
     }
-
 
     private function invalidateProjectsCache()
     {
-        // Делегируем централизованной службе кэша
         CacheService::invalidateProjectsCache();
     }
 
-    /**
-     * Инвалидация кэша конкретного проекта
-     */
     public function invalidateProjectCache($projectId)
     {
         \Illuminate\Support\Facades\Cache::forget("project_item_{$projectId}");
@@ -560,15 +409,9 @@ class ProjectsRepository
         \Illuminate\Support\Facades\Cache::forget("project_total_balance_{$projectId}");
         \Illuminate\Support\Facades\Cache::forget("project_real_balance_{$projectId}");
         \Illuminate\Support\Facades\Cache::forget("project_detailed_balance_{$projectId}");
-
-        // Очищаем кэш с отношениями для всех пользователей
         \Illuminate\Support\Facades\Cache::forget("project_item_relations_{$projectId}_null");
-        // Можно добавить очистку для конкретных пользователей, если нужно
     }
 
-    /**
-     * Обновление статуса для нескольких проектов
-     */
     public function updateStatusByIds(array $ids, int $statusId, string $userId): int
     {
         $targetStatus = \App\Models\ProjectStatus::findOrFail($statusId);
@@ -581,12 +424,10 @@ class ProjectsRepository
                 throw new \Exception("Проект ID {$id} не найден");
             }
 
-            // Проверяем доступ пользователя к проекту
             if (!$project->hasUser($userId)) {
                 throw new \Exception("Нет доступа к проекту ID {$id}");
             }
 
-            // Обновляем статус только если он изменился
             if ($project->status_id != $statusId) {
                 $project->status_id = $statusId;
                 $project->save();
@@ -594,7 +435,6 @@ class ProjectsRepository
             }
         }
 
-        // Инвалидируем кэш проектов если были изменения
         if ($updatedCount > 0) {
             $this->invalidateProjectsCache();
         }

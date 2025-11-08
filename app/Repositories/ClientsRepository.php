@@ -7,61 +7,34 @@ use App\Services\CacheService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
-class ClientsRepository
+class ClientsRepository extends BaseRepository
 {
 
-    /**
-     * Получить текущую компанию пользователя из заголовка запроса
-     */
-    private function getCurrentCompanyId()
-    {
-        // Получаем company_id из заголовка запроса
-        return request()->header('X-Company-ID');
-    }
 
-    /**
-     * Добавить фильтрацию по компании к запросу
-     */
-    private function addCompanyFilter($query)
+    public function getItemsWithPagination($perPage = 10, $search = null, $includeInactive = false, $page = 1, $statusFilter = null, $typeFilter = null)
     {
-        $companyId = $this->getCurrentCompanyId();
-        if ($companyId) {
-            $query->where('clients.company_id', $companyId);
-        } else {
-            // Если компания не выбрана, показываем только клиентов без company_id (для обратной совместимости)
-            $query->whereNull('clients.company_id');
-        }
-        return $query;
-    }
-
-    function getItemsPaginated($perPage = 10, $search = null, $includeInactive = false, $page = 1, $statusFilter = null, $typeFilter = null)
-    {
-        // Создаем уникальный ключ кэша с учетом компании и фильтров
-        $companyId = $this->getCurrentCompanyId();
-        $cacheKey = "clients_paginated_{$perPage}_{$search}_{$includeInactive}_{$statusFilter}_{$typeFilter}_{$companyId}";
-
-        // Чтение не должно инвалидировать кэш; инвалидация выполняется при CRUD операциях
+        $cacheKey = $this->generateCacheKey('clients_paginated', [$perPage, $search, $includeInactive, $statusFilter, $typeFilter]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter) {
-            // Используем простую колонку balance вместо сложных вычислений
-            $query = Client::with(['phones', 'emails', 'user', 'employee'])
+            $query = Client::with([
+                'phones:id,client_id,phone',
+                'emails:id,client_id,email',
+                'user:id,name,photo',
+                'employee:id,name,photo'
+            ])
                 ->select([
                     'clients.*',
                     'clients.balance as balance'
                 ]);
 
-            // Логируем для отладки
             $companyId = $this->getCurrentCompanyId();
 
-            // Фильтруем по текущей компании пользователя
-            $query = $this->addCompanyFilter($query);
+            $query = $this->addCompanyFilterDirect($query, 'clients');
 
-            // Фильтруем только активных клиентов, если не запрошены неактивные
             if (!$includeInactive) {
                 $query->where('clients.status', true);
             }
 
-            // Фильтр по статусу
             if ($statusFilter !== null && $statusFilter !== '') {
                 if ($statusFilter === 'active') {
                     $query->where('clients.status', true);
@@ -70,7 +43,6 @@ class ClientsRepository
                 }
             }
 
-            // Фильтр по типу клиента
             if ($typeFilter !== null && $typeFilter !== '') {
                 $query->where('clients.client_type', $typeFilter);
             }
@@ -100,22 +72,23 @@ class ClientsRepository
 
     function searchClient(string $search_request)
     {
-        // Кэшируем быстрый поиск по компании (короткий TTL)
-        $companyId = $this->getCurrentCompanyId();
-        $cacheKey = "clients_search_" . md5($search_request) . "_{$companyId}";
+        $cacheKey = $this->generateCacheKey('clients_search_' . md5($search_request), []);
         return CacheService::rememberSearch($cacheKey, function () use ($search_request) {
             $searchTerms = explode(' ', $search_request);
 
-            // Используем простую колонку balance вместо сложных вычислений
-            $query = Client::with(['phones', 'emails', 'user', 'employee'])
+            $query = Client::with([
+                'phones:id,client_id,phone',
+                'emails:id,client_id,email',
+                'user:id,name,photo',
+                'employee:id,name,photo'
+            ])
                 ->select([
                     'clients.*',
                     'clients.balance as balance'
                 ])
-                ->where('clients.status', true); // Фильтруем только активных клиентов
+                ->where('clients.status', true);
 
-            // Фильтруем по текущей компании пользователя
-            $query = $this->addCompanyFilter($query);
+            $query = $this->addCompanyFilterDirect($query, 'clients');
 
             $query->where(function ($q) use ($searchTerms) {
                 foreach ($searchTerms as $term) {
@@ -135,42 +108,34 @@ class ClientsRepository
 
             $results = $query->limit(50)->get();
 
-            // Логируем результаты поиска для отладки
-
-            if ($results->count() > 0) {
-                foreach ($results as $index => $result) {
-                }
-            } else {
-            }
-
             return $results;
         });
     }
 
-    public function getItem($id)
+    public function getItemById($id)
     {
-        $companyId = $this->getCurrentCompanyId();
-        $cacheKey = "client_{$id}_{$companyId}";
-
-        // Чтение не инвалидирует кэш; инвалидация выполняется при CRUD операциях
+        $cacheKey = $this->generateCacheKey('client', [$id]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
-            // Используем простую колонку balance вместо сложных вычислений
-            $query = Client::with(['phones', 'emails', 'user', 'employee'])
+            $query = Client::with([
+                'phones:id,client_id,phone',
+                'emails:id,client_id,email',
+                'user:id,name,photo',
+                'employee:id,name,photo'
+            ])
                 ->select([
                     'clients.*',
                     'clients.balance as balance'
                 ])
                 ->where('clients.id', $id);
 
-            // Фильтруем по текущей компании пользователя
-            $query = $this->addCompanyFilter($query);
+            $query = $this->addCompanyFilterDirect($query, 'clients');
 
             return $query->first();
         });
     }
 
-    public function create(array $data)
+    public function createItem(array $data)
     {
         $client = DB::transaction(function () use ($data) {
             $companyId = $this->getCurrentCompanyId();
@@ -210,24 +175,16 @@ class ClientsRepository
                 }
             }
 
-            // Колонка clients.balance по умолчанию = 0
-
             return $client;
         });
 
-        // Инвалидируем кэш клиентов и баланса
         CacheService::invalidateClientsCache();
         $this->invalidateClientBalanceCache($client->id);
 
         return $client->load('phones', 'emails', 'user', 'employee');
     }
 
-    /**
-     * Создает записи баланса для клиентов, у которых их нет
-     */
-    // createMissingBalances больше не требуется (баланс в clients.balance)
-
-    public function update($id, array $data)
+    public function updateItem($id, array $data)
     {
         $client = DB::transaction(function () use ($id, $data) {
             $client = Client::findOrFail($id);
@@ -288,7 +245,6 @@ class ClientsRepository
             return $client;
         });
 
-        // Инвалидируем кэш клиентов и баланса
         CacheService::invalidateClientsCache();
         $this->invalidateClientBalanceCache($id);
 
@@ -321,7 +277,6 @@ class ClientsRepository
             )
             ->whereIn('clients.id', $ids);
 
-        // Фильтруем по текущей компании пользователя
         $companyId = $this->getCurrentCompanyId();
         if ($companyId) {
             $query->where('clients.company_id', $companyId);
@@ -353,15 +308,13 @@ class ClientsRepository
 
     public function getBalanceHistory($clientId)
     {
-        $cacheKey = "client_balance_history_{$clientId}";
+        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId]);
 
         return CacheService::remember($cacheKey, function () use ($clientId) {
             try {
-                // Получаем валюту по умолчанию для конвертации
                 $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
                 $defaultCurrencySymbol = $defaultCurrency ? $defaultCurrency->symbol : '';
 
-                // Новая архитектура: все операции записываются в таблицу transactions с morphable связями
                 $transactions = DB::table('transactions')
                     ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
                     ->leftJoin('currencies', 'transactions.currency_id', '=', 'currencies.id')
@@ -392,22 +345,17 @@ class ClientsRepository
                     ->get()
                     ->flatMap(function ($item) use ($defaultCurrencySymbol) {
                         $amount = $item->amount;
-                        $results = []; // Массив результатов (может быть 1 или 2 записи для недолговых операций)
+                        $results = [];
 
-                        // История баланса показывает движение товаров/денег с точки зрения долга
                         if ($item->source === 'receipt') {
-                            // Оприходование от поставщика
                             $receiptId = $item->source_id;
 
-                            // Определяем описание и знак по is_debt
                             if ($item->is_debt) {
-                                // Долговая транзакция: поставщик нам должен (долг увеличивается)
                                 $description = '📦 Оприходование #' . $receiptId . ' (в кредит)';
-                                $amount = +$amount; // Положительный - долг растет
+                                $amount = +$amount;
                             } else {
-                                // Обычная транзакция: мы платим поставщику (долг уменьшается)
                                 $description = '💰 Оплата поставщику #' . $receiptId;
-                                $amount = -$amount; // Отрицательный - платим деньги
+                                $amount = -$amount;
                             }
 
                             $results[] = [
@@ -427,11 +375,9 @@ class ClientsRepository
                                 'cash_name' => $item->cash_name
                             ];
                         } elseif ($item->source === 'transaction') {
-                            // Обычная транзакция: type=1 (приход), type=0 (расход)
                             $transactionId = $item->id;
                             $amount = $item->type == 1 ? +$amount : -$amount;
 
-                            // Формируем описание с явным указанием типа
                             if ($item->is_debt) {
                                 $description = $item->type == 1
                                     ? '💸 Кредит клиента #' . $transactionId
@@ -459,7 +405,6 @@ class ClientsRepository
                                 'cash_name' => $item->cash_name
                             ];
                         } elseif ($item->source === 'sale') {
-                            // Продажа (type=1 всегда - приход)
                             $saleId = $item->source_id;
                             $results[] = [
                                 'source' => $item->source,
@@ -467,7 +412,7 @@ class ClientsRepository
                                 'source_type' => $item->source_type,
                                 'source_source_id' => $item->source_id,
                                 'date' => $item->created_at,
-                                'amount' => +$amount, // type=1 → плюс (приход)
+                                'amount' => +$amount,
                                 'orig_amount' => $item->orig_amount,
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
@@ -478,7 +423,6 @@ class ClientsRepository
                                 'cash_name' => $item->cash_name
                             ];
                         } elseif ($item->source === 'order') {
-                            // Заказ: type=1 (приход - создание), type=0 (расход - оплата)
                             $orderId = $item->source_id;
                             $amount = $item->type == 1 ? +$amount : -$amount;
 
@@ -492,7 +436,7 @@ class ClientsRepository
                                 'source_type' => $item->source_type,
                                 'source_source_id' => $item->source_id,
                                 'date' => $item->created_at,
-                                'amount' => $amount, // type=1 → плюс, type=0 → минус
+                                'amount' => $amount,
                                 'orig_amount' => $item->orig_amount,
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
@@ -522,14 +466,11 @@ class ClientsRepository
                             ];
                         }
 
-                        return $results; // Возвращаем массив (1 или 2 записи)
+                        return $results;
                     });
 
-                // Заказы теперь создают автоматические транзакции (type=1, is_debt=true, source_type=Order)
-                // Поэтому НЕ добавляем их отдельно - они уже есть в $transactionsResult выше
                 $orders = collect([]);
 
-                // Объединяем транзакции и заказы, сортируем по дате
                 $result = $transactions
                     ->concat($orders)
                     ->sortBy('date')
@@ -540,7 +481,7 @@ class ClientsRepository
             } catch (\Exception $e) {
                 return [];
             }
-        }, 900); // 15 минут
+        }, 900);
     }
 
 
@@ -549,24 +490,19 @@ class ClientsRepository
         $result = DB::transaction(function () use ($id) {
             DB::table('clients_emails')->where('client_id', $id)->delete();
             DB::table('clients_phones')->where('client_id', $id)->delete();
-            // Колонка clients.balance остаётся, удаляем только связанные записи
             return DB::table('clients')->where('id', $id)->delete();
         });
 
-        // Инвалидируем кэш клиентов и баланса
         CacheService::invalidateClientsCache();
         $this->invalidateClientBalanceCache($id);
 
         return $result;
     }
 
-    // Инвалидация кэша баланса клиента
     public function invalidateClientBalanceCache($clientId)
     {
-        // Инвалидируем кэш конкретного клиента (включая баланс)
         CacheService::invalidateClientBalanceCache($clientId);
 
-        // Также инвалидируем список всех клиентов (чтобы Store обновился)
         CacheService::invalidateClientsCache();
     }
 

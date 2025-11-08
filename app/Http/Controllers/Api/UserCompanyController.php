@@ -11,14 +11,12 @@ class UserCompanyController extends Controller
 {
     public function getCurrentCompany(Request $request)
     {
-        $user = Auth::user();
+        $user = $this->getAuthenticatedUser();
         if (!$user) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return $this->unauthorizedResponse();
         }
 
-
-        // Получаем выбранную компанию из заголовка X-Company-ID или параметра
-        $selectedCompanyId = $request->header('X-Company-ID') ?? $request->input('company_id');
+        $selectedCompanyId = $this->getCurrentCompanyId() ?? $request->input('company_id');
 
         if ($selectedCompanyId) {
             $company = Company::where('id', $selectedCompanyId)
@@ -32,11 +30,10 @@ class UserCompanyController extends Controller
             }
         }
 
-        // Если нет выбранной компании или она недоступна, возвращаем первую доступную
         $company = $user->companies()->first();
 
         if (!$company) {
-            return response()->json(['error' => 'No companies available for user'], 404);
+            return $this->notFoundResponse('No companies available for user');
         }
 
         return response()->json(['company' => $company]);
@@ -44,38 +41,36 @@ class UserCompanyController extends Controller
 
     public function setCurrentCompany(Request $request)
     {
-        $user = Auth::user();
+        $user = $this->getAuthenticatedUser();
         if (!$user) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return $this->unauthorizedResponse();
         }
 
         $companyId = $request->company_id;
 
-        // Если company_id не передан, берем первую доступную компанию
         if (!$companyId) {
             $company = $user->companies()->first();
             if (!$company) {
-                return response()->json(['error' => 'No companies available'], 404);
+                return $this->notFoundResponse('No companies available');
             }
             $companyId = $company->id;
         } else {
-            // Проверяем, что пользователь имеет доступ к этой компании
             $company = $user->companies()->where('companies.id', $companyId)->first();
 
             if (!$company) {
-                return response()->json(['error' => 'Company not found or access denied'], 404);
+                return $this->notFoundResponse('Company not found or access denied');
             }
         }
 
 
-        return response()->json(['message' => 'Company selected successfully', 'company' => $company]);
+        return response()->json(['company' => $company, 'message' => 'Company selected successfully']);
     }
 
     public function getUserCompanies()
     {
-        $user = Auth::user();
+        $user = $this->getAuthenticatedUser();
         if (!$user) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return $this->unauthorizedResponse();
         }
 
         $companies = $user->companies()->select('companies.id', 'companies.name', 'companies.logo')->get();

@@ -16,35 +16,19 @@ class WarehouseMovementController extends Controller
         $this->warehouseRepository = $warehouseRepository;
     }
 
-    // Метод для получения списаний с пагинацией
     public function index(Request $request)
     {
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-
-        // Получаем сток с пагинацией
         $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20);
 
-        return response()->json([
-            'items' => $warehouses->items(),  // Список 
-            'current_page' => $warehouses->currentPage(),  // Текущая страница
-            'next_page' => $warehouses->nextPageUrl(),  // Следующая страница
-            'last_page' => $warehouses->lastPage(),  // Общее количество страниц
-            'total' => $warehouses->total()  // Общее количество
-        ]);
+        return $this->paginatedResponse($warehouses);
     }
 
-    // Метод перемещения товара
     public function store(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-        // Валидация данных
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+
         $request->validate([
             'warehouse_from_id' => 'required|integer|exists:warehouses,id',
             'warehouse_to_id' => 'required|integer|exists:warehouses,id',
@@ -68,38 +52,26 @@ class WarehouseMovementController extends Controller
             }, $request->products)
         );
 
-        // Перемещаем
         try {
             $warehouse_created = $this->warehouseRepository->createItem($data);
             if (!$warehouse_created) {
-                return response()->json([
-                    'message' => 'Ошибка перемещения'
-                ], 400);
+                return $this->errorResponse('Ошибка перемещения', 400);
             }
-            
-            // Инвалидируем кэш остатков и продуктов (т.к. stock_quantity изменился)
+
             CacheService::invalidateWarehouseMovementsCache();
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
-            
-            return response()->json([
-                'message' => 'Перемещение создано'
-            ]);
+
+            return response()->json(['message' => 'Перемещение создано']);
         } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'Ошибка перемещения' . $th->getMessage()
-            ], 400);
+            return $this->errorResponse('Ошибка перемещения' . $th->getMessage(), 400);
         }
     }
 
-    // Метод обновления перемещения
     public function update(Request $request, $id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-        // Валидация данных
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+
         $request->validate([
             'warehouse_from_id' => 'required|integer|exists:warehouses,id',
             'warehouse_to_id' => 'required|integer|exists:warehouses,id',
@@ -123,49 +95,34 @@ class WarehouseMovementController extends Controller
             }, $request->products)
         );
 
-        // Обновляем перемещение
         try {
             $warehouse_created = $this->warehouseRepository->updateItem($id, $data);
             if (!$warehouse_created) {
-                return response()->json([
-                    'message' => 'Ошибка обновления перемещения'
-                ], 400);
+                return $this->errorResponse('Ошибка обновления перемещения', 400);
             }
-            
-            // Инвалидируем кэш остатков и продуктов (т.к. stock_quantity изменился)
+
             CacheService::invalidateWarehouseMovementsCache();
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
-            
-            return response()->json([
-                'message' => 'Перемещение обновлено'
-            ]);
+
+            return response()->json(['message' => 'Перемещение обновлено']);
         } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'Ошибка обновления перемещения' . $th->getMessage()
-            ], 400);
+            return $this->errorResponse('Ошибка обновления перемещения' . $th->getMessage(), 400);
         }
     }
 
-    // Метод для удаления перемещения
     public function destroy($id)
     {
-        // Удаляем перемещение
         $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 
         if (!$warehouse_deleted) {
-            return response()->json([
-                'message' => 'Ошибка удаления перемещения'
-            ], 400);
+            return $this->errorResponse('Ошибка удаления перемещения', 400);
         }
-        
-        // Инвалидируем кэш остатков и продуктов (т.к. stock_quantity изменился)
+
         CacheService::invalidateWarehouseMovementsCache();
         CacheService::invalidateWarehouseStocksCache();
         CacheService::invalidateProductsCache();
-        
-        return response()->json([
-            'message' => 'Перемещение удалено'
-        ]);
+
+        return response()->json(['message' => 'Перемещение удалено']);
     }
 }

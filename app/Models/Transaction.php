@@ -209,7 +209,7 @@ class Transaction extends Model
             $transaction->updateCashBalance();
 
             // Инвалидируем кэш списков транзакций
-            \App\Services\CacheService::invalidateTransactionsCache();
+            CacheService::invalidateTransactionsCache();
 
             \Illuminate\Support\Facades\Log::info('Transaction::created - COMPLETED', [
                 'transaction_id' => $transaction->id,
@@ -331,13 +331,13 @@ class Transaction extends Model
                 }
 
                 // Инвалидируем кэш клиента и проектов после обновления баланса
-                \App\Services\CacheService::invalidateClientsCache();
-                \App\Services\CacheService::invalidateClientBalanceCache($transaction->client_id);
-                \App\Services\CacheService::invalidateProjectsCache();
+                CacheService::invalidateClientsCache();
+                CacheService::invalidateClientBalanceCache($transaction->client_id);
+                CacheService::invalidateProjectsCache();
             }
 
             // Инвалидируем кэш списков транзакций
-            \App\Services\CacheService::invalidateTransactionsCache();
+            CacheService::invalidateTransactionsCache();
 
             \Illuminate\Support\Facades\Log::info('Transaction::updated - COMPLETED', [
                 'transaction_id' => $transaction->id,
@@ -402,9 +402,9 @@ class Transaction extends Model
                 }
 
                 // Инвалидируем кэш клиента и проектов после обновления баланса
-                \App\Services\CacheService::invalidateClientsCache();
-                \App\Services\CacheService::invalidateClientBalanceCache($transaction->client_id);
-                \App\Services\CacheService::invalidateProjectsCache();
+                CacheService::invalidateClientsCache();
+                CacheService::invalidateClientBalanceCache($transaction->client_id);
+                CacheService::invalidateProjectsCache();
             }
 
             // Откатываем баланс кассы (если не установлен флаг пропуска)
@@ -428,7 +428,7 @@ class Transaction extends Model
             }
 
             // Инвалидируем кэш списков транзакций
-            \App\Services\CacheService::invalidateTransactionsCache();
+            CacheService::invalidateTransactionsCache();
 
             \Illuminate\Support\Facades\Log::info('Transaction::deleted - COMPLETED', [
                 'transaction_id' => $transaction->id,
@@ -495,16 +495,11 @@ class Transaction extends Model
             return null;
         }
 
-        $rateHistory = $currency->exchangeRateHistories()
-            ->where('start_date', '<=', $this->date)
-            ->where(function ($query) {
-                $query->whereNull('end_date')
-                    ->orWhere('end_date', '>=', $this->date);
-            })
-            ->orderBy('start_date', 'desc')
-            ->first();
+        $companyId = $this->company_id;
 
-        return $rateHistory ? $rateHistory->exchange_rate : null;
+        $rate = $currency->getExchangeRateForCompany($companyId, $this->date ? $this->date->toDateString() : null);
+
+        return $rate;
     }
 
     public function activities()

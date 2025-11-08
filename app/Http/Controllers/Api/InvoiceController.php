@@ -18,10 +18,7 @@ class InvoiceController extends Controller
 
     public function index(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
         $search = $request->input('search');
@@ -34,21 +31,12 @@ class InvoiceController extends Controller
 
         $items = $this->itemRepository->getItemsWithPagination($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page);
 
-        return response()->json([
-            'items' => $items->items(),
-            'current_page' => $items->currentPage(),
-            'next_page' => $items->nextPageUrl(),
-            'last_page' => $items->lastPage(),
-            'total' => $items->total()
-        ]);
+        return $this->paginatedResponse($items);
     }
 
     public function store(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
             'client_id' => 'required|integer|exists:clients,id',
@@ -59,24 +47,20 @@ class InvoiceController extends Controller
         ]);
 
         try {
-            // Получаем заказы для счета
             $orders = $this->itemRepository->getOrdersForInvoice($request->order_ids);
 
             if ($orders->isEmpty()) {
-                return response()->json(['message' => 'Заказы не найдены'], 400);
+                return $this->errorResponse('Заказы не найдены', 400);
             }
 
-            // Проверяем, что все заказы принадлежат одному клиенту
             $clientId = $orders->first()->client_id;
             if ($orders->where('client_id', '!=', $clientId)->isNotEmpty()) {
-                return response()->json(['message' => 'Все заказы должны принадлежать одному клиенту'], 400);
+                return $this->errorResponse('Все заказы должны принадлежать одному клиенту', 400);
             }
 
-            // Подготавливаем товары из заказов
             $productsData = $this->itemRepository->prepareProductsFromOrders($orders);
             $products = $productsData['products'];
 
-            // Рассчитываем суммы
             $totalAmount = collect($products)->sum('total_price');
 
             $data = [
@@ -92,24 +76,20 @@ class InvoiceController extends Controller
             $created = $this->itemRepository->createItem($data);
 
             if (!$created) {
-                return response()->json(['message' => 'Ошибка создания счета'], 400);
+                return $this->errorResponse('Ошибка создания счета', 400);
             }
 
-            // Инвалидируем кэш счетов
             CacheService::invalidateInvoicesCache();
 
-            return response()->json(['message' => 'Счет успешно создан', 'invoice' => $created]);
+            return response()->json(['invoice' => $created, 'message' => 'Счет успешно создан']);
         } catch (\Throwable $th) {
-            return response()->json(['message' => 'Ошибка создания счета: ' . $th->getMessage()], 400);
+            return $this->errorResponse('Ошибка создания счета: ' . $th->getMessage(), 400);
         }
     }
 
     public function update(Request $request, $id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
             'client_id' => 'required|integer|exists:clients,id',
@@ -137,61 +117,45 @@ class InvoiceController extends Controller
 
             $updated = $this->itemRepository->updateItem($id, $data);
             if (!$updated) {
-                return response()->json(['message' => 'Ошибка обновления счета'], 400);
+                return $this->errorResponse('Ошибка обновления счета', 400);
             }
 
-            // Инвалидируем кэш счетов
             CacheService::invalidateInvoicesCache();
 
             return response()->json(['message' => 'Счет сохранён']);
         } catch (\Throwable $th) {
-            return response()->json(['message' => 'Ошибка: ' . $th->getMessage()], 400);
+            return $this->errorResponse('Ошибка: ' . $th->getMessage(), 400);
         }
     }
 
     public function destroy($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         try {
             $deleted = $this->itemRepository->deleteItem($id);
 
-            // Инвалидируем кэш счетов
             CacheService::invalidateInvoicesCache();
 
-            return response()->json([
-                'message' => 'Счет успешно удалён',
-                'invoice' => $deleted
-            ]);
+            return response()->json(['invoice' => $deleted, 'message' => 'Счет успешно удалён']);
         } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'Ошибка при удалении счета: ' . $th->getMessage()
-            ], 400);
+            return $this->errorResponse('Ошибка при удалении счета: ' . $th->getMessage(), 400);
         }
     }
 
     public function show($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->itemRepository->getItemById($id);
         if (!$item) {
-            return response()->json(['message' => 'Not found'], 404);
+            return $this->notFoundResponse('Not found');
         }
         return response()->json(['item' => $item]);
     }
 
     public function getOrdersForInvoice(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
             'order_ids' => 'required|array|min:1',
@@ -211,7 +175,7 @@ class InvoiceController extends Controller
                 'total_amount' => collect($products)->sum('total_price')
             ]);
         } catch (\Throwable $th) {
-            return response()->json(['message' => 'Ошибка получения данных: ' . $th->getMessage()], 400);
+            return $this->errorResponse('Ошибка получения данных: ' . $th->getMessage(), 400);
         }
     }
 }

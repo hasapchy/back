@@ -8,27 +8,14 @@ use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 
-class UsersRepository
+class UsersRepository extends BaseRepository
 {
-    /**
-     * Получить текущую компанию пользователя из заголовка запроса
-     */
-    private function getCurrentCompanyId()
-    {
-        // Получаем company_id из заголовка запроса
-        return request()->header('X-Company-ID');
-    }
 
     public function getItemsWithPagination($page = 1, $perPage = 20, $search = null, $statusFilter = null)
     {
-        // ✅ Получаем компанию из заголовка для включения в кэш ключ
-        $companyId = $this->getCurrentCompanyId() ?? 'default';
+        $cacheKey = $this->generateCacheKey('users_paginated', [$perPage, $search, $statusFilter]);
 
-        // Создаем уникальный ключ кэша
-        $cacheKey = "users_paginated_{$companyId}_{$perPage}_{$search}_{$statusFilter}";
-
-        // Для списка без фильтров используем более длительное кэширование
-        $ttl = (!$search && !$statusFilter) ? 1800 : 600; // 30 мин для списка, 10 мин для фильтров
+        $ttl = (!$search && !$statusFilter) ? 1800 : 600;
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $statusFilter, $page) {
             $query = User::select([
@@ -50,7 +37,6 @@ class UsersRepository
                     'companies:id,name'
                 ]);
 
-            // Применяем фильтры
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('users.name', 'like', "%{$search}%")
@@ -59,7 +45,6 @@ class UsersRepository
                 });
             }
 
-            // Фильтрация по статусу
             if ($statusFilter !== null) {
                 $query->where('users.is_active', $statusFilter);
             }
@@ -71,12 +56,9 @@ class UsersRepository
 
     public function getAllItems()
     {
-        // ✅ Получаем компанию из заголовка для включения в кэш ключ
-        $companyId = $this->getCurrentCompanyId() ?? 'default';
+        $cacheKey = $this->generateCacheKey('users_all', []);
 
-        $cacheKey = "users_all_{$companyId}";
-
-        return CacheService::remember($cacheKey, function () {
+        return CacheService::getReferenceData($cacheKey, function () {
             return User::select([
                 'users.id',
                 'users.name',
@@ -96,7 +78,7 @@ class UsersRepository
                 ])
                 ->orderBy('users.created_at', 'desc')
                 ->get();
-        }, 1800); // 30 минут
+        });
     }
 
     public function createItem(array $data)
@@ -156,7 +138,6 @@ class UsersRepository
             $user->position = $data['position'] ?? $user->position;
             $user->is_admin = $data['is_admin'] ?? $user->is_admin;
 
-            // Обрабатываем фото
             if (isset($data['photo'])) {
                 $user->photo = $data['photo'];
             }
@@ -181,7 +162,6 @@ class UsersRepository
 
             DB::commit();
 
-            // Инвалидируем кэш пользователей
             $this->invalidateUsersCache();
 
             return $user->load(['permissions', 'roles', 'companies']);
@@ -197,7 +177,6 @@ class UsersRepository
             $user = User::findOrFail($id);
             $user->delete();
 
-            // Инвалидируем кэш пользователей
             $this->invalidateUsersCache();
 
             return true;
@@ -206,37 +185,13 @@ class UsersRepository
         }
     }
 
-    public function getAll()
-    {
-        $cacheKey = "users_all_simple";
 
-        return CacheService::remember($cacheKey, function () {
-            return User::select([
-                'users.id',
-                'users.name',
-                'users.email',
-                'users.is_active'
-            ])
-                ->with(['companies:id,name'])
-                ->orderBy('users.name')
-                ->get();
-        }, 1800); // 30 минут
-    }
-
-
-    /**
-     * Инвалидация кэша пользователей
-     */
     private function invalidateUsersCache()
     {
-        // Используем централизованный метод из CacheService
         CacheService::invalidateByLike('%users_paginated%');
         CacheService::invalidateByLike('%users_all%');
     }
 
-    /**
-     * Инвалидация кэша конкретного пользователя
-     */
     public function invalidateUserCache($userId)
     {
         $this->invalidateUsersCache();

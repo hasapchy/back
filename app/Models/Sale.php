@@ -56,12 +56,12 @@ class Sale extends Model
             ]);
 
             // Инвалидируем кэши
-            \App\Services\CacheService::invalidateTransactionsCache();
+            CacheService::invalidateTransactionsCache();
             if ($sale->client_id) {
-                \App\Services\CacheService::invalidateClientsCache();
-                \App\Services\CacheService::invalidateClientBalanceCache($sale->client_id);
+                CacheService::invalidateClientsCache();
+                CacheService::invalidateClientBalanceCache($sale->client_id);
             }
-            \App\Services\CacheService::invalidateCashRegistersCache();
+            CacheService::invalidateCashRegistersCache();
             if ($sale->project_id) {
                 $projectsRepository = new \App\Repositories\ProjectsRepository();
                 $projectsRepository->invalidateProjectCache($sale->project_id);

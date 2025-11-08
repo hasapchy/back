@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use App\Services\CacheService;
 
 class Order extends Model
 {
@@ -97,12 +98,12 @@ class Order extends Model
             ]);
 
             // Инвалидируем кэши
-            \App\Services\CacheService::invalidateTransactionsCache();
+            CacheService::invalidateTransactionsCache();
             if ($order->client_id) {
-                \App\Services\CacheService::invalidateClientsCache();
-                \App\Services\CacheService::invalidateClientBalanceCache($order->client_id);
+                CacheService::invalidateClientsCache();
+                CacheService::invalidateClientBalanceCache($order->client_id);
             }
-            \App\Services\CacheService::invalidateCashRegistersCache();
+            CacheService::invalidateCashRegistersCache();
             if ($order->project_id) {
                 $projectsRepository = new \App\Repositories\ProjectsRepository();
                 $projectsRepository->invalidateProjectCache($order->project_id);

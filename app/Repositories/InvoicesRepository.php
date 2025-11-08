@@ -5,18 +5,14 @@ namespace App\Repositories;
 use App\Models\Invoice;
 use App\Models\InvoiceProduct;
 use App\Models\Order;
-use App\Models\OrderProduct;
-use App\Models\OrderTempProduct;
 use App\Services\CacheService;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
-class InvoicesRepository
+class InvoicesRepository extends BaseRepository
 {
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $typeFilter = null, $statusFilter = null, $page = 1)
     {
-        $companyId = request()->header('X-Company-ID');
-        $cacheKey = "invoices_paginated_{$userUuid}_{$perPage}_{$search}_{$dateFilter}_{$startDate}_{$endDate}_{$typeFilter}_{$statusFilter}_{$companyId}";
+        $cacheKey = $this->generateCacheKey('invoices_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter]);
 
         return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page) {
             $query = Invoice::with([
@@ -29,21 +25,16 @@ class InvoicesRepository
         ])
             ->where('user_id', $userUuid);
 
-        // Поиск
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('invoice_number', 'like', "%{$search}%")
-                    ->orWhere('note', 'like', "%{$search}%")
-                    ->orWhereHas('client', function ($clientQuery) use ($search) {
-                        $clientQuery->where('first_name', 'like', "%{$search}%")
-                            ->orWhere('last_name', 'like', "%{$search}%");
-                    });
+                    ->orWhere('note', 'like', "%{$search}%");
+                $this->applyClientSearchFilterThroughRelation($q, 'client', $search);
             });
         }
 
-        // Фильтр по дате
         if ($dateFilter !== 'all_time') {
-            $dateRange = $this->getDateFilter($dateFilter, $startDate, $endDate);
+            $dateRange = $this->getDateRange($dateFilter, $startDate, $endDate);
             if (is_array($dateRange)) {
                 $query->whereBetween('invoice_date', $dateRange);
             } else {
@@ -51,19 +42,16 @@ class InvoicesRepository
             }
         }
 
-        // Фильтр по типу
         if ($typeFilter) {
             $query->where('type', $typeFilter);
         }
 
-        // Фильтр по статусу
         if ($statusFilter) {
             $query->where('status', $statusFilter);
         }
 
             $invoices = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
-            // Добавляем плоские поля валюты для заказов (для совместимости с фронтендом)
             foreach ($invoices->items() as $invoice) {
                 if ($invoice->orders) {
                     foreach ($invoice->orders as $order) {
@@ -95,7 +83,6 @@ class InvoicesRepository
             ->find($id);
 
         if ($invoice && $invoice->orders) {
-            // Добавляем плоские поля валюты для заказов (для совместимости с фронтендом)
             foreach ($invoice->orders as $order) {
                 if ($order->cash && $order->cash->currency) {
                     $currency = $order->cash->currency;
@@ -113,7 +100,6 @@ class InvoicesRepository
     public function createItem($data)
     {
         return DB::transaction(function () use ($data) {
-            // Создаем счет
             $invoice = Invoice::create([
                 'client_id' => $data['client_id'],
                 'user_id' => $data['user_id'],
@@ -121,15 +107,13 @@ class InvoicesRepository
                 'note' => $data['note'] ?? '',
                 'total_amount' => $data['total_amount'] ?? 0,
                 'invoice_number' => Invoice::generateInvoiceNumber(),
-                'status' => 'new', // Всегда создаем счет в статусе "новый"
+                'status' => 'new',
             ]);
 
-            // Связываем заказы
             if (isset($data['order_ids']) && is_array($data['order_ids'])) {
                 $invoice->orders()->attach($data['order_ids']);
             }
 
-            // Добавляем товары
             if (isset($data['products']) && is_array($data['products'])) {
                 foreach ($data['products'] as $productData) {
                     InvoiceProduct::create([
@@ -145,6 +129,8 @@ class InvoicesRepository
                     ]);
                 }
             }
+
+            CacheService::invalidateInvoicesCache();
 
             return $invoice;
         });
@@ -163,17 +149,13 @@ class InvoicesRepository
                 'status' => $data['status'] ?? $invoice->status,
             ]);
 
-            // Обновляем связи с заказами
             if (isset($data['order_ids'])) {
                 $invoice->orders()->sync($data['order_ids']);
             }
 
-            // Обновляем товары
             if (isset($data['products'])) {
-                // Удаляем старые товары
                 $invoice->products()->delete();
 
-                // Добавляем новые товары
                 foreach ($data['products'] as $productData) {
                     InvoiceProduct::create([
                         'invoice_id' => $invoice->id,
@@ -189,6 +171,8 @@ class InvoicesRepository
                 }
             }
 
+            CacheService::invalidateInvoicesCache();
+
             return $invoice;
         });
     }
@@ -197,6 +181,7 @@ class InvoicesRepository
     {
         $invoice = Invoice::findOrFail($id);
         $invoice->delete();
+        CacheService::invalidateInvoicesCache();
         return $invoice;
     }
 
@@ -250,7 +235,6 @@ class InvoicesRepository
 
         $orders = $query->get();
 
-        // Загружаем связанные данные для каждого заказа
         foreach ($orders as $order) {
             $order->setRelation('client', $order->client()->with(['phones', 'emails'])->first());
             $order->setRelation('orderProducts', $order->orderProducts()->with('product')->get());
@@ -266,12 +250,10 @@ class InvoicesRepository
         $orderDate = null;
 
         foreach ($orders as $order) {
-            // Берем дату заказа (самую раннюю из всех заказов)
             if (!$orderDate || $order->date < $orderDate) {
                 $orderDate = $order->date;
             }
 
-            // Добавляем товары из заказа
             foreach ($order->orderProducts as $orderProduct) {
                 $products[] = [
                     'product_id' => $orderProduct->product_id,
@@ -285,7 +267,6 @@ class InvoicesRepository
                 ];
             }
 
-            // Добавляем временные товары из заказа
             foreach ($order->tempProducts as $tempProduct) {
                 $products[] = [
                     'product_id' => null,
@@ -306,43 +287,4 @@ class InvoicesRepository
         ];
     }
 
-    private function getDateFilter($dateFilter, $startDate = null, $endDate = null)
-    {
-        switch ($dateFilter) {
-            case 'today':
-                return [
-                    now()->startOfDay()->toDateTimeString(),
-                    now()->endOfDay()->toDateTimeString()
-                ];
-            case 'yesterday':
-                return [
-                    now()->subDay()->startOfDay()->toDateTimeString(),
-                    now()->subDay()->endOfDay()->toDateTimeString()
-                ];
-            case 'this_week':
-                return [
-                    now()->startOfWeek()->toDateTimeString(),
-                    now()->endOfWeek()->toDateTimeString()
-                ];
-            case 'this_month':
-                return [
-                    now()->startOfMonth()->toDateTimeString(),
-                    now()->endOfMonth()->toDateTimeString()
-                ];
-            case 'last_week':
-                return [
-                    now()->subWeek()->startOfWeek()->toDateTimeString(),
-                    now()->subWeek()->endOfWeek()->toDateTimeString()
-                ];
-            case 'last_month':
-                return [
-                    now()->subMonth()->startOfMonth()->toDateTimeString(),
-                    now()->subMonth()->endOfMonth()->toDateTimeString()
-                ];
-            case 'custom':
-                return $startDate ?: now()->toDateString();
-            default:
-                return now()->toDateString();
-        }
-    }
 }

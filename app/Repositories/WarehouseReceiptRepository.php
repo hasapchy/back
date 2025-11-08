@@ -12,44 +12,14 @@ use App\Models\CashRegister;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use App\Services\RoundingService;
 
-class WarehouseReceiptRepository
+class WarehouseReceiptRepository extends BaseRepository
 {
-    /**
-     * Получить текущую компанию пользователя из заголовка запроса
-     */
-    private function getCurrentCompanyId()
-    {
-        // Получаем company_id из заголовка запроса
-        return request()->header('X-Company-ID');
-    }
-
-    /**
-     * Добавить фильтрацию по компании к запросу поступлений через склады
-     */
-    private function addCompanyFilter($query)
-    {
-        $companyId = $this->getCurrentCompanyId();
-        if ($companyId) {
-            // Фильтруем поступления по складам текущей компании
-            $query->whereHas('warehouse', function ($q) use ($companyId) {
-                $q->where('company_id', $companyId);
-            });
-        } else {
-            // Если компания не выбрана, показываем только поступления из складов без company_id
-            $query->whereHas('warehouse', function ($q) {
-                $q->whereNull('company_id');
-            });
-        }
-        return $query;
-    }
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $companyId = request()->header('X-Company-ID');
-        $cacheKey = "warehouse_receipts_paginated_{$userUuid}_{$perPage}_{$companyId}";
+        $cacheKey = $this->generateCacheKey('warehouse_receipts_paginated', [$userUuid, $perPage]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
             $warehouseIds = DB::table('wh_users')
@@ -88,16 +58,14 @@ class WarehouseReceiptRepository
                     'products.product.unit:id,name,short_name' // Единица измерения
                 ])
                 ->whereIn('wh_receipts.warehouse_id', $warehouseIds)
-                // Фильтрация по доступу к проектам
                 ->where(function ($q) use ($userUuid) {
-                    $q->whereNull('wh_receipts.project_id') // Оприходования без проекта
+                    $q->whereNull('wh_receipts.project_id')
                         ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
                             $subQuery->where('user_id', $userUuid);
                         });
                 });
 
-            // Фильтруем по текущей компании пользователя
-            $items = $this->addCompanyFilter($items);
+            $items = $this->addCompanyFilterThroughRelation($items, 'warehouse');
 
             return $items->orderBy('wh_receipts.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
@@ -114,7 +82,7 @@ class WarehouseReceiptRepository
         $type         = $data['type'];
         $cash_id      = $data['cash_id'] ?? null;
         $date         = $data['date'] ?? now();
-        $note         = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
+        $note         = !empty($data['note']) ? $data['note'] : null;
         $products     = $data['products'];
 
         DB::beginTransaction();
@@ -131,11 +99,14 @@ class WarehouseReceiptRepository
             }
 
             $total_amount = 0;
-            foreach ($products as $product) {
-                $total_amount += $product['price'] * $product['quantity'];
+            $quantityRoundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
+            foreach ($products as $idx => $product) {
+                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
+                $products[$idx]['quantity'] = $q;
+                $total_amount += $product['price'] * $q;
             }
 
-            // Применяем правила округления компании
             $roundingService = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
             $total_amount = $roundingService->roundForCompany($companyId, (float) $total_amount);
@@ -167,60 +138,29 @@ class WarehouseReceiptRepository
                 }
             }
 
-            // Создаем транзакцию для всех типов оприходований (новая архитектура)
-            $txRepo = new TransactionsRepository();
+            $transactionData = [
+                'type'        => 0,
+                'user_id'     => auth('api')->id(),
+                'amount'      => $total_amount,
+                'orig_amount' => $total_amount,
+                'currency_id' => $currency->id,
+                'cash_id'     => $cash_id,
+                'category_id' => 6,
+                'project_id'  => $data['project_id'] ?? null,
+                'client_id'   => $client_id,
+                'note'        => $note,
+                'date'        => $date,
+                'is_debt'     => true,
+            ];
 
             if ($type === 'balance') {
-                // Оприходование в долг - создаем долговую транзакцию
-                // ВАЖНО: При оприходовании МЫ ТРАТИМ деньги (расход type=0)
-                // Мы должны поставщику → его баланс УМЕНЬШАЕТСЯ (в TransactionsRepository при is_debt=true, type=0: balance -=)
-                $transaction_id = $txRepo->createItem(
-                    [
-                        'type'        => 0, // РАСХОД - мы тратим деньги
-                        'user_id'     => auth('api')->id(),
-                        'orig_amount' => $total_amount,
-                        'amount'      => $total_amount,
-                        'currency_id' => $currency->id,
-                        'cash_id'     => $cash_id, // Касса указана, но не меняется
-                        'category_id' => 6,
-                        'project_id'  => $data['project_id'] ?? null,
-                        'client_id'   => $client_id,
-                        'note'        => $note,
-                        'date'        => $date,
-                        'is_debt'     => true, // Долговая операция
-                        'source_type' => \App\Models\WhReceipt::class,
-                        'source_id'   => $receipt->id,
-                    ],
-                    true,
-                    false
-                );
+                $this->createTransactionForSource($transactionData, \App\Models\WhReceipt::class, $receipt->id, true);
             } else {
-                // Оприходование в кассу - две транзакции (долг + платеж)
-                // Долговая: type=0, is_debt=true → balance -= (мы должны поставщику)
-                // Платёжная: type=0, is_debt=false → касса -= (реальный расход), баланс не меняем
-                $debtTxData = [
-                    'type'        => 0, // РАСХОД - мы тратим деньги
-                    'amount'      => $total_amount,
-                    'user_id'     => auth('api')->id(),
-                    'orig_amount' => $total_amount,
-                    'currency_id' => $currency->id,
-                    'cash_id'     => $cash_id,
-                    'category_id' => 6,
-                    'project_id'  => $data['project_id'] ?? null,
-                    'client_id'   => $client_id,
-                    'note'        => $note,
-                    'date'        => $date,
-                    'is_debt'     => true,
-                    'source_type' => \App\Models\WhReceipt::class,
-                    'source_id'   => $receipt->id,
-                ];
-                $txRepo->createItem($debtTxData, true, false); // Баланс уменьшается
+                $this->createTransactionForSource($transactionData, \App\Models\WhReceipt::class, $receipt->id, true);
 
-                $paymentTxData = $debtTxData;
-                $paymentTxData['is_debt'] = false; // Обычная транзакция - касса меняется
-                // type=0 остается (расход)
-                // skipClientUpdate=true - баланс уже учтен долговой транзакцией
-                $transaction_id = $txRepo->createItem($paymentTxData, true, true);
+                $paymentTxData = $transactionData;
+                $paymentTxData['is_debt'] = false;
+                $this->createTransactionForSource($paymentTxData, \App\Models\WhReceipt::class, $receipt->id, true);
             }
 
             DB::commit();
@@ -238,7 +178,7 @@ class WarehouseReceiptRepository
         $warehouse_id = $data['warehouse_id'];
         $cash_id      = $data['cash_id'] ?? null;
         $date         = $data['date'];
-        $note         = !empty($data['note']) ? $data['note'] : null; // null если пустая строка
+        $note         = !empty($data['note']) ? $data['note'] : null;
         $products     = $data['products'];
         $project_id   = $data['project_id'] ?? null;
 
@@ -250,7 +190,6 @@ class WarehouseReceiptRepository
                 throw new \Exception('Receipt not found');
             }
 
-            // Получаем валюту из кассы (если есть), иначе дефолт
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $currency = $defaultCurrency;
 
@@ -278,7 +217,7 @@ class WarehouseReceiptRepository
 
             foreach ($products as $product) {
                 $product_id = $product['product_id'];
-                $quantity = $product['quantity'];
+                $quantity = (new RoundingService())->roundQuantityForCompany($this->getCurrentCompanyId(), (float) ($product['quantity']));
                 $price = $product['price'];
 
                 $receiptProduct = WhReceiptProduct::updateOrCreate(
@@ -297,7 +236,6 @@ class WarehouseReceiptRepository
                 $total_amount += $price * $quantity;
             }
 
-            // Применяем правила округления компании
             $roundingService = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
             $total_amount = $roundingService->roundForCompany($companyId, (float) $total_amount);
@@ -305,9 +243,7 @@ class WarehouseReceiptRepository
             $receipt->amount = $total_amount;
             $receipt->save();
 
-            // Обновляем баланс клиента, если это тип "balance"
             if ($receipt->transaction_id) {
-                // ничего не делаем — был расход через транзакцию
             } else {
                 if (!$this->updateClientBalance($client_id, $total_amount - $old_total_amount)) {
                     throw new \Exception('Ошибка обновления баланса клиента');
@@ -336,13 +272,11 @@ class WarehouseReceiptRepository
         return DB::transaction(function () use ($receipt_id) {
             $receipt = WhReceipt::findOrFail($receipt_id);
 
-            // 1) Откатываем стоки
             foreach (WhReceiptProduct::where('receipt_id', $receipt_id)->get() as $p) {
                 $this->updateStock($receipt->warehouse_id, $p->product_id, -$p->quantity);
                 $p->delete();
             }
 
-            // 2) Удаляем приходную накладную (транзакции удалятся автоматически через booted() модели)
             $clientId = $receipt->supplier_id;
             $receipt->delete();
 
@@ -350,11 +284,8 @@ class WarehouseReceiptRepository
         });
     }
 
-
-    // Обновление стоков
     private function updateStock($warehouse_id, $product_id, $add_quantity)
     {
-        // Преобразуем add_quantity в число, если это Decimal объект
         $quantity = is_numeric($add_quantity) ? $add_quantity : (float)$add_quantity;
 
         $stock = WarehouseStock::firstOrNew([
@@ -372,7 +303,6 @@ class WarehouseReceiptRepository
         return true;
     }
 
-    // Обновление цены покупки продукта
     private function updateProductPurchasePrice($product_id, $price)
     {
         ProductPrice::updateOrCreate(

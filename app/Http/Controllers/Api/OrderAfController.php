@@ -19,48 +19,32 @@ class OrderAfController extends Controller
 
     public function index(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
-
         $fields = $this->repository->getItemsWithPagination($userUuid, $perPage);
 
-        return response()->json([
-            'items' => $fields->items(),
-            'current_page' => $fields->currentPage(),
-            'next_page' => $fields->nextPageUrl(),
-            'last_page' => $fields->lastPage(),
-            'total' => $fields->total()
-        ]);
+        return $this->paginatedResponse($fields);
     }
 
 
     public function show($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $field = $this->repository->getItemById($id, $userUuid);
 
         if (!$field) {
-            return response()->json(['message' => 'Поле не найдено'], 404);
+            return $this->notFoundResponse('Поле не найдено');
         }
 
-        return response()->json($field);
+        return response()->json(['field' => $field]);
     }
 
 
     public function store(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
@@ -72,10 +56,7 @@ class OrderAfController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Ошибка валидации',
-                'errors' => $validator->errors()
-            ], 422);
+            return $this->validationErrorResponse($validator);
         }
 
         try {
@@ -90,24 +71,16 @@ class OrderAfController extends Controller
 
             $field = $this->repository->createItem($data);
 
-            return response()->json([
-                'message' => 'Дополнительное поле успешно создано',
-                'field' => $field
-            ], 201);
+            return response()->json(['field' => $field, 'message' => 'Дополнительное поле успешно создано'], 201);
         } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'Ошибка создания поля: ' . $th->getMessage()
-            ], 400);
+            return $this->errorResponse('Ошибка создания поля: ' . $th->getMessage(), 400);
         }
     }
 
 
     public function update(Request $request, $id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
@@ -119,10 +92,7 @@ class OrderAfController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Ошибка валидации',
-                'errors' => $validator->errors()
-            ], 422);
+            return $this->validationErrorResponse($validator);
         }
 
         try {
@@ -140,36 +110,23 @@ class OrderAfController extends Controller
 
             $field = $this->repository->updateItem($id, $data, $userUuid);
 
-            return response()->json([
-                'message' => 'Поле успешно обновлено',
-                'field' => $field
-            ]);
+            return response()->json(['field' => $field, 'message' => 'Поле успешно обновлено']);
         } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'Ошибка обновления: ' . $th->getMessage()
-            ], 400);
+            return $this->errorResponse('Ошибка обновления: ' . $th->getMessage(), 400);
         }
     }
 
 
     public function destroy($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         try {
             $field = $this->repository->deleteItem($id, $userUuid);
 
-            return response()->json([
-                'message' => 'Поле успешно удалено',
-                'field' => $field
-            ]);
+            return response()->json(['field' => $field, 'message' => 'Поле успешно удалено']);
         } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'Ошибка удаления: ' . $th->getMessage()
-            ], 400);
+            return $this->errorResponse('Ошибка удаления: ' . $th->getMessage(), 400);
         }
     }
 
@@ -178,8 +135,6 @@ class OrderAfController extends Controller
     {
         $types = $this->repository->getFieldTypes();
 
-        return response()->json([
-            'types' => $types
-        ]);
+        return response()->json(['types' => $types]);
     }
 }

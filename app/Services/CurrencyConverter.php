@@ -20,7 +20,7 @@ class CurrencyConverter
      * @param Currency|null $defaultCurrency Базовая валюта (манат), если не передана, будет выбрана из БД
      * @return float
      */
-    public static function convert($amount, Currency $fromCurrency, Currency $toCurrency, ?Currency $defaultCurrency = null)
+    public static function convert($amount, Currency $fromCurrency, Currency $toCurrency, ?Currency $defaultCurrency = null, $companyId = null, $date = null)
     {
         if (!$defaultCurrency) {
             $defaultCurrency = Currency::where('is_default', true)->first();
@@ -31,19 +31,22 @@ class CurrencyConverter
             return $amount;
         }
 
+        $fromRate = $fromCurrency->getExchangeRateForCompany($companyId, $date);
+        $toRate = $toCurrency->getExchangeRateForCompany($companyId, $date);
+
         // Если исходная валюта - манат (базовая)
         if($fromCurrency->id === $defaultCurrency->id) {
-            return $amount / $toCurrency->exchange_rate;
+            return $amount / $toRate;
         }
 
         // Если целевая валюта - манат (базовая)
         if($toCurrency->id === $defaultCurrency->id) {
-            return $amount * $fromCurrency->exchange_rate;
+            return $amount * $fromRate;
         }
 
         // Если обе валюты не манат - конвертируем через манат
         // Сначала в манат, потом в целевую валюту
-        $amountInManat = $amount * $fromCurrency->exchange_rate;
-        return $amountInManat / $toCurrency->exchange_rate;
+        $amountInManat = $amount * $fromRate;
+        return $amountInManat / $toRate;
     }
 }

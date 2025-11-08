@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Repositories\OrdersRepository;
 use App\Repositories\OrderAfRepository;
 use App\Services\CacheService;
-// use App\Services\BasementTimeLimitService; // Удалено ограничение по времени
 use Illuminate\Http\Request;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -25,10 +24,7 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
         $per_page = $request->input('per_page', 10);
@@ -42,21 +38,12 @@ class OrderController extends Controller
 
         $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter);
 
-        return response()->json([
-            'items' => $items->items(),
-            'current_page' => $items->currentPage(),
-            'next_page' => $items->nextPageUrl(),
-            'last_page' => $items->lastPage(),
-            'total' => $items->total()
-        ]);
+        return $this->paginatedResponse($items);
     }
 
     public function store(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
 
         $request->validate([
@@ -92,7 +79,6 @@ class OrderController extends Controller
             'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
         ]);
 
-        // Хардкод для basement пользователей: категория 2 = юзер 6, 3 = 7, 14 = 8
         $categoryId = $request->category_id;
         if (in_array($userUuid, [6, 7, 8]) && !$categoryId) {
             $basementCategoryMap = [6 => 2, 7 => 3, 8 => 14];
@@ -133,54 +119,34 @@ class OrderController extends Controller
             'additional_fields' => $request->additional_fields ?? [],
         ];
 
-        // Проверяем права доступа к кассе только если указан cash_id и он не null
         if ($request->cash_id && $request->cash_id !== null) {
-            $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $request->cash_id);
-            if (!$userHasPermissionToCashRegister) {
-                return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
-            }
+            $this->requireCashRegisterAccess($request->cash_id);
         }
 
         try {
-            $created = $this->itemRepository->createItem($data);
+            $this->itemRepository->createItem($data);
 
-            if (!$created) {
-                return response()->json(['message' => 'Ошибка создания заказа'], 400);
-            }
-
-            // Инвалидируем кэш заказов, остатков и продуктов (т.к. stock_quantity изменился)
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
-            // Инвалидируем кэш клиентов (баланс клиента изменился через транзакции)
             CacheService::invalidateClientsCache();
-            // Инвалидируем кэш проектов (если заказ привязан к проекту)
             if ($request->project_id) {
                 CacheService::invalidateProjectsCache();
             }
 
             return response()->json(['message' => 'Заказ успешно создан']);
         } catch (\Throwable $th) {
-            return response()->json(['message' => 'Ошибка заказа: ' . $th->getMessage()], 400);
+            return $this->errorResponse($th->getMessage(), 400);
         }
     }
     public function update(Request $request, $id)
     {
-        $user = auth('api')->user();
-        $userUuid = optional($user)->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        // Получаем заказ для проверки времени создания
         $order = $this->itemRepository->getItemById($id);
         if (!$order) {
-            return response()->json(['message' => 'Заказ не найден'], 404);
+            return $this->notFoundResponse('Заказ не найден');
         }
-
-        // Удаляем ограничение на редактирование только владельцем: любой авторизованный пользователь может редактировать
-
-        // Ограничение по времени для подвальных работников удалено
 
         $request->validate([
             'client_id'            => 'required|integer|exists:clients,id',
@@ -212,7 +178,6 @@ class OrderController extends Controller
             'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
         ]);
 
-        // Хардкод для basement пользователей: категория 2 = юзер 6, 3 = 7, 14 = 8
         $categoryId = $request->category_id;
         if (in_array($userUuid, [6, 7, 8]) && !$categoryId) {
             $basementCategoryMap = [6 => 2, 7 => 3, 8 => 14];
@@ -252,91 +217,59 @@ class OrderController extends Controller
             'additional_fields' => $request->additional_fields ?? [],
         ];
 
-        // Проверяем права доступа к кассе только если указан cash_id и он не null
         if ($request->cash_id && $request->cash_id !== null) {
-            $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $request->cash_id);
-            if (!$userHasPermissionToCashRegister) {
-                return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
-            }
+            $this->requireCashRegisterAccess($request->cash_id);
         }
 
         try {
-            $updated = $this->itemRepository->updateItem($id, $data);
-            if (!$updated) {
-                return response()->json(['message' => 'Ошибка обновления заказа'], 400);
-            }
+            $this->itemRepository->updateItem($id, $data);
 
-            // Инвалидируем кэш заказов, остатков и продуктов (т.к. stock_quantity изменился)
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
-            // Инвалидируем кэш клиентов (баланс клиента мог измениться)
             CacheService::invalidateClientsCache();
-            // Инвалидируем кэш проектов (если заказ привязан к проекту)
             if ($request->project_id) {
                 CacheService::invalidateProjectsCache();
             }
 
             return response()->json(['message' => 'Заказ сохранён']);
         } catch (\Throwable $th) {
-            return response()->json(['message' => 'Ошибка: ' . $th->getMessage()], 400);
+            return $this->errorResponse($th->getMessage(), 400);
         }
     }
 
     public function destroy($id)
     {
-        $user = auth('api')->user();
-        $userUuid = optional($user)->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        // Получаем заказ для проверки прав доступа к кассе
         $order = $this->itemRepository->getItemById($id);
         if (!$order) {
-            return response()->json(['message' => 'Заказ не найден'], 404);
+            return $this->notFoundResponse('Заказ не найден');
         }
 
-        // Удаляем ограничение на удаление только владельцем: любой авторизованный пользователь может удалять
-
-        // Ограничение по времени для подвальных работников удалено
-
-        // Проверяем права доступа к кассе
-        $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $order->cash_id);
-        if (!$userHasPermissionToCashRegister) {
-            return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
+        if ($order->cash_id) {
+            $this->requireCashRegisterAccess($order->cash_id);
         }
 
         try {
             $deleted = $this->itemRepository->deleteItem($id);
 
-            // Инвалидируем кэш заказов, остатков и продуктов (т.к. stock_quantity изменился)
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
-            // Инвалидируем кэш клиентов (баланс клиента изменился)
             CacheService::invalidateClientsCache();
-            // Инвалидируем кэш проектов (если заказ был привязан к проекту)
             if ($order->project_id) {
                 CacheService::invalidateProjectsCache();
             }
 
-            return response()->json([
-                'message' => 'Заказ успешно удалён',
-                'order' => $deleted
-            ]);
+            return response()->json(['order' => $deleted, 'message' => 'Заказ успешно удалён']);
         } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'Ошибка при удалении заказа: ' . $th->getMessage()
-            ], 400);
+            return $this->errorResponse('Ошибка при удалении заказа: ' . $th->getMessage(), 400);
         }
     }
     public function batchUpdateStatus(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
             'ids'       => 'required|array|min:1',
@@ -348,54 +281,37 @@ class OrderController extends Controller
             $result = $this->itemRepository
                 ->updateStatusByIds($request->ids, $request->status_id, $userUuid);
 
-            // Проверяем, если это массив с информацией о недостающей оплате
             if (is_array($result) && isset($result['needs_payment']) && $result['needs_payment']) {
-                return response()->json($result, 422); // 422 Unprocessable Entity
+                return response()->json($result, 422);
             }
 
-            // Обычный успешный ответ
             if ($result > 0) {
-                // Инвалидируем кэш заказов при массовом обновлении статусов
                 CacheService::invalidateOrdersCache();
 
-                return response()->json([
-                    'message' => "Статус обновлён у {$result} заказ(ов)"
-                ]);
+                return response()->json(['message' => "Статус обновлён у {$result} заказ(ов)"]);
             } else {
-                return response()->json([
-                    'message' => "Статус не изменился"
-                ]);
+                return response()->json(['message' => "Статус не изменился"]);
             }
         } catch (\Throwable $th) {
-            return response()->json([
-                'message' => $th->getMessage() ?: 'Ошибка смены статуса'
-            ], 400);
+            return $this->errorResponse($th->getMessage() ?: 'Ошибка смены статуса', 400);
         }
     }
 
     public function show($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->itemRepository->getItemById($id);
         if (!$item) {
-            return response()->json(['message' => 'Not found'], 404);
+            return $this->notFoundResponse('Not found');
         }
 
-        // Проверяем права доступа к кассе
-        $userHasPermissionToCashRegister = $this->itemRepository->userHasPermissionToCashRegister($userUuid, $item->cash_id);
-        if (!$userHasPermissionToCashRegister) {
-            return response()->json(['message' => 'У вас нет прав на эту кассу'], 403);
+        if ($item->cash_id) {
+            $this->requireCashRegisterAccess($item->cash_id);
         }
 
         return response()->json(['item' => $item]);
     }
 
-    /**
-     * Получить текущее серверное время для синхронизации
-     */
     public function getServerTime()
     {
         return response()->json([

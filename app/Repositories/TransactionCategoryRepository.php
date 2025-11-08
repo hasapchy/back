@@ -5,26 +5,26 @@ namespace App\Repositories;
 use App\Models\TransactionCategory;
 use App\Services\CacheService;
 
-class TransactionCategoryRepository
+class TransactionCategoryRepository extends BaseRepository
 {
-    // Получение с пагинацией
     public function getItemsWithPagination($perPage = 20)
     {
-        // Возвращаем все категории независимо от владельца
-        return TransactionCategory::with('user')
-            ->paginate($perPage);
+        $cacheKey = $this->generateCacheKey('transaction_categories_paginated', [$perPage]);
+
+        return CacheService::getPaginatedData($cacheKey, function() use ($perPage) {
+            return TransactionCategory::with('user')->paginate($perPage);
+        }, 1);
     }
 
-    // Получение всего списка без фильтрации по пользователю
     public function getAllItems()
     {
-        // Кэшируем справочник категорий транзакций на 2 часа
-        return CacheService::getReferenceData('transaction_categories_all', function() {
+        $cacheKey = $this->generateCacheKey('transaction_categories_all', []);
+
+        return CacheService::getReferenceData($cacheKey, function() {
             return TransactionCategory::with('user')->get();
         });
     }
 
-    // Создание
     public function createItem($data)
     {
         $item = new TransactionCategory();
@@ -32,10 +32,10 @@ class TransactionCategoryRepository
         $item->type = $data['type'];
         $item->user_id = $data['user_id'];
         $item->save();
+        CacheService::invalidateTransactionCategoriesCache();
         return true;
     }
 
-    // Обновление
     public function updateItem($id, $data)
     {
         $item = TransactionCategory::find($id);
@@ -51,10 +51,10 @@ class TransactionCategoryRepository
         $item->type = $data['type'];
         $item->user_id = $data['user_id'];
         $item->save();
+        CacheService::invalidateTransactionCategoriesCache();
         return true;
     }
 
-    // Удаление
     public function deleteItem($id)
     {
         $item = TransactionCategory::find($id);
@@ -67,6 +67,7 @@ class TransactionCategoryRepository
         }
 
         $item->delete();
+        CacheService::invalidateTransactionCategoriesCache();
         return true;
     }
 }

@@ -16,33 +16,19 @@ class TransfersController extends Controller
     {
         $this->itemsRepository = $itemsRepository;
     }
-    // Метод для получения трансферов с пагинацией
     public function index(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-        // Получаем с пагинацией
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20);
 
-        return response()->json([
-            'items' => $items->items(),  // Список
-            'current_page' => $items->currentPage(),  // Текущая страница
-            'next_page' => $items->nextPageUrl(),  // Следующая страница
-            'last_page' => $items->lastPage(),  // Общее количество страниц
-            'total' => $items->total()  // Общее количество
-        ]);
+        return $this->paginatedResponse($items);
     }
 
-    // Метод для создания
     public function store(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
-        // Валидация данных
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+
         $request->validate([
             'cash_id_from' => 'required|exists:cash_registers,id',
             'cash_id_to' => 'required|exists:cash_registers,id',
@@ -50,20 +36,14 @@ class TransfersController extends Controller
             'note' => 'nullable|sometimes|string',
             'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001'
         ]);
-        // Проверяем права пользователя на кассу
+
         $transactions_repository = new TransactionsRepository();
 
-        $userHasPermissionToCashRegisters =
-            $transactions_repository->userHasPermissionToCashRegister($userUuid, $request->cash_id_from) &&
-            $transactions_repository->userHasPermissionToCashRegister($userUuid, $request->cash_id_to);
-
-        if (!$userHasPermissionToCashRegisters) {
-            return response()->json([
-                'message' => 'У вас нет прав на одну или несколько касс'
-            ], 403);
+        if (!$transactions_repository->userHasPermissionToCashRegister($userUuid, $request->cash_id_from) ||
+            !$transactions_repository->userHasPermissionToCashRegister($userUuid, $request->cash_id_to)) {
+            return $this->forbiddenResponse('У вас нет прав на одну или несколько касс');
         }
 
-        // Создаем трансфер
         $item_created = $this->itemsRepository->createItem([
             'cash_id_from' => $request->cash_id_from,
             'cash_id_to' => $request->cash_id_to,
@@ -74,26 +54,18 @@ class TransfersController extends Controller
         ]);
 
         if (!$item_created) {
-            return response()->json([
-                'message' => 'Ошибка создания трансфера'
-            ], 400);
+            return $this->errorResponse('Ошибка создания трансфера', 400);
         }
 
-        // Инвалидируем кэш переводов и касс (баланс касс изменился)
         CacheService::invalidateTransfersCache();
         CacheService::invalidateCashRegistersCache();
 
-        return response()->json([
-            'message' => 'Трансфер создан'
-        ]);
+        return response()->json(['message' => 'Трансфер создан']);
     }
 
     public function update(Request $request, $id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
             'cash_id_from' => 'required|exists:cash_registers,id',
@@ -109,7 +81,7 @@ class TransfersController extends Controller
             !$transactions_repository->userHasPermissionToCashRegister($userUuid, $request->cash_id_from) ||
             !$transactions_repository->userHasPermissionToCashRegister($userUuid, $request->cash_id_to)
         ) {
-            return response()->json(['message' => 'Нет прав на кассы'], 403);
+            return $this->forbiddenResponse('Нет прав на кассы');
         }
 
         $updated = $this->itemsRepository->updateItem($id, [
@@ -122,10 +94,9 @@ class TransfersController extends Controller
         ]);
 
         if (!$updated) {
-            return response()->json(['message' => 'Ошибка обновления'], 400);
+            return $this->errorResponse('Ошибка обновления', 400);
         }
 
-        // Инвалидируем кэш переводов и касс (баланс касс изменился)
         CacheService::invalidateTransfersCache();
         CacheService::invalidateCashRegistersCache();
 
@@ -135,18 +106,14 @@ class TransfersController extends Controller
 
     public function destroy($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $deleted = $this->itemsRepository->deleteItem($id);
 
         if (!$deleted) {
-            return response()->json(['message' => 'Ошибка удаления'], 400);
+                return $this->errorResponse('Ошибка удаления', 400);
         }
 
-        // Инвалидируем кэш переводов и касс (баланс касс изменился)
         CacheService::invalidateTransfersCache();
         CacheService::invalidateCashRegistersCache();
 

@@ -29,14 +29,11 @@ class ProjectContractsController extends Controller
             $result = $this->repository->getProjectContractsWithPagination($projectId, $perPage, $page, $search);
 
             return response()->json([
-                'success' => true,
-                'data' => [
-                    'items' => $result->items(),
-                    'current_page' => $result->currentPage(),
-                    'last_page' => $result->lastPage(),
-                    'per_page' => $result->perPage(),
-                    'total' => $result->total(),
-                ]
+                'items' => $result->items(),
+                'current_page' => $result->currentPage(),
+                'last_page' => $result->lastPage(),
+                'per_page' => $result->perPage(),
+                'total' => $result->total(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -52,12 +49,9 @@ class ProjectContractsController extends Controller
     public function getAll(Request $request, $projectId): JsonResponse
     {
         try {
-            $contracts = $this->repository->getAllProjectContracts($projectId);
+            $contracts = $this->repository->getAllItems($projectId);
 
-            return response()->json([
-                'success' => true,
-                'data' => $contracts
-            ]);
+            return response()->json($contracts);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -97,9 +91,8 @@ class ProjectContractsController extends Controller
             $contract = $this->repository->createContract($data);
 
             return response()->json([
-                'success' => true,
                 'message' => 'Контракт успешно создан',
-                'data' => $contract->load(['currency', 'project'])
+                'item' => $contract->load(['currency', 'project'])
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -124,10 +117,7 @@ class ProjectContractsController extends Controller
                 ], 404);
             }
 
-            return response()->json([
-                'success' => true,
-                'data' => $contract
-            ]);
+            return response()->json(['item' => $contract]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -165,9 +155,8 @@ class ProjectContractsController extends Controller
             $contract = $this->repository->updateContract($id, $data);
 
             return response()->json([
-                'success' => true,
                 'message' => 'Контракт успешно обновлен',
-                'data' => $contract->load(['currency', 'project'])
+                'item' => $contract->load(['currency', 'project'])
             ]);
         } catch (\Exception $e) {
             return response()->json([

@@ -76,17 +76,9 @@ class Project extends Model
             return 1;
         }
 
-        // Получаем актуальный курс из истории валют
-        $rateHistory = $currency->exchangeRateHistories()
-            ->where('start_date', '<=', now()->toDateString())
-            ->where(function ($query) {
-                $query->whereNull('end_date')
-                    ->orWhere('end_date', '>=', now()->toDateString());
-            })
-            ->orderBy('start_date', 'desc')
-            ->first();
-
-        $currentRate = $rateHistory ? $rateHistory->exchange_rate : 1;
+        // Получаем актуальный курс из истории валют для текущей компании
+        $companyId = $this->company_id;
+        $currentRate = $currency->getExchangeRateForCompany($companyId);
 
         // Если валюта не дефолтная (не манат), возвращаем 1/курс для конвертации в манаты
         if (!$currency->is_default) {
@@ -111,16 +103,8 @@ class Project extends Model
             return 1;
         }
 
-        $rateHistory = $currency->exchangeRateHistories()
-            ->where('start_date', '<=', now()->toDateString())
-            ->where(function ($query) {
-                $query->whereNull('end_date')
-                    ->orWhere('end_date', '>=', now()->toDateString());
-            })
-            ->orderBy('start_date', 'desc')
-            ->first();
-
-        $currentRate = $rateHistory ? $rateHistory->exchange_rate : 1;
+        $companyId = $this->company_id;
+        $currentRate = $currency->getExchangeRateForCompany($companyId);
 
         // Если валюта не дефолтная (не манат), возвращаем 1/курс для конвертации в манаты
         if (!$currency->is_default) {

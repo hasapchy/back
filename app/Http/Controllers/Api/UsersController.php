@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use App\Services\CacheService;
 
 
 class UsersController extends Controller
@@ -25,14 +26,13 @@ class UsersController extends Controller
     public function index(Request $request)
     {
         $page = $request->input('page', 1);
-        return response()->json($this->itemsRepository->getItemsWithPagination($page));
+        return $this->paginatedResponse($this->itemsRepository->getItemsWithPagination($page));
     }
 
     public function store(Request $request)
     {
         $data = $request->all();
 
-        // Обрабатываем boolean поля
         if (isset($data['is_active'])) {
             $data['is_active'] = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
         }
@@ -40,19 +40,16 @@ class UsersController extends Controller
             $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
         }
 
-        // Обрабатываем массивы из FormData
         if (isset($data['permissions']) && is_string($data['permissions'])) {
             $data['permissions'] = explode(',', $data['permissions']);
         }
 
-        // Обработка companies - может прийти как строка или как массив
         if (isset($data['companies'])) {
             if (is_string($data['companies'])) {
                 $data['companies'] = array_filter(explode(',', $data['companies']), function ($c) {
                     return trim($c) !== '';
                 });
             }
-            // Преобразуем все значения в integer (они могут быть строками из FormData)
             if (is_array($data['companies'])) {
                 $data['companies'] = array_values(array_map('intval', $data['companies']));
             }
@@ -73,10 +70,9 @@ class UsersController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return $this->validationErrorResponse($validator);
         }
 
-        // Handle photo upload
         if ($request->hasFile('photo')) {
             $photo = $request->file('photo');
             $photoName = time() . '_' . $photo->getClientOriginalName();
@@ -86,8 +82,7 @@ class UsersController extends Controller
 
         $user = $this->itemsRepository->createItem($data);
 
-        // Инвалидируем кэш пользователей
-        \App\Services\CacheService::invalidateUsersCache();
+        CacheService::invalidateUsersCache();
 
         return response()->json([
             'user' => $user,
@@ -111,14 +106,12 @@ class UsersController extends Controller
             $data['permissions'] = explode(',', $data['permissions']);
         }
 
-        // Обработка companies - может прийти как строка или как массив
         if (isset($data['companies'])) {
             if (is_string($data['companies'])) {
                 $data['companies'] = array_filter(explode(',', $data['companies']), function ($c) {
                     return trim($c) !== '';
                 });
             }
-            // Преобразуем все значения в integer (они могут быть строками из FormData)
             if (is_array($data['companies'])) {
                 $data['companies'] = array_values(array_map('intval', $data['companies']));
             }
@@ -149,16 +142,13 @@ class UsersController extends Controller
 
         unset($data['photo']);
 
-        // Сохраняем массивы отдельно (даже если они пустые)
         $companies = $data['companies'] ?? null;
         $permissions = $data['permissions'] ?? null;
 
-        // Фильтруем только null значения, но оставляем false (для чекбоксов)
         $data = array_filter($data, function ($value) {
             return $value !== null;
         });
 
-        // Возвращаем массивы обратно (даже если они пустые, чтобы sync сработал)
         if ($companies !== null) {
             $data['companies'] = $companies;
         }
@@ -169,11 +159,9 @@ class UsersController extends Controller
         $user = $this->itemsRepository->updateItem($id, $data);
         $user = $this->handlePhotoUpload($request, $user);
 
-        // Перезагружаем пользователя со всеми связями
         $user = $user->fresh(['permissions', 'roles', 'companies']);
 
-        // Инвалидируем кэш пользователей (вместо полной очистки!)
-        \App\Services\CacheService::invalidateUsersCache();
+        CacheService::invalidateUsersCache();
 
         return response()->json([
             'user' => $user,
@@ -185,8 +173,7 @@ class UsersController extends Controller
     {
         $this->itemsRepository->deleteItem($id);
 
-        // Инвалидируем кэш пользователей
-        \App\Services\CacheService::invalidateUsersCache();
+        CacheService::invalidateUsersCache();
 
         return response()->json(['message' => 'User deleted']);
     }
@@ -209,11 +196,7 @@ class UsersController extends Controller
     }
     public function getAllUsers()
     {
-        // Кэшируем список всех пользователей на 2 часа
-        $items = \App\Services\CacheService::getReferenceData('users_all', function() {
-            return $this->itemsRepository->getAll();
-        });
-
+        $items = $this->itemsRepository->getAllItems();
         return response()->json($items);
     }
 
@@ -224,7 +207,7 @@ class UsersController extends Controller
                   ->select('id', 'employee_id', 'client_type', 'first_name', 'balance', 'status', 'company_id');
         }]);
 
-        return response()->json($user);
+        return response()->json(['user' => $user]);
     }
 
     public function updateProfile(Request $request)
@@ -240,23 +223,20 @@ class UsersController extends Controller
                 'photo' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], 422);
+            return $this->validationErrorResponse($e->validator);
         }
 
         if ($request->filled('current_password') && !$request->filled('password')) {
-            return response()->json(['errors' => ['password' => ['Новый пароль обязателен при указании текущего пароля']]], 422);
+            return $this->errorResponse('Новый пароль обязателен при указании текущего пароля', 422);
         }
 
         if ($request->filled('password')) {
             if (!$request->filled('current_password')) {
-                return response()->json(['errors' => ['current_password' => ['Текущий пароль обязателен для смены пароля']]], 422);
+                return $this->errorResponse('Текущий пароль обязателен для смены пароля', 422);
             }
 
             if (!Hash::check($request->input('current_password'), $user->password)) {
-                return response()->json(['errors' => ['current_password' => ['Неверный текущий пароль']]], 422);
+                return $this->errorResponse('Неверный текущий пароль', 422);
             }
         }
 
@@ -275,7 +255,6 @@ class UsersController extends Controller
 
         unset($data['photo']);
 
-        // Фильтруем только null значения, но оставляем false (для чекбоксов)
         $data = array_filter($data, function ($value) {
             return $value !== null;
         });
@@ -283,7 +262,6 @@ class UsersController extends Controller
         $user = $this->itemsRepository->updateItem($user->id, $data);
         $user = $this->handlePhotoUpload($request, $user);
 
-        // Перезагружаем пользователя со всеми связями
         $user = $user->fresh(['permissions', 'roles', 'companies']);
 
         return response()->json(['user' => $user]);

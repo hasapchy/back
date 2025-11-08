@@ -5,10 +5,28 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Repositories\CommentsRepository;
 use App\Services\CacheService;
+use App\Services\RoundingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Spatie\Activitylog\Models\Activity;
+use App\Models\User;
+use App\Models\Comment;
+use App\Models\Order;
+use App\Models\Transaction;
+use App\Models\Currency;
+use App\Models\Client;
+use App\Models\Product;
+use App\Models\Warehouse;
+use App\Models\Project;
+use App\Models\CashRegister;
+use App\Models\Category;
+use App\Models\OrderStatus;
+use App\Models\TransactionCategory;
+use App\Models\Sale;
+use App\Models\OrderProduct;
+use App\Models\OrderTempProduct;
 
 class CommentController extends Controller
 {
@@ -21,9 +39,9 @@ class CommentController extends Controller
 
     public function index(Request $request)
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthenticatedUser();
         if (! $user) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+            return $this->unauthorizedResponse();
         }
 
         $request->validate([
@@ -37,9 +55,9 @@ class CommentController extends Controller
 
     public function store(Request $request)
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthenticatedUser();
         if (! $user) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+            return $this->unauthorizedResponse();
         }
 
         $request->validate([
@@ -50,7 +68,6 @@ class CommentController extends Controller
 
         $comment = $this->itemsRepository->createItem($request->type, $request->id, $request->body, $user->id);
 
-        // Инвалидируем кэш таймлайна
         $this->invalidateTimelineCache($request->type, $request->id);
 
         return response()->json([
@@ -61,9 +78,9 @@ class CommentController extends Controller
 
     public function update(Request $request, $id)
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthenticatedUser();
         if (! $user) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+            return $this->unauthorizedResponse();
         }
 
         $request->validate([
@@ -76,7 +93,6 @@ class CommentController extends Controller
             return response()->json(['message' => 'Комментарий не найден или нет прав'], 403);
         }
 
-        // Инвалидируем кэш таймлайна
         $this->invalidateTimelineCache($updatedComment->commentable_type, $updatedComment->commentable_id);
 
         return response()->json([
@@ -93,23 +109,21 @@ class CommentController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        // Получаем комментарий для определения типа и ID сущности
-        $comment = \App\Models\Comment::select(['id', 'commentable_type', 'commentable_id'])
+        $comment = Comment::select(['id', 'commentable_type', 'commentable_id'])
             ->where('id', $id)
             ->where('user_id', $user->id)
             ->first();
 
         if (!$comment) {
-            return response()->json(['message' => 'Комментарий не найден или нет прав'], 403);
+            return $this->forbiddenResponse('Комментарий не найден или нет прав');
         }
 
         $deleted = $this->itemsRepository->deleteItem($id, $user->id);
 
         if (!$deleted) {
-            return response()->json(['message' => 'Комментарий не найден или нет прав'], 403);
+            return $this->forbiddenResponse('Комментарий не найден или нет прав');
         }
 
-        // Инвалидируем кэш таймлайна
         $this->invalidateTimelineCache($comment->commentable_type, $comment->commentable_id);
 
         return response()->json(['message' => 'Комментарий удалён']);
@@ -117,9 +131,9 @@ class CommentController extends Controller
 
     public function timeline(Request $request)
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthenticatedUser();
         if (!$user) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+            return $this->unauthorizedResponse();
         }
 
         $request->validate([
@@ -133,20 +147,16 @@ class CommentController extends Controller
 
             return CacheService::remember($cacheKey, function () use ($modelClass, $request) {
                 return $this->buildTimeline($modelClass, $request->id);
-            }, 600); // 10 минут для таймлайна
+            }, 600);
 
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Ошибка загрузки таймлайна', 'error' => $e->getMessage()], 500);
+            return $this->errorResponse('Ошибка загрузки таймлайна: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Построение таймлайна с оптимизацией
-     */
     private function buildTimeline(string $modelClass, int $id)
     {
         try {
-            // Получаем модель с оптимизированными связями
             $model = $modelClass::select([
                 'id', 'client_id', 'user_id', 'status_id', 'category_id'
             ])
@@ -158,7 +168,6 @@ class CommentController extends Controller
             ])
             ->findOrFail($id);
 
-            // Добавляем виртуальное поле name для клиента, если оно нужно
             if ($model->client) {
                 $model->client->name = $model->client->first_name . ' ' . $model->client->last_name;
             }
@@ -167,19 +176,15 @@ class CommentController extends Controller
                 throw new \Exception('Модель не поддерживает комментарии или активность');
             }
 
-            // Получаем комментарии с оптимизацией
             $comments = $this->getOptimizedComments($model);
 
-            // Получаем активность с оптимизацией
             $activities = $this->getOptimizedActivities($model, $modelClass);
 
-            // Специальная обработка для заказов
-            if ($modelClass === \App\Models\Order::class) {
+            if ($modelClass === Order::class) {
                 $orderActivities = $this->getOrderSpecificActivities($id);
                 $activities = $activities->merge($orderActivities);
             }
 
-            // Объединяем и сортируем
             $timeline = collect($comments)
                 ->merge($activities)
                 ->sortBy(function ($item) {
@@ -194,9 +199,6 @@ class CommentController extends Controller
         }
     }
 
-    /**
-     * Получение оптимизированных комментариев
-     */
     private function getOptimizedComments($model)
     {
         return $model->comments()
@@ -217,9 +219,6 @@ class CommentController extends Controller
             });
     }
 
-    /**
-     * Получение оптимизированной активности
-     */
     private function getOptimizedActivities($model, string $modelClass)
     {
         return $model->activities()
@@ -235,38 +234,29 @@ class CommentController extends Controller
             });
     }
 
-    /**
-     * Обработка лога активности
-     */
     private function processActivityLog($log, string $modelClass)
     {
-        // Получаем пользователя из causer или пытаемся найти его другим способом
         $user = $this->getUserForActivity($log, $modelClass);
 
         $description = $log->description;
         $meta = null;
 
-        // Обогащаем описание для заказов и транзакций
         try {
             if ($log->subject) {
-                // Для заказа добавляем ID заказа
-                if (get_class($log->subject) === \App\Models\Order::class && isset($log->subject->id)) {
-                    // Если текст уже локализован как "Создан заказ", просто добавим ID
+                if (get_class($log->subject) === Order::class && isset($log->subject->id)) {
                     $description = rtrim($description) . ' #' . $log->subject->id;
                 }
 
-                // Для транзакции добавляем ID и сумму
-                if (get_class($log->subject) === \App\Models\Transaction::class) {
+                if (get_class($log->subject) === Transaction::class) {
                     $txnId = $log->subject->id ?? null;
                     $amount = $log->subject->amount ?? null;
                     $currencySymbol = null;
                     $companyId = null;
-                    // Пытаемся получить символ валюты (через связь или по currency_id)
                     try {
                         if (isset($log->subject->currency) && isset($log->subject->currency->symbol)) {
                             $currencySymbol = $log->subject->currency->symbol;
                         } elseif (isset($log->subject->currency_id) && $log->subject->currency_id) {
-                            $currencySymbol = optional(\App\Models\Currency::select('id','symbol')->find($log->subject->currency_id))->symbol;
+                            $currencySymbol = optional(Currency::select('id','symbol')->find($log->subject->currency_id))->symbol;
                         }
                     } catch (\Throwable $e) {}
 
@@ -286,7 +276,6 @@ class CommentController extends Controller
                     ];
                 }
 
-                // Добавляем meta для строк товаров (кол-во и цена)
                 $logName = $log->log_name ?? null;
                 if (in_array($logName, ['order_product', 'order_temp_product'])) {
                     $props = $log->properties;
@@ -310,7 +299,6 @@ class CommentController extends Controller
                 }
             }
         } catch (\Throwable $e) {
-            // Безопасно игнорируем любые ошибки при обогащении
         }
 
         if ($log->description === 'created' || $log->description === 'Создан заказ') {
@@ -338,9 +326,6 @@ class CommentController extends Controller
         ];
     }
 
-    /**
-     * Обработка изменений в активности
-     */
     private function processActivityChanges($changes, string $modelClass)
     {
         if (!$changes) {
@@ -350,7 +335,6 @@ class CommentController extends Controller
         $attributes = null;
         $old = null;
 
-        // Извлекаем attributes и old из properties
         if (method_exists($changes, 'toArray')) {
             $changesArray = $changes->toArray();
             $attributes = $changesArray['attributes'] ?? null;
@@ -371,14 +355,12 @@ class CommentController extends Controller
         $processedOld = [];
 
         foreach ($attributes as $key => $value) {
-            // Обработка полей с ID - заменяем на названия
             if (str_ends_with($key, '_id') && $value) {
                 $relatedModel = $this->getRelatedModelName($key, $modelClass);
 
                 if ($relatedModel && class_exists($relatedModel)) {
                     try {
-                        // Специальная обработка для разных типов моделей
-                        if ($relatedModel === \App\Models\Client::class) {
+                        if ($relatedModel === Client::class) {
                             $relatedRecord = $relatedModel::select('id,first_name,last_name,contact_person')->find($value);
                             $relatedName = $relatedRecord ? ($relatedRecord->first_name . ' ' . $relatedRecord->last_name) : $value;
 
@@ -415,20 +397,15 @@ class CommentController extends Controller
         return null;
     }
 
-    /**
-     * Получение специфичной активности для заказов
-     */
     private function getOrderSpecificActivities(int $orderId)
     {
         $activities = collect();
 
-        // Ищем активности где subject - это Order, но причиной (causer) были OrderProduct или OrderTempProduct
-        // tapActivity переназначает subject на Order, поэтому ищем напрямую через Activity
-        $productActivities = Activity::where('subject_type', \App\Models\Order::class)
+        $productActivities = Activity::where('subject_type', Order::class)
             ->where('subject_id', $orderId)
             ->where(function ($query) {
-                $query->where('causer_type', \App\Models\OrderProduct::class)
-                      ->orWhere('causer_type', \App\Models\OrderTempProduct::class)
+                $query->where('causer_type', OrderProduct::class)
+                      ->orWhere('causer_type', OrderTempProduct::class)
                       ->orWhere('description', 'like', '%товар%')
                       ->orWhere('description', 'like', '%Товар%')
                       ->orWhere('description', 'like', '%услуг%')
@@ -441,15 +418,14 @@ class CommentController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($log) {
-                return $this->processActivityLog($log, \App\Models\Order::class);
+                return $this->processActivityLog($log, Order::class);
             })
             ->filter();
 
         $activities = $activities->merge($productActivities);
 
-        // Активность транзакций заказа с оптимизацией (через полиморфную связь)
-        $orderTransactionLogs = \App\Models\Transaction::select(['id', 'source_id', 'source_type', 'amount', 'currency_id'])
-            ->where('source_type', \App\Models\Order::class)
+        $orderTransactionLogs = Transaction::select(['id', 'source_id', 'source_type', 'amount', 'currency_id'])
+            ->where('source_type', Order::class)
             ->where('source_id', $orderId)
             ->with(['currency:id,symbol'])
             ->get()
@@ -458,7 +434,6 @@ class CommentController extends Controller
                     ->select(['activity_log.id', 'activity_log.description', 'activity_log.causer_id', 'activity_log.created_at'])
                     ->with(['causer:id,name', 'subject'])
                     ->get()->map(function ($log) use ($transaction) {
-                        // Обогащаем описание ID и суммой транзакции
                         $desc = $log->description;
                         $parts = [];
                         $parts[] = '#' . $transaction->id;
@@ -476,7 +451,7 @@ class CommentController extends Controller
                     'id' => $log->id,
                     'description' => $log->description,
                     'changes' => null,
-                    'user' => $this->getUserForActivity($log, \App\Models\Order::class),
+                    'user' => $this->getUserForActivity($log, Order::class),
                     'created_at' => $log->created_at,
                 ];
             })->filter();
@@ -489,7 +464,7 @@ class CommentController extends Controller
     private function formatAmountForCompany(?int $companyId, float $amount): string
     {
         try {
-            $rounding = new \App\Services\RoundingService();
+            $rounding = new RoundingService();
             $decimals = $rounding->getDecimalsForCompany($companyId);
             $rounded = $rounding->roundForCompany($companyId, $amount);
             return number_format($rounded, $decimals, '.', ' ');
@@ -500,48 +475,39 @@ class CommentController extends Controller
 
     private function getRelatedModelName(string $key, string $modelClass): ?string
     {
-        // Базовый маппинг полей на модели
         $baseFieldToModelMap = [
-            'client_id' => \App\Models\Client::class,
-            'user_id' => \App\Models\User::class,
-            'product_id' => \App\Models\Product::class,
-            'warehouse_id' => \App\Models\Warehouse::class,
-            'project_id' => \App\Models\Project::class,
-            'cash_register_id' => \App\Models\CashRegister::class,
-            'cash_id' => \App\Models\CashRegister::class,
-            'currency_id' => \App\Models\Currency::class,
+            'client_id' => Client::class,
+            'user_id' => User::class,
+            'product_id' => Product::class,
+            'warehouse_id' => Warehouse::class,
+            'project_id' => Project::class,
+            'cash_register_id' => CashRegister::class,
+            'cash_id' => CashRegister::class,
+            'currency_id' => Currency::class,
         ];
 
-        // Специфичные маппинги для разных типов сущностей
         $specificFieldToModelMap = [
-            \App\Models\Order::class => [
-                // В заказе категория теперь тянется из общей таблицы категорий товаров
-                'category_id' => \App\Models\Category::class,
-                'status_id' => \App\Models\OrderStatus::class,
+            Order::class => [
+                'category_id' => Category::class,
+                'status_id' => OrderStatus::class,
             ],
-            \App\Models\Transaction::class => [
-                'category_id' => \App\Models\TransactionCategory::class,
+            Transaction::class => [
+                'category_id' => TransactionCategory::class,
             ],
-            \App\Models\Sale::class => [
-                'category_id' => \App\Models\Category::class,
+            Sale::class => [
+                'category_id' => Category::class,
             ],
         ];
 
-        // Сначала проверяем специфичные маппинги для модели
         if (isset($specificFieldToModelMap[$modelClass]) && isset($specificFieldToModelMap[$modelClass][$key])) {
             return $specificFieldToModelMap[$modelClass][$key];
         }
 
-        // Затем проверяем базовый маппинг
         return $baseFieldToModelMap[$key] ?? null;
     }
 
-    /**
-     * Получение пользователя для активности
-     */
     private function getUserForActivity($log, string $modelClass)
     {
-        // Если есть causer, используем его
         if ($log->causer) {
             return [
                 'id' => $log->causer->id,
@@ -549,10 +515,9 @@ class CommentController extends Controller
             ];
         }
 
-        // Если causer_id есть, но связь не загружена, пытаемся найти пользователя
         if ($log->causer_id) {
             try {
-                $user = \App\Models\User::select('id', 'name')->find($log->causer_id);
+                $user = User::select('id', 'name')->find($log->causer_id);
                 if ($user) {
                     return [
                         'id' => $user->id,
@@ -560,16 +525,14 @@ class CommentController extends Controller
                     ];
                 }
             } catch (\Exception $e) {
-                // Игнорируем ошибки
             }
         }
 
-        // Если это создание заказа, пытаемся найти пользователя из самого заказа
         if ($log->description === 'created' || $log->description === 'Создан заказ') {
             try {
                 $subject = $log->subject;
                 if ($subject && isset($subject->user_id) && $subject->user_id) {
-                    $user = \App\Models\User::select('id', 'name')->find($subject->user_id);
+                    $user = User::select('id', 'name')->find($subject->user_id);
                     if ($user) {
                         return [
                             'id' => $user->id,
@@ -578,23 +541,17 @@ class CommentController extends Controller
                     }
                 }
             } catch (\Exception $e) {
-                // Игнорируем ошибки
             }
         }
 
-        // В крайнем случае возвращаем null, чтобы фронтенд показал "Система"
         return null;
     }
 
-    /**
-     * Инвалидация кэша таймлайна
-     */
     private function invalidateTimelineCache(string $type, int $id)
     {
         $cacheKey = "timeline_{$type}_{$id}";
-        \Illuminate\Support\Facades\Cache::forget($cacheKey);
+       Cache::forget($cacheKey);
 
-        // Также инвалидируем кэш комментариев
         $this->itemsRepository->invalidateCommentsCacheByType($type);
     }
 }

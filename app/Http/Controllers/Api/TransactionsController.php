@@ -20,10 +20,7 @@ class TransactionsController extends Controller
 
     public function index(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
         $per_page = $request->input('per_page', 10);
@@ -54,7 +51,7 @@ class TransactionsController extends Controller
             $is_debt
         );
 
-        return response()->json([
+        $response = [
             'items' => $items->items(),
             'current_page' => $items->currentPage(),
             'next_page' => $items->nextPageUrl(),
@@ -63,17 +60,15 @@ class TransactionsController extends Controller
             'total_debt_positive' => $items->total_debt_positive ?? 0,
             'total_debt_negative' => $items->total_debt_negative ?? 0,
             'total_debt_balance' => $items->total_debt_balance ?? 0
-        ]);
+        ];
+
+        return response()->json($response);
     }
 
     public function store(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        // Валидация данных
         $request->validate([
             'type' => 'required|integer|in:1,0',
             'orig_amount' => 'required|numeric|min:0.01',
@@ -90,47 +85,32 @@ class TransactionsController extends Controller
             'is_debt' => 'nullable|boolean'
         ]);
 
-        $userHasPermissionToCashRegister = $this->itemsRepository->userHasPermissionToCashRegister($userUuid, $request->cash_id);
+        $this->requireCashRegisterAccess($request->cash_id);
 
-        if (!$userHasPermissionToCashRegister) {
-            return response()->json([
-                'message' => 'У вас нет прав на эту кассу'
-            ], 403);
-        }
-
-        // Поддержка новой morph-связи источника (заказ, продажа, оприходование)
         $sourceType = null;
         $sourceId = null;
 
-        // Если переданы source_type и source_id напрямую (новая логика)
         if ($request->has('source_type') || $request->has('source_id')) {
             $sourceType = $request->source_type;
             $sourceId = $request->source_id;
         }
-        // Старая логика: если передан order_id, маппим его
         elseif ($request->order_id) {
             $sourceType = Order::class;
             $sourceId = $request->order_id;
         }
 
-        // Валидация минимальной суммы для оплаты заказа (только для Order)
         if ($sourceType === Order::class && $sourceId) {
             $order = Order::find($sourceId);
             if ($order) {
-                // Вычисляем сумму заказа (товары минус скидка)
                 $orderTotal = $order->price - $order->discount;
 
-                // Вычисляем сумму оплаты из транзакций, созданных для этого заказа
-                // Учитываем только реальные платежи (is_debt=0), не долговые транзакции
                 $paidTotal = Transaction::where('source_type', Order::class)
                     ->where('source_id', $order->id)
                     ->where('is_debt', 0)
                     ->sum('orig_amount');
 
-                // Вычисляем оставшуюся сумму к оплате
                 $remainingAmount = $orderTotal - $paidTotal;
 
-                // Проверяем, что указанная сумма не меньше минимальной необходимой
                 if ($request->orig_amount < $remainingAmount) {
                     return response()->json([
                         'message' => "Минимальная сумма оплаты: {$remainingAmount}. Указано: {$request->orig_amount}",
@@ -151,7 +131,6 @@ class TransactionsController extends Controller
             'category_id' => $request->category_id,
             'project_id' => $request->project_id,
             'client_id' => $request->client_id,
-            // morph-источник вместо order_id
             'source_type' => $sourceType,
             'source_id' => $sourceId,
             'note' => $request->note,
@@ -160,36 +139,25 @@ class TransactionsController extends Controller
         ]);
 
         if (!$item_created) {
-            return response()->json([
-                'message' => 'Ошибка создания транзакции'
-            ], 400);
+            return $this->errorResponse('Ошибка создания транзакции', 400);
         }
 
-        // Инвалидируем кэш транзакций
         CacheService::invalidateTransactionsCache();
-        // Инвалидируем кэш клиентов (баланс клиента изменился)
         if ($request->client_id) {
             CacheService::invalidateClientsCache();
         }
-        // Инвалидируем кэш проектов (если транзакция привязана к проекту)
         if ($request->project_id) {
             CacheService::invalidateProjectsCache();
         }
-        // Инвалидируем кэш касс (баланс кассы изменился)
         CacheService::invalidateCashRegistersCache();
 
-        return response()->json([
-            'message' => 'Транзакция создана'
-        ]);
+        return response()->json(['message' => 'Транзакция создана']);
     }
 
     public function update(Request $request, $id)
     {
-        $user = auth('api')->user();
-        $userUuid = optional($user)->id;
-        if (!$userUuid) {
-            return response()->json(array('message' => 'Unauthorized'), 401);
-        }
+        $user = $this->requireAuthenticatedUser();
+        $userUuid = $user->id;
 
         $request->validate([
             'category_id' => 'required|exists:transaction_categories,id',
@@ -206,47 +174,31 @@ class TransactionsController extends Controller
 
         $transaction_exist = Transaction::where('id', $id)->first();
         if (!$transaction_exist) {
-            return response()->json(['message' => 'Транзакция не найдена'], 404);
+            return $this->notFoundResponse('Транзакция не найдена');
         }
 
-        // Проверяем права владельца: если не админ, то можно редактировать только свои записи
         if (!$user->is_admin && $transaction_exist->user_id != $userUuid) {
-            return response()->json([
-                'message' => 'У вас нет прав на редактирование этой транзакции'
-            ], 403);
+            return $this->forbiddenResponse('У вас нет прав на редактирование этой транзакции');
         }
 
-        // Проверяем, не является ли транзакция ограниченной
         if ($this->isRestrictedTransaction($transaction_exist)) {
             $message = $this->getRestrictedTransactionMessage($transaction_exist);
-            return response()->json([
-                'message' => $message
-            ], 403);
+            return $this->forbiddenResponse($message);
         }
 
-        $userHasPermissionToCashRegister = $this->itemsRepository->userHasPermissionToCashRegister($userUuid, $transaction_exist->cash_id);
-
-        if (!$userHasPermissionToCashRegister) {
-            return response()->json([
-                'message' => 'У вас нет прав на эту кассу'
-            ], 403);
-        }
-        // Поддержка изменения привязки к источнику: маппим order_id -> source_type/source_id или используем source_type/source_id напрямую
+        $this->requireCashRegisterAccess($transaction_exist->cash_id);
         $updateSourceType = null;
         $updateSourceId = null;
 
-        // Если переданы source_type и source_id напрямую (новая логика) - приоритет
         if ($request->has('source_type') || $request->has('source_id')) {
             $updateSourceType = $request->input('source_type');
             $updateSourceId = $request->input('source_id');
         }
-        // Старая логика: если передан order_id (но нет новых полей), маппим его
         elseif ($request->has('order_id')) {
             if ($request->order_id) {
                 $updateSourceType = Order::class;
                 $updateSourceId = $request->order_id;
             } else {
-                // Снять привязку к заказу
                 $updateSourceType = null;
                 $updateSourceId = null;
             }
@@ -261,19 +213,15 @@ class TransactionsController extends Controller
             'is_debt' => $request->is_debt ?? false
         ];
 
-        // Добавляем сумму и валюту только если они переданы
         if ($request->has('orig_amount')) {
             $updateData['orig_amount'] = $request->orig_amount;
         } elseif ($request->has('amount')) {
-            // Fallback: если приходит amount (например, из UI), используем его как orig_amount
             $updateData['orig_amount'] = $request->amount;
         }
         if ($request->has('currency_id')) {
             $updateData['currency_id'] = $request->currency_id;
         }
 
-        // Добавляем source_type и source_id если они переданы (включая null для снятия привязки)
-        // Проверяем явно, чтобы можно было снять привязку (передать null)
         if ($request->has('source_type') || $request->has('source_id') || $request->has('order_id')) {
             $updateData['source_type'] = $updateSourceType;
             $updateData['source_id'] = $updateSourceId;
@@ -282,93 +230,65 @@ class TransactionsController extends Controller
         $category_updated = $this->itemsRepository->updateItem($id, $updateData);
 
         if (!$category_updated) {
-            return response()->json([
-                'message' => 'Ошибка обновления транзакции'
-            ], 400);
+            return $this->errorResponse('Ошибка обновления транзакции', 400);
         }
 
-        // Инвалидируем кэш транзакций
         CacheService::invalidateTransactionsCache();
-        // Инвалидируем кэш клиентов (баланс клиента мог измениться)
         if ($request->client_id || $transaction_exist->client_id) {
             CacheService::invalidateClientsCache();
         }
-        // Инвалидируем кэш проектов (если транзакция привязана к проекту)
         if ($request->project_id || $transaction_exist->project_id) {
             CacheService::invalidateProjectsCache();
         }
-        // Инвалидируем кэш касс (баланс кассы мог измениться)
         CacheService::invalidateCashRegistersCache();
 
-        return response()->json([
-            'message' => 'Транзакция обновлена'
-        ]);
+        return response()->json(['message' => 'Транзакция обновлена']);
     }
 
     public function destroy($id)
     {
-        $user = auth('api')->user();
-        $userUuid = optional($user)->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $user = $this->requireAuthenticatedUser();
+        $userUuid = $user->id;
 
         $transaction_exist = Transaction::where('id', $id)->first();
         if (!$transaction_exist) {
-            return response()->json(['message' => 'Транзакция не найдена'], 404);
+            return $this->notFoundResponse('Транзакция не найдена');
         }
 
-        // Проверяем права владельца: если не админ, то можно удалять только свои записи
         if (!$user->is_admin && $transaction_exist->user_id != $userUuid) {
-            return response()->json([
-                'message' => 'У вас нет прав на удаление этой транзакции'
-            ], 403);
+            return $this->forbiddenResponse('У вас нет прав на удаление этой транзакции');
         }
 
-        // Проверяем, не является ли транзакция ограниченной
         if ($this->isRestrictedTransaction($transaction_exist)) {
             $message = $this->getRestrictedTransactionMessage($transaction_exist);
-            return response()->json([
-                'message' => $message
-            ], 403);
+            return $this->forbiddenResponse($message);
         }
 
         $transaction_deleted = $this->itemsRepository->deleteItem($id);
 
         if (!$transaction_deleted) {
-            return response()->json([
-                'message' => 'Ошибка удаления транзакции'
-            ], 400);
+            return $this->errorResponse('Ошибка удаления транзакции', 400);
         }
 
-        // Инвалидируем кэш транзакций
         CacheService::invalidateTransactionsCache();
-        // Инвалидируем кэш клиентов (баланс клиента изменился)
         if ($transaction_exist->client_id) {
             CacheService::invalidateClientsCache();
         }
-        // Инвалидируем кэш проектов (если транзакция была привязана к проекту)
         if ($transaction_exist->project_id) {
             CacheService::invalidateProjectsCache();
         }
-        // Инвалидируем кэш касс (баланс кассы изменился)
         CacheService::invalidateCashRegistersCache();
 
-        return response()->json([
-            'message' => 'Транзакция удалена'
-        ]);
+        return response()->json(['message' => 'Транзакция удалена']);
     }
 
     public function getTotalByOrderId(Request $request)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $orderId = $request->query('order_id');
         if (!$orderId) {
-            return response()->json(['message' => 'order_id is required'], 400);
+            return $this->errorResponse('order_id is required', 400);
         }
 
         $total = $this->itemsRepository->getTotalByOrderId($userUuid, $orderId);
@@ -377,27 +297,20 @@ class TransactionsController extends Controller
 
     public function show($id)
     {
-        $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->itemsRepository->getItemById($id);
         if (!$item) {
-            return response()->json(['message' => 'Not found'], 404);
+            return $this->notFoundResponse('Not found');
         }
         return response()->json(['item' => $item]);
     }
 
     private function isRestrictedTransaction($transaction)
     {
-        // Нельзя редактировать/удалять транзакции, созданные через:
-        // 1. Переводы между кассами
         if ($transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists()) {
             return true;
         }
 
-        // 2. Продажи, заказы, складские поступления и другие источники
-        // Такие транзакции должны управляться только через свои родительские записи
         if ($transaction->source_type && $transaction->source_id) {
             return true;
         }
@@ -407,7 +320,6 @@ class TransactionsController extends Controller
 
     private function getRestrictedTransactionMessage($transaction)
     {
-        // Проверяем тип источника транзакции
         if ($transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists()) {
             return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с переводом между кассами';
         }

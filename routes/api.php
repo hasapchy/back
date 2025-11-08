@@ -21,7 +21,6 @@ use App\Http\Controllers\Api\OrderStatusCategoryController;
 use App\Http\Controllers\Api\TransactionCategoryController;
 use App\Http\Controllers\Api\OrderTransactionController;
 use App\Http\Controllers\Api\OrderAfController;
-use App\Http\Controllers\Api\PerformanceController;
 use App\Http\Controllers\Api\CurrencyHistoryController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\OrderController;
@@ -358,11 +357,4 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::get('user/companies', [App\Http\Controllers\Api\UserCompanyController::class, 'getUserCompanies']);
 
 
-    // performance monitoring
-    Route::get('performance/metrics', [PerformanceController::class, 'getDatabaseMetrics']);
-    Route::get('performance/table-sizes', [PerformanceController::class, 'getTableSizes']);
-    Route::post('performance/test', [PerformanceController::class, 'runPerformanceTest']);
-    Route::get('performance/cache/stats', [PerformanceController::class, 'getCacheStats']);
-    Route::post('performance/cache/clear', [PerformanceController::class, 'clearCache']);
-    Route::get('performance/server-logs', [PerformanceController::class, 'getServerLogs']);
 });

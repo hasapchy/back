@@ -5,35 +5,38 @@ namespace App\Repositories;
 use App\Models\OrderStatus;
 use App\Services\CacheService;
 
-class OrderStatusRepository
+class OrderStatusRepository extends BaseRepository
 {
-    // Пагинация
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
-        // Возвращаем все статусы независимо от владельца категории
-        $items = OrderStatus::with('category')
-            ->paginate($perPage);
-        return $items;
+        $cacheKey = $this->generateCacheKey('order_statuses_paginated', [$userUuid, $perPage]);
+
+        return CacheService::getPaginatedData($cacheKey, function() use ($perPage) {
+            return OrderStatus::with('category')->paginate($perPage);
+        }, 1);
     }
 
-    // Все статусы
     public function getAllItems($userUuid)
     {
-        // Кэшируем справочник статусов заказов на 2 часа
-        return CacheService::getReferenceData('order_statuses_all', function() {
+        $cacheKey = $this->generateCacheKey('order_statuses_all', [$userUuid]);
+
+        return CacheService::getReferenceData($cacheKey, function() {
             return OrderStatus::with('category')->get();
         });
     }
 
     public function createItem($data)
     {
-        return OrderStatus::create($data);
+        $item = OrderStatus::create($data);
+        CacheService::invalidateOrderStatusesCache();
+        return $item;
     }
 
     public function updateItem($id, $data)
     {
         $item = OrderStatus::findOrFail($id);
         $item->update($data);
+        CacheService::invalidateOrderStatusesCache();
         return $item;
     }
 
@@ -41,6 +44,7 @@ class OrderStatusRepository
     {
         $item = OrderStatus::findOrFail($id);
         $item->delete();
+        CacheService::invalidateOrderStatusesCache();
         return true;
     }
 }

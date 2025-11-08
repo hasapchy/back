@@ -3,39 +3,46 @@
 namespace App\Repositories;
 
 use App\Models\OrderAf;
+use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
-class OrderAfRepository
+class OrderAfRepository extends BaseRepository
 {
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null)
     {
-        $query = OrderAf::with(['user:id,name'])
-            ->where('user_id', $userUuid);
+        $cacheKey = $this->generateCacheKey('order_af_paginated', [$userUuid, $perPage, md5((string)$search)]);
 
-        if ($search) {
-            $query->where('name', 'like', "%{$search}%");
-        }
+        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $search) {
+            $query = OrderAf::with(['user:id,name'])
+                ->where('user_id', $userUuid);
 
-        return $query->orderBy('name')->paginate($perPage);
+            if ($search) {
+                $query->where('name', 'like', "%{$search}%");
+            }
+
+            return $query->orderBy('name')->paginate($perPage);
+        }, 1);
     }
 
 
     public function getItemById($id, $userUuid = null)
     {
-        $query = OrderAf::with(['user:id,name']);
+        $cacheKey = $this->generateCacheKey('order_af_item', [$id, $userUuid]);
 
-        if ($userUuid) {
-            $query->where('user_id', $userUuid);
-        }
+        return CacheService::getReferenceData($cacheKey, function() use ($id, $userUuid) {
+            $query = OrderAf::with(['user:id,name']);
 
-        return $query->find($id);
+            if ($userUuid) {
+                $query->where('user_id', $userUuid);
+            }
+
+            return $query->find($id);
+        });
     }
 
     public function createItem($data)
     {
-        try {
-            DB::beginTransaction();
-
+        return DB::transaction(function () use ($data) {
             $field = OrderAf::create([
                 'name' => $data['name'],
                 'type' => $data['type'],
@@ -45,31 +52,22 @@ class OrderAfRepository
                 'user_id' => $data['user_id'],
             ]);
 
-            DB::commit();
+            CacheService::invalidateByLike('%order_af%');
+
             return $field;
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            throw $th;
-        }
+        });
     }
 
     public function updateItem($id, $data, $userUuid = null)
     {
-        try {
-            DB::beginTransaction();
-
-            $field = OrderAf::where('id', $id);
+        return DB::transaction(function () use ($id, $data, $userUuid) {
+            $query = OrderAf::where('id', $id);
 
             if ($userUuid) {
-                $field->where('user_id', $userUuid);
+                $query->where('user_id', $userUuid);
             }
 
-            $field = $field->first();
-
-            if (!$field) {
-                throw new \Exception('Поле не найдено');
-            }
-
+            $field = $query->firstOrFail();
 
             $field->update([
                 'name' => $data['name'],
@@ -79,33 +77,30 @@ class OrderAfRepository
                 'default' => $data['default'] ?? null,
             ]);
 
-            DB::commit();
+            CacheService::invalidateByLike('%order_af%');
+
             return $field;
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            throw $th;
-        }
+        });
     }
 
     public function deleteItem($id, $userUuid = null)
     {
-        $field = OrderAf::where('id', $id);
+        return DB::transaction(function () use ($id, $userUuid) {
+            $query = OrderAf::where('id', $id);
 
-        if ($userUuid) {
-            $field->where('user_id', $userUuid);
-        }
+            if ($userUuid) {
+                $query->where('user_id', $userUuid);
+            }
 
-        $field = $field->first();
+            $field = $query->firstOrFail();
 
-        if (!$field) {
-            throw new \Exception('Поле не найдено');
-        }
+            $field->values()->delete();
+            $field->delete();
 
-        $field->values()->delete();
+            CacheService::invalidateByLike('%order_af%');
 
-        $field->delete();
-
-        return $field;
+            return $field;
+        });
     }
 
     public function getFieldTypes()

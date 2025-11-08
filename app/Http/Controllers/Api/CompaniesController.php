@@ -17,26 +17,17 @@ class CompaniesController extends Controller
     {
         $perPage = $request->get('per_page', 10);
 
-        $companies = Company::select(['id', 'name', 'logo', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold', 'created_at', 'updated_at'])
+        $companies = Company::select(['id', 'name', 'logo', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold', 'rounding_quantity_decimals', 'rounding_quantity_enabled', 'rounding_quantity_direction', 'rounding_quantity_custom_threshold', 'skip_project_order_balance', 'created_at', 'updated_at'])
             ->orderBy('name')
             ->paginate($perPage);
 
-        return response()->json([
-            'data' => $companies->items(),
-            'current_page' => $companies->currentPage(),
-            'last_page' => $companies->lastPage(),
-            'per_page' => $companies->perPage(),
-            'total' => $companies->total(),
-            'from' => $companies->firstItem(),
-            'to' => $companies->lastItem(),
-        ]);
+        return $this->paginatedResponse($companies);
     }
 
     public function store(Request $request)
     {
         $data = $request->all();
 
-        // Обрабатываем boolean поля
         if (isset($data['show_deleted_transactions'])) {
             $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
         }
@@ -44,9 +35,11 @@ class CompaniesController extends Controller
             $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
 
-        // Преобразуем пустую строку в null для rounding_custom_threshold
         if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
             $data['rounding_custom_threshold'] = null;
+        }
+        if (isset($data['rounding_quantity_custom_threshold']) && $data['rounding_quantity_custom_threshold'] === '') {
+            $data['rounding_quantity_custom_threshold'] = null;
         }
 
         $validator = Validator::make($data, [
@@ -56,34 +49,50 @@ class CompaniesController extends Controller
             'rounding_decimals' => 'nullable|integer|min:0|max:5',
             'rounding_enabled' => 'nullable|boolean',
             'rounding_direction' => 'nullable|in:standard,up,down,custom',
-            'rounding_custom_threshold' => 'nullable|numeric|min:0|max:1'
+            'rounding_custom_threshold' => 'nullable|numeric|min:0|max:1',
+            'rounding_quantity_decimals' => 'nullable|integer|min:0|max:5',
+            'rounding_quantity_enabled' => 'nullable|boolean',
+            'rounding_quantity_direction' => 'nullable|in:standard,up,down,custom',
+            'rounding_quantity_custom_threshold' => 'nullable|numeric|min:0|max:1',
+            'skip_project_order_balance' => 'nullable|boolean'
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return $this->validationErrorResponse($validator);
         }
 
-        $data = $request->only(['name', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold']);
+        $data = $request->only(['name', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold', 'rounding_quantity_decimals', 'rounding_quantity_enabled', 'rounding_quantity_direction', 'rounding_quantity_custom_threshold', 'skip_project_order_balance']);
 
-        // Повторно обрабатываем boolean после only()
         if (isset($data['show_deleted_transactions'])) {
             $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
         }
         if (isset($data['rounding_enabled'])) {
             $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
+        if (isset($data['skip_project_order_balance'])) {
+            $data['skip_project_order_balance'] = filter_var($data['skip_project_order_balance'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($data['rounding_quantity_enabled'])) {
+            $data['rounding_quantity_enabled'] = filter_var($data['rounding_quantity_enabled'], FILTER_VALIDATE_BOOLEAN);
+        }
 
-        // Преобразуем пустую строку в null для rounding_custom_threshold после only()
         if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
             $data['rounding_custom_threshold'] = null;
+        }        if (isset($data['rounding_quantity_custom_threshold']) && $data['rounding_quantity_custom_threshold'] === '') {
+            $data['rounding_quantity_custom_threshold'] = null;
         }
-        // Если округление выключено, гасим связанные поля
-        // Проверяем как boolean false, так и строки 'false', '0', 0
         if (isset($data['rounding_enabled'])) {
             $roundingEnabled = $data['rounding_enabled'];
             if ($roundingEnabled === false || $roundingEnabled === 'false' || $roundingEnabled === '0' || $roundingEnabled === 0) {
                 $data['rounding_direction'] = null;
                 $data['rounding_custom_threshold'] = null;
+            }
+        }
+        if (isset($data['rounding_quantity_enabled'])) {
+            $roundingQuantityEnabled = $data['rounding_quantity_enabled'];
+            if ($roundingQuantityEnabled === false || $roundingQuantityEnabled === 'false' || $roundingQuantityEnabled === '0' || $roundingQuantityEnabled === 0) {
+                $data['rounding_quantity_direction'] = null;
+                $data['rounding_quantity_custom_threshold'] = null;
             }
         }
 
@@ -93,7 +102,6 @@ class CompaniesController extends Controller
 
         $company = Company::create($data);
 
-        // Инвалидируем кэш компаний
         CacheService::invalidateCompaniesCache();
 
         return response()->json(['company' => $company]);
@@ -103,17 +111,21 @@ class CompaniesController extends Controller
     {
         $data = $request->all();
 
-        // Обрабатываем boolean поля
         if (isset($data['show_deleted_transactions'])) {
             $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
         }
         if (isset($data['rounding_enabled'])) {
             $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
+        if (isset($data['rounding_quantity_enabled'])) {
+            $data['rounding_quantity_enabled'] = filter_var($data['rounding_quantity_enabled'], FILTER_VALIDATE_BOOLEAN);
+        }
 
-        // Преобразуем пустую строку в null для rounding_custom_threshold
         if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
             $data['rounding_custom_threshold'] = null;
+        }
+        if (isset($data['rounding_quantity_custom_threshold']) && $data['rounding_quantity_custom_threshold'] === '') {
+            $data['rounding_quantity_custom_threshold'] = null;
         }
 
         $validator = Validator::make($data, [
@@ -123,30 +135,41 @@ class CompaniesController extends Controller
             'rounding_decimals' => 'nullable|integer|min:0|max:5',
             'rounding_enabled' => 'nullable|boolean',
             'rounding_direction' => 'nullable|in:standard,up,down,custom',
-            'rounding_custom_threshold' => 'nullable|numeric|min:0|max:1'
+            'rounding_custom_threshold' => 'nullable|numeric|min:0|max:1',
+            'rounding_quantity_decimals' => 'nullable|integer|min:0|max:5',
+            'rounding_quantity_enabled' => 'nullable|boolean',
+            'rounding_quantity_direction' => 'nullable|in:standard,up,down,custom',
+            'rounding_quantity_custom_threshold' => 'nullable|numeric|min:0|max:1',
+            'skip_project_order_balance' => 'nullable|boolean'
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return $this->validationErrorResponse($validator);
         }
 
         $company = Company::findOrFail($id);
-        $data = $request->only(['name', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold']);
+        $data = $request->only(['name', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold', 'rounding_quantity_decimals', 'rounding_quantity_enabled', 'rounding_quantity_direction', 'rounding_quantity_custom_threshold', 'skip_project_order_balance']);
 
-        // Повторно обрабатываем boolean после only()
         if (isset($data['show_deleted_transactions'])) {
             $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
         }
         if (isset($data['rounding_enabled'])) {
             $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
+        if (isset($data['skip_project_order_balance'])) {
+            $data['skip_project_order_balance'] = filter_var($data['skip_project_order_balance'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($data['rounding_quantity_enabled'])) {
+            $data['rounding_quantity_enabled'] = filter_var($data['rounding_quantity_enabled'], FILTER_VALIDATE_BOOLEAN);
+        }
 
-        // Преобразуем пустую строку в null для rounding_custom_threshold после only()
+
         if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
             $data['rounding_custom_threshold'] = null;
         }
-        // Если округление выключено, гасим связанные поля
-        // Проверяем как boolean false, так и строки 'false', '0', 0
+        if (isset($data['rounding_quantity_custom_threshold']) && $data['rounding_quantity_custom_threshold'] === '') {
+            $data['rounding_quantity_custom_threshold'] = null;
+        }
         if (isset($data['rounding_enabled'])) {
             $roundingEnabled = $data['rounding_enabled'];
             if ($roundingEnabled === false || $roundingEnabled === 'false' || $roundingEnabled === '0' || $roundingEnabled === 0) {
@@ -154,9 +177,15 @@ class CompaniesController extends Controller
                 $data['rounding_custom_threshold'] = null;
             }
         }
+        if (isset($data['rounding_quantity_enabled'])) {
+            $roundingQuantityEnabled = $data['rounding_quantity_enabled'];
+            if ($roundingQuantityEnabled === false || $roundingQuantityEnabled === 'false' || $roundingQuantityEnabled === '0' || $roundingQuantityEnabled === 0) {
+                $data['rounding_quantity_direction'] = null;
+                $data['rounding_quantity_custom_threshold'] = null;
+            }
+        }
 
         if ($request->hasFile('logo')) {
-            // Удаляем старый логотип если есть
             if ($company->logo && $company->logo !== 'logo.jpg') {
                 Storage::disk('public')->delete($company->logo);
             }
@@ -171,10 +200,8 @@ class CompaniesController extends Controller
             throw $e;
         }
 
-        // Инвалидируем кэш компаний
         CacheService::invalidateCompaniesCache();
 
-        // Получаем свежие данные из базы
         $company = $company->fresh();
 
         return response()->json(['company' => $company]);
@@ -185,7 +212,6 @@ class CompaniesController extends Controller
         $company = Company::findOrFail($id);
         $company->delete();
 
-        // Инвалидируем кэш компаний
         CacheService::invalidateCompaniesCache();
 
         return response()->json(['message' => 'Company deleted']);

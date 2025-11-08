@@ -7,6 +7,7 @@ class CurrencyHistory extends Model
 {
     protected $fillable = [
         'currency_id',
+        'company_id',
         'exchange_rate',
         'start_date',
         'end_date',
@@ -21,5 +22,21 @@ class CurrencyHistory extends Model
     public function currency()
     {
         return $this->belongsTo(Currency::class);
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * Scope для фильтрации по компании
+     */
+    public function scopeForCompany($query, $companyId = null)
+    {
+        if ($companyId) {
+            return $query->where('company_id', $companyId);
+        }
+        return $query->whereNull('company_id');
     }
 }
