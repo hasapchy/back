@@ -20,7 +20,8 @@ class WarehouseStockRepository extends BaseRepository
             $warehouse_id,
             $category_id,
             $availability,
-            md5($searchNormalized)
+            md5($searchNormalized),
+            'products_only_v3'
         ]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id, $page, $searchNormalized, $availability) {
@@ -65,9 +66,7 @@ class WarehouseStockRepository extends BaseRepository
                 ->leftJoin('categories', 'primary_category.category_id', '=', 'categories.id')
                 ->leftJoin('units', 'products.unit_id', '=', 'units.id')
                 ->where(function ($q) {
-                    $q->where('products.type', 'product')
-                        ->orWhere('products.type', 1)
-                        ->orWhere('products.type', true);
+                    $q->whereIn('products.type', [1, true, '1']);
                 });
 
             if ($category_id) {
