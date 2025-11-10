@@ -177,6 +177,7 @@ class WarehouseReceiptRepository extends BaseRepository
             }
 
             DB::commit();
+            $this->invalidateCaches($data['project_id'] ?? null);
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
@@ -271,6 +272,7 @@ class WarehouseReceiptRepository extends BaseRepository
             }
 
             DB::commit();
+            $this->invalidateCaches($project_id);
         } catch (\Exception $e) {
             DB::rollBack();
             return false;
@@ -282,8 +284,10 @@ class WarehouseReceiptRepository extends BaseRepository
 
     public function deleteItem($receipt_id)
     {
-        return DB::transaction(function () use ($receipt_id) {
+        $projectId = null;
+        $result = DB::transaction(function () use ($receipt_id, &$projectId) {
             $receipt = WhReceipt::findOrFail($receipt_id);
+            $projectId = $receipt->project_id;
 
             foreach (WhReceiptProduct::where('receipt_id', $receipt_id)->get() as $p) {
                 $this->updateStock($receipt->warehouse_id, $p->product_id, -$p->quantity);
@@ -295,6 +299,21 @@ class WarehouseReceiptRepository extends BaseRepository
 
             return true;
         });
+        if ($result) {
+            $this->invalidateCaches($projectId);
+        }
+        return $result;
+    }
+
+    private function invalidateCaches($projectId = null)
+    {
+        CacheService::invalidateWarehouseReceiptsCache();
+        CacheService::invalidateWarehouseStocksCache();
+        CacheService::invalidateProductsCache();
+        CacheService::invalidateClientsCache();
+        if ($projectId) {
+            CacheService::invalidateProjectsCache();
+        }
     }
 
     private function updateStock($warehouse_id, $product_id, $add_quantity)
