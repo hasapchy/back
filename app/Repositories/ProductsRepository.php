@@ -220,9 +220,7 @@ class ProductsRepository extends BaseRepository
             'purchase_price' => $data['purchase_price'] ?? 0.0,
         ]);
 
-        $isProductType = ($product->type === 'product' || $product->type === 1 || $product->type === true);
-
-        if ($isProductType) {
+        if ($this->isProductTypeValue($product->type)) {
             $companyId = $this->getCurrentCompanyId();
 
             if ($companyId) {
@@ -269,6 +267,7 @@ class ProductsRepository extends BaseRepository
     public function updateItem($id, $data)
     {
         $product = Product::find($id);
+        $originalType = $product->type;
         if (isset($data['type'])) {
             $product->type = $data['type'];
         }
@@ -290,6 +289,29 @@ class ProductsRepository extends BaseRepository
             $product->unit_id = $data['unit_id'];
         }
         $product->save();
+        $updatedType = $product->type;
+        if ($originalType !== $updatedType) {
+            if ($this->isProductTypeValue($updatedType)) {
+                $companyId = $this->getCurrentCompanyId();
+                if ($companyId) {
+                    $warehouseIds = Warehouse::where('company_id', $companyId)->pluck('id')->toArray();
+                    foreach ($warehouseIds as $warehouseId) {
+                        WarehouseStock::firstOrCreate(
+                            [
+                                'warehouse_id' => $warehouseId,
+                                'product_id' => $product->id,
+                            ],
+                            [
+                                'quantity' => 0,
+                            ]
+                        );
+                    }
+                }
+            } else {
+                WarehouseStock::where('product_id', $product->id)->delete();
+            }
+            CacheService::invalidateWarehouseStocksCache();
+        }
 
         $prices_data = array();
         if (isset($data['retail_price']) && $data['retail_price'] !== null) {
@@ -397,5 +419,10 @@ class ProductsRepository extends BaseRepository
         CacheService::invalidateProductsCache();
 
         return ['success' => true];
+    }
+
+    private function isProductTypeValue($value): bool
+    {
+        return in_array($value, [1, '1', true, 'product'], true);
     }
 }
