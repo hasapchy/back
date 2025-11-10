@@ -11,6 +11,7 @@ use App\Models\CashRegister;
 use App\Models\User;
 use App\Models\Transaction;
 use App\Models\Project;
+use App\Services\CacheService;
 
 
 class Sale extends Model
