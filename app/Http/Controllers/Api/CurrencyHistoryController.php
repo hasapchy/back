@@ -8,6 +8,7 @@ use App\Models\CurrencyHistory;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Pagination\LengthAwarePaginator;
 class CurrencyHistoryController extends Controller
 {
     public function index(Request $request, $currencyId)
@@ -28,6 +29,9 @@ class CurrencyHistoryController extends Controller
             $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
             $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
+            $page = max((int)$request->get('page', 1), 1);
+            $perPage = max((int)$request->get('per_page', 20), 1);
+
             if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
                 return $this->forbiddenResponse('Нет доступа к этой валюте');
             }
@@ -42,10 +46,25 @@ class CurrencyHistoryController extends Controller
                     ->orderBy('start_date', 'desc')
                     ->get();
             });
+            $historyCollection = collect($history)->values();
+            $total = $historyCollection->count();
+            $items = $historyCollection->forPage($page, $perPage)->values();
+
+            $paginator = new LengthAwarePaginator(
+                $items,
+                $total,
+                $perPage,
+                $page,
+                ['path' => $request->url(), 'pageName' => 'page']
+            );
 
             return response()->json([
                 'currency' => $currency,
-                'history' => $history
+                'history' => $items,
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage()
             ]);
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении истории курсов: ' . $e->getMessage(), 500);

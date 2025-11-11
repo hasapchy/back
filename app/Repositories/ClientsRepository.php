@@ -340,6 +340,7 @@ class ClientsRepository extends BaseRepository
                             ELSE 'transaction'
                         END as source"),
                         'currencies.symbol as currency_symbol',
+                        'currencies.code as currency_code',
                         'cash_registers.name as cash_name'
                     )
                     ->get()
@@ -371,7 +372,8 @@ class ClientsRepository extends BaseRepository
                                 'description' => $description,
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user_name,
-                                'currency_symbol' => $item->currency_symbol,
+                                'currency_symbol' => $item->currency_symbol ?? $defaultCurrencySymbol,
+                                'currency_code' => $item->currency_code,
                                 'cash_name' => $item->cash_name
                             ];
                         } elseif ($item->source === 'transaction') {
@@ -401,7 +403,8 @@ class ClientsRepository extends BaseRepository
                                 'description' => $description,
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user_name,
-                                'currency_symbol' => $item->currency_symbol,
+                                'currency_symbol' => $item->currency_symbol ?? $defaultCurrencySymbol,
+                                'currency_code' => $item->currency_code,
                                 'cash_name' => $item->cash_name
                             ];
                         } elseif ($item->source === 'sale') {
@@ -419,7 +422,8 @@ class ClientsRepository extends BaseRepository
                                 'description' => '🛒 Продажа #' . $saleId . ($item->is_debt ? ' (в кредит)' : ''),
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user_name,
-                                'currency_symbol' => $item->currency_symbol,
+                                'currency_symbol' => $item->currency_symbol ?? $defaultCurrencySymbol,
+                                'currency_code' => $item->currency_code,
                                 'cash_name' => $item->cash_name
                             ];
                         } elseif ($item->source === 'order') {
@@ -443,7 +447,8 @@ class ClientsRepository extends BaseRepository
                                 'description' => $description,
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user_name,
-                                'currency_symbol' => $item->currency_symbol,
+                                'currency_symbol' => $item->currency_symbol ?? $defaultCurrencySymbol,
+                                'currency_code' => $item->currency_code,
                                 'cash_name' => $item->cash_name
                             ];
                         } else {
@@ -461,7 +466,8 @@ class ClientsRepository extends BaseRepository
                                 'description' => $description,
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user_name,
-                                'currency_symbol' => $item->currency_symbol,
+                                'currency_symbol' => $item->currency_symbol ?? $defaultCurrencySymbol,
+                                'currency_code' => $item->currency_code,
                                 'cash_name' => $item->cash_name
                             ];
                         }

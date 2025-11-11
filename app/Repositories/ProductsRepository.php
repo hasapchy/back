@@ -280,6 +280,12 @@ class ProductsRepository extends BaseRepository
         if (isset($data['description'])) {
             $product->description = $data['description'];
         }
+        if (isset($data['sku'])) {
+            $product->sku = $data['sku'];
+        }
+        if (isset($data['barcode'])) {
+            $product->barcode = $data['barcode'];
+        }
         if (isset($data['categories']) && !empty($data['categories'])) {
             $product->categories()->sync($data['categories']);
         } elseif (isset($data['category_id'])) {
