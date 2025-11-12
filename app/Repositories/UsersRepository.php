@@ -24,6 +24,7 @@ class UsersRepository extends BaseRepository
                 'users.email',
                 'users.is_active',
                 'users.hire_date',
+                'users.birthday',
                 'users.position',
                 'users.is_admin',
                 'users.photo',
@@ -65,6 +66,7 @@ class UsersRepository extends BaseRepository
                 'users.email',
                 'users.is_active',
                 'users.hire_date',
+                'users.birthday',
                 'users.position',
                 'users.is_admin',
                 'users.photo',
@@ -90,6 +92,7 @@ class UsersRepository extends BaseRepository
             $user->email    = $data['email'];
             $user->password = Hash::make($data['password']);
             $user->hire_date = $data['hire_date'] ?? null;
+            $user->birthday = $data['birthday'] ?? null;
             $user->is_active = $data['is_active'] ?? true;
             $user->position = $data['position'] ?? null;
             $user->is_admin = $data['is_admin'] ?? false;
@@ -134,6 +137,7 @@ class UsersRepository extends BaseRepository
             $user->name = $data['name'] ?? $user->name;
             $user->email = $data['email'] ?? $user->email;
             $user->hire_date = $data['hire_date'] ?? $user->hire_date;
+            $user->birthday = $data['birthday'] ?? $user->birthday;
             $user->is_active = $data['is_active'] ?? $user->is_active;
             $user->position = $data['position'] ?? $user->position;
             $user->is_admin = $data['is_admin'] ?? $user->is_admin;

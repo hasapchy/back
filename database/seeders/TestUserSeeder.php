@@ -22,6 +22,7 @@ class TestUserSeeder extends Seeder
                 'is_active' => true,
                 'is_admin' => false,
                 'hire_date' => now(),
+                'birthday' => now()->subYears(25),
                 'position' => 'Test Position',
             ]
         );

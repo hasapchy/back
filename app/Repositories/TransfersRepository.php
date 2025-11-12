@@ -4,7 +4,6 @@ namespace App\Repositories;
 
 use App\Models\CashRegister;
 use App\Models\CashTransfer;
-use App\Models\Transaction;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
@@ -17,39 +16,65 @@ class TransfersRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('transfers_paginated', [$userUuid, $perPage]);
 
         return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
-            return DB::table('cash_transfers')
-            ->leftJoin('cash_registers as cash_from', 'cash_transfers.cash_id_from', '=', 'cash_from.id')
-            ->leftJoin('cash_registers as cash_to', 'cash_transfers.cash_id_to', '=', 'cash_to.id')
-            ->leftJoin('currencies as currency_from', 'cash_from.currency_id', '=', 'currency_from.id')
-            ->leftJoin('currencies as currency_to', 'cash_to.currency_id', '=', 'currency_to.id')
-            ->leftJoin('users as users', 'cash_transfers.user_id', '=', 'users.id')
-            ->select(
-                'cash_transfers.id as id',
-                'cash_from.id as cash_from_id',
-                'cash_from.name as cash_from_name',
-                'currency_from.id as currency_from_id',
-                'currency_from.name as currency_from_name',
-                'currency_from.code as currency_from_code',
-                'currency_from.symbol as currency_from_symbol',
-                'cash_to.id as cash_to_id',
-                'cash_to.name as cash_to_name',
-                'currency_to.id as currency_to_id',
-                'currency_to.name as currency_to_name',
-                'currency_to.code as currency_to_code',
-                'currency_to.symbol as currency_to_symbol',
-                'cash_transfers.amount as amount',
-                'users.id as user_id',
-                'users.name as user_name',
-                'cash_transfers.date as date',
-                'cash_transfers.note as note',
+            $query = CashTransfer::query()
+                ->with([
+                    'fromCashRegister' => function ($q) {
+                        $q->select('id', 'name', 'currency_id', 'company_id');
+                    },
+                    'fromCashRegister.currency' => function ($q) {
+                        $q->select('id', 'name', 'code', 'symbol');
+                    },
+                    'toCashRegister' => function ($q) {
+                        $q->select('id', 'name', 'currency_id', 'company_id');
+                    },
+                    'toCashRegister.currency' => function ($q) {
+                        $q->select('id', 'name', 'code', 'symbol');
+                    },
+                    'user:id,name',
+                ])
+                ->select('cash_transfers.*')
+                ->where(function ($q) use ($userUuid) {
+                    $q->whereHas('fromCashRegister.cashRegisterUsers', function ($subQuery) use ($userUuid) {
+                        $subQuery->where('user_id', $userUuid);
+                    })->orWhereHas('toCashRegister.cashRegisterUsers', function ($subQuery) use ($userUuid) {
+                        $subQuery->where('user_id', $userUuid);
+                    });
+                });
 
-            )
+            $query = $this->addCompanyFilterThroughRelation($query, 'fromCashRegister');
+            $query = $this->addCompanyFilterThroughRelation($query, 'toCashRegister');
+
+            $items = $query
+                ->orderByDesc('cash_transfers.id')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
 
-            foreach ($items->items() as $item) {
-                $item->category_id = 17;
-                $item->category_name = 'Перемещение';
-            }
+            $items->getCollection()->transform(function ($transfer) {
+                $fromCash = $transfer->fromCashRegister;
+                $toCash = $transfer->toCashRegister;
+
+                return (object)[
+                    'id' => $transfer->id,
+                    'cash_from_id' => $transfer->cash_id_from,
+                    'cash_from_name' => $fromCash?->name,
+                    'currency_from_id' => $fromCash?->currency?->id,
+                    'currency_from_name' => $fromCash?->currency?->name,
+                    'currency_from_code' => $fromCash?->currency?->code,
+                    'currency_from_symbol' => $fromCash?->currency?->symbol,
+                    'cash_to_id' => $transfer->cash_id_to,
+                    'cash_to_name' => $toCash?->name,
+                    'currency_to_id' => $toCash?->currency?->id,
+                    'currency_to_name' => $toCash?->currency?->name,
+                    'currency_to_code' => $toCash?->currency?->code,
+                    'currency_to_symbol' => $toCash?->currency?->symbol,
+                    'amount' => $transfer->amount,
+                    'user_id' => $transfer->user?->id,
+                    'user_name' => $transfer->user?->name,
+                    'date' => $transfer->date,
+                    'note' => $transfer->note,
+                    'category_id' => 17,
+                    'category_name' => 'Перемещение',
+                ];
+            });
 
             return $items;
         }, (int)$page);

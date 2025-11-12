@@ -60,6 +60,7 @@ class UsersController extends Controller
             'email'    => 'required|string|email|unique:users,email',
             'password' => 'required|string|min:6',
             'hire_date' => 'nullable|date',
+            'birthday' => 'nullable|date',
             'is_active'   => 'nullable|boolean',
             'is_admin'   => 'nullable|boolean',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -125,6 +126,7 @@ class UsersController extends Controller
                 'email'    => "nullable|email|unique:users,email,{$id},id",
                 'password' => 'nullable|string|min:6',
                 'hire_date' => 'nullable|date',
+                'birthday' => 'nullable|date',
                 'is_active'   => 'nullable|boolean',
                 'is_admin'   => 'nullable|boolean',
                 'photo' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
@@ -215,9 +217,13 @@ class UsersController extends Controller
         $user = $request->user();
 
         try {
+            if ($request->has('birthday') && $request->input('birthday') === '') {
+                $request->merge(['birthday' => null]);
+            }
             $data = $request->validate([
                 'name' => 'nullable|string|max:255',
                 'email' => "nullable|email|unique:users,email,{$user->id},id",
+                'birthday' => 'nullable|date',
                 'current_password' => 'nullable|string',
                 'password' => 'nullable|string|min:6',
                 'photo' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
@@ -242,6 +248,10 @@ class UsersController extends Controller
 
         if (isset($data['password'])) {
             $data['password'] = bcrypt($data['password']);
+        }
+
+        if (array_key_exists('birthday', $data) && $data['birthday'] === '') {
+            $data['birthday'] = null;
         }
 
         if (isset($data['permissions']) && is_string($data['permissions'])) {
