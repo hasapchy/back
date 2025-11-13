@@ -34,7 +34,12 @@ class CashRegistersController extends Controller
 
     public function getCashBalance(Request $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $user = $this->requireAuthenticatedUser();
+        $userUuid = $user->id;
+
+        if (!$this->hasPermission('settings_cash_balance_view', $user)) {
+            return $this->forbiddenResponse('Нет доступа к просмотру баланса кассы');
+        }
 
         $cashRegisterIds = $request->query('cash_register_ids', '');
         $all = empty($cashRegisterIds);

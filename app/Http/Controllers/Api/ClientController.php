@@ -66,6 +66,12 @@ class ClientController extends Controller
 
     public function getBalanceHistory($id)
     {
+        $user = $this->requireAuthenticatedUser();
+
+        if (!$this->hasPermission('settings_client_balance_view', $user)) {
+            return $this->forbiddenResponse('Нет доступа к просмотру баланса клиента');
+        }
+
         try {
             $history = $this->itemsRepository->getBalanceHistory($id);
 
