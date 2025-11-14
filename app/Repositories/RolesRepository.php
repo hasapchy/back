@@ -15,7 +15,10 @@ class RolesRepository extends BaseRepository
             ->select(['id', 'name', 'guard_name', 'created_at', 'updated_at']);
 
         if ($search) {
-            $query->where('name', 'like', "%{$search}%");
+            $searchTerm = trim($search);
+            if ($searchTerm) {
+                $query->where('name', 'like', '%' . $searchTerm . '%');
+            }
         }
 
         return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
@@ -35,16 +38,11 @@ class RolesRepository extends BaseRepository
         DB::beginTransaction();
         try {
             $role = Role::create([
-                'name' => $data['name'],
+                'name' => trim($data['name'] ?? ''),
                 'guard_name' => 'api',
             ]);
 
-            if (isset($data['permissions']) && is_array($data['permissions'])) {
-                $permissions = Permission::whereIn('name', $data['permissions'])
-                    ->where('guard_name', 'api')
-                    ->get();
-                $role->syncPermissions($permissions);
-            }
+            $this->syncRolePermissions($role, $data['permissions'] ?? []);
 
             DB::commit();
 
@@ -61,14 +59,17 @@ class RolesRepository extends BaseRepository
         try {
             $role = Role::where('guard_name', 'api')->findOrFail($id);
 
-            $role->name = $data['name'] ?? $role->name;
-            $role->save();
+            if (isset($data['name'])) {
+                $newName = trim($data['name']);
+                if ($role->name === 'admin' && $newName !== 'admin') {
+                    throw new \Exception('Нельзя изменить название роли администратора');
+                }
+                $role->name = $newName;
+                $role->save();
+            }
 
-            if (isset($data['permissions']) && is_array($data['permissions'])) {
-                $permissions = Permission::whereIn('name', $data['permissions'])
-                    ->where('guard_name', 'api')
-                    ->get();
-                $role->syncPermissions($permissions);
+            if (isset($data['permissions'])) {
+                $this->syncRolePermissions($role, $data['permissions']);
             }
 
             DB::commit();
@@ -80,15 +81,88 @@ class RolesRepository extends BaseRepository
         }
     }
 
+    protected function normalizePermissions(array $permissions): array
+    {
+        if (empty($permissions)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($permissions as $perm) {
+            $trimmed = trim($perm);
+            if (!empty($trimmed) && is_string($perm)) {
+                $normalized[] = $trimmed;
+            }
+        }
+
+        if (empty($normalized)) {
+            return [];
+        }
+
+        $normalized = array_unique($normalized);
+        $normalizedMap = array_flip($normalized);
+        $toRemove = [];
+
+        foreach ($normalized as $perm) {
+            if (str_ends_with($perm, '_own')) {
+                $allPerm = str_replace('_own', '_all', $perm);
+                if (isset($normalizedMap[$allPerm])) {
+                    $toRemove[] = $perm;
+                }
+            }
+        }
+
+        return array_values(array_diff($normalized, $toRemove));
+    }
+
+    protected function validatePermissions(array $permissions): array
+    {
+        if (empty($permissions)) {
+            return [];
+        }
+
+        $permissions = array_filter($permissions, fn($p) => is_string($p) && !empty(trim($p)));
+
+        if (empty($permissions)) {
+            return [];
+        }
+
+        $validPermissionNames = Permission::where('guard_name', 'api')
+            ->pluck('name')
+            ->toArray();
+
+        return array_values(array_intersect($permissions, $validPermissionNames));
+    }
+
+    protected function syncRolePermissions(Role $role, $permissions): void
+    {
+        if (!is_array($permissions)) {
+            $role->syncPermissions([]);
+            return;
+        }
+
+        $permissions = $this->normalizePermissions($permissions);
+        $permissions = $this->validatePermissions($permissions);
+
+        $permissionModels = Permission::whereIn('name', $permissions)
+            ->where('guard_name', 'api')
+            ->get();
+
+        $role->syncPermissions($permissionModels);
+    }
+
     public function deleteItem($id)
     {
+        if (empty($id)) {
+            throw new \Exception('ID роли не указан');
+        }
+
         $role = Role::where('guard_name', 'api')->findOrFail($id);
 
         if ($role->name === 'admin') {
             throw new \Exception('Нельзя удалить роль администратора');
         }
 
-        // Проверяем, используется ли роль
         $usersCount = $role->users()->count();
         if ($usersCount > 0) {
             throw new \Exception("Нельзя удалить роль, которая назначена {$usersCount} пользователям");

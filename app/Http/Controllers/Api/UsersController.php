@@ -64,6 +64,16 @@ class UsersController extends Controller
             }
         }
 
+        if (isset($data['position']) && trim($data['position']) === '') {
+            $data['position'] = null;
+        }
+        if (isset($data['hire_date']) && trim($data['hire_date']) === '') {
+            $data['hire_date'] = null;
+        }
+        if (isset($data['birthday']) && trim($data['birthday']) === '') {
+            $data['birthday'] = null;
+        }
+
         $validator = Validator::make($data, [
             'name'     => 'required|string|max:255',
             'email'    => 'required|string|email|unique:users,email',
@@ -144,6 +154,20 @@ class UsersController extends Controller
             }
         }
 
+        $hasPosition = array_key_exists('position', $data);
+        $hasHireDate = array_key_exists('hire_date', $data);
+        $hasBirthday = array_key_exists('birthday', $data);
+
+        if (isset($data['position']) && trim($data['position']) === '') {
+            $data['position'] = null;
+        }
+        if (isset($data['hire_date']) && trim($data['hire_date']) === '') {
+            $data['hire_date'] = null;
+        }
+        if (isset($data['birthday']) && trim($data['birthday']) === '') {
+            $data['birthday'] = null;
+        }
+
         $request->merge($data);
 
         try {
@@ -178,6 +202,9 @@ class UsersController extends Controller
         $companies = $data['companies'] ?? null;
         $roles = $data['roles'] ?? null;
         $companyRoles = $data['company_roles'] ?? null;
+        $position = $data['position'] ?? null;
+        $hireDate = $data['hire_date'] ?? null;
+        $birthday = $data['birthday'] ?? null;
 
         $data = array_filter($data, function ($value) {
             return $value !== null;
@@ -191,6 +218,15 @@ class UsersController extends Controller
         }
         if ($companyRoles !== null) {
             $data['company_roles'] = $companyRoles;
+        }
+        if ($hasPosition) {
+            $data['position'] = $position;
+        }
+        if ($hasHireDate) {
+            $data['hire_date'] = $hireDate;
+        }
+        if ($hasBirthday) {
+            $data['birthday'] = $birthday;
         }
 
         $user = $this->itemsRepository->updateItem($id, $data);

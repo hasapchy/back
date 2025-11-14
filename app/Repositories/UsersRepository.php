@@ -179,10 +179,10 @@ class UsersRepository extends BaseRepository
 
             $user->name = $data['name'] ?? $user->name;
             $user->email = $data['email'] ?? $user->email;
-            $user->hire_date = $data['hire_date'] ?? $user->hire_date;
-            $user->birthday = $data['birthday'] ?? $user->birthday;
+            $user->hire_date = array_key_exists('hire_date', $data) ? $data['hire_date'] : $user->hire_date;
+            $user->birthday = array_key_exists('birthday', $data) ? $data['birthday'] : $user->birthday;
             $user->is_active = $data['is_active'] ?? $user->is_active;
-            $user->position = $data['position'] ?? $user->position;
+            $user->position = array_key_exists('position', $data) ? $data['position'] : $user->position;
             $user->is_admin = $data['is_admin'] ?? $user->is_admin;
 
             if (isset($data['photo'])) {

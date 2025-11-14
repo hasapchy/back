@@ -32,52 +32,92 @@ class RolesController extends Controller
 
     public function show($id)
     {
-        $role = $this->itemsRepository->getItem($id);
-        return response()->json($role);
+        try {
+            $role = $this->itemsRepository->getItem($id);
+            return response()->json($role);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Роль не найдена', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при получении роли', 500);
+        }
     }
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:roles,name,NULL,id,guard_name,api',
-            'permissions' => 'nullable|array',
-            'permissions.*' => 'string|exists:permissions,name,guard_name,api',
-        ]);
+        try {
+            $data = $request->all();
 
-        if ($validator->fails()) {
-            return $this->validationErrorResponse($validator);
+            if (isset($data['name'])) {
+                $data['name'] = trim($data['name']);
+                if (empty($data['name'])) {
+                    return $this->errorResponse('Название роли не может быть пустым', 422);
+                }
+            }
+
+            $validator = Validator::make($data, [
+                'name' => 'required|string|max:255|unique:roles,name,NULL,id,guard_name,api',
+                'permissions' => 'nullable|array|max:1000',
+                'permissions.*' => 'string|exists:permissions,name,guard_name,api',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->validationErrorResponse($validator);
+            }
+
+            $role = $this->itemsRepository->createItem($data);
+
+            CacheService::invalidateUsersCache();
+
+            return response()->json([
+                'message' => 'Роль создана успешно',
+                'role' => $role
+            ], 201);
+        } catch (\Illuminate\Database\QueryException $e) {
+            return $this->errorResponse('Ошибка при создании роли: ' . $e->getMessage(), 500);
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
         }
-
-        $role = $this->itemsRepository->createItem($request->all());
-
-        CacheService::invalidateUsersCache();
-
-        return response()->json([
-            'message' => 'Роль создана успешно',
-            'role' => $role
-        ], 201);
     }
 
     public function update(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:roles,name,' . $id . ',id,guard_name,api',
-            'permissions' => 'nullable|array',
-            'permissions.*' => 'string|exists:permissions,name,guard_name,api',
-        ]);
+        try {
+            $data = $request->all();
 
-        if ($validator->fails()) {
-            return $this->validationErrorResponse($validator);
+            $rules = [
+                'permissions' => 'nullable|array|max:1000',
+                'permissions.*' => 'string|exists:permissions,name,guard_name,api',
+            ];
+
+            if (isset($data['name'])) {
+                $data['name'] = trim($data['name']);
+                if (empty($data['name'])) {
+                    return $this->errorResponse('Название роли не может быть пустым', 422);
+                }
+                $rules['name'] = 'required|string|max:255|unique:roles,name,' . $id . ',id,guard_name,api';
+            }
+
+            $validator = Validator::make($data, $rules);
+
+            if ($validator->fails()) {
+                return $this->validationErrorResponse($validator);
+            }
+
+            $role = $this->itemsRepository->updateItem($id, $data);
+
+            CacheService::invalidateUsersCache();
+
+            return response()->json([
+                'message' => 'Роль обновлена успешно',
+                'role' => $role
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Роль не найдена', 404);
+        } catch (\Illuminate\Database\QueryException $e) {
+            return $this->errorResponse('Ошибка при обновлении роли: ' . $e->getMessage(), 500);
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
         }
-
-        $role = $this->itemsRepository->updateItem($id, $request->all());
-
-        CacheService::invalidateUsersCache();
-
-        return response()->json([
-            'message' => 'Роль обновлена успешно',
-            'role' => $role
-        ]);
     }
 
     public function destroy($id)
@@ -86,9 +126,10 @@ class RolesController extends Controller
             $this->itemsRepository->deleteItem($id);
             CacheService::invalidateUsersCache();
             return response()->json(['message' => 'Роль удалена успешно']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Роль не найдена', 404);
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
     }
 }
-
