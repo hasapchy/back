@@ -29,11 +29,14 @@ class TransactionsRepository extends BaseRepository
                 $showDeleted = $company ? $company->show_deleted_transactions : false;
             }
 
+            /** @var \App\Models\User|null $currentUser */
+            $currentUser = auth('api')->user();
+            $requestCompanyId = $this->getCurrentCompanyId();
             $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';
             $showDeletedKey = $showDeleted ? '1' : '0';
-            $cacheKey = $this->generateCacheKey('transactions_paginated', [$userUuid, $perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeletedKey]);
+            $cacheKey = $this->generateCacheKey('transactions_paginated', [$userUuid, $perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeletedKey, $currentUser?->id, $requestCompanyId]);
 
-            return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeleted) {
+            return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeleted, $currentUser) {
                 $searchNormalized = trim((string)$search);
                 $query = Transaction::with([
                     'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
@@ -54,9 +57,16 @@ class TransactionsRepository extends BaseRepository
                             ->whereColumn('clients.id', 'transactions.client_id')
                             ->limit(1)
                     ])
-                    ->whereHas('cashRegister.cashRegisterUsers', function ($q) use ($userUuid) {
-                        $q->where('user_id', $userUuid);
+                    ->whereHas('cashRegister.cashRegisterUsers', function ($q) use ($userUuid, $currentUser) {
+                        if ($currentUser) {
+                            $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                            $q->where('user_id', $filterUserId);
+                        } else {
+                            $q->where('user_id', $userUuid);
+                        }
                     });
+
+                    $this->applyOwnFilter($query, 'transactions', 'transactions', 'user_id', $currentUser);
 
                 $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
 
@@ -67,53 +77,18 @@ class TransactionsRepository extends BaseRepository
                 $query->when($cash_id, function ($query, $cash_id) {
                         return $query->where('transactions.cash_id', $cash_id);
                     })
-                    ->when($date_filter_type, function ($query, $date_filter_type) use ($start_date, $end_date) {
-                        switch ($date_filter_type) {
-                            case 'today':
-                                return $query->whereBetween('transactions.date', [
-                                    now()->startOfDay()->toDateTimeString(),
-                                    now()->endOfDay()->toDateTimeString()
-                                ]);
-                            case 'yesterday':
-                                return $query->whereBetween('transactions.date', [
-                                    now()->subDay()->startOfDay()->toDateTimeString(),
-                                    now()->subDay()->endOfDay()->toDateTimeString()
-                                ]);
-                            case 'this_week':
-                                return $query->whereBetween('transactions.date', [
-                                    now()->startOfWeek()->toDateTimeString(),
-                                    now()->endOfWeek()->toDateTimeString()
-                                ]);
-                            case 'last_week':
-                                return $query->whereBetween('transactions.date', [
-                                    now()->subWeek()->startOfWeek()->toDateTimeString(),
-                                    now()->subWeek()->endOfWeek()->toDateTimeString()
-                                ]);
-                            case 'this_month':
-                                return $query->whereBetween('transactions.date', [
-                                    now()->startOfMonth()->toDateTimeString(),
-                                    now()->endOfMonth()->toDateTimeString()
-                                ]);
-                            case 'last_month':
-                                return $query->whereBetween('transactions.date', [
-                                    now()->subMonth()->startOfMonth()->toDateTimeString(),
-                                    now()->subMonth()->endOfMonth()->toDateTimeString()
-                                ]);
-                            case 'custom':
-                                if ($start_date && $end_date) {
-                                    return $query->whereBetween('transactions.date', [
-                                        \Carbon\Carbon::parse($start_date)->startOfDay()->toDateTimeString(),
-                                        \Carbon\Carbon::parse($end_date)->endOfDay()->toDateTimeString()
-                                    ]);
-                                } elseif ($start_date) {
-                                    return $query->where('transactions.date', '>=', \Carbon\Carbon::parse($start_date)->startOfDay()->toDateTimeString());
-                                } elseif ($end_date) {
-                                    return $query->where('transactions.date', '<=', \Carbon\Carbon::parse($end_date)->endOfDay()->toDateTimeString());
-                                }
-                                return $query;
-                            default:
-                                return $query;
+                    ->when($date_filter_type && $date_filter_type !== 'all_time', function ($query) use ($date_filter_type, $start_date, $end_date) {
+                        if ($date_filter_type === 'custom') {
+                            if ($start_date && $end_date) {
+                                return $this->applyDateFilter($query, 'custom', $start_date, $end_date, 'transactions.date');
+                            } elseif ($start_date) {
+                                return $query->where('transactions.date', '>=', \Carbon\Carbon::parse($start_date)->startOfDay()->toDateTimeString());
+                            } elseif ($end_date) {
+                                return $query->where('transactions.date', '<=', \Carbon\Carbon::parse($end_date)->endOfDay()->toDateTimeString());
+                            }
+                            return $query;
                         }
+                        return $this->applyDateFilter($query, $date_filter_type, $start_date, $end_date, 'transactions.date');
                     })
                     ->when($order_id, function ($query, $order_id) {
                         return $query->where('source_type', 'App\\Models\\Order')
@@ -812,18 +787,6 @@ class TransactionsRepository extends BaseRepository
     private function isReceipt($transaction)
     {
         return $transaction->source_type === 'App\Models\WhReceipt';
-    }
-
-    public function userHasPermissionToCashRegister($userUuid, $cashRegisterId)
-    {
-        return CashRegister::query()
-            ->where('cash_registers.id', $cashRegisterId)
-            ->whereExists(function ($subQuery) use ($userUuid) {
-                $subQuery->select(DB::raw(1))
-                    ->from('cash_register_users')
-                    ->whereColumn('cash_register_users.cash_register_id', 'cash_registers.id')
-                    ->where('cash_register_users.user_id', $userUuid);
-            })->exists();
     }
 
     public function invalidateTransactionsCache()

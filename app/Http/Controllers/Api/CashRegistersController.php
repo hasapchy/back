@@ -43,7 +43,20 @@ class CashRegistersController extends Controller
 
         $cashRegisterIds = $request->query('cash_register_ids', '');
         $all = empty($cashRegisterIds);
-        $cashRegisterIds = array_map('intval', explode(',', $cashRegisterIds));
+
+        // Если указаны конкретные кассы, проверяем права на каждую
+        if (!empty($cashRegisterIds)) {
+            $ids = array_map('intval', explode(',', $cashRegisterIds));
+            $cashRegisters = \App\Models\CashRegister::whereIn('id', $ids)->get();
+            foreach ($cashRegisters as $cashRegister) {
+                if (!$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
+                    return $this->forbiddenResponse('У вас нет прав на просмотр одной или нескольких касс');
+                }
+            }
+            $cashRegisterIds = $ids;
+        } else {
+            $cashRegisterIds = [];
+        }
 
         $startRaw = $request->query('start_date');
         $endRaw   = $request->query('end_date');
@@ -110,6 +123,16 @@ class CashRegistersController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
+        $cashRegister = \App\Models\CashRegister::find($id);
+        if (!$cashRegister) {
+            return $this->notFoundResponse('Касса не найдена');
+        }
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('cash_registers', 'update', $cashRegister)) {
+            return $this->forbiddenResponse('У вас нет прав на редактирование этой кассы');
+        }
+
         $request->validate([
             'name' => 'required|string',
             'users' => 'required|array',
@@ -132,6 +155,16 @@ class CashRegistersController extends Controller
     public function destroy($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
+
+        $cashRegister = \App\Models\CashRegister::find($id);
+        if (!$cashRegister) {
+            return $this->notFoundResponse('Касса не найдена');
+        }
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('cash_registers', 'delete', $cashRegister)) {
+            return $this->forbiddenResponse('У вас нет прав на удаление этой кассы');
+        }
 
         $category_deleted = $this->itemsRepository->deleteItem($id);
 

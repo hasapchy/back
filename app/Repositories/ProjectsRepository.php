@@ -12,11 +12,14 @@ class ProjectsRepository extends BaseRepository
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null, $clientId = null, $contractType = null)
     {
-        $cacheKey = $this->generateCacheKey('projects_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, $contractType]);
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('projects_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, $contractType, $currentUser?->id, $companyId]);
 
         $ttl = (!$search && $dateFilter === 'all_time' && !$statusId && !$clientId && $contractType === null) ? 1800 : 600;
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId, $clientId, $contractType) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId, $clientId, $contractType, $currentUser) {
             $query = Project::select([
                 'projects.*'
             ])
@@ -57,6 +60,8 @@ class ProjectsRepository extends BaseRepository
                 $query->where('user_id', $userUuid);
             });
 
+            $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
+
             return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
         }, (int)$page);
     }
@@ -65,9 +70,12 @@ class ProjectsRepository extends BaseRepository
 
     public function getAllItems($userUuid, $activeOnly = false)
     {
-        $cacheKey = $this->generateCacheKey('projects_all', [$userUuid, $activeOnly]);
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('projects_all', [$userUuid, $activeOnly, $currentUser?->id, $companyId]);
 
-        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $activeOnly) {
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $activeOnly, $currentUser) {
             $query = Project::select([
                 'projects.*'
             ])
@@ -87,11 +95,13 @@ class ProjectsRepository extends BaseRepository
                 $query->whereNotIn('projects.status_id', [3, 4]);
             }
 
-            return $query->whereHas('projectUsers', function ($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                })
-                ->orderBy('created_at', 'desc')
-                ->get();
+            $query->whereHas('projectUsers', function ($query) use ($userUuid) {
+                $query->where('user_id', $userUuid);
+            });
+
+            $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
+
+            return $query->orderBy('created_at', 'desc')->get();
         }, 1800);
     }
 

@@ -50,11 +50,17 @@ class ProductController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $product = $this->itemsRepository->getItemById($id, $userUuid);
-
+        $product = Product::find($id);
         if (!$product) {
             return $this->notFoundResponse('Product not found');
         }
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('products', 'view', $product)) {
+            return $this->forbiddenResponse('У вас нет прав на просмотр этого товара');
+        }
+
+        $product = $this->itemsRepository->getItemById($id, $userUuid);
 
         return response()->json(['item' => $product]);
     }
@@ -129,6 +135,11 @@ class ProductController extends Controller
             return $this->notFoundResponse('Product not found');
         }
 
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('products', 'update', $product_exist)) {
+            return $this->forbiddenResponse('У вас нет прав на редактирование этого товара');
+        }
+
         if ($request->has('categories')) {
             $categories = $request->input('categories');
             if (is_string($categories)) {
@@ -178,6 +189,16 @@ class ProductController extends Controller
     public function destroy($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
+
+        $product = Product::find($id);
+        if (!$product) {
+            return $this->notFoundResponse('Товар не найден');
+        }
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('products', 'delete', $product)) {
+            return $this->forbiddenResponse('У вас нет прав на удаление этого товара');
+        }
 
         $result = $this->itemsRepository->deleteItem($id);
 

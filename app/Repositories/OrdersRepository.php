@@ -24,9 +24,12 @@ class OrdersRepository extends BaseRepository
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null)
     {
-        $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, 'single']);
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, 'single', $currentUser?->id, $companyId]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $currentUser) {
             $query = Order::select([
                 'orders.*',
                 DB::raw('(orders.price - orders.discount) as total_price')
@@ -49,12 +52,21 @@ class OrdersRepository extends BaseRepository
                     'tempProducts:id,order_id,name,description,quantity,price,unit_id,width,height',
                     'tempProducts.unit:id,name,short_name'
                 ])
-                ->where(function ($q) use ($userUuid) {
-                    $q->whereNull('orders.cash_id')
-                        ->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($userUuid) {
+                ->where(function ($q) use ($userUuid, $currentUser) {
+                    $q->whereNull('orders.cash_id');
+                    if ($currentUser) {
+                        $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                        $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
+                            $subQuery->where('user_id', $filterUserId);
+                        });
+                    } else {
+                        $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($userUuid) {
                             $subQuery->where('user_id', $userUuid);
                         });
+                    }
                 });
+
+            $this->applyOwnFilter($query, 'orders', 'orders', 'user_id', $currentUser);
 
             if ($search && strlen(trim($search)) >= 3) {
                 $searchTrimmed = trim($search);
@@ -1061,18 +1073,6 @@ class OrdersRepository extends BaseRepository
         }
 
         return $this->getAdditionalFields($order->id);
-    }
-
-    public function userHasPermissionToCashRegister($userUuid, $cashRegisterId)
-    {
-        return \App\Models\CashRegister::query()
-            ->where('cash_registers.id', $cashRegisterId)
-            ->whereExists(function ($subQuery) use ($userUuid) {
-                $subQuery->select(DB::raw(1))
-                    ->from('cash_register_users')
-                    ->whereColumn('cash_register_users.cash_register_id', 'cash_registers.id')
-                    ->where('cash_register_users.user_id', $userUuid);
-            })->exists();
     }
 
     public function calculateQuantityFromDimensions($width, $height, $unitShortName, $unitName)

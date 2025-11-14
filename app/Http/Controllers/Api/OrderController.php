@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Repositories\OrdersRepository;
 use App\Repositories\OrderAfRepository;
 use App\Services\CacheService;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -119,8 +120,14 @@ class OrderController extends Controller
             'additional_fields' => $request->additional_fields ?? [],
         ];
 
-        if ($request->cash_id && $request->cash_id !== null) {
-            $this->requireCashRegisterAccess($request->cash_id);
+        $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
+        }
+
+        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        if ($warehouseAccessCheck) {
+            return $warehouseAccessCheck;
         }
 
         try {
@@ -146,6 +153,11 @@ class OrderController extends Controller
         $order = $this->itemRepository->getItemById($id);
         if (!$order) {
             return $this->notFoundResponse('Заказ не найден');
+        }
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('orders', 'update', $order)) {
+            return $this->forbiddenResponse('У вас нет прав на редактирование этого заказа');
         }
 
         $request->validate([
@@ -193,7 +205,6 @@ class OrderController extends Controller
             'category_id' => $categoryId,
             'discount'      => $request->discount  ?? 0,
             'discount_type' => $request->discount_type ?? 'percent',
-            'warehouse_id' => $request->warehouse_id,
             'note'         => $request->note ?? '',
             'description'  => $request->description ?? '',
             'status_id'    => $request->status_id,
@@ -217,8 +228,14 @@ class OrderController extends Controller
             'additional_fields' => $request->additional_fields ?? [],
         ];
 
-        if ($request->cash_id && $request->cash_id !== null) {
-            $this->requireCashRegisterAccess($request->cash_id);
+        $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
+        }
+
+        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        if ($warehouseAccessCheck) {
+            return $warehouseAccessCheck;
         }
 
         try {
@@ -247,8 +264,16 @@ class OrderController extends Controller
             return $this->notFoundResponse('Заказ не найден');
         }
 
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('orders', 'delete', $order)) {
+            return $this->forbiddenResponse('У вас нет прав на удаление этого заказа');
+        }
+
         if ($order->cash_id) {
-            $this->requireCashRegisterAccess($order->cash_id);
+            $cashRegister = \App\Models\CashRegister::find($order->cash_id);
+            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
+                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            }
         }
 
         try {
@@ -276,6 +301,14 @@ class OrderController extends Controller
             'ids.*'     => 'integer|exists:orders,id',
             'status_id' => 'required|integer|exists:order_statuses,id',
         ]);
+
+        // Проверяем права на каждый заказ
+        $orders = Order::whereIn('id', $request->ids)->get();
+        foreach ($orders as $order) {
+            if (!$this->canPerformAction('orders', 'update', $order)) {
+                return $this->forbiddenResponse('У вас нет прав на редактирование одного или нескольких заказов');
+            }
+        }
 
         try {
             $result = $this->itemRepository
@@ -305,8 +338,16 @@ class OrderController extends Controller
             return $this->notFoundResponse('Not found');
         }
 
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('orders', 'view', $item)) {
+            return $this->forbiddenResponse('У вас нет прав на просмотр этого заказа');
+        }
+
         if ($item->cash_id) {
-            $this->requireCashRegisterAccess($item->cash_id);
+            $cashRegister = \App\Models\CashRegister::find($item->cash_id);
+            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
+                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            }
         }
 
         return response()->json(['item' => $item]);

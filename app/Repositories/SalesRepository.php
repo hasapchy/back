@@ -19,10 +19,13 @@ class SalesRepository extends BaseRepository
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $page = 1)
     {
-        $cacheKey = $this->generateCacheKey('sales_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate]);
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('sales_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $currentUser?->id, $companyId]);
         $ttl = $this->getCacheTTL('paginated', $search || $dateFilter !== 'all_time');
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page, $currentUser) {
             $query = Sale::select([
                 'sales.id',
                 'sales.client_id',
@@ -68,6 +71,8 @@ class SalesRepository extends BaseRepository
                         $subQuery->where('user_id', $userUuid);
                     });
             });
+
+            $this->applyOwnFilter($query, 'sales', 'sales', 'user_id', $currentUser);
 
             $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
 

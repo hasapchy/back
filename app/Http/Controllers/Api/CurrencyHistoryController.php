@@ -25,7 +25,7 @@ class CurrencyHistoryController extends Controller
                 return $this->notFoundResponse('Валюта не найдена');
             }
 
-            $userPermissions = $user->permissions->pluck('name')->toArray();
+            $userPermissions = $this->getUserPermissions($user);
             $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
             $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
@@ -85,7 +85,7 @@ class CurrencyHistoryController extends Controller
                 return $this->notFoundResponse('Валюта не найдена');
             }
 
-            $userPermissions = $user->permissions->pluck('name')->toArray();
+            $userPermissions = $this->getUserPermissions($user);
             $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
             $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
@@ -141,7 +141,7 @@ class CurrencyHistoryController extends Controller
                 return $this->notFoundResponse('Валюта не найдена');
             }
 
-            $userPermissions = $user->permissions->pluck('name')->toArray();
+            $userPermissions = $this->getUserPermissions($user);
             $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
             $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
@@ -207,7 +207,7 @@ class CurrencyHistoryController extends Controller
                 return $this->notFoundResponse('Валюта не найдена');
             }
 
-            $userPermissions = $user->permissions->pluck('name')->toArray();
+            $userPermissions = $this->getUserPermissions($user);
             $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
             $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
@@ -252,7 +252,7 @@ class CurrencyHistoryController extends Controller
 
             $companyId = $this->getCurrentCompanyId();
 
-            $userPermissions = $user->permissions->pluck('name')->toArray();
+            $userPermissions = $this->getUserPermissions($user);
             $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
             $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 

@@ -37,6 +37,11 @@ class WarehouseWriteoffController extends Controller
             'products.*.quantity' => 'required|numeric|min:0'
         ]);
 
+        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        if ($warehouseAccessCheck) {
+            return $warehouseAccessCheck;
+        }
+
         $data = array(
             'warehouse_id' => $request->warehouse_id,
             'note' => $request->note ?? '',
@@ -75,6 +80,11 @@ class WarehouseWriteoffController extends Controller
             'products.*.quantity' => 'required|numeric|min:0'
         ]);
 
+        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        if ($warehouseAccessCheck) {
+            return $warehouseAccessCheck;
+        }
+
         $data = array(
             'warehouse_id' => $request->warehouse_id,
             'note' => $request->note ?? '',
@@ -104,6 +114,18 @@ class WarehouseWriteoffController extends Controller
 
     public function destroy($id)
     {
+        $writeoff = \App\Models\WhWriteoff::find($id);
+        if (!$writeoff) {
+            return $this->notFoundResponse('Списание не найдено');
+        }
+
+        if ($writeoff->warehouse_id) {
+            $warehouse = \App\Models\Warehouse::find($writeoff->warehouse_id);
+            if ($warehouse && !$this->canPerformAction('warehouses', 'view', $warehouse)) {
+                return $this->forbiddenResponse('У вас нет прав на этот склад');
+            }
+        }
+
         $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 
         if (!$warehouse_deleted) {

@@ -53,6 +53,16 @@ class SaleController extends Controller
             'products.*.price'      => 'required|numeric|min:0',
         ]);
 
+        $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
+        }
+
+        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        if ($warehouseAccessCheck) {
+            return $warehouseAccessCheck;
+        }
+
         $data = [
             'user_id'       => $userUuid,
             'client_id'     => $request->client_id,
@@ -94,6 +104,12 @@ class SaleController extends Controller
         if (!$item) {
             return $this->notFoundResponse('Not found');
         }
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('sales', 'view', $item)) {
+            return $this->forbiddenResponse('У вас нет прав на просмотр этой продажи');
+        }
+
         return response()->json(['item' => $item]);
     }
 
@@ -107,7 +123,8 @@ class SaleController extends Controller
             return $this->notFoundResponse('Продажа не найдена');
         }
 
-        if (!$user->is_admin && $sale->user_id != $userUuid) {
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('sales', 'delete', $sale)) {
             return $this->forbiddenResponse('У вас нет прав на удаление этой продажи');
         }
 

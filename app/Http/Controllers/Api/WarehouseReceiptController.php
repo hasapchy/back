@@ -54,6 +54,16 @@ class WarehouseReceiptController extends Controller
             'products.*.price' => 'required|numeric|min:0'
         ]);
 
+        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        if ($warehouseAccessCheck) {
+            return $warehouseAccessCheck;
+        }
+
+        $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
+        }
+
         $data = array(
             'client_id' => $request->client_id,
             'warehouse_id' => $request->warehouse_id,
@@ -101,6 +111,21 @@ class WarehouseReceiptController extends Controller
             'date' => 'nullable|date',
             'note' => 'nullable|string',
         ]);
+
+        $receipt = $this->warehouseRepository->getItemById($id, $userUuid);
+        if (!$receipt) {
+            return $this->notFoundResponse('Оприходование не найдено');
+        }
+
+        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        if ($warehouseAccessCheck) {
+            return $warehouseAccessCheck;
+        }
+
+        $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
+        }
 
         $data = [
             'client_id' => $request->client_id,

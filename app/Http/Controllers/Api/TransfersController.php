@@ -37,11 +37,24 @@ class TransfersController extends Controller
             'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001'
         ]);
 
-        $transactions_repository = new TransactionsRepository();
+        $cashRegisterFrom = \App\Models\CashRegister::find($request->cash_id_from);
+        $cashRegisterTo = \App\Models\CashRegister::find($request->cash_id_to);
 
-        if (!$transactions_repository->userHasPermissionToCashRegister($userUuid, $request->cash_id_from) ||
-            !$transactions_repository->userHasPermissionToCashRegister($userUuid, $request->cash_id_to)) {
-            return $this->forbiddenResponse('У вас нет прав на одну или несколько касс');
+        if (!$cashRegisterFrom) {
+            return $this->notFoundResponse('Касса-отправитель не найдена');
+        }
+        if (!$cashRegisterTo) {
+            return $this->notFoundResponse('Касса-получатель не найдена');
+        }
+
+        $cashFromAccessCheck = $this->checkCashRegisterAccess($request->cash_id_from);
+        if ($cashFromAccessCheck) {
+            return $cashFromAccessCheck;
+        }
+
+        $cashToAccessCheck = $this->checkCashRegisterAccess($request->cash_id_to);
+        if ($cashToAccessCheck) {
+            return $cashToAccessCheck;
         }
 
         $item_created = $this->itemsRepository->createItem([
@@ -75,13 +88,29 @@ class TransfersController extends Controller
             'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001'
         ]);
 
-        $transactions_repository = new TransactionsRepository();
+        $transfer = \App\Models\CashTransfer::find($id);
+        if (!$transfer) {
+            return $this->notFoundResponse('Трансфер не найден');
+        }
 
-        if (
-            !$transactions_repository->userHasPermissionToCashRegister($userUuid, $request->cash_id_from) ||
-            !$transactions_repository->userHasPermissionToCashRegister($userUuid, $request->cash_id_to)
-        ) {
-            return $this->forbiddenResponse('Нет прав на кассы');
+        $cashRegisterFrom = \App\Models\CashRegister::find($request->cash_id_from);
+        $cashRegisterTo = \App\Models\CashRegister::find($request->cash_id_to);
+
+        if (!$cashRegisterFrom) {
+            return $this->notFoundResponse('Касса-отправитель не найдена');
+        }
+        if (!$cashRegisterTo) {
+            return $this->notFoundResponse('Касса-получатель не найдена');
+        }
+
+        $cashFromAccessCheck = $this->checkCashRegisterAccess($request->cash_id_from);
+        if ($cashFromAccessCheck) {
+            return $cashFromAccessCheck;
+        }
+
+        $cashToAccessCheck = $this->checkCashRegisterAccess($request->cash_id_to);
+        if ($cashToAccessCheck) {
+            return $cashToAccessCheck;
         }
 
         $updated = $this->itemsRepository->updateItem($id, [

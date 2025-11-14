@@ -27,7 +27,9 @@ class AuthController extends Controller
             return $this->unauthorizedResponse('Unauthorized');
         }
 
+        /** @var User $user */
         $user = auth('api')->user();
+        $user->load('roles', 'permissions');
 
         if (!$user->is_active) {
             auth('api')->logout();
@@ -56,14 +58,20 @@ class AuthController extends Controller
                 'photo' => $user->photo,
                 'is_admin' => $user->is_admin,
                 'roles' => $user->roles->pluck('name')->toArray(),
-                'permissions' => $user->permissions->pluck('name')->toArray()
+                'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
             ]
         ]);
     }
 
     public function me()
     {
+        /** @var User $user */
         $user = auth('api')->user();
+        $user->load('roles', 'permissions');
+
+        $companyId = $this->getCurrentCompanyId();
+        $permissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray() : $user->getAllPermissions()->pluck('name')->toArray();
+        $roles = $companyId ? $user->getRolesForCompany((int)$companyId)->pluck('name')->toArray() : $user->roles->pluck('name')->toArray();
 
         return response()->json([
             'user' => [
@@ -72,10 +80,10 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'photo' => $user->photo,
                 'is_admin' => $user->is_admin,
-                'roles' => $user->roles->pluck('name')->toArray(),
-                'permissions' => $user->permissions->pluck('name')->toArray()
+                'roles' => $roles,
+                'permissions' => $permissions
             ],
-            'permissions' => $user->permissions->pluck('name')->toArray(),
+            'permissions' => $permissions,
         ]);
     }
 
@@ -108,6 +116,7 @@ class AuthController extends Controller
             }
 
             JWTAuth::setToken($refreshToken);
+            /** @var User|null $user */
             $user = JWTAuth::authenticate();
 
             if (!$user) {
@@ -117,6 +126,8 @@ class AuthController extends Controller
             if (!$user->is_active) {
                 return $this->forbiddenResponse('User account is deactivated');
             }
+
+            $user->load('roles', 'permissions');
 
             $newAccessToken = auth('api')->login($user);
             $newRefreshToken = JWTAuth::fromUser($user);
@@ -132,7 +143,8 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'is_admin' => $user->is_admin,
-                    'permissions' => $user->permissions->pluck('name')->toArray()
+                    'roles' => $user->roles->pluck('name')->toArray(),
+                    'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
                 ]
             ]);
         } catch (JWTException $e) {

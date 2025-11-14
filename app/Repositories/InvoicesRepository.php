@@ -53,17 +53,7 @@ class InvoicesRepository extends BaseRepository
             $invoices = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
             foreach ($invoices->items() as $invoice) {
-                if ($invoice->orders) {
-                    foreach ($invoice->orders as $order) {
-                        if ($order->cash && $order->cash->currency) {
-                            $currency = $order->cash->currency;
-                            $order->currency_id = $currency->id;
-                            $order->currency_name = $currency->name;
-                            $order->currency_code = $currency->code;
-                            $order->currency_symbol = $currency->symbol;
-                        }
-                    }
-                }
+                $this->attachCurrencyToOrders($invoice->orders);
             }
 
             return $invoices;
@@ -82,16 +72,8 @@ class InvoicesRepository extends BaseRepository
         ])
             ->find($id);
 
-        if ($invoice && $invoice->orders) {
-            foreach ($invoice->orders as $order) {
-                if ($order->cash && $order->cash->currency) {
-                    $currency = $order->cash->currency;
-                    $order->currency_id = $currency->id;
-                    $order->currency_name = $currency->name;
-                    $order->currency_code = $currency->code;
-                    $order->currency_symbol = $currency->symbol;
-                }
-            }
+        if ($invoice) {
+            $this->attachCurrencyToOrders($invoice->orders);
         }
 
         return $invoice;
@@ -287,4 +269,20 @@ class InvoicesRepository extends BaseRepository
         ];
     }
 
+    protected function attachCurrencyToOrders($orders)
+    {
+        if (!$orders) {
+            return;
+        }
+
+        foreach ($orders as $order) {
+            if ($order->cash && $order->cash->currency) {
+                $currency = $order->cash->currency;
+                $order->currency_id = $currency->id;
+                $order->currency_name = $currency->name;
+                $order->currency_code = $currency->code;
+                $order->currency_symbol = $currency->symbol;
+            }
+        }
+    }
 }

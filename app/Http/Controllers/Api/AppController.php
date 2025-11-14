@@ -24,7 +24,7 @@ class AppController extends Controller
             return $this->unauthorizedResponse();
         }
 
-        $userPermissions = $user->permissions->pluck('name')->toArray();
+        $userPermissions = $this->getUserPermissions($user);
         $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
         $cacheKey = $hasAccessToNonDefaultCurrencies ? 'currencies_all' : 'currencies_default_only';
 

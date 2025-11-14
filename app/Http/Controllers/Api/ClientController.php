@@ -58,6 +58,11 @@ class ClientController extends Controller
                 return $this->notFoundResponse('Client not found');
             }
 
+            // Проверяем права с учетом _all/_own
+            if (!$this->canPerformAction('clients', 'view', $client)) {
+                return $this->forbiddenResponse('У вас нет прав на просмотр этого клиента');
+            }
+
             return response()->json(['item' => $client]);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении клиента: ' . $e->getMessage(), 500);
@@ -84,8 +89,8 @@ class ClientController extends Controller
     public function all()
     {
         try {
-            $items = $this->itemsRepository->getItemsWithPagination(1000, null, false, 1);
-            return response()->json($items->items());
+            $items = $this->itemsRepository->getAllItems();
+            return response()->json($items);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении всех клиентов: ' . $e->getMessage(), 500);
         }
@@ -112,39 +117,14 @@ class ClientController extends Controller
             'discount_type'    => 'nullable|in:fixed,percent',
         ]);
 
-        if (!empty($validatedData['employee_id'])) {
-            $companyId = $this->getCurrentCompanyId();
-            $existingClient = Client::where('employee_id', $validatedData['employee_id'])
-                ;
-
-            if ($companyId) {
-                $existingClient->where('company_id', $companyId);
-            } else {
-                $existingClient->whereNull('company_id');
-            }
-
-            if ($existingClient->exists()) {
-                return $this->errorResponse('Этот пользователь уже привязан к другому клиенту', 422);
-            }
+        $employeeCheck = $this->checkEmployeeIdDuplicate($validatedData['employee_id'] ?? null);
+        if ($employeeCheck) {
+            return $employeeCheck;
         }
 
-        $companyId = $this->getCurrentCompanyId();
-        if (!empty($validatedData['phones'])) {
-            foreach ($validatedData['phones'] as $phone) {
-                $existingPhone = DB::table('clients_phones')
-                    ->join('clients', 'clients_phones.client_id', '=', 'clients.id')
-                    ->where('clients_phones.phone', $phone);
-
-                if ($companyId) {
-                    $existingPhone->where('clients.company_id', $companyId);
-                } else {
-                    $existingPhone->whereNull('clients.company_id');
-                }
-
-                if ($existingPhone->exists()) {
-                    return $this->errorResponse("Телефон {$phone} уже используется другим клиентом в этой компании", 422);
-                }
-            }
+        $phoneCheck = $this->checkPhoneDuplicates($validatedData['phones'] ?? [], null);
+        if ($phoneCheck) {
+            return $phoneCheck;
         }
 
         DB::beginTransaction();
@@ -172,8 +152,6 @@ class ClientController extends Controller
     }
     public function update(Request $request, $id)
     {
-        $user = $this->requireAuthenticatedUser();
-
         $validatedData = $request->validate([
             'first_name'       => 'required|string',
             'is_conflict'      => 'sometimes|nullable|boolean',
@@ -199,44 +177,19 @@ class ClientController extends Controller
                 return $this->notFoundResponse('Клиент не найден');
             }
 
-            if (!$user->is_admin && $existingClient->user_id != $user->id) {
+            // Проверяем права с учетом _all/_own
+            if (!$this->canPerformAction('clients', 'update', $existingClient)) {
                 return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
             }
 
-            if (!empty($validatedData['employee_id'])) {
-                $companyId = $this->getCurrentCompanyId();
-                $duplicateClient = Client::where('employee_id', $validatedData['employee_id'])
-                    ->where('id', '!=', $id);
-
-                if ($companyId) {
-                    $duplicateClient->where('company_id', $companyId);
-                } else {
-                    $duplicateClient->whereNull('company_id');
-                }
-
-                if ($duplicateClient->exists()) {
-                    return $this->errorResponse('Этот пользователь уже привязан к другому клиенту', 422);
-                }
+            $employeeCheck = $this->checkEmployeeIdDuplicate($validatedData['employee_id'] ?? null, $id);
+            if ($employeeCheck) {
+                return $employeeCheck;
             }
 
-            $companyId = $this->getCurrentCompanyId();
-            if (!empty($validatedData['phones'])) {
-                foreach ($validatedData['phones'] as $phone) {
-                    $existingPhone = DB::table('clients_phones')
-                        ->join('clients', 'clients_phones.client_id', '=', 'clients.id')
-                        ->where('clients_phones.phone', $phone)
-                        ->where('clients_phones.client_id', '!=', $id);
-
-                    if ($companyId) {
-                        $existingPhone->where('clients.company_id', $companyId);
-                    } else {
-                        $existingPhone->whereNull('clients.company_id');
-                    }
-
-                    if ($existingPhone->exists()) {
-                        return $this->errorResponse("Телефон {$phone} уже используется другим клиентом в этой компании", 422);
-                    }
-                }
+            $phoneCheck = $this->checkPhoneDuplicates($validatedData['phones'] ?? [], $id);
+            if ($phoneCheck) {
+                return $phoneCheck;
             }
 
             $client = $this->itemsRepository->updateItem($id, $validatedData);
@@ -259,14 +212,13 @@ class ClientController extends Controller
     public function destroy($id)
     {
         try {
-            $user = $this->requireAuthenticatedUser();
-
             $client = Client::find($id);
             if (!$client) {
                 return $this->notFoundResponse('Клиент не найден');
             }
 
-            if (!$user->is_admin && $client->user_id != $user->id) {
+            // Проверяем права с учетом _all/_own
+            if (!$this->canPerformAction('clients', 'delete', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на удаление этого клиента');
             }
 
@@ -303,5 +255,61 @@ class ClientController extends Controller
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при удалении клиента: ' . $e->getMessage(), 500);
         }
+    }
+
+    protected function checkEmployeeIdDuplicate(?int $employeeId, ?int $excludeId = null)
+    {
+        if (empty($employeeId)) {
+            return null;
+        }
+
+        $companyId = $this->getCurrentCompanyId();
+        $query = Client::where('employee_id', $employeeId);
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        } else {
+            $query->whereNull('company_id');
+        }
+
+        if ($query->exists()) {
+            return $this->errorResponse('Этот пользователь уже привязан к другому клиенту', 422);
+        }
+
+        return null;
+    }
+
+    protected function checkPhoneDuplicates(array $phones, ?int $excludeClientId = null)
+    {
+        if (empty($phones)) {
+            return null;
+        }
+
+        $companyId = $this->getCurrentCompanyId();
+        foreach ($phones as $phone) {
+            $query = DB::table('clients_phones')
+                ->join('clients', 'clients_phones.client_id', '=', 'clients.id')
+                ->where('clients_phones.phone', $phone);
+
+            if ($excludeClientId) {
+                $query->where('clients_phones.client_id', '!=', $excludeClientId);
+            }
+
+            if ($companyId) {
+                $query->where('clients.company_id', $companyId);
+            } else {
+                $query->whereNull('clients.company_id');
+            }
+
+            if ($query->exists()) {
+                return $this->errorResponse("Телефон {$phone} уже используется другим клиентом в этой компании", 422);
+            }
+        }
+
+        return null;
     }
 }

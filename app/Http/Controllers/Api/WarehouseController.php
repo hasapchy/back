@@ -55,6 +55,16 @@ class WarehouseController extends Controller
 
     public function update(Request $request, $id)
     {
+        $warehouse = \App\Models\Warehouse::find($id);
+        if (!$warehouse) {
+            return $this->notFoundResponse('Склад не найден');
+        }
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('warehouses', 'update', $warehouse)) {
+            return $this->forbiddenResponse('У вас нет прав на редактирование этого склада');
+        }
+
         $request->validate([
             'name' => 'required|string',
             'users' => 'required|array',
@@ -74,6 +84,16 @@ class WarehouseController extends Controller
 
     public function destroy($id)
     {
+        $warehouse = \App\Models\Warehouse::find($id);
+        if (!$warehouse) {
+            return $this->notFoundResponse('Склад не найден');
+        }
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('warehouses', 'delete', $warehouse)) {
+            return $this->forbiddenResponse('У вас нет прав на удаление этого склада');
+        }
+
         $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 
         if (!$warehouse_deleted) {

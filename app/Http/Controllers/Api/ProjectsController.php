@@ -108,7 +108,8 @@ class ProjectsController extends Controller
             return $this->notFoundResponse('Проект не найден');
         }
 
-        if (!$user->is_admin && $project->user_id != $userUuid) {
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('projects', 'update', $project)) {
             return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
         }
 
@@ -161,6 +162,15 @@ class ProjectsController extends Controller
 
     public function show($id)
     {
+        $project = Project::find($id);
+        if (!$project) {
+            return $this->notFoundResponse('Проект не найден');
+        }
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('projects', 'view', $project)) {
+            return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
+        }
         try {
             $userId = $this->getAuthenticatedUserIdOrFail();
 
@@ -200,6 +210,12 @@ class ProjectsController extends Controller
 
         try {
             $project = Project::findOrFail($id);
+
+            // Проверяем права с учетом _all/_own
+            if (!$this->canPerformAction('projects', 'update', $project)) {
+                return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
+            }
+
             $storedFiles = $project->files ?? [];
 
             foreach ($files as $file) {
@@ -233,8 +249,9 @@ class ProjectsController extends Controller
                 return $this->notFoundResponse('Проект не найден');
             }
 
-            if (!$project->hasUser($userId)) {
-                return $this->forbiddenResponse('Доступ запрещен');
+            // Проверяем права с учетом _all/_own
+            if (!$this->canPerformAction('projects', 'update', $project)) {
+                return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
             }
 
             $filePath = $request->input('path');
@@ -274,13 +291,19 @@ class ProjectsController extends Controller
     public function getBalanceHistory(Request $request, $id)
     {
         try {
+            $project = Project::findOrFail($id);
+
+            // Проверяем права с учетом _all/_own
+            if (!$this->canPerformAction('projects', 'view', $project)) {
+                return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
+            }
+
             if ($request->has('t')) {
                 $this->itemsRepository->invalidateProjectCache($id);
             }
 
             $history = $this->itemsRepository->getBalanceHistory($id);
             $balance = collect($history)->sum('amount');
-            $project = Project::findOrFail($id);
 
             return response()->json([
                 'history' => $history,
@@ -295,6 +318,13 @@ class ProjectsController extends Controller
     public function getDetailedBalance($id)
     {
         try {
+            $project = Project::findOrFail($id);
+
+            // Проверяем права с учетом _all/_own
+            if (!$this->canPerformAction('projects', 'view', $project)) {
+                return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
+            }
+
             $detailedBalance = $this->itemsRepository->getDetailedBalance($id);
 
             return response()->json($detailedBalance);
@@ -308,14 +338,19 @@ class ProjectsController extends Controller
         $user = $this->requireAuthenticatedUser();
         $userUuid = $user->id;
 
+        $project = Project::find($id);
+        if (!$project) {
+            return $this->notFoundResponse('Проект не найден');
+        }
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('projects', 'delete', $project)) {
+            return $this->forbiddenResponse('У вас нет прав на удаление этого проекта');
+        }
+
         $project = $this->itemsRepository->findItemWithRelations($id, $userUuid);
         if (!$project) {
             return $this->notFoundResponse('Проект не найден или доступ запрещен');
-        }
-
-        $projectModel = Project::find($id);
-        if (!$user->is_admin && $projectModel && $projectModel->user_id != $userUuid) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этого проекта');
         }
 
         try {
@@ -342,6 +377,14 @@ class ProjectsController extends Controller
             'ids.*'     => 'integer|exists:projects,id',
             'status_id' => 'required|integer|exists:project_statuses,id',
         ]);
+
+        // Проверяем права на каждый проект
+        $projects = Project::whereIn('id', $request->ids)->get();
+        foreach ($projects as $project) {
+            if (!$this->canPerformAction('projects', 'update', $project)) {
+                return $this->forbiddenResponse('У вас нет прав на редактирование одного или нескольких проектов');
+            }
+        }
 
         try {
             $affected = $this->itemsRepository

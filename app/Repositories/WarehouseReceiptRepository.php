@@ -19,7 +19,10 @@ class WarehouseReceiptRepository extends BaseRepository
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $cacheKey = $this->generateCacheKey('warehouse_receipts_paginated', [$userUuid, $perPage]);
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('warehouse_receipts_paginated', [$userUuid, $perPage, $currentUser?->id, $companyId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
             return $this->buildBaseQuery($userUuid)
@@ -41,8 +44,12 @@ class WarehouseReceiptRepository extends BaseRepository
 
     protected function buildBaseQuery($userUuid)
     {
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+
         $warehouseIds = DB::table('wh_users')
-            ->where('user_id', $userUuid)
+            ->where('user_id', $filterUserId)
             ->pluck('warehouse_id')
             ->toArray();
 

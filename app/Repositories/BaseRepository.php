@@ -259,4 +259,78 @@ abstract class BaseRepository
 
         return app(TransactionsRepository::class)->createItem($transactionData, $returnId, false);
     }
+
+    /**
+     * Получить разрешения текущего пользователя с учетом компании
+     * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
+     * @return array Массив разрешений
+     */
+    protected function getUserPermissionsForCompany($user = null): array
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $user ?? auth('api')->user();
+        if (!$user) {
+            return [];
+        }
+
+        $companyId = $this->getCurrentCompanyId();
+        return $companyId
+            ? $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray()
+            : $user->getAllPermissions()->pluck('name')->toArray();
+    }
+
+    /**
+     * Получить ID пользователя для фильтрации по правам _own/_all
+     * @param string $resource Название ресурса (например, 'cash_registers', 'warehouses')
+     * @param int|null $defaultUserId ID пользователя по умолчанию (если нет разрешений)
+     * @return int ID пользователя для фильтрации
+     */
+    protected function getFilterUserIdForPermission(string $resource, ?int $defaultUserId = null): int
+    {
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        if (!$currentUser) {
+            return $defaultUserId ?? auth('api')->id();
+        }
+
+        $permissions = $this->getUserPermissionsForCompany($currentUser);
+        $hasViewAll = in_array("{$resource}_view_all", $permissions);
+        $hasViewOwn = in_array("{$resource}_view_own", $permissions);
+
+        // Если есть только _own (без _all), используем ID текущего пользователя
+        if (!$hasViewAll && $hasViewOwn) {
+            return $currentUser->id;
+        }
+
+        // Для _all или если нет разрешений - используем defaultUserId
+        return $defaultUserId ?? $currentUser->id;
+    }
+
+    /**
+     * Применить фильтр _own для запроса, если у пользователя есть только разрешение _own (без _all)
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param string $resource Название ресурса (например, 'clients', 'orders', 'projects')
+     * @param string $tableName Имя таблицы (например, 'clients', 'orders')
+     * @param string $userIdColumn Имя колонки с user_id (по умолчанию 'user_id')
+     * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function applyOwnFilter($query, string $resource, string $tableName, string $userIdColumn = 'user_id', $user = null)
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $user ?? auth('api')->user();
+        if (!$user) {
+            return $query;
+        }
+
+        $permissions = $this->getUserPermissionsForCompany($user);
+        $hasViewAll = in_array("{$resource}_view_all", $permissions);
+        $hasViewOwn = in_array("{$resource}_view_own", $permissions);
+
+        if (!$hasViewAll && $hasViewOwn) {
+            $query->where("{$tableName}.{$userIdColumn}", $user->id);
+        }
+
+        return $query;
+    }
 }

@@ -77,12 +77,13 @@ class Controller extends BaseController
     }
 
     /**
-     * Получить права доступа пользователя в виде массива
+     * Получить права доступа пользователя в виде массива с учетом текущей компании
      *
      * @param \App\Models\User|null $user
+     * @param int|null $companyId ID компании (если null, берется из заголовка X-Company-ID)
      * @return array
      */
-    protected function getUserPermissions($user = null)
+    protected function getUserPermissions($user = null, ?int $companyId = null)
     {
         $user = $user ?? $this->getAuthenticatedUser();
 
@@ -90,7 +91,13 @@ class Controller extends BaseController
             return [];
         }
 
-        return $user->permissions->pluck('name')->toArray();
+        $companyId = $companyId ?? $this->getCurrentCompanyId();
+
+        if ($companyId) {
+            return $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray();
+        }
+
+        return $user->getAllPermissions()->pluck('name')->toArray();
     }
 
     /**
@@ -104,6 +111,63 @@ class Controller extends BaseController
     {
         $permissions = $this->getUserPermissions($user);
         return in_array($permission, $permissions);
+    }
+
+    /**
+     * Проверить, есть ли у пользователя право на действие с записью (с учетом _all/_own)
+     *
+     * @param string $resource Ресурс (например, 'users', 'orders')
+     * @param string $action Действие (например, 'view', 'update', 'delete')
+     * @param mixed $record Запись для проверки (должна иметь user_id)
+     * @param \App\Models\User|null $user Пользователь
+     * @return bool
+     */
+    protected function canPerformAction($resource, $action, $record = null, $user = null)
+    {
+        $user = $user ?? $this->getAuthenticatedUser();
+        if (!$user) {
+            return false;
+        }
+
+        $permissions = $this->getUserPermissions($user);
+
+        // Проверяем право на все записи
+        if (in_array("{$resource}_{$action}_all", $permissions)) {
+            return true;
+        }
+
+        // Проверяем право на свои записи
+        if (in_array("{$resource}_{$action}_own", $permissions)) {
+            if ($record) {
+                // Для пользователей проверяем по id
+                if ($resource === 'users' && method_exists($record, 'getKey')) {
+                    return $record->getKey() === $user->id;
+                }
+
+                // Для касс проверяем через связь many-to-many
+                if ($resource === 'cash_registers' && method_exists($record, 'hasUser')) {
+                    return $record->hasUser($user->id);
+                }
+
+                // Для складов проверяем через связь many-to-many
+                if ($resource === 'warehouses' && method_exists($record, 'users')) {
+                    return $record->users()->where('user_id', $user->id)->exists();
+                }
+
+                // Для остальных проверяем по user_id
+                $userId = $record->user_id ?? null;
+                return $userId && $userId === $user->id;
+            }
+            // Если записи нет, считаем что это своя запись
+            return true;
+        }
+
+        // Обратная совместимость: проверяем старое разрешение
+        if (in_array("{$resource}_{$action}", $permissions)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -224,48 +288,6 @@ class Controller extends BaseController
     }
 
     /**
-     * Проверить права доступа к кассе
-     *
-     * @param int $cashId ID кассы
-     * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
-     * @return bool
-     */
-    protected function hasCashRegisterAccess(int $cashId, $user = null): bool
-    {
-        $user = $user ?? $this->requireAuthenticatedUser();
-
-        // Проверяем различные варианты имен репозиториев
-        $repositoryNames = ['itemsRepository', 'itemRepository', 'warehouseRepository', 'ordersRepository', 'transactions_repository'];
-
-        foreach ($repositoryNames as $repoName) {
-            if (property_exists($this, $repoName)) {
-                $repository = $this->$repoName ?? null;
-                if ($repository && is_object($repository) && method_exists($repository, 'userHasPermissionToCashRegister')) {
-                    /** @phpstan-ignore-next-line */
-                    return $repository->userHasPermissionToCashRegister($user->id, $cashId);
-                }
-            }
-        }
-
-        // Или используем прямую проверку через связь
-        return $user->cashRegisters()->where('cash_registers.id', $cashId)->exists();
-    }
-
-    /**
-     * Проверить права доступа к кассе или выбросить исключение
-     *
-     * @param int $cashId ID кассы
-     * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
-     * @throws \Illuminate\Http\Exceptions\HttpResponseException
-     */
-    protected function requireCashRegisterAccess(int $cashId, $user = null): void
-    {
-        if (!$this->hasCashRegisterAccess($cashId, $user)) {
-            abort(403, 'У вас нет прав на эту кассу');
-        }
-    }
-
-    /**
      * Проверить, является ли пользователь владельцем записи или админом
      *
      * @param Model $model Модель для проверки
@@ -323,6 +345,40 @@ class Controller extends BaseController
     protected function errorResponse($message = null, $status = 500)
     {
         return $this->errorResponseByStatus($status, $message);
+    }
+
+    /**
+     * Проверить права доступа к кассе
+     *
+     * @param int|null $cashId ID кассы
+     * @return \Illuminate\Http\JsonResponse|null Возвращает ответ с ошибкой, если нет прав, иначе null
+     */
+    protected function checkCashRegisterAccess(?int $cashId)
+    {
+        if ($cashId) {
+            $cashRegister = \App\Models\CashRegister::find($cashId);
+            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
+                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Проверить права доступа к складу
+     *
+     * @param int|null $warehouseId ID склада
+     * @return \Illuminate\Http\JsonResponse|null Возвращает ответ с ошибкой, если нет прав, иначе null
+     */
+    protected function checkWarehouseAccess(?int $warehouseId)
+    {
+        if ($warehouseId) {
+            $warehouse = \App\Models\Warehouse::find($warehouseId);
+            if ($warehouse && !$this->canPerformAction('warehouses', 'view', $warehouse)) {
+                return $this->forbiddenResponse('У вас нет прав на этот склад');
+            }
+        }
+        return null;
     }
 }
 

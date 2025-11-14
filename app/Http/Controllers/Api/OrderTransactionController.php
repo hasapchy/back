@@ -26,7 +26,10 @@ class OrderTransactionController extends Controller
 
         $userId = $this->getAuthenticatedUserIdOrFail();
         if ($order->cash_id) {
-            $this->requireCashRegisterAccess($order->cash_id);
+            $cashRegister = \App\Models\CashRegister::find($order->cash_id);
+            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
+                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            }
         }
 
         $transaction = Transaction::findOrFail($request->transaction_id);
@@ -48,7 +51,10 @@ class OrderTransactionController extends Controller
 
         $userId = $this->getAuthenticatedUserIdOrFail();
         if ($order->cash_id) {
-            $this->requireCashRegisterAccess($order->cash_id);
+            $cashRegister = \App\Models\CashRegister::find($order->cash_id);
+            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
+                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            }
         }
 
         $trx = Transaction::findOrFail($transactionId);
@@ -67,7 +73,10 @@ class OrderTransactionController extends Controller
 
         $userId = $this->getAuthenticatedUserIdOrFail();
         if ($order->cash_id) {
-            $this->requireCashRegisterAccess($order->cash_id);
+            $cashRegister = \App\Models\CashRegister::find($order->cash_id);
+            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
+                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            }
         }
 
         $transactions = Transaction::where('source_type', Order::class)

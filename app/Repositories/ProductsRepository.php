@@ -38,9 +38,12 @@ class ProductsRepository extends BaseRepository
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $warehouseId = null, $search = null, $categoryId = null)
     {
-        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId]);
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $currentUser?->id, $companyId]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $currentUser) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             if ($categoryId) {
@@ -75,6 +78,8 @@ class ProductsRepository extends BaseRepository
             $query = Product::with(['categories', 'unit', 'prices', 'creator'])
                 ->whereIn('id', $userProductIds)
                 ->where('type', $type);
+
+            $this->applyOwnFilter($query, 'products', 'products', 'user_id', $currentUser);
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -123,7 +128,9 @@ class ProductsRepository extends BaseRepository
 
     public function searchItems($userUuid, $search, $productsOnly = null, $warehouseId = null)
     {
-        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId]);
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $currentUser?->id, $companyId]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);

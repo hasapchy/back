@@ -85,7 +85,14 @@ class TransactionsController extends Controller
             'is_debt' => 'nullable|boolean'
         ]);
 
-        $this->requireCashRegisterAccess($request->cash_id);
+        $cashRegister = \App\Models\CashRegister::find($request->cash_id);
+        if (!$cashRegister) {
+            return $this->notFoundResponse('Касса не найдена');
+        }
+        $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
+        }
 
         $sourceType = null;
         $sourceId = null;
@@ -177,7 +184,8 @@ class TransactionsController extends Controller
             return $this->notFoundResponse('Транзакция не найдена');
         }
 
-        if (!$user->is_admin && $transaction_exist->user_id != $userUuid) {
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('transactions', 'update', $transaction_exist)) {
             return $this->forbiddenResponse('У вас нет прав на редактирование этой транзакции');
         }
 
@@ -186,7 +194,10 @@ class TransactionsController extends Controller
             return $this->forbiddenResponse($message);
         }
 
-        $this->requireCashRegisterAccess($transaction_exist->cash_id);
+        $cashAccessCheck = $this->checkCashRegisterAccess($transaction_exist->cash_id);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
+        }
         $updateSourceType = null;
         $updateSourceId = null;
 
@@ -255,7 +266,8 @@ class TransactionsController extends Controller
             return $this->notFoundResponse('Транзакция не найдена');
         }
 
-        if (!$user->is_admin && $transaction_exist->user_id != $userUuid) {
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('transactions', 'delete', $transaction_exist)) {
             return $this->forbiddenResponse('У вас нет прав на удаление этой транзакции');
         }
 
@@ -297,6 +309,16 @@ class TransactionsController extends Controller
 
     public function show($id)
     {
+        $transaction = Transaction::find($id);
+        if (!$transaction) {
+            return $this->notFoundResponse('Транзакция не найдена');
+        }
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('transactions', 'view', $transaction)) {
+            return $this->forbiddenResponse('У вас нет прав на просмотр этой транзакции');
+        }
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->itemsRepository->getItemById($id);
         if (!$item) {

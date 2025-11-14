@@ -13,9 +13,12 @@ class TransfersRepository extends BaseRepository
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $cacheKey = $this->generateCacheKey('transfers_paginated', [$userUuid, $perPage]);
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('transfers_paginated', [$userUuid, $perPage, $currentUser?->id, $companyId]);
 
-        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
+        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page, $currentUser) {
             $query = CashTransfer::query()
                 ->with([
                     'fromCashRegister' => function ($q) {
@@ -33,12 +36,21 @@ class TransfersRepository extends BaseRepository
                     'user:id,name',
                 ])
                 ->select('cash_transfers.*')
-                ->where(function ($q) use ($userUuid) {
-                    $q->whereHas('fromCashRegister.cashRegisterUsers', function ($subQuery) use ($userUuid) {
-                        $subQuery->where('user_id', $userUuid);
-                    })->orWhereHas('toCashRegister.cashRegisterUsers', function ($subQuery) use ($userUuid) {
-                        $subQuery->where('user_id', $userUuid);
-                    });
+                ->where(function ($q) use ($userUuid, $currentUser) {
+                    if ($currentUser) {
+                        $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                        $q->whereHas('fromCashRegister.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
+                            $subQuery->where('user_id', $filterUserId);
+                        })->orWhereHas('toCashRegister.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
+                            $subQuery->where('user_id', $filterUserId);
+                        });
+                    } else {
+                        $q->whereHas('fromCashRegister.cashRegisterUsers', function ($subQuery) use ($userUuid) {
+                            $subQuery->where('user_id', $userUuid);
+                        })->orWhereHas('toCashRegister.cashRegisterUsers', function ($subQuery) use ($userUuid) {
+                            $subQuery->where('user_id', $userUuid);
+                        });
+                    }
                 });
 
             $query = $this->addCompanyFilterThroughRelation($query, 'fromCashRegister');

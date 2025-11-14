@@ -13,9 +13,12 @@ class ClientsRepository extends BaseRepository
 
     public function getItemsWithPagination($perPage = 10, $search = null, $includeInactive = false, $page = 1, $statusFilter = null, $typeFilter = null)
     {
-        $cacheKey = $this->generateCacheKey('clients_paginated', [$perPage, $search, $includeInactive, $statusFilter, $typeFilter]);
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('clients_paginated', [$perPage, $search, $includeInactive, $statusFilter, $typeFilter, $currentUser?->id, $companyId]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter, $currentUser) {
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
@@ -30,6 +33,8 @@ class ClientsRepository extends BaseRepository
             $companyId = $this->getCurrentCompanyId();
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
+
+            $this->applyOwnFilter($query, 'clients', 'clients', 'user_id', $currentUser);
 
             if (!$includeInactive) {
                 $query->where('clients.status', true);
@@ -70,10 +75,43 @@ class ClientsRepository extends BaseRepository
         }, (int)$page);
     }
 
+    public function getAllItems()
+    {
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId]);
+
+        return CacheService::remember($cacheKey, function () use ($currentUser) {
+            $query = Client::with([
+                'phones:id,client_id,phone',
+                'emails:id,client_id,email',
+                'user:id,name,photo',
+                'employee:id,name,photo'
+            ])
+                ->select([
+                    'clients.*',
+                    'clients.balance as balance'
+                ])
+                ->where('clients.status', true);
+
+            $query = $this->addCompanyFilterDirect($query, 'clients');
+
+            $this->applyOwnFilter($query, 'clients', 'clients', 'user_id', $currentUser);
+
+            $query->orderBy('clients.created_at', 'desc');
+
+            return $query->get();
+        }, 1800);
+    }
+
     function searchClient(string $search_request)
     {
-        $cacheKey = $this->generateCacheKey('clients_search_' . md5($search_request), []);
-        return CacheService::rememberSearch($cacheKey, function () use ($search_request) {
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('clients_search_' . md5($search_request), [$currentUser?->id, $companyId]);
+        return CacheService::rememberSearch($cacheKey, function () use ($search_request, $currentUser) {
             $searchTerms = explode(' ', $search_request);
 
             $query = Client::with([
@@ -89,6 +127,8 @@ class ClientsRepository extends BaseRepository
                 ->where('clients.status', true);
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
+
+            $this->applyOwnFilter($query, 'clients', 'clients', 'user_id', $currentUser);
 
             $query->where(function ($q) use ($searchTerms) {
                 foreach ($searchTerms as $term) {

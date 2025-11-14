@@ -30,18 +30,38 @@ class PermissionsSeeder extends Seeder
             'transaction_categories',
             'invoices',
             'users',
+            'roles',
             'companies',
             'currency_history',
         ];
 
         $actions = ['view', 'create', 'update', 'delete'];
+        $scopeActions = ['view', 'update', 'delete']; // Действия, для которых нужны _all и _own
 
         foreach ($resources as $resource) {
             foreach ($actions as $action) {
-                Permission::firstOrCreate([
-                    'name' => "{$resource}_{$action}",
-                    'guard_name' => 'api',
-                ]);
+                if (in_array($action, $scopeActions)) {
+                    // Создаем разрешения с _all и _own для view, update, delete
+                    Permission::firstOrCreate([
+                        'name' => "{$resource}_{$action}_all",
+                        'guard_name' => 'api',
+                    ]);
+                    Permission::firstOrCreate([
+                        'name' => "{$resource}_{$action}_own",
+                        'guard_name' => 'api',
+                    ]);
+                    // Оставляем старое разрешение для обратной совместимости
+                    Permission::firstOrCreate([
+                        'name' => "{$resource}_{$action}",
+                        'guard_name' => 'api',
+                    ]);
+                } else {
+                    // Для create оставляем как есть
+                    Permission::firstOrCreate([
+                        'name' => "{$resource}_{$action}",
+                        'guard_name' => 'api',
+                    ]);
+                }
             }
         }
 

@@ -13,6 +13,10 @@ class WarehouseStockRepository extends BaseRepository
 
     public function getItemsWithPagination($userUuid, $perPage = 20, $warehouse_id = null, $category_id = null, $page = 1, $search = null, $availability = null)
     {
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
         $searchNormalized = trim((string)$search);
         $cacheKey = $this->generateCacheKey('warehouse_stocks_paginated', [
             $userUuid,
@@ -21,12 +25,14 @@ class WarehouseStockRepository extends BaseRepository
             $category_id,
             $availability,
             md5($searchNormalized),
-            'products_only_v3'
+            'products_only_v3',
+            $currentUser?->id,
+            $companyId
         ]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id, $page, $searchNormalized, $availability) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($filterUserId, $perPage, $warehouse_id, $category_id, $page, $searchNormalized, $availability) {
             $userWarehouseIds = DB::table('wh_users')
-                ->where('user_id', $userUuid)
+                ->where('user_id', $filterUserId)
                 ->pluck('warehouse_id')
                 ->toArray();
 
@@ -144,12 +150,16 @@ class WarehouseStockRepository extends BaseRepository
 
     public function getTotalQuantityByWarehouse($userUuid, $warehouse_id = null)
     {
-        $cacheKey = $this->generateCacheKey('warehouse_stocks_total', [$userUuid, $warehouse_id]);
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+        $cacheKey = $this->generateCacheKey('warehouse_stocks_total', [$userUuid, $warehouse_id, $currentUser?->id, $companyId]);
 
-        return CacheService::remember($cacheKey, function () use ($userUuid, $warehouse_id) {
+        return CacheService::remember($cacheKey, function () use ($filterUserId, $warehouse_id) {
             $query = WarehouseStock::leftJoin('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id')
                 ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
-                ->where('wh_users.user_id', $userUuid);
+                ->where('wh_users.user_id', $filterUserId);
 
             if ($warehouse_id) {
                 $query->where('warehouse_stocks.warehouse_id', $warehouse_id);

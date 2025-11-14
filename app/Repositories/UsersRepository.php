@@ -13,11 +13,14 @@ class UsersRepository extends BaseRepository
 
     public function getItemsWithPagination($page = 1, $perPage = 20, $search = null, $statusFilter = null)
     {
-        $cacheKey = $this->generateCacheKey('users_paginated', [$perPage, $search, $statusFilter]);
+        /** @var User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('users_paginated', [$perPage, $search, $statusFilter, $currentUser?->id, $companyId]);
 
         $ttl = (!$search && !$statusFilter) ? 1800 : 600;
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $statusFilter, $page) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $statusFilter, $page, $currentUser) {
             $query = User::select([
                 'users.id',
                 'users.name',
@@ -38,6 +41,22 @@ class UsersRepository extends BaseRepository
                     'companies:id,name'
                 ]);
 
+            // Фильтрация по компании: показываем только пользователей, связанных с текущей компанией
+            $companyId = $this->getCurrentCompanyId();
+            if ($companyId) {
+                $query->whereHas('companies', function ($q) use ($companyId) {
+                    $q->where('companies.id', $companyId);
+                });
+            }
+
+            if ($currentUser) {
+                $permissions = $this->getUserPermissionsForCompany($currentUser);
+                $hasViewAll = in_array('users_view_all', $permissions) || in_array('users_view', $permissions);
+                if (!$hasViewAll && in_array('users_view_own', $permissions)) {
+                    $query->where('users.id', $currentUser->id);
+                }
+            }
+
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('users.name', 'like', "%{$search}%")
@@ -50,17 +69,27 @@ class UsersRepository extends BaseRepository
                 $query->where('users.is_active', $statusFilter);
             }
 
-            return $query->orderBy('users.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+            $paginated = $query->orderBy('users.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+
+            $companyId = $this->getCurrentCompanyId();
+            $paginated->getCollection()->transform(function ($user) use ($companyId) {
+                return $this->transformUserWithRelations($user, $companyId);
+            });
+
+            return $paginated;
         }, (int)$page);
     }
 
 
     public function getAllItems()
     {
-        $cacheKey = $this->generateCacheKey('users_all', []);
+        /** @var User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('users_all', [$currentUser?->id, $companyId]);
 
-        return CacheService::getReferenceData($cacheKey, function () {
-            return User::select([
+        return CacheService::getReferenceData($cacheKey, function () use ($currentUser, $companyId) {
+            $query = User::select([
                 'users.id',
                 'users.name',
                 'users.email',
@@ -77,9 +106,28 @@ class UsersRepository extends BaseRepository
                     'roles:id,name',
                     'permissions:id,name',
                     'companies:id,name'
-                ])
-                ->orderBy('users.created_at', 'desc')
-                ->get();
+                ]);
+
+            // Фильтрация по компании: показываем только пользователей, связанных с текущей компанией
+            if ($companyId) {
+                $query->whereHas('companies', function ($q) use ($companyId) {
+                    $q->where('companies.id', $companyId);
+                });
+            }
+
+            if ($currentUser) {
+                $permissions = $this->getUserPermissionsForCompany($currentUser);
+                $hasViewAll = in_array('users_view_all', $permissions) || in_array('users_view', $permissions);
+                if (!$hasViewAll && in_array('users_view_own', $permissions)) {
+                    $query->where('users.id', $currentUser->id);
+                }
+            }
+
+            $users = $query->orderBy('users.created_at', 'desc')->get();
+
+            return $users->map(function ($user) use ($companyId) {
+                return $this->transformUserWithRelations($user, $companyId);
+            });
         });
     }
 
@@ -103,24 +151,19 @@ class UsersRepository extends BaseRepository
 
             $user->save();
 
-            if (isset($data['permissions'])) {
-                $user->syncPermissions($data['permissions']);
-            }
-
-            if (isset($data['roles'])) {
-                $user->syncRoles($data['roles']);
-            }
-
             if (isset($data['companies'])) {
                 $user->companies()->sync($data['companies']);
             }
 
+            $this->syncUserRoles($user, $data);
+
             DB::commit();
 
-            // Инвалидируем кэш пользователей
+            $this->loadUserRelations($user);
+
             $this->invalidateUsersCache();
 
-            return $user->load(['permissions', 'roles', 'companies']);
+            return $user;
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -152,27 +195,76 @@ class UsersRepository extends BaseRepository
 
             $user->save();
 
-            if (isset($data['permissions'])) {
-                $user->syncPermissions($data['permissions']);
-            }
-
-            if (isset($data['roles'])) {
-                $user->syncRoles($data['roles']);
-            }
-
             if (isset($data['companies'])) {
                 $user->companies()->sync($data['companies']);
             }
 
+            $this->syncUserRoles($user, $data);
+
             DB::commit();
+
+            $this->loadUserRelations($user);
 
             $this->invalidateUsersCache();
 
-            return $user->load(['permissions', 'roles', 'companies']);
+            return $user;
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
         }
+    }
+
+    protected function syncUserRoles(User $user, array $data): void
+    {
+        if (isset($data['company_roles']) && is_array($data['company_roles'])) {
+            DB::table('company_user_role')->where('user_id', $user->id)->delete();
+
+            $selectedCompanyIds = isset($data['companies']) && is_array($data['companies']) ? $data['companies'] : [];
+
+            foreach ($data['company_roles'] as $companyRole) {
+                if (isset($companyRole['company_id']) && isset($companyRole['role_ids']) && is_array($companyRole['role_ids'])) {
+                    if (empty($selectedCompanyIds) || in_array($companyRole['company_id'], $selectedCompanyIds)) {
+                        foreach ($companyRole['role_ids'] as $roleName) {
+                            $role = Role::where('name', $roleName)->where('guard_name', 'api')->first();
+                            if ($role) {
+                                DB::table('company_user_role')->insert([
+                                    'company_id' => $companyRole['company_id'],
+                                    'user_id' => $user->id,
+                                    'role_id' => $role->id,
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
+        } elseif (isset($data['roles'])) {
+            $user->syncRoles($data['roles']);
+        }
+    }
+
+    protected function loadUserRelations(User $user): void
+    {
+        $companyId = $this->getCurrentCompanyId();
+        $user->setRelation('permissions', $companyId ? $user->getAllPermissionsForCompany((int)$companyId) : $user->getAllPermissions());
+        if ($companyId) {
+            $user->setRelation('roles', $user->getRolesForCompany((int)$companyId));
+        } else {
+            $user->load(['roles']);
+        }
+        $user->load(['companies']);
+        $user->company_roles = $user->getAllCompanyRoles();
+    }
+
+    protected function transformUserWithRelations(User $user, ?int $companyId): User
+    {
+        $user->setRelation('permissions', $companyId ? $user->getAllPermissionsForCompany((int)$companyId) : $user->getAllPermissions());
+        if ($companyId) {
+            $user->setRelation('roles', $user->getRolesForCompany((int)$companyId));
+        }
+        $user->company_roles = $user->getAllCompanyRoles();
+        return $user;
     }
 
     public function deleteItem($id)

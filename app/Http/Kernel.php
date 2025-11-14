@@ -66,6 +66,7 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+        'permission.scope' => \App\Http\Middleware\PermissionWithScopeMiddleware::class,
         'role'       => \Spatie\Permission\Middleware\RoleMiddleware::class,
         'time.restriction' => \App\Http\Middleware\CheckTimeRestriction::class,
         'prevent.basement' => \App\Http\Middleware\PreventBasementAccess::class,

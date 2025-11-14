@@ -39,6 +39,16 @@ class WarehouseMovementController extends Controller
             'products.*.quantity' => 'required|numeric|min:0'
         ]);
 
+        $warehouseFromAccessCheck = $this->checkWarehouseAccess($request->warehouse_from_id);
+        if ($warehouseFromAccessCheck) {
+            return $warehouseFromAccessCheck;
+        }
+
+        $warehouseToAccessCheck = $this->checkWarehouseAccess($request->warehouse_to_id);
+        if ($warehouseToAccessCheck) {
+            return $warehouseToAccessCheck;
+        }
+
         $data = array(
             'warehouse_from_id' => $request->warehouse_from_id,
             'warehouse_to_id' => $request->warehouse_to_id,
@@ -82,6 +92,16 @@ class WarehouseMovementController extends Controller
             'products.*.quantity' => 'required|numeric|min:0'
         ]);
 
+        $warehouseFromAccessCheck = $this->checkWarehouseAccess($request->warehouse_from_id);
+        if ($warehouseFromAccessCheck) {
+            return $warehouseFromAccessCheck;
+        }
+
+        $warehouseToAccessCheck = $this->checkWarehouseAccess($request->warehouse_to_id);
+        if ($warehouseToAccessCheck) {
+            return $warehouseToAccessCheck;
+        }
+
         $data = array(
             'warehouse_from_id' => $request->warehouse_from_id,
             'warehouse_to_id' => $request->warehouse_to_id,
@@ -113,6 +133,25 @@ class WarehouseMovementController extends Controller
 
     public function destroy($id)
     {
+        $movement = \App\Models\WhMovement::find($id);
+        if (!$movement) {
+            return $this->notFoundResponse('Перемещение не найдено');
+        }
+
+        if ($movement->wh_from) {
+            $warehouseFrom = \App\Models\Warehouse::find($movement->wh_from);
+            if ($warehouseFrom && !$this->canPerformAction('warehouses', 'view', $warehouseFrom)) {
+                return $this->forbiddenResponse('У вас нет прав на склад-отправитель');
+            }
+        }
+
+        if ($movement->wh_to) {
+            $warehouseTo = \App\Models\Warehouse::find($movement->wh_to);
+            if ($warehouseTo && !$this->canPerformAction('warehouses', 'view', $warehouseTo)) {
+                return $this->forbiddenResponse('У вас нет прав на склад-получатель');
+            }
+        }
+
         $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 
         if (!$warehouse_deleted) {

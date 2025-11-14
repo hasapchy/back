@@ -11,10 +11,13 @@ class WarehouseRepository extends BaseRepository
 
     public function getWarehousesWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $cacheKey = $this->generateCacheKey('warehouses_paginated', [$userUuid, $perPage]);
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('warehouses_paginated', [$userUuid, $perPage, $currentUser?->id, $companyId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
-            $warehouseIds = WhUser::where('user_id', $userUuid)
+            $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+            $warehouseIds = WhUser::where('user_id', $filterUserId)
                 ->pluck('warehouse_id')
                 ->toArray();
 
@@ -34,10 +37,13 @@ class WarehouseRepository extends BaseRepository
 
     public function getAllItems($userUuid)
     {
-        $cacheKey = $this->generateCacheKey('warehouses_all', [$userUuid]);
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('warehouses_all', [$userUuid, $currentUser?->id, $companyId]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($userUuid) {
-            $warehouseIds = WhUser::where('user_id', $userUuid)
+            $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+            $warehouseIds = WhUser::where('user_id', $filterUserId)
                 ->pluck('warehouse_id')
                 ->toArray();
 
@@ -45,12 +51,12 @@ class WarehouseRepository extends BaseRepository
                 return collect([]);
             }
 
-            $query = Warehouse::whereIn('id', $warehouseIds);
+            $query = Warehouse::whereIn('id', $warehouseIds)
+                ->with(['users:id,name,email']);
 
             $query = $this->addCompanyFilterDirect($query, 'warehouses');
 
             return $query
-                ->with(['users:id,name,email'])
                 ->orderBy('name', 'asc')
                 ->get();
         });

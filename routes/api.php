@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\ProjectStatusController;
+use App\Http\Controllers\Api\RolesController;
 
 // Маршруты авторизации с ограничением 10 запросов в минуту
 Route::middleware(['throttle:auth'])->group(function () {
@@ -108,13 +109,21 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     // users
     // Route::middleware('permission:users_view')->get('users', [UsersController::class, 'index']);
     // Route::middleware('permission:users_view')->get('users/all', [UsersController::class, 'getAllUsers']);
-    Route::get('users', [UsersController::class, 'index']);
-    Route::get('users/all', [UsersController::class, 'getAllUsers']);
+    Route::middleware('permission.scope:users_view_all,users_view')->get('users', [UsersController::class, 'index']);
+    Route::middleware('permission.scope:users_view_all,users_view')->get('users/all', [UsersController::class, 'getAllUsers']);
     Route::middleware('permission:users_create')->post('users', [UsersController::class, 'store']);
-    Route::middleware('permission:users_update')->put('users/{id}', [UsersController::class, 'update']);
-    Route::middleware('permission:users_delete')->delete('users/{id}', [UsersController::class, 'destroy']);
+    Route::middleware('permission.scope:users_update_all,users_update')->put('users/{id}', [UsersController::class, 'update']);
+    Route::middleware('permission.scope:users_delete_all,users_delete')->delete('users/{id}', [UsersController::class, 'destroy']);
     Route::get('/permissions', [UsersController::class, 'permissions']);
     Route::get('users/{id}/permissions', [UsersController::class, 'checkPermissions']);
+
+    // roles
+    Route::middleware('permission.scope:roles_view_all,roles_view')->get('roles', [RolesController::class, 'index']);
+    Route::middleware('permission.scope:roles_view_all,roles_view')->get('roles/all', [RolesController::class, 'all']);
+    Route::middleware('permission.scope:roles_view_all,roles_view')->get('roles/{id}', [RolesController::class, 'show']);
+    Route::middleware('permission:roles_create')->post('roles', [RolesController::class, 'store']);
+    Route::middleware('permission.scope:roles_update_all,roles_update')->put('roles/{id}', [RolesController::class, 'update']);
+    Route::middleware('permission.scope:roles_delete_all,roles_delete')->delete('roles/{id}', [RolesController::class, 'destroy']);
 
     // companies
     // Route::middleware('permission:companies_view')->get('companies', [App\Http\Controllers\Api\CompaniesController::class, 'index']);
@@ -125,13 +134,11 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::middleware('permission:companies_delete')->delete('companies/{id}', [App\Http\Controllers\Api\CompaniesController::class, 'destroy']);
 
     // warehouses
-    // Route::middleware('permission:warehouses_view')->get('warehouses', [WarehouseController::class, 'index']);
-    // Route::middleware('permission:warehouses_view')->get('warehouses/all', [WarehouseController::class, 'all']);
-    Route::get('warehouses', [WarehouseController::class, 'index']);
-    Route::get('warehouses/all', [WarehouseController::class, 'all']);
+    Route::middleware('permission.scope:warehouses_view_all,warehouses_view')->get('warehouses', [WarehouseController::class, 'index']);
+    Route::middleware('permission.scope:warehouses_view_all,warehouses_view')->get('warehouses/all', [WarehouseController::class, 'all']);
     Route::middleware('permission:warehouses_create')->post('warehouses', [WarehouseController::class, 'store']);
-    Route::middleware('permission:warehouses_update')->put('warehouses/{id}', [WarehouseController::class, 'update']);
-    Route::middleware('permission:warehouses_delete')->delete('warehouses/{id}', [WarehouseController::class, 'destroy']);
+    Route::middleware('permission.scope:warehouses_update_all,warehouses_update')->put('warehouses/{id}', [WarehouseController::class, 'update']);
+    Route::middleware('permission.scope:warehouses_delete_all,warehouses_delete')->delete('warehouses/{id}', [WarehouseController::class, 'destroy']);
 
     // warehouse_stocks
     // Route::middleware('permission:warehouse_stocks_view')->get('warehouse_stocks', [WarehouseStockController::class, 'index']);
@@ -171,67 +178,50 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::middleware('permission:categories_delete')->delete('categories/{id}', [CategoriesController::class, 'destroy']);
 
     // products
-    // Route::middleware('permission:products_view')->get('products', [ProductController::class, 'products']);
-    // Route::middleware('permission:products_view')->get('services', [ProductController::class, 'services']);
-    // Route::middleware('permission:products_view')->get('products/search', [ProductController::class, 'search']);
-    Route::get('products', [ProductController::class, 'products']);
-    Route::get('services', [ProductController::class, 'services']);
-    Route::get('products/search', [ProductController::class, 'search']);
-    Route::get('products/{id}', [ProductController::class, 'show']);
+    Route::middleware('permission.scope:products_view_all,products_view')->get('products', [ProductController::class, 'products']);
+    Route::middleware('permission.scope:products_view_all,products_view')->get('services', [ProductController::class, 'services']);
+    Route::middleware('permission.scope:products_view_all,products_view')->get('products/search', [ProductController::class, 'search']);
+    Route::middleware('permission.scope:products_view_all,products_view')->get('products/{id}', [ProductController::class, 'show']);
     Route::middleware('permission:products_create')->post('products', [ProductController::class, 'store']);
-    Route::middleware('permission:products_update')->post('products/{id}', [ProductController::class, 'update']);
-    Route::middleware('permission:products_delete')->delete('products/{id}', [ProductController::class, 'destroy']);
+    Route::middleware('permission.scope:products_update_all,products_update')->post('products/{id}', [ProductController::class, 'update']);
+    Route::middleware('permission.scope:products_delete_all,products_delete')->delete('products/{id}', [ProductController::class, 'destroy']);
 
     // Маршруты для работы с категориями продуктов
-    // Route::middleware('permission:products_view')->get('products/{id}/categories', [ProductController::class, 'getProductCategories']);
-    Route::get('products/{id}/categories', [ProductController::class, 'getProductCategories']);
-    Route::middleware('permission:products_update')->post('products/{id}/categories', [ProductController::class, 'addCategory']);
-    Route::middleware('permission:products_update')->delete('products/{id}/categories', [ProductController::class, 'removeCategory']);
-    Route::middleware('permission:products_update')->post('products/{id}/categories/primary', [ProductController::class, 'setPrimaryCategory']);
+    Route::middleware('permission.scope:products_view_all,products_view')->get('products/{id}/categories', [ProductController::class, 'getProductCategories']);
+    Route::middleware('permission.scope:products_update_all,products_update')->post('products/{id}/categories', [ProductController::class, 'addCategory']);
+    Route::middleware('permission.scope:products_update_all,products_update')->delete('products/{id}/categories', [ProductController::class, 'removeCategory']);
+    Route::middleware('permission.scope:products_update_all,products_update')->post('products/{id}/categories/primary', [ProductController::class, 'setPrimaryCategory']);
 
     // clients
-    // Route::middleware('permission:clients_view')->get('clients', [ClientController::class, 'index']);
-    // Route::middleware('permission:clients_view')->get('clients/all', [ClientController::class, 'all']);
-    // Route::middleware('permission:clients_view')->get('clients/search', [ClientController::class, 'search']);
-    // Route::middleware('permission:clients_view')->get('clients/{id}', [ClientController::class, 'show']);
-    Route::get('clients', [ClientController::class, 'index']);
-    Route::get('clients/all', [ClientController::class, 'all']);
-    Route::get('clients/search', [ClientController::class, 'search']);
-    Route::get('clients/{id}', [ClientController::class, 'show']);
+    Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients', [ClientController::class, 'index']);
+    Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/all', [ClientController::class, 'all']);
+    Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/search', [ClientController::class, 'search']);
+    Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/{id}', [ClientController::class, 'show']);
     Route::middleware('permission:clients_create')->post('clients', [ClientController::class, 'store']);
-    Route::middleware('permission:clients_update')->put('clients/{id}', [ClientController::class, 'update']);
-    // Route::middleware('permission:clients_view')->get('clients/{id}/balance-history', [ClientController::class, 'getBalanceHistory']);
-    Route::get('clients/{id}/balance-history', [ClientController::class, 'getBalanceHistory']);
-    Route::middleware('permission:clients_delete')->delete('clients/{id}', [ClientController::class, 'destroy']);
+    Route::middleware('permission.scope:clients_update_all,clients_update')->put('clients/{id}', [ClientController::class, 'update']);
+    Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/{id}/balance-history', [ClientController::class, 'getBalanceHistory']);
+    Route::middleware('permission.scope:clients_delete_all,clients_delete')->delete('clients/{id}', [ClientController::class, 'destroy']);
 
     // cash_registers
-    // Route::middleware('permission:cash_registers_view')->get('cash_registers', [CashRegistersController::class, 'index']);
-    // Route::middleware('permission:cash_registers_view')->get('cash_registers/all', [CashRegistersController::class, 'all']);
-    // Route::middleware('permission:cash_registers_view')->get('cash_registers/balance', [CashRegistersController::class, 'getCashBalance']);
-    Route::get('cash_registers', [CashRegistersController::class, 'index']);
-    Route::get('cash_registers/all', [CashRegistersController::class, 'all']);
-    Route::get('cash_registers/balance', [CashRegistersController::class, 'getCashBalance']);
+    Route::middleware('permission.scope:cash_registers_view_all,cash_registers_view')->get('cash_registers', [CashRegistersController::class, 'index']);
+    Route::middleware('permission.scope:cash_registers_view_all,cash_registers_view')->get('cash_registers/all', [CashRegistersController::class, 'all']);
+    Route::middleware('permission.scope:cash_registers_view_all,cash_registers_view')->get('cash_registers/balance', [CashRegistersController::class, 'getCashBalance']);
     Route::middleware('permission:cash_registers_create')->post('cash_registers', [CashRegistersController::class, 'store']);
-    Route::middleware('permission:cash_registers_update')->put('cash_registers/{id}', [CashRegistersController::class, 'update']);
-    Route::middleware('permission:cash_registers_delete')->delete('cash_registers/{id}', [CashRegistersController::class, 'destroy']);
+    Route::middleware('permission.scope:cash_registers_update_all,cash_registers_update')->put('cash_registers/{id}', [CashRegistersController::class, 'update']);
+    Route::middleware('permission.scope:cash_registers_delete_all,cash_registers_delete')->delete('cash_registers/{id}', [CashRegistersController::class, 'destroy']);
 
     // projects
-    // Route::middleware('permission:projects_view')->get('projects', [ProjectsController::class, 'index']);
-    // Route::middleware('permission:projects_view')->get('projects/all', [ProjectsController::class, 'all']);
-    // Route::middleware('permission:projects_view')->get('projects/active', [ProjectsController::class, 'active']);
-    // Route::middleware('permission:projects_view')->get('projects/{id}', [ProjectsController::class, 'show']);
-    Route::get('projects', [ProjectsController::class, 'index']);
-    Route::get('projects/all', [ProjectsController::class, 'all']);
-    Route::get('projects/{id}', [ProjectsController::class, 'show']);
+    Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects', [ProjectsController::class, 'index']);
+    Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/all', [ProjectsController::class, 'all']);
+    Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}', [ProjectsController::class, 'show']);
     Route::middleware('permission:projects_create')->post('projects', [ProjectsController::class, 'store']);
-    Route::middleware('permission:projects_update')->put('projects/{id}', [ProjectsController::class, 'update']);
-    Route::middleware('permission:projects_update')->post('projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);
-    Route::middleware('permission:projects_update')->post('projects/{id}/delete-file', [ProjectsController::class, 'deleteFile']);
-    Route::middleware('permission:projects_update')->post('projects/batch-status', [ProjectsController::class, 'batchUpdateStatus']);
-    Route::middleware('permission:projects_delete')->delete('projects/{id}', [ProjectsController::class, 'destroy']);
-    // Route::get('projects/{id}/balance-history', [\App\Http\Controllers\Api\ProjectsController::class, 'getBalanceHistory']);
-    Route::get('projects/{id}/balance-history', [\App\Http\Controllers\Api\ProjectsController::class, 'getBalanceHistory']);
-    Route::get('projects/{id}/detailed-balance', [\App\Http\Controllers\Api\ProjectsController::class, 'getDetailedBalance']);
+    Route::middleware('permission.scope:projects_update_all,projects_update')->put('projects/{id}', [ProjectsController::class, 'update']);
+    Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);
+    Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/{id}/delete-file', [ProjectsController::class, 'deleteFile']);
+    Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/batch-status', [ProjectsController::class, 'batchUpdateStatus']);
+    Route::middleware('permission.scope:projects_delete_all,projects_delete')->delete('projects/{id}', [ProjectsController::class, 'destroy']);
+    Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}/balance-history', [\App\Http\Controllers\Api\ProjectsController::class, 'getBalanceHistory']);
+    Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}/detailed-balance', [\App\Http\Controllers\Api\ProjectsController::class, 'getDetailedBalance']);
 
     // project contracts
     // Route::middleware('permission:projects_view')->get('projects/{projectId}/contracts', [\App\Http\Controllers\ProjectContractsController::class, 'index']);
@@ -254,16 +244,12 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::middleware('permission:projects_delete')->delete('project-statuses/{id}', [ProjectStatusController::class, 'destroy']);
 
     // transactions
-    // Route::middleware('permission:transactions_view')->get('transactions', [TransactionsController::class, 'index']);
-    Route::get('transactions', [TransactionsController::class, 'index']);
+    Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions', [TransactionsController::class, 'index']);
     Route::middleware('permission:transactions_create')->post('transactions', [TransactionsController::class, 'store']);
-    Route::middleware(['permission:transactions_update', 'time.restriction:Transaction'])->put('transactions/{id}', [TransactionsController::class, 'update']);
-    Route::middleware(['permission:transactions_delete', 'time.restriction:Transaction'])->delete('transactions/{id}', [TransactionsController::class, 'destroy']);
-    // Route::middleware('permission:transactions_view')->get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
-    // Route::middleware('permission:transactions_view')->get('transactions/{id}', [TransactionsController::class, 'show']);
-    // Route::middleware('permission:transactions_view')->get('transactions/project-incomes', [TransactionsController::class, 'getProjectIncomes']);
-    Route::get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
-    Route::get('transactions/{id}', [TransactionsController::class, 'show']);
+    Route::middleware(['permission.scope:transactions_update_all,transactions_update', 'time.restriction:Transaction'])->put('transactions/{id}', [TransactionsController::class, 'update']);
+    Route::middleware(['permission.scope:transactions_delete_all,transactions_delete', 'time.restriction:Transaction'])->delete('transactions/{id}', [TransactionsController::class, 'destroy']);
+    Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
+    Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions/{id}', [TransactionsController::class, 'show']);
 
     // transfers
     // Route::middleware('permission:transfers_view')->get('transfers', [TransfersController::class, 'index']);
@@ -273,26 +259,20 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::middleware(['permission:transfers_delete', 'time.restriction:CashTransfer'])->delete('transfers/{id}', [TransfersController::class, 'destroy']);
 
     // sales
-    // Route::middleware(['permission:sales_view'])->get('sales', [SaleController::class, 'index']);
-    Route::get('sales', [SaleController::class, 'index']);
+    Route::middleware('permission.scope:sales_view_all,sales_view')->get('sales', [SaleController::class, 'index']);
     Route::middleware(['permission:sales_create'])->post('sales', [SaleController::class, 'store']);
-    Route::middleware(['permission:sales_delete', 'time.restriction:Sale'])->delete('sales/{id}', [SaleController::class, 'destroy']);
-    // Route::middleware('permission:sales_view')->get('sales/{id}', [SaleController::class, 'show']);
-    Route::get('sales/{id}', [SaleController::class, 'show']);
+    Route::middleware(['permission.scope:sales_delete_all,sales_delete', 'time.restriction:Sale'])->delete('sales/{id}', [SaleController::class, 'destroy']);
+    Route::middleware('permission.scope:sales_view_all,sales_view')->get('sales/{id}', [SaleController::class, 'show']);
 
     // orders
-    // Route::middleware('permission:orders_view')->get('orders', [OrderController::class, 'index']);
-    Route::get('orders', [OrderController::class, 'index']);
+    Route::middleware('permission.scope:orders_view_all,orders_view')->get('orders', [OrderController::class, 'index']);
     Route::middleware('permission:orders_create')->post('orders', [OrderController::class, 'store']);
-    Route::middleware('permission:orders_update')->put('orders/{id}', [OrderController::class, 'update']);
-    Route::middleware('permission:orders_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
-    Route::middleware('permission:orders_update')->post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
-    // Route::middleware('permission:orders_view')->get('orders/{id}', [OrderController::class, 'show']);
-    // Route::middleware('permission:orders_view')->get('orders/category/{id}/additional-fields', [OrderController::class, 'getAdditionalFields']);
-    // Route::middleware('permission:orders_view')->post('orders/categories/additional-fields', [OrderController::class, 'getAdditionalFieldsByCategories']);
-    Route::get('orders/{id}', [OrderController::class, 'show']);
-    Route::get('orders/category/{id}/additional-fields', [OrderController::class, 'getAdditionalFields']);
-    Route::post('orders/categories/additional-fields', [OrderController::class, 'getAdditionalFieldsByCategories']);
+    Route::middleware('permission.scope:orders_update_all,orders_update')->put('orders/{id}', [OrderController::class, 'update']);
+    Route::middleware('permission.scope:orders_delete_all,orders_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
+    Route::middleware('permission.scope:orders_update_all,orders_update')->post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
+    Route::middleware('permission.scope:orders_view_all,orders_view')->get('orders/{id}', [OrderController::class, 'show']);
+    Route::middleware('permission.scope:orders_view_all,orders_view')->get('orders/category/{id}/additional-fields', [OrderController::class, 'getAdditionalFields']);
+    Route::middleware('permission.scope:orders_view_all,orders_view')->post('orders/categories/additional-fields', [OrderController::class, 'getAdditionalFieldsByCategories']);
 
     // order transactions
     Route::middleware('permission:orders_update')->post('orders/{orderId}/transactions', [OrderTransactionController::class, 'linkTransaction']);

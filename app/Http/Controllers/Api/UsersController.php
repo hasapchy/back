@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use App\Services\CacheService;
 
 
@@ -40,8 +41,8 @@ class UsersController extends Controller
             $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
         }
 
-        if (isset($data['permissions']) && is_string($data['permissions'])) {
-            $data['permissions'] = explode(',', $data['permissions']);
+        if (isset($data['roles']) && is_string($data['roles'])) {
+            $data['roles'] = explode(',', $data['roles']);
         }
 
         if (isset($data['companies'])) {
@@ -55,19 +56,32 @@ class UsersController extends Controller
             }
         }
 
+        if (isset($data['company_roles']) && is_string($data['company_roles'])) {
+            try {
+                $data['company_roles'] = json_decode($data['company_roles'], true);
+            } catch (\Exception $e) {
+                $data['company_roles'] = [];
+            }
+        }
+
         $validator = Validator::make($data, [
             'name'     => 'required|string|max:255',
             'email'    => 'required|string|email|unique:users,email',
             'password' => 'required|string|min:6',
             'hire_date' => 'nullable|date',
             'birthday' => 'nullable|date',
+            'position' => 'nullable|string|max:255',
             'is_active'   => 'nullable|boolean',
             'is_admin'   => 'nullable|boolean',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'permissions' => 'nullable|array',
-            'permissions.*' => 'string|exists:permissions,name',
+            'roles' => 'nullable|array',
+            'roles.*' => 'string|exists:roles,name,guard_name,api',
             'companies' => 'nullable|array',
             'companies.*' => 'integer|exists:companies,id',
+            'company_roles' => 'nullable|array',
+            'company_roles.*.company_id' => 'required_with:company_roles|integer|exists:companies,id',
+            'company_roles.*.role_ids' => 'required_with:company_roles|array',
+            'company_roles.*.role_ids.*' => 'string|exists:roles,name,guard_name,api',
         ]);
 
         if ($validator->fails()) {
@@ -85,14 +99,18 @@ class UsersController extends Controller
 
         CacheService::invalidateUsersCache();
 
-        return response()->json([
-            'user' => $user,
-            'permissions' => $user->permissions->pluck('name')->toArray()
-        ]);
+        return $this->userResponse($user);
     }
 
     public function update(Request $request, $id)
     {
+        $targetUser = User::findOrFail($id);
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('users', 'update', $targetUser)) {
+            return $this->forbiddenResponse('Нет прав на редактирование этого пользователя');
+        }
+
         $data = $request->all();
 
 
@@ -103,8 +121,8 @@ class UsersController extends Controller
             $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
         }
 
-        if (isset($data['permissions']) && is_string($data['permissions'])) {
-            $data['permissions'] = explode(',', $data['permissions']);
+        if (isset($data['roles']) && is_string($data['roles'])) {
+            $data['roles'] = explode(',', $data['roles']);
         }
 
         if (isset($data['companies'])) {
@@ -118,6 +136,14 @@ class UsersController extends Controller
             }
         }
 
+        if (isset($data['company_roles']) && is_string($data['company_roles'])) {
+            try {
+                $data['company_roles'] = json_decode($data['company_roles'], true);
+            } catch (\Exception $e) {
+                $data['company_roles'] = [];
+            }
+        }
+
         $request->merge($data);
 
         try {
@@ -127,13 +153,18 @@ class UsersController extends Controller
                 'password' => 'nullable|string|min:6',
                 'hire_date' => 'nullable|date',
                 'birthday' => 'nullable|date',
+                'position' => 'nullable|string|max:255',
                 'is_active'   => 'nullable|boolean',
                 'is_admin'   => 'nullable|boolean',
                 'photo' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
-                'permissions' => 'nullable|array',
-                'permissions.*' => 'string|exists:permissions,name',
+                'roles' => 'nullable|array',
+                'roles.*' => 'string|exists:roles,name,guard_name,api',
                 'companies' => 'nullable|array',
                 'companies.*' => 'integer|exists:companies,id',
+                'company_roles' => 'nullable|array',
+                'company_roles.*.company_id' => 'required_with:company_roles|integer|exists:companies,id',
+                'company_roles.*.role_ids' => 'required_with:company_roles|array',
+                'company_roles.*.role_ids.*' => 'string|exists:roles,name,guard_name,api',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -145,7 +176,8 @@ class UsersController extends Controller
         unset($data['photo']);
 
         $companies = $data['companies'] ?? null;
-        $permissions = $data['permissions'] ?? null;
+        $roles = $data['roles'] ?? null;
+        $companyRoles = $data['company_roles'] ?? null;
 
         $data = array_filter($data, function ($value) {
             return $value !== null;
@@ -154,25 +186,39 @@ class UsersController extends Controller
         if ($companies !== null) {
             $data['companies'] = $companies;
         }
-        if ($permissions !== null) {
-            $data['permissions'] = $permissions;
+        if ($roles !== null) {
+            $data['roles'] = $roles;
+        }
+        if ($companyRoles !== null) {
+            $data['company_roles'] = $companyRoles;
         }
 
         $user = $this->itemsRepository->updateItem($id, $data);
         $user = $this->handlePhotoUpload($request, $user);
 
-        $user = $user->fresh(['permissions', 'roles', 'companies']);
+        $companyId = $this->getCurrentCompanyId();
+        $user = $user->fresh(['companies']);
+        $user->setRelation('permissions', $companyId ? $user->getAllPermissionsForCompany((int)$companyId) : $user->getAllPermissions());
+        if ($companyId) {
+            $user->setRelation('roles', $user->getRolesForCompany((int)$companyId));
+        } else {
+            $user->load(['roles']);
+        }
 
         CacheService::invalidateUsersCache();
 
-        return response()->json([
-            'user' => $user,
-            'permissions' => $user->permissions->pluck('name')->toArray()
-        ]);
+        return $this->userResponse($user);
     }
 
     public function destroy($id)
     {
+        $targetUser = User::findOrFail($id);
+
+        // Проверяем права с учетом _all/_own
+        if (!$this->canPerformAction('users', 'delete', $targetUser)) {
+            return $this->forbiddenResponse('Нет прав на удаление этого пользователя');
+        }
+
         $this->itemsRepository->deleteItem($id);
 
         CacheService::invalidateUsersCache();
@@ -182,13 +228,15 @@ class UsersController extends Controller
 
     public function checkPermissions($id)
     {
-        $user = User::with('permissions')->findOrFail($id);
+        $user = User::with('permissions', 'roles')->findOrFail($id);
+        $companyId = $this->getCurrentCompanyId();
+        $permissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId) : $user->getAllPermissions();
 
         return response()->json([
             'user_id' => $user->id,
             'user_email' => $user->email,
-            'permissions' => $user->permissions->pluck('name')->toArray(),
-            'permissions_count' => $user->permissions->count()
+            'permissions' => $permissions->pluck('name')->toArray(),
+            'permissions_count' => $permissions->count()
         ]);
     }
 
@@ -196,10 +244,30 @@ class UsersController extends Controller
     {
         return response()->json(Permission::where('guard_name', 'api')->get());
     }
+
+    public function roles()
+    {
+        return response()->json(Role::where('guard_name', 'api')->with('permissions:id,name')->get());
+    }
     public function getAllUsers()
     {
         $items = $this->itemsRepository->getAllItems();
         return response()->json($items);
+    }
+
+    protected function userResponse(User $user): JsonResponse
+    {
+        $companyId = $this->getCurrentCompanyId();
+        $permissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray() : $user->getAllPermissions()->pluck('name')->toArray();
+        $roles = $companyId ? $user->getRolesForCompany((int)$companyId)->pluck('name')->toArray() : $user->roles->pluck('name')->toArray();
+        $user->company_roles = $user->getAllCompanyRoles();
+
+        return response()->json([
+            'user' => $user,
+            'permissions' => $permissions,
+            'roles' => $roles,
+            'company_roles' => $user->company_roles
+        ]);
     }
 
     public function getCurrentUser(Request $request)

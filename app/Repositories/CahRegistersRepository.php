@@ -15,10 +15,12 @@ class CahRegistersRepository extends BaseRepository
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         try {
-            $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])
-                ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                });
+            $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name']);
+
+            $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+            $query->whereHas('cashRegisterUsers', function($query) use ($filterUserId) {
+                $query->where('user_id', $filterUserId);
+            });
 
             $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
@@ -36,13 +38,17 @@ class CahRegistersRepository extends BaseRepository
                 throw new \Exception('Table cash_registers does not exist');
             }
 
-            $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid]);
+            $currentUser = auth('api')->user();
+            $companyId = $this->getCurrentCompanyId();
+            $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid, $currentUser?->id, $companyId]);
 
             return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
-                $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name'])
-                    ->whereHas('cashRegisterUsers', function($query) use ($userUuid) {
-                        $query->where('user_id', $userUuid);
-                    });
+                $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name']);
+
+                $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                $query->whereHas('cashRegisterUsers', function($query) use ($filterUserId) {
+                    $query->where('user_id', $filterUserId);
+                });
 
                 $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
@@ -62,10 +68,12 @@ class CahRegistersRepository extends BaseRepository
         $transactionType = null,
         $source = null
     ) {
-        $query = CashRegister::with(['currency:id,name,code,symbol'])
-            ->whereHas('cashRegisterUsers', function($q) use ($userUuid) {
-                $q->where('user_id', $userUuid);
-            });
+        $query = CashRegister::with(['currency:id,name,code,symbol']);
+
+        $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+        $query->whereHas('cashRegisterUsers', function($q) use ($filterUserId) {
+            $q->where('user_id', $filterUserId);
+        });
 
         $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
