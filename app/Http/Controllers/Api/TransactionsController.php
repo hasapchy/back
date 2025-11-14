@@ -82,8 +82,15 @@ class TransactionsController extends Controller
             'source_id' => 'nullable|integer',
             'note' => 'nullable|sometimes|string',
             'date' => 'nullable|sometimes|date',
-            'is_debt' => 'nullable|boolean'
+            'is_debt' => 'nullable|boolean',
+            'is_adjustment' => 'nullable|boolean'
         ]);
+
+        if ($request->has('is_adjustment') && $request->is_adjustment) {
+            if (!$this->hasPermission('settings_client_balance_adjustment')) {
+                return $this->forbiddenResponse('У вас нет прав на корректировку баланса');
+            }
+        }
 
         $cashRegister = \App\Models\CashRegister::find($request->cash_id);
         if (!$cashRegister) {
@@ -182,6 +189,15 @@ class TransactionsController extends Controller
         $transaction_exist = Transaction::where('id', $id)->first();
         if (!$transaction_exist) {
             return $this->notFoundResponse('Транзакция не найдена');
+        }
+
+        $isAdjustmentCategory = in_array($transaction_exist->category_id, [21, 22]) ||
+                                ($request->has('category_id') && in_array($request->category_id, [21, 22]));
+
+        if ($isAdjustmentCategory) {
+            if (!$this->hasPermission('settings_client_balance_adjustment')) {
+                return $this->forbiddenResponse('У вас нет прав на корректировку баланса');
+            }
         }
 
         // Проверяем права с учетом _all/_own

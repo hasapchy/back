@@ -248,18 +248,23 @@ class UsersController extends Controller
 
     public function destroy($id)
     {
-        $targetUser = User::findOrFail($id);
+        try {
+            $targetUser = User::findOrFail($id);
 
-        // Проверяем права с учетом _all/_own
-        if (!$this->canPerformAction('users', 'delete', $targetUser)) {
-            return $this->forbiddenResponse('Нет прав на удаление этого пользователя');
+            if (!$this->canPerformAction('users', 'delete', $targetUser)) {
+                return $this->forbiddenResponse('Нет прав на удаление этого пользователя');
+            }
+
+            $this->itemsRepository->deleteItem($id);
+
+            CacheService::invalidateUsersCache();
+
+            return response()->json(['message' => 'User deleted']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Пользователь не найден', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
         }
-
-        $this->itemsRepository->deleteItem($id);
-
-        CacheService::invalidateUsersCache();
-
-        return response()->json(['message' => 'User deleted']);
     }
 
     public function checkPermissions($id)

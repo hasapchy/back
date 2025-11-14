@@ -72,6 +72,8 @@ class PermissionsSeeder extends Seeder
             'settings_currencies_view',
             'settings_cash_balance_view',
             'settings_client_balance_view',
+            'settings_client_balance_adjustment',
+            'products_create_temp',
         ];
 
         foreach ($customPermissions as $permission) {

@@ -269,16 +269,149 @@ class UsersRepository extends BaseRepository
 
     public function deleteItem($id)
     {
+        $user = User::findOrFail($id);
+
+        if ($user->id === 1) {
+            throw new \Exception('Нельзя удалить главного администратора (ID: 1)');
+        }
+
+        $relatedData = $this->checkUserRelatedData($user);
+
+        if (!empty($relatedData)) {
+            $message = 'Нельзя удалить пользователя, так как он связан с данными: ' . implode(', ', $relatedData) . '. ';
+            $message .= 'Вместо удаления рекомендуется отключить пользователя (установить is_active = false).';
+            throw new \Exception($message);
+        }
+
+        DB::beginTransaction();
         try {
-            $user = User::findOrFail($id);
+            $user->companies()->detach();
+            $user->warehouses()->detach();
+            $user->projects()->detach();
+            $user->categories()->detach();
+            $user->roles()->detach();
+
+            DB::table('company_user_role')->where('user_id', $user->id)->delete();
+            DB::table('cash_register_users')->where('user_id', $user->id)->delete();
+
             $user->delete();
+
+            DB::commit();
 
             $this->invalidateUsersCache();
 
             return true;
         } catch (\Exception $e) {
+            DB::rollBack();
             throw $e;
         }
+    }
+
+    protected function checkUserRelatedData(User $user): array
+    {
+        $relatedData = [];
+
+        $transactionsCount = DB::table('transactions')->where('user_id', $user->id)->count();
+        if ($transactionsCount > 0) {
+            $relatedData[] = "транзакции ({$transactionsCount})";
+        }
+
+        $ordersCount = DB::table('orders')->where('user_id', $user->id)->count();
+        if ($ordersCount > 0) {
+            $relatedData[] = "заказы ({$ordersCount})";
+        }
+
+        $salesCount = DB::table('sales')->where('user_id', $user->id)->count();
+        if ($salesCount > 0) {
+            $relatedData[] = "продажи ({$salesCount})";
+        }
+
+        $receiptsCount = DB::table('wh_receipts')->where('user_id', $user->id)->count();
+        if ($receiptsCount > 0) {
+            $relatedData[] = "приходы на склад ({$receiptsCount})";
+        }
+
+        $writeoffsCount = DB::table('wh_writeoffs')->where('user_id', $user->id)->count();
+        if ($writeoffsCount > 0) {
+            $relatedData[] = "списания со склада ({$writeoffsCount})";
+        }
+
+        $movementsCount = DB::table('wh_movements')->where('user_id', $user->id)->count();
+        if ($movementsCount > 0) {
+            $relatedData[] = "перемещения между складами ({$movementsCount})";
+        }
+
+        $projectsCount = DB::table('projects')->where('user_id', $user->id)->count();
+        if ($projectsCount > 0) {
+            $relatedData[] = "проекты ({$projectsCount})";
+        }
+
+        $orderProductsCount = DB::table('order_products')->where('user_id', $user->id)->count();
+        if ($orderProductsCount > 0) {
+            $relatedData[] = "товары в заказах ({$orderProductsCount})";
+        }
+
+        $clientsAsEmployeeCount = DB::table('clients')->where('employee_id', $user->id)->count();
+        if ($clientsAsEmployeeCount > 0) {
+            $relatedData[] = "клиенты как сотрудник ({$clientsAsEmployeeCount})";
+        }
+
+        $clientsAsUserCount = DB::table('clients')->where('user_id', $user->id)->count();
+        if ($clientsAsUserCount > 0) {
+            $relatedData[] = "клиенты ({$clientsAsUserCount})";
+        }
+
+        $categoriesCount = DB::table('categories')->where('user_id', $user->id)->count();
+        if ($categoriesCount > 0) {
+            $relatedData[] = "категории ({$categoriesCount})";
+        }
+
+        $productsCount = DB::table('products')->where('user_id', $user->id)->count();
+        if ($productsCount > 0) {
+            $relatedData[] = "товары ({$productsCount})";
+        }
+
+        $invoicesCount = DB::table('invoices')->where('user_id', $user->id)->count();
+        if ($invoicesCount > 0) {
+            $relatedData[] = "счета ({$invoicesCount})";
+        }
+
+        $cashTransfersCount = DB::table('cash_transfers')->where('user_id', $user->id)->count();
+        if ($cashTransfersCount > 0) {
+            $relatedData[] = "переводы между кассами ({$cashTransfersCount})";
+        }
+
+        $transactionCategoriesCount = DB::table('transaction_categories')->where('user_id', $user->id)->count();
+        if ($transactionCategoriesCount > 0) {
+            $relatedData[] = "категории транзакций ({$transactionCategoriesCount})";
+        }
+
+        $orderStatusCategoriesCount = DB::table('order_status_categories')->where('user_id', $user->id)->count();
+        if ($orderStatusCategoriesCount > 0) {
+            $relatedData[] = "категории статусов заказов ({$orderStatusCategoriesCount})";
+        }
+
+        $projectStatusesCount = DB::table('project_statuses')->where('user_id', $user->id)->count();
+        if ($projectStatusesCount > 0) {
+            $relatedData[] = "статусы проектов ({$projectStatusesCount})";
+        }
+
+        $templatesCount = DB::table('templates')->where('user_id', $user->id)->count();
+        if ($templatesCount > 0) {
+            $relatedData[] = "шаблоны ({$templatesCount})";
+        }
+
+        $orderAfCount = DB::table('order_af')->where('user_id', $user->id)->count();
+        if ($orderAfCount > 0) {
+            $relatedData[] = "дополнительные поля заказов ({$orderAfCount})";
+        }
+
+        $commentsCount = DB::table('comments')->where('user_id', $user->id)->count();
+        if ($commentsCount > 0) {
+            $relatedData[] = "комментарии ({$commentsCount})";
+        }
+
+        return $relatedData;
     }
 
 

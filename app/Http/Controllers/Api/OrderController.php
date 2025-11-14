@@ -120,6 +120,12 @@ class OrderController extends Controller
             'additional_fields' => $request->additional_fields ?? [],
         ];
 
+        if (!empty($request->temp_products)) {
+            if (!$this->hasPermission('products_create_temp')) {
+                return $this->forbiddenResponse('У вас нет прав на создание временных товаров');
+            }
+        }
+
         $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
         if ($cashAccessCheck) {
             return $cashAccessCheck;
@@ -227,6 +233,12 @@ class OrderController extends Controller
             ], $request->temp_products ?? []),
             'additional_fields' => $request->additional_fields ?? [],
         ];
+
+        if (!empty($request->temp_products)) {
+            if (!$this->hasPermission('products_create_temp')) {
+                return $this->forbiddenResponse('У вас нет прав на создание временных товаров');
+            }
+        }
 
         $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
         if ($cashAccessCheck) {

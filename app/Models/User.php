@@ -56,17 +56,6 @@ class User extends Authenticatable implements JWTSubject
         'birthday' => 'date',
     ];
 
-    /**
-     * Защита от удаления пользователя
-     */
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::deleting(function ($user) {
-            throw new \Exception('Пользователя нельзя удалить.');
-        });
-    }
 
     /**
      * Защита от изменения поля is_admin
