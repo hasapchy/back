@@ -70,58 +70,59 @@ class BasementWorkerSeeder extends Seeder
                     }
                 }
 
-                // Назначаем доступ к главной кассе (ID: 1)
+                $defaultCashRegisterId = config('basement.default_cash_register_id', 1);
+                $defaultWarehouseId = config('basement.default_warehouse_id', 1);
+                $defaultCompanyId = config('basement.default_company_id', 1);
+
                 $existingCashRegister = DB::table('cash_register_users')
                     ->where('user_id', $userId)
-                    ->where('cash_register_id', 1)
+                    ->where('cash_register_id', $defaultCashRegisterId)
                     ->first();
 
                 if (!$existingCashRegister) {
                     DB::table('cash_register_users')->insert([
                         'user_id' => $userId,
-                        'cash_register_id' => 1,
+                        'cash_register_id' => $defaultCashRegisterId,
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);
-                    echo "Access to cash register 1 granted to user ID {$userId}\n";
+                    echo "Access to cash register {$defaultCashRegisterId} granted to user ID {$userId}\n";
                 } else {
-                    echo "User ID {$userId} already has access to cash register 1\n";
+                    echo "User ID {$userId} already has access to cash register {$defaultCashRegisterId}\n";
                 }
 
-                // Назначаем доступ к основному складу (ID: 1)
                 $existingWarehouse = DB::table('wh_users')
                     ->where('user_id', $userId)
-                    ->where('warehouse_id', 1)
+                    ->where('warehouse_id', $defaultWarehouseId)
                     ->first();
 
                 if (!$existingWarehouse) {
                     DB::table('wh_users')->insert([
                         'user_id' => $userId,
-                        'warehouse_id' => 1,
+                        'warehouse_id' => $defaultWarehouseId,
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);
-                    echo "Access to warehouse 1 granted to user ID {$userId}\n";
+                    echo "Access to warehouse {$defaultWarehouseId} granted to user ID {$userId}\n";
                 } else {
-                    echo "User ID {$userId} already has access to warehouse 1\n";
+                    echo "User ID {$userId} already has access to warehouse {$defaultWarehouseId}\n";
                 }
 
-                // Назначаем связь с компанией 1
                 $existingCompany = DB::table('company_user')
                     ->where('user_id', $userId)
-                    ->where('company_id', 1)
+                    ->where('company_id', $defaultCompanyId)
                     ->first();
 
                 if (!$existingCompany) {
                     DB::table('company_user')->insert([
                         'user_id' => $userId,
-                        'company_id' => 1,
+                        'company_id' => $defaultCompanyId,
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);
-                    echo "Access to company 1 granted to user ID {$userId}\n";
+                    echo "Access to company {$defaultCompanyId} granted to user ID {$userId}\n";
                 } else {
-                    echo "User ID {$userId} already has access to company 1\n";
+                    echo "User ID {$userId} already has access to company {$defaultCompanyId}\n";
                 }
             } else {
                 echo "User with ID {$userId} not found\n";

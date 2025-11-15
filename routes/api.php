@@ -46,6 +46,7 @@ Route::middleware(['auth:api', 'role:basement_worker'])->prefix('basement')->gro
     Route::get('orders/{id}', [OrderController::class, 'show']);
     Route::post('orders', [OrderController::class, 'store']);
     Route::put('orders/{id}', [OrderController::class, 'update']);
+    Route::delete('orders/{id}', [OrderController::class, 'destroy']);
 
     Route::get('order_statuses', [OrderStatusController::class, 'index']);
     Route::get('order_statuses/all', [OrderStatusController::class, 'all']);
@@ -189,11 +190,11 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::middleware('permission.scope:projects_update_all,projects_update')->put('contracts/{id}', [ProjectContractsController::class, 'update']);
     Route::middleware('permission.scope:projects_update_all,projects_update')->delete('contracts/{id}', [ProjectContractsController::class, 'destroy']);
 
-    Route::get('project-statuses', [ProjectStatusController::class, 'index']);
-    Route::get('project-statuses/all', [ProjectStatusController::class, 'all']);
-    Route::middleware('permission:projects_create')->post('project-statuses', [ProjectStatusController::class, 'store']);
-    Route::middleware('permission:projects_update')->put('project-statuses/{id}', [ProjectStatusController::class, 'update']);
-    Route::middleware('permission:projects_delete')->delete('project-statuses/{id}', [ProjectStatusController::class, 'destroy']);
+    Route::middleware('permission.scope:project_statuses_view_all,project_statuses_view')->get('project-statuses', [ProjectStatusController::class, 'index']);
+    Route::middleware('permission.scope:project_statuses_view_all,project_statuses_view')->get('project-statuses/all', [ProjectStatusController::class, 'all']);
+    Route::middleware('permission:project_statuses_create')->post('project-statuses', [ProjectStatusController::class, 'store']);
+    Route::middleware('permission.scope:project_statuses_update_all,project_statuses_update')->put('project-statuses/{id}', [ProjectStatusController::class, 'update']);
+    Route::middleware('permission.scope:project_statuses_delete_all,project_statuses_delete')->delete('project-statuses/{id}', [ProjectStatusController::class, 'destroy']);
 
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions', [TransactionsController::class, 'index']);
     Route::middleware('permission:transactions_create')->post('transactions', [TransactionsController::class, 'store']);

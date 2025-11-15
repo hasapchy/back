@@ -8,6 +8,7 @@ use App\Models\ProductCategory;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Services\CacheService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Models\CategoryUser;
 use App\Models\Category;
@@ -106,6 +107,7 @@ class ProductsRepository extends BaseRepository
             }
 
             $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+
             $products->getCollection()->each(function ($product) use ($warehouseId, $userUuid) {
                 $product->category_name = $product->categories->first()?->name;
                 $product->unit_name = $product->unit?->name;
@@ -147,14 +149,18 @@ class ProductsRepository extends BaseRepository
      * @param int|null $warehouseId ID склада
      * @return \Illuminate\Support\Collection
      */
-    public function searchItems($userUuid, $search, $productsOnly = null, $warehouseId = null)
+    public function searchItems($userUuid, $search, $productsOnly = null, $warehouseId = null, $categoryId = null)
     {
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $currentUser?->id, $companyId]);
 
-        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId) {
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId, $categoryId) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
+
+            if ($categoryId) {
+                $userCategoryIds = array_intersect($userCategoryIds, [$categoryId]);
+            }
 
             if (empty($userCategoryIds)) {
                 return collect([]);

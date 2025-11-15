@@ -12,6 +12,7 @@ use App\Models\Warehouse;
 use App\Models\Currency;
 use App\Models\Transaction;
 use App\Models\OrderStatus;
+use App\Models\User;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ use App\Services\RoundingService;
 
 class OrdersRepository extends BaseRepository
 {
+
     /**
      * Получить заказы с пагинацией и фильтрацией
      *
@@ -121,12 +123,17 @@ class OrdersRepository extends BaseRepository
                     });
             });
 
-            $query->where(function ($q) use ($userUuid) {
-                $q->whereHas('category.categoryUsers', function ($subQuery) use ($userUuid) {
-                    $subQuery->where('user_id', $userUuid);
-                })
-                ->orWhereNull('orders.category_id');
-            });
+            // Фильтрация по категориям пользователя - только для basement workers
+            $isBasementWorker = $currentUser instanceof User && $currentUser->hasRole(config('basement.worker_role'));
+
+            if ($isBasementWorker) {
+                $query->where(function ($q) use ($userUuid) {
+                    $q->whereHas('category.categoryUsers', function ($subQuery) use ($userUuid) {
+                        $subQuery->where('user_id', $userUuid);
+                    })
+                    ->orWhereNull('orders.category_id');
+                });
+            }
 
             $query = $this->addCompanyFilterThroughRelation($query, 'cash');
 

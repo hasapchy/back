@@ -423,11 +423,6 @@ class UsersRepository extends BaseRepository
             $relatedData[] = "проекты ({$projectsCount})";
         }
 
-        $orderProductsCount = OrderProduct::where('user_id', $user->id)->count();
-        if ($orderProductsCount > 0) {
-            $relatedData[] = "товары в заказах ({$orderProductsCount})";
-        }
-
         $clientsAsEmployeeCount = Client::where('employee_id', $user->id)->count();
         if ($clientsAsEmployeeCount > 0) {
             $relatedData[] = "клиенты как сотрудник ({$clientsAsEmployeeCount})";

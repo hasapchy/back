@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\User;
 use App\Repositories\ProductsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -40,7 +41,7 @@ class ProductController extends Controller
         $per_page = $request->query('per_page', 10);
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
-        $categoryId = $request->query('category_id');
+        $categoryId = $this->normalizeCategoryIdForBasementWorker($request->query('category_id'));
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, true, $page, $warehouseId, $search, $categoryId);
 
@@ -60,8 +61,9 @@ class ProductController extends Controller
         $search = $request->query('search');
         $productsOnly = $request->query('products_only');
         $warehouseId = $request->query('warehouse_id');
+        $categoryId = $this->normalizeCategoryIdForBasementWorker($request->query('category_id'));
 
-        $items = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId);
+        $items = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId);
 
         return response()->json($items);
     }
@@ -101,7 +103,7 @@ class ProductController extends Controller
         $page = $request->query('page', 1);
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
-        $categoryId = $request->query('category_id');
+        $categoryId = $this->normalizeCategoryIdForBasementWorker($request->query('category_id'));
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page, $warehouseId, $search, $categoryId);
 
@@ -243,5 +245,20 @@ class ProductController extends Controller
         }
 
         return response()->json(['message' => 'Товар/услуга успешно удалена']);
+    }
+
+    /**
+     * Нормализует categoryId для basement workers
+     * Для basement workers всегда возвращает null, чтобы использовать все доступные категории
+     *
+     * @param mixed $categoryId
+     * @return int|null
+     */
+    protected function normalizeCategoryIdForBasementWorker($categoryId)
+    {
+        $user = auth('api')->user();
+        $isBasementWorker = $user instanceof User && $user->hasRole(config('basement.worker_role'));
+
+        return $isBasementWorker ? null : $categoryId;
     }
 }

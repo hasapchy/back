@@ -20,6 +20,7 @@ class PermissionsSeeder extends Seeder
             'clients',
             'cash_registers',
             'projects',
+            'project_statuses',
             'sales',
             'transactions',
             'mutual_settlements',
@@ -42,6 +43,7 @@ class PermissionsSeeder extends Seeder
             'warehouses',
             'cash_registers',
             'projects',
+            'project_statuses',
             'order_statuses',
             'order_statuscategories',
             'transaction_categories',
@@ -55,6 +57,9 @@ class PermissionsSeeder extends Seeder
         foreach ($resources as $resource) {
             foreach ($actions as $action) {
                 if ($resource === 'mutual_settlements' && $action !== 'view') {
+                    continue;
+                }
+                if ($resource === 'warehouse_stocks' && $action !== 'view') {
                     continue;
                 }
 

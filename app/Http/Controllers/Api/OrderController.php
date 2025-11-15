@@ -6,15 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Repositories\OrdersRepository;
 use App\Services\CacheService;
 use App\Models\Order;
+use App\Models\User;
+use App\Models\Category;
+use App\Models\CategoryUser;
 use Illuminate\Http\Request;
-use Spatie\Permission\Traits\HasRoles;
 
 /**
  * Контроллер для работы с заказами
  */
 class OrderController extends Controller
 {
-    use HasRoles;
 
     protected $itemRepository;
 
@@ -94,9 +95,29 @@ class OrderController extends Controller
         ]);
 
         $categoryId = $request->category_id;
-        if (in_array($userUuid, [6, 7, 8]) && !$categoryId) {
-            $basementCategoryMap = [6 => 2, 7 => 3, 8 => 14];
-            $categoryId = $basementCategoryMap[$userUuid] ?? null;
+        $user = auth('api')->user();
+        if ($user instanceof User && $user->hasRole(config('basement.worker_role'))) {
+            // Получаем категории пользователя с учетом компании
+            $companyId = $this->getCurrentCompanyId();
+            $userCategoryIds = CategoryUser::where('user_id', $userUuid)
+                ->pluck('category_id')
+                ->toArray();
+
+            // Фильтруем по компании, если указана
+            if ($companyId) {
+                $companyCategoryIds = Category::where('company_id', $companyId)
+                    ->pluck('id')
+                    ->toArray();
+                $userCategoryIds = array_intersect($userCategoryIds, $companyCategoryIds);
+            }
+
+            if (!$categoryId) {
+                // Если категория не указана, берем первую доступную категорию пользователя
+                $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
+            } elseif (!in_array($categoryId, $userCategoryIds)) {
+                // Если категория указана, проверяем доступ пользователя к ней
+                return $this->forbiddenResponse('У вас нет доступа к указанной категории');
+            }
         }
 
         $data = [
@@ -212,9 +233,29 @@ class OrderController extends Controller
         ]);
 
         $categoryId = $request->category_id;
-        if (in_array($userUuid, [6, 7, 8]) && !$categoryId) {
-            $basementCategoryMap = [6 => 2, 7 => 3, 8 => 14];
-            $categoryId = $basementCategoryMap[$userUuid] ?? null;
+        $user = auth('api')->user();
+        if ($user instanceof User && $user->hasRole(config('basement.worker_role'))) {
+            // Получаем категории пользователя с учетом компании
+            $companyId = $this->getCurrentCompanyId();
+            $userCategoryIds = CategoryUser::where('user_id', $userUuid)
+                ->pluck('category_id')
+                ->toArray();
+
+            // Фильтруем по компании, если указана
+            if ($companyId) {
+                $companyCategoryIds = Category::where('company_id', $companyId)
+                    ->pluck('id')
+                    ->toArray();
+                $userCategoryIds = array_intersect($userCategoryIds, $companyCategoryIds);
+            }
+
+            if (!$categoryId) {
+                // Если категория не указана, берем первую доступную категорию пользователя
+                $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
+            } elseif (!in_array($categoryId, $userCategoryIds)) {
+                // Если категория указана, проверяем доступ пользователя к ней
+                return $this->forbiddenResponse('У вас нет доступа к указанной категории');
+            }
         }
 
         $data = [

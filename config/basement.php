@@ -6,22 +6,10 @@ return [
     | Basement System Configuration
     |--------------------------------------------------------------------------
     |
-    | Configuration settings for the basement system including time limits
-    | and access restrictions for basement workers.
+    | Configuration settings for the basement system and access restrictions
+    | for basement workers.
     |
     */
-
-    /*
-    |--------------------------------------------------------------------------
-    | Order Time Limits
-    |--------------------------------------------------------------------------
-    |
-    | Time limits for basement workers to edit or delete orders after creation.
-    | Values are in hours.
-    |
-    */
-    'order_edit_limit_hours' => env('BASEMENT_ORDER_EDIT_LIMIT_HOURS', 8),
-    'order_delete_limit_hours' => env('BASEMENT_ORDER_DELETE_LIMIT_HOURS', 8),
 
     /*
     |--------------------------------------------------------------------------
@@ -44,4 +32,35 @@ return [
     |
     */
     'worker_role' => 'basement_worker',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Basement Products Category Filter
+    |--------------------------------------------------------------------------
+    |
+    | Category ID to filter products for basement workers.
+    | Set to null to disable filtering.
+    |
+    */
+    'products_category_filter' => env('BASEMENT_PRODUCTS_CATEGORY_FILTER', 1),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Cash Register ID
+    |--------------------------------------------------------------------------
+    |
+    | Default cash register ID for basement workers.
+    |
+    */
+    'default_cash_register_id' => env('BASEMENT_DEFAULT_CASH_REGISTER_ID', 1),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Warehouse ID
+    |--------------------------------------------------------------------------
+    |
+    | Default warehouse ID for basement workers.
+    |
+    */
+    'default_warehouse_id' => env('BASEMENT_DEFAULT_WAREHOUSE_ID', 1),
 ];
