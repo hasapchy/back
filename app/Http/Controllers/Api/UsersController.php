@@ -14,22 +14,41 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use App\Services\CacheService;
 
-
+/**
+ * Контроллер для работы с пользователями
+ */
 class UsersController extends Controller
 {
     protected $itemsRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param UsersRepository $itemsRepository
+     */
     public function __construct(UsersRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
     }
 
+    /**
+     * Получить список пользователей с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $page = $request->input('page', 1);
         return $this->paginatedResponse($this->itemsRepository->getItemsWithPagination($page));
     }
 
+    /**
+     * Создать нового пользователя
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $data = $request->all();
@@ -107,16 +126,20 @@ class UsersController extends Controller
 
         $user = $this->itemsRepository->createItem($data);
 
-        CacheService::invalidateUsersCache();
-
         return $this->userResponse($user);
     }
 
+    /**
+     * Обновить пользователя
+     *
+     * @param Request $request
+     * @param int $id ID пользователя
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $targetUser = User::findOrFail($id);
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('users', 'update', $targetUser)) {
             return $this->forbiddenResponse('Нет прав на редактирование этого пользователя');
         }
@@ -241,11 +264,15 @@ class UsersController extends Controller
             $user->load(['roles']);
         }
 
-        CacheService::invalidateUsersCache();
-
         return $this->userResponse($user);
     }
 
+    /**
+     * Удалить пользователя
+     *
+     * @param int $id ID пользователя
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         try {
@@ -257,8 +284,6 @@ class UsersController extends Controller
 
             $this->itemsRepository->deleteItem($id);
 
-            CacheService::invalidateUsersCache();
-
             return response()->json(['message' => 'User deleted']);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Пользователь не найден', 404);
@@ -267,6 +292,12 @@ class UsersController extends Controller
         }
     }
 
+    /**
+     * Проверить права пользователя
+     *
+     * @param int $id ID пользователя
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function checkPermissions($id)
     {
         $user = User::with('permissions', 'roles')->findOrFail($id);
@@ -281,21 +312,43 @@ class UsersController extends Controller
         ]);
     }
 
+    /**
+     * Получить все разрешения
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function permissions()
     {
         return response()->json(Permission::where('guard_name', 'api')->get());
     }
 
+    /**
+     * Получить все роли
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function roles()
     {
         return response()->json(Role::where('guard_name', 'api')->with('permissions:id,name')->get());
     }
+
+    /**
+     * Получить всех пользователей
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getAllUsers()
     {
         $items = $this->itemsRepository->getAllItems();
         return response()->json($items);
     }
 
+    /**
+     * Формировать ответ с данными пользователя
+     *
+     * @param User $user Пользователь
+     * @return JsonResponse
+     */
     protected function userResponse(User $user): JsonResponse
     {
         $companyId = $this->getCurrentCompanyId();
@@ -311,6 +364,12 @@ class UsersController extends Controller
         ]);
     }
 
+    /**
+     * Получить текущего пользователя
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getCurrentUser(Request $request)
     {
         $user = $request->user()->load(['clientAccounts' => function($query) {
@@ -321,6 +380,12 @@ class UsersController extends Controller
         return response()->json(['user' => $user]);
     }
 
+    /**
+     * Обновить профиль текущего пользователя
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function updateProfile(Request $request)
     {
         $user = $request->user();
@@ -386,6 +451,13 @@ class UsersController extends Controller
         return response()->json(['user' => $user]);
     }
 
+    /**
+     * Обработать загрузку фотографии пользователя
+     *
+     * @param Request $request
+     * @param User $user Пользователь
+     * @return User
+     */
     private function handlePhotoUpload(Request $request, $user)
     {
         if ($request->hasFile('photo')) {

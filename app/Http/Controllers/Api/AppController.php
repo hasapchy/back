@@ -4,18 +4,19 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Currency;
-use App\Models\ProductStatus;
-use App\Models\TransactionCategory;
 use App\Models\Unit;
-use App\Models\OrderCategory;
-use App\Models\OrderStatus;
 use App\Services\CacheService;
-use Illuminate\Http\Request;
 use Spatie\Permission\Traits\HasRoles;
 
 class AppController extends Controller
 {
     use HasRoles;
+
+    /**
+     * Получить список валют
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getCurrencyList()
     {
         $user = $this->getAuthenticatedUser();
@@ -39,6 +40,11 @@ class AppController extends Controller
         return response()->json($items);
     }
 
+    /**
+     * Получить список единиц измерения
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getUnitsList()
     {
         $items = CacheService::getReferenceData('units_all', function() {
@@ -48,17 +54,12 @@ class AppController extends Controller
         return response()->json($items);
     }
 
-    public function getProductStatuses()
-    {
-
-        $items = CacheService::getReferenceData('product_statuses_all', function() {
-            return ProductStatus::all();
-        });
-
-        return response()->json($items);
-    }
-
-
+    /**
+     * Получить курс обмена валюты
+     *
+     * @param int $currencyId ID валюты
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getCurrencyExchangeRate($currencyId)
     {
         $user = $this->getAuthenticatedUser();

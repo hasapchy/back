@@ -9,11 +9,23 @@ use App\Services\RoundingService;
 
 abstract class BaseRepository
 {
+    /**
+     * Получить ID текущей компании из заголовка запроса
+     *
+     * @return string|null
+     */
     protected function getCurrentCompanyId()
     {
         return request()->header('X-Company-ID');
     }
 
+    /**
+     * Добавить фильтр по компании напрямую к таблице
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param string $tableName Имя таблицы
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     protected function addCompanyFilterDirect($query, $tableName)
     {
         $companyId = $this->getCurrentCompanyId();
@@ -25,6 +37,14 @@ abstract class BaseRepository
         return $query;
     }
 
+    /**
+     * Добавить фильтр по компании через отношение
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param string $relationName Имя отношения
+     * @param string|null $relationTable Имя таблицы отношения (опционально)
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     protected function addCompanyFilterThroughRelation($query, $relationName, $relationTable = null)
     {
         $companyId = $this->getCurrentCompanyId();
@@ -42,6 +62,16 @@ abstract class BaseRepository
         return $query;
     }
 
+    /**
+     * Применить фильтр по дате к запросу
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param string $dateFilter Тип фильтра по дате
+     * @param string|null $startDate Начальная дата
+     * @param string|null $endDate Конечная дата
+     * @param string $dateColumn Имя колонки с датой
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     protected function applyDateFilter($query, $dateFilter, $startDate = null, $endDate = null, $dateColumn = 'date')
     {
         $dateRange = $this->getDateRangeForFilter($dateFilter, $startDate, $endDate);
@@ -97,7 +127,12 @@ abstract class BaseRepository
 
     /**
      * Получить диапазон дат (для backward compatibility с InvoicesRepository)
+     *
      * @deprecated Используйте getDateRangeForFilter или applyDateFilter
+     * @param string $dateFilter Тип фильтра по дате
+     * @param string|null $startDate Начальная дата
+     * @param string|null $endDate Конечная дата
+     * @return array|string
      */
     protected function getDateRange($dateFilter, $startDate = null, $endDate = null)
     {
@@ -118,6 +153,12 @@ abstract class BaseRepository
         return now()->toDateString();
     }
 
+    /**
+     * Инвалидировать кэш баланса клиента
+     *
+     * @param int|null $clientId ID клиента
+     * @return void
+     */
     protected function invalidateClientBalanceCache($clientId)
     {
         if ($clientId) {
@@ -125,6 +166,13 @@ abstract class BaseRepository
         }
     }
 
+    /**
+     * Сгенерировать ключ кэша
+     *
+     * @param string $prefix Префикс ключа
+     * @param array $params Параметры для ключа
+     * @return string
+     */
     public function generateCacheKey(string $prefix, array $params = []): string
     {
         $companyId = $this->getCurrentCompanyId() ?? 'default';
@@ -141,6 +189,11 @@ abstract class BaseRepository
 
     /**
      * Применить поиск по клиенту через прямую таблицу
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param string $search Поисковый запрос
+     * @param string $clientTableAlias Алиас таблицы клиентов
+     * @return \Illuminate\Database\Eloquent\Builder
      */
     protected function applyClientSearchFilter($query, $search, $clientTableAlias = 'clients')
     {
@@ -151,6 +204,11 @@ abstract class BaseRepository
 
     /**
      * Применить поиск по клиенту через отношение
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param string $relationName Имя отношения
+     * @param string $search Поисковый запрос
+     * @return \Illuminate\Database\Eloquent\Builder
      */
     protected function applyClientSearchFilterThroughRelation($query, $relationName, $search)
     {
@@ -162,6 +220,11 @@ abstract class BaseRepository
     /**
      * Общие условия поиска клиента (DRY принцип)
      * Добавляет условия поиска к существующему query builder
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param string $search Поисковый запрос
+     * @param string|null $tableAlias Алиас таблицы
+     * @return \Illuminate\Database\Eloquent\Builder
      */
     private function applyClientSearchConditions($query, $search, $tableAlias = null)
     {
@@ -174,6 +237,12 @@ abstract class BaseRepository
         return $query;
     }
 
+    /**
+     * Округлить сумму по правилам компании
+     *
+     * @param float $amount Сумма
+     * @return float
+     */
     protected function roundAmount(float $amount): float
     {
         return app(RoundingService::class)->roundForCompany(
@@ -183,6 +252,14 @@ abstract class BaseRepository
     }
 
 
+    /**
+     * Конвертировать валюту
+     *
+     * @param float $amount Сумма
+     * @param int $fromCurrencyId ID исходной валюты
+     * @param int $toCurrencyId ID целевой валюты
+     * @return float
+     */
     protected function convertCurrency(float $amount, int $fromCurrencyId, int $toCurrencyId): float
     {
         if ($fromCurrencyId === $toCurrencyId) {
@@ -195,6 +272,14 @@ abstract class BaseRepository
         return CurrencyConverter::convert($amount, $fromCurrency, $toCurrency);
     }
 
+    /**
+     * Конвертировать и округлить валюту
+     *
+     * @param float $amount Сумма
+     * @param int $fromCurrencyId ID исходной валюты
+     * @param int $toCurrencyId ID целевой валюты
+     * @return float
+     */
     protected function convertAndRoundCurrency(float $amount, int $fromCurrencyId, int $toCurrencyId): float
     {
         $converted = $this->convertCurrency($amount, $fromCurrencyId, $toCurrencyId);
@@ -217,6 +302,14 @@ abstract class BaseRepository
         return $defaultCurrency;
     }
 
+    /**
+     * Построить данные транзакции для источника
+     *
+     * @param array $data Данные транзакции
+     * @param string $sourceType Тип источника
+     * @param int $sourceId ID источника
+     * @return array
+     */
     protected function buildTransactionData(array $data, string $sourceType, int $sourceId): array
     {
         $defaultCurrency = $this->getDefaultCurrency();
@@ -225,8 +318,8 @@ abstract class BaseRepository
         $origAmount = $data['orig_amount'] ?? $amount;
 
         if (isset($data['currency_id']) && isset($data['cash_id'])) {
-            $cashRegister = CashRegister::find($data['cash_id']);
-            if ($cashRegister && $cashRegister->currency_id !== $data['currency_id']) {
+            $cashRegister = CashRegister::findOrFail($data['cash_id']);
+            if ($cashRegister->currency_id !== $data['currency_id']) {
                 $amount = $this->convertAndRoundCurrency(
                     $origAmount,
                     $data['currency_id'],
@@ -253,6 +346,15 @@ abstract class BaseRepository
         ];
     }
 
+    /**
+     * Создать транзакцию для источника
+     *
+     * @param array $data Данные транзакции
+     * @param string $sourceType Тип источника (класс модели)
+     * @param int $sourceId ID источника
+     * @param bool $returnId Вернуть ID транзакции
+     * @return int|null ID транзакции или null
+     */
     protected function createTransactionForSource(array $data, string $sourceType, int $sourceId, bool $returnId = false): ?int
     {
         $transactionData = $this->buildTransactionData($data, $sourceType, $sourceId);

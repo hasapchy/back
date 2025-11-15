@@ -3,17 +3,29 @@
 namespace App\Repositories;
 
 use App\Models\Client;
+use App\Models\ClientsEmail;
+use App\Models\ClientsPhone;
+use App\Models\Currency;
+use App\Models\Transaction;
 use App\Services\CacheService;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class ClientsRepository extends BaseRepository
 {
-
-
+    /**
+     * Получить клиентов с пагинацией и фильтрацией
+     *
+     * @param int $perPage Количество записей на страницу
+     * @param string|null $search Поисковый запрос
+     * @param bool $includeInactive Включать неактивных клиентов
+     * @param int $page Номер страницы
+     * @param string|null $statusFilter Фильтр по статусу ('active' или 'inactive')
+     * @param string|null $typeFilter Фильтр по типу клиента
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($perPage = 10, $search = null, $includeInactive = false, $page = 1, $statusFilter = null, $typeFilter = null)
     {
-        /** @var \App\Models\User|null $currentUser */
+        /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('clients_paginated', [$perPage, $search, $includeInactive, $statusFilter, $typeFilter, $currentUser?->id, $companyId]);
@@ -29,8 +41,6 @@ class ClientsRepository extends BaseRepository
                     'clients.*',
                     'clients.balance as balance'
                 ]);
-
-            $companyId = $this->getCurrentCompanyId();
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
 
@@ -75,9 +85,14 @@ class ClientsRepository extends BaseRepository
         }, (int)$page);
     }
 
+    /**
+     * Получить всех активных клиентов
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getAllItems()
     {
-        /** @var \App\Models\User|null $currentUser */
+        /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId]);
@@ -105,9 +120,15 @@ class ClientsRepository extends BaseRepository
         }, 1800);
     }
 
+    /**
+     * Поиск клиентов по запросу
+     *
+     * @param string $search_request Поисковый запрос (может содержать несколько слов)
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     function searchClient(string $search_request)
     {
-        /** @var \App\Models\User|null $currentUser */
+        /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('clients_search_' . md5($search_request), [$currentUser?->id, $companyId]);
@@ -152,6 +173,12 @@ class ClientsRepository extends BaseRepository
         });
     }
 
+    /**
+     * Получить клиента по ID
+     *
+     * @param int $id ID клиента
+     * @return Client|null
+     */
     public function getItemById($id)
     {
         $cacheKey = $this->generateCacheKey('client', [$id]);
@@ -175,6 +202,12 @@ class ClientsRepository extends BaseRepository
         });
     }
 
+    /**
+     * Создать клиента
+     *
+     * @param array $data Данные клиента
+     * @return Client
+     */
     public function createItem(array $data)
     {
         $client = DB::transaction(function () use ($data) {
@@ -197,23 +230,8 @@ class ClientsRepository extends BaseRepository
                 'discount_type'  => $data['discount_type'] ?? null,
             ]);
 
-            if (!empty($data['phones'])) {
-                foreach ($data['phones'] as $phone) {
-                    DB::table('clients_phones')->insert([
-                        'client_id' => $client->id,
-                        'phone'     => $phone,
-                    ]);
-                }
-            }
-
-            if (!empty($data['emails'])) {
-                foreach ($data['emails'] as $email) {
-                    DB::table('clients_emails')->insert([
-                        'client_id' => $client->id,
-                        'email'     => $email,
-                    ]);
-                }
-            }
+            $this->syncPhones($client->id, $data['phones'] ?? []);
+            $this->syncEmails($client->id, $data['emails'] ?? []);
 
             return $client;
         });
@@ -224,6 +242,13 @@ class ClientsRepository extends BaseRepository
         return $client->load('phones', 'emails', 'user', 'employee');
     }
 
+    /**
+     * Обновить клиента
+     *
+     * @param int $id ID клиента
+     * @param array $data Данные для обновления
+     * @return Client
+     */
     public function updateItem($id, array $data)
     {
         $client = DB::transaction(function () use ($id, $data) {
@@ -244,43 +269,8 @@ class ClientsRepository extends BaseRepository
                 'discount_type'  => $data['discount_type'] ?? null,
             ]);
 
-            $existingPhones = DB::table('clients_phones')->where('client_id', $client->id)->pluck('phone')->toArray();
-            $newPhones = $data['phones'] ?? [];
-
-            $phonesToAdd = array_diff($newPhones, $existingPhones);
-            $phonesToRemove = array_diff($existingPhones, $newPhones);
-
-            if (!empty($phonesToAdd)) {
-                foreach ($phonesToAdd as $phone) {
-                    DB::table('clients_phones')->insert([
-                        'client_id' => $client->id,
-                        'phone'     => $phone,
-                    ]);
-                }
-            }
-
-            if (!empty($phonesToRemove)) {
-                DB::table('clients_phones')->where('client_id', $client->id)->whereIn('phone', $phonesToRemove)->delete();
-            }
-
-            $existingEmails = DB::table('clients_emails')->where('client_id', $client->id)->pluck('email')->toArray();
-            $newEmails = $data['emails'] ?? [];
-
-            $emailsToAdd = array_diff($newEmails, $existingEmails);
-            $emailsToRemove = array_diff($existingEmails, $newEmails);
-
-            if (!empty($emailsToAdd)) {
-                foreach ($emailsToAdd as $email) {
-                    DB::table('clients_emails')->insert([
-                        'client_id' => $client->id,
-                        'email'     => $email,
-                    ]);
-                }
-            }
-
-            if (!empty($emailsToRemove)) {
-                DB::table('clients_emails')->where('client_id', $client->id)->whereIn('email', $emailsToRemove)->delete();
-            }
+            $this->syncPhones($client->id, $data['phones'] ?? []);
+            $this->syncEmails($client->id, $data['emails'] ?? []);
 
             return $client;
         });
@@ -291,104 +281,100 @@ class ClientsRepository extends BaseRepository
         return $client->load('phones', 'emails', 'user', 'employee');
     }
 
+    /**
+     * Получить клиентов по массиву ID
+     *
+     * @param array $ids Массив ID клиентов
+     * @return \Illuminate\Support\Collection
+     */
     function getItemsByIds(array $ids)
     {
 
-        $query = DB::table('clients')
-            ->leftJoin('users', 'clients.employee_id', '=', 'users.id')
-            ->select(
-                'clients.id as id',
-                'clients.client_type as client_type',
-                'clients.balance as balance',
-                'clients.is_supplier as is_supplier',
-                'clients.is_conflict as is_conflict',
-                'clients.first_name as first_name',
-                'clients.last_name as last_name',
-                'clients.contact_person as contact_person',
-                'clients.address as address',
-                'clients.note as note',
-                'clients.status as status',
-                'clients.discount_type as discount_type',
-                'clients.discount      as discount',
-                'clients.employee_id as employee_id',
-                'users.name as employee_name',
-                'clients.created_at as created_at',
-                'clients.updated_at as updated_at'
-            )
-            ->whereIn('clients.id', $ids);
+        $query = Client::whereIn('id', $ids)
+            ->with(['employee:id,name', 'emails:id,client_id,email', 'phones:id,client_id,phone']);
 
         $companyId = $this->getCurrentCompanyId();
         if ($companyId) {
-            $query->where('clients.company_id', $companyId);
+            $query->where('company_id', $companyId);
         }
 
-        $clients = $query->get();
-
-        $clientIds = $clients->pluck('id');
-
-        $emails = DB::table('clients_emails')
-            ->whereIn('client_id', $clientIds)
-            ->select('id', 'client_id', 'email')
-            ->get()
-            ->groupBy('client_id');
-
-        $phones = DB::table('clients_phones')
-            ->whereIn('client_id', $clientIds)
-            ->select('id', 'client_id', 'phone')
-            ->get()
-            ->groupBy('client_id');
-
-        foreach ($clients as $client) {
-            $client->emails = $emails->get($client->id, collect());
-            $client->phones = $phones->get($client->id, collect());
-        }
+        $clients = $query->get()->map(function ($client) {
+            return (object) [
+                'id' => $client->id,
+                'client_type' => $client->client_type,
+                'balance' => $client->balance,
+                'is_supplier' => $client->is_supplier,
+                'is_conflict' => $client->is_conflict,
+                'first_name' => $client->first_name,
+                'last_name' => $client->last_name,
+                'contact_person' => $client->contact_person,
+                'address' => $client->address,
+                'note' => $client->note,
+                'status' => $client->status,
+                'discount_type' => $client->discount_type,
+                'discount' => $client->discount,
+                'employee_id' => $client->employee_id,
+                'employee_name' => $client->employee->name ?? null,
+                'created_at' => $client->created_at,
+                'updated_at' => $client->updated_at,
+                'emails' => $client->emails,
+                'phones' => $client->phones,
+            ];
+        });
 
         return $clients;
     }
 
+    /**
+     * Получить историю баланса клиента
+     *
+     * @param int $clientId ID клиента
+     * @return array Массив транзакций с описаниями
+     */
     public function getBalanceHistory($clientId)
     {
         $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId]);
 
         return CacheService::remember($cacheKey, function () use ($clientId) {
             try {
-                $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
-                $defaultCurrencySymbol = $defaultCurrency ? $defaultCurrency->symbol : '';
+                $defaultCurrency = Currency::where('is_default', true)->first();
+                $defaultCurrencySymbol = $defaultCurrency?->symbol;
 
-                $transactions = DB::table('transactions')
-                    ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
-                    ->leftJoin('currencies', 'transactions.currency_id', '=', 'currencies.id')
-                    ->leftJoin('users', 'transactions.user_id', '=', 'users.id')
-                    ->where('transactions.client_id', $clientId)
-                    ->where('transactions.is_deleted', false)
+                $transactions = Transaction::where('client_id', $clientId)
+                    ->where('is_deleted', false)
+                    ->with([
+                        'cashRegister:id,name',
+                        'currency:id,symbol,code',
+                        'user:id,name'
+                    ])
                     ->select(
-                        'transactions.id',
-                        'transactions.created_at',
-                        'transactions.amount',
-                        'transactions.orig_amount',
-                        'transactions.type',
-                        'transactions.source_type',
-                        'transactions.source_id',
-                        'transactions.is_debt',
-                        'transactions.note',
-                        'transactions.user_id',
-                        'users.name as user_name',
-                        DB::raw("CASE
-                            WHEN transactions.source_type = 'App\\\\Models\\\\Sale' THEN 'sale'
-                            WHEN transactions.source_type = 'App\\\\Models\\\\Order' THEN 'order'
-                            WHEN transactions.source_type = 'App\\\\Models\\\\WhReceipt' THEN 'receipt'
-                            ELSE 'transaction'
-                        END as source"),
-                        'currencies.symbol as currency_symbol',
-                        'currencies.code as currency_code',
-                        'cash_registers.name as cash_name'
+                        'id',
+                        'created_at',
+                        'amount',
+                        'orig_amount',
+                        'type',
+                        'source_type',
+                        'source_id',
+                        'is_debt',
+                        'note',
+                        'user_id',
+                        'currency_id',
+                        'cash_id'
                     )
                     ->get()
                     ->flatMap(function ($item) use ($defaultCurrencySymbol) {
+                        $source = 'transaction';
+                        if ($item->source_type === 'App\\Models\\Sale') {
+                            $source = 'sale';
+                        } elseif ($item->source_type === 'App\\Models\\Order') {
+                            $source = 'order';
+                        } elseif ($item->source_type === 'App\\Models\\WhReceipt') {
+                            $source = 'receipt';
+                        }
                         $amount = $item->amount;
                         $results = [];
 
-                        if ($item->source === 'receipt') {
+                        if ($source === 'receipt') {
                             $receiptId = $item->source_id;
 
                             if ($item->is_debt) {
@@ -400,7 +386,7 @@ class ClientsRepository extends BaseRepository
                             }
 
                             $results[] = [
-                                'source' => $item->source,
+                                'source' => $source,
                                 'source_id' => $item->id,
                                 'source_type' => $item->source_type,
                                 'source_source_id' => $item->source_id,
@@ -411,12 +397,12 @@ class ClientsRepository extends BaseRepository
                                 'note' => $item->note,
                                 'description' => $description,
                                 'user_id' => $item->user_id,
-                                'user_name' => $item->user_name,
-                                'currency_symbol' => $item->currency_symbol ?? $defaultCurrencySymbol,
-                                'currency_code' => $item->currency_code,
-                                'cash_name' => $item->cash_name
+                                'user_name' => $item->user->name,
+                                'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_code' => $item->currency->code,
+                                'cash_name' => $item->cashRegister->name ?? null
                             ];
-                        } elseif ($item->source === 'transaction') {
+                        } elseif ($source === 'transaction') {
                             $transactionId = $item->id;
                             $amount = $item->type == 1 ? +$amount : -$amount;
 
@@ -431,7 +417,7 @@ class ClientsRepository extends BaseRepository
                             }
 
                             $results[] = [
-                                'source' => $item->source,
+                                'source' => $source,
                                 'source_id' => $item->id,
                                 'source_type' => $item->source_type,
                                 'source_source_id' => $item->source_id,
@@ -442,15 +428,15 @@ class ClientsRepository extends BaseRepository
                                 'note' => $item->note,
                                 'description' => $description,
                                 'user_id' => $item->user_id,
-                                'user_name' => $item->user_name,
-                                'currency_symbol' => $item->currency_symbol ?? $defaultCurrencySymbol,
-                                'currency_code' => $item->currency_code,
-                                'cash_name' => $item->cash_name
+                                'user_name' => $item->user->name,
+                                'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_code' => $item->currency->code,
+                                'cash_name' => $item->cashRegister->name ?? null
                             ];
-                        } elseif ($item->source === 'sale') {
+                        } elseif ($source === 'sale') {
                             $saleId = $item->source_id;
                             $results[] = [
-                                'source' => $item->source,
+                                'source' => $source,
                                 'source_id' => $item->id,
                                 'source_type' => $item->source_type,
                                 'source_source_id' => $item->source_id,
@@ -461,12 +447,12 @@ class ClientsRepository extends BaseRepository
                                 'note' => $item->note,
                                 'description' => '🛒 Продажа #' . $saleId . ($item->is_debt ? ' (в кредит)' : ''),
                                 'user_id' => $item->user_id,
-                                'user_name' => $item->user_name,
-                                'currency_symbol' => $item->currency_symbol ?? $defaultCurrencySymbol,
-                                'currency_code' => $item->currency_code,
-                                'cash_name' => $item->cash_name
+                                'user_name' => $item->user->name,
+                                'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_code' => $item->currency->code,
+                                'cash_name' => $item->cashRegister->name ?? null
                             ];
-                        } elseif ($item->source === 'order') {
+                        } elseif ($source === 'order') {
                             $orderId = $item->source_id;
                             $amount = $item->type == 1 ? +$amount : -$amount;
 
@@ -475,7 +461,7 @@ class ClientsRepository extends BaseRepository
                                 : '💰 Оплата заказа #' . $orderId;
 
                             $results[] = [
-                                'source' => $item->source,
+                                'source' => $source,
                                 'source_id' => $item->id,
                                 'source_type' => $item->source_type,
                                 'source_source_id' => $item->source_id,
@@ -486,15 +472,15 @@ class ClientsRepository extends BaseRepository
                                 'note' => $item->note,
                                 'description' => $description,
                                 'user_id' => $item->user_id,
-                                'user_name' => $item->user_name,
-                                'currency_symbol' => $item->currency_symbol ?? $defaultCurrencySymbol,
-                                'currency_code' => $item->currency_code,
-                                'cash_name' => $item->cash_name
+                                'user_name' => $item->user->name,
+                                'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_code' => $item->currency->code,
+                                'cash_name' => $item->cashRegister->name ?? null
                             ];
                         } else {
                             $description = $item->note ?? 'Транзакция';
                             $results[] = [
-                                'source' => $item->source,
+                                'source' => $source,
                                 'source_id' => $item->id,
                                 'source_type' => $item->source_type,
                                 'source_source_id' => $item->source_id,
@@ -505,10 +491,10 @@ class ClientsRepository extends BaseRepository
                                 'note' => $item->note,
                                 'description' => $description,
                                 'user_id' => $item->user_id,
-                                'user_name' => $item->user_name,
-                                'currency_symbol' => $item->currency_symbol ?? $defaultCurrencySymbol,
-                                'currency_code' => $item->currency_code,
-                                'cash_name' => $item->cash_name
+                                'user_name' => $item->user->name,
+                                'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_code' => $item->currency->code,
+                                'cash_name' => $item->cashRegister->name ?? null
                             ];
                         }
 
@@ -531,12 +517,18 @@ class ClientsRepository extends BaseRepository
     }
 
 
+    /**
+     * Удалить клиента
+     *
+     * @param int $id ID клиента
+     * @return int Количество удаленных записей
+     */
     public function deleteItem($id)
     {
         $result = DB::transaction(function () use ($id) {
-            DB::table('clients_emails')->where('client_id', $id)->delete();
-            DB::table('clients_phones')->where('client_id', $id)->delete();
-            return DB::table('clients')->where('id', $id)->delete();
+            ClientsEmail::where('client_id', $id)->delete();
+            ClientsPhone::where('client_id', $id)->delete();
+            return Client::where('id', $id)->delete();
         });
 
         CacheService::invalidateClientsCache();
@@ -545,11 +537,80 @@ class ClientsRepository extends BaseRepository
         return $result;
     }
 
+    /**
+     * Синхронизировать телефоны клиента
+     *
+     * @param int $clientId ID клиента
+     * @param array $phones Массив телефонов
+     * @return void
+     */
+    private function syncPhones(int $clientId, array $phones)
+    {
+        $existingPhones = ClientsPhone::where('client_id', $clientId)
+            ->pluck('phone')
+            ->toArray();
+
+        $phonesToAdd = array_diff($phones, $existingPhones);
+        $phonesToRemove = array_diff($existingPhones, $phones);
+
+        if (!empty($phonesToAdd)) {
+            foreach ($phonesToAdd as $phone) {
+                ClientsPhone::create([
+                    'client_id' => $clientId,
+                    'phone' => $phone,
+                ]);
+            }
+        }
+
+        if (!empty($phonesToRemove)) {
+            ClientsPhone::where('client_id', $clientId)
+                ->whereIn('phone', $phonesToRemove)
+                ->delete();
+        }
+    }
+
+    /**
+     * Синхронизировать email клиента
+     *
+     * @param int $clientId ID клиента
+     * @param array $emails Массив email
+     * @return void
+     */
+    private function syncEmails(int $clientId, array $emails)
+    {
+        $existingEmails = ClientsEmail::where('client_id', $clientId)
+            ->pluck('email')
+            ->toArray();
+
+        $emailsToAdd = array_diff($emails, $existingEmails);
+        $emailsToRemove = array_diff($existingEmails, $emails);
+
+        if (!empty($emailsToAdd)) {
+            foreach ($emailsToAdd as $email) {
+                ClientsEmail::create([
+                    'client_id' => $clientId,
+                    'email' => $email,
+                ]);
+            }
+        }
+
+        if (!empty($emailsToRemove)) {
+            ClientsEmail::where('client_id', $clientId)
+                ->whereIn('email', $emailsToRemove)
+                ->delete();
+        }
+    }
+
+    /**
+     * Инвалидировать кэш баланса клиента
+     *
+     * @param int $clientId ID клиента
+     * @return void
+     */
     public function invalidateClientBalanceCache($clientId)
     {
         CacheService::invalidateClientBalanceCache($clientId);
 
         CacheService::invalidateClientsCache();
     }
-
 }

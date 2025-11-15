@@ -10,7 +10,14 @@ use Illuminate\Support\Facades\DB;
 
 class TransfersRepository extends BaseRepository
 {
-
+    /**
+     * Получить перемещения с пагинацией
+     *
+     * @param int $userUuid ID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @param int $page Номер страницы
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         /** @var \App\Models\User|null $currentUser */
@@ -92,6 +99,13 @@ class TransfersRepository extends BaseRepository
         }, (int)$page);
     }
 
+    /**
+     * Создать перемещение между кассами
+     *
+     * @param array $data Данные перемещения
+     * @return bool
+     * @throws \Exception
+     */
     public function createItem($data)
     {
         $cash_from_id = $data['cash_id_from'];
@@ -99,13 +113,9 @@ class TransfersRepository extends BaseRepository
         $amount = $data['amount'];
         $userUuid = $data['user_id'];
         $note = $data['note'];
-        $date_of_transfer = now();
-        $fromCashRegister = CashRegister::find($cash_from_id);
-        $toCashRegister = CashRegister::find($cash_to_id);
-
-        if (!$fromCashRegister || !$toCashRegister) {
-            throw new \Exception('Одна из касс не найдена');
-        }
+        $date_of_transfer = $data['date'] ?? now();
+        $fromCashRegister = CashRegister::findOrFail($cash_from_id);
+        $toCashRegister = CashRegister::findOrFail($cash_to_id);
 
         if ($fromCashRegister->balance < $amount) {
             throw new \Exception('Недостаточно средств на кассе отправителя');
@@ -182,6 +192,14 @@ class TransfersRepository extends BaseRepository
         return true;
     }
 
+    /**
+     * Обновить перемещение
+     *
+     * @param int $id ID перемещения
+     * @param array $data Данные для обновления
+     * @return bool
+     * @throws \Exception
+     */
     public function updateItem($id, $data)
     {
         DB::beginTransaction();
@@ -192,11 +210,17 @@ class TransfersRepository extends BaseRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            return false;
+            throw $e;
         }
     }
 
-
+    /**
+     * Удалить перемещение
+     *
+     * @param int $id ID перемещения
+     * @return bool
+     * @throws \Exception
+     */
     public function deleteItem($id)
     {
         DB::beginTransaction();
@@ -218,7 +242,7 @@ class TransfersRepository extends BaseRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            return false;
+            throw $e;
         }
     }
 }

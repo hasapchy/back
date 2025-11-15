@@ -6,15 +6,29 @@ use App\Http\Controllers\Controller;
 use App\Repositories\WarehouseStockRepository;
 use Illuminate\Http\Request;
 
+/**
+ * Контроллер для работы с остатками на складах
+ */
 class WarehouseStockController extends Controller
 {
     protected $warehouseRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param WarehouseStockRepository $warehouseRepository
+     */
     public function __construct(WarehouseStockRepository $warehouseRepository)
     {
         $this->warehouseRepository = $warehouseRepository;
     }
 
+    /**
+     * Получить список остатков на складах с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();

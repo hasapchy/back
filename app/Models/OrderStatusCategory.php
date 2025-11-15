@@ -5,16 +5,27 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Модель категории статуса заказа
+ *
+ * @property int $id
+ * @property string $name Название категории
+ * @property int $user_id ID пользователя
+ * @property string $color Цвет категории
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ *
+ * @property-read \App\Models\User $user
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\OrderStatus[] $statuses
+ */
 class OrderStatusCategory extends Model
 {
     use HasFactory;
 
     protected $fillable = ['name', 'user_id', 'color'];
 
-    protected static function boot()
+    protected static function booted()
     {
-        parent::boot();
-
         static::deleting(function ($category) {
             $protectedIds = [1, 2, 3, 4, 5];
             if (in_array($category->id, $protectedIds)) {
@@ -23,11 +34,21 @@ class OrderStatusCategory extends Model
         });
     }
 
+    /**
+     * Связь с пользователем
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * Связь со статусами заказов
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function statuses()
     {
         return $this->hasMany(OrderStatus::class, 'category_id');

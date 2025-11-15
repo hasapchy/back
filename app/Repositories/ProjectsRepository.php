@@ -5,11 +5,70 @@ namespace App\Repositories;
 use App\Models\Project;
 use App\Models\ProjectUser;
 use App\Services\CacheService;
+use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Репозиторий для работы с проектами
+ */
 class ProjectsRepository extends BaseRepository
 {
+    /**
+     * Получить базовые связи для проектов
+     *
+     * @return array
+     */
+    private function getBaseRelations(): array
+    {
+        return [
+            'client:id,first_name,last_name,contact_person,balance',
+            'client.phones:id,client_id,phone',
+            'client.emails:id,client_id,email',
+            'currency:id,name,code,symbol',
+            'status:id,name,color',
+            'creator:id,name,photo',
+            'users:id,name',
+        ];
+    }
 
+    /**
+     * Синхронизировать пользователей проекта
+     *
+     * @param int $projectId ID проекта
+     * @param array $userIds Массив ID пользователей
+     * @return void
+     */
+    private function syncProjectUsers(int $projectId, array $userIds): void
+    {
+        ProjectUser::where('project_id', $projectId)->delete();
+
+        if (!empty($userIds)) {
+            $insertData = [];
+            foreach ($userIds as $userId) {
+                $insertData[] = [
+                    'project_id' => $projectId,
+                    'user_id' => $userId,
+                ];
+            }
+            ProjectUser::insert($insertData);
+        }
+    }
+
+    /**
+     * Получить проекты с пагинацией
+     *
+     * @param int $userUuid ID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @param int $page Номер страницы
+     * @param string|null $search Поисковый запрос
+     * @param string $dateFilter Фильтр по дате
+     * @param string|null $startDate Начальная дата
+     * @param string|null $endDate Конечная дата
+     * @param int|null $statusId ID статуса
+     * @param int|null $clientId ID клиента
+     * @param string|null $contractType Тип контракта
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null, $clientId = null, $contractType = null)
     {
         /** @var \App\Models\User|null $currentUser */
@@ -20,19 +79,10 @@ class ProjectsRepository extends BaseRepository
         $ttl = (!$search && $dateFilter === 'all_time' && !$statusId && !$clientId && $contractType === null) ? 1800 : 600;
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId, $clientId, $contractType, $currentUser) {
-            $query = Project::select([
-                'projects.*'
-            ])
-                ->with([
-                    'client:id,first_name,last_name,contact_person,balance',
-                    'client.phones:id,client_id,phone',
-                    'client.emails:id,client_id,email',
-                    'currency:id,name,code,symbol',
-                    'status:id,name,color',
-                    'creator:id,name,photo',
-                    'users:id,name',
+            $query = Project::select(['projects.*'])
+                ->with(array_merge($this->getBaseRelations(), [
                     'projectUsers:id,project_id,user_id'
-                ]);
+                ]));
 
             $query = $this->addCompanyFilterDirect($query, 'projects');
 
@@ -68,6 +118,13 @@ class ProjectsRepository extends BaseRepository
 
 
 
+    /**
+     * Получить все проекты
+     *
+     * @param int $userUuid ID пользователя
+     * @param bool $activeOnly Только активные проекты
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getAllItems($userUuid, $activeOnly = false)
     {
         /** @var \App\Models\User|null $currentUser */
@@ -76,18 +133,8 @@ class ProjectsRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('projects_all', [$userUuid, $activeOnly, $currentUser?->id, $companyId]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $activeOnly, $currentUser) {
-            $query = Project::select([
-                'projects.*'
-            ])
-                ->with([
-                    'client:id,first_name,last_name,contact_person,balance',
-                    'client.phones:id,client_id,phone',
-                    'client.emails:id,client_id,email',
-                    'currency:id,name,code,symbol',
-                    'status:id,name,color',
-                    'creator:id,name,photo',
-                    'users:id,name'
-                ]);
+            $query = Project::select(['projects.*'])
+                ->with($this->getBaseRelations());
 
             $query = $this->addCompanyFilterDirect($query, 'projects');
 
@@ -105,13 +152,18 @@ class ProjectsRepository extends BaseRepository
         }, 1800);
     }
 
-    public function createItem($data)
+    /**
+     * Создать проект
+     *
+     * @param array $data Данные проекта
+     * @return bool
+     * @throws \Exception
+     */
+    public function createItem(array $data): bool
     {
         DB::beginTransaction();
         try {
             $companyId = $this->getCurrentCompanyId();
-
-
 
             $item = new Project();
             $item->name = $data['name'];
@@ -127,17 +179,13 @@ class ProjectsRepository extends BaseRepository
             $item->status_id = $data['status_id'] ?? 1;
             $item->save();
 
-            foreach ($data['users'] as $userId) {
-                ProjectUser::create([
-                    'project_id' => $item->id,
-                    'user_id' => $userId
-                ]);
-
+            if (isset($data['users']) && is_array($data['users'])) {
+                $this->syncProjectUsers($item->id, $data['users']);
             }
 
             DB::commit();
 
-            $this->invalidateProjectsCache();
+            CacheService::invalidateProjectsCache();
 
             return true;
         } catch (\Exception $e) {
@@ -146,14 +194,19 @@ class ProjectsRepository extends BaseRepository
         }
     }
 
-    public function updateItem($id, $data)
+    /**
+     * Обновить проект
+     *
+     * @param int $id ID проекта
+     * @param array $data Данные для обновления
+     * @return bool
+     * @throws \Exception
+     */
+    public function updateItem(int $id, array $data): bool
     {
         DB::beginTransaction();
         try {
-            $item = Project::find($id);
-            if (!$item) {
-                throw new \Exception('Project not found');
-            }
+            $item = Project::findOrFail($id);
 
             if (isset($data['files']) && is_array($data['files'])) {
                 $item->files = $data['files'];
@@ -171,19 +224,13 @@ class ProjectsRepository extends BaseRepository
 
             $item->save();
 
-            ProjectUser::where('project_id', $id)->delete();
-
-            foreach ($data['users'] as $userId) {
-                ProjectUser::create([
-                    'project_id' => $id,
-                    'user_id' => $userId
-                ]);
+            if (isset($data['users']) && is_array($data['users'])) {
+                $this->syncProjectUsers($id, $data['users']);
             }
 
             DB::commit();
 
-            // Инвалидируем кэш проектов
-            $this->invalidateProjectsCache();
+            CacheService::invalidateProjectsCache();
 
             return true;
         } catch (\Exception $e) {
@@ -192,6 +239,13 @@ class ProjectsRepository extends BaseRepository
         }
     }
 
+    /**
+     * Найти проект с отношениями
+     *
+     * @param int $id ID проекта
+     * @param int|null $userUuid ID пользователя
+     * @return Project|null
+     */
     public function findItemWithRelations($id, $userUuid = null)
     {
         $cacheKey = $this->generateCacheKey('project_item_relations', [$id, $userUuid]);
@@ -234,14 +288,18 @@ class ProjectsRepository extends BaseRepository
         }, 1800);
     }
 
+    /**
+     * Удалить проект
+     *
+     * @param int $id ID проекта
+     * @return bool
+     * @throws \Exception
+     */
     public function deleteItem($id)
     {
         DB::beginTransaction();
         try {
-            $item = Project::find($id);
-            if (!$item) {
-                return false;
-            }
+            $item = Project::findOrFail($id);
 
             $transactionsCount = \App\Models\Transaction::where('project_id', $id)
                 ->where('is_deleted', false)
@@ -257,7 +315,7 @@ class ProjectsRepository extends BaseRepository
             DB::commit();
 
             // Инвалидируем кэш проектов
-            $this->invalidateProjectsCache();
+            CacheService::invalidateProjectsCache();
 
             return true;
         } catch (\Exception $e) {
@@ -266,6 +324,12 @@ class ProjectsRepository extends BaseRepository
         }
     }
 
+    /**
+     * Получить историю баланса проекта
+     *
+     * @param int $projectId ID проекта
+     * @return array
+     */
     public function getBalanceHistory($projectId)
     {
         $cacheKey = $this->generateCacheKey('project_balance_history', [$projectId]);
@@ -278,11 +342,10 @@ class ProjectsRepository extends BaseRepository
             $companyId = $project ? $project->company_id : null;
             $currencyRates = [];
 
-            $currencyHistoriesQuery = DB::table('currency_histories')
-                ->where('start_date', '<=', now()->toDateString())
-                ->where(function($query) {
+            $currencyHistoriesQuery = \App\Models\CurrencyHistory::where('start_date', '<=', now()->toDateString())
+                ->where(function ($query) {
                     $query->whereNull('end_date')
-                          ->orWhere('end_date', '>=', now()->toDateString());
+                        ->orWhere('end_date', '>=', now()->toDateString());
                 });
 
             if ($companyId) {
@@ -298,40 +361,42 @@ class ProjectsRepository extends BaseRepository
                 ->groupBy('currency_id');
 
             foreach ($currencyHistories as $currencyId => $histories) {
-                $currencyRates[$currencyId] = $histories->first()->exchange_rate ?? 1;
+                $currencyRates[$currencyId] = $histories->first()?->exchange_rate;
             }
 
-            $transactions = DB::table('transactions')
-                ->leftJoin('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
-                ->leftJoin('currencies as cash_currencies', 'cash_registers.currency_id', '=', 'cash_currencies.id')
-                ->leftJoin('currencies as transaction_currencies', 'transactions.currency_id', '=', 'transaction_currencies.id')
-                ->leftJoin('users', 'transactions.user_id', '=', 'users.id')
-                ->where('transactions.project_id', $projectId)
-                ->where('transactions.is_deleted', false)
+            $transactions = Transaction::where('project_id', $projectId)
+                ->where('is_deleted', false)
+                ->with([
+                    'cashRegister.currency:id,symbol',
+                    'currency:id,symbol',
+                    'user:id,name'
+                ])
                 ->select(
-                    'transactions.id',
-                    'transactions.created_at',
-                    'transactions.currency_id',
-                    'transactions.orig_amount',
-                    'transactions.type',
-                    'transactions.source_type',
-                    'transactions.source_id',
-                    'transactions.is_debt',
-                    'transactions.note',
-                    'transactions.user_id',
-                    'users.name as user_name',
-                    DB::raw("CASE
-                        WHEN transactions.source_type = 'App\\\\Models\\\\Sale' THEN 'sale'
-                        WHEN transactions.source_type = 'App\\\\Models\\\\Order' THEN 'order'
-                        WHEN transactions.source_type = 'App\\\\Models\\\\WhReceipt' THEN 'receipt'
-                        ELSE 'transaction'
-                    END as source"),
-                    'transaction_currencies.symbol as cash_currency_symbol'
+                    'id',
+                    'created_at',
+                    'currency_id',
+                    'orig_amount',
+                    'type',
+                    'source_type',
+                    'source_id',
+                    'is_debt',
+                    'note',
+                    'user_id',
+                    'cash_id'
                 );
 
             $transactionsResult = $transactions
                 ->get()
                 ->map(function ($item) use ($projectCurrencyId, $projectExchangeRate, $currencyRates) {
+                    $source = 'transaction';
+                    if ($item->source_type === 'App\\Models\\Sale') {
+                        $source = 'sale';
+                    } elseif ($item->source_type === 'App\\Models\\Order') {
+                        $source = 'order';
+                    } elseif ($item->source_type === 'App\\Models\\WhReceipt') {
+                        $source = 'receipt';
+                    }
+
                     $amount = $item->orig_amount;
 
                     if ($item->currency_id != $projectCurrencyId) {
@@ -339,18 +404,18 @@ class ProjectsRepository extends BaseRepository
                         $amount = ($item->orig_amount * $transactionRate) * $projectExchangeRate;
                     }
 
-                    if ($item->source === 'receipt') {
+                    if ($source === 'receipt') {
                         $amount = -$amount;
-                    } elseif ($item->source === 'transaction') {
+                    } elseif ($source === 'transaction') {
                         $amount = $item->type == 1 ? +$amount : -$amount;
-                    } elseif ($item->source === 'sale') {
+                    } elseif ($source === 'sale') {
                         $amount = +$amount;
-                    } elseif ($item->source === 'order') {
+                    } elseif ($source === 'order') {
                         $amount = -$amount;
                     }
 
                     return [
-                        'source' => $item->source,
+                        'source' => $source,
                         'source_id' => $item->id,
                         'source_type' => $item->source_type,
                         'source_source_id' => $item->source_id,
@@ -360,8 +425,8 @@ class ProjectsRepository extends BaseRepository
                         'is_debt' => $item->is_debt,
                         'note' => $item->note,
                         'user_id' => $item->user_id,
-                        'user_name' => $item->user_name,
-                        'cash_currency_symbol' => $item->cash_currency_symbol,
+                        'user_name' => $item->user->name,
+                        'cash_currency_symbol' => $item->cashRegister?->currency->symbol ?? $item->currency->symbol,
                         'debug_transaction_currency' => $item->currency_id,
                         'debug_transaction_rate' => $currencyRates[$item->currency_id] ?? 1,
                         'debug_project_currency' => $projectCurrencyId,
@@ -378,6 +443,12 @@ class ProjectsRepository extends BaseRepository
         }, 900);
     }
 
+    /**
+     * Получить общий баланс проекта
+     *
+     * @param int $projectId ID проекта
+     * @return float
+     */
     public function getTotalBalance($projectId)
     {
         $cacheKey = $this->generateCacheKey('project_total_balance', [$projectId]);
@@ -388,11 +459,12 @@ class ProjectsRepository extends BaseRepository
         }, 900);
     }
 
-    public function getRealBalance($projectId)
-    {
-        return $this->getTotalBalance($projectId);
-    }
-
+    /**
+     * Получить детальный баланс проекта
+     *
+     * @param int $projectId ID проекта
+     * @return array
+     */
     public function getDetailedBalance($projectId)
     {
         $cacheKey = $this->generateCacheKey('project_detailed_balance', [$projectId]);
@@ -406,22 +478,32 @@ class ProjectsRepository extends BaseRepository
         }, 900);
     }
 
-    private function invalidateProjectsCache()
+    /**
+     * Инвалидировать кэш конкретного проекта
+     *
+     * @param int $projectId ID проекта
+     * @return void
+     */
+    public function invalidateProjectCache($projectId): void
     {
-        CacheService::invalidateProjectsCache();
+        CacheService::forget("project_item_{$projectId}");
+        CacheService::forget("project_balance_history_{$projectId}");
+        CacheService::forget("project_balance_{$projectId}");
+        CacheService::forget("project_total_balance_{$projectId}");
+        CacheService::forget("project_real_balance_{$projectId}");
+        CacheService::forget("project_detailed_balance_{$projectId}");
+        CacheService::forget("project_item_relations_{$projectId}_null");
     }
 
-    public function invalidateProjectCache($projectId)
-    {
-        \Illuminate\Support\Facades\Cache::forget("project_item_{$projectId}");
-        \Illuminate\Support\Facades\Cache::forget("project_balance_history_{$projectId}");
-        \Illuminate\Support\Facades\Cache::forget("project_balance_{$projectId}");
-        \Illuminate\Support\Facades\Cache::forget("project_total_balance_{$projectId}");
-        \Illuminate\Support\Facades\Cache::forget("project_real_balance_{$projectId}");
-        \Illuminate\Support\Facades\Cache::forget("project_detailed_balance_{$projectId}");
-        \Illuminate\Support\Facades\Cache::forget("project_item_relations_{$projectId}_null");
-    }
-
+    /**
+     * Массовое обновление статуса проектов
+     *
+     * @param array $ids Массив ID проектов
+     * @param int $statusId ID нового статуса
+     * @param string $userId ID пользователя
+     * @return int Количество обновленных проектов
+     * @throws \Exception
+     */
     public function updateStatusByIds(array $ids, int $statusId, string $userId): int
     {
         $targetStatus = \App\Models\ProjectStatus::findOrFail($statusId);
@@ -446,10 +528,9 @@ class ProjectsRepository extends BaseRepository
         }
 
         if ($updatedCount > 0) {
-            $this->invalidateProjectsCache();
+            CacheService::invalidateProjectsCache();
         }
 
         return $updatedCount;
     }
 }
-

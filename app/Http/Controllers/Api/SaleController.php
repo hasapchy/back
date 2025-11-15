@@ -7,15 +7,29 @@ use App\Repositories\SalesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 
+/**
+ * Контроллер для работы с продажами
+ */
 class SaleController extends Controller
 {
     protected $itemRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param SalesRepository $itemRepository Репозиторий продаж
+     */
     public function __construct(SalesRepository $itemRepository)
     {
         $this->itemRepository = $itemRepository;
     }
 
+    /**
+     * Получить список продаж с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -32,6 +46,12 @@ class SaleController extends Controller
         return $this->paginatedResponse($items);
     }
 
+    /**
+     * Создать новую продажу
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -97,6 +117,12 @@ class SaleController extends Controller
         }
     }
 
+    /**
+     * Получить продажу по ID
+     *
+     * @param int $id ID продажи
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function show($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -105,7 +131,6 @@ class SaleController extends Controller
             return $this->notFoundResponse('Not found');
         }
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('sales', 'view', $item)) {
             return $this->forbiddenResponse('У вас нет прав на просмотр этой продажи');
         }
@@ -113,6 +138,12 @@ class SaleController extends Controller
         return response()->json(['item' => $item]);
     }
 
+    /**
+     * Удалить продажу
+     *
+     * @param int $id ID продажи
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $user = $this->requireAuthenticatedUser();
@@ -123,7 +154,6 @@ class SaleController extends Controller
             return $this->notFoundResponse('Продажа не найдена');
         }
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('sales', 'delete', $sale)) {
             return $this->forbiddenResponse('У вас нет прав на удаление этой продажи');
         }

@@ -7,8 +7,17 @@ use App\Models\CompanyRoundingRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
+/**
+ * Контроллер для работы с правилами округления компаний
+ */
 class CompanyRoundingRulesController extends Controller
 {
+    /**
+     * Получить правила округления текущей компании
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $companyId = $this->getCurrentCompanyId();
@@ -16,6 +25,12 @@ class CompanyRoundingRulesController extends Controller
         return response()->json($rules);
     }
 
+    /**
+     * Создать или обновить правило округления
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function upsert(Request $request)
     {
         $companyId = $this->getCurrentCompanyId();

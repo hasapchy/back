@@ -10,7 +10,14 @@ use Illuminate\Support\Facades\DB;
 
 class WarehouseWriteoffRepository extends BaseRepository
 {
-    // Получение стоков с пагинацией
+    /**
+     * Получить списания с пагинацией
+     *
+     * @param int $userUuid ID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @param int $page Номер страницы
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         $cacheKey = $this->generateCacheKey('warehouse_writeoffs_paginated', [$userUuid, $perPage]);
@@ -44,6 +51,13 @@ class WarehouseWriteoffRepository extends BaseRepository
         }, (int)$page);
     }
 
+    /**
+     * Создать списание
+     *
+     * @param array $data Данные списания
+     * @return bool
+     * @throws \Exception
+     */
     public function createItem($data)
     {
         $warehouse_id = $data['warehouse_id'];
@@ -83,12 +97,18 @@ class WarehouseWriteoffRepository extends BaseRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            return false;
+            throw $e;
         }
-
-        return true;
     }
 
+    /**
+     * Обновить списание
+     *
+     * @param int $writeoff_id ID списания
+     * @param array $data Данные для обновления
+     * @return bool
+     * @throws \Exception
+     */
     public function updateItem($writeoff_id, $data)
     {
         $warehouse_id = $data['warehouse_id'];
@@ -98,10 +118,7 @@ class WarehouseWriteoffRepository extends BaseRepository
         DB::beginTransaction();
 
         try {
-            $writeoff = WhWriteoff::find($writeoff_id);
-            if (!$writeoff) {
-                throw new \Exception('Writeoff not found');
-            }
+            $writeoff = WhWriteoff::findOrFail($writeoff_id);
 
             $writeoff->warehouse_id = $warehouse_id;
             $writeoff->note = $note;
@@ -142,21 +159,23 @@ class WarehouseWriteoffRepository extends BaseRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            return false;
+            throw $e;
         }
-
-        return true;
     }
 
+    /**
+     * Удалить списание
+     *
+     * @param int $writeoff_id ID списания
+     * @return bool
+     * @throws \Exception
+     */
     public function deleteItem($writeoff_id)
     {
         DB::beginTransaction();
 
         try {
-            $writeoff = WhWriteoff::find($writeoff_id);
-            if (!$writeoff) {
-                throw new \Exception('Writeoff not found');
-            }
+            $writeoff = WhWriteoff::findOrFail($writeoff_id);
 
             $warehouse_id = $writeoff->warehouse_id;
             $products = WhWriteoffProduct::where('write_off_id', $writeoff_id)->get();
@@ -179,14 +198,18 @@ class WarehouseWriteoffRepository extends BaseRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            return false;
+            throw $e;
         }
-
-        return true;
     }
 
-
-    // Обновление стоков
+    /**
+     * Обновить остатки на складе
+     *
+     * @param int $warehouse_id ID склада
+     * @param int $product_id ID товара
+     * @param float $remove_quantity Количество для списания
+     * @return bool
+     */
     private function updateStock($warehouse_id, $product_id, $remove_quantity)
     {
         $stock = WarehouseStock::where('warehouse_id', $warehouse_id)
@@ -206,6 +229,12 @@ class WarehouseWriteoffRepository extends BaseRepository
         return true;
     }
 
+    /**
+     * Получить продукты для списаний
+     *
+     * @param array $wh_write_off_ids Массив ID списаний
+     * @return \Illuminate\Support\Collection
+     */
     private function getProducts($wh_write_off_ids)
     {
         return WhWriteoffProduct::whereIn('write_off_id', $wh_write_off_ids)

@@ -7,8 +7,17 @@ use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * Контроллер для работы с компаниями пользователя
+ */
 class UserCompanyController extends Controller
 {
+    /**
+     * Получить текущую компанию пользователя
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getCurrentCompany(Request $request)
     {
         $user = $this->getAuthenticatedUser();
@@ -39,6 +48,12 @@ class UserCompanyController extends Controller
         return response()->json(['company' => $company]);
     }
 
+    /**
+     * Установить текущую компанию пользователя
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function setCurrentCompany(Request $request)
     {
         $user = $this->getAuthenticatedUser();
@@ -66,6 +81,11 @@ class UserCompanyController extends Controller
         return response()->json(['company' => $company, 'message' => 'Company selected successfully']);
     }
 
+    /**
+     * Получить список компаний пользователя
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getUserCompanies()
     {
         $user = $this->getAuthenticatedUser();

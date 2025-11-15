@@ -7,6 +7,13 @@ use App\Services\CacheService;
 
 class OrderStatusRepository extends BaseRepository
 {
+    /**
+     * Получить статусы заказов с пагинацией
+     *
+     * @param int $userUuid ID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
         $cacheKey = $this->generateCacheKey('order_statuses_paginated', [$userUuid, $perPage]);
@@ -16,6 +23,12 @@ class OrderStatusRepository extends BaseRepository
         }, 1);
     }
 
+    /**
+     * Получить все статусы заказов
+     *
+     * @param int $userUuid ID пользователя
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getAllItems($userUuid)
     {
         $cacheKey = $this->generateCacheKey('order_statuses_all', [$userUuid]);
@@ -25,6 +38,12 @@ class OrderStatusRepository extends BaseRepository
         });
     }
 
+    /**
+     * Создать статус заказа
+     *
+     * @param array $data Данные статуса
+     * @return OrderStatus
+     */
     public function createItem($data)
     {
         $item = OrderStatus::create($data);
@@ -32,6 +51,13 @@ class OrderStatusRepository extends BaseRepository
         return $item;
     }
 
+    /**
+     * Обновить статус заказа
+     *
+     * @param int $id ID статуса
+     * @param array $data Данные для обновления
+     * @return OrderStatus
+     */
     public function updateItem($id, $data)
     {
         $item = OrderStatus::findOrFail($id);
@@ -40,6 +66,12 @@ class OrderStatusRepository extends BaseRepository
         return $item;
     }
 
+    /**
+     * Удалить статус заказа
+     *
+     * @param int $id ID статуса
+     * @return bool
+     */
     public function deleteItem($id)
     {
         $item = OrderStatus::findOrFail($id);

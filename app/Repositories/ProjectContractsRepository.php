@@ -3,35 +3,81 @@
 namespace App\Repositories;
 
 use App\Models\ProjectContract;
+use App\Models\Project;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Репозиторий для работы с контрактами проектов
+ */
 class ProjectContractsRepository extends BaseRepository
 {
+    /**
+     * Получить базовый запрос контрактов с валютами
+     *
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    private function getBaseQuery()
+    {
+        return ProjectContract::select([
+            'project_contracts.id',
+            'project_contracts.project_id',
+            'project_contracts.number',
+            'project_contracts.amount',
+            'project_contracts.currency_id',
+            'project_contracts.date',
+            'project_contracts.returned',
+            'project_contracts.files',
+            'project_contracts.note',
+            'project_contracts.created_at',
+            'project_contracts.updated_at',
+            'currencies.name as currency_name',
+            'currencies.code as currency_code',
+            'currencies.symbol as currency_symbol'
+        ])
+            ->leftJoin('currencies', 'project_contracts.currency_id', '=', 'currencies.id')
+            ->with(['currency:id,name,code,symbol']);
+    }
+
+    /**
+     * Применить фильтрацию по компании через связь с проектом
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    private function applyCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->whereHas('project', function ($q) use ($companyId) {
+                $q->where('projects.company_id', $companyId);
+            });
+        } else {
+            $query->whereHas('project', function ($q) {
+                $q->whereNull('projects.company_id');
+            });
+        }
+        return $query;
+    }
+
+    /**
+     * Получить контракты проекта с пагинацией
+     *
+     * @param int $projectId ID проекта
+     * @param int $perPage Количество записей на страницу
+     * @param int $page Номер страницы
+     * @param string|null $search Поисковый запрос
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getProjectContractsWithPagination($projectId, $perPage = 20, $page = 1, $search = null)
     {
         $cacheKey = $this->generateCacheKey('project_contracts_paginated', [$projectId, $perPage, $page, $search]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($projectId, $perPage, $search, $page) {
-            $query = ProjectContract::select([
-                'project_contracts.id',
-                'project_contracts.project_id',
-                'project_contracts.number',
-                'project_contracts.amount',
-                'project_contracts.currency_id',
-                'project_contracts.date',
-                'project_contracts.returned',
-                'project_contracts.files',
-                'project_contracts.note',
-                'project_contracts.created_at',
-                'project_contracts.updated_at',
-                'currencies.name as currency_name',
-                'currencies.code as currency_code',
-                'currencies.symbol as currency_symbol'
-            ])
-                ->leftJoin('currencies', 'project_contracts.currency_id', '=', 'currencies.id')
-                ->where('project_contracts.project_id', $projectId)
-                ->with(['currency:id,name,code,symbol']);
+            $query = $this->getBaseQuery()
+                ->where('project_contracts.project_id', $projectId);
+
+            $this->applyCompanyFilter($query);
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -47,40 +93,41 @@ class ProjectContractsRepository extends BaseRepository
         }, (int)$page);
     }
 
+    /**
+     * Получить все контракты проекта
+     *
+     * @param int $projectId ID проекта
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getAllItems($projectId)
     {
         $cacheKey = $this->generateCacheKey('project_contracts_all', [$projectId]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($projectId) {
-            return ProjectContract::select([
-                'project_contracts.id',
-                'project_contracts.project_id',
-                'project_contracts.number',
-                'project_contracts.amount',
-                'project_contracts.currency_id',
-                'project_contracts.date',
-                'project_contracts.returned',
-                'project_contracts.files',
-                'project_contracts.note',
-                'project_contracts.created_at',
-                'project_contracts.updated_at',
-                'currencies.name as currency_name',
-                'currencies.code as currency_code',
-                'currencies.symbol as currency_symbol'
-            ])
-                ->leftJoin('currencies', 'project_contracts.currency_id', '=', 'currencies.id')
-                ->where('project_contracts.project_id', $projectId)
-                ->with(['currency:id,name,code,symbol'])
-                ->orderBy('project_contracts.date', 'desc')
+            $query = $this->getBaseQuery()
+                ->where('project_contracts.project_id', $projectId);
+
+            $this->applyCompanyFilter($query);
+
+            return $query->orderBy('project_contracts.date', 'desc')
                 ->orderBy('project_contracts.created_at', 'desc')
                 ->get();
         });
     }
 
-    public function createContract($data)
+    /**
+     * Создать контракт проекта
+     *
+     * @param array $data Данные контракта
+     * @return ProjectContract
+     * @throws \Exception
+     */
+    public function createContract(array $data): ProjectContract
     {
         DB::beginTransaction();
         try {
+            $project = Project::findOrFail($data['project_id']);
+
             $contract = new ProjectContract();
             $contract->project_id = $data['project_id'];
             $contract->number = $data['number'];
@@ -103,14 +150,19 @@ class ProjectContractsRepository extends BaseRepository
         }
     }
 
-    public function updateContract($id, $data)
+    /**
+     * Обновить контракт проекта
+     *
+     * @param int $id ID контракта
+     * @param array $data Данные для обновления
+     * @return ProjectContract
+     * @throws \Exception
+     */
+    public function updateContract(int $id, array $data): ProjectContract
     {
         DB::beginTransaction();
         try {
-            $contract = ProjectContract::find($id);
-            if (!$contract) {
-                throw new \Exception('Contract not found');
-            }
+            $contract = ProjectContract::findOrFail($id);
 
             $contract->number = $data['number'];
             $contract->amount = $data['amount'];
@@ -136,26 +188,40 @@ class ProjectContractsRepository extends BaseRepository
         }
     }
 
-    public function findContract($id)
+    /**
+     * Найти контракт по ID
+     *
+     * @param int $id ID контракта
+     * @return ProjectContract|null
+     */
+    public function findContract(int $id): ?ProjectContract
     {
         $cacheKey = $this->generateCacheKey('project_contract_item', [$id]);
 
         return CacheService::remember($cacheKey, function () use ($id) {
-            return ProjectContract::with([
-                'project:id,name',
+            $query = ProjectContract::with([
+                'project:id,name,company_id',
                 'currency:id,name,code,symbol'
-            ])->find($id);
+            ])->where('id', $id);
+
+            $this->applyCompanyFilter($query);
+
+            return $query->first();
         }, 1800);
     }
 
-    public function deleteContract($id)
+    /**
+     * Удалить контракт проекта
+     *
+     * @param int $id ID контракта
+     * @return bool
+     * @throws \Exception
+     */
+    public function deleteContract(int $id): bool
     {
         DB::beginTransaction();
         try {
-            $contract = ProjectContract::find($id);
-            if (!$contract) {
-                return false;
-            }
+            $contract = ProjectContract::findOrFail($id);
 
             $projectId = $contract->project_id;
             $contract->delete();
@@ -173,17 +239,16 @@ class ProjectContractsRepository extends BaseRepository
 
     /**
      * Инвалидация кэша контрактов проекта
+     *
+     * @param int $projectId ID проекта
+     * @return void
      */
-    private function invalidateProjectContractsCache($projectId)
+    private function invalidateProjectContractsCache(int $projectId): void
     {
         $companyId = $this->getCurrentCompanyId() ?? 'default';
-        \Illuminate\Support\Facades\Cache::forget($this->generateCacheKey('project_contracts_all', [$projectId]));
+        CacheService::forget($this->generateCacheKey('project_contracts_all', [$projectId]));
         CacheService::invalidateByLike("%project_contracts_paginated_{$projectId}_{$companyId}%");
         CacheService::invalidateByLike("%project_contract_item_{$companyId}%");
     }
 
-    public function invalidateContractCache($contractId)
-    {
-        \Illuminate\Support\Facades\Cache::forget($this->generateCacheKey('project_contract_item', [$contractId]));
-    }
 }

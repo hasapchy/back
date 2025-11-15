@@ -7,15 +7,29 @@ use App\Repositories\WarehouseMovementRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 
+/**
+ * Контроллер для работы с перемещениями между складами
+ */
 class WarehouseMovementController extends Controller
 {
     protected $warehouseRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param WarehouseMovementRepository $warehouseRepository
+     */
     public function __construct(WarehouseMovementRepository $warehouseRepository)
     {
         $this->warehouseRepository = $warehouseRepository;
     }
 
+    /**
+     * Получить список перемещений с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -25,6 +39,12 @@ class WarehouseMovementController extends Controller
         return $this->paginatedResponse($warehouses);
     }
 
+    /**
+     * Создать перемещение между складами
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -68,16 +88,19 @@ class WarehouseMovementController extends Controller
                 return $this->errorResponse('Ошибка перемещения', 400);
             }
 
-            CacheService::invalidateWarehouseMovementsCache();
-            CacheService::invalidateWarehouseStocksCache();
-            CacheService::invalidateProductsCache();
-
             return response()->json(['message' => 'Перемещение создано']);
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка перемещения' . $th->getMessage(), 400);
         }
     }
 
+    /**
+     * Обновить перемещение между складами
+     *
+     * @param Request $request
+     * @param int $id ID перемещения
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -121,33 +144,32 @@ class WarehouseMovementController extends Controller
                 return $this->errorResponse('Ошибка обновления перемещения', 400);
             }
 
-            CacheService::invalidateWarehouseMovementsCache();
-            CacheService::invalidateWarehouseStocksCache();
-            CacheService::invalidateProductsCache();
-
             return response()->json(['message' => 'Перемещение обновлено']);
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка обновления перемещения' . $th->getMessage(), 400);
         }
     }
 
+    /**
+     * Удалить перемещение между складами
+     *
+     * @param int $id ID перемещения
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
-        $movement = \App\Models\WhMovement::find($id);
-        if (!$movement) {
-            return $this->notFoundResponse('Перемещение не найдено');
-        }
+        $movement = \App\Models\WhMovement::findOrFail($id);
 
         if ($movement->wh_from) {
-            $warehouseFrom = \App\Models\Warehouse::find($movement->wh_from);
-            if ($warehouseFrom && !$this->canPerformAction('warehouses', 'view', $warehouseFrom)) {
+            $warehouseFrom = \App\Models\Warehouse::findOrFail($movement->wh_from);
+            if (!$this->canPerformAction('warehouses', 'view', $warehouseFrom)) {
                 return $this->forbiddenResponse('У вас нет прав на склад-отправитель');
             }
         }
 
         if ($movement->wh_to) {
-            $warehouseTo = \App\Models\Warehouse::find($movement->wh_to);
-            if ($warehouseTo && !$this->canPerformAction('warehouses', 'view', $warehouseTo)) {
+            $warehouseTo = \App\Models\Warehouse::findOrFail($movement->wh_to);
+            if (!$this->canPerformAction('warehouses', 'view', $warehouseTo)) {
                 return $this->forbiddenResponse('У вас нет прав на склад-получатель');
             }
         }
@@ -157,10 +179,6 @@ class WarehouseMovementController extends Controller
         if (!$warehouse_deleted) {
             return $this->errorResponse('Ошибка удаления перемещения', 400);
         }
-
-        CacheService::invalidateWarehouseMovementsCache();
-        CacheService::invalidateWarehouseStocksCache();
-        CacheService::invalidateProductsCache();
 
         return response()->json(['message' => 'Перемещение удалено']);
     }

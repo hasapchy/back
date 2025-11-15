@@ -9,6 +9,40 @@ use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Services\CacheService;
 
+/**
+ * Модель транзакции
+ *
+ * @property int $id
+ * @property float $amount Сумма в валюте кассы
+ * @property int $cash_id ID кассы
+ * @property int $category_id ID категории транзакции
+ * @property int|null $client_id ID клиента
+ * @property int $currency_id ID валюты
+ * @property \Carbon\Carbon $date Дата транзакции
+ * @property string|null $note Примечание
+ * @property float $orig_amount Исходная сумма в валюте транзакции
+ * @property int|null $project_id ID проекта
+ * @property int $type Тип транзакции (0 - расход, 1 - доход)
+ * @property int $user_id ID пользователя
+ * @property int|null $company_id ID компании
+ * @property bool $is_debt Является ли долговой транзакцией
+ * @property string|null $source_type Тип источника (morphable)
+ * @property int|null $source_id ID источника (morphable)
+ * @property bool $is_deleted Флаг удаления
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ *
+ * @property-read \App\Models\CashRegister $cashRegister
+ * @property-read \App\Models\TransactionCategory $category
+ * @property-read \App\Models\Client|null $client
+ * @property-read \App\Models\Currency $currency
+ * @property-read \App\Models\User $user
+ * @property-read \App\Models\Project|null $project
+ * @property-read \App\Models\Company|null $company
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\CashTransfer[] $cashTransfersFrom
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\CashTransfer[] $cashTransfersTo
+ * @property-read \Illuminate\Database\Eloquent\Model|null $source
+ */
 class Transaction extends Model
 {
     use HasFactory, LogsActivity;
@@ -109,48 +143,21 @@ class Transaction extends Model
     protected static function booted()
     {
         static::creating(function ($transaction) {
-            // Если передали кастомный флаг no_balance_update = true
             if (!empty($transaction->no_balance_update)) {
                 $transaction->setSkipClientBalanceUpdate(true);
             }
-            \Illuminate\Support\Facades\Log::info('Transaction::creating', [
-                'client_id' => $transaction->client_id,
-                'is_debt' => $transaction->is_debt,
-                'type' => $transaction->type,
-                'skipClientBalanceUpdate' => $transaction->getSkipClientBalanceUpdate()
-            ]);
         });
 
         static::created(function ($transaction) {
-            \Illuminate\Support\Facades\Log::info('Transaction::created - START', [
-                'transaction_id' => $transaction->id,
-                'client_id' => $transaction->client_id,
-                'is_debt' => $transaction->is_debt,
-                'type' => $transaction->type,
-                'skipClientBalanceUpdate' => $transaction->getSkipClientBalanceUpdate(),
-                'amount' => $transaction->amount,
-                'orig_amount' => $transaction->orig_amount
-            ]);
-
-            // Обновляем баланс клиента только если это НЕ долговая операция (is_debt=false)
-            // Не трогаем баланс клиента ТОЛЬКО если это оплата из заказа с проектом
-            // (ручные транзакции с project_id должны влиять на баланс клиента)
             $isOrderWithProject = ($transaction->source_type === 'App\\Models\\Order') && !empty($transaction->project_id);
             if (
                 $transaction->client_id
                 && !$transaction->getSkipClientBalanceUpdate()
                 && !$isOrderWithProject
             ) {
-                \Illuminate\Support\Facades\Log::info('Transaction::created - UPDATING CLIENT BALANCE', [
-                    'transaction_id' => $transaction->id,
-                    'client_id' => $transaction->client_id,
-                    'reason' => 'client_id exists and skipClientBalanceUpdate is false'
-                ]);
-
                 $client = Client::find($transaction->client_id);
                 $defaultCurrency = Currency::where('is_default', true)->first();
 
-                // ВАЖНО: для баланса клиента используем ИСХОДНУЮ сумму и валюту (orig_amount, currency)
                 if ($transaction->currency_id != $defaultCurrency->id) {
                     $convertedAmount = CurrencyConverter::convert(
                         $transaction->orig_amount,
@@ -162,73 +169,24 @@ class Transaction extends Model
                 }
 
                 if ($client) {
-                    $oldBalance = $client->balance;
-                    // ЛОГИКА: Положительный баланс = "клиент должен НАМ"
-                    // type=1 (доход): клиент ПЛАТИТ → долг УМЕНЬШАЕТСЯ
-                    // type=0 (расход): мы ПЛАТИМ → долг УВЕЛИЧИВАЕТСЯ
                     if ($transaction->type == 1) {
                         $client->balance = ($client->balance ?? 0) - $convertedAmount;
                     } else {
                         $client->balance = ($client->balance ?? 0) + $convertedAmount;
                     }
                     $client->save();
-
-                    \Illuminate\Support\Facades\Log::info('Transaction::created - CLIENT BALANCE CHANGED', [
-                        'transaction_id' => $transaction->id,
-                        'client_id' => $transaction->client_id,
-                        'old_balance' => $oldBalance,
-                        'new_balance' => $client->balance,
-                        'operation' => $transaction->type == 1 ? 'SUBTRACT (Income - client pays)' : 'ADD (Expense - we pay)',
-                        'amount' => $convertedAmount
-                    ]);
-                } else {
-                    \Illuminate\Support\Facades\Log::warning('Transaction::created - CLIENT NOT FOUND', [
-                        'transaction_id' => $transaction->id,
-                        'client_id' => $transaction->client_id
-                    ]);
                 }
 
-                // Инвалидируем кэш клиента и проектов после обновления баланса
                 CacheService::invalidateClientsCache();
                 CacheService::invalidateClientBalanceCache($transaction->client_id);
                 CacheService::invalidateProjectsCache();
-            } else {
-                \Illuminate\Support\Facades\Log::info('Transaction::created - CLIENT BALANCE UPDATE SKIPPED', [
-                    'transaction_id' => $transaction->id,
-                    'client_id' => $transaction->client_id,
-                    'project_id' => $transaction->project_id,
-                    'source_type' => $transaction->source_type,
-                    'isOrderWithProject' => $isOrderWithProject ?? false,
-                    'reason_client_id' => empty($transaction->client_id) ? 'no_client_id' : 'has_client_id',
-                    'reason_skip' => $transaction->getSkipClientBalanceUpdate() ? 'skip_flag_set' : 'skip_flag_not_set',
-                    'reason_order_with_project' => ($isOrderWithProject ?? false) ? 'order_with_project' : 'not_order_with_project'
-                ]);
             }
 
-            // Обновляем баланс кассы (если не долг)
             $transaction->updateCashBalance();
-
-            // Инвалидируем кэш списков транзакций
             CacheService::invalidateTransactionsCache();
-
-            \Illuminate\Support\Facades\Log::info('Transaction::created - COMPLETED', [
-                'transaction_id' => $transaction->id,
-                'client_id' => $transaction->client_id
-            ]);
         });
 
         static::updated(function ($transaction) {
-            \Illuminate\Support\Facades\Log::info('Transaction::updated - START', [
-                'transaction_id' => $transaction->id,
-                'client_id' => $transaction->client_id,
-                'is_debt' => $transaction->is_debt,
-                'type' => $transaction->type,
-                'skipClientBalanceUpdate' => $transaction->getSkipClientBalanceUpdate()
-            ]);
-
-            // Обновляем баланс клиента только если это НЕ долговая операция (is_debt=false)
-            // Не трогаем баланс клиента при удалении ТОЛЬКО если это оплата из заказа с проектом
-            // (ручные транзакции с project_id должны влиять на баланс)
             $isOrderWithProject = ($transaction->source_type === 'App\\Models\\Order') && !empty($transaction->project_id);
             if ($transaction->client_id && !$transaction->getSkipClientBalanceUpdate() && !$isOrderWithProject) {
                 $client = Client::find($transaction->client_id);
@@ -275,40 +233,20 @@ class Transaction extends Model
                             $oldClient->save();
                         }
 
-                        $oldBalance = $client->balance;
                         if ($transaction->type == 1) {
                             $client->balance = ($client->balance ?? 0) - $currentConverted;
                         } else {
                             $client->balance = ($client->balance ?? 0) + $currentConverted;
                         }
                         $client->save();
-
-                        \Illuminate\Support\Facades\Log::info('Transaction::updated - CLIENT BALANCE CHANGED (client switched)', [
-                            'transaction_id' => $transaction->id,
-                            'old_client_id' => $oldClientId,
-                            'new_client_id' => $transaction->client_id,
-                            'new_client_old_balance' => $oldBalance,
-                            'new_client_new_balance' => $client->balance
-                        ]);
                     } elseif (!$oldClientId) {
-                        // Ранее клиента не было: просто применить на новом клиенте
-                        $oldBalance = $client->balance;
                         if ($transaction->type == 1) {
                             $client->balance = ($client->balance ?? 0) - $currentConverted;
                         } else {
                             $client->balance = ($client->balance ?? 0) + $currentConverted;
                         }
                         $client->save();
-
-                        \Illuminate\Support\Facades\Log::info('Transaction::updated - CLIENT BALANCE CHANGED (client attached)', [
-                            'transaction_id' => $transaction->id,
-                            'client_id' => $transaction->client_id,
-                            'old_balance' => $oldBalance,
-                            'new_balance' => $client->balance
-                        ]);
                     } else {
-                        // Тот же клиент: откатить старое и применить новое
-                        $oldBalance = $client->balance;
                         if ($originalType == 1) {
                             $client->balance = ($client->balance ?? 0) + $originalConverted;
                         } else {
@@ -320,13 +258,6 @@ class Transaction extends Model
                             $client->balance = ($client->balance ?? 0) + $currentConverted;
                         }
                         $client->save();
-
-                        \Illuminate\Support\Facades\Log::info('Transaction::updated - CLIENT BALANCE CHANGED', [
-                            'transaction_id' => $transaction->id,
-                            'client_id' => $transaction->client_id,
-                            'old_balance' => $oldBalance,
-                            'new_balance' => $client->balance
-                        ]);
                     }
                 }
 
@@ -336,24 +267,10 @@ class Transaction extends Model
                 CacheService::invalidateProjectsCache();
             }
 
-            // Инвалидируем кэш списков транзакций
             CacheService::invalidateTransactionsCache();
-
-            \Illuminate\Support\Facades\Log::info('Transaction::updated - COMPLETED', [
-                'transaction_id' => $transaction->id,
-                'client_id' => $transaction->client_id
-            ]);
         });
 
         static::deleted(function ($transaction) {
-            \Illuminate\Support\Facades\Log::info('Transaction::deleted - START', [
-                'transaction_id' => $transaction->id,
-                'client_id' => $transaction->client_id,
-                'is_debt' => $transaction->is_debt,
-                'type' => $transaction->type,
-                'skipClientBalanceUpdate' => $transaction->getSkipClientBalanceUpdate()
-            ]);
-
             if ($transaction->client_id && !$transaction->getSkipClientBalanceUpdate()) {
                 $client = Client::find($transaction->client_id);
                 $defaultCurrency = Currency::where('is_default', true)->first();
@@ -369,21 +286,13 @@ class Transaction extends Model
                 }
 
                 if ($client) {
-                    $oldBalance = $client->balance;
-                    // Откатываем операцию при удалении транзакции
                     if ($transaction->is_debt) {
-                        // Долговые транзакции:
-                        // type=1 (доход): при создании было balance +=, откатываем balance -=
-                        // type=0 (расход): при создании было balance -=, откатываем balance +=
                         if ($transaction->type == 1) {
                             $client->balance = ($client->balance ?? 0) - $convertedAmount;
                         } else {
                             $client->balance = ($client->balance ?? 0) + $convertedAmount;
                         }
                     } else {
-                        // Обычные транзакции:
-                        // type=1 (доход): при создании было balance -=, откатываем balance +=
-                        // type=0 (расход): при создании было balance +=, откатываем balance -=
                         if ($transaction->type == 1) {
                             $client->balance = ($client->balance ?? 0) + $convertedAmount;
                         } else {
@@ -391,14 +300,6 @@ class Transaction extends Model
                         }
                     }
                     $client->save();
-
-                    \Illuminate\Support\Facades\Log::info('Transaction::deleted - CLIENT BALANCE CHANGED', [
-                        'transaction_id' => $transaction->id,
-                        'client_id' => $transaction->client_id,
-                        'old_balance' => $oldBalance,
-                        'new_balance' => $client->balance,
-                        'amount' => $convertedAmount
-                    ]);
                 }
 
                 // Инвалидируем кэш клиента и проектов после обновления баланса
@@ -407,87 +308,127 @@ class Transaction extends Model
                 CacheService::invalidateProjectsCache();
             }
 
-            // Откатываем баланс кассы (если не установлен флаг пропуска)
             if ($transaction->cash_id && !$transaction->is_debt && !$transaction->getSkipCashBalanceUpdate()) {
                 $cash = CashRegister::find($transaction->cash_id);
                 if ($cash) {
                     if ($transaction->type == 1) {
-                        $cash->balance -= $transaction->amount; // доход → откатываем
+                        $cash->balance -= $transaction->amount;
                     } else {
-                        $cash->balance += $transaction->amount; // расход → откатываем
+                        $cash->balance += $transaction->amount;
                     }
                     $cash->save();
-
-                    \Illuminate\Support\Facades\Log::info('Transaction::deleted - CASH BALANCE CHANGED', [
-                        'transaction_id' => $transaction->id,
-                        'cash_id' => $transaction->cash_id,
-                        'new_balance' => $cash->balance,
-                        'amount' => $transaction->amount
-                    ]);
                 }
             }
 
-            // Инвалидируем кэш списков транзакций
             CacheService::invalidateTransactionsCache();
-
-            \Illuminate\Support\Facades\Log::info('Transaction::deleted - COMPLETED', [
-                'transaction_id' => $transaction->id,
-                'client_id' => $transaction->client_id
-            ]);
         });
     }
 
+    /**
+     * Связь с кассой
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function cashRegister()
     {
         return $this->belongsTo(CashRegister::class, 'cash_id');
     }
 
+    /**
+     * Связь с категорией транзакции
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function category()
     {
         return $this->belongsTo(TransactionCategory::class, 'category_id');
     }
 
+    /**
+     * Связь с клиентом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');
     }
 
+    /**
+     * Связь с поставщиком
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function supplier()
     {
         return $this->belongsTo(Client::class, 'supplier_id')->where('is_supplier', true);
     }
 
+    /**
+     * Связь с валютой
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function currency()
     {
         return $this->belongsTo(Currency::class, 'currency_id');
     }
 
+    /**
+     * Связь с пользователем
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-
+    /**
+     * Morphable связь с источником транзакции
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphTo
+     */
     public function source()
     {
         return $this->morphTo();
     }
 
+    /**
+     * Связь с переводами из этой транзакции
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function cashTransfersFrom()
     {
         return $this->hasMany(CashTransfer::class, 'tr_id_from');
     }
 
+    /**
+     * Связь с переводами в эту транзакцию
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function cashTransfersTo()
     {
         return $this->hasMany(CashTransfer::class, 'tr_id_to');
     }
 
+    /**
+     * Связь с проектом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function project()
     {
         return $this->belongsTo(Project::class, 'project_id');
     }
 
+    /**
+     * Получить курс обмена валюты для компании
+     *
+     * @return float|null
+     */
     public function getExchangeRateAttribute()
     {
         $currency = $this->currency;
@@ -496,45 +437,61 @@ class Transaction extends Model
         }
 
         $companyId = $this->company_id;
-
         $rate = $currency->getExchangeRateForCompany($companyId, $this->date ? $this->date->toDateString() : null);
 
         return $rate;
     }
 
+    /**
+     * Связь с активностями (activity log)
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
     public function activities()
     {
         return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
     }
 
+    /**
+     * Связь с комментариями
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
     public function comments()
     {
         return $this->morphMany(\App\Models\Comment::class, 'commentable');
     }
 
+    /**
+     * Связь с компанией
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function company()
     {
         return $this->belongsTo(Company::class, 'company_id');
     }
 
-
+    /**
+     * Обновить баланс кассы
+     *
+     * ВНИМАНИЕ: Операция не атомарна и может привести к race conditions при параллельных запросах.
+     * Рекомендуется обернуть вызов этого метода в DB::transaction() с блокировкой строки.
+     *
+     * @return void
+     */
     public function updateCashBalance()
     {
         if ($this->getSkipCashBalanceUpdate() || $this->is_debt || !$this->cash_id) {
-            // Пропускаем обновление кассы если:
-            // 1. Установлен флаг skipCashBalanceUpdate (касса уже обновлена в репозитории)
-            // 2. Долг - касса НЕ меняется
-            // 3. Нет кассы
             return;
         }
 
-        // Обычная транзакция - касса меняется
         $cash = CashRegister::find($this->cash_id);
         if ($cash) {
             if ($this->type == 1) {
-                $cash->balance += $this->amount; // доход
+                $cash->balance += $this->amount;
             } else {
-                $cash->balance -= $this->amount; // расход
+                $cash->balance -= $this->amount;
             }
             $cash->save();
         }

@@ -10,6 +10,14 @@ use Illuminate\Support\Facades\DB;
 
 class WarehouseMovementRepository extends BaseRepository
 {
+    /**
+     * Получить перемещения между складами с пагинацией
+     *
+     * @param int $userUuid ID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @param int $page Номер страницы
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         $cacheKey = $this->generateCacheKey('warehouse_movements_paginated', [$userUuid, $perPage]);
@@ -49,6 +57,13 @@ class WarehouseMovementRepository extends BaseRepository
         }, (int)$page);
     }
 
+    /**
+     * Создать перемещение между складами
+     *
+     * @param array $data Данные перемещения
+     * @return bool
+     * @throws \Exception
+     */
     public function createItem($data)
     {
         $warehouse_from_id = $data['warehouse_from_id'];
@@ -92,12 +107,18 @@ class WarehouseMovementRepository extends BaseRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            return false;
+            throw $e;
         }
-
-        return true;
     }
 
+    /**
+     * Обновить перемещение между складами
+     *
+     * @param int $movement_id ID перемещения
+     * @param array $data Данные для обновления
+     * @return bool
+     * @throws \Exception
+     */
     public function updateItem($movement_id, $data)
     {
         $warehouse_from_id = $data['warehouse_from_id'];
@@ -109,10 +130,7 @@ class WarehouseMovementRepository extends BaseRepository
         DB::beginTransaction();
 
         try {
-            $movement = WhMovement::find($movement_id);
-            if (!$movement) {
-                throw new \Exception('Movement not found');
-            }
+            $movement = WhMovement::findOrFail($movement_id);
 
             $movement->wh_from = $warehouse_from_id;
             $movement->wh_to = $warehouse_to_id;
@@ -157,21 +175,23 @@ class WarehouseMovementRepository extends BaseRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            return false;
+            throw $e;
         }
-
-        return true;
     }
 
+    /**
+     * Удалить перемещение между складами
+     *
+     * @param int $movement_id ID перемещения
+     * @return bool
+     * @throws \Exception
+     */
     public function deleteItem($movement_id)
     {
         DB::beginTransaction();
 
         try {
-            $movement = WhMovement::find($movement_id);
-            if (!$movement) {
-                throw new \Exception('Movement not found');
-            }
+            $movement = WhMovement::findOrFail($movement_id);
 
             $products = WhMovementProduct::where('movement_id', $movement_id)->get();
             foreach ($products as $product) {
@@ -188,12 +208,18 @@ class WarehouseMovementRepository extends BaseRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            return false;
+            throw $e;
         }
-
-        return true;
     }
 
+    /**
+     * Обновить остатки на складе
+     *
+     * @param int $warehouse_id ID склада
+     * @param int $product_id ID товара
+     * @param float $remove_quantity Количество для изменения
+     * @return bool
+     */
     private function updateStock($warehouse_id, $product_id, $remove_quantity)
     {
         $stock = WarehouseStock::where('warehouse_id', $warehouse_id)
@@ -213,6 +239,12 @@ class WarehouseMovementRepository extends BaseRepository
         return true;
     }
 
+    /**
+     * Получить продукты для перемещений
+     *
+     * @param array $wh_movement_ids Массив ID перемещений
+     * @return \Illuminate\Support\Collection
+     */
     private function getProducts($wh_movement_ids)
     {
         return WhMovementProduct::whereIn('movement_id', $wh_movement_ids)

@@ -8,7 +8,14 @@ use App\Services\CacheService;
 
 class WarehouseRepository extends BaseRepository
 {
-
+    /**
+     * Получить склады с пагинацией
+     *
+     * @param int $userUuid ID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @param int $page Номер страницы
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getWarehousesWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         $currentUser = auth('api')->user();
@@ -35,6 +42,12 @@ class WarehouseRepository extends BaseRepository
         }, (int)$page);
     }
 
+    /**
+     * Получить все склады пользователя
+     *
+     * @param int $userUuid ID пользователя
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getAllItems($userUuid)
     {
         $currentUser = auth('api')->user();
@@ -62,6 +75,13 @@ class WarehouseRepository extends BaseRepository
         });
     }
 
+    /**
+     * Создать склад
+     *
+     * @param string $name Название склада
+     * @param array $users Массив ID пользователей
+     * @return Warehouse
+     */
     public function createItem($name, array $users)
     {
         $warehouse = new Warehouse();
@@ -69,21 +89,24 @@ class WarehouseRepository extends BaseRepository
         $warehouse->company_id = $this->getCurrentCompanyId();
         $warehouse->save();
 
-        foreach ($users as $userId) {
-            WhUser::create([
-                'warehouse_id' => $warehouse->id,
-                'user_id' => $userId
-            ]);
-        }
+        $this->syncUsers($warehouse->id, $users);
 
-        $this->invalidateWarehouseCache();
+        CacheService::invalidateWarehousesCache();
 
         return $warehouse->load(['users:id,name,email']);
     }
 
+    /**
+     * Обновить склад
+     *
+     * @param int $id ID склада
+     * @param string $name Название склада
+     * @param array $users Массив ID пользователей
+     * @return Warehouse
+     */
     public function updateItem($id, $name, array $users)
     {
-        $warehouse = Warehouse::find($id);
+        $warehouse = Warehouse::findOrFail($id);
         $warehouse->name = $name;
         $currentCompanyId = $this->getCurrentCompanyId();
         if ($currentCompanyId && $warehouse->company_id !== $currentCompanyId) {
@@ -91,32 +114,50 @@ class WarehouseRepository extends BaseRepository
         }
         $warehouse->save();
 
-        WhUser::where('warehouse_id', $id)->delete();
+        $this->syncUsers($id, $users);
 
-        foreach ($users as $userId) {
-            WhUser::create([
-                'warehouse_id' => $id,
-                'user_id' => $userId
-            ]);
-        }
-
-        $this->invalidateWarehouseCache();
+        CacheService::invalidateWarehousesCache();
 
         return $warehouse->load(['users:id,name,email']);
     }
 
+    /**
+     * Удалить склад
+     *
+     * @param int $id ID склада
+     * @return bool
+     */
     public function deleteItem($id)
     {
-        $warehouse = Warehouse::find($id);
+        $warehouse = Warehouse::findOrFail($id);
         $warehouse->delete();
 
-        $this->invalidateWarehouseCache();
+        CacheService::invalidateWarehousesCache();
 
         return true;
     }
 
-    private function invalidateWarehouseCache()
+    /**
+     * Синхронизировать пользователей склада
+     *
+     * @param int $warehouseId ID склада
+     * @param array $userIds Массив ID пользователей
+     * @return void
+     */
+    private function syncUsers(int $warehouseId, array $userIds)
     {
-        CacheService::invalidateWarehousesCache();
+        WhUser::where('warehouse_id', $warehouseId)->delete();
+
+        if (!empty($userIds)) {
+            $insertData = [];
+            foreach ($userIds as $userId) {
+                $insertData[] = [
+                    'warehouse_id' => $warehouseId,
+                    'user_id' => $userId,
+                ];
+            }
+            WhUser::insert($insertData);
+        }
     }
+
 }

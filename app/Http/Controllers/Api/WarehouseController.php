@@ -7,15 +7,29 @@ use App\Repositories\WarehouseRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
 
+/**
+ * Контроллер для работы со складами
+ */
 class WarehouseController extends Controller
 {
     protected $warehouseRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param WarehouseRepository $warehouseRepository
+     */
     public function __construct(WarehouseRepository $warehouseRepository)
     {
         $this->warehouseRepository = $warehouseRepository;
     }
 
+    /**
+     * Получить список складов с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -25,6 +39,13 @@ class WarehouseController extends Controller
 
         return $this->paginatedResponse($warehouses);
     }
+
+    /**
+     * Получить все склады
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function all(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -34,6 +55,12 @@ class WarehouseController extends Controller
         return response()->json($warehouses);
     }
 
+    /**
+     * Создать новый склад
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $request->validate([
@@ -48,19 +75,20 @@ class WarehouseController extends Controller
             return $this->errorResponse('Ошибка создания склада', 400);
         }
 
-        CacheService::invalidateWarehousesCache();
-
         return response()->json(['warehouse' => $warehouse_created, 'message' => 'Склад создан']);
     }
 
+    /**
+     * Обновить склад
+     *
+     * @param Request $request
+     * @param int $id ID склада
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
-        $warehouse = \App\Models\Warehouse::find($id);
-        if (!$warehouse) {
-            return $this->notFoundResponse('Склад не найден');
-        }
+        $warehouse = \App\Models\Warehouse::findOrFail($id);
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('warehouses', 'update', $warehouse)) {
             return $this->forbiddenResponse('У вас нет прав на редактирование этого склада');
         }
@@ -77,19 +105,19 @@ class WarehouseController extends Controller
             return $this->errorResponse('Ошибка обновления склада', 400);
         }
 
-        CacheService::invalidateWarehousesCache();
-
         return response()->json(['warehouse' => $warehouse_updated, 'message' => 'Склад обновлен']);
     }
 
+    /**
+     * Удалить склад
+     *
+     * @param int $id ID склада
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
-        $warehouse = \App\Models\Warehouse::find($id);
-        if (!$warehouse) {
-            return $this->notFoundResponse('Склад не найден');
-        }
+        $warehouse = \App\Models\Warehouse::findOrFail($id);
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('warehouses', 'delete', $warehouse)) {
             return $this->forbiddenResponse('У вас нет прав на удаление этого склада');
         }
@@ -99,8 +127,6 @@ class WarehouseController extends Controller
         if (!$warehouse_deleted) {
             return $this->errorResponse('Ошибка удаления склада', 400);
         }
-
-        CacheService::invalidateWarehousesCache();
 
         return response()->json(['message' => 'Склад удален']);
     }

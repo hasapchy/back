@@ -6,16 +6,32 @@ use App\Http\Controllers\Controller;
 use App\Repositories\TransactionsRepository;
 use App\Repositories\TransfersRepository;
 use App\Services\CacheService;
+use App\Models\CashRegister;
 use Illuminate\Http\Request;
 
+/**
+ * Контроллер для работы с перемещениями между кассами
+ */
 class TransfersController extends Controller
 {
     protected $itemsRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param TransfersRepository $itemsRepository
+     */
     public function __construct(TransfersRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
     }
+
+    /**
+     * Получить список перемещений с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -25,6 +41,12 @@ class TransfersController extends Controller
         return $this->paginatedResponse($items);
     }
 
+    /**
+     * Создать перемещение между кассами
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -37,15 +59,8 @@ class TransfersController extends Controller
             'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001'
         ]);
 
-        $cashRegisterFrom = \App\Models\CashRegister::find($request->cash_id_from);
-        $cashRegisterTo = \App\Models\CashRegister::find($request->cash_id_to);
-
-        if (!$cashRegisterFrom) {
-            return $this->notFoundResponse('Касса-отправитель не найдена');
-        }
-        if (!$cashRegisterTo) {
-            return $this->notFoundResponse('Касса-получатель не найдена');
-        }
+        $cashRegisterFrom = CashRegister::findOrFail($request->cash_id_from);
+        $cashRegisterTo = CashRegister::findOrFail($request->cash_id_to);
 
         $cashFromAccessCheck = $this->checkCashRegisterAccess($request->cash_id_from);
         if ($cashFromAccessCheck) {
@@ -70,12 +85,16 @@ class TransfersController extends Controller
             return $this->errorResponse('Ошибка создания трансфера', 400);
         }
 
-        CacheService::invalidateTransfersCache();
-        CacheService::invalidateCashRegistersCache();
-
         return response()->json(['message' => 'Трансфер создан']);
     }
 
+    /**
+     * Обновить перемещение между кассами
+     *
+     * @param Request $request
+     * @param int $id ID перемещения
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -88,20 +107,9 @@ class TransfersController extends Controller
             'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001'
         ]);
 
-        $transfer = \App\Models\CashTransfer::find($id);
-        if (!$transfer) {
-            return $this->notFoundResponse('Трансфер не найден');
-        }
-
-        $cashRegisterFrom = \App\Models\CashRegister::find($request->cash_id_from);
-        $cashRegisterTo = \App\Models\CashRegister::find($request->cash_id_to);
-
-        if (!$cashRegisterFrom) {
-            return $this->notFoundResponse('Касса-отправитель не найдена');
-        }
-        if (!$cashRegisterTo) {
-            return $this->notFoundResponse('Касса-получатель не найдена');
-        }
+        $transfer = \App\Models\CashTransfer::findOrFail($id);
+        $cashRegisterFrom = \App\Models\CashRegister::findOrFail($request->cash_id_from);
+        $cashRegisterTo = \App\Models\CashRegister::findOrFail($request->cash_id_to);
 
         $cashFromAccessCheck = $this->checkCashRegisterAccess($request->cash_id_from);
         if ($cashFromAccessCheck) {
@@ -126,13 +134,15 @@ class TransfersController extends Controller
             return $this->errorResponse('Ошибка обновления', 400);
         }
 
-        CacheService::invalidateTransfersCache();
-        CacheService::invalidateCashRegistersCache();
-
         return response()->json(['message' => 'Трансфер обновлён']);
     }
 
-
+    /**
+     * Удалить перемещение между кассами
+     *
+     * @param int $id ID перемещения
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -140,11 +150,8 @@ class TransfersController extends Controller
         $deleted = $this->itemsRepository->deleteItem($id);
 
         if (!$deleted) {
-                return $this->errorResponse('Ошибка удаления', 400);
+            return $this->errorResponse('Ошибка удаления', 400);
         }
-
-        CacheService::invalidateTransfersCache();
-        CacheService::invalidateCashRegistersCache();
 
         return response()->json(['message' => 'Трансфер удалён']);
     }

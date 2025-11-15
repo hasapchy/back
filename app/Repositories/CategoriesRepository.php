@@ -9,8 +9,14 @@ use App\Services\CacheService;
 
 class CategoriesRepository extends BaseRepository
 {
-
-
+    /**
+     * Получить категории с пагинацией
+     *
+     * @param int $userUuid ID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @param int $page Номер страницы
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         $cacheKey = $this->generateCacheKey('categories_paginated', [$userUuid, $perPage]);
@@ -29,6 +35,12 @@ class CategoriesRepository extends BaseRepository
         }, (int)$page);
     }
 
+    /**
+     * Получить все категории пользователя
+     *
+     * @param int $userUuid ID пользователя
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getAllItems($userUuid)
     {
         $cacheKey = $this->generateCacheKey('categories_all', [$userUuid]);
@@ -47,6 +59,12 @@ class CategoriesRepository extends BaseRepository
         });
     }
 
+    /**
+     * Получить родительские категории (с дочерними)
+     *
+     * @param int $userUuid ID пользователя
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getParentCategories($userUuid)
     {
         $cacheKey = $this->generateCacheKey('categories_parents', [$userUuid]);
@@ -66,6 +84,12 @@ class CategoriesRepository extends BaseRepository
         });
     }
 
+    /**
+     * Создать категорию
+     *
+     * @param array $data Данные категории
+     * @return bool
+     */
     public function createItem($data)
     {
         $companyId = $this->getCurrentCompanyId();
@@ -77,50 +101,74 @@ class CategoriesRepository extends BaseRepository
         $item->company_id = $companyId;
         $item->save();
 
-        foreach ($data['users'] as $userId) {
-            CategoryUser::create([
-                'category_id' => $item->id,
-                'user_id' => $userId
-            ]);
-        }
+        $this->syncUsers($item->id, $data['users'] ?? []);
 
         CacheService::invalidateCategoriesCache();
 
         return true;
     }
 
+    /**
+     * Обновить категорию
+     *
+     * @param int $id ID категории
+     * @param array $data Данные для обновления
+     * @return bool
+     */
     public function updateItem($id, $data)
     {
         $companyId = $this->getCurrentCompanyId();
 
-        $item = Category::find($id);
+        $item = Category::findOrFail($id);
         $item->name = $data['name'];
         $item->parent_id = $data['parent_id'];
         $item->user_id = $data['user_id'];
         $item->company_id = $companyId;
         $item->save();
 
-        CategoryUser::where('category_id', $id)->delete();
-
-        foreach ($data['users'] as $userId) {
-            CategoryUser::create([
-                'category_id' => $id,
-                'user_id' => $userId
-            ]);
-        }
+        $this->syncUsers($id, $data['users'] ?? []);
 
         CacheService::invalidateCategoriesCache();
 
         return true;
     }
 
+    /**
+     * Удалить категорию
+     *
+     * @param int $id ID категории
+     * @return bool
+     */
     public function deleteItem($id)
     {
-        $item = Category::find($id);
+        $item = Category::findOrFail($id);
         $item->delete();
 
         CacheService::invalidateCategoriesCache();
 
         return true;
+    }
+
+    /**
+     * Синхронизировать пользователей категории
+     *
+     * @param int $categoryId ID категории
+     * @param array $userIds Массив ID пользователей
+     * @return void
+     */
+    private function syncUsers(int $categoryId, array $userIds)
+    {
+        CategoryUser::where('category_id', $categoryId)->delete();
+
+        if (!empty($userIds)) {
+            $insertData = [];
+            foreach ($userIds as $userId) {
+                $insertData[] = [
+                    'category_id' => $categoryId,
+                    'user_id' => $userId,
+                ];
+            }
+            CategoryUser::insert($insertData);
+        }
     }
 }

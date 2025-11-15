@@ -7,10 +7,37 @@ use App\Services\CacheService;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
+use App\Models\CashRegisterUser;
+use App\Models\Transaction;
+use App\Models\Order;
+use App\Models\Sale;
+use App\Models\WhReceipt;
+use App\Models\WhWriteoff;
+use App\Models\WhMovement;
+use App\Models\Project;
+use App\Models\OrderProduct;
+use App\Models\Client;
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\Invoice;
+use App\Models\CashTransfer;
+use App\Models\TransactionCategory;
+use App\Models\OrderStatusCategory;
+use App\Models\ProjectStatus;
+use App\Models\Template;
+use App\Models\Comment;
 
 class UsersRepository extends BaseRepository
 {
-
+    /**
+     * Получить пользователей с пагинацией
+     *
+     * @param int $page Номер страницы
+     * @param int $perPage Количество записей на страницу
+     * @param string|null $search Поисковый запрос
+     * @param bool|null $statusFilter Фильтр по статусу (is_active)
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($page = 1, $perPage = 20, $search = null, $statusFilter = null)
     {
         /** @var User|null $currentUser */
@@ -81,6 +108,11 @@ class UsersRepository extends BaseRepository
     }
 
 
+    /**
+     * Получить всех пользователей
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getAllItems()
     {
         /** @var User|null $currentUser */
@@ -131,6 +163,13 @@ class UsersRepository extends BaseRepository
         });
     }
 
+    /**
+     * Создать пользователя
+     *
+     * @param array $data Данные пользователя
+     * @return User
+     * @throws \Exception
+     */
     public function createItem(array $data)
     {
         DB::beginTransaction();
@@ -161,7 +200,8 @@ class UsersRepository extends BaseRepository
 
             $this->loadUserRelations($user);
 
-            $this->invalidateUsersCache();
+            CacheService::invalidateByLike('%users_paginated%');
+            CacheService::invalidateByLike('%users_all%');
 
             return $user;
         } catch (\Exception $e) {
@@ -170,6 +210,14 @@ class UsersRepository extends BaseRepository
         }
     }
 
+    /**
+     * Обновить пользователя
+     *
+     * @param int $id ID пользователя
+     * @param array $data Данные для обновления
+     * @return User
+     * @throws \Exception
+     */
     public function updateItem($id, array $data)
     {
         DB::beginTransaction();
@@ -205,7 +253,8 @@ class UsersRepository extends BaseRepository
 
             $this->loadUserRelations($user);
 
-            $this->invalidateUsersCache();
+            CacheService::invalidateByLike('%users_paginated%');
+            CacheService::invalidateByLike('%users_all%');
 
             return $user;
         } catch (\Exception $e) {
@@ -214,10 +263,17 @@ class UsersRepository extends BaseRepository
         }
     }
 
+    /**
+     * Синхронизировать роли пользователя
+     *
+     * @param User $user Пользователь
+     * @param array $data Данные с ролями
+     * @return void
+     */
     protected function syncUserRoles(User $user, array $data): void
     {
         if (isset($data['company_roles']) && is_array($data['company_roles'])) {
-            DB::table('company_user_role')->where('user_id', $user->id)->delete();
+            $user->companyRoles()->detach();
 
             $selectedCompanyIds = isset($data['companies']) && is_array($data['companies']) ? $data['companies'] : [];
 
@@ -227,13 +283,7 @@ class UsersRepository extends BaseRepository
                         foreach ($companyRole['role_ids'] as $roleName) {
                             $role = Role::where('name', $roleName)->where('guard_name', 'api')->first();
                             if ($role) {
-                                DB::table('company_user_role')->insert([
-                                    'company_id' => $companyRole['company_id'],
-                                    'user_id' => $user->id,
-                                    'role_id' => $role->id,
-                                    'created_at' => now(),
-                                    'updated_at' => now(),
-                                ]);
+                                $user->companyRoles()->attach($role->id, ['company_id' => $companyRole['company_id']]);
                             }
                         }
                     }
@@ -244,6 +294,12 @@ class UsersRepository extends BaseRepository
         }
     }
 
+    /**
+     * Загрузить связи пользователя
+     *
+     * @param User $user Пользователь
+     * @return void
+     */
     protected function loadUserRelations(User $user): void
     {
         $companyId = $this->getCurrentCompanyId();
@@ -257,6 +313,13 @@ class UsersRepository extends BaseRepository
         $user->company_roles = $user->getAllCompanyRoles();
     }
 
+    /**
+     * Трансформировать пользователя со связями
+     *
+     * @param User $user Пользователь
+     * @param int|null $companyId ID компании
+     * @return User
+     */
     protected function transformUserWithRelations(User $user, ?int $companyId): User
     {
         $user->setRelation('permissions', $companyId ? $user->getAllPermissionsForCompany((int)$companyId) : $user->getAllPermissions());
@@ -267,6 +330,13 @@ class UsersRepository extends BaseRepository
         return $user;
     }
 
+    /**
+     * Удалить пользователя
+     *
+     * @param int $id ID пользователя
+     * @return bool
+     * @throws \Exception
+     */
     public function deleteItem($id)
     {
         $user = User::findOrFail($id);
@@ -291,14 +361,15 @@ class UsersRepository extends BaseRepository
             $user->categories()->detach();
             $user->roles()->detach();
 
-            DB::table('company_user_role')->where('user_id', $user->id)->delete();
-            DB::table('cash_register_users')->where('user_id', $user->id)->delete();
+            $user->companyRoles()->detach();
+            CashRegisterUser::where('user_id', $user->id)->delete();
 
             $user->delete();
 
             DB::commit();
 
-            $this->invalidateUsersCache();
+            CacheService::invalidateByLike('%users_paginated%');
+            CacheService::invalidateByLike('%users_all%');
 
             return true;
         } catch (\Exception $e) {
@@ -307,122 +378,111 @@ class UsersRepository extends BaseRepository
         }
     }
 
+    /**
+     * Проверить связанные данные пользователя
+     *
+     * @param User $user Пользователь
+     * @return array Массив строк с описанием связанных данных
+     */
     protected function checkUserRelatedData(User $user): array
     {
         $relatedData = [];
 
-        $transactionsCount = DB::table('transactions')->where('user_id', $user->id)->count();
+        $transactionsCount = Transaction::where('user_id', $user->id)->count();
         if ($transactionsCount > 0) {
             $relatedData[] = "транзакции ({$transactionsCount})";
         }
 
-        $ordersCount = DB::table('orders')->where('user_id', $user->id)->count();
+        $ordersCount = Order::where('user_id', $user->id)->count();
         if ($ordersCount > 0) {
             $relatedData[] = "заказы ({$ordersCount})";
         }
 
-        $salesCount = DB::table('sales')->where('user_id', $user->id)->count();
+        $salesCount = Sale::where('user_id', $user->id)->count();
         if ($salesCount > 0) {
             $relatedData[] = "продажи ({$salesCount})";
         }
 
-        $receiptsCount = DB::table('wh_receipts')->where('user_id', $user->id)->count();
+        $receiptsCount = WhReceipt::where('user_id', $user->id)->count();
         if ($receiptsCount > 0) {
             $relatedData[] = "приходы на склад ({$receiptsCount})";
         }
 
-        $writeoffsCount = DB::table('wh_writeoffs')->where('user_id', $user->id)->count();
+        $writeoffsCount = WhWriteoff::where('user_id', $user->id)->count();
         if ($writeoffsCount > 0) {
             $relatedData[] = "списания со склада ({$writeoffsCount})";
         }
 
-        $movementsCount = DB::table('wh_movements')->where('user_id', $user->id)->count();
+        $movementsCount = WhMovement::where('user_id', $user->id)->count();
         if ($movementsCount > 0) {
             $relatedData[] = "перемещения между складами ({$movementsCount})";
         }
 
-        $projectsCount = DB::table('projects')->where('user_id', $user->id)->count();
+        $projectsCount = Project::where('user_id', $user->id)->count();
         if ($projectsCount > 0) {
             $relatedData[] = "проекты ({$projectsCount})";
         }
 
-        $orderProductsCount = DB::table('order_products')->where('user_id', $user->id)->count();
+        $orderProductsCount = OrderProduct::where('user_id', $user->id)->count();
         if ($orderProductsCount > 0) {
             $relatedData[] = "товары в заказах ({$orderProductsCount})";
         }
 
-        $clientsAsEmployeeCount = DB::table('clients')->where('employee_id', $user->id)->count();
+        $clientsAsEmployeeCount = Client::where('employee_id', $user->id)->count();
         if ($clientsAsEmployeeCount > 0) {
             $relatedData[] = "клиенты как сотрудник ({$clientsAsEmployeeCount})";
         }
 
-        $clientsAsUserCount = DB::table('clients')->where('user_id', $user->id)->count();
+        $clientsAsUserCount = Client::where('user_id', $user->id)->count();
         if ($clientsAsUserCount > 0) {
             $relatedData[] = "клиенты ({$clientsAsUserCount})";
         }
 
-        $categoriesCount = DB::table('categories')->where('user_id', $user->id)->count();
+        $categoriesCount = Category::where('user_id', $user->id)->count();
         if ($categoriesCount > 0) {
             $relatedData[] = "категории ({$categoriesCount})";
         }
 
-        $productsCount = DB::table('products')->where('user_id', $user->id)->count();
+        $productsCount = Product::where('user_id', $user->id)->count();
         if ($productsCount > 0) {
             $relatedData[] = "товары ({$productsCount})";
         }
 
-        $invoicesCount = DB::table('invoices')->where('user_id', $user->id)->count();
+        $invoicesCount = Invoice::where('user_id', $user->id)->count();
         if ($invoicesCount > 0) {
             $relatedData[] = "счета ({$invoicesCount})";
         }
 
-        $cashTransfersCount = DB::table('cash_transfers')->where('user_id', $user->id)->count();
+        $cashTransfersCount = CashTransfer::where('user_id', $user->id)->count();
         if ($cashTransfersCount > 0) {
             $relatedData[] = "переводы между кассами ({$cashTransfersCount})";
         }
 
-        $transactionCategoriesCount = DB::table('transaction_categories')->where('user_id', $user->id)->count();
+        $transactionCategoriesCount = TransactionCategory::where('user_id', $user->id)->count();
         if ($transactionCategoriesCount > 0) {
             $relatedData[] = "категории транзакций ({$transactionCategoriesCount})";
         }
 
-        $orderStatusCategoriesCount = DB::table('order_status_categories')->where('user_id', $user->id)->count();
+        $orderStatusCategoriesCount = OrderStatusCategory::where('user_id', $user->id)->count();
         if ($orderStatusCategoriesCount > 0) {
             $relatedData[] = "категории статусов заказов ({$orderStatusCategoriesCount})";
         }
 
-        $projectStatusesCount = DB::table('project_statuses')->where('user_id', $user->id)->count();
+        $projectStatusesCount = ProjectStatus::where('user_id', $user->id)->count();
         if ($projectStatusesCount > 0) {
             $relatedData[] = "статусы проектов ({$projectStatusesCount})";
         }
 
-        $templatesCount = DB::table('templates')->where('user_id', $user->id)->count();
+        $templatesCount = Template::where('user_id', $user->id)->count();
         if ($templatesCount > 0) {
             $relatedData[] = "шаблоны ({$templatesCount})";
         }
 
-        $orderAfCount = DB::table('order_af')->where('user_id', $user->id)->count();
-        if ($orderAfCount > 0) {
-            $relatedData[] = "дополнительные поля заказов ({$orderAfCount})";
-        }
-
-        $commentsCount = DB::table('comments')->where('user_id', $user->id)->count();
+        $commentsCount = Comment::where('user_id', $user->id)->count();
         if ($commentsCount > 0) {
             $relatedData[] = "комментарии ({$commentsCount})";
         }
 
         return $relatedData;
-    }
-
-
-    private function invalidateUsersCache()
-    {
-        CacheService::invalidateByLike('%users_paginated%');
-        CacheService::invalidateByLike('%users_all%');
-    }
-
-    public function invalidateUserCache($userId)
-    {
-        $this->invalidateUsersCache();
     }
 }

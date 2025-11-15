@@ -17,6 +17,10 @@ class RoundingService
      *
      * If rounding_enabled = false: truncates to rounding_decimals (no rounding)
      * If rounding_enabled = true: rounds to rounding_decimals according to rounding_direction
+     *
+     * @param int|null $companyId Company ID
+     * @param float $value Value to round
+     * @return float Rounded value
      */
     public function roundForCompany(?int $companyId, float $value): float
     {
@@ -37,6 +41,10 @@ class RoundingService
      *
      * If rounding_quantity_enabled = false: truncates to rounding_quantity_decimals (no rounding)
      * If rounding_quantity_enabled = true: rounds to rounding_quantity_decimals according to rounding_quantity_direction
+     *
+     * @param int|null $companyId Company ID
+     * @param float $value Value to round
+     * @return float Rounded value
      */
     public function roundQuantityForCompany(?int $companyId, float $value): float
     {
@@ -53,6 +61,15 @@ class RoundingService
 
     /**
      * Apply rounding with company settings
+     *
+     * @param int|null $companyId Company ID
+     * @param float $value Value to round
+     * @param string $decimalsField Field name for decimals setting
+     * @param string $enabledField Field name for enabled setting
+     * @param string $directionField Field name for direction setting
+     * @param string $thresholdField Field name for threshold setting
+     * @param int $defaultDecimals Default decimals if not set
+     * @return float Rounded value
      */
     protected function roundWithSettings(
         ?int $companyId,
@@ -89,6 +106,10 @@ class RoundingService
 
     /**
      * Truncate value to specified number of decimal places (without rounding)
+     *
+     * @param float $value Value to truncate
+     * @param int $decimals Number of decimal places
+     * @return float Truncated value
      */
     protected function truncate(float $value, int $decimals): float
     {
@@ -102,6 +123,12 @@ class RoundingService
 
     /**
      * Apply rounding based on direction
+     *
+     * @param float $value Value to round
+     * @param int $decimals Number of decimal places
+     * @param string $direction Rounding direction
+     * @param float|null $customThreshold Custom threshold for custom direction
+     * @return float Rounded value
      */
     protected function applyRounding(float $value, int $decimals, string $direction, ?float $customThreshold): float
     {
@@ -133,6 +160,9 @@ class RoundingService
 
     /**
      * Get decimals for company
+     *
+     * @param int|null $companyId Company ID
+     * @return int Number of decimals
      */
     public function getDecimalsForCompany(?int $companyId): int
     {

@@ -8,22 +8,32 @@ use Illuminate\Support\Facades\DB;
 
 class RolesRepository extends BaseRepository
 {
+    /**
+     * Получить роли с пагинацией
+     *
+     * @param int $page Номер страницы
+     * @param int $perPage Количество записей на страницу
+     * @param string|null $search Поисковый запрос
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($page = 1, $perPage = 20, $search = null)
     {
         $query = Role::where('guard_name', 'api')
             ->with('permissions:id,name')
             ->select(['id', 'name', 'guard_name', 'created_at', 'updated_at']);
 
-        if ($search) {
-            $searchTerm = trim($search);
-            if ($searchTerm) {
-                $query->where('name', 'like', '%' . $searchTerm . '%');
-            }
+        if ($search && ($searchTerm = trim($search))) {
+            $query->where('name', 'like', '%' . $searchTerm . '%');
         }
 
         return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
     }
 
+    /**
+     * Получить все роли
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getAllItems()
     {
         return Role::where('guard_name', 'api')
@@ -33,6 +43,13 @@ class RolesRepository extends BaseRepository
             ->get();
     }
 
+    /**
+     * Создать роль
+     *
+     * @param array $data Данные роли
+     * @return Role
+     * @throws \Exception
+     */
     public function createItem(array $data)
     {
         DB::beginTransaction();
@@ -53,6 +70,14 @@ class RolesRepository extends BaseRepository
         }
     }
 
+    /**
+     * Обновить роль
+     *
+     * @param int $id ID роли
+     * @param array $data Данные для обновления
+     * @return Role
+     * @throws \Exception
+     */
     public function updateItem($id, array $data)
     {
         DB::beginTransaction();
@@ -81,28 +106,32 @@ class RolesRepository extends BaseRepository
         }
     }
 
+    /**
+     * Нормализовать массив разрешений (убрать дубликаты, удалить _own если есть _all)
+     *
+     * @param array $permissions Массив разрешений
+     * @return array Нормализованный массив разрешений
+     */
     protected function normalizePermissions(array $permissions): array
     {
         if (empty($permissions)) {
             return [];
         }
 
-        $normalized = [];
-        foreach ($permissions as $perm) {
-            $trimmed = trim($perm);
-            if (!empty($trimmed) && is_string($perm)) {
-                $normalized[] = $trimmed;
-            }
-        }
+        // Фильтруем и обрезаем разрешения
+        $normalized = array_filter(array_map('trim', $permissions), function ($perm) {
+            return !empty($perm) && is_string($perm);
+        });
 
         if (empty($normalized)) {
             return [];
         }
 
-        $normalized = array_unique($normalized);
+        $normalized = array_values(array_unique($normalized));
         $normalizedMap = array_flip($normalized);
         $toRemove = [];
 
+        // Если есть _all, удаляем соответствующий _own
         foreach ($normalized as $perm) {
             if (str_ends_with($perm, '_own')) {
                 $allPerm = str_replace('_own', '_all', $perm);
@@ -115,12 +144,19 @@ class RolesRepository extends BaseRepository
         return array_values(array_diff($normalized, $toRemove));
     }
 
+    /**
+     * Валидировать разрешения (оставить только существующие в БД)
+     *
+     * @param array $permissions Массив разрешений
+     * @return array Валидированный массив разрешений
+     */
     protected function validatePermissions(array $permissions): array
     {
         if (empty($permissions)) {
             return [];
         }
 
+        // Фильтруем валидные разрешения
         $permissions = array_filter($permissions, fn($p) => is_string($p) && !empty(trim($p)));
 
         if (empty($permissions)) {
@@ -134,6 +170,13 @@ class RolesRepository extends BaseRepository
         return array_values(array_intersect($permissions, $validPermissionNames));
     }
 
+    /**
+     * Синхронизировать разрешения роли
+     *
+     * @param Role $role Роль
+     * @param array|mixed $permissions Массив разрешений
+     * @return void
+     */
     protected function syncRolePermissions(Role $role, $permissions): void
     {
         if (!is_array($permissions)) {
@@ -151,6 +194,13 @@ class RolesRepository extends BaseRepository
         $role->syncPermissions($permissionModels);
     }
 
+    /**
+     * Удалить роль
+     *
+     * @param int $id ID роли
+     * @return bool
+     * @throws \Exception
+     */
     public function deleteItem($id)
     {
         if (empty($id)) {
@@ -172,11 +222,19 @@ class RolesRepository extends BaseRepository
         return true;
     }
 
+    /**
+     * Получить роль по ID
+     *
+     * @param int $id ID роли
+     * @return Role
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
     public function getItem($id)
     {
         return Role::where('guard_name', 'api')
             ->with('permissions:id,name')
             ->findOrFail($id);
     }
+
 }
 

@@ -8,33 +8,59 @@ use App\Repositories\ProjectStatusRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 
+/**
+ * Контроллер для работы со статусами проектов
+ */
 class ProjectStatusController extends Controller
 {
-    protected $repo;
+    protected $projectStatusRepository;
 
-    public function __construct(ProjectStatusRepository $repo)
+    /**
+     * Конструктор контроллера
+     *
+     * @param ProjectStatusRepository $projectStatusRepository
+     */
+    public function __construct(ProjectStatusRepository $projectStatusRepository)
     {
-        $this->repo = $repo;
+        $this->projectStatusRepository = $projectStatusRepository;
     }
 
+    /**
+     * Получить список статусов проектов с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->repo->getItemsWithPagination($userUuid, 20);
+        $items = $this->projectStatusRepository->getItemsWithPagination($userUuid, 20);
 
         return $this->paginatedResponse($items);
     }
 
+    /**
+     * Получить все статусы проектов
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function all(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->repo->getAllItems($userUuid);
+        $items = $this->projectStatusRepository->getAllItems($userUuid);
 
         return response()->json($items);
     }
 
+    /**
+     * Создать новый статус проекта
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -44,18 +70,23 @@ class ProjectStatusController extends Controller
             'color' => 'nullable|string|max:7'
         ]);
 
-        $created = $this->repo->createItem([
+        $created = $this->projectStatusRepository->createItem([
             'name' => $request->name,
             'color' => $request->color ?? '#6c757d',
             'user_id' => $userUuid,
         ]);
         if (!$created) return $this->errorResponse('Ошибка создания статуса', 400);
 
-        CacheService::invalidateProjectStatusesCache();
-
         return response()->json(['message' => 'Статус создан']);
     }
 
+    /**
+     * Обновить статус проекта
+     *
+     * @param Request $request
+     * @param int $id ID статуса
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -65,17 +96,21 @@ class ProjectStatusController extends Controller
             'color' => 'nullable|string|max:7'
         ]);
 
-        $updated = $this->repo->updateItem($id, [
+        $updated = $this->projectStatusRepository->updateItem($id, [
             'name' => $request->name,
             'color' => $request->color ?? '#6c757d',
         ]);
         if (!$updated) return $this->errorResponse('Ошибка обновления статуса', 400);
 
-        CacheService::invalidateProjectStatusesCache();
-
         return response()->json(['message' => 'Статус обновлен']);
     }
 
+    /**
+     * Удалить статус проекта
+     *
+     * @param int $id ID статуса
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -85,12 +120,10 @@ class ProjectStatusController extends Controller
             return $this->errorResponse('Нельзя удалить статус, который используется в проектах', 400);
         }
 
-        $deleted = $this->repo->deleteItem($id);
+        $deleted = $this->projectStatusRepository->deleteItem($id);
         if (!$deleted) {
-                return $this->errorResponse('Ошибка удаления статуса', 400);
-            }
-
-        CacheService::invalidateProjectStatusesCache();
+            return $this->errorResponse('Ошибка удаления статуса', 400);
+        }
 
         return response()->json(['message' => 'Статус удален']);
     }

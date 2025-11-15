@@ -6,6 +6,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\CacheService;
 
+/**
+ * Модель баланса клиента
+ *
+ * @property int $id
+ * @property int $client_id ID клиента
+ * @property float $balance Баланс клиента
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ *
+ * @property-read \App\Models\Client $client
+ */
 class ClientBalance extends Model
 {
     use HasFactory;
@@ -13,6 +24,10 @@ class ClientBalance extends Model
     protected $fillable = [
         'client_id',
         'balance',
+    ];
+
+    protected $casts = [
+        'balance' => 'decimal:2',
     ];
 
     protected static function booted()
@@ -40,6 +55,11 @@ class ClientBalance extends Model
         });
     }
 
+    /**
+     * Связь с клиентом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function client()
     {
         return $this->belongsTo(Client::class);

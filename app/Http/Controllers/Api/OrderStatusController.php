@@ -7,33 +7,59 @@ use App\Repositories\OrderStatusRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 
+/**
+ * Контроллер для работы со статусами заказов
+ */
 class OrderStatusController extends Controller
 {
-    protected $repo;
+    protected $orderStatusRepository;
 
-    public function __construct(OrderStatusRepository $repo)
+    /**
+     * Конструктор контроллера
+     *
+     * @param OrderStatusRepository $orderStatusRepository
+     */
+    public function __construct(OrderStatusRepository $orderStatusRepository)
     {
-        $this->repo = $repo;
+        $this->orderStatusRepository = $orderStatusRepository;
     }
 
+    /**
+     * Получить список статусов заказов с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->repo->getItemsWithPagination($userUuid, 20);
+        $items = $this->orderStatusRepository->getItemsWithPagination($userUuid, 20);
 
         return $this->paginatedResponse($items);
     }
 
+    /**
+     * Получить все статусы заказов
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function all(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->repo->getAllItems($userUuid);
+        $items = $this->orderStatusRepository->getAllItems($userUuid);
 
         return response()->json($items);
     }
 
+    /**
+     * Создать новый статус заказа
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -43,17 +69,22 @@ class OrderStatusController extends Controller
             'category_id' => 'required|exists:order_status_categories,id'
         ]);
 
-        $created = $this->repo->createItem([
+        $created = $this->orderStatusRepository->createItem([
             'name' => $request->name,
             'category_id' => $request->category_id,
         ]);
         if (!$created) return $this->errorResponse('Ошибка создания статуса', 400);
 
-        CacheService::invalidateOrderStatusesCache();
-
         return response()->json(['message' => 'Статус создан']);
     }
 
+    /**
+     * Обновить статус заказа
+     *
+     * @param Request $request
+     * @param int $id ID статуса
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -63,17 +94,21 @@ class OrderStatusController extends Controller
             'category_id' => 'required|exists:order_status_categories,id'
         ]);
 
-        $updated = $this->repo->updateItem($id, [
+        $updated = $this->orderStatusRepository->updateItem($id, [
             'name' => $request->name,
             'category_id' => $request->category_id,
         ]);
         if (!$updated) return $this->errorResponse('Ошибка обновления статуса', 400);
 
-        CacheService::invalidateOrderStatusesCache();
-
         return response()->json(['message' => 'Статус обновлен']);
     }
 
+    /**
+     * Удалить статус заказа
+     *
+     * @param int $id ID статуса
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -83,12 +118,10 @@ class OrderStatusController extends Controller
             return $this->errorResponse('Системный статус нельзя удалить', 400);
         }
 
-        $deleted = $this->repo->deleteItem($id);
+        $deleted = $this->orderStatusRepository->deleteItem($id);
         if (!$deleted) {
-                return $this->errorResponse('Ошибка удаления статуса', 400);
-            }
-
-        CacheService::invalidateOrderStatusesCache();
+            return $this->errorResponse('Ошибка удаления статуса', 400);
+        }
 
         return response()->json(['message' => 'Статус удален']);
     }

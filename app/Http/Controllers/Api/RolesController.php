@@ -9,15 +9,29 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 
+/**
+ * Контроллер для работы с ролями
+ */
 class RolesController extends Controller
 {
     protected $itemsRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param RolesRepository $itemsRepository
+     */
     public function __construct(RolesRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
     }
 
+    /**
+     * Получить список ролей с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $page = $request->input('page', 1);
@@ -25,11 +39,22 @@ class RolesController extends Controller
         return $this->paginatedResponse($this->itemsRepository->getItemsWithPagination($page, 20, $search));
     }
 
+    /**
+     * Получить все роли
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function all()
     {
         return response()->json($this->itemsRepository->getAllItems());
     }
 
+    /**
+     * Получить роль по ID
+     *
+     * @param int $id ID роли
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function show($id)
     {
         try {
@@ -42,6 +67,12 @@ class RolesController extends Controller
         }
     }
 
+    /**
+     * Создать новую роль
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         try {
@@ -66,8 +97,6 @@ class RolesController extends Controller
 
             $role = $this->itemsRepository->createItem($data);
 
-            CacheService::invalidateUsersCache();
-
             return response()->json([
                 'message' => 'Роль создана успешно',
                 'role' => $role
@@ -79,6 +108,13 @@ class RolesController extends Controller
         }
     }
 
+    /**
+     * Обновить роль
+     *
+     * @param Request $request
+     * @param int $id ID роли
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         try {
@@ -105,8 +141,6 @@ class RolesController extends Controller
 
             $role = $this->itemsRepository->updateItem($id, $data);
 
-            CacheService::invalidateUsersCache();
-
             return response()->json([
                 'message' => 'Роль обновлена успешно',
                 'role' => $role
@@ -120,11 +154,16 @@ class RolesController extends Controller
         }
     }
 
+    /**
+     * Удалить роль
+     *
+     * @param int $id ID роли
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         try {
             $this->itemsRepository->deleteItem($id);
-            CacheService::invalidateUsersCache();
             return response()->json(['message' => 'Роль удалена успешно']);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Роль не найдена', 404);

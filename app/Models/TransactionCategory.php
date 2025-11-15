@@ -5,6 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Модель категории транзакции
+ *
+ * @property int $id
+ * @property string $name Название категории
+ * @property int $type Тип категории (0 - расход, 1 - доход)
+ * @property int $user_id ID пользователя
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ *
+ * @property-read \App\Models\User $user
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
+ */
 class TransactionCategory extends Model
 {
     use HasFactory;
@@ -19,7 +32,6 @@ class TransactionCategory extends Model
         'type' => 'integer',
     ];
 
-    // Системные категории, которые нельзя удалять
     protected static $protectedCategories = [
         'Перемещение',
         'Выплата зарплаты',
@@ -32,31 +44,52 @@ class TransactionCategory extends Model
         'Прочий расход денег'
     ];
 
-    // Отношение к пользователю
+    /**
+     * Связь с пользователем
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    // Отношение к транзакциям
+    /**
+     * Связь с транзакциями
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function transactions()
     {
         return $this->hasMany(Transaction::class, 'category_id');
     }
 
-    // Проверка, можно ли удалить категорию
+    /**
+     * Проверить, можно ли удалить категорию
+     *
+     * @return bool
+     */
     public function canBeDeleted()
     {
         return !in_array($this->name, self::$protectedCategories);
     }
 
-    // Проверка, можно ли редактировать категорию
+    /**
+     * Проверить, можно ли редактировать категорию
+     *
+     * @return bool
+     */
     public function canBeEdited()
     {
         return !in_array($this->name, self::$protectedCategories);
     }
 
-    // Переопределяем метод delete для защиты системных категорий
+    /**
+     * Удалить категорию (с проверкой на системные категории)
+     *
+     * @return bool|null
+     * @throws \Exception
+     */
     public function delete()
     {
         if (!$this->canBeDeleted()) {

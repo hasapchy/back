@@ -3,6 +3,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Модель истории курса валюты
+ *
+ * @property int $id
+ * @property int $currency_id ID валюты
+ * @property int|null $company_id ID компании
+ * @property float $exchange_rate Курс обмена
+ * @property \Carbon\Carbon $start_date Дата начала действия курса
+ * @property \Carbon\Carbon|null $end_date Дата окончания действия курса
+ *
+ * @property-read \App\Models\Currency $currency
+ * @property-read \App\Models\Company|null $company
+ */
 class CurrencyHistory extends Model
 {
     protected $fillable = [
@@ -19,11 +32,21 @@ class CurrencyHistory extends Model
         'end_date' => 'date',
     ];
 
+    /**
+     * Связь с валютой
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function currency()
     {
         return $this->belongsTo(Currency::class);
     }
 
+    /**
+     * Связь с компанией
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function company()
     {
         return $this->belongsTo(Company::class);
@@ -31,6 +54,10 @@ class CurrencyHistory extends Model
 
     /**
      * Scope для фильтрации по компании
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int|null $companyId ID компании
+     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeForCompany($query, $companyId = null)
     {

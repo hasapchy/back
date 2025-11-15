@@ -7,14 +7,29 @@ use App\Repositories\CahRegistersRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
 
+/**
+ * Контроллер для работы с кассами
+ */
 class CashRegistersController extends Controller
 {
     protected $itemsRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param CahRegistersRepository $itemsRepository Репозиторий касс
+     */
     public function __construct(CahRegistersRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
     }
+
+    /**
+     * Получить список касс с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -25,6 +40,12 @@ class CashRegistersController extends Controller
         return $this->paginatedResponse($items);
     }
 
+    /**
+     * Получить все кассы пользователя
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function all(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -32,6 +53,12 @@ class CashRegistersController extends Controller
         return response()->json($items);
     }
 
+    /**
+     * Получить баланс касс
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getCashBalance(Request $request)
     {
         $user = $this->requireAuthenticatedUser();
@@ -44,7 +71,6 @@ class CashRegistersController extends Controller
         $cashRegisterIds = $request->query('cash_register_ids', '');
         $all = empty($cashRegisterIds);
 
-        // Если указаны конкретные кассы, проверяем права на каждую
         if (!empty($cashRegisterIds)) {
             $ids = array_map('intval', explode(',', $cashRegisterIds));
             $cashRegisters = \App\Models\CashRegister::whereIn('id', $ids)->get();
@@ -92,6 +118,12 @@ class CashRegistersController extends Controller
         return response()->json($balances);
     }
 
+    /**
+     * Создать новую кассу
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -115,10 +147,16 @@ class CashRegistersController extends Controller
             return $this->errorResponse('Ошибка создания кассы', 400);
         }
 
-        CacheService::invalidateCashRegistersCache();
         return response()->json(['message' => 'Касса создана']);
     }
 
+    /**
+     * Обновить кассу
+     *
+     * @param Request $request
+     * @param int $id ID кассы
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -128,7 +166,6 @@ class CashRegistersController extends Controller
             return $this->notFoundResponse('Касса не найдена');
         }
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('cash_registers', 'update', $cashRegister)) {
             return $this->forbiddenResponse('У вас нет прав на редактирование этой кассы');
         }
@@ -148,10 +185,15 @@ class CashRegistersController extends Controller
             return $this->errorResponse('Ошибка обновления кассы', 400);
         }
 
-        CacheService::invalidateCashRegistersCache();
         return response()->json(['message' => 'Касса обновлена']);
     }
 
+    /**
+     * Удалить кассу
+     *
+     * @param int $id ID кассы
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -161,7 +203,6 @@ class CashRegistersController extends Controller
             return $this->notFoundResponse('Касса не найдена');
         }
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('cash_registers', 'delete', $cashRegister)) {
             return $this->forbiddenResponse('У вас нет прав на удаление этой кассы');
         }
@@ -172,7 +213,6 @@ class CashRegistersController extends Controller
             return $this->errorResponse('Ошибка удаления кассы', 400);
         }
 
-        CacheService::invalidateCashRegistersCache();
         return response()->json(['message' => 'Касса удалена']);
     }
 }

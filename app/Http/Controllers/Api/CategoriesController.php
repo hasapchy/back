@@ -9,12 +9,25 @@ use App\Services\CacheService;
 
 class CategoriesController extends Controller
 {
+    /**
+     * @var CategoriesRepository
+     */
     protected $itemsRepository;
 
+    /**
+     * @param CategoriesRepository $itemsRepository
+     */
     public function __construct(CategoriesRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
     }
+
+    /**
+     * Получить категории с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -25,6 +38,12 @@ class CategoriesController extends Controller
         return $this->paginatedResponse($items);
     }
 
+    /**
+     * Получить все категории
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function all(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -32,6 +51,12 @@ class CategoriesController extends Controller
         return response()->json($items);
     }
 
+    /**
+     * Получить родительские категории
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function parents(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -39,6 +64,12 @@ class CategoriesController extends Controller
         return response()->json($items);
     }
 
+    /**
+     * Создать категорию
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -65,6 +96,13 @@ class CategoriesController extends Controller
         return response()->json(['message' => 'Категория создана']);
     }
 
+    /**
+     * Обновить категорию
+     *
+     * @param Request $request
+     * @param int $id ID категории
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -91,6 +129,12 @@ class CategoriesController extends Controller
         return response()->json(['message' => 'Категория обновлена']);
     }
 
+    /**
+     * Удалить категорию
+     *
+     * @param int $id ID категории
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();

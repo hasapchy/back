@@ -9,14 +9,21 @@ use App\Models\WarehouseStock;
 use App\Models\WhReceipt;
 use App\Models\WhReceiptProduct;
 use App\Models\CashRegister;
-use App\Services\CurrencyConverter;
+use App\Models\WhUser;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
 
 class WarehouseReceiptRepository extends BaseRepository
 {
-
+    /**
+     * Получить оприходования с пагинацией
+     *
+     * @param int $userUuid ID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @param int $page Номер страницы
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         /** @var \App\Models\User|null $currentUser */
@@ -31,6 +38,13 @@ class WarehouseReceiptRepository extends BaseRepository
         }, (int)$page);
     }
 
+    /**
+     * Получить оприходование по ID
+     *
+     * @param int $id ID оприходования
+     * @param int $userUuid ID пользователя
+     * @return WhReceipt|null
+     */
     public function getItemById($id, $userUuid)
     {
         $cacheKey = $this->generateCacheKey('warehouse_receipts_item', [$id, $userUuid]);
@@ -42,14 +56,19 @@ class WarehouseReceiptRepository extends BaseRepository
         });
     }
 
+    /**
+     * Построить базовый запрос для оприходований
+     *
+     * @param int $userUuid ID пользователя
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     protected function buildBaseQuery($userUuid)
     {
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
 
-        $warehouseIds = DB::table('wh_users')
-            ->where('user_id', $filterUserId)
+        $warehouseIds = WhUser::where('user_id', $filterUserId)
             ->pluck('warehouse_id')
             ->toArray();
 
@@ -95,6 +114,13 @@ class WarehouseReceiptRepository extends BaseRepository
     }
 
 
+    /**
+     * Создать оприходование
+     *
+     * @param array $data Данные оприходования
+     * @return bool
+     * @throws \Exception
+     */
     public function createItem(array $data)
     {
         $client_id    = $data['client_id'];
@@ -112,23 +138,21 @@ class WarehouseReceiptRepository extends BaseRepository
             $currency = $defaultCurrency;
 
             if ($cash_id) {
-                $cash = CashRegister::find($cash_id);
-                if ($cash && $cash->currency_id) {
-                    $currency = Currency::find($cash->currency_id) ?? $defaultCurrency;
+                $cash = CashRegister::findOrFail($cash_id);
+                if ($cash->currency_id) {
+                    $currency = Currency::findOrFail($cash->currency_id);
                 }
             }
 
             $total_amount = 0;
-            $quantityRoundingService = new RoundingService();
+            $roundingService = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
             foreach ($products as $idx => $product) {
-                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
+                $q = $roundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
                 $products[$idx]['quantity'] = $q;
                 $total_amount += $product['price'] * $q;
             }
 
-            $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
             $total_amount = $roundingService->roundForCompany($companyId, (float) $total_amount);
 
             $receipt = new WhReceipt();
@@ -188,11 +212,18 @@ class WarehouseReceiptRepository extends BaseRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            return false;
+            throw $e;
         }
     }
 
-
+    /**
+     * Обновить оприходование
+     *
+     * @param int $receipt_id ID оприходования
+     * @param array $data Данные для обновления
+     * @return bool
+     * @throws \Exception
+     */
     public function updateReceipt($receipt_id, $data)
     {
         $client_id    = $data['client_id'];
@@ -206,20 +237,7 @@ class WarehouseReceiptRepository extends BaseRepository
         DB::beginTransaction();
 
         try {
-            $receipt = WhReceipt::find($receipt_id);
-            if (!$receipt) {
-                throw new \Exception('Receipt not found');
-            }
-
-            $defaultCurrency = Currency::firstWhere('is_default', true);
-            $currency = $defaultCurrency;
-
-            if ($cash_id) {
-                $cash = \App\Models\CashRegister::find($cash_id);
-                if ($cash && $cash->currency_id) {
-                    $currency = Currency::find($cash->currency_id) ?? $defaultCurrency;
-                }
-            }
+            $receipt = WhReceipt::findOrFail($receipt_id);
 
             $old_total_amount = $receipt->amount;
 
@@ -264,8 +282,8 @@ class WarehouseReceiptRepository extends BaseRepository
             $receipt->amount = $total_amount;
             $receipt->save();
 
-            if ($receipt->transaction_id) {
-            } else {
+            $transactions = $receipt->transactions()->get();
+            if ($transactions->isEmpty()) {
                 if (!$this->updateClientBalance($client_id, $total_amount - $old_total_amount)) {
                     throw new \Exception('Ошибка обновления баланса клиента');
                 }
@@ -280,15 +298,19 @@ class WarehouseReceiptRepository extends BaseRepository
 
             DB::commit();
             $this->invalidateCaches($project_id);
+            return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            return false;
+            throw $e;
         }
-
-        return true;
     }
 
-
+    /**
+     * Удалить оприходование
+     *
+     * @param int $receipt_id ID оприходования
+     * @return bool
+     */
     public function deleteItem($receipt_id)
     {
         $projectId = null;
@@ -312,6 +334,12 @@ class WarehouseReceiptRepository extends BaseRepository
         return $result;
     }
 
+    /**
+     * Инвалидировать кэш
+     *
+     * @param int|null $projectId ID проекта
+     * @return void
+     */
     private function invalidateCaches($projectId = null)
     {
         CacheService::invalidateWarehouseReceiptsCache();
@@ -323,25 +351,42 @@ class WarehouseReceiptRepository extends BaseRepository
         }
     }
 
+    /**
+     * Обновить остатки на складе
+     *
+     * @param int $warehouse_id ID склада
+     * @param int $product_id ID товара
+     * @param float $add_quantity Количество для добавления
+     * @return bool
+     */
     private function updateStock($warehouse_id, $product_id, $add_quantity)
     {
-        $quantity = is_numeric($add_quantity) ? $add_quantity : (float)$add_quantity;
+        $quantity = is_numeric($add_quantity) ? (float)$add_quantity : 0.0;
 
-        $stock = WarehouseStock::firstOrNew([
-            'warehouse_id' => $warehouse_id,
-            'product_id'   => $product_id,
-        ]);
+        $existingStock = WarehouseStock::where('warehouse_id', $warehouse_id)
+            ->where('product_id', $product_id)
+            ->first();
 
-        if ($stock->exists) {
-            $stock->increment('quantity', $quantity);
+        if ($existingStock) {
+            $existingStock->increment('quantity', $quantity);
         } else {
-            $stock->quantity = $quantity;
-            $stock->save();
+            WarehouseStock::create([
+                'warehouse_id' => $warehouse_id,
+                'product_id'   => $product_id,
+                'quantity'    => $quantity,
+            ]);
         }
 
         return true;
     }
 
+    /**
+     * Обновить цену покупки товара
+     *
+     * @param int $product_id ID товара
+     * @param float $price Цена покупки
+     * @return bool
+     */
     private function updateProductPurchasePrice($product_id, $price)
     {
         ProductPrice::updateOrCreate(
@@ -354,11 +399,17 @@ class WarehouseReceiptRepository extends BaseRepository
         return true;
     }
 
+    /**
+     * Обновить баланс клиента
+     *
+     * @param int $client_id ID клиента
+     * @param float $amount Сумма
+     * @return bool
+     */
     private function updateClientBalance($client_id, $amount)
     {
-        DB::table('clients')->where('id', $client_id)->update([
-            'balance' => DB::raw('balance - ' . $amount)
-        ]);
+        $amount = is_numeric($amount) ? (float)$amount : 0.0;
+        \App\Models\Client::where('id', $client_id)->decrement('balance', $amount);
         return true;
     }
 }

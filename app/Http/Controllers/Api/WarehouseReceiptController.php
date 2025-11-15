@@ -6,17 +6,30 @@ use App\Http\Controllers\Controller;
 use App\Repositories\WarehouseReceiptRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
+/**
+ * Контроллер для работы с оприходованиями на склад
+ */
 class WarehouseReceiptController extends Controller
 {
     protected $warehouseRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param WarehouseReceiptRepository $warehouseRepository
+     */
     public function __construct(WarehouseReceiptRepository $warehouseRepository)
     {
         $this->warehouseRepository = $warehouseRepository;
     }
 
+    /**
+     * Получить список оприходований с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -26,6 +39,12 @@ class WarehouseReceiptController extends Controller
         return $this->paginatedResponse($warehouses);
     }
 
+    /**
+     * Получить оприходование по ID
+     *
+     * @param int $id ID оприходования
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function show($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -37,6 +56,12 @@ class WarehouseReceiptController extends Controller
         return response()->json(['item' => $item]);
     }
 
+    /**
+     * Создать оприходование на склад
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -88,21 +113,19 @@ class WarehouseReceiptController extends Controller
                 return $this->errorResponse('Ошибка оприходования', 400);
             }
 
-            CacheService::invalidateWarehouseReceiptsCache();
-            CacheService::invalidateWarehouseStocksCache();
-            CacheService::invalidateProductsCache();
-            CacheService::invalidateClientsCache();
-            if ($request->project_id) {
-                CacheService::invalidateProjectsCache();
-            }
-
             return response()->json(['message' => 'Оприходование создано']);
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка оприходования: ' . $th->getMessage(), 400);
         }
     }
 
-
+    /**
+     * Обновить оприходование на склад
+     *
+     * @param Request $request
+     * @param int $id ID оприходования
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -143,48 +166,31 @@ class WarehouseReceiptController extends Controller
                 return $this->errorResponse('Ошибка обновления приходования', 400);
             }
 
-            CacheService::invalidateWarehouseReceiptsCache();
-            CacheService::invalidateWarehouseStocksCache();
-            CacheService::invalidateProductsCache();
-            CacheService::invalidateClientsCache();
-            if ($request->project_id) {
-                CacheService::invalidateProjectsCache();
-            }
-
             return response()->json(['message' => 'Приходование обновлено']);
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка обновления приходования: ' . $th->getMessage(), 400);
         }
     }
 
+    /**
+     * Удалить оприходование со склада
+     *
+     * @param int $id ID оприходования
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         try {
-            Log::info('WarehouseReceiptController::destroy - START', ['id' => $id]);
-
             $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 
             if (!$warehouse_deleted) {
-                Log::warning('WarehouseReceiptController::destroy - deleteItem returned false', ['id' => $id]);
                 return $this->errorResponse('Ошибка удаления оприходования', 400);
             }
 
-            CacheService::invalidateWarehouseReceiptsCache();
-            CacheService::invalidateWarehouseStocksCache();
-            CacheService::invalidateProductsCache();
-            CacheService::invalidateClientsCache();
-
-            Log::info('WarehouseReceiptController::destroy - SUCCESS', ['id' => $id]);
             return response()->json(['message' => 'Оприходование удалено']);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            Log::warning('WarehouseReceiptController::destroy - Not found', ['id' => $id]);
             return $this->notFoundResponse('Оприходование не найдено');
         } catch (\Throwable $th) {
-            Log::error('WarehouseReceiptController::destroy error', [
-                'id' => $id,
-                'error' => $th->getMessage(),
-                'trace' => $th->getTraceAsString()
-            ]);
             return $this->errorResponse('Ошибка удаления оприходования: ' . $th->getMessage(), 400);
         }
     }

@@ -8,6 +8,13 @@ use Illuminate\Support\Facades\DB;
 
 class CommentsRepository extends BaseRepository
 {
+    /**
+     * Получить комментарии для сущности
+     *
+     * @param string $type Тип сущности
+     * @param int $id ID сущности
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getCommentsFor(string $type, int $id)
     {
         $cacheKey = $this->generateCacheKey('comments', [$type, $id]);
@@ -31,55 +38,16 @@ class CommentsRepository extends BaseRepository
         }, 1800);
     }
 
-    public function getCommentsForBatch(string $type, array $ids)
-    {
-        if (empty($ids)) {
-            return collect();
-        }
-
-        $cacheKey = $this->generateCacheKey('comments_batch', [$type, md5(implode(',', $ids))]);
-
-        return CacheService::remember($cacheKey, function () use ($type, $ids) {
-            $modelClass = $this->resolveType($type);
-
-            return Comment::select([
-                'comments.id', 'comments.body', 'comments.commentable_type',
-                'comments.commentable_id', 'comments.user_id', 'comments.created_at',
-                'comments.updated_at'
-            ])
-            ->with([
-                'user:id,name,email'
-            ])
-            ->where('commentable_type', $modelClass)
-            ->whereIn('commentable_id', $ids)
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->groupBy('commentable_id');
-        }, 1800);
-    }
-
-    public function getCommentsWithPagination(string $type, int $id, int $perPage = 20)
-    {
-        $cacheKey = $this->generateCacheKey('comments_paginated', [$type, $id, $perPage]);
-
-        return CacheService::remember($cacheKey, function () use ($type, $id, $perPage) {
-            $modelClass = $this->resolveType($type);
-
-            return Comment::select([
-                'comments.id', 'comments.body', 'comments.commentable_type',
-                'comments.commentable_id', 'comments.user_id', 'comments.created_at',
-                'comments.updated_at'
-            ])
-            ->with([
-                'user:id,name,email'
-            ])
-            ->where('commentable_type', $modelClass)
-            ->where('commentable_id', $id)
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
-        }, 900);
-    }
-
+    /**
+     * Создать комментарий
+     *
+     * @param string $type Тип сущности
+     * @param int $id ID сущности
+     * @param string $body Текст комментария
+     * @param int $userId ID пользователя
+     * @return array
+     * @throws \Exception
+     */
     public function createItem(string $type, int $id, string $body, int $userId): array
     {
         DB::beginTransaction();
@@ -116,6 +84,15 @@ class CommentsRepository extends BaseRepository
         }
     }
 
+    /**
+     * Обновить комментарий
+     *
+     * @param int $id ID комментария
+     * @param int $userId ID пользователя
+     * @param string $body Новый текст комментария
+     * @return \App\Models\Comment|false
+     * @throws \Exception
+     */
     public function updateItem(int $id, int $userId, string $body)
     {
         DB::beginTransaction();
@@ -147,6 +124,14 @@ class CommentsRepository extends BaseRepository
         }
     }
 
+    /**
+     * Удалить комментарий
+     *
+     * @param int $id ID комментария
+     * @param int $userId ID пользователя
+     * @return bool
+     * @throws \Exception
+     */
     public function deleteItem(int $id, int $userId)
     {
         DB::beginTransaction();
@@ -178,69 +163,13 @@ class CommentsRepository extends BaseRepository
         }
     }
 
-    public function getRecentCommentsForTimeline(string $type, int $id, int $limit = 50)
-    {
-        $cacheKey = $this->generateCacheKey('comments_timeline', [$type, $id, $limit]);
-
-        return CacheService::remember($cacheKey, function () use ($type, $id, $limit) {
-            $modelClass = $this->resolveType($type);
-
-            return Comment::select([
-                'comments.id', 'comments.body', 'comments.commentable_type',
-                'comments.commentable_id', 'comments.user_id', 'comments.created_at'
-            ])
-            ->with([
-                'user:id,name,email'
-            ])
-            ->where('commentable_type', $modelClass)
-            ->where('commentable_id', $id)
-            ->orderBy('created_at', 'desc')
-            ->limit($limit)
-            ->get();
-        }, 600);
-    }
-
-    public function getCommentsStats(string $type, int $id)
-    {
-        $cacheKey = $this->generateCacheKey('comments_stats', [$type, $id]);
-
-        return CacheService::remember($cacheKey, function () use ($type, $id) {
-            $modelClass = $this->resolveType($type);
-
-            return Comment::where('commentable_type', $modelClass)
-                ->where('commentable_id', $id)
-                ->selectRaw('
-                    COUNT(*) as total_comments,
-                    COUNT(DISTINCT user_id) as unique_users,
-                    MAX(created_at) as last_comment_date,
-                    MIN(created_at) as first_comment_date
-                ')
-                ->first();
-        }, 1800);
-    }
-
-    public function searchComments(string $type, int $id, string $search, int $perPage = 20)
-    {
-        $cacheKey = $this->generateCacheKey('comments_search', [$type, $id, $search, $perPage]);
-
-        return CacheService::rememberSearch($cacheKey, function () use ($type, $id, $search, $perPage) {
-            $modelClass = $this->resolveType($type);
-
-            return Comment::select([
-                'comments.id', 'comments.body', 'comments.commentable_type',
-                'comments.commentable_id', 'comments.user_id', 'comments.created_at'
-            ])
-            ->with([
-                'user:id,name,email'
-            ])
-            ->where('commentable_type', $modelClass)
-            ->where('commentable_id', $id)
-            ->where('body', 'like', "%{$search}%")
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
-        });
-    }
-
+    /**
+     * Разрешить тип сущности в класс модели
+     *
+     * @param string $type Тип сущности
+     * @return string Класс модели
+     * @throws \InvalidArgumentException
+     */
     public function resolveType(string $type): string
     {
         return match ($type) {
@@ -254,16 +183,26 @@ class CommentsRepository extends BaseRepository
         };
     }
 
+    /**
+     * Инвалидировать кэш комментариев
+     *
+     * @param string $type Тип сущности
+     * @param int $id ID сущности
+     * @return void
+     */
     private function invalidateCommentsCache(string $type, int $id)
     {
-        \Illuminate\Support\Facades\Cache::forget($this->generateCacheKey('comments', [$type, $id]));
-        \Illuminate\Support\Facades\Cache::forget($this->generateCacheKey('comments_stats', [$type, $id]));
+        CacheService::forget($this->generateCacheKey('comments', [$type, $id]));
         $companyId = $this->getCurrentCompanyId() ?? 'default';
-        CacheService::invalidateByLike("%comments_paginated_{$type}_{$id}_{$companyId}%");
-        CacheService::invalidateByLike("%comments_timeline_{$type}_{$id}_{$companyId}%");
-        CacheService::invalidateByLike("%comments_batch_{$type}_{$companyId}%");
+        CacheService::invalidateByLike("%comments_{$type}_{$id}_{$companyId}%");
     }
 
+    /**
+     * Инвалидировать кэш комментариев по типу
+     *
+     * @param string $type Тип сущности
+     * @return void
+     */
     public function invalidateCommentsCacheByType(string $type)
     {
         $companyId = $this->getCurrentCompanyId() ?? 'default';

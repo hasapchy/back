@@ -7,6 +7,26 @@ use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
+/**
+ * Модель счета
+ *
+ * @property int $id
+ * @property int $client_id ID клиента
+ * @property int $user_id ID пользователя
+ * @property \Carbon\Carbon $invoice_date Дата счета
+ * @property string|null $note Примечание
+ * @property float $total_amount Общая сумма
+ * @property string $invoice_number Номер счета
+ * @property string $status Статус счета
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ *
+ * @property-read \App\Models\Client $client
+ * @property-read \App\Models\User $user
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Order[] $orders
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\InvoiceProduct[] $products
+ * @property-read \Illuminate\Database\Eloquent\Collection|\Spatie\Activitylog\Models\Activity[] $activities
+ */
 class Invoice extends Model
 {
     use HasFactory, LogsActivity;
@@ -36,6 +56,12 @@ class Invoice extends Model
     protected static $logOnlyDirty = true;
     protected static $submitEmptyLogs = false;
 
+    /**
+     * Получить описание для события активности
+     *
+     * @param string $eventName Название события
+     * @return string
+     */
     public function getDescriptionForEvent(string $eventName): string
     {
         switch ($eventName) {
@@ -50,6 +76,11 @@ class Invoice extends Model
         }
     }
 
+    /**
+     * Получить опции логирования активности
+     *
+     * @return LogOptions
+     */
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -68,31 +99,61 @@ class Invoice extends Model
         'final_amount' => 'decimal:2',
     ];
 
+    /**
+     * Связь с клиентом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');
     }
 
+    /**
+     * Связь с пользователем
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * Связь с заказами (many-to-many)
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
     public function orders()
     {
         return $this->belongsToMany(Order::class, 'invoice_orders', 'invoice_id', 'order_id');
     }
 
+    /**
+     * Связь с продуктами счета
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function products()
     {
         return $this->hasMany(InvoiceProduct::class, 'invoice_id');
     }
 
+    /**
+     * Связь с активностями (morphMany)
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
     public function activities()
     {
         return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
     }
 
+    /**
+     * Генерировать номер счета
+     *
+     * @return string
+     */
     public static function generateInvoiceNumber()
     {
         $lastInvoice = self::orderBy('id', 'desc')->first();

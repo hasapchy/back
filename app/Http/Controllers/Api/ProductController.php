@@ -9,15 +9,29 @@ use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Контроллер для работы с товарами и услугами
+ */
 class ProductController extends Controller
 {
     protected $itemsRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param ProductsRepository $itemsRepository
+     */
     public function __construct(ProductsRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
     }
 
+    /**
+     * Получить список товаров с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function products(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -33,6 +47,12 @@ class ProductController extends Controller
         return $this->paginatedResponse($items);
     }
 
+    /**
+     * Поиск товаров и услуг
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function search(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -46,16 +66,19 @@ class ProductController extends Controller
         return response()->json($items);
     }
 
+    /**
+     * Получить товар/услугу по ID
+     *
+     * @param Request $request
+     * @param int $id ID товара/услуги
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function show(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $product = Product::find($id);
-        if (!$product) {
-            return $this->notFoundResponse('Product not found');
-        }
+        $product = Product::findOrFail($id);
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('products', 'view', $product)) {
             return $this->forbiddenResponse('У вас нет прав на просмотр этого товара');
         }
@@ -65,6 +88,12 @@ class ProductController extends Controller
         return response()->json(['item' => $product]);
     }
 
+    /**
+     * Получить список услуг с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function services(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -79,6 +108,12 @@ class ProductController extends Controller
         return $this->paginatedResponse($items);
     }
 
+    /**
+     * Создать новый товар/услугу
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -121,21 +156,22 @@ class ProductController extends Controller
 
         $product = $this->itemsRepository->createItem($data);
 
-        CacheService::invalidateProductsCache();
-
         return response()->json(['item' => $product, 'message' => 'Product successfully created']);
     }
 
+    /**
+     * Обновить товар/услугу
+     *
+     * @param Request $request
+     * @param int $id ID товара/услуги
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $product_exist = Product::where('id', $id)->first();
-        if (!$product_exist) {
-            return $this->notFoundResponse('Product not found');
-        }
+        $product_exist = Product::findOrFail($id);
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('products', 'update', $product_exist)) {
             return $this->forbiddenResponse('У вас нет прав на редактирование этого товара');
         }
@@ -181,21 +217,21 @@ class ProductController extends Controller
             $product = $this->itemsRepository->updateItem($id, $data);
         }
 
-        CacheService::invalidateProductsCache();
-
         return response()->json(['item' => $product, 'message' => 'Product successfully updated']);
     }
 
+    /**
+     * Удалить товар/услугу
+     *
+     * @param int $id ID товара/услуги
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $product = Product::find($id);
-        if (!$product) {
-            return $this->notFoundResponse('Товар не найден');
-        }
+        $product = Product::findOrFail($id);
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('products', 'delete', $product)) {
             return $this->forbiddenResponse('У вас нет прав на удаление этого товара');
         }
@@ -205,8 +241,6 @@ class ProductController extends Controller
         if (!$result['success']) {
             return $this->errorResponse($result['message'], 400);
         }
-
-        CacheService::invalidateProductsCache();
 
         return response()->json(['message' => 'Товар/услуга успешно удалена']);
     }

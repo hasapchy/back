@@ -9,15 +9,29 @@ use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 
+/**
+ * Контроллер для работы с транзакциями
+ */
 class TransactionsController extends Controller
 {
     protected $itemsRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param TransactionsRepository $itemsRepository Репозиторий транзакций
+     */
     public function __construct(TransactionsRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
     }
 
+    /**
+     * Получить список транзакций с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -65,6 +79,12 @@ class TransactionsController extends Controller
         return response()->json($response);
     }
 
+    /**
+     * Создать новую транзакцию
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -92,10 +112,7 @@ class TransactionsController extends Controller
             }
         }
 
-        $cashRegister = \App\Models\CashRegister::find($request->cash_id);
-        if (!$cashRegister) {
-            return $this->notFoundResponse('Касса не найдена');
-        }
+        $cashRegister = \App\Models\CashRegister::findOrFail($request->cash_id);
         $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
         if ($cashAccessCheck) {
             return $cashAccessCheck;
@@ -168,6 +185,13 @@ class TransactionsController extends Controller
         return response()->json(['message' => 'Транзакция создана']);
     }
 
+    /**
+     * Обновить транзакцию
+     *
+     * @param Request $request
+     * @param int $id ID транзакции
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $user = $this->requireAuthenticatedUser();
@@ -186,10 +210,7 @@ class TransactionsController extends Controller
             'source_id' => 'nullable|integer'
         ]);
 
-        $transaction_exist = Transaction::where('id', $id)->first();
-        if (!$transaction_exist) {
-            return $this->notFoundResponse('Транзакция не найдена');
-        }
+        $transaction_exist = Transaction::findOrFail($id);
 
         $isAdjustmentCategory = in_array($transaction_exist->category_id, [21, 22]) ||
                                 ($request->has('category_id') && in_array($request->category_id, [21, 22]));
@@ -200,7 +221,6 @@ class TransactionsController extends Controller
             }
         }
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('transactions', 'update', $transaction_exist)) {
             return $this->forbiddenResponse('У вас нет прав на редактирование этой транзакции');
         }
@@ -272,17 +292,19 @@ class TransactionsController extends Controller
         return response()->json(['message' => 'Транзакция обновлена']);
     }
 
+    /**
+     * Удалить транзакцию
+     *
+     * @param int $id ID транзакции
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $user = $this->requireAuthenticatedUser();
         $userUuid = $user->id;
 
-        $transaction_exist = Transaction::where('id', $id)->first();
-        if (!$transaction_exist) {
-            return $this->notFoundResponse('Транзакция не найдена');
-        }
+        $transaction_exist = Transaction::findOrFail($id);
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('transactions', 'delete', $transaction_exist)) {
             return $this->forbiddenResponse('У вас нет прав на удаление этой транзакции');
         }
@@ -310,6 +332,12 @@ class TransactionsController extends Controller
         return response()->json(['message' => 'Транзакция удалена']);
     }
 
+    /**
+     * Получить сумму транзакций по заказу
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getTotalByOrderId(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -323,14 +351,16 @@ class TransactionsController extends Controller
         return response()->json(['total' => $total]);
     }
 
+    /**
+     * Получить транзакцию по ID
+     *
+     * @param int $id ID транзакции
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function show($id)
     {
-        $transaction = Transaction::find($id);
-        if (!$transaction) {
-            return $this->notFoundResponse('Транзакция не найдена');
-        }
+        $transaction = Transaction::findOrFail($id);
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('transactions', 'view', $transaction)) {
             return $this->forbiddenResponse('У вас нет прав на просмотр этой транзакции');
         }

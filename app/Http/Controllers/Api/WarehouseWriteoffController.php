@@ -7,15 +7,29 @@ use App\Repositories\WarehouseWriteoffRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 
+/**
+ * Контроллер для работы со списаниями со склада
+ */
 class WarehouseWriteoffController extends Controller
 {
     protected $warehouseRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param WarehouseWriteoffRepository $warehouseRepository
+     */
     public function __construct(WarehouseWriteoffRepository $warehouseRepository)
     {
         $this->warehouseRepository = $warehouseRepository;
     }
 
+    /**
+     * Получить список списаний с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -25,6 +39,12 @@ class WarehouseWriteoffController extends Controller
         return $this->paginatedResponse($warehouses);
     }
 
+    /**
+     * Создать списание со склада
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -59,16 +79,19 @@ class WarehouseWriteoffController extends Controller
                 return $this->errorResponse('Ошибка списания', 400);
             }
 
-            CacheService::invalidateWarehouseWriteoffsCache();
-            CacheService::invalidateWarehouseStocksCache();
-            CacheService::invalidateProductsCache();
-
             return response()->json(['message' => 'Списание создано']);
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка списания' . $th->getMessage(), 400);
         }
     }
 
+    /**
+     * Обновить списание со склада
+     *
+     * @param Request $request
+     * @param int $id ID списания
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -102,26 +125,25 @@ class WarehouseWriteoffController extends Controller
                 return $this->errorResponse('Ошибка списания', 400);
             }
 
-            CacheService::invalidateWarehouseWriteoffsCache();
-            CacheService::invalidateWarehouseStocksCache();
-            CacheService::invalidateProductsCache();
-
             return response()->json(['message' => 'Списание обновлено']);
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка списания' . $th->getMessage(), 400);
         }
     }
 
+    /**
+     * Удалить списание со склада
+     *
+     * @param int $id ID списания
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
-        $writeoff = \App\Models\WhWriteoff::find($id);
-        if (!$writeoff) {
-            return $this->notFoundResponse('Списание не найдено');
-        }
+        $writeoff = \App\Models\WhWriteoff::findOrFail($id);
 
         if ($writeoff->warehouse_id) {
-            $warehouse = \App\Models\Warehouse::find($writeoff->warehouse_id);
-            if ($warehouse && !$this->canPerformAction('warehouses', 'view', $warehouse)) {
+            $warehouse = \App\Models\Warehouse::findOrFail($writeoff->warehouse_id);
+            if (!$this->canPerformAction('warehouses', 'view', $warehouse)) {
                 return $this->forbiddenResponse('У вас нет прав на этот склад');
             }
         }
@@ -131,10 +153,6 @@ class WarehouseWriteoffController extends Controller
         if (!$warehouse_deleted) {
             return $this->errorResponse('Ошибка удаления списания', 400);
         }
-
-        CacheService::invalidateWarehouseWriteoffsCache();
-        CacheService::invalidateWarehouseStocksCache();
-        CacheService::invalidateProductsCache();
 
         return response()->json(['message' => 'Списание удалено']);
     }

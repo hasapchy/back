@@ -9,8 +9,19 @@ use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Pagination\LengthAwarePaginator;
+
+/**
+ * Контроллер для работы с историей курсов валют
+ */
 class CurrencyHistoryController extends Controller
 {
+    /**
+     * Получить историю курсов валюты с пагинацией
+     *
+     * @param Request $request
+     * @param int $currencyId ID валюты
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request, $currencyId)
     {
         try {
@@ -20,10 +31,7 @@ class CurrencyHistoryController extends Controller
                 return $this->unauthorizedResponse();
             }
 
-            $currency = Currency::find($currencyId);
-            if (!$currency) {
-                return $this->notFoundResponse('Валюта не найдена');
-            }
+            $currency = Currency::findOrFail($currencyId);
 
             $userPermissions = $this->getUserPermissions($user);
             $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
@@ -71,6 +79,13 @@ class CurrencyHistoryController extends Controller
         }
     }
 
+    /**
+     * Создать новую запись в истории курсов валюты
+     *
+     * @param Request $request
+     * @param int $currencyId ID валюты
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request, $currencyId)
     {
         try {
@@ -80,10 +95,7 @@ class CurrencyHistoryController extends Controller
                 return $this->unauthorizedResponse();
             }
 
-            $currency = Currency::find($currencyId);
-            if (!$currency) {
-                return $this->notFoundResponse('Валюта не найдена');
-            }
+            $currency = Currency::findOrFail($currencyId);
 
             $userPermissions = $this->getUserPermissions($user);
             $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
@@ -127,6 +139,14 @@ class CurrencyHistoryController extends Controller
         }
     }
 
+    /**
+     * Обновить запись в истории курсов валюты
+     *
+     * @param Request $request
+     * @param int $currencyId ID валюты
+     * @param int $historyId ID записи истории
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $currencyId, $historyId)
     {
         try {
@@ -136,10 +156,7 @@ class CurrencyHistoryController extends Controller
                 return $this->unauthorizedResponse();
             }
 
-            $currency = Currency::find($currencyId);
-            if (!$currency) {
-                return $this->notFoundResponse('Валюта не найдена');
-            }
+            $currency = Currency::findOrFail($currencyId);
 
             $userPermissions = $this->getUserPermissions($user);
             $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
@@ -193,6 +210,14 @@ class CurrencyHistoryController extends Controller
         }
     }
 
+    /**
+     * Удалить запись из истории курсов валюты
+     *
+     * @param Request $request
+     * @param int $currencyId ID валюты
+     * @param int $historyId ID записи истории
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy(Request $request, $currencyId, $historyId)
     {
         try {
@@ -202,10 +227,7 @@ class CurrencyHistoryController extends Controller
                 return $this->unauthorizedResponse();
             }
 
-            $currency = Currency::find($currencyId);
-            if (!$currency) {
-                return $this->notFoundResponse('Валюта не найдена');
-            }
+            $currency = Currency::findOrFail($currencyId);
 
             $userPermissions = $this->getUserPermissions($user);
             $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
@@ -241,6 +263,11 @@ class CurrencyHistoryController extends Controller
         }
     }
 
+    /**
+     * Получить валюты с текущими курсами
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getCurrenciesWithRates()
     {
         try {

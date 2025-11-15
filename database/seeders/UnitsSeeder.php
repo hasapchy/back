@@ -14,17 +14,17 @@ class UnitsSeeder extends Seeder
     public function run(): void
     {
         $units = [
-            ['id' => 1, 'name' => 'Метр', 'short_name' => 'м', 'calc_area' => false],
-            ['id' => 2, 'name' => 'Квадратный метр', 'short_name' => 'м²', 'calc_area' => true],
-            ['id' => 3, 'name' => 'Литр', 'short_name' => 'л', 'calc_area' => false],
-            ['id' => 4, 'name' => 'Килограмм', 'short_name' => 'кг', 'calc_area' => false],
-            ['id' => 5, 'name' => 'Грамм', 'short_name' => 'г', 'calc_area' => false],
-            ['id' => 6, 'name' => 'Штука', 'short_name' => 'шт', 'calc_area' => false],
-            ['id' => 7, 'name' => 'Упаковка', 'short_name' => 'уп', 'calc_area' => false],
-            ['id' => 8, 'name' => 'Коробка', 'short_name' => 'кор', 'calc_area' => false],
-            ['id' => 9, 'name' => 'Паллета', 'short_name' => 'пал', 'calc_area' => false],
-            ['id' => 10, 'name' => 'Комплект', 'short_name' => 'комп', 'calc_area' => false],
-            ['id' => 12, 'name' => 'Рулон', 'short_name' => 'рул', 'calc_area' => false]
+            ['id' => 1, 'name' => 'Метр', 'short_name' => 'м'],
+            ['id' => 2, 'name' => 'Квадратный метр', 'short_name' => 'м²'],
+            ['id' => 3, 'name' => 'Литр', 'short_name' => 'л'],
+            ['id' => 4, 'name' => 'Килограмм', 'short_name' => 'кг'],
+            ['id' => 5, 'name' => 'Грамм', 'short_name' => 'г'],
+            ['id' => 6, 'name' => 'Штука', 'short_name' => 'шт'],
+            ['id' => 7, 'name' => 'Упаковка', 'short_name' => 'уп'],
+            ['id' => 8, 'name' => 'Коробка', 'short_name' => 'кор'],
+            ['id' => 9, 'name' => 'Паллета', 'short_name' => 'пал'],
+            ['id' => 10, 'name' => 'Комплект', 'short_name' => 'комп'],
+            ['id' => 12, 'name' => 'Рулон', 'short_name' => 'рул']
         ];
 
         foreach ($units as $unit) {

@@ -15,9 +15,14 @@ class CacheService
     ];
 
     /**
-     * Получить данные из кэша или создать новые
+     * Get data from cache or create new
+     *
+     * @param string $key Cache key
+     * @param callable $callback Callback to generate data if not cached
+     * @param int|null $ttl Time to live in seconds
+     * @return mixed
      */
-    public static function remember(string $key, callable $callback, int $ttl = null)
+    public static function remember(string $key, callable $callback, ?int $ttl = null)
     {
         $ttl = $ttl ?? self::CACHE_TTL['reference_data'];
 
@@ -25,7 +30,12 @@ class CacheService
     }
 
     /**
-     * Кэширование списков с пагинацией
+     * Cache paginated lists
+     *
+     * @param string $cacheKey Cache key
+     * @param callable $callback Callback to generate data if not cached
+     * @param int $page Page number
+     * @return mixed
      */
     public static function getPaginatedData(string $cacheKey, callable $callback, int $page = 1)
     {
@@ -36,7 +46,11 @@ class CacheService
     }
 
     /**
-     * Кэширование справочных данных
+     * Cache reference data
+     *
+     * @param string $cacheKey Cache key
+     * @param callable $callback Callback to generate data if not cached
+     * @return mixed
      */
     public static function getReferenceData(string $cacheKey, callable $callback)
     {
@@ -47,180 +61,388 @@ class CacheService
         );
     }
 
-    public static function invalidateSalesCache()
+    /**
+     * Invalidate sales cache
+     *
+     * @return void
+     */
+    public static function invalidateSalesCache(): void
     {
         self::invalidateByLike('%sale%');
     }
 
-    public static function invalidateClientsCache()
+    /**
+     * Invalidate clients cache
+     *
+     * @return void
+     */
+    public static function invalidateClientsCache(): void
     {
         self::invalidateByLike('%client%');
     }
 
-    public static function invalidateClientBalanceCache($clientId)
+    /**
+     * Invalidate client balance cache
+     *
+     * @param int $clientId Client ID
+     * @return void
+     */
+    public static function invalidateClientBalanceCache(int $clientId): void
     {
         self::invalidateByLike("%client_{$clientId}_%");
     }
 
-    public static function invalidateClientCategoriesCache()
+    /**
+     * Invalidate client categories cache
+     *
+     * @return void
+     */
+    public static function invalidateClientCategoriesCache(): void
     {
         self::invalidateByLike('%client_categor%');
     }
 
-    public static function invalidateProductsCache()
+    /**
+     * Invalidate products cache
+     *
+     * @return void
+     */
+    public static function invalidateProductsCache(): void
     {
         self::invalidateByLike('%product%');
     }
 
-    public static function invalidateByLike(string $like)
+    /**
+     * Invalidate cache by pattern
+     *
+     * @param string $like Pattern to match cache keys
+     * @param int|null $companyId Company ID
+     * @return void
+     */
+    public static function invalidateByLike(string $like, ?int $companyId = null): void
     {
         $driver = config('cache.default');
+        $currentCompanyId = self::getCompanyId($companyId);
 
         if ($driver === 'database') {
-            try {
-                $cacheTable = config('cache.stores.database.table', 'cache');
-                $prefix = config('cache.prefix');
-                $originalPattern = $like;
-
-                if ($prefix && strpos($like, '%') === 0) {
-                    $cleanPattern = trim($like, '%');
-                    $like = $prefix . '%' . $cleanPattern . '%';
-                }
-
-                $deleted = DB::table($cacheTable)->where('key', 'like', $like)->delete();
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('Cache invalidation failed', [
-                    'original_pattern' => $originalPattern ?? $like,
-                    'final_pattern' => $like,
-                    'error' => $e->getMessage()
-                ]);
-            }
+            self::invalidateDatabaseCache($like, $currentCompanyId);
         } else {
-            try {
-                Cache::flush();
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('Cache flush failed', [
-                    'pattern' => $like,
-                    'driver' => $driver,
-                    'error' => $e->getMessage()
-                ]);
-            }
+            self::invalidateOtherCache($like, $currentCompanyId, $driver);
         }
     }
 
-    public static function invalidateCategoriesCache()
+    /**
+     * Get company ID from parameter or request
+     *
+     * @param int|null $companyId Company ID from parameter
+     * @return int|null
+     */
+    protected static function getCompanyId(?int $companyId): ?int
+    {
+        if ($companyId !== null) {
+            return $companyId;
+        }
+
+        if (request()->hasHeader('X-Company-ID')) {
+            $headerCompanyId = request()->header('X-Company-ID');
+            return $headerCompanyId ? (int) $headerCompanyId : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Invalidate database cache
+     *
+     * @param string $like Pattern
+     * @param int|null $companyId Company ID
+     * @return void
+     */
+    protected static function invalidateDatabaseCache(string $like, ?int $companyId): void
+    {
+        try {
+            $cacheTable = config('cache.stores.database.table', 'cache');
+            $prefix = config('cache.prefix');
+            $originalPattern = $like;
+
+            if ($prefix && strpos($like, '%') === 0) {
+                $cleanPattern = trim($like, '%');
+                $like = $prefix . '%' . $cleanPattern . '%';
+            }
+
+            if ($companyId !== null) {
+                $like = rtrim($like, '%') . "%_{$companyId}%";
+            }
+
+            DB::table($cacheTable)->where('key', 'like', $like)->delete();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Cache invalidation failed', [
+                'original_pattern' => $originalPattern ?? $like,
+                'final_pattern' => $like,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Invalidate other cache drivers
+     *
+     * @param string $like Pattern
+     * @param int|null $companyId Company ID
+     * @param string $driver Cache driver
+     * @return void
+     */
+    protected static function invalidateOtherCache(string $like, ?int $companyId, string $driver): void
+    {
+        try {
+            if ($companyId !== null) {
+                $pattern = str_replace('%', '', $like) . "_{$companyId}";
+                Cache::forget($pattern);
+            } else {
+                Cache::flush();
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Cache flush failed', [
+                'pattern' => $like,
+                'driver' => $driver,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Invalidate categories cache
+     *
+     * @return void
+     */
+    public static function invalidateCategoriesCache(): void
     {
         self::invalidateByLike('%categor%');
     }
 
-    public static function invalidateWarehousesCache()
+    /**
+     * Invalidate warehouses cache
+     *
+     * @return void
+     */
+    public static function invalidateWarehousesCache(): void
     {
         self::invalidateByLike('%wareh%');
     }
 
-    public static function invalidateCashRegistersCache()
+    /**
+     * Invalidate cash registers cache
+     *
+     * @return void
+     */
+    public static function invalidateCashRegistersCache(): void
     {
         self::invalidateByLike('%cash%');
     }
 
-    public static function invalidateProjectsCache()
+    /**
+     * Invalidate projects cache
+     *
+     * @return void
+     */
+    public static function invalidateProjectsCache(): void
     {
         self::invalidateByLike('%project%');
     }
 
-    public static function invalidateOrderStatusesCache()
+    /**
+     * Invalidate order statuses cache
+     *
+     * @return void
+     */
+    public static function invalidateOrderStatusesCache(): void
     {
         self::invalidateByLike('%order_status%');
         self::invalidateByLike('%order_status_categories%');
     }
 
-    public static function invalidateOrderStatusCategoriesCache()
+    /**
+     * Invalidate order status categories cache
+     *
+     * @return void
+     */
+    public static function invalidateOrderStatusCategoriesCache(): void
     {
         self::invalidateByLike('%order_status_categories%');
         self::invalidateByLike('%order_status%');
     }
 
-    public static function invalidateProjectStatusesCache()
+    /**
+     * Invalidate project statuses cache
+     *
+     * @return void
+     */
+    public static function invalidateProjectStatusesCache(): void
     {
         self::invalidateByLike('%project_status%');
     }
 
-    public static function invalidateTransactionCategoriesCache()
+    /**
+     * Invalidate transaction categories cache
+     *
+     * @return void
+     */
+    public static function invalidateTransactionCategoriesCache(): void
     {
         self::invalidateByLike('%transaction_categor%');
     }
 
-    public static function invalidateProductStatusesCache()
+    /**
+     * Invalidate product statuses cache
+     *
+     * @return void
+     */
+    public static function invalidateProductStatusesCache(): void
     {
         self::invalidateByLike('%productStatus%');
     }
 
-    public static function invalidateUnitsCache()
+    /**
+     * Invalidate units cache
+     *
+     * @return void
+     */
+    public static function invalidateUnitsCache(): void
     {
         self::invalidateByLike('%unit%');
     }
 
-    public static function invalidateCurrenciesCache()
+    /**
+     * Invalidate currencies cache
+     *
+     * @return void
+     */
+    public static function invalidateCurrenciesCache(): void
     {
         self::invalidateByLike('%currenc%');
     }
 
-    public static function invalidateOrdersCache()
+    /**
+     * Invalidate orders cache
+     *
+     * @return void
+     */
+    public static function invalidateOrdersCache(): void
     {
         self::invalidateByLike('%order%');
     }
 
-    public static function invalidateTransactionsCache()
+    /**
+     * Invalidate transactions cache
+     *
+     * @return void
+     */
+    public static function invalidateTransactionsCache(): void
     {
         self::invalidateByLike('%transaction%');
     }
 
-    public static function invalidateWarehouseReceiptsCache()
+    /**
+     * Invalidate warehouse receipts cache
+     *
+     * @return void
+     */
+    public static function invalidateWarehouseReceiptsCache(): void
     {
         self::invalidateByLike('%receipt%');
     }
 
-    public static function invalidateWarehouseWriteoffsCache()
+    /**
+     * Invalidate warehouse writeoffs cache
+     *
+     * @return void
+     */
+    public static function invalidateWarehouseWriteoffsCache(): void
     {
         self::invalidateByLike('%writeoff%');
     }
 
-    public static function invalidateWarehouseMovementsCache()
+    /**
+     * Invalidate warehouse movements cache
+     *
+     * @return void
+     */
+    public static function invalidateWarehouseMovementsCache(): void
     {
         self::invalidateByLike('%movement%');
     }
 
-    public static function invalidateWarehouseStocksCache()
+    /**
+     * Invalidate warehouse stocks cache
+     *
+     * @return void
+     */
+    public static function invalidateWarehouseStocksCache(): void
     {
         self::invalidateByLike('%stock%');
     }
 
-    public static function invalidateInvoicesCache()
+    /**
+     * Invalidate invoices cache
+     *
+     * @return void
+     */
+    public static function invalidateInvoicesCache(): void
     {
         self::invalidateByLike('%invoice%');
     }
 
-    public static function invalidateTransfersCache()
+    /**
+     * Invalidate transfers cache
+     *
+     * @return void
+     */
+    public static function invalidateTransfersCache(): void
     {
         self::invalidateByLike('%transfer%');
     }
 
-    public static function invalidateUsersCache()
+    /**
+     * Invalidate users cache
+     *
+     * @return void
+     */
+    public static function invalidateUsersCache(): void
     {
         self::invalidateByLike('%users_%');
     }
 
-    public static function invalidateCompaniesCache()
+    /**
+     * Invalidate companies cache
+     *
+     * @return void
+     */
+    public static function invalidateCompaniesCache(): void
     {
         self::invalidateByLike('%compan%');
     }
 
-    public static function clearUserCache($userId, $dataType)
+    /**
+     * Clear user cache
+     *
+     * @param int $userId User ID
+     * @param string $dataType Data type
+     * @return void
+     */
+    public static function clearUserCache(int $userId, string $dataType): void
     {
         self::invalidateByLike("%{$userId}%{$dataType}%");
     }
 
-    public static function smartRemember(string $key, callable $callback, int $ttl = null)
+    /**
+     * Smart cache remember with automatic TTL adjustment for large datasets
+     *
+     * @param string $key Cache key
+     * @param callable $callback Callback to generate data if not cached
+     * @param int|null $ttl Time to live in seconds
+     * @return mixed
+     */
+    public static function smartRemember(string $key, callable $callback, ?int $ttl = null)
     {
         $ttl = $ttl ?? self::CACHE_TTL['reference_data'];
         $data = $callback();
@@ -234,14 +456,26 @@ class CacheService
         });
     }
 
-
+    /**
+     * Cache search results
+     *
+     * @param string $key Cache key
+     * @param callable $callback Callback to generate data if not cached
+     * @return mixed
+     */
     public static function rememberSearch(string $key, callable $callback)
     {
         return self::remember($key, $callback, self::CACHE_TTL['search_results']);
     }
 
-
-    public static function preloadData(array $keys, callable $callback)
+    /**
+     * Preload data for multiple keys
+     *
+     * @param array $keys Array of cache keys
+     * @param callable $callback Callback to generate data for each key
+     * @return array
+     */
+    public static function preloadData(array $keys, callable $callback): array
     {
         $results = [];
         foreach ($keys as $key) {
@@ -251,5 +485,95 @@ class CacheService
             }
         }
         return $results;
+    }
+
+    /**
+     * Forget specific cache key
+     *
+     * @param string $key Cache key
+     * @param int|null $companyId Company ID
+     * @return void
+     */
+    public static function forget(string $key, ?int $companyId = null): void
+    {
+        $driver = config('cache.default');
+        $currentCompanyId = self::getCompanyId($companyId);
+        $fullKey = self::buildCacheKey($key, $currentCompanyId, $driver === 'database');
+
+        if ($driver === 'database') {
+            self::forgetDatabaseCache($fullKey);
+        } else {
+            self::forgetOtherCache($fullKey);
+        }
+    }
+
+    /**
+     * Build cache key with company ID suffix
+     *
+     * @param string $key Base cache key
+     * @param int|null $companyId Company ID
+     * @param bool $isDatabase Whether using database cache
+     * @return string
+     */
+    protected static function buildCacheKey(string $key, ?int $companyId, bool $isDatabase): string
+    {
+        $fullKey = $key;
+
+        if ($isDatabase) {
+            $prefix = config('cache.prefix');
+            $fullKey = $prefix ? $prefix . $key : $key;
+        }
+
+        $defaultCompanyId = 'default';
+        $keyEndsWithCompanyId = false;
+
+        if ($companyId && (str_ends_with($key, "_{$companyId}") || str_ends_with($key, "_{$defaultCompanyId}"))) {
+            $keyEndsWithCompanyId = true;
+        }
+
+        if (!$keyEndsWithCompanyId && $companyId) {
+            $fullKey .= "_{$companyId}";
+        } elseif (!$keyEndsWithCompanyId && !$companyId) {
+            $fullKey .= "_{$defaultCompanyId}";
+        }
+
+        return $fullKey;
+    }
+
+    /**
+     * Forget database cache
+     *
+     * @param string $fullKey Full cache key
+     * @return void
+     */
+    protected static function forgetDatabaseCache(string $fullKey): void
+    {
+        try {
+            $cacheTable = config('cache.stores.database.table', 'cache');
+            DB::table($cacheTable)->where('key', $fullKey)->delete();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Cache forget failed', [
+                'key' => $fullKey,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Forget other cache drivers
+     *
+     * @param string $fullKey Full cache key
+     * @return void
+     */
+    protected static function forgetOtherCache(string $fullKey): void
+    {
+        try {
+            Cache::forget($fullKey);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Cache forget failed', [
+                'key' => $fullKey,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }

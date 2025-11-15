@@ -8,6 +8,25 @@ use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Models\Activity;
 
+/**
+ * Модель продукта заказа
+ *
+ * @property int $id
+ * @property int $order_id ID заказа
+ * @property int $user_id ID пользователя
+ * @property int $product_id ID продукта
+ * @property float $quantity Количество
+ * @property float $price Цена
+ * @property float $discount Скидка
+ * @property float|null $width Ширина
+ * @property float|null $height Высота
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ *
+ * @property-read \App\Models\Order $order
+ * @property-read \App\Models\Product $product
+ * @property-read \App\Models\User $user
+ */
 class OrderProduct extends Model
 {
     use HasFactory, LogsActivity;
@@ -35,6 +54,12 @@ class OrderProduct extends Model
     protected static $logOnlyDirty = true;
     protected static $submitEmptyLogs = false;
 
+    /**
+     * Получить описание для события активности
+     *
+     * @param string $eventName Название события
+     * @return string
+     */
     public function getDescriptionForEvent(string $eventName): string
     {
         if ($eventName === 'created') {
@@ -55,6 +80,11 @@ class OrderProduct extends Model
         return "Товар/услуга был {$eventName}";
     }
 
+    /**
+     * Получить настройки логирования активности
+     *
+     * @return LogOptions
+     */
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -64,7 +94,13 @@ class OrderProduct extends Model
             ->submitEmptyLogs();
     }
 
-    // Привязываем записи активности к самому заказу для отображения в таймлайне заказа
+    /**
+     * Привязать запись активности к заказу для отображения в таймлайне
+     *
+     * @param Activity $activity Запись активности
+     * @param string $eventName Название события
+     * @return void
+     */
     public function tapActivity(Activity $activity, string $eventName)
     {
         if ($this->order_id) {
@@ -73,16 +109,31 @@ class OrderProduct extends Model
         }
     }
 
+    /**
+     * Связь с заказом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function order()
     {
         return $this->belongsTo(Order::class, 'order_id');
     }
 
+    /**
+     * Связь с продуктом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function product()
     {
         return $this->belongsTo(Product::class, 'product_id');
     }
 
+    /**
+     * Связь с пользователем
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');

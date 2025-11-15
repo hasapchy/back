@@ -35,28 +35,44 @@ class PermissionsSeeder extends Seeder
             'currency_history',
         ];
 
+        $resourcesWithoutUserId = [
+            'categories',
+            'products',
+            'companies',
+            'warehouses',
+            'cash_registers',
+            'projects',
+            'order_statuses',
+            'order_statuscategories',
+            'transaction_categories',
+            'currency_history',
+            'roles',
+        ];
+
         $actions = ['view', 'create', 'update', 'delete'];
-        $scopeActions = ['view', 'update', 'delete']; // Действия, для которых нужны _all и _own
+        $scopeActions = ['view', 'update', 'delete'];
 
         foreach ($resources as $resource) {
             foreach ($actions as $action) {
+                if ($resource === 'mutual_settlements' && $action !== 'view') {
+                    continue;
+                }
+
                 if (in_array($action, $scopeActions)) {
-                    // Создаем разрешения с _all и _own для view, update, delete
+                    $hasUserId = !in_array($resource, $resourcesWithoutUserId);
+
                     Permission::firstOrCreate([
                         'name' => "{$resource}_{$action}_all",
                         'guard_name' => 'api',
                     ]);
-                    Permission::firstOrCreate([
-                        'name' => "{$resource}_{$action}_own",
-                        'guard_name' => 'api',
-                    ]);
-                    // Оставляем старое разрешение для обратной совместимости
-                    Permission::firstOrCreate([
-                        'name' => "{$resource}_{$action}",
-                        'guard_name' => 'api',
-                    ]);
+
+                    if ($hasUserId) {
+                        Permission::firstOrCreate([
+                            'name' => "{$resource}_{$action}_own",
+                            'guard_name' => 'api',
+                        ]);
+                    }
                 } else {
-                    // Для create оставляем как есть
                     Permission::firstOrCreate([
                         'name' => "{$resource}_{$action}",
                         'guard_name' => 'api',

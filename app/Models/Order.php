@@ -9,6 +9,41 @@ use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Services\CacheService;
 
+/**
+ * Модель заказа
+ *
+ * @property int $id
+ * @property string $name Название заказа
+ * @property int $client_id ID клиента
+ * @property int $user_id ID пользователя
+ * @property int $status_id ID статуса заказа
+ * @property string|null $description Описание
+ * @property string|null $note Примечание
+ * @property \Carbon\Carbon $date Дата заказа
+ * @property int|null $order_id ID родительского заказа
+ * @property float $price Цена заказа
+ * @property float $discount Скидка
+ * @property int|null $cash_id ID кассы
+ * @property int|null $warehouse_id ID склада
+ * @property int|null $project_id ID проекта
+ * @property int|null $category_id ID категории
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ *
+ * @property-read \App\Models\Client $client
+ * @property-read \App\Models\User $user
+ * @property-read \App\Models\OrderStatus $status
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\OrderProduct[] $orderProducts
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\OrderProduct[] $products
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\OrderTempProduct[] $tempProducts
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Comment[] $comments
+ * @property-read \App\Models\Warehouse|null $warehouse
+ * @property-read \App\Models\CashRegister|null $cash
+ * @property-read \App\Models\Project|null $project
+ * @property-read \App\Models\Company|null $company
+ * @property-read \App\Models\Category|null $category
+ */
 class Order extends Model
 {
     use HasFactory, LogsActivity;
@@ -80,24 +115,11 @@ class Order extends Model
     protected static function booted()
     {
         static::deleting(function ($order) {
-            \Illuminate\Support\Facades\Log::info('Order::deleting - START', [
-                'order_id' => $order->id,
-                'client_id' => $order->client_id
-            ]);
-
-            // Удаляем все связанные транзакции (по одной, чтобы сработали hooks)
             $transactions = $order->transactions()->get();
-            $transactionsCount = $transactions->count();
             foreach ($transactions as $transaction) {
-                $transaction->delete(); // Вызываем delete() для каждой транзакции отдельно
+                $transaction->delete();
             }
 
-            \Illuminate\Support\Facades\Log::info('Order::deleting - Transactions deleted', [
-                'order_id' => $order->id,
-                'transactions_deleted' => $transactionsCount
-            ]);
-
-            // Инвалидируем кэши
             CacheService::invalidateTransactionsCache();
             if ($order->client_id) {
                 CacheService::invalidateClientsCache();
@@ -108,10 +130,6 @@ class Order extends Model
                 $projectsRepository = new \App\Repositories\ProjectsRepository();
                 $projectsRepository->invalidateProjectCache($order->project_id);
             }
-
-            \Illuminate\Support\Facades\Log::info('Order::deleting - COMPLETED', [
-                'order_id' => $order->id
-            ]);
         });
     }
 
@@ -122,92 +140,141 @@ class Order extends Model
         'project_id' => 'integer',
     ];
 
+    /**
+     * Связь с клиентом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');
     }
 
+    /**
+     * Связь с пользователем
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * Связь со статусом заказа
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function status()
     {
         return $this->belongsTo(OrderStatus::class, 'status_id');
     }
 
-
-
+    /**
+     * Связь с продуктами заказа
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function orderProducts()
     {
         return $this->hasMany(OrderProduct::class, 'order_id');
     }
 
+    /**
+     * Связь с продуктами заказа (алиас)
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function products()
     {
         return $this->hasMany(OrderProduct::class, 'order_id');
     }
 
+    /**
+     * Связь с временными продуктами заказа
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function tempProducts()
     {
         return $this->hasMany(OrderTempProduct::class, 'order_id');
     }
-    // Morphable связь с транзакциями (новая архитектура)
+
+    /**
+     * Morphable связь с транзакциями
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
     public function transactions()
     {
         return $this->morphMany(Transaction::class, 'source');
     }
+
+    /**
+     * Связь с комментариями
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
     public function comments()
     {
         return $this->morphMany(Comment::class, 'commentable');
     }
 
+    /**
+     * Связь со складом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function warehouse()
     {
         return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
 
+    /**
+     * Связь с кассой
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function cash()
     {
         return $this->belongsTo(CashRegister::class, 'cash_id');
     }
 
+    /**
+     * Связь с проектом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function project()
     {
         return $this->belongsTo(Project::class, 'project_id');
     }
 
-    public function additionalFieldValues()
-    {
-        return $this->hasMany(OrderAfValue::class);
-    }
-
-    public function getAdditionalFieldValues()
-    {
-        return $this->additionalFieldValues()
-            ->with('additionalField')
-            ->get()
-            ->map(function ($value) {
-                return [
-                    'field' => $value->additionalField,
-                    'value' => $value->value,
-                    'formatted_value' => $value->getFormattedValue()
-                ];
-            });
-    }
-
-
+    /**
+     * Связь с активностями (activity log)
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
     public function activities()
     {
         return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
     }
 
+    /**
+     * Связь с компанией
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function company()
     {
         return $this->belongsTo(Company::class, 'company_id');
     }
 
+    /**
+     * Связь с категорией
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function category()
     {
         return $this->belongsTo(Category::class, 'category_id');

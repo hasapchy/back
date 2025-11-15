@@ -7,26 +7,45 @@ use App\Services\CacheService;
 
 class OrderStatusCategoryRepository extends BaseRepository
 {
+    /**
+     * Получить категории статусов заказов с пагинацией
+     *
+     * @param int $userUuid ID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20)
     {
         $cacheKey = $this->generateCacheKey('order_status_categories_paginated', [$userUuid, $perPage]);
 
-        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage) {
             return OrderStatusCategory::where('user_id', $userUuid)
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
         }, 1);
     }
 
+    /**
+     * Получить все категории статусов заказов
+     *
+     * @param int $userUuid ID пользователя
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getAllItems($userUuid)
     {
         $cacheKey = $this->generateCacheKey('order_status_categories_all', [$userUuid]);
 
-        return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid) {
             return OrderStatusCategory::where('user_id', $userUuid)->get();
         });
     }
 
+    /**
+     * Создать категорию статусов заказов
+     *
+     * @param array $data Данные категории
+     * @return OrderStatusCategory
+     */
     public function createItem($data)
     {
         $item = OrderStatusCategory::create($data);
@@ -34,6 +53,13 @@ class OrderStatusCategoryRepository extends BaseRepository
         return $item;
     }
 
+    /**
+     * Обновить категорию статусов заказов
+     *
+     * @param int $id ID категории
+     * @param array $data Данные для обновления
+     * @return OrderStatusCategory
+     */
     public function updateItem($id, $data)
     {
         $item = OrderStatusCategory::findOrFail($id);
@@ -42,6 +68,12 @@ class OrderStatusCategoryRepository extends BaseRepository
         return $item;
     }
 
+    /**
+     * Удалить категорию статусов заказов
+     *
+     * @param int $id ID категории
+     * @return bool
+     */
     public function deleteItem($id)
     {
         $item = OrderStatusCategory::findOrFail($id);

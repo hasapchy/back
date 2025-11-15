@@ -7,20 +7,34 @@ use App\Repositories\TransactionCategoryRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 
+/**
+ * Контроллер для работы с категориями транзакций
+ */
 class TransactionCategoryController extends Controller
 {
-    protected $repo;
+    protected $transactionCategoryRepository;
 
-    public function __construct(TransactionCategoryRepository $repo)
+    /**
+     * Конструктор контроллера
+     *
+     * @param TransactionCategoryRepository $transactionCategoryRepository
+     */
+    public function __construct(TransactionCategoryRepository $transactionCategoryRepository)
     {
-        $this->repo = $repo;
+        $this->transactionCategoryRepository = $transactionCategoryRepository;
     }
 
+    /**
+     * Получить список категорий транзакций с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->repo->getItemsWithPagination(20);
+        $items = $this->transactionCategoryRepository->getItemsWithPagination(20);
 
         $mappedItems = collect($items->items())->map(function ($item) {
             return [
@@ -43,9 +57,15 @@ class TransactionCategoryController extends Controller
         ]);
     }
 
+    /**
+     * Получить все категории транзакций
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function all(Request $request)
     {
-        $items = $this->repo->getAllItems();
+        $items = $this->transactionCategoryRepository->getAllItems();
 
         return response()->json($items->map(function ($item) {
             return [
@@ -60,6 +80,12 @@ class TransactionCategoryController extends Controller
         }));
     }
 
+    /**
+     * Создать новую категорию транзакций
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -69,18 +95,24 @@ class TransactionCategoryController extends Controller
             'type' => 'required|boolean',
         ]);
 
-        $created = $this->repo->createItem([
+        $created = $this->transactionCategoryRepository->createItem([
             'name' => $request->name,
             'type' => $request->type,
             'user_id' => $userUuid,
         ]);
 
         if (!$created) return $this->errorResponse('Ошибка создания категории транзакции', 400);
-        CacheService::invalidateTransactionCategoriesCache();
 
         return response()->json(['message' => 'Категория транзакции создана']);
     }
 
+    /**
+     * Обновить категорию транзакций
+     *
+     * @param Request $request
+     * @param int $id ID категории
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -91,7 +123,7 @@ class TransactionCategoryController extends Controller
         ]);
 
         try {
-            $updated = $this->repo->updateItem($id, [
+            $updated = $this->transactionCategoryRepository->updateItem($id, [
                 'name' => $request->name,
                 'type' => $request->type,
                 'user_id' => $userUuid,
@@ -99,23 +131,25 @@ class TransactionCategoryController extends Controller
 
             if (!$updated) return $this->notFoundResponse('Категория транзакции не найдена');
 
-            CacheService::invalidateTransactionCategoriesCache();
-
             return response()->json(['message' => 'Категория транзакции обновлена']);
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
     }
 
+    /**
+     * Удалить категорию транзакций
+     *
+     * @param int $id ID категории
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         try {
-            $deleted = $this->repo->deleteItem($id);
+            $deleted = $this->transactionCategoryRepository->deleteItem($id);
             if (!$deleted) return $this->notFoundResponse('Категория транзакции не найдена');
-
-            CacheService::invalidateTransactionCategoriesCache();
 
             return response()->json(['message' => 'Категория транзакции удалена']);
         } catch (\Exception $e) {

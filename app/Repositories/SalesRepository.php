@@ -15,8 +15,18 @@ use App\Services\RoundingService;
 
 class SalesRepository extends BaseRepository
 {
-
-
+    /**
+     * Получить продажи с пагинацией и фильтрацией
+     *
+     * @param int $userUuid ID пользователя для фильтрации по проектам
+     * @param int $perPage Количество записей на страницу
+     * @param string|null $search Поисковый запрос
+     * @param string $dateFilter Фильтр по дате ('all_time', 'today', 'yesterday', 'this_week', 'this_month', 'this_year', 'last_week', 'last_month', 'last_year', 'custom')
+     * @param string|null $startDate Начальная дата для фильтра 'custom'
+     * @param string|null $endDate Конечная дата для фильтра 'custom'
+     * @param int $page Номер страницы
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $page = 1)
     {
         /** @var \App\Models\User|null $currentUser */
@@ -82,6 +92,12 @@ class SalesRepository extends BaseRepository
 
 
 
+    /**
+     * Получить продажу по ID
+     *
+     * @param int $id ID продажи
+     * @return \App\Models\Sale|null
+     */
     public function getItemById($id)
     {
         $cacheKey = $this->generateCacheKey('sales_item', [$id]);
@@ -105,6 +121,13 @@ class SalesRepository extends BaseRepository
 
 
 
+    /**
+     * Получить TTL для кэша в зависимости от типа и наличия фильтров
+     *
+     * @param string $type Тип кэша ('search', 'paginated', 'reference', 'item')
+     * @param bool $hasFilters Есть ли примененные фильтры
+     * @return int TTL в секундах
+     */
     private function getCacheTTL(string $type, bool $hasFilters = false): int
     {
         if (!$hasFilters) {
@@ -123,6 +146,13 @@ class SalesRepository extends BaseRepository
         }
     }
 
+    /**
+     * Применить фильтр поиска к запросу
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param string|null $search Поисковый запрос
+     * @return void
+     */
     private function applySearchFilter($query, $search)
     {
         $searchTrimmed = trim((string) $search);
@@ -151,13 +181,34 @@ class SalesRepository extends BaseRepository
 
 
     /**
-     * Новый метод: Очистка кэша продаж
+     * Очистить кэш продаж
+     *
+     * @return void
      */
     public function clearSalesCache()
     {
         CacheService::invalidateSalesCache();
     }
 
+    /**
+     * Создать новую продажу
+     *
+     * @param array $data Данные продажи:
+     *   - user_id (int) ID пользователя
+     *   - client_id (int) ID клиента
+     *   - project_id (int|null) ID проекта
+     *   - warehouse_id (int) ID склада
+     *   - cash_id (int|null) ID кассы
+     *   - type (string) Тип продажи ('balance' для продажи в долг, иначе обычная продажа)
+     *   - discount (float) Размер скидки
+     *   - discount_type (string) Тип скидки ('percent' или 'amount')
+     *   - date (string|\Carbon\Carbon) Дата продажи
+     *   - note (string|null) Примечание
+     *   - products (array) Массив продуктов с полями: product_id, quantity, price
+     *   - currency_id (int|null) ID валюты
+     * @return bool
+     * @throws \Exception При ошибке валидации или транзакции
+     */
     public function createItem(array $data)
     {
         DB::beginTransaction();
@@ -186,26 +237,25 @@ class SalesRepository extends BaseRepository
             }
 
             $price = 0;
-            $quantityRoundingService = new RoundingService();
+            $roundingService = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
-            foreach ($products as $prod) {
-                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($prod['quantity']));
-                $orig = $prod['price'] * $q;
+            foreach ($products as &$prod) {
+                $prod['rounded_quantity'] = $roundingService->roundQuantityForCompany($companyId, (float) ($prod['quantity']));
+                $orig = $prod['price'] * $prod['rounded_quantity'];
                 $price += CurrencyConverter::convert($orig, $fromCurrency, $defaultCurrency);
                 $p = Product::findOrFail($prod['product_id']);
                 if ($p->type == 1) {
                     WarehouseStock::where('product_id', $p->id)
                         ->where('warehouse_id', $warehouseId)
-                        ->decrement('quantity', $q);
+                        ->decrement('quantity', $prod['rounded_quantity']);
                 }
             }
+            unset($prod);
 
             $discountCalc = $discountType === 'percent'
                 ? $price * $discount / 100
                 : CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
 
-            $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
             $price = $roundingService->roundForCompany($companyId, (float) $price);
             $discountCalc = $roundingService->roundForCompany($companyId, (float) $discountCalc);
 
@@ -228,40 +278,63 @@ class SalesRepository extends BaseRepository
                 'note'         => $note,
             ]);
 
-            $transactionData = [
-                'client_id'    => $clientId,
-                'amount'       => $totalPrice,
-                'orig_amount'  => $totalPrice,
-                'type'         => 1,
-                'is_debt'      => $isDebt,
-                'cash_id'      => $cashId,
-                'category_id'  => 1,
-                'date'         => $date,
-                'note'         => $note,
-                'user_id'      => $userId,
-                'project_id'   => $projectId,
-                'currency_id'  => $defaultCurrency->id,
-            ];
-
             if ($isDebt) {
+                $transactionData = [
+                    'client_id'    => $clientId,
+                    'amount'       => $totalPrice,
+                    'orig_amount'  => $totalPrice,
+                    'type'         => 1,
+                    'is_debt'      => true,
+                    'cash_id'      => $cashId,
+                    'category_id'  => 1,
+                    'date'         => $date,
+                    'note'         => $note,
+                    'user_id'      => $userId,
+                    'project_id'   => $projectId,
+                    'currency_id'  => $defaultCurrency->id,
+                ];
                 $this->createTransactionForSource($transactionData, \App\Models\Sale::class, $sale->id, true);
             } else {
-                $debtTx = $transactionData;
-                $debtTx['is_debt'] = true;
+                $debtTx = [
+                    'client_id'    => $clientId,
+                    'amount'       => $totalPrice,
+                    'orig_amount'  => $totalPrice,
+                    'type'         => 0,
+                    'is_debt'      => true,
+                    'cash_id'      => $cashId,
+                    'category_id'  => 1,
+                    'date'         => $date,
+                    'note'         => $note,
+                    'user_id'      => $userId,
+                    'project_id'   => $projectId,
+                    'currency_id'  => $defaultCurrency->id,
+                ];
                 $this->createTransactionForSource($debtTx, \App\Models\Sale::class, $sale->id, true);
 
-                $transactionData['is_debt'] = false;
-                $this->createTransactionForSource($transactionData, \App\Models\Sale::class, $sale->id, true);
+                $paymentTx = [
+                    'client_id'    => $clientId,
+                    'amount'       => $totalPrice,
+                    'orig_amount'  => $totalPrice,
+                    'type'         => 1,
+                    'is_debt'      => false,
+                    'cash_id'      => $cashId,
+                    'category_id'  => 1,
+                    'date'         => $date,
+                    'note'         => $note,
+                    'user_id'      => $userId,
+                    'project_id'   => $projectId,
+                    'currency_id'  => $defaultCurrency->id,
+                ];
+                $this->createTransactionForSource($paymentTx, \App\Models\Sale::class, $sale->id, true);
             }
 
             foreach ($products as $prod) {
-                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($prod['quantity']));
                 SalesProduct::create([
                     'sale_id'    => $sale->id,
                     'product_id' => $prod['product_id'],
-                    'quantity'   => $q,
-                    'price'      => (new RoundingService())->roundForCompany(
-                        $this->getCurrentCompanyId(),
+                    'quantity'   => $prod['rounded_quantity'],
+                    'price'      => $roundingService->roundForCompany(
+                        $companyId,
                         (float) CurrencyConverter::convert(
                             $prod['price'],
                             $fromCurrency,
@@ -284,6 +357,13 @@ class SalesRepository extends BaseRepository
         }
     }
 
+    /**
+     * Удалить продажу
+     *
+     * @param int $id ID продажи
+     * @return bool
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException Если продажа не найдена
+     */
     public function deleteItem(int $id): bool
     {
         return DB::transaction(function () use ($id) {
@@ -298,8 +378,7 @@ class SalesRepository extends BaseRepository
                         ->first();
 
                     if ($stock) {
-                        $stock->quantity = $stock->quantity + $p->quantity;
-                        $stock->save();
+                        $stock->increment('quantity', $p->quantity);
                     } else {
                         WarehouseStock::create([
                             'warehouse_id' => $sale->warehouse_id,

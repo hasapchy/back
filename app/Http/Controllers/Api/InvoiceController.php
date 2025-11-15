@@ -7,15 +7,29 @@ use App\Repositories\InvoicesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 
+/**
+ * Контроллер для работы со счетами
+ */
 class InvoiceController extends Controller
 {
     protected $itemRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param InvoicesRepository $itemRepository
+     */
     public function __construct(InvoicesRepository $itemRepository)
     {
         $this->itemRepository = $itemRepository;
     }
 
+    /**
+     * Получить список счетов с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -34,6 +48,12 @@ class InvoiceController extends Controller
         return $this->paginatedResponse($items);
     }
 
+    /**
+     * Создать новый счет
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -79,14 +99,19 @@ class InvoiceController extends Controller
                 return $this->errorResponse('Ошибка создания счета', 400);
             }
 
-            CacheService::invalidateInvoicesCache();
-
             return response()->json(['invoice' => $created, 'message' => 'Счет успешно создан']);
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка создания счета: ' . $th->getMessage(), 400);
         }
     }
 
+    /**
+     * Обновить счет
+     *
+     * @param Request $request
+     * @param int $id ID счета
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -120,14 +145,18 @@ class InvoiceController extends Controller
                 return $this->errorResponse('Ошибка обновления счета', 400);
             }
 
-            CacheService::invalidateInvoicesCache();
-
             return response()->json(['message' => 'Счет сохранён']);
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка: ' . $th->getMessage(), 400);
         }
     }
 
+    /**
+     * Удалить счет
+     *
+     * @param int $id ID счета
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -135,24 +164,31 @@ class InvoiceController extends Controller
         try {
             $deleted = $this->itemRepository->deleteItem($id);
 
-            CacheService::invalidateInvoicesCache();
-
             return response()->json(['invoice' => $deleted, 'message' => 'Счет успешно удалён']);
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка при удалении счета: ' . $th->getMessage(), 400);
         }
     }
 
+    /**
+     * Получить счет по ID
+     *
+     * @param int $id ID счета
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function show($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->itemRepository->getItemById($id);
-        if (!$item) {
-            return $this->notFoundResponse('Not found');
-        }
         return response()->json(['item' => $item]);
     }
 
+    /**
+     * Получить заказы для счета
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getOrdersForInvoice(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();

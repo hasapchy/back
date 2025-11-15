@@ -6,16 +6,33 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Transaction;
 use App\Repositories\OrdersRepository;
+use App\Models\CashRegister;
 use Illuminate\Http\Request;
 
+/**
+ * Контроллер для работы со связями заказов и транзакций
+ */
 class OrderTransactionController extends Controller
 {
     protected $ordersRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param OrdersRepository $ordersRepository
+     */
     public function __construct(OrdersRepository $ordersRepository)
     {
         $this->ordersRepository = $ordersRepository;
     }
+
+    /**
+     * Связать транзакцию с заказом
+     *
+     * @param Request $request
+     * @param int $orderId ID заказа
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function linkTransaction(Request $request, $orderId)
     {
         $request->validate([
@@ -26,8 +43,8 @@ class OrderTransactionController extends Controller
 
         $userId = $this->getAuthenticatedUserIdOrFail();
         if ($order->cash_id) {
-            $cashRegister = \App\Models\CashRegister::find($order->cash_id);
-            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
+            $cashRegister = CashRegister::findOrFail($order->cash_id);
+            if (!$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
                 return $this->forbiddenResponse('У вас нет прав на эту кассу');
             }
         }
@@ -45,14 +62,21 @@ class OrderTransactionController extends Controller
         return response()->json(['message' => 'Транзакция успешно связана с заказом']);
     }
 
+    /**
+     * Отвязать транзакцию от заказа
+     *
+     * @param int $orderId ID заказа
+     * @param int $transactionId ID транзакции
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function unlinkTransaction($orderId, $transactionId)
     {
         $order = Order::findOrFail($orderId);
 
         $userId = $this->getAuthenticatedUserIdOrFail();
         if ($order->cash_id) {
-            $cashRegister = \App\Models\CashRegister::find($order->cash_id);
-            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
+            $cashRegister = \App\Models\CashRegister::findOrFail($order->cash_id);
+            if (!$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
                 return $this->forbiddenResponse('У вас нет прав на эту кассу');
             }
         }
@@ -67,14 +91,20 @@ class OrderTransactionController extends Controller
         return response()->json(['message' => 'Транзакция успешно отвязана от заказа']);
     }
 
+    /**
+     * Получить транзакции заказа
+     *
+     * @param int $orderId ID заказа
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getOrderTransactions($orderId)
     {
         $order = Order::findOrFail($orderId);
 
         $userId = $this->getAuthenticatedUserIdOrFail();
         if ($order->cash_id) {
-            $cashRegister = \App\Models\CashRegister::find($order->cash_id);
-            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
+            $cashRegister = \App\Models\CashRegister::findOrFail($order->cash_id);
+            if (!$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
                 return $this->forbiddenResponse('У вас нет прав на эту кассу');
             }
         }

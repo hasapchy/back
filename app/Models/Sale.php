@@ -14,6 +14,31 @@ use App\Models\Project;
 use App\Services\CacheService;
 
 
+/**
+ * Модель продажи
+ *
+ * @property int $id
+ * @property int|null $cash_id ID кассы
+ * @property int $client_id ID клиента
+ * @property \Carbon\Carbon $date Дата продажи
+ * @property float $discount Размер скидки
+ * @property string|null $note Примечание
+ * @property float $price Цена продажи
+ * @property int|null $project_id ID проекта
+ * @property int $user_id ID пользователя
+ * @property int $warehouse_id ID склада
+ * @property bool|null $no_balance_update Флаг обновления баланса
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ *
+ * @property-read \App\Models\Client $client
+ * @property-read \App\Models\Warehouse $warehouse
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\SalesProduct[] $products
+ * @property-read \App\Models\CashRegister $cashRegister
+ * @property-read \App\Models\User $user
+ * @property-read \App\Models\Project $project
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
+ */
 class Sale extends Model
 {
     use HasFactory;
@@ -39,24 +64,11 @@ class Sale extends Model
     protected static function booted()
     {
         static::deleting(function ($sale) {
-            \Illuminate\Support\Facades\Log::info('Sale::deleting - START', [
-                'sale_id' => $sale->id,
-                'client_id' => $sale->client_id
-            ]);
-
-            // Удаляем все связанные транзакции (по одной, чтобы сработали hooks)
             $transactions = $sale->transactions()->get();
-            $transactionsCount = $transactions->count();
             foreach ($transactions as $transaction) {
-                $transaction->delete(); // Вызываем delete() для каждой транзакции отдельно
+                $transaction->delete();
             }
 
-            \Illuminate\Support\Facades\Log::info('Sale::deleting - Transactions deleted', [
-                'sale_id' => $sale->id,
-                'transactions_deleted' => $transactionsCount
-            ]);
-
-            // Инвалидируем кэши
             CacheService::invalidateTransactionsCache();
             if ($sale->client_id) {
                 CacheService::invalidateClientsCache();
@@ -67,44 +79,74 @@ class Sale extends Model
                 $projectsRepository = new \App\Repositories\ProjectsRepository();
                 $projectsRepository->invalidateProjectCache($sale->project_id);
             }
-
-            \Illuminate\Support\Facades\Log::info('Sale::deleting - COMPLETED', [
-                'sale_id' => $sale->id
-            ]);
         });
     }
 
+    /**
+     * Связь с клиентом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');
     }
 
+    /**
+     * Связь со складом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function warehouse()
     {
         return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
 
+    /**
+     * Связь с продуктами продажи
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function products()
     {
         return $this->hasMany(SalesProduct::class, 'sale_id');
     }
 
+    /**
+     * Связь с кассой
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function cashRegister()
     {
         return $this->belongsTo(CashRegister::class, 'cash_id');
     }
+
+    /**
+     * Связь с пользователем
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
-    // Старая связь удалена, теперь используется morphable связь transactions()
 
+    /**
+     * Связь с проектом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function project()
     {
         return $this->belongsTo(Project::class, 'project_id');
     }
 
-    // Morphable связь с транзакциями
+    /**
+     * Morphable связь с транзакциями
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
     public function transactions()
     {
         return $this->morphMany(Transaction::class, 'source');

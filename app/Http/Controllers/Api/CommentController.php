@@ -7,9 +7,6 @@ use App\Repositories\CommentsRepository;
 use App\Services\CacheService;
 use App\Services\RoundingService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
 use Spatie\Activitylog\Models\Activity;
 use App\Models\User;
 use App\Models\Comment;
@@ -28,15 +25,29 @@ use App\Models\Sale;
 use App\Models\OrderProduct;
 use App\Models\OrderTempProduct;
 
+/**
+ * Контроллер для работы с комментариями
+ */
 class CommentController extends Controller
 {
     protected CommentsRepository $itemsRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param CommentsRepository $itemsRepository
+     */
     public function __construct(CommentsRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
     }
 
+    /**
+     * Получить список комментариев для сущности
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $user = $this->getAuthenticatedUser();
@@ -53,6 +64,12 @@ class CommentController extends Controller
         return response()->json($comments);
     }
 
+    /**
+     * Создать новый комментарий
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $user = $this->getAuthenticatedUser();
@@ -76,6 +93,13 @@ class CommentController extends Controller
         ]);
     }
 
+    /**
+     * Обновить комментарий
+     *
+     * @param Request $request
+     * @param int $id ID комментария
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $user = $this->getAuthenticatedUser();
@@ -101,7 +125,12 @@ class CommentController extends Controller
         ]);
     }
 
-
+    /**
+     * Удалить комментарий
+     *
+     * @param int $id ID комментария
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $user = auth('api')->user();
@@ -109,8 +138,7 @@ class CommentController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        $comment = Comment::select(['id', 'commentable_type', 'commentable_id'])
-            ->where('id', $id)
+        $comment = Comment::where('id', $id)
             ->where('user_id', $user->id)
             ->first();
 
@@ -129,6 +157,12 @@ class CommentController extends Controller
         return response()->json(['message' => 'Комментарий удалён']);
     }
 
+    /**
+     * Получить таймлайн для сущности
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function timeline(Request $request)
     {
         $user = $this->getAuthenticatedUser();
@@ -154,6 +188,14 @@ class CommentController extends Controller
         }
     }
 
+    /**
+     * Построить таймлайн для модели
+     *
+     * @param string $modelClass Класс модели
+     * @param int $id ID сущности
+     * @return \Illuminate\Support\Collection
+     * @throws \Exception
+     */
     private function buildTimeline(string $modelClass, int $id)
     {
         try {
@@ -199,6 +241,12 @@ class CommentController extends Controller
         }
     }
 
+    /**
+     * Получить оптимизированные комментарии для модели
+     *
+     * @param \Illuminate\Database\Eloquent\Model $model
+     * @return \Illuminate\Support\Collection
+     */
     private function getOptimizedComments($model)
     {
         return $model->comments()
@@ -219,6 +267,13 @@ class CommentController extends Controller
             });
     }
 
+    /**
+     * Получить оптимизированные активности для модели
+     *
+     * @param \Illuminate\Database\Eloquent\Model $model
+     * @param string $modelClass Класс модели
+     * @return \Illuminate\Support\Collection
+     */
     private function getOptimizedActivities($model, string $modelClass)
     {
         return $model->activities()
@@ -234,6 +289,13 @@ class CommentController extends Controller
             });
     }
 
+    /**
+     * Обработать лог активности
+     *
+     * @param mixed $log Лог активности
+     * @param string $modelClass Класс модели
+     * @return array
+     */
     private function processActivityLog($log, string $modelClass)
     {
         $user = $this->getUserForActivity($log, $modelClass);
@@ -326,6 +388,13 @@ class CommentController extends Controller
         ];
     }
 
+    /**
+     * Обработать изменения в активности
+     *
+     * @param mixed $changes Изменения
+     * @param string $modelClass Класс модели
+     * @return array|null
+     */
     private function processActivityChanges($changes, string $modelClass)
     {
         if (!$changes) {
@@ -397,6 +466,12 @@ class CommentController extends Controller
         return null;
     }
 
+    /**
+     * Получить специфичные активности для заказа
+     *
+     * @param int $orderId ID заказа
+     * @return \Illuminate\Support\Collection
+     */
     private function getOrderSpecificActivities(int $orderId)
     {
         $activities = collect();
@@ -461,6 +536,13 @@ class CommentController extends Controller
         return $activities;
     }
 
+    /**
+     * Форматировать сумму для компании
+     *
+     * @param int|null $companyId ID компании
+     * @param float $amount Сумма
+     * @return string
+     */
     private function formatAmountForCompany(?int $companyId, float $amount): string
     {
         try {
@@ -473,6 +555,13 @@ class CommentController extends Controller
         }
     }
 
+    /**
+     * Получить имя связанной модели по ключу
+     *
+     * @param string $key Ключ поля
+     * @param string $modelClass Класс модели
+     * @return string|null
+     */
     private function getRelatedModelName(string $key, string $modelClass): ?string
     {
         $baseFieldToModelMap = [
@@ -506,6 +595,13 @@ class CommentController extends Controller
         return $baseFieldToModelMap[$key] ?? null;
     }
 
+    /**
+     * Получить пользователя для активности
+     *
+     * @param mixed $log Лог активности
+     * @param string $modelClass Класс модели
+     * @return array|null
+     */
     private function getUserForActivity($log, string $modelClass)
     {
         if ($log->causer) {
@@ -547,10 +643,17 @@ class CommentController extends Controller
         return null;
     }
 
+    /**
+     * Инвалидировать кэш таймлайна
+     *
+     * @param string $type Тип сущности
+     * @param int $id ID сущности
+     * @return void
+     */
     private function invalidateTimelineCache(string $type, int $id)
     {
         $cacheKey = "timeline_{$type}_{$id}";
-       Cache::forget($cacheKey);
+        CacheService::forget($cacheKey);
 
         $this->itemsRepository->invalidateCommentsCacheByType($type);
     }

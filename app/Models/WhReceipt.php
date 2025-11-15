@@ -6,6 +6,30 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\CacheService;
 
+/**
+ * Модель прихода на склад
+ *
+ * @property int $id
+ * @property int|null $supplier_id ID поставщика
+ * @property int $warehouse_id ID склада
+ * @property string|null $note Примечание
+ * @property int|null $cash_id ID кассы
+ * @property float $amount Сумма
+ * @property \Carbon\Carbon $date Дата прихода
+ * @property int $user_id ID пользователя
+ * @property int|null $project_id ID проекта
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ *
+ * @property-read \App\Models\Client|null $supplier
+ * @property-read \App\Models\Warehouse $warehouse
+ * @property-read \App\Models\CashRegister|null $cashRegister
+ * @property-read \App\Models\User $user
+ * @property-read \App\Models\Currency|null $currency
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhReceiptProduct[] $products
+ * @property-read \App\Models\Project|null $project
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
+ */
 class WhReceipt extends Model
 {
     use HasFactory;
@@ -28,32 +52,11 @@ class WhReceipt extends Model
     protected static function booted()
     {
         static::deleting(function ($receipt) {
-            \Illuminate\Support\Facades\Log::info('WhReceipt::deleting - START', [
-                'receipt_id' => $receipt->id,
-                'supplier_id' => $receipt->supplier_id
-            ]);
-
-            // Удаляем все связанные транзакции (по одной, чтобы сработали hooks)
             $transactions = $receipt->transactions()->get();
-            $transactionsCount = $transactions->count();
             foreach ($transactions as $transaction) {
-                try {
-                    $transaction->delete(); // Вызываем delete() для каждой транзакции отдельно
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('WhReceipt::deleting - Error deleting transaction', [
-                        'transaction_id' => $transaction->id,
-                        'error' => $e->getMessage()
-                    ]);
-                    throw $e; // Пробрасываем исключение дальше
-                }
+                $transaction->delete();
             }
 
-            \Illuminate\Support\Facades\Log::info('WhReceipt::deleting - Transactions deleted', [
-                'receipt_id' => $receipt->id,
-                'transactions_deleted' => $transactionsCount
-            ]);
-
-            // Инвалидируем кэши
             CacheService::invalidateTransactionsCache();
             if ($receipt->supplier_id) {
                 CacheService::invalidateClientsCache();
@@ -64,43 +67,74 @@ class WhReceipt extends Model
                 $projectsRepository = new \App\Repositories\ProjectsRepository();
                 $projectsRepository->invalidateProjectCache($receipt->project_id);
             }
-
-            \Illuminate\Support\Facades\Log::info('WhReceipt::deleting - COMPLETED', [
-                'receipt_id' => $receipt->id
-            ]);
         });
     }
 
+    /**
+     * Связь с поставщиком
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function supplier()
     {
         return $this->belongsTo(Client::class, 'supplier_id');
     }
 
+    /**
+     * Связь со складом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function warehouse()
     {
         return $this->belongsTo(Warehouse::class);
     }
 
+    /**
+     * Связь с кассой
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function cashRegister()
     {
         return $this->belongsTo(CashRegister::class, 'cash_id');
     }
 
+    /**
+     * Связь с пользователем
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * Связь с валютой
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function currency()
     {
         return $this->belongsTo(Currency::class);
     }
 
+    /**
+     * Связь с продуктами прихода
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function products()
     {
         return $this->hasMany(WhReceiptProduct::class, 'receipt_id');
     }
 
+    /**
+     * Связь many-to-many с продуктами через промежуточную таблицу
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
     public function productsPivot()
     {
         return $this->belongsToMany(
@@ -111,12 +145,21 @@ class WhReceipt extends Model
         )->withPivot('quantity');
     }
 
-    // Morphable связь с транзакциями (новая архитектура)
+    /**
+     * Полиморфная связь с транзакциями
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
     public function transactions()
     {
         return $this->morphMany(Transaction::class, 'source');
     }
 
+    /**
+     * Связь с проектом
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function project()
     {
         return $this->belongsTo(Project::class, 'project_id');

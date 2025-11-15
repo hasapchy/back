@@ -11,8 +11,17 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Контроллер для работы с компаниями
+ */
 class CompaniesController extends Controller
 {
+    /**
+     * Получить список компаний с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $perPage = $request->get('per_page', 10);
@@ -24,6 +33,12 @@ class CompaniesController extends Controller
         return $this->paginatedResponse($companies);
     }
 
+    /**
+     * Создать новую компанию
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $data = $request->all();
@@ -102,11 +117,16 @@ class CompaniesController extends Controller
 
         $company = Company::create($data);
 
-        CacheService::invalidateCompaniesCache();
-
         return response()->json(['company' => $company]);
     }
 
+    /**
+     * Обновить компанию
+     *
+     * @param Request $request
+     * @param int $id ID компании
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $data = $request->all();
@@ -200,19 +220,21 @@ class CompaniesController extends Controller
             throw $e;
         }
 
-        CacheService::invalidateCompaniesCache();
-
         $company = $company->fresh();
 
         return response()->json(['company' => $company]);
     }
 
+    /**
+     * Удалить компанию
+     *
+     * @param int $id ID компании
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $company = Company::findOrFail($id);
         $company->delete();
-
-        CacheService::invalidateCompaniesCache();
 
         return response()->json(['message' => 'Company deleted']);
     }

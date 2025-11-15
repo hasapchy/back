@@ -7,45 +7,42 @@ use App\Models\Currency;
 class CurrencyConverter
 {
     /**
-     * Конвертирует сумму из валюты источника в валюту назначения.
+     * Convert amount from source currency to target currency.
      *
-     * Логика конвертации:
-     * 1. Если валюты одинаковые - возвращаем сумму без изменений
-     * 2. Если одна из валют - манат (базовая), конвертируем напрямую
-     * 3. Если обе валюты не манат - конвертируем через манат
+     * Conversion logic:
+     * 1. If currencies are the same - return amount unchanged
+     * 2. If one currency is manat (base) - convert directly
+     * 3. If both currencies are not manat - convert through manat
      *
-     * @param float    $amount
-     * @param Currency $fromCurrency Валюта источника
-     * @param Currency $toCurrency   Валюта назначения
-     * @param Currency|null $defaultCurrency Базовая валюта (манат), если не передана, будет выбрана из БД
+     * @param float $amount
+     * @param Currency $fromCurrency Source currency
+     * @param Currency $toCurrency Target currency
+     * @param Currency|null $defaultCurrency Base currency (manat), if not provided, will be selected from DB
+     * @param int|null $companyId Company ID
+     * @param string|null $date Date for exchange rate
      * @return float
      */
-    public static function convert($amount, Currency $fromCurrency, Currency $toCurrency, ?Currency $defaultCurrency = null, $companyId = null, $date = null)
+    public static function convert(float $amount, Currency $fromCurrency, Currency $toCurrency, ?Currency $defaultCurrency = null, ?int $companyId = null, ?string $date = null): float
     {
         if (!$defaultCurrency) {
             $defaultCurrency = Currency::where('is_default', true)->first();
         }
 
-        // Если валюты одинаковые - возвращаем сумму без изменений
-        if($fromCurrency->id === $toCurrency->id) {
+        if ($fromCurrency->id === $toCurrency->id) {
             return $amount;
         }
 
         $fromRate = $fromCurrency->getExchangeRateForCompany($companyId, $date);
         $toRate = $toCurrency->getExchangeRateForCompany($companyId, $date);
 
-        // Если исходная валюта - манат (базовая)
-        if($fromCurrency->id === $defaultCurrency->id) {
+        if ($fromCurrency->id === $defaultCurrency->id) {
             return $amount / $toRate;
         }
 
-        // Если целевая валюта - манат (базовая)
-        if($toCurrency->id === $defaultCurrency->id) {
+        if ($toCurrency->id === $defaultCurrency->id) {
             return $amount * $fromRate;
         }
 
-        // Если обе валюты не манат - конвертируем через манат
-        // Сначала в манат, потом в целевую валюту
         $amountInManat = $amount * $fromRate;
         return $amountInManat / $toRate;
     }

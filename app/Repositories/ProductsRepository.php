@@ -9,24 +9,28 @@ use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\DB;
+use App\Models\CategoryUser;
+use App\Models\Category;
+use App\Models\WhUser;
 
 class ProductsRepository extends BaseRepository
 {
-
-
+    /**
+     * Получить ID категорий пользователя
+     *
+     * @param int $userUuid ID пользователя
+     * @return array
+     */
     private function getUserCategoryIds($userUuid)
     {
         $companyId = $this->getCurrentCompanyId();
 
-        $userCategoryIds = DB::table('category_users')
-            ->where('user_id', $userUuid)
+        $userCategoryIds = CategoryUser::where('user_id', $userUuid)
             ->pluck('category_id')
             ->toArray();
 
         if ($companyId) {
-            $companyCategoryIds = DB::table('categories')
-                ->where('company_id', $companyId)
+            $companyCategoryIds = Category::where('company_id', $companyId)
                 ->pluck('id')
                 ->toArray();
 
@@ -36,9 +40,21 @@ class ProductsRepository extends BaseRepository
         return $userCategoryIds;
     }
 
+    /**
+     * Получить товары с пагинацией
+     *
+     * @param int $userUuid ID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @param bool $type Тип товара (true - товар, false - услуга)
+     * @param int $page Номер страницы
+     * @param int|null $warehouseId ID склада
+     * @param string|null $search Поисковый запрос
+     * @param int|null $categoryId ID категории
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $warehouseId = null, $search = null, $categoryId = null)
     {
-        /** @var \App\Models\User|null $currentUser */
+        /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $currentUser?->id, $companyId]);
@@ -91,34 +107,30 @@ class ProductsRepository extends BaseRepository
 
             $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
             $products->getCollection()->each(function ($product) use ($warehouseId, $userUuid) {
-                $product->category_name = $product->categories->first()?->name ?? '';
-                $product->unit_name = $product->unit?->name ?? '';
-                $product->unit_short_name = $product->unit?->short_name ?? '';
-                $product->unit_calc_area = $product->unit?->calc_area ?? '';
+                $product->category_name = $product->categories->first()?->name;
+                $product->unit_name = $product->unit?->name;
+                $product->unit_short_name = $product->unit?->short_name;
                 $price = $product->prices->first();
-                $product->retail_price = $price?->retail_price ?? 0;
-                $product->wholesale_price = $price?->wholesale_price ?? 0;
-                $product->purchase_price = $price?->purchase_price ?? 0;
+                $product->retail_price = $price?->retail_price;
+                $product->wholesale_price = $price?->wholesale_price;
+                $product->purchase_price = $price?->purchase_price;
 
                 if ($warehouseId) {
                     // Остатки на конкретном складе
-                    $stock = DB::table('warehouse_stocks')
-                        ->where('warehouse_id', $warehouseId)
+                    $stock = WarehouseStock::where('warehouse_id', $warehouseId)
                         ->where('product_id', $product->id)
                         ->value('quantity');
                     $product->stock_quantity = $stock ?? 0;
                 } else {
                     // Сумма остатков по всем доступным складам пользователя
-                    $warehouseIds = DB::table('wh_users')
-                        ->where('user_id', $userUuid)
+                    $warehouseIds = WhUser::where('user_id', $userUuid)
                         ->pluck('warehouse_id')
                         ->toArray();
 
-                    $totalStock = DB::table('warehouse_stocks')
-                        ->whereIn('warehouse_id', $warehouseIds)
+                    $totalStock = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
                         ->where('product_id', $product->id)
                         ->sum('quantity');
-                    $product->stock_quantity = $totalStock ?? 0;
+                    $product->stock_quantity = $totalStock;
                 }
             });
 
@@ -126,6 +138,15 @@ class ProductsRepository extends BaseRepository
         }, (int)$page);
     }
 
+    /**
+     * Поиск товаров
+     *
+     * @param int $userUuid ID пользователя
+     * @param string $search Поисковый запрос
+     * @param bool|null $productsOnly Только товары (true) или включая услуги (null/false)
+     * @param int|null $warehouseId ID склада
+     * @return \Illuminate\Support\Collection
+     */
     public function searchItems($userUuid, $search, $productsOnly = null, $warehouseId = null)
     {
         $currentUser = auth('api')->user();
@@ -164,34 +185,30 @@ class ProductsRepository extends BaseRepository
             $products = $query->limit(50)->get();
 
             $products->each(function ($product) use ($warehouseId, $userUuid) {
-                $product->category_name = $product->categories->first()?->name ?? '';
-                $product->unit_name = $product->unit?->name ?? '';
-                $product->unit_short_name = $product->unit?->short_name ?? '';
-                $product->unit_calc_area = $product->unit?->calc_area ?? '';
+                $product->category_name = $product->categories->first()?->name;
+                $product->unit_name = $product->unit?->name;
+                $product->unit_short_name = $product->unit?->short_name;
                 $price = $product->prices->first();
-                $product->retail_price = $price?->retail_price ?? 0;
-                $product->wholesale_price = $price?->wholesale_price ?? 0;
-                $product->purchase_price = $price?->purchase_price ?? 0;
+                $product->retail_price = $price?->retail_price;
+                $product->wholesale_price = $price?->wholesale_price;
+                $product->purchase_price = $price?->purchase_price;
 
                 if ($warehouseId) {
                     // Остатки на конкретном складе
-                    $stock = DB::table('warehouse_stocks')
-                        ->where('warehouse_id', $warehouseId)
+                    $stock = WarehouseStock::where('warehouse_id', $warehouseId)
                         ->where('product_id', $product->id)
                         ->value('quantity');
                     $product->stock_quantity = $stock ?? 0;
                 } else {
                     // Сумма остатков по всем доступным складам пользователя
-                    $warehouseIds = DB::table('wh_users')
-                        ->where('user_id', $userUuid)
+                    $warehouseIds = WhUser::where('user_id', $userUuid)
                         ->pluck('warehouse_id')
                         ->toArray();
 
-                    $totalStock = DB::table('warehouse_stocks')
-                        ->whereIn('warehouse_id', $warehouseIds)
+                    $totalStock = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
                         ->where('product_id', $product->id)
                         ->sum('quantity');
-                    $product->stock_quantity = $totalStock ?? 0;
+                    $product->stock_quantity = $totalStock;
                 }
             });
 
@@ -199,6 +216,12 @@ class ProductsRepository extends BaseRepository
         });
     }
 
+    /**
+     * Создать товар
+     *
+     * @param array $data Данные товара
+     * @return Product|null
+     */
     public function createItem($data)
     {
         $product = new Product();
@@ -258,7 +281,6 @@ class ProductsRepository extends BaseRepository
             'primary_categories.name as category_name',
             'units.name as unit_name',
             'units.short_name as unit_short_name',
-            'units.calc_area as unit_calc_area',
             'product_prices.retail_price',
             'product_prices.wholesale_price',
             'product_prices.purchase_price'
@@ -271,9 +293,16 @@ class ProductsRepository extends BaseRepository
             ->first();
     }
 
+    /**
+     * Обновить товар
+     *
+     * @param int $id ID товара
+     * @param array $data Данные для обновления
+     * @return Product|null
+     */
     public function updateItem($id, $data)
     {
-        $product = Product::find($id);
+        $product = Product::findOrFail($id);
         $originalType = $product->type;
         if (isset($data['type'])) {
             $product->type = $data['type'];
@@ -350,7 +379,6 @@ class ProductsRepository extends BaseRepository
             'primary_categories.name as category_name', // Основная категория
             'units.name as unit_name',
             'units.short_name as unit_short_name',
-            'units.calc_area as unit_calc_area',
             'product_prices.retail_price',
             'product_prices.wholesale_price',
             'product_prices.purchase_price'
@@ -363,6 +391,13 @@ class ProductsRepository extends BaseRepository
             ->first();
     }
 
+    /**
+     * Получить товар по ID
+     *
+     * @param int $id ID товара
+     * @param int $userUuid ID пользователя
+     * @return Product|null
+     */
     public function getItemById($id, $userUuid)
     {
         $userCategoryIds = $this->getUserCategoryIds($userUuid);
@@ -387,21 +422,26 @@ class ProductsRepository extends BaseRepository
         }
 
         $productArray = $product->toArray();
-        $productArray['category_name'] = $product->categories->first()?->name ?? '';
-        $productArray['category_id'] = $product->categories->first()?->id ?? null;
+        $productArray['category_name'] = $product->categories->first()?->name;
+        $productArray['category_id'] = $product->categories->first()?->id;
         $productArray['categories'] = $product->categories->pluck('id')->toArray();
-        $productArray['unit_name'] = $product->unit?->name ?? '';
-        $productArray['unit_short_name'] = $product->unit?->short_name ?? '';
-        $productArray['unit_calc_area'] = $product->unit?->calc_area ?? '';
+        $productArray['unit_name'] = $product->unit?->name;
+        $productArray['unit_short_name'] = $product->unit?->short_name;
         $price = $product->prices->first();
-        $productArray['retail_price'] = $price?->retail_price ?? 0;
-        $productArray['wholesale_price'] = $price?->wholesale_price ?? 0;
-        $productArray['purchase_price'] = $price?->purchase_price ?? 0;
+        $productArray['retail_price'] = $price?->retail_price;
+        $productArray['wholesale_price'] = $price?->wholesale_price;
+        $productArray['purchase_price'] = $price?->purchase_price;
         $productArray['stock_quantity'] = 0;
 
         return $productArray;
     }
 
+    /**
+     * Удалить товар
+     *
+     * @param int $id ID товара
+     * @return bool
+     */
     public function deleteItem($id)
     {
         $product = Product::find($id);

@@ -10,7 +10,18 @@ use Illuminate\Support\Facades\DB;
 
 class WarehouseStockRepository extends BaseRepository
 {
-
+    /**
+     * Получить остатки на складах с пагинацией
+     *
+     * @param int $userUuid ID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @param int|null $warehouse_id ID склада
+     * @param int|null $category_id ID категории
+     * @param int $page Номер страницы
+     * @param string|null $search Поисковый запрос
+     * @param string|null $availability Фильтр наличия ('in_stock', 'out_of_stock')
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20, $warehouse_id = null, $category_id = null, $page = 1, $search = null, $availability = null)
     {
         /** @var \App\Models\User|null $currentUser */
@@ -31,8 +42,7 @@ class WarehouseStockRepository extends BaseRepository
         ]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($filterUserId, $perPage, $warehouse_id, $category_id, $page, $searchNormalized, $availability) {
-            $userWarehouseIds = DB::table('wh_users')
-                ->where('user_id', $filterUserId)
+            $userWarehouseIds = \App\Models\WhUser::where('user_id', $filterUserId)
                 ->pluck('warehouse_id')
                 ->toArray();
 
@@ -58,14 +68,13 @@ class WarehouseStockRepository extends BaseRepository
                     );
                 }
 
-                $warehouseName = Warehouse::find($warehouse_id)?->name;
+                $warehouseName = Warehouse::findOrFail($warehouse_id)->name;
             }
 
-            $primaryCategorySub = DB::table('product_categories')
-                ->select('product_categories.product_id', DB::raw('MIN(product_categories.category_id) as category_id'))
-                ->groupBy('product_categories.product_id');
+            $primaryCategorySub = \App\Models\ProductCategory::select('product_id', DB::raw('MIN(category_id) as category_id'))
+                ->groupBy('product_id');
 
-            $productsQuery = DB::table('products')
+            $productsQuery = \App\Models\Product::query()
                 ->leftJoinSub($primaryCategorySub, 'primary_category', function ($join) {
                     $join->on('products.id', '=', 'primary_category.product_id');
                 })
@@ -94,15 +103,14 @@ class WarehouseStockRepository extends BaseRepository
                 });
             }
 
-            $stockQuery = DB::table('warehouse_stocks')
-                ->select('warehouse_stocks.product_id', DB::raw('SUM(warehouse_stocks.quantity) as quantity'))
-                ->whereIn('warehouse_stocks.warehouse_id', $userWarehouseIds);
+            $stockQuery = WarehouseStock::select('product_id', DB::raw('SUM(quantity) as quantity'))
+                ->whereIn('warehouse_id', $userWarehouseIds);
 
             if ($warehouse_id) {
-                $stockQuery->where('warehouse_stocks.warehouse_id', $warehouse_id);
+                $stockQuery->where('warehouse_id', $warehouse_id);
             }
 
-            $stockQuery->groupBy('warehouse_stocks.product_id');
+            $stockQuery->groupBy('product_id');
 
             $productsQuery->leftJoinSub($stockQuery, 'stock_totals', function ($join) {
                 $join->on('products.id', '=', 'stock_totals.product_id');
@@ -146,44 +154,5 @@ class WarehouseStockRepository extends BaseRepository
 
             return $paginated;
         }, (int)$page);
-    }
-
-    public function getTotalQuantityByWarehouse($userUuid, $warehouse_id = null)
-    {
-        /** @var \App\Models\User|null $currentUser */
-        $currentUser = auth('api')->user();
-        $companyId = $this->getCurrentCompanyId();
-        $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
-        $cacheKey = $this->generateCacheKey('warehouse_stocks_total', [$userUuid, $warehouse_id, $currentUser?->id, $companyId]);
-
-        return CacheService::remember($cacheKey, function () use ($filterUserId, $warehouse_id) {
-            $query = WarehouseStock::leftJoin('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id')
-                ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
-                ->where('wh_users.user_id', $filterUserId);
-
-            if ($warehouse_id) {
-                $query->where('warehouse_stocks.warehouse_id', $warehouse_id);
-            }
-
-            return $query->sum('warehouse_stocks.quantity');
-        });
-    }
-
-    public function getQuantityByCategories($userUuid, $warehouse_id = null)
-    {
-        $cacheKey = $this->generateCacheKey('warehouse_stocks_categories', [$userUuid, $warehouse_id]);
-
-        return CacheService::remember($cacheKey, function () use ($userUuid, $warehouse_id) {
-            return collect([]);
-        });
-    }
-
-    public static function invalidateStockCache($userUuid = null, $warehouse_id = null)
-    {
-        if ($userUuid) {
-            CacheService::invalidateByLike("%warehouse_stocks_user_{$userUuid}%");
-        } else {
-            CacheService::invalidateByLike('%warehouse_stocks%');
-        }
     }
 }

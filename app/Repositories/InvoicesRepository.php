@@ -10,45 +10,59 @@ use Illuminate\Support\Facades\DB;
 
 class InvoicesRepository extends BaseRepository
 {
+    /**
+     * Получить счета с пагинацией
+     *
+     * @param int $userUuid ID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @param string|null $search Поисковый запрос
+     * @param string $dateFilter Фильтр по дате
+     * @param string|null $startDate Начальная дата
+     * @param string|null $endDate Конечная дата
+     * @param string|null $typeFilter Фильтр по типу
+     * @param string|null $statusFilter Фильтр по статусу
+     * @param int $page Номер страницы
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $typeFilter = null, $statusFilter = null, $page = 1)
     {
         $cacheKey = $this->generateCacheKey('invoices_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter]);
 
-        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page) {
             $query = Invoice::with([
-            'client.phones',
-            'client.emails',
-            'user',
-            'orders.cash.currency',
-            'products.unit',
-            'products.order'
-        ])
-            ->where('user_id', $userUuid);
+                'client.phones',
+                'client.emails',
+                'user',
+                'orders.cash.currency',
+                'products.unit',
+                'products.order'
+            ])
+                ->where('user_id', $userUuid);
 
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('invoice_number', 'like', "%{$search}%")
-                    ->orWhere('note', 'like', "%{$search}%");
-                $this->applyClientSearchFilterThroughRelation($q, 'client', $search);
-            });
-        }
-
-        if ($dateFilter !== 'all_time') {
-            $dateRange = $this->getDateRange($dateFilter, $startDate, $endDate);
-            if (is_array($dateRange)) {
-                $query->whereBetween('invoice_date', $dateRange);
-            } else {
-                $query->whereDate('invoice_date', $dateRange);
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('invoice_number', 'like', "%{$search}%")
+                        ->orWhere('note', 'like', "%{$search}%");
+                    $this->applyClientSearchFilterThroughRelation($q, 'client', $search);
+                });
             }
-        }
 
-        if ($typeFilter) {
-            $query->where('type', $typeFilter);
-        }
+            if ($dateFilter !== 'all_time') {
+                $dateRange = $this->getDateRange($dateFilter, $startDate, $endDate);
+                if (is_array($dateRange)) {
+                    $query->whereBetween('invoice_date', $dateRange);
+                } else {
+                    $query->whereDate('invoice_date', $dateRange);
+                }
+            }
 
-        if ($statusFilter) {
-            $query->where('status', $statusFilter);
-        }
+            if ($typeFilter) {
+                $query->where('type', $typeFilter);
+            }
+
+            if ($statusFilter) {
+                $query->where('status', $statusFilter);
+            }
 
             $invoices = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
@@ -60,6 +74,13 @@ class InvoicesRepository extends BaseRepository
         }, (int)$page);
     }
 
+    /**
+     * Получить счет по ID
+     *
+     * @param int $id ID счета
+     * @return Invoice
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
     public function getItemById($id)
     {
         $invoice = Invoice::with([
@@ -70,15 +91,20 @@ class InvoicesRepository extends BaseRepository
             'products.unit',
             'products.order'
         ])
-            ->find($id);
+            ->findOrFail($id);
 
-        if ($invoice) {
-            $this->attachCurrencyToOrders($invoice->orders);
-        }
+        $this->attachCurrencyToOrders($invoice->orders);
 
         return $invoice;
     }
 
+    /**
+     * Создать счет
+     *
+     * @param array $data Данные счета
+     * @return Invoice
+     * @throws \Exception
+     */
     public function createItem($data)
     {
         return DB::transaction(function () use ($data) {
@@ -96,9 +122,10 @@ class InvoicesRepository extends BaseRepository
                 $invoice->orders()->attach($data['order_ids']);
             }
 
-            if (isset($data['products']) && is_array($data['products'])) {
+            if (isset($data['products']) && is_array($data['products']) && !empty($data['products'])) {
+                $productsData = [];
                 foreach ($data['products'] as $productData) {
-                    InvoiceProduct::create([
+                    $productsData[] = [
                         'invoice_id' => $invoice->id,
                         'order_id' => $productData['order_id'] ?? null,
                         'product_id' => $productData['product_id'] ?? null,
@@ -108,8 +135,9 @@ class InvoicesRepository extends BaseRepository
                         'price' => $productData['price'],
                         'total_price' => $productData['total_price'],
                         'unit_id' => $productData['unit_id'] ?? null,
-                    ]);
+                    ];
                 }
+                InvoiceProduct::insert($productsData);
             }
 
             CacheService::invalidateInvoicesCache();
@@ -118,6 +146,14 @@ class InvoicesRepository extends BaseRepository
         });
     }
 
+    /**
+     * Обновить счет
+     *
+     * @param int $id ID счета
+     * @param array $data Данные для обновления
+     * @return Invoice
+     * @throws \Exception
+     */
     public function updateItem($id, $data)
     {
         return DB::transaction(function () use ($id, $data) {
@@ -138,18 +174,22 @@ class InvoicesRepository extends BaseRepository
             if (isset($data['products'])) {
                 $invoice->products()->delete();
 
-                foreach ($data['products'] as $productData) {
-                    InvoiceProduct::create([
-                        'invoice_id' => $invoice->id,
-                        'order_id' => $productData['order_id'] ?? null,
-                        'product_id' => $productData['product_id'] ?? null,
-                        'product_name' => $productData['product_name'],
-                        'product_description' => $productData['product_description'] ?? null,
-                        'quantity' => $productData['quantity'],
-                        'price' => $productData['price'],
-                        'total_price' => $productData['total_price'],
-                        'unit_id' => $productData['unit_id'] ?? null,
-                    ]);
+                if (!empty($data['products'])) {
+                    $productsData = [];
+                    foreach ($data['products'] as $productData) {
+                        $productsData[] = [
+                            'invoice_id' => $invoice->id,
+                            'order_id' => $productData['order_id'] ?? null,
+                            'product_id' => $productData['product_id'] ?? null,
+                            'product_name' => $productData['product_name'],
+                            'product_description' => $productData['product_description'] ?? null,
+                            'quantity' => $productData['quantity'],
+                            'price' => $productData['price'],
+                            'total_price' => $productData['total_price'],
+                            'unit_id' => $productData['unit_id'] ?? null,
+                        ];
+                    }
+                    InvoiceProduct::insert($productsData);
                 }
             }
 
@@ -159,6 +199,12 @@ class InvoicesRepository extends BaseRepository
         });
     }
 
+    /**
+     * Удалить счет
+     *
+     * @param int $id ID счета
+     * @return Invoice
+     */
     public function deleteItem($id)
     {
         $invoice = Invoice::findOrFail($id);
@@ -167,6 +213,12 @@ class InvoicesRepository extends BaseRepository
         return $invoice;
     }
 
+    /**
+     * Получить заказы для счета
+     *
+     * @param array $orderIds Массив ID заказов
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getOrdersForInvoice($orderIds)
     {
         $query = Order::query();
@@ -226,6 +278,12 @@ class InvoicesRepository extends BaseRepository
         return $orders;
     }
 
+    /**
+     * Подготовить продукты из заказов для счета
+     *
+     * @param \Illuminate\Database\Eloquent\Collection $orders Коллекция заказов
+     * @return array Массив с продуктами и датой заказа
+     */
     public function prepareProductsFromOrders($orders)
     {
         $products = [];
@@ -269,6 +327,12 @@ class InvoicesRepository extends BaseRepository
         ];
     }
 
+    /**
+     * Прикрепить валюту к заказам
+     *
+     * @param \Illuminate\Database\Eloquent\Collection|null $orders Коллекция заказов
+     * @return void
+     */
     protected function attachCurrencyToOrders($orders)
     {
         if (!$orders) {

@@ -4,6 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Модель валюты
+ *
+ * @property int $id
+ * @property string $code Код валюты
+ * @property string $name Название валюты
+ * @property string $symbol Символ валюты
+ * @property float $exchange_rate Курс обмена
+ * @property bool $is_default Является ли валютой по умолчанию
+ * @property string $status Статус
+ * @property bool $is_report Используется ли в отчетах
+ *
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\CurrencyHistory[] $exchangeRateHistories
+ */
 class Currency extends Model
 {
     protected $fillable = [
@@ -22,11 +36,21 @@ class Currency extends Model
         'is_report' => 'boolean',
     ];
 
+    /**
+     * Связь с историей курсов валют
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function exchangeRateHistories()
     {
         return $this->hasMany(CurrencyHistory::class, 'currency_id');
     }
 
+    /**
+     * Получить текущий курс валюты
+     *
+     * @return \App\Models\CurrencyHistory|null
+     */
     public function currentExchangeRate()
     {
         return $this->exchangeRateHistories()
@@ -37,6 +61,9 @@ class Currency extends Model
 
     /**
      * Получить текущий курс валюты для конкретной компании
+     *
+     * @param int|null $companyId ID компании
+     * @return \App\Models\CurrencyHistory|null
      */
     public function getCurrentExchangeRateForCompany($companyId = null)
     {
@@ -58,6 +85,10 @@ class Currency extends Model
 
     /**
      * Получить курс валюты для конкретной компании на конкретную дату
+     *
+     * @param int|null $companyId ID компании
+     * @param string|null $date Дата
+     * @return float
      */
     public function getExchangeRateForCompany($companyId = null, $date = null)
     {
@@ -81,10 +112,20 @@ class Currency extends Model
         return $history ? $history->exchange_rate : 1;
     }
 
+    /**
+     * Accessor для получения курса обмена
+     *
+     * ВНИМАНИЕ: Использование request() в модели нарушает принцип разделения ответственности.
+     * Рекомендуется использовать метод getExchangeRateForCompany() напрямую с явным указанием company_id.
+     *
+     * @return float
+     */
     public function getExchangeRateAttribute()
     {
-        // Получаем company_id из заголовка запроса, если доступен
         $companyId = request()->header('X-Company-ID');
-        return $this->getExchangeRateForCompany($companyId);
+        if ($companyId) {
+            $companyId = (int) $companyId;
+        }
+        return $this->getExchangeRateForCompany($companyId ?: null);
     }
 }

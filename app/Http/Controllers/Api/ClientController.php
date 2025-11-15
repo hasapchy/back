@@ -9,16 +9,29 @@ use App\Models\Client;
 use Illuminate\Support\Facades\DB;
 use App\Services\CacheService;
 
+/**
+ * Контроллер для работы с клиентами
+ */
 class ClientController extends Controller
 {
     protected $itemsRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param ClientsRepository $itemsRepository Репозиторий клиентов
+     */
     public function __construct(ClientsRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
     }
 
-
+    /**
+     * Получить список клиентов с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $perPage = $request->input('per_page', 10);
@@ -32,6 +45,12 @@ class ClientController extends Controller
         return $this->paginatedResponse($items);
     }
 
+    /**
+     * Поиск клиентов
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function search(Request $request)
     {
         $search_request = $request->input('search_request');
@@ -45,7 +64,13 @@ class ClientController extends Controller
         return response()->json($items);
     }
 
-        public function show($id)
+    /**
+     * Получить клиента по ID
+     *
+     * @param int $id ID клиента
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function show($id)
     {
         try {
             if (method_exists($this->itemsRepository, 'invalidateClientBalanceCache')) {
@@ -58,7 +83,6 @@ class ClientController extends Controller
                 return $this->notFoundResponse('Client not found');
             }
 
-            // Проверяем права с учетом _all/_own
             if (!$this->canPerformAction('clients', 'view', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на просмотр этого клиента');
             }
@@ -69,6 +93,12 @@ class ClientController extends Controller
         }
     }
 
+    /**
+     * Получить историю баланса клиента
+     *
+     * @param int $id ID клиента
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getBalanceHistory($id)
     {
         $user = $this->requireAuthenticatedUser();
@@ -86,6 +116,11 @@ class ClientController extends Controller
         }
     }
 
+    /**
+     * Получить всех клиентов
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function all()
     {
         try {
@@ -96,6 +131,12 @@ class ClientController extends Controller
         }
     }
 
+    /**
+     * Создать нового клиента
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $validatedData = $request->validate([
@@ -150,6 +191,14 @@ class ClientController extends Controller
             return $this->errorResponse('Ошибка при создании клиента: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * Обновить клиента
+     *
+     * @param Request $request
+     * @param int $id ID клиента
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $validatedData = $request->validate([
@@ -177,7 +226,6 @@ class ClientController extends Controller
                 return $this->notFoundResponse('Клиент не найден');
             }
 
-            // Проверяем права с учетом _all/_own
             if (!$this->canPerformAction('clients', 'update', $existingClient)) {
                 return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
             }
@@ -209,6 +257,12 @@ class ClientController extends Controller
         }
     }
 
+    /**
+     * Удалить клиента
+     *
+     * @param int $id ID клиента
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         try {
@@ -217,7 +271,6 @@ class ClientController extends Controller
                 return $this->notFoundResponse('Клиент не найден');
             }
 
-            // Проверяем права с учетом _all/_own
             if (!$this->canPerformAction('clients', 'delete', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на удаление этого клиента');
             }
@@ -257,6 +310,13 @@ class ClientController extends Controller
         }
     }
 
+    /**
+     * Проверить дублирование employee_id
+     *
+     * @param int|null $employeeId ID сотрудника
+     * @param int|null $excludeId ID клиента для исключения из проверки
+     * @return \Illuminate\Http\JsonResponse|null
+     */
     protected function checkEmployeeIdDuplicate(?int $employeeId, ?int $excludeId = null)
     {
         if (empty($employeeId)) {
@@ -283,6 +343,13 @@ class ClientController extends Controller
         return null;
     }
 
+    /**
+     * Проверить дублирование телефонов
+     *
+     * @param array $phones Массив телефонов
+     * @param int|null $excludeClientId ID клиента для исключения из проверки
+     * @return \Illuminate\Http\JsonResponse|null
+     */
     protected function checkPhoneDuplicates(array $phones, ?int $excludeClientId = null)
     {
         if (empty($phones)) {

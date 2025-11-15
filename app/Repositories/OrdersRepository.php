@@ -5,7 +5,6 @@ namespace App\Repositories;
 use App\Models\Order;
 use App\Models\OrderProduct;
 use App\Models\OrderTempProduct;
-use App\Models\OrderAfValue;
 use App\Models\Product;
 use App\Models\ProductPrice;
 use App\Models\WarehouseStock;
@@ -20,8 +19,21 @@ use App\Services\RoundingService;
 
 class OrdersRepository extends BaseRepository
 {
-
-
+    /**
+     * Получить заказы с пагинацией и фильтрацией
+     *
+     * @param string $userUuid UUID пользователя
+     * @param int $perPage Количество записей на страницу
+     * @param string|null $search Поисковый запрос
+     * @param string $dateFilter Фильтр по дате
+     * @param string|null $startDate Начальная дата
+     * @param string|null $endDate Конечная дата
+     * @param int|null $statusFilter Фильтр по статусу
+     * @param int $page Номер страницы
+     * @param int|null $projectFilter Фильтр по проекту
+     * @param int|null $clientFilter Фильтр по клиенту
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null)
     {
         /** @var \App\Models\User|null $currentUser */
@@ -212,6 +224,12 @@ class OrdersRepository extends BaseRepository
         }, (int)$page);
     }
 
+    /**
+     * Получить заказ по ID
+     *
+     * @param int $id ID заказа
+     * @return object|null
+     */
     public function getItemById($id)
     {
         $items = $this->getItems([$id]);
@@ -220,6 +238,12 @@ class OrdersRepository extends BaseRepository
 
 
 
+    /**
+     * Получить заказы по массиву ID
+     *
+     * @param array $order_ids Массив ID заказов
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function getItemsByIds(array $order_ids)
     {
         if (empty($order_ids)) {
@@ -252,137 +276,147 @@ class OrdersRepository extends BaseRepository
     }
 
 
+    /**
+     * Получить заказы по массиву ID (приватный метод)
+     *
+     * @param array $order_ids Массив ID заказов
+     * @return \Illuminate\Support\Collection
+     */
     private function getItems(array $order_ids = [])
     {
         if (empty($order_ids)) {
             return collect();
         }
 
-        $query = Order::query();
-
-        $query->leftJoin('warehouses', 'orders.warehouse_id', '=', 'warehouses.id');
-        $query->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id');
-        $query->leftJoin('projects', 'orders.project_id', '=', 'projects.id');
-        $query->leftJoin('users', 'orders.user_id', '=', 'users.id');
-        $query->leftJoin('currencies as cash_currency', 'cash_registers.currency_id', '=', 'cash_currency.id');
-        $query->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id');
-        $query->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id');
-        $query->leftJoin('categories', 'orders.category_id', '=', 'categories.id');
-
-        $query->whereIn('orders.id', $order_ids);
-
-        $query->select(
-            'orders.id',
-            'orders.note',
-            'orders.description',
-            'orders.status_id',
-            'order_statuses.name as status_name',
-            'order_statuses.category_id as status_category_id',
-            'order_status_categories.name as status_category_name',
-            'order_status_categories.color as status_category_color',
-            'orders.client_id',
-            'orders.user_id',
-            'orders.cash_id',
-            'orders.warehouse_id',
-            'orders.project_id',
-            'orders.price',
-            'orders.discount',
-            DB::raw('(orders.price - orders.discount) as total_price'),
-            'orders.date',
-            'orders.created_at',
-            'orders.updated_at',
-            'warehouses.name as warehouse_name',
-            'cash_registers.name as cash_name',
-            'cash_currency.id as currency_id',
-            'cash_currency.name as currency_name',
-            'cash_currency.code as currency_code',
-            'cash_currency.symbol as currency_symbol',
-            'projects.name as project_name',
-            'users.name as user_name',
-            'users.photo as user_photo',
-            'categories.name as category_name'
-        );
-
-        $query->with(['additionalFieldValues.additionalField:id,name,type,options']);
-
-        $orderModels = $query->get();
-
-        $items = $orderModels->map(function ($item) {
-            return (object) $item->toArray();
-        });
+        $orders = Order::whereIn('id', $order_ids)
+            ->with([
+                'warehouse:id,name',
+                'cash.currency:id,name,code,symbol',
+                'project:id,name',
+                'user:id,name,photo',
+                'status.category:id,name,color',
+                'category:id,name'
+            ])
+            ->get();
 
         $products = $this->getProducts($order_ids);
-        $client_ids = $items->pluck('client_id')->toArray();
+        $client_ids = $orders->pluck('client_id')->unique()->filter()->toArray();
         $client_repository = new ClientsRepository();
         $clients = $client_repository->getItemsByIds($client_ids);
 
-        foreach ($items as $index => $item) {
-            $item->products = $products->get($item->id, collect());
-            $item->client = $clients->firstWhere('id', $item->client_id);
-            $item->status = [
-                'id' => $item->status_id,
-                'name' => $item->status_name,
-                'category_id' => $item->status_category_id,
-                'category' => $item->status_category_id ? [
-                    'id' => $item->status_category_id,
-                    'name' => $item->status_category_name,
-                    'color' => $item->status_category_color,
-                ] : null,
+        $items = $orders->map(function ($order) use ($products, $clients) {
+            $item = (object) [
+                'id' => $order->id,
+                'note' => $order->note,
+                'description' => $order->description,
+                'status_id' => $order->status_id,
+                'status_name' => $order->status->name,
+                'status_category_id' => $order->status->category_id,
+                'status_category_name' => $order->status->category->name ?? null,
+                'status_category_color' => $order->status->category->color ?? null,
+                'client_id' => $order->client_id,
+                'user_id' => $order->user_id,
+                'cash_id' => $order->cash_id,
+                'warehouse_id' => $order->warehouse_id,
+                'project_id' => $order->project_id,
+                'price' => $order->price,
+                'discount' => $order->discount,
+                'total_price' => $order->price - $order->discount,
+                'date' => $order->date,
+                'created_at' => $order->created_at,
+                'updated_at' => $order->updated_at,
+                'warehouse_name' => $order->warehouse->name ?? null,
+                'cash_name' => $order->cash->name ?? null,
+                'currency_id' => $order->cash?->currency->id,
+                'currency_name' => $order->cash?->currency->name,
+                'currency_code' => $order->cash?->currency->code,
+                'currency_symbol' => $order->cash?->currency->symbol,
+                'project_name' => $order->project->name ?? null,
+                'user_name' => $order->user->name,
+                'user_photo' => $order->user->photo,
+                'category_name' => $order->category->name ?? null,
+                'products' => $products->get($order->id, collect()),
+                'client' => $clients->firstWhere('id', $order->client_id),
+                'status' => [
+                    'id' => $order->status_id,
+                    'name' => $order->status->name,
+                    'category_id' => $order->status->category_id,
+                    'category' => $order->status->category ? [
+                        'id' => $order->status->category->id,
+                        'name' => $order->status->category->name,
+                        'color' => $order->status->category->color,
+                    ] : null,
+                ],
             ];
 
-            $orderModel = $orderModels->get($index);
-            $item->additional_fields = $this->formatAdditionalFields($orderModel);
-        }
+            return $item;
+        });
 
         return $items;
     }
 
 
+    /**
+     * Получить продукты заказов (приватный метод)
+     *
+     * @param array $order_ids Массив ID заказов
+     * @return \Illuminate\Support\Collection Сгруппированные по order_id продукты
+     */
     private function getProducts(array $order_ids)
     {
         $regularProducts = OrderProduct::whereIn('order_id', $order_ids)
-            ->leftJoin('products', 'order_products.product_id', '=', 'products.id')
-            ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-            ->select(
-                'order_products.id',
-                'order_products.order_id',
-                'order_products.product_id',
-                'products.name as product_name',
-                'products.image as product_image',
-                'products.unit_id',
-                'units.name as unit_name',
-                'units.short_name as unit_short_name',
-                'order_products.quantity',
-                'order_products.price',
-                'order_products.width',
-                'order_products.height',
-                DB::raw("'regular' as product_type")
-            )
-            ->get();
+            ->with(['product.unit:id,name,short_name'])
+            ->get()
+            ->map(function ($item) {
+                return (object) [
+                    'id' => $item->id,
+                    'order_id' => $item->order_id,
+                    'product_id' => $item->product_id,
+                    'product_name' => $item->product->name ?? null,
+                    'product_image' => $item->product->image ?? null,
+                    'unit_id' => $item->product->unit_id ?? null,
+                    'unit_name' => $item->product->unit->name ?? null,
+                    'unit_short_name' => $item->product->unit->short_name ?? null,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'width' => $item->width,
+                    'height' => $item->height,
+                    'product_type' => 'regular',
+                ];
+            });
 
         $tempProducts = OrderTempProduct::whereIn('order_id', $order_ids)
-            ->leftJoin('units', 'order_temp_products.unit_id', '=', 'units.id')
-            ->select(
-                'order_temp_products.id',
-                'order_temp_products.order_id',
-                DB::raw('NULL as product_id'),
-                'order_temp_products.name as product_name',
-                DB::raw('NULL as product_image'),
-                'order_temp_products.unit_id',
-                'units.name as unit_name',
-                'units.short_name as unit_short_name',
-                'order_temp_products.quantity',
-                'order_temp_products.price',
-                'order_temp_products.width',
-                'order_temp_products.height',
-                DB::raw("'temp' as product_type")
-            )
-            ->get();
+            ->with('unit:id,name,short_name')
+            ->get()
+            ->map(function ($item) {
+                return (object) [
+                    'id' => $item->id,
+                    'order_id' => $item->order_id,
+                    'product_id' => null,
+                    'product_name' => $item->name,
+                    'product_image' => null,
+                    'unit_id' => $item->unit_id,
+                    'unit_name' => $item->unit->name ?? null,
+                    'unit_short_name' => $item->unit->short_name ?? null,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'width' => $item->width,
+                    'height' => $item->height,
+                    'product_type' => 'temp',
+                ];
+            });
 
         $allProducts = $regularProducts->concat($tempProducts);
         return $allProducts->groupBy('order_id');
     }
 
+    /**
+     * Создать заказ
+     *
+     * @param array $data Данные заказа
+     * @return Order
+     * @throws \Exception
+     */
     public function createItem($data)
     {
         $userUuid = $data['user_id'];
@@ -394,7 +428,6 @@ class OrdersRepository extends BaseRepository
         $category_id = $data['category_id'] ?? null;
         $products = $data['products'] ?? [];
         $temp_products = $data['temp_products'] ?? [];
-        $currency_id = $data['currency_id'];
         $discount = $data['discount'] ?? 0;
         $discount_type = $data['discount_type'] ?? 'fixed';
         $date = $data['date'] ?? now();
@@ -402,7 +435,6 @@ class OrdersRepository extends BaseRepository
         $description = $data['description'] ?? '';
 
         $defaultCurrency = Currency::firstWhere('is_default', true);
-        $fromCurrency = Currency::find($currency_id);
 
         $price = 0;
         $discount_calculated = 0;
@@ -410,13 +442,29 @@ class OrdersRepository extends BaseRepository
 
         DB::beginTransaction();
         try {
-            $quantityRoundingService = new RoundingService();
+            $roundingService = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
+
+            // Сначала рассчитываем количества с учетом размеров и проверяем склад
+            $productsCache = [];
             foreach ($products as $product) {
                 $p_id = $product['product_id'];
-                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
-                $p = $product['price'];
+                $width = $product['width'] ?? null;
+                $height = $product['height'] ?? null;
 
+                $product_object = Product::find($p_id);
+                if (!$product_object) {
+                    throw new \Exception("Товар ID {$p_id} не найден");
+                }
+
+                // Рассчитываем количество: с учетом размеров, если они есть
+                $q = $roundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
+                if ($width && $height && $product_object->unit_id) {
+                    $calculatedQuantity = $this->calculateQuantityFromDimensions($width, $height, $product_object->unit_id);
+                    $q = $calculatedQuantity;
+                }
+
+                $p = $product['price'];
                 if ($project_id) {
                     $productPrice = ProductPrice::where('product_id', $p_id)->first();
                     if ($productPrice && $productPrice->wholesale_price > 0) {
@@ -424,10 +472,15 @@ class OrdersRepository extends BaseRepository
                     }
                 }
 
-                $product_object = Product::find($p_id);
-                if (!$product_object) {
-                    throw new \Exception("Товар ID {$p_id} не найден");
-                }
+                // Сохраняем данные товара для последующего использования
+                $productsCache[$p_id] = [
+                    'product' => $product,
+                    'product_object' => $product_object,
+                    'quantity' => $q,
+                    'price' => $p,
+                    'width' => $width,
+                    'height' => $height
+                ];
 
                 if ($product_object->type == 1) {
                     $warehouse_product = WarehouseStock::where('product_id', $p_id)
@@ -436,7 +489,7 @@ class OrdersRepository extends BaseRepository
 
                     if (!$warehouse_product || $warehouse_product->quantity < $q) {
                         $warehouseName = optional(Warehouse::find($warehouse_id))->name ?? (string)$warehouse_id;
-                        $productName = $product_object->name ?? (string)$p_id;
+                        $productName = $product_object->name;
                         $available = $warehouse_product->quantity ?? 0;
                         throw new \Exception("На складе '{$warehouseName}' недостаточно товара '{$productName}' (доступно: {$available}, требуется: {$q})");
                     }
@@ -446,15 +499,13 @@ class OrdersRepository extends BaseRepository
                         ->update(['quantity' => DB::raw('quantity - ' . $q)]);
                 }
 
-                $origPrice = $q * $p;
-                $price += $origPrice;
+                $price += $q * $p;
             }
 
             foreach ($temp_products as $temp_product) {
-                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity']));
+                $q = $roundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity']));
                 $p = $temp_product['price'];
-                $origPrice = $q * $p;
-                $price += $origPrice;
+                $price += $q * $p;
             }
 
             if ($discount_type == 'percent') {
@@ -466,8 +517,6 @@ class OrdersRepository extends BaseRepository
             $total_price = max(0, $price - $discount_calculated);
 
             // Apply company rounding for order monetary fields before saving
-            $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
             $price = $roundingService->roundForCompany($companyId, (float) $price);
             $discount_calculated = $roundingService->roundForCompany($companyId, (float) $discount_calculated);
 
@@ -492,40 +541,16 @@ class OrdersRepository extends BaseRepository
             $order->user_id = $userUuid;
             $order->save();
 
+            // Используем уже рассчитанные данные из кэша
             $productsData = [];
-            foreach ($products as $product) {
-                $p_id = $product['product_id'];
-                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
-                $p = $product['price'];
-                $width = $product['width'] ?? null;
-                $height = $product['height'] ?? null;
-
-                if ($project_id) {
-                    $productPrice = ProductPrice::where('product_id', $p_id)->first();
-                    if ($productPrice && $productPrice->wholesale_price > 0) {
-                        $p = $productPrice->wholesale_price;
-                    }
-                }
-
-                $unitPrice = $p;
-
-                if ($width && $height) {
-                    $productObject = Product::find($p_id);
-                    if ($productObject) {
-                        $unitShortName = $productObject->unit ? $productObject->unit->short_name : '';
-                        $unitName = $productObject->unit ? $productObject->unit->name : '';
-                        $calculatedQuantity = $this->calculateQuantityFromDimensions($width, $height, $unitShortName, $unitName);
-                        $q = $calculatedQuantity;
-                    }
-                }
-
+            foreach ($productsCache as $p_id => $cached) {
                 $productsData[] = [
                     'order_id' => $order->id,
                     'product_id' => $p_id,
-                    'quantity' => $q,
-                    'price' => $unitPrice,
-                    'width' => $width,
-                    'height' => $height,
+                    'quantity' => $cached['quantity'],
+                    'price' => $cached['price'],
+                    'width' => $cached['width'],
+                    'height' => $cached['height'],
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -548,9 +573,6 @@ class OrdersRepository extends BaseRepository
                 ]);
             }
 
-            if (!empty($data['additional_fields'])) {
-                $this->saveAdditionalFields($order->id, $data['additional_fields']);
-            }
 
             if ($client_id) {
                 $this->createTransactionForSource([
@@ -587,6 +609,14 @@ class OrdersRepository extends BaseRepository
         }
     }
 
+    /**
+     * Обновить заказ
+     *
+     * @param int $id ID заказа
+     * @param array $data Данные для обновления
+     * @return Order
+     * @throws \Exception
+     */
     public function updateItem($id, $data)
     {
         DB::beginTransaction();
@@ -611,7 +641,7 @@ class OrdersRepository extends BaseRepository
             $category_id = $data['category_id'] ?? $order->category_id;
             $products = $data['products'] ?? [];
             $temp_products = $data['temp_products'] ?? [];
-            $currency_id = $data['currency_id'] ?? $order->currency_id;
+            // currency_id берется из cash.currency_id, не хранится в orders
             $discount = $data['discount'] ?? 0;
             $discount_type = $data['discount_type'] ?? 'fixed';
             $note = !empty($data['note']) ? $data['note'] : null;
@@ -619,19 +649,34 @@ class OrdersRepository extends BaseRepository
             $date = $data['date'] ?? now();
 
             $defaultCurrency = Currency::firstWhere('is_default', true);
-            $fromCurrency = Currency::find($currency_id);
 
             $price = 0;
             $discount_calculated = 0;
             $total_price = 0;
 
-            $quantityRoundingService = new RoundingService();
+            $roundingService = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
+
+            // Сначала рассчитываем количества с учетом размеров и проверяем склад
+            $productsCache = [];
             foreach ($products as $product) {
                 $p_id = $product['product_id'];
-                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
-                $p = $product['price'];
+                $width = $product['width'] ?? null;
+                $height = $product['height'] ?? null;
 
+                $product_object = Product::find($p_id);
+                if (!$product_object) {
+                    throw new \Exception("Товар ID {$p_id} не найден");
+                }
+
+                // Рассчитываем количество: с учетом размеров, если они есть
+                $q = $roundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
+                if ($width && $height && $product_object->unit_id) {
+                    $calculatedQuantity = $this->calculateQuantityFromDimensions($width, $height, $product_object->unit_id);
+                    $q = $calculatedQuantity;
+                }
+
+                $p = $product['price'];
                 if ($project_id) {
                     $productPrice = ProductPrice::where('product_id', $p_id)->first();
                     if ($productPrice && $productPrice->wholesale_price > 0) {
@@ -639,10 +684,15 @@ class OrdersRepository extends BaseRepository
                     }
                 }
 
-                $product_object = Product::find($p_id);
-                if (!$product_object) {
-                    throw new \Exception("Товар ID {$p_id} не найден");
-                }
+                // Сохраняем данные товара для последующего использования
+                $productsCache[$p_id] = [
+                    'product' => $product,
+                    'product_object' => $product_object,
+                    'quantity' => $q,
+                    'price' => $p,
+                    'width' => $width,
+                    'height' => $height
+                ];
 
                 if ($product_object->type == 1) {
                     $stock = WarehouseStock::where('product_id', $p_id)
@@ -651,7 +701,7 @@ class OrdersRepository extends BaseRepository
 
                     if (!$stock || $stock->quantity < $q) {
                         $warehouseName = optional(Warehouse::find($warehouse_id))->name ?? (string)$warehouse_id;
-                        $productName = $product_object->name ?? (string)$p_id;
+                        $productName = $product_object->name;
                         $available = $stock->quantity ?? 0;
                         throw new \Exception("На складе '{$warehouseName}' недостаточно товара '{$productName}' (доступно: {$available}, требуется: {$q})");
                     }
@@ -661,15 +711,13 @@ class OrdersRepository extends BaseRepository
                         ->update(['quantity' => DB::raw('quantity - ' . $q)]);
                 }
 
-                $origPrice = $q * $p;
-                $price += $origPrice;
+                $price += $q * $p;
             }
 
             foreach ($temp_products as $temp_product) {
-                $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity']));
+                $q = $roundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity']));
                 $p = $temp_product['price'];
-                $origPrice = $q * $p;
-                $price += $origPrice;
+                $price += $q * $p;
             }
 
             if ($discount_type == 'percent') {
@@ -681,8 +729,6 @@ class OrdersRepository extends BaseRepository
             $total_price = max(0, $price - $discount_calculated);
 
             // Apply company rounding for order monetary fields before update
-            $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
             $price = $roundingService->roundForCompany($companyId, (float) $price);
             $discount_calculated = $roundingService->roundForCompany($companyId, (float) $discount_calculated);
 
@@ -699,7 +745,6 @@ class OrdersRepository extends BaseRepository
                 'cash_id' => $cash_id,
                 'status_id' => $status_id,
                 'category_id' => $category_id,
-                'currency_id' => $currency_id,
                 'price' => $price,
                 'discount' => $discount_calculated,
                 'date' => $date,
@@ -730,40 +775,16 @@ class OrdersRepository extends BaseRepository
             }
 
             if (!empty($products)) {
+                // Используем уже рассчитанные данные из кэша
                 $productsData = [];
-                foreach ($products as $product) {
-                    $p_id = $product['product_id'];
-                    $q = $quantityRoundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
-                    $p = $product['price'];
-                                    $width = $product['width'] ?? null;
-                $height = $product['height'] ?? null;
-
-                if ($project_id) {
-                        $productPrice = ProductPrice::where('product_id', $p_id)->first();
-                        if ($productPrice && $productPrice->wholesale_price > 0) {
-                            $p = $productPrice->wholesale_price;
-                        }
-                    }
-
-                                    $unitPrice = $p;
-
-                if ($width && $height) {
-                        $productObject = Product::find($p_id);
-                        if ($productObject) {
-                            $unitShortName = $productObject->unit ? $productObject->unit->short_name : '';
-                            $unitName = $productObject->unit ? $productObject->unit->name : '';
-                            $calculatedQuantity = $this->calculateQuantityFromDimensions($width, $height, $unitShortName, $unitName);
-                            $q = $calculatedQuantity;
-                        }
-                    }
-
+                foreach ($productsCache as $p_id => $cached) {
                     $productsData[] = [
                         'order_id' => $id,
                         'product_id' => $p_id,
-                        'quantity' => $q,
-                        'price' => $unitPrice,
-                        'width' => $width,
-                        'height' => $height,
+                        'quantity' => $cached['quantity'],
+                        'price' => $cached['price'],
+                        'width' => $cached['width'],
+                        'height' => $cached['height'],
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
@@ -857,9 +878,6 @@ class OrdersRepository extends BaseRepository
                 return $order;
             }
 
-            if (isset($data['additional_fields'])) {
-                $this->updateAdditionalFields($order->id, $data['additional_fields']);
-            }
 
             $orderTransaction = Transaction::where('source_type', Order::class)
                 ->where('source_id', $order->id)
@@ -921,6 +939,13 @@ class OrdersRepository extends BaseRepository
         }
     }
 
+    /**
+     * Удалить заказ
+     *
+     * @param int $id ID заказа
+     * @return array Данные удаленного заказа
+     * @throws \Exception
+     */
     public function deleteItem($id)
     {
         return DB::transaction(function () use ($id) {
@@ -958,6 +983,15 @@ class OrdersRepository extends BaseRepository
             return $orderData;
         });
     }
+    /**
+     * Обновить статус у нескольких заказов
+     *
+     * @param array $ids Массив ID заказов
+     * @param int $statusId ID нового статуса
+     * @param string $userId UUID пользователя
+     * @return int|array Количество обновленных заказов или массив с ошибкой
+     * @throws \Exception
+     */
     public function updateStatusByIds(array $ids, int $statusId, string $userId)
     {
         $targetStatus = OrderStatus::findOrFail($statusId);
@@ -1016,96 +1050,32 @@ class OrdersRepository extends BaseRepository
     }
 
 
-    private function saveAdditionalFields($orderId, array $additionalFields)
+
+    /**
+     * Рассчитать количество товара по размерам (ширина и высота)
+     *
+     * @param float|int $width Ширина
+     * @param float|int $height Высота
+     * @param int $unitId ID единицы измерения
+     * @return float Рассчитанное количество (округленное)
+     */
+    public function calculateQuantityFromDimensions($width, $height, $unitId)
     {
-        $fieldsData = [];
-
-        foreach ($additionalFields as $field) {
-            $fieldsData[] = [
-                'order_id' => $orderId,
-                'order_af_id' => $field['field_id'],
-                'value' => $field['value'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }
-
-        if (!empty($fieldsData)) {
-            OrderAfValue::insert($fieldsData);
-        }
-    }
-
-    private function updateAdditionalFields($orderId, array $additionalFields)
-    {
-        OrderAfValue::where('order_id', $orderId)->delete();
-
-        if (!empty($additionalFields)) {
-            $this->saveAdditionalFields($orderId, $additionalFields);
-        }
-    }
-
-    public function getAdditionalFields($orderId)
-    {
-        return OrderAfValue::with('additionalField')
-            ->where('order_id', $orderId)
-            ->get()
-            ->map(function ($value) {
-                return [
-                    'field_id' => $value->order_af_id,
-                    'value' => $value->value,
-                    'field' => $value->additionalField,
-                    'formatted_value' => $value->getFormattedValue()
-                ];
-            });
-    }
-
-    private function formatAdditionalFields($order)
-    {
-        if (isset($order->additionalFieldValues) && is_iterable($order->additionalFieldValues)) {
-            return collect($order->additionalFieldValues)->map(function ($value) {
-                return [
-                    'field_id' => $value->order_af_id,
-                    'value' => $value->value,
-                    'field' => $value->additionalField,
-                    'formatted_value' => $value->getFormattedValue()
-                ];
-            })->values();
-        }
-
-        return $this->getAdditionalFields($order->id);
-    }
-
-    public function calculateQuantityFromDimensions($width, $height, $unitShortName, $unitName)
-    {
-        if (!$width || !$height || $width <= 0 || $height <= 0) {
+        if (!$width || !$height || $width <= 0 || $height <= 0 || !$unitId) {
             return 0;
         }
 
         $width = (float) $width;
         $height = (float) $height;
 
-        if ($unitShortName === 'м²' || $unitName === 'Квадратный метр') {
-            $raw = $width * $height;
-        } elseif ($unitShortName === 'м' || $unitName === 'Метр') {
+        // ID 1 - Метр (м) - вычисляем периметр: 2*width + 2*height
+        if ($unitId == 1) {
             $raw = 2 * $width + 2 * $height;
-        } elseif ($unitShortName === 'л' || $unitName === 'Литр') {
-            $raw = $width * $height;
-        } elseif (
-            $unitShortName === 'кг' || $unitName === 'Килограмм' ||
-            $unitShortName === 'г' || $unitName === 'Грамм'
-        ) {
-            $raw = $width * $height;
-        } elseif ($unitShortName === 'шт' || $unitName === 'Штука') {
-            $raw = $width * $height;
-        } elseif (
-            $unitShortName === 'уп' || $unitName === 'Упаковка' ||
-            $unitShortName === 'кор' || $unitName === 'Коробка' ||
-            $unitShortName === 'пал' || $unitName === 'Паллета' ||
-            $unitShortName === 'комп' || $unitName === 'Комплект' ||
-            $unitShortName === 'рул' || $unitName === 'Рулон'
-        ) {
-            $raw = $width * $height;
         } else {
+            // Все остальные единицы (ID 2-12) - вычисляем площадь: width * height
+            // ID 2 - Квадратный метр (м²)
+            // ID 3 - Литр (л)
+            // ID 4-12 - остальные единицы
             $raw = $width * $height;
         }
 

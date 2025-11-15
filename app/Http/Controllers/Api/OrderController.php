@@ -4,25 +4,36 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Repositories\OrdersRepository;
-use App\Repositories\OrderAfRepository;
 use App\Services\CacheService;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Spatie\Permission\Traits\HasRoles;
 
+/**
+ * Контроллер для работы с заказами
+ */
 class OrderController extends Controller
 {
     use HasRoles;
 
     protected $itemRepository;
-    protected $orderAfRepository;
 
-    public function __construct(OrdersRepository $itemRepository, OrderAfRepository $orderAfRepository)
+    /**
+     * Конструктор контроллера
+     *
+     * @param OrdersRepository $itemRepository Репозиторий заказов
+     */
+    public function __construct(OrdersRepository $itemRepository)
     {
         $this->itemRepository = $itemRepository;
-        $this->orderAfRepository = $orderAfRepository;
     }
 
+    /**
+     * Получить список заказов с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -42,6 +53,12 @@ class OrderController extends Controller
         return $this->paginatedResponse($items);
     }
 
+    /**
+     * Создать новый заказ
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -59,7 +76,6 @@ class OrderController extends Controller
             'description' => 'nullable|string',
             'date' => 'nullable|date',
             'note' => 'nullable|string',
-            'description' => 'nullable|string',
             'status_id'    => 'nullable|integer|exists:order_statuses,id',
             'products'              => 'sometimes|array',
             'products.*.product_id' => 'required_with:products|integer|exists:products,id',
@@ -75,9 +91,6 @@ class OrderController extends Controller
             'temp_products.*.unit_id'     => 'nullable|exists:units,id',
             'temp_products.*.width'       => 'nullable|numeric|min:0',
             'temp_products.*.height'      => 'nullable|numeric|min:0',
-            'additional_fields' => 'sometimes|array',
-            'additional_fields.*.field_id' => 'required_with:additional_fields|integer|exists:order_af,id',
-            'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
         ]);
 
         $categoryId = $request->category_id;
@@ -96,10 +109,9 @@ class OrderController extends Controller
             'category_id' => $categoryId,
             'discount' => $request->discount ?? 0,
             'discount_type' => $request->discount_type ?? 'percent',
-            'description' => $request->description,
+            'description' => $request->description ?? '',
             'date'         => $request->date ?? now(),
             'note'         => $request->note ?? '',
-            'description' => $request->description ?? '',
             'status_id'    => 1,
             'products'     => array_map(fn($p) => [
                 'product_id' => $p['product_id'],
@@ -117,7 +129,6 @@ class OrderController extends Controller
                 'width'       => $p['width'] ?? null,
                 'height'      => $p['height'] ?? null,
             ], $request->temp_products ?? []),
-            'additional_fields' => $request->additional_fields ?? [],
         ];
 
         if (!empty($request->temp_products)) {
@@ -152,6 +163,14 @@ class OrderController extends Controller
             return $this->errorResponse($th->getMessage(), 400);
         }
     }
+
+    /**
+     * Обновить заказ
+     *
+     * @param Request $request
+     * @param int $id ID заказа
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -161,7 +180,6 @@ class OrderController extends Controller
             return $this->notFoundResponse('Заказ не найден');
         }
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('orders', 'update', $order)) {
             return $this->forbiddenResponse('У вас нет прав на редактирование этого заказа');
         }
@@ -191,9 +209,6 @@ class OrderController extends Controller
             'temp_products.*.unit_id'     => 'nullable|exists:units,id',
             'temp_products.*.width'       => 'nullable|numeric|min:0',
             'temp_products.*.height'      => 'nullable|numeric|min:0',
-            'additional_fields' => 'sometimes|array',
-            'additional_fields.*.field_id' => 'required_with:additional_fields|integer|exists:order_af,id',
-            'additional_fields.*.value' => 'required_with:additional_fields|string|max:1000',
         ]);
 
         $categoryId = $request->category_id;
@@ -231,7 +246,6 @@ class OrderController extends Controller
                 'width'       => $p['width'] ?? null,
                 'height'      => $p['height'] ?? null,
             ], $request->temp_products ?? []),
-            'additional_fields' => $request->additional_fields ?? [],
         ];
 
         if (!empty($request->temp_products)) {
@@ -267,6 +281,12 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Удалить заказ
+     *
+     * @param int $id ID заказа
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -276,7 +296,6 @@ class OrderController extends Controller
             return $this->notFoundResponse('Заказ не найден');
         }
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('orders', 'delete', $order)) {
             return $this->forbiddenResponse('У вас нет прав на удаление этого заказа');
         }
@@ -304,6 +323,13 @@ class OrderController extends Controller
             return $this->errorResponse('Ошибка при удалении заказа: ' . $th->getMessage(), 400);
         }
     }
+
+    /**
+     * Массовое обновление статуса заказов
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function batchUpdateStatus(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -314,7 +340,6 @@ class OrderController extends Controller
             'status_id' => 'required|integer|exists:order_statuses,id',
         ]);
 
-        // Проверяем права на каждый заказ
         $orders = Order::whereIn('id', $request->ids)->get();
         foreach ($orders as $order) {
             if (!$this->canPerformAction('orders', 'update', $order)) {
@@ -342,6 +367,12 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Получить заказ по ID
+     *
+     * @param int $id ID заказа
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function show($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -350,7 +381,6 @@ class OrderController extends Controller
             return $this->notFoundResponse('Not found');
         }
 
-        // Проверяем права с учетом _all/_own
         if (!$this->canPerformAction('orders', 'view', $item)) {
             return $this->forbiddenResponse('У вас нет прав на просмотр этого заказа');
         }
@@ -365,6 +395,11 @@ class OrderController extends Controller
         return response()->json(['item' => $item]);
     }
 
+    /**
+     * Получить время сервера
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getServerTime()
     {
         return response()->json([
