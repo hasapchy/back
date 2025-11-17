@@ -11,12 +11,12 @@ class CompanySeeder extends Seeder
     public function run()
     {
         // Обновляем все существующие компании, у которых нет логотипа
-        Company::whereNull('logo')->orWhere('logo', '')->update(['logo' => 'logo.jpg']);
+        Company::whereNull('logo')->orWhere('logo', '')->update(['logo' => 'logo.png']);
 
         // Создаем тестовую компанию, если её нет
         $company = Company::firstOrCreate(
             ['name' => 'Тестовая компания'],
-            ['logo' => 'logo.jpg']
+            ['logo' => 'logo.png']
         );
 
         // Связываем компанию с администратором

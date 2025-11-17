@@ -206,7 +206,7 @@ class CompaniesController extends Controller
         }
 
         if ($request->hasFile('logo')) {
-            if ($company->logo && $company->logo !== 'logo.jpg') {
+            if ($company->logo && $company->logo !== 'logo.png') {
                 Storage::disk('public')->delete($company->logo);
             }
             $data['logo'] = $request->file('logo')->store('companies', 'public');

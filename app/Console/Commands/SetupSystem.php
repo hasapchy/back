@@ -20,7 +20,7 @@ class SetupSystem extends Command
         // Создаем базовую компанию
         $company = Company::firstOrCreate(
             ['name' => 'Основная компания'],
-            ['logo' => 'logo.jpg']
+            ['logo' => 'logo.png']
         );
         $this->info("✅ Компания: {$company->name} (ID: {$company->id})");
         

@@ -46,7 +46,7 @@ class Company extends Model
     ];
 
     protected $attributes = [
-        'logo' => 'logo.jpg',
+        'logo' => 'logo.png',
         'show_deleted_transactions' => false,
         'rounding_enabled' => true,
         'rounding_direction' => 'standard',
