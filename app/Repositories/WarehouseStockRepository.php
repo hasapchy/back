@@ -144,7 +144,7 @@ class WarehouseStockRepository extends BaseRepository
                 $productsQuery->whereRaw('COALESCE(stock_totals.quantity, 0) = 0');
             }
 
-            $productsQuery->orderBy('products.name');
+            $productsQuery->orderByDesc('products.id');
 
             $paginated = $productsQuery->paginate($perPage, ['*'], 'page', (int)$page);
 
