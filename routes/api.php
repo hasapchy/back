@@ -203,7 +203,7 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions/{id}', [TransactionsController::class, 'show']);
 
-    Route::get('transfers', [TransfersController::class, 'index']);
+    Route::middleware('permission.scope:transfers_view_all,transfers_view')->get('transfers', [TransfersController::class, 'index']);
     Route::middleware('permission:transfers_create')->post('transfers', [TransfersController::class, 'store']);
     Route::middleware(['permission:transfers_update', 'time.restriction:CashTransfer'])->put('transfers/{id}', [TransfersController::class, 'update']);
     Route::middleware(['permission:transfers_delete', 'time.restriction:CashTransfer'])->delete('transfers/{id}', [TransfersController::class, 'destroy']);

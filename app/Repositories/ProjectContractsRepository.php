@@ -47,16 +47,7 @@ class ProjectContractsRepository extends BaseRepository
      */
     private function applyCompanyFilter($query)
     {
-        $companyId = $this->getCurrentCompanyId();
-        if ($companyId) {
-            $query->whereHas('project', function ($q) use ($companyId) {
-                $q->where('projects.company_id', $companyId);
-            });
-        } else {
-            $query->whereHas('project', function ($q) {
-                $q->whereNull('projects.company_id');
-            });
-        }
+        // TODO: restore company filter when multi-company isolation is re-enabled
         return $query;
     }
 
