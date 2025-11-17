@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Repositories\ProjectContractsRepository;
-use App\Models\ProjectContract;
 use App\Models\Project;
-use Illuminate\Http\Request;
+use App\Models\ProjectContract;
+use App\Repositories\ProjectContractsRepository;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Контроллер для управления контрактами проектов
@@ -260,3 +260,4 @@ class ProjectContractsController extends Controller
         }
     }
 }
+
