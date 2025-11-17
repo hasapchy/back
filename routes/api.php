@@ -156,7 +156,7 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::middleware('permission.scope:products_update_all,products_update')->post('products/{id}/categories/primary', [ProductController::class, 'setPrimaryCategory']);
 
     Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients', [ClientController::class, 'index']);
-    Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/all', [ClientController::class, 'all']);
+    Route::get('clients/all', [ClientController::class, 'all']);
     Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/search', [ClientController::class, 'search']);
     Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/{id}', [ClientController::class, 'show']);
     Route::middleware('permission:clients_create')->post('clients', [ClientController::class, 'store']);
