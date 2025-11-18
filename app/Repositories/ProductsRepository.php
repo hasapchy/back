@@ -200,13 +200,11 @@ class ProductsRepository extends BaseRepository
                 $product->purchase_price = $price?->purchase_price;
 
                 if ($warehouseId) {
-                    // Остатки на конкретном складе
                     $stock = WarehouseStock::where('warehouse_id', $warehouseId)
                         ->where('product_id', $product->id)
                         ->value('quantity');
                     $product->stock_quantity = $stock ?? 0;
                 } else {
-                    // Сумма остатков по всем доступным складам пользователя
                     $warehouseIds = WhUser::where('user_id', $userUuid)
                         ->pluck('warehouse_id')
                         ->toArray();
@@ -214,8 +212,18 @@ class ProductsRepository extends BaseRepository
                     $totalStock = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
                         ->where('product_id', $product->id)
                         ->sum('quantity');
-                    $product->stock_quantity = $totalStock ?? 0;
+                    $product->stock_quantity = $totalStock;
                 }
+
+                $product->makeVisible([
+                    'retail_price',
+                    'wholesale_price',
+                    'purchase_price',
+                    'stock_quantity',
+                    'category_name',
+                    'unit_name',
+                    'unit_short_name'
+                ]);
             });
 
             return $products;

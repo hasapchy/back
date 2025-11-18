@@ -93,7 +93,23 @@ class UserCompanyController extends Controller
             return $this->unauthorizedResponse();
         }
 
-        $companies = $user->companies()->select('companies.id', 'companies.name', 'companies.logo')->get();
+        $companies = $user->companies()->select(
+            'companies.id',
+            'companies.name',
+            'companies.logo',
+            'companies.show_deleted_transactions',
+            'companies.rounding_decimals',
+            'companies.rounding_enabled',
+            'companies.rounding_direction',
+            'companies.rounding_custom_threshold',
+            'companies.rounding_quantity_decimals',
+            'companies.rounding_quantity_enabled',
+            'companies.rounding_quantity_direction',
+            'companies.rounding_quantity_custom_threshold',
+            'companies.skip_project_order_balance',
+            'companies.created_at',
+            'companies.updated_at'
+        )->get();
 
         return response()->json($companies);
     }
