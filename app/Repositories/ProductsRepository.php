@@ -214,7 +214,7 @@ class ProductsRepository extends BaseRepository
                     $totalStock = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
                         ->where('product_id', $product->id)
                         ->sum('quantity');
-                    $product->stock_quantity = $totalStock;
+                    $product->stock_quantity = $totalStock ?? 0;
                 }
             });
 
