@@ -214,16 +214,6 @@ class ProductsRepository extends BaseRepository
                         ->sum('quantity');
                     $product->stock_quantity = $totalStock;
                 }
-
-                $product->makeVisible([
-                    'retail_price',
-                    'wholesale_price',
-                    'purchase_price',
-                    'stock_quantity',
-                    'category_name',
-                    'unit_name',
-                    'unit_short_name'
-                ]);
             });
 
             return $products;

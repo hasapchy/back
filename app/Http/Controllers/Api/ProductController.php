@@ -64,6 +64,19 @@ class ProductController extends Controller
         $categoryId = $this->normalizeCategoryIdForBasementWorker($request->query('category_id'));
 
         $items = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId);
+        
+        \Log::info('ProductController::search response', [
+            'count' => $items->count(),
+            'first_item' => $items->first() ? [
+                'id' => $items->first()->id,
+                'name' => $items->first()->name,
+                'retail_price' => $items->first()->retail_price ?? 'NOT SET',
+                'wholesale_price' => $items->first()->wholesale_price ?? 'NOT SET',
+                'purchase_price' => $items->first()->purchase_price ?? 'NOT SET',
+                'stock_quantity' => $items->first()->stock_quantity ?? 'NOT SET',
+                'toArray' => $items->first()->toArray()
+            ] : null
+        ]);
 
         return response()->json($items);
     }
