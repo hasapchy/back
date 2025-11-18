@@ -629,6 +629,7 @@ class OrdersRepository extends BaseRepository
         DB::beginTransaction();
         try {
             $order = Order::findOrFail($id);
+            $oldClientId = $order->client_id;
             $oldProducts = OrderProduct::where('order_id', $id)->get();
 
             foreach ($oldProducts as $product) {
@@ -663,6 +664,7 @@ class OrdersRepository extends BaseRepository
 
             $roundingService = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
+            $clientChanged = (int) $oldClientId !== (int) $client_id;
 
             // Сначала рассчитываем количества с учетом размеров и проверяем склад
             $productsCache = [];
@@ -895,7 +897,14 @@ class OrdersRepository extends BaseRepository
 
             if ($orderTransaction) {
                 if ($client_id) {
-                    if ($orderTransaction->amount != $total_price) {
+                    $transactionNeedsUpdate = $orderTransaction->amount != $total_price
+                        || (int) $orderTransaction->client_id !== (int) $client_id
+                        || (int) $orderTransaction->project_id !== (int) $project_id
+                        || (int) $orderTransaction->cash_id !== (int) $cash_id
+                        || $orderTransaction->date != $date
+                        || $orderTransaction->note !== $note;
+
+                    if ($transactionNeedsUpdate) {
                         $txRepo = new TransactionsRepository();
                         $txRepo->updateItem($orderTransaction->id, [
                             'amount' => $total_price,
@@ -932,7 +941,12 @@ class OrdersRepository extends BaseRepository
 
             CacheService::invalidateOrdersCache();
             CacheService::invalidateClientsCache();
-            $this->invalidateClientBalanceCache($client_id);
+            if ($client_id) {
+                $this->invalidateClientBalanceCache($client_id);
+            }
+            if ($clientChanged && $oldClientId) {
+                $this->invalidateClientBalanceCache($oldClientId);
+            }
 
             if ($project_id) {
                 $projectsRepository = new \App\Repositories\ProjectsRepository();

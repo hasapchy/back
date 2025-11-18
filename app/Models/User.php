@@ -226,4 +226,24 @@ class User extends Authenticatable implements JWTSubject
 
         return array_values($result);
     }
+
+    /**
+     * Получить полный список ролей пользователя (глобальные + по компаниям)
+     */
+    public function getAllRoleNames(): array
+    {
+        $this->loadMissing('roles');
+
+        $globalRoles = $this->roles->pluck('name');
+        $companyRoleNames = collect($this->getAllCompanyRoles())
+            ->flatMap(static function ($companyRole) {
+                return $companyRole['role_ids'] ?? [];
+            });
+
+        return $globalRoles
+            ->merge($companyRoleNames)
+            ->unique()
+            ->values()
+            ->toArray();
+    }
 }

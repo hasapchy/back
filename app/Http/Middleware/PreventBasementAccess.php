@@ -23,11 +23,9 @@ class PreventBasementAccess
             return response()->json(['error' => 'Unauthenticated'], 401);
         }
 
-        // Получаем роли пользователя
-        $roles = $user->roles->pluck('name')->toArray();
+        $roles = $user->getAllRoleNames();
 
-        // Если у пользователя есть роль basement_worker, но НЕТ роли admin, блокируем доступ
-        if (in_array('basement_worker', $roles) && !in_array('admin', $roles)) {
+        if (in_array('basement_worker', $roles, true) && !in_array('admin', $roles, true)) {
             return response()->json([
                 'error' => 'Access denied',
                 'message' => 'Basement workers cannot access the main system'

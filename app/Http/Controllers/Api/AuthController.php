@@ -30,6 +30,7 @@ class AuthController extends Controller
         /** @var User $user */
         $user = auth('api')->user();
         $user->load('roles', 'permissions');
+        $resolvedRoles = $user->getAllRoleNames();
 
         if (!$user->is_active) {
             auth('api')->logout();
@@ -57,7 +58,7 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'photo' => $user->photo,
                 'is_admin' => $user->is_admin,
-                'roles' => $user->roles->pluck('name')->toArray(),
+                'roles' => $resolvedRoles,
                 'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
             ]
         ]);
@@ -71,7 +72,7 @@ class AuthController extends Controller
 
         $companyId = $this->getCurrentCompanyId();
         $permissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray() : $user->getAllPermissions()->pluck('name')->toArray();
-        $roles = $companyId ? $user->getRolesForCompany((int)$companyId)->pluck('name')->toArray() : $user->roles->pluck('name')->toArray();
+        $roles = $user->getAllRoleNames();
 
         return response()->json([
             'user' => [
@@ -128,6 +129,7 @@ class AuthController extends Controller
             }
 
             $user->load('roles', 'permissions');
+            $resolvedRoles = $user->getAllRoleNames();
 
             $newAccessToken = auth('api')->login($user);
             $newRefreshToken = JWTAuth::fromUser($user);
@@ -143,7 +145,7 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'is_admin' => $user->is_admin,
-                    'roles' => $user->roles->pluck('name')->toArray(),
+                    'roles' => $resolvedRoles,
                     'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
                 ]
             ]);
