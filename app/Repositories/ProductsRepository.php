@@ -10,37 +10,10 @@ use App\Models\WarehouseStock;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use App\Models\CategoryUser;
-use App\Models\Category;
 use App\Models\WhUser;
 
 class ProductsRepository extends BaseRepository
 {
-    /**
-     * Получить ID категорий пользователя
-     *
-     * @param int $userUuid ID пользователя
-     * @return array
-     */
-    private function getUserCategoryIds($userUuid)
-    {
-        $companyId = $this->getCurrentCompanyId();
-
-        $userCategoryIds = CategoryUser::where('user_id', $userUuid)
-            ->pluck('category_id')
-            ->toArray();
-
-        if ($companyId) {
-            $companyCategoryIds = Category::where('company_id', $companyId)
-                ->pluck('id')
-                ->toArray();
-
-            $userCategoryIds = array_intersect($userCategoryIds, $companyCategoryIds);
-        }
-
-        return $userCategoryIds;
-    }
-
     /**
      * Получить товары с пагинацией
      *

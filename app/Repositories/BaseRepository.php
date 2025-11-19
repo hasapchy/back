@@ -3,6 +3,8 @@
 namespace App\Repositories;
 
 use App\Models\CashRegister;
+use App\Models\Category;
+use App\Models\CategoryUser;
 use App\Models\Currency;
 use App\Services\CurrencyConverter;
 use App\Services\RoundingService;
@@ -17,6 +19,37 @@ abstract class BaseRepository
     protected function getCurrentCompanyId()
     {
         return request()->header('X-Company-ID');
+    }
+
+    /**
+     * Получить ID категорий, доступных пользователю в рамках текущей компании
+     *
+     * @param int $userId ID пользователя
+     * @return array
+     */
+    protected function getUserCategoryIds(int $userId): array
+    {
+        $categoryIds = CategoryUser::where('user_id', $userId)
+            ->pluck('category_id')
+            ->toArray();
+
+        if (empty($categoryIds)) {
+            return [];
+        }
+
+        $companyId = $this->getCurrentCompanyId();
+
+        if ($companyId) {
+            $categoryIds = Category::where('company_id', $companyId)
+                ->whereIn('id', $categoryIds)
+                ->pluck('id')
+                ->toArray();
+        }
+
+        $categoryIds = array_values(array_unique($categoryIds));
+        sort($categoryIds);
+
+        return $categoryIds;
     }
 
     /**

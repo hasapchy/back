@@ -32,5 +32,6 @@ class TransactionCategorySeeder extends Seeder
         TransactionCategory::updateOrCreate(['id' => 20, 'name' => 'Бонус'], ['type' => 0, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 21, 'name' => 'Корректировка остатка'], ['type' => 0, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 22, 'name' => 'Корректировка остатка'], ['type' => 1, 'user_id' => 1]);
+        TransactionCategory::updateOrCreate(['id' => 25, 'name' => 'Заказ'], ['type' => 1, 'user_id' => 1]);
     }
 }

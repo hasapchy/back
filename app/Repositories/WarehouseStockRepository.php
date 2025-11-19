@@ -29,6 +29,8 @@ class WarehouseStockRepository extends BaseRepository
         $companyId = $this->getCurrentCompanyId();
         $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
         $searchNormalized = trim((string)$search);
+        $userCategoryIds = $this->getUserCategoryIds($filterUserId);
+        $categoryAccessHash = md5(json_encode($userCategoryIds));
         $cacheKey = $this->generateCacheKey('warehouse_stocks_paginated', [
             $userUuid,
             $perPage,
@@ -38,10 +40,11 @@ class WarehouseStockRepository extends BaseRepository
             md5($searchNormalized),
             'products_only_v3',
             $currentUser?->id,
-            $companyId
+            $companyId,
+            $categoryAccessHash
         ]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($filterUserId, $perPage, $warehouse_id, $category_id, $page, $searchNormalized, $availability) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($filterUserId, $perPage, $warehouse_id, $category_id, $page, $searchNormalized, $availability, $userCategoryIds) {
             $userWarehouseIds = \App\Models\WhUser::where('user_id', $filterUserId)
                 ->pluck('warehouse_id')
                 ->toArray();
@@ -71,6 +74,31 @@ class WarehouseStockRepository extends BaseRepository
                 $warehouseName = Warehouse::findOrFail($warehouse_id)->name;
             }
 
+            if (empty($userCategoryIds)) {
+                return new LengthAwarePaginator(
+                    collect([]),
+                    0,
+                    $perPage,
+                    $page,
+                    ['path' => request()->url(), 'query' => request()->query()]
+                );
+            }
+
+            $categoryFilterIds = $userCategoryIds;
+            if ($category_id) {
+                $categoryFilterIds = array_values(array_intersect($userCategoryIds, [(int)$category_id]));
+
+                if (empty($categoryFilterIds)) {
+                    return new LengthAwarePaginator(
+                        collect([]),
+                        0,
+                        $perPage,
+                        $page,
+                        ['path' => request()->url(), 'query' => request()->query()]
+                    );
+                }
+            }
+
             $primaryCategorySub = \App\Models\ProductCategory::select('product_id', DB::raw('MIN(category_id) as category_id'))
                 ->groupBy('product_id');
 
@@ -84,14 +112,12 @@ class WarehouseStockRepository extends BaseRepository
                     $q->whereIn('products.type', [1, true, '1']);
                 });
 
-            if ($category_id) {
-                $productsQuery->whereExists(function ($q) use ($category_id) {
-                    $q->select(DB::raw(1))
-                        ->from('product_categories as pc_filter')
-                        ->whereColumn('pc_filter.product_id', 'products.id')
-                        ->where('pc_filter.category_id', $category_id);
-                });
-            }
+            $productsQuery->whereExists(function ($q) use ($categoryFilterIds) {
+                $q->select(DB::raw(1))
+                    ->from('product_categories as pc_filter')
+                    ->whereColumn('pc_filter.product_id', 'products.id')
+                    ->whereIn('pc_filter.category_id', $categoryFilterIds);
+            });
 
             if ($searchNormalized !== '') {
                 $like = '%' . $searchNormalized . '%';

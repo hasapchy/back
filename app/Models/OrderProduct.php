@@ -13,7 +13,6 @@ use Spatie\Activitylog\Models\Activity;
  *
  * @property int $id
  * @property int $order_id ID заказа
- * @property int $user_id ID пользователя
  * @property int $product_id ID продукта
  * @property float $quantity Количество
  * @property float $price Цена
@@ -25,7 +24,6 @@ use Spatie\Activitylog\Models\Activity;
  *
  * @property-read \App\Models\Order $order
  * @property-read \App\Models\Product $product
- * @property-read \App\Models\User $user
  */
 class OrderProduct extends Model
 {
@@ -33,7 +31,6 @@ class OrderProduct extends Model
 
     protected $fillable = [
         'order_id',
-        'user_id',
         'product_id',
         'quantity',
         'price',
@@ -129,13 +126,4 @@ class OrderProduct extends Model
         return $this->belongsTo(Product::class, 'product_id');
     }
 
-    /**
-     * Связь с пользователем
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function user()
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
 }

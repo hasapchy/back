@@ -26,6 +26,8 @@ use App\Models\OrderStatusCategory;
 use App\Models\ProjectStatus;
 use App\Models\Template;
 use App\Models\Comment;
+use App\Models\EmployeeSalary;
+use App\Models\Currency;
 
 class UsersRepository extends BaseRepository
 {
@@ -99,7 +101,33 @@ class UsersRepository extends BaseRepository
             $paginated = $query->orderBy('users.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
             $companyId = $this->getCurrentCompanyId();
-            $paginated->getCollection()->transform(function ($user) use ($companyId) {
+            $userIds = $paginated->getCollection()->pluck('id')->toArray();
+
+            $salariesMap = [];
+            if (!empty($userIds) && $companyId) {
+                $salaries = EmployeeSalary::whereIn('user_id', $userIds)
+                    ->where('company_id', $companyId)
+                    ->with('currency:id,code,symbol,name')
+                    ->orderBy('user_id')
+                    ->orderBy('start_date', 'desc')
+                    ->get()
+                    ->groupBy('user_id');
+
+                foreach ($salaries as $userId => $userSalaries) {
+                    $lastSalary = $userSalaries->first();
+                    $salariesMap[$userId] = [
+                        'id' => $lastSalary->id,
+                        'amount' => $lastSalary->amount,
+                        'start_date' => $lastSalary->start_date,
+                        'end_date' => $lastSalary->end_date,
+                        'currency' => $lastSalary->currency,
+                    ];
+                }
+            }
+
+            $salariesMapForTransform = $salariesMap;
+            $paginated->getCollection()->transform(function ($user) use ($companyId, $salariesMapForTransform) {
+                $user->last_salary = $salariesMapForTransform[$user->id] ?? null;
                 return $this->transformUserWithRelations($user, $companyId);
             });
 
@@ -157,7 +185,32 @@ class UsersRepository extends BaseRepository
 
             $users = $query->orderBy('users.created_at', 'desc')->get();
 
-            return $users->map(function ($user) use ($companyId) {
+            $userIds = $users->pluck('id')->toArray();
+            $salariesMap = [];
+            if (!empty($userIds) && $companyId) {
+                $salaries = EmployeeSalary::whereIn('user_id', $userIds)
+                    ->where('company_id', $companyId)
+                    ->with('currency:id,code,symbol,name')
+                    ->orderBy('user_id')
+                    ->orderBy('start_date', 'desc')
+                    ->get()
+                    ->groupBy('user_id');
+
+                foreach ($salaries as $userId => $userSalaries) {
+                    $lastSalary = $userSalaries->first();
+                    $salariesMap[$userId] = [
+                        'id' => $lastSalary->id,
+                        'amount' => $lastSalary->amount,
+                        'start_date' => $lastSalary->start_date,
+                        'end_date' => $lastSalary->end_date,
+                        'currency' => $lastSalary->currency,
+                    ];
+                }
+            }
+
+            $salariesMapForTransform = $salariesMap;
+            return $users->map(function ($user) use ($companyId, $salariesMapForTransform) {
+                $user->last_salary = $salariesMapForTransform[$user->id] ?? null;
                 return $this->transformUserWithRelations($user, $companyId);
             });
         });
@@ -174,6 +227,10 @@ class UsersRepository extends BaseRepository
     {
         DB::beginTransaction();
         try {
+            if (empty($data['companies']) || !is_array($data['companies'])) {
+                throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
+            }
+
             $user = new User();
             $user->name     = $data['name'];
             $user->email    = $data['email'];
@@ -195,6 +252,10 @@ class UsersRepository extends BaseRepository
             }
 
             $this->syncUserRoles($user, $data);
+
+            if ($user->companies()->count() === 0) {
+                throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
+            }
 
             DB::commit();
 
@@ -248,6 +309,10 @@ class UsersRepository extends BaseRepository
             }
 
             $this->syncUserRoles($user, $data);
+
+            if ($user->companies()->count() === 0) {
+                throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
+            }
 
             DB::commit();
 
@@ -327,6 +392,7 @@ class UsersRepository extends BaseRepository
             $user->setRelation('roles', $user->getRolesForCompany((int)$companyId));
         }
         $user->company_roles = $user->getAllCompanyRoles();
+
         return $user;
     }
 
@@ -479,5 +545,160 @@ class UsersRepository extends BaseRepository
         }
 
         return $relatedData;
+    }
+
+    /**
+     * Получить зарплаты сотрудника
+     *
+     * @param int $userId ID пользователя
+     * @param int|null $companyId ID компании (если null, используется текущая компания)
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getSalaries($userId, ?int $companyId = null)
+    {
+        $companyId = $companyId ?? $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('user_salaries', [$userId, $companyId]);
+
+        return CacheService::remember($cacheKey, function () use ($userId, $companyId) {
+            $query = EmployeeSalary::where('user_id', $userId)
+                ->with(['currency:id,code,symbol,name']);
+
+            if ($companyId) {
+                $query->where('company_id', $companyId);
+            }
+
+            return $query->orderBy('start_date', 'desc')->get();
+        }, 1800);
+    }
+
+    /**
+     * Создать зарплату сотрудника
+     *
+     * @param int $userId ID пользователя
+     * @param array $data Данные зарплаты
+     * @return EmployeeSalary
+     */
+    public function createSalary($userId, array $data)
+    {
+        $companyId = $this->getCurrentCompanyId();
+
+        DB::beginTransaction();
+        try {
+            $salary = EmployeeSalary::create([
+                'user_id' => $userId,
+                'company_id' => $companyId,
+                'start_date' => $data['start_date'],
+                'end_date' => $data['end_date'] ?? null,
+                'amount' => $data['amount'],
+                'currency_id' => $data['currency_id'],
+            ]);
+
+            DB::commit();
+
+            CacheService::invalidateByLike('%user_salaries%');
+
+            return $salary->load('currency');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Обновить зарплату сотрудника
+     *
+     * @param int $salaryId ID зарплаты
+     * @param array $data Данные для обновления
+     * @return EmployeeSalary
+     */
+    public function updateSalary($salaryId, array $data)
+    {
+        DB::beginTransaction();
+        try {
+            $salary = EmployeeSalary::findOrFail($salaryId);
+
+            $salary->update([
+                'start_date' => $data['start_date'] ?? $salary->start_date,
+                'end_date' => $data['end_date'] ?? $salary->end_date,
+                'amount' => $data['amount'] ?? $salary->amount,
+                'currency_id' => $data['currency_id'] ?? $salary->currency_id,
+            ]);
+
+            DB::commit();
+
+            CacheService::invalidateByLike('%user_salaries%');
+
+            return $salary->fresh('currency');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Удалить зарплату сотрудника
+     *
+     * @param int $salaryId ID зарплаты
+     * @return bool
+     */
+    public function deleteSalary($salaryId)
+    {
+        $salary = EmployeeSalary::findOrFail($salaryId);
+        $deleted = $salary->delete();
+
+        if ($deleted) {
+            CacheService::invalidateByLike('%user_salaries%');
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Получить баланс сотрудника через клиента
+     *
+     * @param int $userId ID пользователя
+     * @param int|null $companyId ID компании (если null, используется текущая компания)
+     * @return array|null Массив с client_id и balance, или null если клиент не найден
+     */
+    public function getEmployeeBalance($userId, ?int $companyId = null)
+    {
+        $companyId = $companyId ?? $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('user_employee_balance', [$userId, $companyId]);
+
+        return CacheService::remember($cacheKey, function () use ($userId) {
+            $query = Client::where('employee_id', $userId)
+                ->where('client_type', 'employee')
+                ->select('id', 'balance', 'company_id');
+
+            $query = $this->addCompanyFilterDirect($query, 'clients');
+            $client = $query->first();
+
+            if (!$client) {
+                return null;
+            }
+
+            return [
+                'client_id' => $client->id,
+                'balance' => $client->balance ?? 0,
+            ];
+        }, 900);
+    }
+
+    /**
+     * Получить историю баланса сотрудника
+     *
+     * @param int $userId ID пользователя
+     * @param int|null $companyId ID компании (если null, используется текущая компания)
+     * @return array Массив транзакций с описаниями
+     */
+    public function getEmployeeBalanceHistory($userId, ?int $companyId = null)
+    {
+        $balanceInfo = $this->getEmployeeBalance($userId, $companyId);
+
+        if (!$balanceInfo || !$balanceInfo['client_id']) {
+            return [];
+        }
+
+        return app(ClientsRepository::class)->getBalanceHistory($balanceInfo['client_id']);
     }
 }

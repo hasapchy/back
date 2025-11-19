@@ -93,6 +93,17 @@ class CacheService
     }
 
     /**
+     * Invalidate cached client balance history
+     *
+     * @param int $clientId
+     * @return void
+     */
+    public static function invalidateClientBalanceHistoryCache(int $clientId): void
+    {
+        self::invalidateByLike("%client_balance_history_{$clientId}_%");
+    }
+
+    /**
      * Invalidate client categories cache
      *
      * @return void

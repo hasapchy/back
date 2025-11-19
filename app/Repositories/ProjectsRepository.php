@@ -507,18 +507,28 @@ class ProjectsRepository extends BaseRepository
     public function updateStatusByIds(array $ids, int $statusId, string $userId): int
     {
         $targetStatus = \App\Models\ProjectStatus::findOrFail($statusId);
-        $updatedCount = 0;
+
+        $projects = Project::with([
+            'projectUsers' => function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            }
+        ])->whereIn('id', $ids)->get()->keyBy('id');
 
         foreach ($ids as $id) {
-            $project = Project::find($id);
-
-            if (!$project) {
+            if (!$projects->has($id)) {
                 throw new \Exception("Проект ID {$id} не найден");
             }
 
-            if (!$project->hasUser($userId)) {
+            if ($projects->get($id)->projectUsers->isEmpty()) {
                 throw new \Exception("Нет доступа к проекту ID {$id}");
             }
+        }
+
+        $updatedCount = 0;
+
+        foreach ($ids as $id) {
+            /** @var \App\Models\Project $project */
+            $project = $projects->get($id);
 
             if ($project->status_id != $statusId) {
                 $project->status_id = $statusId;

@@ -776,33 +776,47 @@ class OrdersRepository extends BaseRepository
             $existingProducts = OrderProduct::where('order_id', $id)->get();
             $productsChanged = false;
 
-            if (!empty($products) && $existingProducts->isNotEmpty()) {
-                $productsChanged = true;
-                foreach ($existingProducts as $existingProduct) {
-                    $existingProduct->delete();
-                }
+            $newProductsMap = [];
+            foreach ($productsCache as $p_id => $cached) {
+                $key = $p_id . '_' . $cached['quantity'] . '_' . $cached['price'] . '_' . ($cached['width'] ?? '') . '_' . ($cached['height'] ?? '');
+                $newProductsMap[$key] = [
+                    'product_id' => $p_id,
+                    'quantity' => $cached['quantity'],
+                    'price' => $cached['price'],
+                    'width' => $cached['width'],
+                    'height' => $cached['height'],
+                ];
             }
 
-            if (!empty($products)) {
-                // Используем уже рассчитанные данные из кэша
-                $productsData = [];
-                foreach ($productsCache as $p_id => $cached) {
-                    $productsData[] = [
-                        'order_id' => $id,
-                        'product_id' => $p_id,
-                        'quantity' => $cached['quantity'],
-                        'price' => $cached['price'],
-                        'width' => $cached['width'],
-                        'height' => $cached['height'],
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                }
+            $existingProductsMap = [];
+            foreach ($existingProducts as $existingProduct) {
+                $key = $existingProduct->product_id . '_' . $existingProduct->quantity . '_' . $existingProduct->price . '_' . ($existingProduct->width ?? '') . '_' . ($existingProduct->height ?? '');
+                $existingProductsMap[$key] = $existingProduct;
+            }
 
-                if (!empty($productsData)) {
-                    OrderProduct::insert($productsData);
-                    $productsChanged = true;
-                }
+            $productsToDelete = collect($existingProductsMap)->filter(function ($existingProduct, $key) use ($newProductsMap) {
+                return !isset($newProductsMap[$key]);
+            });
+
+            $productsToCreate = collect($newProductsMap)->filter(function ($newProduct, $key) use ($existingProductsMap) {
+                return !isset($existingProductsMap[$key]);
+            });
+
+            foreach ($productsToDelete as $productToDelete) {
+                $productToDelete->delete();
+                $productsChanged = true;
+            }
+
+            foreach ($productsToCreate as $newProduct) {
+                OrderProduct::create([
+                    'order_id' => $id,
+                    'product_id' => $newProduct['product_id'],
+                    'quantity' => $newProduct['quantity'],
+                    'price' => $newProduct['price'],
+                    'width' => $newProduct['width'],
+                    'height' => $newProduct['height'],
+                ]);
+                $productsChanged = true;
             }
 
             $existingTempProducts = OrderTempProduct::where('order_id', $id)->get();
@@ -1017,23 +1031,34 @@ class OrdersRepository extends BaseRepository
     {
         $targetStatus = OrderStatus::findOrFail($statusId);
 
+        $orders = Order::whereIn('id', $ids)->get()->keyBy('id');
+
+        foreach ($ids as $id) {
+            if (!$orders->has($id)) {
+                throw new \Exception("Заказ ID {$id} не найден");
+            }
+        }
+
+        $paidTotals = collect();
+        if (in_array($statusId, [3, 5], true)) {
+            $paidTotals = Transaction::where('source_type', \App\Models\Order::class)
+                ->whereIn('source_id', $orders->keys())
+                ->where('is_debt', false)
+                ->where('is_deleted', false)
+                ->select('source_id', DB::raw('SUM(orig_amount) as total_paid'))
+                ->groupBy('source_id')
+                ->pluck('total_paid', 'source_id');
+        }
+
         $updatedCount = 0;
 
         foreach ($ids as $id) {
-            $order = Order::find($id);
-
-            if (!$order) {
-                throw new \Exception("Заказ ID {$id} не найден");
-            }
+            /** @var \App\Models\Order $order */
+            $order = $orders->get($id);
 
             if (in_array($statusId, [3, 5], true) && !$order->project_id) {
                 $orderTotal = $order->price - $order->discount;
-
-                $paidTotal = Transaction::where('source_type', \App\Models\Order::class)
-                    ->where('source_id', $order->id)
-                    ->where('is_debt', 0)
-                    ->where('is_deleted', false)
-                    ->sum('orig_amount');
+                $paidTotal = (float) ($paidTotals->get($order->id) ?? 0);
 
                 if ($paidTotal <= 0) {
                     $remainingAmount = $orderTotal - $paidTotal;
@@ -1060,7 +1085,7 @@ class OrdersRepository extends BaseRepository
             CacheService::invalidateOrdersCache();
 
             foreach ($ids as $id) {
-                $order = Order::find($id);
+                $order = $orders->get($id);
                 if ($order && $order->client_id) {
                     $this->invalidateClientBalanceCache($order->client_id);
                 }

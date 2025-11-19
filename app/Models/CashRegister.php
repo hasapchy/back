@@ -115,6 +115,12 @@ class CashRegister extends Model
      */
     public function getUsersAttribute()
     {
+        $relation = $this->getRelationValue('users');
+
+        if ($relation !== null) {
+            return $relation;
+        }
+
         return $this->users()->get();
     }
 

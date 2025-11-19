@@ -73,10 +73,6 @@ class ClientController extends Controller
     public function show($id)
     {
         try {
-            if (method_exists($this->itemsRepository, 'invalidateClientBalanceCache')) {
-                $this->itemsRepository->invalidateClientBalanceCache($id);
-            }
-
             $client = $this->itemsRepository->getItemById($id);
 
             if (!$client) {

@@ -93,94 +93,113 @@ class CahRegistersRepository extends BaseRepository
             $query->whereIn('id', $cash_register_ids);
         }
 
-        $items = $query->get()
-            ->map(function ($cashRegister) use ($userUuid, $startDate, $endDate, $transactionType, $source) {
+        $cashRegisters = $query->get();
 
-                $txBase = Transaction::where('cash_id', $cashRegister->id)
-                    ->where('is_deleted', false)
-                    ->when($startDate || $endDate, function ($q) use ($startDate, $endDate) {
-                        if ($startDate && $endDate) {
-                            return $q->whereBetween('date', [$startDate, $endDate]);
-                        } elseif ($startDate) {
-                            return $q->where('date', '>=', $startDate);
-                        } elseif ($endDate) {
-                            return $q->where('date', '<=', $endDate);
-                        }
-                        return $q;
-                    })
-                    ->when($transactionType, function ($q) use ($transactionType) {
-                        switch ($transactionType) {
-                            case 'income':
-                                return $q->where('type', 1);
-                            case 'outcome':
-                                return $q->where('type', 0);
-                            case 'transfer':
-                                return $q->where(function ($subQ) {
-                                    $subQ->whereHas('cashTransfersFrom')
-                                        ->orWhereHas('cashTransfersTo');
-                                });
-                            default:
-                                return $q;
-                        }
-                    })
-                    ->when($source, function ($q) use ($source) {
-                        if (empty($source)) return $q;
+        if ($cashRegisters->isEmpty()) {
+            return collect();
+        }
 
-                        return $q->where(function ($subQ) use ($source) {
-                            $hasConditions = false;
+        $cashRegisterIds = $cashRegisters->pluck('id');
 
-                            if (in_array('sale', $source)) {
-                                $subQ->where('source_type', 'App\\Models\\Sale');
-                                $hasConditions = true;
-                            }
-                            if (in_array('order', $source)) {
-                                if ($hasConditions) {
-                                    $subQ->orWhere('source_type', 'App\\Models\\Order');
-                                } else {
-                                    $subQ->where('source_type', 'App\\Models\\Order');
-                                }
-                                $hasConditions = true;
-                            }
-                            if (in_array('other', $source)) {
-                                if ($hasConditions) {
-                                    $subQ->orWhere(function ($otherQ) {
-                                        $otherQ->whereNull('source_type')
-                                            ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
-                                    });
-                                } else {
-                                    $subQ->whereNull('source_type')
-                                        ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
-                                }
-                            }
+        $transactionsQuery = Transaction::whereIn('cash_id', $cashRegisterIds)
+            ->where('is_deleted', false)
+            ->when($startDate || $endDate, function ($q) use ($startDate, $endDate) {
+                if ($startDate && $endDate) {
+                    return $q->whereBetween('date', [$startDate, $endDate]);
+                } elseif ($startDate) {
+                    return $q->where('date', '>=', $startDate);
+                } elseif ($endDate) {
+                    return $q->where('date', '<=', $endDate);
+                }
+                return $q;
+            })
+            ->when($transactionType, function ($q) use ($transactionType) {
+                switch ($transactionType) {
+                    case 'income':
+                        return $q->where('type', 1);
+                    case 'outcome':
+                        return $q->where('type', 0);
+                    case 'transfer':
+                        return $q->where(function ($subQ) {
+                            $subQ->whereHas('cashTransfersFrom')
+                                ->orWhereHas('cashTransfersTo');
                         });
-                    });
-
-                $income  = (clone $txBase)->where('type', 1)->where('is_debt', false)->sum('amount');
-                $outcome = (clone $txBase)->where('type', 0)->where('is_debt', false)->sum('amount');
-                $debtIncome = (clone $txBase)->where('type', 1)->where('is_debt', true)->sum('amount');
-                $debtOutcome = (clone $txBase)->where('type', 0)->where('is_debt', true)->sum('amount');
-                $debtTotal = $debtIncome - $debtOutcome;
-
-                $balance = [
-                    ['value' => $income,  'title' => 'Приход',  'type' => 'income'],
-                    ['value' => $outcome, 'title' => 'Расход',  'type' => 'outcome'],
-                    ['value' => $cashRegister->balance, 'title' => 'Итого',                     'type' => 'default'],
-                ];
-
-                if ($debtTotal != 0) {
-                    $balance[] = ['value' => $debtTotal, 'title' => 'Долг', 'type' => 'debt'];
+                    default:
+                        return $q;
+                }
+            })
+            ->when($source, function ($q) use ($source) {
+                if (empty($source)) {
+                    return $q;
                 }
 
-                return [
-                    'id'          => $cashRegister->id,
-                    'name'        => $cashRegister->name,
-                    'currency_id' => $cashRegister->currency_id,
-                    'currency_symbol' => $cashRegister->currency ? $cashRegister->currency->symbol : null,
-                    'currency_code' => $cashRegister->currency ? $cashRegister->currency->code : null,
-                    'balance'     => $balance,
-                ];
+                return $q->where(function ($subQ) use ($source) {
+                    $hasConditions = false;
+
+                    if (in_array('sale', $source)) {
+                        $subQ->where('source_type', 'App\\Models\\Sale');
+                        $hasConditions = true;
+                    }
+                    if (in_array('order', $source)) {
+                        if ($hasConditions) {
+                            $subQ->orWhere('source_type', 'App\\Models\\Order');
+                        } else {
+                            $subQ->where('source_type', 'App\\Models\\Order');
+                        }
+                        $hasConditions = true;
+                    }
+                    if (in_array('other', $source)) {
+                        if ($hasConditions) {
+                            $subQ->orWhere(function ($otherQ) {
+                                $otherQ->whereNull('source_type')
+                                    ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
+                            });
+                        } else {
+                            $subQ->whereNull('source_type')
+                                ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
+                        }
+                    }
+                });
             });
-        return $items;
+
+        $transactionsStats = $transactionsQuery
+            ->select('cash_id')
+            ->selectRaw('SUM(CASE WHEN type = 1 AND is_debt = 0 THEN amount ELSE 0 END) as income_total')
+            ->selectRaw('SUM(CASE WHEN type = 0 AND is_debt = 0 THEN amount ELSE 0 END) as outcome_total')
+            ->selectRaw('SUM(CASE WHEN type = 1 AND is_debt = 1 THEN amount ELSE 0 END) as debt_income_total')
+            ->selectRaw('SUM(CASE WHEN type = 0 AND is_debt = 1 THEN amount ELSE 0 END) as debt_outcome_total')
+            ->groupBy('cash_id')
+            ->get()
+            ->keyBy('cash_id');
+
+        return $cashRegisters->map(function ($cashRegister) use ($transactionsStats) {
+            $stats = $transactionsStats->get($cashRegister->id);
+
+            $income = (float) ($stats->income_total ?? 0);
+            $outcome = (float) ($stats->outcome_total ?? 0);
+            $debtIncome = (float) ($stats->debt_income_total ?? 0);
+            $debtOutcome = (float) ($stats->debt_outcome_total ?? 0);
+            $debtTotal = $debtIncome - $debtOutcome;
+
+            $balance = [
+                ['value' => $income, 'title' => 'Приход', 'type' => 'income'],
+                ['value' => $outcome, 'title' => 'Расход', 'type' => 'outcome'],
+                ['value' => $cashRegister->balance, 'title' => 'Итого', 'type' => 'default'],
+            ];
+
+            if ($debtTotal != 0) {
+                $balance[] = ['value' => $debtTotal, 'title' => 'Долг', 'type' => 'debt'];
+            }
+
+            return [
+                'id' => $cashRegister->id,
+                'name' => $cashRegister->name,
+                'currency_id' => $cashRegister->currency_id,
+                'currency_symbol' => $cashRegister->currency ? $cashRegister->currency->symbol : null,
+                'currency_code' => $cashRegister->currency ? $cashRegister->currency->code : null,
+                'balance' => $balance,
+            ];
+        });
     }
 
     /**

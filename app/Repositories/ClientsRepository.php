@@ -610,7 +610,7 @@ class ClientsRepository extends BaseRepository
     public function invalidateClientBalanceCache($clientId)
     {
         CacheService::invalidateClientBalanceCache($clientId);
-
+        CacheService::invalidateClientBalanceHistoryCache($clientId);
         CacheService::invalidateClientsCache();
     }
 }

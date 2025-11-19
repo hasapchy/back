@@ -105,7 +105,7 @@ class UsersController extends Controller
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'roles' => 'nullable|array',
             'roles.*' => 'string|exists:roles,name,guard_name,api',
-            'companies' => 'nullable|array',
+            'companies' => 'required|array|min:1',
             'companies.*' => 'integer|exists:companies,id',
             'company_roles' => 'nullable|array',
             'company_roles.*.company_id' => 'required_with:company_roles|integer|exists:companies,id',
@@ -206,7 +206,7 @@ class UsersController extends Controller
                 'photo' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
                 'roles' => 'nullable|array',
                 'roles.*' => 'string|exists:roles,name,guard_name,api',
-                'companies' => 'nullable|array',
+                'companies' => 'sometimes|array|min:1',
                 'companies.*' => 'integer|exists:companies,id',
                 'company_roles' => 'nullable|array',
                 'company_roles.*.company_id' => 'required_with:company_roles|integer|exists:companies,id',
@@ -477,5 +477,183 @@ class UsersController extends Controller
             $user = $this->itemsRepository->updateItem($user->id, $photoData);
         }
         return $user;
+    }
+
+    /**
+     * Получить зарплаты сотрудника
+     *
+     * @param int $id ID пользователя
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getSalaries($id)
+    {
+        try {
+            $user = User::findOrFail($id);
+
+            if (!$this->canPerformAction('users', 'view', $user)) {
+                return $this->forbiddenResponse('Нет прав на просмотр зарплат этого пользователя');
+            }
+
+            $salaries = $this->itemsRepository->getSalaries($id);
+
+            return response()->json(['salaries' => $salaries]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Пользователь не найден', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при получении зарплат: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Создать зарплату сотрудника
+     *
+     * @param Request $request
+     * @param int $id ID пользователя
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function createSalary(Request $request, $id)
+    {
+        try {
+            $user = User::findOrFail($id);
+
+            if (!$this->canPerformAction('users', 'update', $user)) {
+                return $this->forbiddenResponse('Нет прав на создание зарплаты для этого пользователя');
+            }
+
+            $validatedData = $request->validate([
+                'start_date' => 'required|date',
+                'end_date' => 'nullable|date|after:start_date',
+                'amount' => 'required|numeric|min:0',
+                'currency_id' => 'required|exists:currencies,id',
+            ]);
+
+            $salary = $this->itemsRepository->createSalary($id, $validatedData);
+
+            return response()->json(['salary' => $salary, 'message' => 'Зарплата создана успешно']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Пользователь не найден', 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при создании зарплаты: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Обновить зарплату сотрудника
+     *
+     * @param Request $request
+     * @param int $userId ID пользователя
+     * @param int $salaryId ID зарплаты
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateSalary(Request $request, $userId, $salaryId)
+    {
+        try {
+            $user = User::findOrFail($userId);
+
+            if (!$this->canPerformAction('users', 'update', $user)) {
+                return $this->forbiddenResponse('Нет прав на обновление зарплаты для этого пользователя');
+            }
+
+            $validatedData = $request->validate([
+                'start_date' => 'nullable|date',
+                'end_date' => 'nullable|date|after:start_date',
+                'amount' => 'nullable|numeric|min:0',
+                'currency_id' => 'nullable|exists:currencies,id',
+            ]);
+
+            $salary = $this->itemsRepository->updateSalary($salaryId, $validatedData);
+
+            return response()->json(['salary' => $salary, 'message' => 'Зарплата обновлена успешно']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Пользователь или зарплата не найдены', 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при обновлении зарплаты: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Удалить зарплату сотрудника
+     *
+     * @param int $userId ID пользователя
+     * @param int $salaryId ID зарплаты
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteSalary($userId, $salaryId)
+    {
+        try {
+            $user = User::findOrFail($userId);
+
+            if (!$this->canPerformAction('users', 'update', $user)) {
+                return $this->forbiddenResponse('Нет прав на удаление зарплаты для этого пользователя');
+            }
+
+            $this->itemsRepository->deleteSalary($salaryId);
+
+            return response()->json(['message' => 'Зарплата удалена успешно']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Пользователь или зарплата не найдены', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при удалении зарплаты: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Получить баланс сотрудника
+     *
+     * @param int $id ID пользователя
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getEmployeeBalance($id)
+    {
+        try {
+            $user = User::findOrFail($id);
+
+            if (!$this->canPerformAction('users', 'view', $user)) {
+                return $this->forbiddenResponse('Нет прав на просмотр баланса этого пользователя');
+            }
+
+            $balance = $this->itemsRepository->getEmployeeBalance($id);
+
+            return response()->json(['balance' => $balance]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Пользователь не найден', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при получении баланса: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Получить историю баланса сотрудника
+     *
+     * @param int $id ID пользователя
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getEmployeeBalanceHistory($id)
+    {
+        $user = $this->requireAuthenticatedUser();
+
+        if (!$this->hasPermission('settings_client_balance_view', $user)) {
+            return $this->forbiddenResponse('Нет доступа к просмотру баланса сотрудника');
+        }
+
+        try {
+            $targetUser = User::findOrFail($id);
+
+            if (!$this->canPerformAction('users', 'view', $targetUser)) {
+                return $this->forbiddenResponse('Нет прав на просмотр баланса этого пользователя');
+            }
+
+            $history = $this->itemsRepository->getEmployeeBalanceHistory($id);
+
+            return response()->json(['history' => $history]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Пользователь не найден', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при получении истории баланса: ' . $e->getMessage(), 500);
+        }
     }
 }

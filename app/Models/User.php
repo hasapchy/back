@@ -128,6 +128,14 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
+     * Зарплаты сотрудника
+     */
+    public function salaries()
+    {
+        return $this->hasMany(\App\Models\EmployeeSalary::class, 'user_id');
+    }
+
+    /**
      * Роли пользователя в компаниях (many-to-many через company_user_role)
      */
     public function companyRoles()
@@ -210,10 +218,17 @@ class User extends Authenticatable implements JWTSubject
             ->select('company_id', 'role_id')
             ->get();
 
+        $roleIds = $companyRoles->pluck('role_id')->unique()->filter();
+        $roles = $roleIds->isNotEmpty()
+            ? \Spatie\Permission\Models\Role::where('guard_name', 'api')
+                ->whereIn('id', $roleIds)
+                ->get()
+                ->keyBy('id')
+            : collect();
+
         $result = [];
         foreach ($companyRoles as $companyRole) {
-            $role = \Spatie\Permission\Models\Role::where('guard_name', 'api')
-                ->find($companyRole->role_id);
+            $role = $roles->get($companyRole->role_id);
 
             if ($role) {
                 $companyId = $companyRole->company_id;

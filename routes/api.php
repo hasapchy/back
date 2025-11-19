@@ -98,6 +98,12 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::middleware('permission.scope:users_delete_all,users_delete')->delete('users/{id}', [UsersController::class, 'destroy']);
     Route::get('permissions', [UsersController::class, 'permissions']);
     Route::get('users/{id}/permissions', [UsersController::class, 'checkPermissions']);
+    Route::middleware('permission.scope:users_view_all,users_view')->get('users/{id}/salaries', [UsersController::class, 'getSalaries']);
+    Route::middleware('permission.scope:users_update_all,users_update')->post('users/{id}/salaries', [UsersController::class, 'createSalary']);
+    Route::middleware('permission.scope:users_update_all,users_update')->put('users/{userId}/salaries/{salaryId}', [UsersController::class, 'updateSalary']);
+    Route::middleware('permission.scope:users_update_all,users_update')->delete('users/{userId}/salaries/{salaryId}', [UsersController::class, 'deleteSalary']);
+    Route::middleware('permission.scope:users_view_all,users_view')->get('users/{id}/balance', [UsersController::class, 'getEmployeeBalance']);
+    Route::middleware('permission.scope:users_view_all,users_view')->get('users/{id}/balance-history', [UsersController::class, 'getEmployeeBalanceHistory']);
 
     Route::middleware('permission.scope:roles_view_all,roles_view')->get('roles', [RolesController::class, 'index']);
     Route::middleware('permission.scope:roles_view_all,roles_view')->get('roles/all', [RolesController::class, 'all']);
