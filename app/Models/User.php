@@ -6,15 +6,26 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-use Tymon\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Support\Facades\DB;
 
-class User extends Authenticatable implements JWTSubject
+class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, Notifiable, HasRoles, HasApiTokens;
 
     protected $guard_name = 'api';
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::updating(function ($user) {
+            if ($user->isDirty('is_active') && !$user->is_active) {
+                $user->tokens()->delete();
+            }
+        });
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -71,16 +82,6 @@ class User extends Authenticatable implements JWTSubject
         $this->attributes['is_admin'] = $value;
     }
 
-    // Методы для работы с JWT
-    public function getJWTIdentifier()
-    {
-        return $this->getKey();
-    }
-
-    public function getJWTCustomClaims()
-    {
-        return [];
-    }
 
     /**
      * Компании, к которым принадлежит пользователь

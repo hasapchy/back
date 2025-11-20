@@ -39,7 +39,7 @@ Route::middleware(['throttle:auth'])->group(function () {
 
 Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
 
-Route::middleware(['auth:api', 'role:basement_worker'])->prefix('basement')->group(function () {
+Route::middleware(['auth:sanctum', 'user.active', 'role:basement_worker'])->prefix('basement')->group(function () {
     Route::get('user/me', [AuthController::class, 'me']);
     Route::post('user/logout', [AuthController::class, 'logout']);
 
@@ -76,7 +76,7 @@ Route::middleware(['auth:api', 'role:basement_worker'])->prefix('basement')->gro
     Route::get('app/units', [AppController::class, 'getUnitsList']);
 });
 
-Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
+Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(function () {
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
     Route::get('app/currency/{id}/exchange-rate', [AppController::class, 'getCurrencyExchangeRate']);
     Route::get('app/units', [AppController::class, 'getUnitsList']);

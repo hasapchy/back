@@ -176,7 +176,7 @@ return [
                     'type' => 'http',
                     'description' => 'Enter token in format `Bearer {token}`',
                     'scheme' => 'bearer',
-                    'bearerFormat' => 'JWT',
+                    'bearerFormat' => 'Personal Access Token',
                 ],
             ],
             'security' => [

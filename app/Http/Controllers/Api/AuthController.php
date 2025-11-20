@@ -6,8 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Repositories\UsersRepository;
 use Illuminate\Http\Request;
-use Tymon\JWTAuth\Facades\JWTAuth;
-use Tymon\JWTAuth\Exceptions\JWTException;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -20,38 +21,42 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->only('email', 'password');
-        $remember = $request->boolean('remember');
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
 
-        if (!$token = auth('api')->attempt($credentials)) {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return $this->unauthorizedResponse('Unauthorized');
         }
 
-        /** @var User $user */
-        $user = auth('api')->user();
-        $user->load('roles', 'permissions');
-        $resolvedRoles = $user->getAllRoleNames();
-
         if (!$user->is_active) {
-            auth('api')->logout();
             return $this->forbiddenResponse('Account is disabled');
         }
 
+        $user->load('roles', 'permissions');
+        $resolvedRoles = $user->getAllRoleNames();
+
         User::where('id', $user->id)->update(['last_login_at' => now()]);
 
-        $ttl = $remember ? config('jwt.remember_ttl', 10080) : config('jwt.ttl', 1440);
-        $refreshTtl = $remember ? config('jwt.remember_refresh_ttl', 43200) : config('jwt.refresh_ttl', 10080);
+        RateLimiter::clear('auth:'.$request->ip());
 
-        $customToken = JWTAuth::customClaims(['exp' => now()->addMinutes($ttl)->timestamp])->fromUser($user);
-        $refreshToken = JWTAuth::customClaims(['exp' => now()->addMinutes($refreshTtl)->timestamp])->fromUser($user);
+        $remember = $request->boolean('remember');
+        $ttl = $remember ? config('sanctum.remember_expiration', 10080) : config('sanctum.expiration', 1440);
 
+        $expiresAt = $ttl ? now()->addMinutes($ttl) : null;
+
+        $accessToken = $user->createToken('access-token', ['*'], $expiresAt);
+        $refreshToken = $user->createToken('refresh-token', ['refresh'], $remember ? now()->addMinutes(43200) : now()->addMinutes(10080));
 
         return response()->json([
-            'access_token' => $customToken,
-            'refresh_token' => $refreshToken,
+            'access_token' => $accessToken->plainTextToken,
+            'refresh_token' => $refreshToken->plainTextToken,
             'token_type'   => 'bearer',
-            'expires_in'   => $ttl * 60,
-            'refresh_expires_in' => $refreshTtl * 60,
+            'expires_in'   => $ttl ? $ttl * 60 : null,
+            'refresh_expires_in' => ($remember ? 43200 : 10080) * 60,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -64,10 +69,10 @@ class AuthController extends Controller
         ]);
     }
 
-    public function me()
+    public function me(Request $request)
     {
         /** @var User $user */
-        $user = auth('api')->user();
+        $user = $request->user();
         $user->load('roles', 'permissions');
 
         $companyId = $this->getCurrentCompanyId();
@@ -88,69 +93,72 @@ class AuthController extends Controller
         ]);
     }
 
-    public function logout()
+    public function logout(Request $request)
     {
-        try {
-            $token = JWTAuth::getToken();
+        $user = $request->user();
 
-            if ($token) {
-                JWTAuth::invalidate($token);
-            }
-
-            auth('api')->logout();
-
-            return response()->json(['message' => 'Successfully logged out']);
-        } catch (JWTException $e) {
-            auth('api')->logout();
-
-            return response()->json(['message' => 'Successfully logged out']);
+        if ($user && $user->currentAccessToken()) {
+            $user->currentAccessToken()->delete();
         }
+
+        return response()->json(['message' => 'Successfully logged out']);
     }
 
     public function refresh(Request $request)
     {
-        try {
-            $refreshToken = $request->input('refresh_token');
+        $refreshToken = $request->input('refresh_token');
 
-            if (!$refreshToken) {
-                return $this->errorResponse('Refresh token is required', 400);
-            }
-
-            JWTAuth::setToken($refreshToken);
-            /** @var User|null $user */
-            $user = JWTAuth::authenticate();
-
-            if (!$user) {
-                return $this->unauthorizedResponse('Invalid refresh token');
-            }
-
-            if (!$user->is_active) {
-                return $this->forbiddenResponse('User account is deactivated');
-            }
-
-            $user->load('roles', 'permissions');
-            $resolvedRoles = $user->getAllRoleNames();
-
-            $newAccessToken = auth('api')->login($user);
-            $newRefreshToken = JWTAuth::fromUser($user);
-
-            return response()->json([
-                'access_token'  => $newAccessToken,
-                'refresh_token' => $newRefreshToken,
-                'token_type'    => 'bearer',
-                'expires_in'    => config('jwt.ttl') * 60,
-                'refresh_expires_in' => config('jwt.refresh_ttl') * 60,
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'is_admin' => $user->is_admin,
-                    'roles' => $resolvedRoles,
-                    'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
-                ]
-            ]);
-        } catch (JWTException $e) {
-            return $this->errorResponse('Could not refresh token', 500);
+        if (!$refreshToken) {
+            return $this->errorResponse('Refresh token is required', 400);
         }
+
+        $token = PersonalAccessToken::findToken($refreshToken);
+
+        if (!$token) {
+            return $this->unauthorizedResponse('Invalid refresh token');
+        }
+
+        if (!$token->can('refresh')) {
+            $token->delete();
+            return $this->unauthorizedResponse('Invalid refresh token');
+        }
+
+        /** @var User $user */
+        $user = $token->tokenable;
+
+        if (!$user || !$user->is_active) {
+            if ($token) {
+                $token->delete();
+            }
+            return $this->forbiddenResponse('User account is deactivated');
+        }
+
+        $user->load('roles', 'permissions');
+        $resolvedRoles = $user->getAllRoleNames();
+
+        $isRemember = $token->expires_at && $token->expires_at->gt(now()->addMinutes(43200 - 1440));
+        $ttl = $isRemember ? config('sanctum.remember_expiration', 10080) : config('sanctum.expiration', 1440);
+        $expiresAt = $ttl ? now()->addMinutes($ttl) : null;
+
+        $token->delete();
+
+        $newAccessToken = $user->createToken('access-token', ['*'], $expiresAt);
+        $newRefreshToken = $user->createToken('refresh-token', ['refresh'], $isRemember ? now()->addMinutes(43200) : now()->addMinutes(10080));
+
+        return response()->json([
+            'access_token'  => $newAccessToken->plainTextToken,
+            'refresh_token' => $newRefreshToken->plainTextToken,
+            'token_type'    => 'bearer',
+            'expires_in'    => $ttl ? $ttl * 60 : null,
+            'refresh_expires_in' => ($isRemember ? 43200 : 10080) * 60,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'is_admin' => $user->is_admin,
+                'roles' => $resolvedRoles,
+                'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
+            ]
+        ]);
     }
 }

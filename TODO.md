@@ -34,12 +34,12 @@
 
 ## Переход на Laravel Sanctum
 
-- [ ] Установить Sanctum, опубликовать конфиг и миграции, запустить `php artisan migrate`
-- [ ] В `config/auth.php` и `config/sanctum.php` настроить guard, stateful домены, TTL
-- [ ] Удалить зависимости и конфиги `tymon/jwt-auth`, обновить middleware `auth:sanctum`
-- [ ] Переписать `AuthController@login/me/logout/refresh` на выдачу Sanctum токенов и отзыв
-- [ ] Для cookie-flow настроить CORS (`supports_credentials`), `SESSION_DOMAIN`, `SANCTUM_STATEFUL_DOMAINS`
-- [ ] Для PAT-flow реализовать сохранение токенов, логаут (удаление токена), опциональный refresh-эндпоинт
-- [ ] Обновить фронтенд API-клиент: получение токена/куки, заголовки `Authorization`, обработка 401
-- [ ] Обновить документацию/Swagger и добавить задачи по ревоку и клинапу старых JWT
+- [x] Установить Sanctum, опубликовать конфиг и миграции, запустить `php artisan migrate`
+- [x] В `config/auth.php` и `config/sanctum.php` настроить guard, stateful домены, TTL
+- [x] Удалить зависимости и конфиги `tymon/jwt-auth`, обновить middleware `auth:sanctum`
+- [x] Переписать `AuthController@login/me/logout/refresh` на выдачу Sanctum токенов и отзыв
+- [x] Для cookie-flow настроить CORS (`supports_credentials`), `SESSION_DOMAIN`, `SANCTUM_STATEFUL_DOMAINS`
+- [x] Для PAT-flow реализовать сохранение токенов, логаут (удаление токена), опциональный refresh-эндпоинт
+- [x] Обновить фронтенд API-клиент: получение токена/куки, заголовки `Authorization`, обработка 401
+- [x] Обновить документацию/Swagger и добавить задачи по ревоку и клинапу старых JWT
 

@@ -70,5 +70,6 @@ class Kernel extends HttpKernel
         'role'       => \Spatie\Permission\Middleware\RoleMiddleware::class,
         'time.restriction' => \App\Http\Middleware\CheckTimeRestriction::class,
         'prevent.basement' => \App\Http\Middleware\PreventBasementAccess::class,
+        'user.active' => \App\Http\Middleware\CheckUserActive::class,
     ];
 }

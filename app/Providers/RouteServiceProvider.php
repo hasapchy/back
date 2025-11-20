@@ -24,18 +24,14 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Основной rate limiter для API
-        // 1000 запросов в минуту для авторизованных пользователей
-        // 200 запросов в минуту для неавторизованных (по IP)
         RateLimiter::for('api', function (Request $request) {
             return $request->user()
                 ? Limit::perMinute(1000)->by($request->user()->id)
                 : Limit::perMinute(200)->by($request->ip());
         });
 
-        // Более строгий limiter для операций входа/регистрации
         RateLimiter::for('auth', function (Request $request) {
-            return Limit::perMinute(10)->by($request->ip());
+            return Limit::perMinute(20)->by($request->ip());
         });
 
         // Гибкий limiter для тяжелых операций (экспорт, отчеты)
