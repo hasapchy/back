@@ -45,7 +45,11 @@ class OrderProduct extends Model
         'discount' => 'decimal:5',
     ];
 
-    protected static $logAttributes = [];
+    protected static $logAttributes = [
+        'product_id',
+        'quantity',
+        'price',
+    ];
     protected static $logName = 'order_product';
     protected static $logFillable = true;
     protected static $logOnlyDirty = true;
@@ -88,7 +92,7 @@ class OrderProduct extends Model
             ->logOnly(static::$logAttributes)
             ->useLogName(static::$logName)
             ->logOnlyDirty()
-            ->submitEmptyLogs();
+            ->dontSubmitEmptyLogs();
     }
 
     /**

@@ -587,4 +587,28 @@ class CacheService
             ]);
         }
     }
+
+    /**
+     * Flush entire cache store.
+     *
+     * @return void
+     */
+    public static function flushAll(): void
+    {
+        $driver = config('cache.default');
+
+        try {
+            if ($driver === 'database') {
+                $cacheTable = config('cache.stores.database.table', 'cache');
+                DB::table($cacheTable)->delete();
+            } else {
+                Cache::flush();
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Cache flush failed', [
+                'driver' => $driver,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
 }

@@ -45,7 +45,9 @@ use App\Services\CacheService;
  */
 class Transaction extends Model
 {
-    use HasFactory, LogsActivity;
+    use HasFactory, LogsActivity {
+        LogsActivity::shouldLogEvent as protected traitShouldLogEvent;
+    }
     protected $skipClientBalanceUpdate = false;
     protected $skipCashBalanceUpdate = false;
     protected $fillable = [
@@ -106,6 +108,15 @@ class Transaction extends Model
             ->useLogName('transaction')
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => $this->getDescriptionForEvent($eventName));
+    }
+
+    protected function shouldLogEvent(string $eventName): bool
+    {
+        if ($this->is_debt && $this->source_type === Order::class) {
+            return false;
+        }
+
+        return $this->traitShouldLogEvent($eventName);
     }
 
     protected $casts = [

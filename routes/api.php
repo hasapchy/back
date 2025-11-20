@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\WarehouseMovementController;
 use App\Http\Controllers\Api\WarehouseReceiptController;
 use App\Http\Controllers\Api\WarehouseStockController;
 use App\Http\Controllers\Api\WarehouseWriteoffController;
+use App\Http\Controllers\Api\CacheController as ApiCacheController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['throttle:auth'])->group(function () {
@@ -79,6 +80,7 @@ Route::middleware(['auth:api', 'prevent.basement'])->group(function () {
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
     Route::get('app/currency/{id}/exchange-rate', [AppController::class, 'getCurrencyExchangeRate']);
     Route::get('app/units', [AppController::class, 'getUnitsList']);
+    Route::post('cache/clear', [ApiCacheController::class, 'clear']);
 
     Route::get('currency-history/currencies', [CurrencyHistoryController::class, 'getCurrenciesWithRates']);
     Route::get('currency-history/{currencyId}', [CurrencyHistoryController::class, 'index']);

@@ -24,6 +24,8 @@ use App\Models\TransactionCategory;
 use App\Models\Sale;
 use App\Models\OrderProduct;
 use App\Models\OrderTempProduct;
+use App\Models\Unit;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Контроллер для работы с комментариями
@@ -31,6 +33,9 @@ use App\Models\OrderTempProduct;
 class CommentController extends Controller
 {
     protected CommentsRepository $itemsRepository;
+    private array $productUnitCache = [];
+    private array $unitCache = [];
+    private ?string $defaultCurrencySymbolCache = null;
 
     /**
      * Конструктор контроллера
@@ -302,63 +307,94 @@ class CommentController extends Controller
 
         $description = $log->description;
         $meta = null;
+        $logName = $log->log_name ?? null;
+        $orderCurrencySymbol = null;
+
+        if ($log->subject && get_class($log->subject) === Order::class) {
+            $log->subject->loadMissing(['cash.currency']);
+            $orderCurrencySymbol = optional(optional($log->subject->cash)->currency)->symbol;
+        }
 
         try {
-            if ($log->subject) {
-                if (get_class($log->subject) === Order::class && isset($log->subject->id)) {
-                    $description = rtrim($description) . ' #' . $log->subject->id;
+            if ($log->subject && get_class($log->subject) === Order::class && isset($log->subject->id)) {
+                $description = rtrim($description) . ' #' . $log->subject->id;
+            }
+
+            if ($log->subject && get_class($log->subject) === Transaction::class) {
+                $txnId = $log->subject->id ?? null;
+                $amount = $log->subject->amount ?? null;
+                $currencySymbol = null;
+                $companyId = null;
+                try {
+                    if (isset($log->subject->currency) && isset($log->subject->currency->symbol)) {
+                        $currencySymbol = $log->subject->currency->symbol;
+                    } elseif (isset($log->subject->currency_id) && $log->subject->currency_id) {
+                        $currencySymbol = optional(Currency::select('id','symbol')->find($log->subject->currency_id))->symbol;
+                    }
+                } catch (\Throwable $e) {}
+
+                if ($txnId !== null || $amount !== null) {
+                    $parts = [];
+                    if ($txnId !== null) { $parts[] = '#' . $txnId; }
+                    if ($amount !== null) {
+                        $formatted = $this->formatAmountForCompany($companyId, (float)$amount);
+                        $parts[] = 'сумма: ' . $formatted . ($currencySymbol ? (' ' . $currencySymbol) : '');
+                    }
+                    $description = rtrim($description) . ' (' . implode(', ', $parts) . ')';
+                }
+                $meta = [
+                    'transaction_id' => $txnId,
+                    'amount' => $amount !== null ? (float)$amount : null,
+                    'currency_symbol' => isset($currencySymbol) ? $currencySymbol : null,
+                ];
+            }
+
+            if (in_array($logName, ['order_product', 'order_temp_product'])) {
+                $props = $log->properties;
+                $attrs = null;
+                $old = null;
+                if (method_exists($props, 'toArray')) {
+                    $arr = $props->toArray();
+                    $attrs = $arr['attributes'] ?? null;
+                    $old = $arr['old'] ?? null;
+                } elseif (is_object($props)) {
+                    $attrs = $props->attributes ?? null;
+                    $old = $props->old ?? null;
+                } elseif (is_array($props)) {
+                    $attrs = $props['attributes'] ?? null;
+                    $old = $props['old'] ?? null;
+                }
+                if (is_array($attrs)) {
+                    $q = isset($attrs['quantity']) ? (float)$attrs['quantity'] : null;
+                    $p = isset($attrs['price']) ? (float)$attrs['price'] : null;
+                    $meta = array_merge($meta ?? [], [
+                        'product_quantity' => $q,
+                        'product_price' => $p,
+                    ]);
                 }
 
-                if (get_class($log->subject) === Transaction::class) {
-                    $txnId = $log->subject->id ?? null;
-                    $amount = $log->subject->amount ?? null;
-                    $currencySymbol = null;
-                    $companyId = null;
-                    try {
-                        if (isset($log->subject->currency) && isset($log->subject->currency->symbol)) {
-                            $currencySymbol = $log->subject->currency->symbol;
-                        } elseif (isset($log->subject->currency_id) && $log->subject->currency_id) {
-                            $currencySymbol = optional(Currency::select('id','symbol')->find($log->subject->currency_id))->symbol;
-                        }
-                    } catch (\Throwable $e) {}
-
-                    if ($txnId !== null || $amount !== null) {
-                        $parts = [];
-                        if ($txnId !== null) { $parts[] = '#' . $txnId; }
-                        if ($amount !== null) {
-                            $formatted = $this->formatAmountForCompany($companyId, (float)$amount);
-                            $parts[] = 'сумма: ' . $formatted . ($currencySymbol ? (' ' . $currencySymbol) : '');
-                        }
-                        $description = rtrim($description) . ' (' . implode(', ', $parts) . ')';
-                    }
-                    $meta = [
-                        'transaction_id' => $txnId,
-                        'amount' => $amount !== null ? (float)$amount : null,
-                        'currency_symbol' => isset($currencySymbol) ? $currencySymbol : null,
-                    ];
+                $currencySymbol = $orderCurrencySymbol ?? $this->getDefaultCurrencySymbol();
+                if ($currencySymbol) {
+                    $meta = array_merge($meta ?? [], [
+                        'product_currency_symbol' => $currencySymbol,
+                    ]);
                 }
 
-                $logName = $log->log_name ?? null;
-                if (in_array($logName, ['order_product', 'order_temp_product'])) {
-                    $props = $log->properties;
-                    $attrs = null;
-                    if (method_exists($props, 'toArray')) {
-                        $arr = $props->toArray();
-                        $attrs = $arr['attributes'] ?? null;
-                    } elseif (is_object($props)) {
-                        $attrs = $props->attributes ?? null;
-                    } elseif (is_array($props)) {
-                        $attrs = $props['attributes'] ?? null;
-                    }
-                    if (is_array($attrs)) {
-                        $q = isset($attrs['quantity']) ? (float)$attrs['quantity'] : null;
-                        $p = isset($attrs['price']) ? (float)$attrs['price'] : null;
-                        $meta = array_merge($meta ?? [], [
-                            'product_quantity' => $q,
-                            'product_price' => $p,
-                        ]);
-                    }
+                $unitName = null;
+                if ($logName === 'order_product') {
+                    $productId = $attrs['product_id'] ?? $old['product_id'] ?? null;
+                    $unitName = $this->getProductUnitName($productId);
+                } else {
+                    $unitId = $attrs['unit_id'] ?? $old['unit_id'] ?? null;
+                    $unitName = $this->getUnitName($unitId);
                 }
+
+                if ($unitName) {
+                    $meta = array_merge($meta ?? [], [
+                        'product_unit' => $unitName,
+                    ]);
+                }
+
             }
         } catch (\Throwable $e) {
         }
@@ -372,6 +408,7 @@ class CommentController extends Controller
                 'user' => $user,
                 'created_at' => $log->created_at,
                 'meta' => $meta,
+                'log_name' => $logName,
             ];
         }
 
@@ -385,6 +422,7 @@ class CommentController extends Controller
             'user' => $user,
             'created_at' => $log->created_at,
             'meta' => $meta,
+            'log_name' => $logName,
         ];
     }
 
@@ -424,6 +462,9 @@ class CommentController extends Controller
         $processedOld = [];
 
         foreach ($attributes as $key => $value) {
+            if (in_array($key, ['product_id', 'unit_id'], true)) {
+                continue;
+            }
             if (str_ends_with($key, '_id') && $value) {
                 $relatedModel = $this->getRelatedModelName($key, $modelClass);
 
@@ -474,31 +515,6 @@ class CommentController extends Controller
      */
     private function getOrderSpecificActivities(int $orderId)
     {
-        $activities = collect();
-
-        $productActivities = Activity::where('subject_type', Order::class)
-            ->where('subject_id', $orderId)
-            ->where(function ($query) {
-                $query->where('causer_type', OrderProduct::class)
-                      ->orWhere('causer_type', OrderTempProduct::class)
-                      ->orWhere('description', 'like', '%товар%')
-                      ->orWhere('description', 'like', '%Товар%')
-                      ->orWhere('description', 'like', '%услуг%')
-                      ->orWhere('description', 'like', '%Услуг%')
-                      ->orWhere('log_name', 'order_product')
-                      ->orWhere('log_name', 'order_temp_product');
-            })
-            ->select(['activity_log.id', 'activity_log.description', 'activity_log.properties', 'activity_log.causer_id', 'activity_log.causer_type', 'activity_log.created_at', 'activity_log.log_name'])
-            ->with(['causer:id,name', 'subject'])
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($log) {
-                return $this->processActivityLog($log, Order::class);
-            })
-            ->filter();
-
-        $activities = $activities->merge($productActivities);
-
         $orderTransactionLogs = Transaction::select(['id', 'source_id', 'source_type', 'amount', 'currency_id'])
             ->where('source_type', Order::class)
             ->where('source_id', $orderId)
@@ -531,9 +547,49 @@ class CommentController extends Controller
                 ];
             })->filter();
 
-        $activities = $activities->merge($orderTransactionLogs);
+        return $orderTransactionLogs;
+    }
 
-        return $activities;
+    private function getProductUnitName(?int $productId): ?string
+    {
+        if (!$productId) {
+            return null;
+        }
+
+        if (!array_key_exists($productId, $this->productUnitCache)) {
+            $product = Product::select(['id', 'unit_id'])
+                ->with(['unit:id,name,short_name'])
+                ->find($productId);
+
+            $this->productUnitCache[$productId] = $product && $product->unit
+                ? ($product->unit->short_name ?? $product->unit->name)
+                : null;
+        }
+
+        return $this->productUnitCache[$productId];
+    }
+
+    private function getUnitName(?int $unitId): ?string
+    {
+        if (!$unitId) {
+            return null;
+        }
+
+        if (!array_key_exists($unitId, $this->unitCache)) {
+            $unit = Unit::select(['id', 'name', 'short_name'])->find($unitId);
+            $this->unitCache[$unitId] = $unit ? ($unit->short_name ?? $unit->name) : null;
+        }
+
+        return $this->unitCache[$unitId];
+    }
+
+    private function getDefaultCurrencySymbol(): ?string
+    {
+        if ($this->defaultCurrencySymbolCache === null) {
+            $this->defaultCurrencySymbolCache = Currency::where('is_default', true)->value('symbol');
+        }
+
+        return $this->defaultCurrencySymbolCache;
     }
 
     /**
@@ -657,4 +713,5 @@ class CommentController extends Controller
 
         $this->itemsRepository->invalidateCommentsCacheByType($type);
     }
+
 }

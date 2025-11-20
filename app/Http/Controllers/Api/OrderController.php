@@ -217,12 +217,14 @@ class OrderController extends Controller
             'description'          => 'nullable|string',
             'status_id'            => 'nullable|integer|exists:order_statuses,id',
             'products'             => 'nullable|array',
+            'products.*.id'        => 'nullable|integer|exists:order_products,id',
             'products.*.product_id' => 'required_with:products|integer|exists:products,id',
             'products.*.quantity'  => 'required_with:products|numeric|min:0',
             'products.*.price'     => 'required_with:products|numeric|min:0',
             'products.*.width'      => 'nullable|numeric|min:0',
             'products.*.height'    => 'nullable|numeric|min:0',
             'temp_products'         => 'nullable|array',
+            'temp_products.*.id'    => 'nullable|integer|exists:order_temp_products,id',
             'temp_products.*.name'  => 'required_with:temp_products|string|max:255',
             'temp_products.*.description' => 'nullable|string',
             'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0',
@@ -230,6 +232,8 @@ class OrderController extends Controller
             'temp_products.*.unit_id'     => 'nullable|exists:units,id',
             'temp_products.*.width'       => 'nullable|numeric|min:0',
             'temp_products.*.height'      => 'nullable|numeric|min:0',
+            'remove_temp_products'  => 'nullable|array',
+            'remove_temp_products.*' => 'integer|exists:order_temp_products,id',
         ]);
 
         $categoryId = $request->category_id;
@@ -272,6 +276,7 @@ class OrderController extends Controller
             'status_id'    => $request->status_id,
             'date'         => $request->date ?? now(),
             'products'     => array_map(fn($p) => [
+                'id'         => $p['id'] ?? null,
                 'product_id' => $p['product_id'],
                 'quantity'   => $p['quantity'],
                 'price'      => $p['price'],
@@ -279,6 +284,7 @@ class OrderController extends Controller
                 'height'     => $p['height'] ?? null,
             ], $request->products ?? []),
             'temp_products' => array_map(fn($p) => [
+                'id'          => $p['id'] ?? null,
                 'name'        => $p['name'],
                 'description' => $p['description'] ?? null,
                 'quantity'    => $p['quantity'],
@@ -287,6 +293,7 @@ class OrderController extends Controller
                 'width'       => $p['width'] ?? null,
                 'height'      => $p['height'] ?? null,
             ], $request->temp_products ?? []),
+            'remove_temp_products' => $request->remove_temp_products ?? [],
         ];
 
         if (!empty($request->temp_products)) {

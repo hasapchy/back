@@ -48,6 +48,9 @@ class OrderTempProduct extends Model
     ];
 
     protected static $logAttributes = [
+        'quantity',
+        'price',
+        'unit_id',
     ];
 
     protected static $logName = 'order_temp_product';
@@ -89,7 +92,7 @@ class OrderTempProduct extends Model
             ->logOnly(static::$logAttributes)
             ->useLogName(static::$logName)
             ->logOnlyDirty()
-            ->submitEmptyLogs()
+            ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => $this->getDescriptionForEvent($eventName));
     }
 

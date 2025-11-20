@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Services\RoundingService;
 
 class OrdersRepository extends BaseRepository
@@ -131,7 +132,7 @@ class OrdersRepository extends BaseRepository
                     $q->whereHas('category.categoryUsers', function ($subQuery) use ($userUuid) {
                         $subQuery->where('user_id', $userUuid);
                     })
-                    ->orWhereNull('orders.category_id');
+                        ->orWhereNull('orders.category_id');
                 });
             }
 
@@ -260,25 +261,7 @@ class OrdersRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('orders_by_ids_' . md5(implode(',', $order_ids)), []);
 
         return CacheService::remember($cacheKey, function () use ($order_ids) {
-            return Order::select([
-                'orders.id',
-                'orders.note',
-                'orders.description',
-                'orders.status_id',
-                'orders.client_id',
-                'orders.user_id',
-                'orders.cash_id',
-                'orders.warehouse_id',
-                'orders.project_id',
-
-                'orders.price',
-                'orders.discount',
-                'orders.date',
-                'orders.created_at',
-                'orders.updated_at'
-            ])
-                ->whereIn('orders.id', $order_ids)
-                ->get();
+            return $this->getItems($order_ids);
         });
     }
 
@@ -309,7 +292,7 @@ class OrdersRepository extends BaseRepository
         $products = $this->getProducts($order_ids);
         $client_ids = $orders->pluck('client_id')->unique()->filter()->toArray();
         $client_repository = new ClientsRepository();
-        $clients = $client_repository->getItemsByIds($client_ids);
+        $clients = $client_repository->getItemsByIds($client_ids)->keyBy('id');
 
         $items = $orders->map(function ($order) use ($products, $clients) {
             $item = (object) [
@@ -343,7 +326,7 @@ class OrdersRepository extends BaseRepository
                 'user_photo' => $order->user->photo,
                 'category_name' => $order->category->name ?? null,
                 'products' => $products->get($order->id, collect()),
-                'client' => $clients->firstWhere('id', $order->client_id),
+                'client' => $clients->get($order->client_id),
                 'status' => [
                     'id' => $order->status_id,
                     'name' => $order->status->name,
@@ -452,37 +435,27 @@ class OrdersRepository extends BaseRepository
             $roundingService = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
 
-            // Сначала рассчитываем количества с учетом размеров и проверяем склад
             $productsCache = [];
+            $warehouseStocksToUpdate = [];
+            $newProductIds = array_filter(array_column($products, 'product_id'));
+            $newProductsData = Product::whereIn('id', $newProductIds)->get()->keyBy('id');
+
             foreach ($products as $product) {
                 $p_id = $product['product_id'];
                 $width = $product['width'] ?? null;
                 $height = $product['height'] ?? null;
 
-                $product_object = Product::find($p_id);
+                $product_object = $newProductsData->get($p_id);
                 if (!$product_object) {
                     throw new \Exception("Товар ID {$p_id} не найден");
                 }
 
-                // Рассчитываем количество: с учетом размеров, если они есть
-                $q = $roundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
-                if ($width && $height && $product_object->unit_id) {
-                    $calculatedQuantity = $this->calculateQuantityFromDimensions($width, $height, $product_object->unit_id);
-                    $q = $calculatedQuantity;
-                }
+                $q = $this->calculateProductQuantity($product, $product_object, $roundingService, $companyId);
+                $p = $this->getProductPrice($p_id, $product['price'], $project_id);
 
-                $p = $product['price'];
-                if ($project_id) {
-                    $productPrice = ProductPrice::where('product_id', $p_id)->first();
-                    if ($productPrice && $productPrice->wholesale_price > 0) {
-                        $p = $productPrice->wholesale_price;
-                    }
-                }
-
-                // Сохраняем данные товара для последующего использования
-                $productsCache[$p_id] = [
-                    'product' => $product,
-                    'product_object' => $product_object,
+                $productsCache[] = [
+                    'id' => $product['id'] ?? null,
+                    'product_id' => $p_id,
                     'quantity' => $q,
                     'price' => $p,
                     'width' => $width,
@@ -490,48 +463,24 @@ class OrdersRepository extends BaseRepository
                 ];
 
                 if ($product_object->type == 1) {
-                    $warehouse_product = WarehouseStock::where('product_id', $p_id)
-                        ->where('warehouse_id', $warehouse_id)
-                        ->first();
-
-                    if (!$warehouse_product || $warehouse_product->quantity < $q) {
-                        $warehouseName = optional(Warehouse::find($warehouse_id))->name ?? (string)$warehouse_id;
-                        $productName = $product_object->name;
-                        $available = $warehouse_product->quantity ?? 0;
-                        throw new \Exception("На складе '{$warehouseName}' недостаточно товара '{$productName}' (доступно: {$available}, требуется: {$q})");
-                    }
-
-                    WarehouseStock::where('product_id', $p_id)
-                        ->where('warehouse_id', $warehouse_id)
-                        ->update(['quantity' => DB::raw('quantity - ' . $q)]);
+                    $warehouseStocksToUpdate[$p_id] = [
+                        'quantity' => $q,
+                        'product_name' => $product_object->name
+                    ];
                 }
 
                 $price += $q * $p;
             }
 
-            foreach ($temp_products as $temp_product) {
-                $q = $roundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity']));
-                $p = $temp_product['price'];
-                $price += $q * $p;
-            }
+            $warehouseName = optional(Warehouse::find($warehouse_id))->name ?? (string)$warehouse_id;
+            $this->checkAndDeductWarehouseStock($warehouseStocksToUpdate, $warehouse_id, $warehouseName);
 
-            if ($discount_type == 'percent') {
-                $percent = max(0, min(100, $discount));
-                $discount_calculated = $price * $percent / 100;
-            } else {
-                $discount_calculated = max(0, min($discount, $price));
-            }
-            $total_price = max(0, $price - $discount_calculated);
+            $price += $this->calculateTempProductsTotal($temp_products, $roundingService, $companyId);
 
-            // Apply company rounding for order monetary fields before saving
-            $price = $roundingService->roundForCompany($companyId, (float) $price);
-            $discount_calculated = $roundingService->roundForCompany($companyId, (float) $discount_calculated);
-
-            if ($discount_calculated > $price) {
-                throw new \Exception('Скидка не может превышать сумму заказа');
-            }
-
-            $total_price = $roundingService->roundForCompany($companyId, (float) $total_price);
+            $pricing = $this->calculateDiscountAndTotal($price, $discount, $discount_type, $roundingService, $companyId);
+            $price = $pricing['price'];
+            $discount_calculated = $pricing['discount'];
+            $total_price = $pricing['total_price'];
 
             $order = new Order();
             $order->client_id = $client_id;
@@ -548,23 +497,25 @@ class OrdersRepository extends BaseRepository
             $order->user_id = $userUuid;
             $order->save();
 
-            // Используем уже рассчитанные данные из кэша
-            $productsData = [];
-            foreach ($productsCache as $p_id => $cached) {
-                $productsData[] = [
+            foreach ($productsCache as $cached) {
+                Log::info('OrderProduct Creating (createItem)', [
                     'order_id' => $order->id,
-                    'product_id' => $p_id,
+                    'product_id' => $cached['product_id'],
+                    'quantity' => $cached['quantity'],
+                    'price' => $cached['price'],
+                ]);
+                $newProduct = OrderProduct::create([
+                    'order_id' => $order->id,
+                    'product_id' => $cached['product_id'],
                     'quantity' => $cached['quantity'],
                     'price' => $cached['price'],
                     'width' => $cached['width'],
                     'height' => $cached['height'],
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
-            }
-
-            if (!empty($productsData)) {
-                OrderProduct::insert($productsData);
+                ]);
+                Log::info('OrderProduct Created (createItem)', [
+                    'new_product_id' => $newProduct->id,
+                    'wasRecentlyCreated' => $newProduct->wasRecentlyCreated,
+                ]);
             }
 
             foreach ($temp_products as $temp_product) {
@@ -630,26 +581,20 @@ class OrdersRepository extends BaseRepository
         try {
             $order = Order::findOrFail($id);
             $oldClientId = $order->client_id;
+            $oldWarehouseId = $order->warehouse_id;
             $oldProducts = OrderProduct::where('order_id', $id)->get();
-
-            foreach ($oldProducts as $product) {
-                $productObj = Product::find($product->product_id);
-                if ($productObj && $productObj->type == 1) {
-                    WarehouseStock::where('product_id', $product->product_id)
-                        ->where('warehouse_id', $order->warehouse_id)
-                        ->update(['quantity' => DB::raw('quantity + ' . $product->quantity)]);
-                }
-            }
 
             $client_id = $data['client_id'];
             $warehouse_id = $data['warehouse_id'];
+            $warehouseChanged = (int) $oldWarehouseId !== (int) $warehouse_id;
+
+            $this->returnProductsToWarehouse($oldProducts, $oldWarehouseId);
             $cash_id = $data['cash_id'];
             $project_id = $data['project_id'];
             $status_id = $data['status_id'] ?? $order->status_id;
             $category_id = $data['category_id'] ?? $order->category_id;
             $products = $data['products'] ?? [];
             $temp_products = $data['temp_products'] ?? [];
-            // currency_id берется из cash.currency_id, не хранится в orders
             $discount = $data['discount'] ?? 0;
             $discount_type = $data['discount_type'] ?? 'fixed';
             $note = !empty($data['note']) ? $data['note'] : null;
@@ -666,37 +611,35 @@ class OrdersRepository extends BaseRepository
             $companyId = $this->getCurrentCompanyId();
             $clientChanged = (int) $oldClientId !== (int) $client_id;
 
-            // Сначала рассчитываем количества с учетом размеров и проверяем склад
+            $newProductIds = array_filter(array_column($products, 'product_id'));
+            $newProductsData = Product::whereIn('id', $newProductIds)->get()->keyBy('id');
+
+            $productPriceIds = $project_id ? $newProductIds : [];
+            $productPricesData = $project_id && !empty($productPriceIds)
+                ? ProductPrice::whereIn('product_id', $productPriceIds)->get()->keyBy('product_id')
+                : collect();
+
+            $warehouseName = $warehouseChanged ? optional(Warehouse::find($warehouse_id))->name : null;
+
             $productsCache = [];
+            $warehouseStocksToUpdate = [];
+
             foreach ($products as $product) {
                 $p_id = $product['product_id'];
                 $width = $product['width'] ?? null;
                 $height = $product['height'] ?? null;
 
-                $product_object = Product::find($p_id);
+                $product_object = $newProductsData->get($p_id);
                 if (!$product_object) {
                     throw new \Exception("Товар ID {$p_id} не найден");
                 }
 
-                // Рассчитываем количество: с учетом размеров, если они есть
-                $q = $roundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
-                if ($width && $height && $product_object->unit_id) {
-                    $calculatedQuantity = $this->calculateQuantityFromDimensions($width, $height, $product_object->unit_id);
-                    $q = $calculatedQuantity;
-                }
+                $q = $this->calculateProductQuantity($product, $product_object, $roundingService, $companyId);
+                $p = $this->getProductPrice($p_id, $product['price'], $project_id, $productPricesData);
 
-                $p = $product['price'];
-                if ($project_id) {
-                    $productPrice = ProductPrice::where('product_id', $p_id)->first();
-                    if ($productPrice && $productPrice->wholesale_price > 0) {
-                        $p = $productPrice->wholesale_price;
-                    }
-                }
-
-                // Сохраняем данные товара для последующего использования
-                $productsCache[$p_id] = [
-                    'product' => $product,
-                    'product_object' => $product_object,
+                $productsCache[] = [
+                    'id' => $product['id'] ?? null,
+                    'product_id' => $p_id,
                     'quantity' => $q,
                     'price' => $p,
                     'width' => $width,
@@ -704,48 +647,23 @@ class OrdersRepository extends BaseRepository
                 ];
 
                 if ($product_object->type == 1) {
-                    $stock = WarehouseStock::where('product_id', $p_id)
-                        ->where('warehouse_id', $warehouse_id)
-                        ->first();
-
-                    if (!$stock || $stock->quantity < $q) {
-                        $warehouseName = optional(Warehouse::find($warehouse_id))->name ?? (string)$warehouse_id;
-                        $productName = $product_object->name;
-                        $available = $stock->quantity ?? 0;
-                        throw new \Exception("На складе '{$warehouseName}' недостаточно товара '{$productName}' (доступно: {$available}, требуется: {$q})");
-                    }
-
-                    WarehouseStock::where('product_id', $p_id)
-                        ->where('warehouse_id', $warehouse_id)
-                        ->update(['quantity' => DB::raw('quantity - ' . $q)]);
+                    $warehouseStocksToUpdate[$p_id] = [
+                        'quantity' => $q,
+                        'product_name' => $product_object->name
+                    ];
                 }
 
                 $price += $q * $p;
             }
 
-            foreach ($temp_products as $temp_product) {
-                $q = $roundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity']));
-                $p = $temp_product['price'];
-                $price += $q * $p;
-            }
+            $this->checkAndDeductWarehouseStock($warehouseStocksToUpdate, $warehouse_id, $warehouseName);
 
-            if ($discount_type == 'percent') {
-                $percent = max(0, min(100, $discount));
-                $discount_calculated = $price * $percent / 100;
-            } else {
-                $discount_calculated = max(0, min($discount, $price));
-            }
-            $total_price = max(0, $price - $discount_calculated);
+            $price += $this->calculateTempProductsTotal($temp_products, $roundingService, $companyId);
 
-            // Apply company rounding for order monetary fields before update
-            $price = $roundingService->roundForCompany($companyId, (float) $price);
-            $discount_calculated = $roundingService->roundForCompany($companyId, (float) $discount_calculated);
-
-            if ($discount_calculated > $price) {
-                throw new \Exception('Скидка не может превышать сумму заказа');
-            }
-
-            $total_price = $roundingService->roundForCompany($companyId, (float) $total_price);
+            $pricing = $this->calculateDiscountAndTotal($price, $discount, $discount_type, $roundingService, $companyId);
+            $price = $pricing['price'];
+            $discount_calculated = $pricing['discount'];
+            $total_price = $pricing['total_price'];
 
             $updateData = [
                 'client_id' => $client_id,
@@ -774,100 +692,196 @@ class OrdersRepository extends BaseRepository
             }
 
             $existingProducts = OrderProduct::where('order_id', $id)->get();
+            $existingProductsMap = $existingProducts->keyBy('id');
+            $existingProductsByProductId = $existingProducts->groupBy('product_id');
+            $processedProductIds = [];
             $productsChanged = false;
 
-            $newProductsMap = [];
-            foreach ($productsCache as $p_id => $cached) {
-                $key = $p_id . '_' . $cached['quantity'] . '_' . $cached['price'] . '_' . ($cached['width'] ?? '') . '_' . ($cached['height'] ?? '');
-                $newProductsMap[$key] = [
-                    'product_id' => $p_id,
-                    'quantity' => $cached['quantity'],
-                    'price' => $cached['price'],
-                    'width' => $cached['width'],
-                    'height' => $cached['height'],
-                ];
-            }
+            foreach ($productsCache as $cachedProduct) {
+                $orderProductId = $cachedProduct['id'] ?? null;
 
-            $existingProductsMap = [];
-            foreach ($existingProducts as $existingProduct) {
-                $key = $existingProduct->product_id . '_' . $existingProduct->quantity . '_' . $existingProduct->price . '_' . ($existingProduct->width ?? '') . '_' . ($existingProduct->height ?? '');
-                $existingProductsMap[$key] = $existingProduct;
-            }
+                if ($orderProductId) {
+                    $existingProduct = $existingProductsMap->get($orderProductId);
 
-            $productsToDelete = collect($existingProductsMap)->filter(function ($existingProduct, $key) use ($newProductsMap) {
-                return !isset($newProductsMap[$key]);
-            });
+                    if (!$existingProduct) {
+                        throw new \Exception("Товар заказа с ID {$orderProductId} не найден или принадлежит другому заказу");
+                    }
 
-            $productsToCreate = collect($newProductsMap)->filter(function ($newProduct, $key) use ($existingProductsMap) {
-                return !isset($existingProductsMap[$key]);
-            });
+                    $existingWidth = $existingProduct->width !== null ? (float)$existingProduct->width : null;
+                    $existingHeight = $existingProduct->height !== null ? (float)$existingProduct->height : null;
+                    $cachedWidth = $cachedProduct['width'] !== null ? (float)$cachedProduct['width'] : null;
+                    $cachedHeight = $cachedProduct['height'] !== null ? (float)$cachedProduct['height'] : null;
 
-            foreach ($productsToDelete as $productToDelete) {
-                $productToDelete->delete();
-                $productsChanged = true;
-            }
+                    $needsUpdate = $existingProduct->product_id != $cachedProduct['product_id']
+                        || abs((float)$existingProduct->quantity - (float)$cachedProduct['quantity']) > 0.0001
+                        || abs((float)$existingProduct->price - (float)$cachedProduct['price']) > 0.0001
+                        || $existingWidth !== $cachedWidth
+                        || $existingHeight !== $cachedHeight;
 
-            foreach ($productsToCreate as $newProduct) {
-                OrderProduct::create([
-                    'order_id' => $id,
-                    'product_id' => $newProduct['product_id'],
-                    'quantity' => $newProduct['quantity'],
-                    'price' => $newProduct['price'],
-                    'width' => $newProduct['width'],
-                    'height' => $newProduct['height'],
-                ]);
-                $productsChanged = true;
-            }
+                    Log::info('OrderProduct Update Check', [
+                        'order_product_id' => $orderProductId,
+                        'product_id' => $cachedProduct['product_id'],
+                        'needsUpdate' => $needsUpdate,
+                        'existing_quantity' => $existingProduct->quantity,
+                        'cached_quantity' => $cachedProduct['quantity'],
+                        'existing_price' => $existingProduct->price,
+                        'cached_price' => $cachedProduct['price'],
+                    ]);
 
-            $existingTempProducts = OrderTempProduct::where('order_id', $id)->get();
-            $tempProductsChanged = false;
+                    if ($needsUpdate) {
+                        Log::info('OrderProduct Updating', [
+                            'order_product_id' => $orderProductId,
+                            'product_id' => $cachedProduct['product_id'],
+                            'before_getDirty' => $existingProduct->getDirty(),
+                        ]);
+                        $existingProduct->product_id = $cachedProduct['product_id'];
+                        $existingProduct->quantity = $cachedProduct['quantity'];
+                        $existingProduct->price = $cachedProduct['price'];
+                        $existingProduct->width = $cachedProduct['width'] ?? null;
+                        $existingProduct->height = $cachedProduct['height'] ?? null;
+                        Log::info('OrderProduct Before Save', [
+                            'order_product_id' => $orderProductId,
+                            'getDirty' => $existingProduct->getDirty(),
+                            'isDirty' => $existingProduct->isDirty(),
+                        ]);
+                        $existingProduct->save();
+                        Log::info('OrderProduct Updated', [
+                            'order_product_id' => $orderProductId,
+                            'wasRecentlyCreated' => $existingProduct->wasRecentlyCreated,
+                            'wasChanged' => $existingProduct->wasChanged(),
+                            'getDirty' => $existingProduct->getDirty(),
+                        ]);
+                        $productsChanged = true;
+                    }
 
-            if (isset($data['remove_temp_products']) && is_array($data['remove_temp_products'])) {
-                $explicitlyRemoved = collect($data['remove_temp_products']);
-                $toDelete = $existingTempProducts->whereIn('name', $explicitlyRemoved->toArray());
+                    $processedProductIds[] = $orderProductId;
+                } else {
+                    $existingByProductId = $existingProductsByProductId->get($cachedProduct['product_id']);
 
-                if ($toDelete->count() > 0) {
-                    $toDelete->each(function ($item) {
-                        $item->delete();
-                    });
-                    $tempProductsChanged = true;
+                    if ($existingByProductId && $existingByProductId->isNotEmpty()) {
+                        $existingProduct = $existingByProductId->first();
+
+                        if (!in_array($existingProduct->id, $processedProductIds)) {
+                            $existingWidth = $existingProduct->width !== null ? (float)$existingProduct->width : null;
+                            $existingHeight = $existingProduct->height !== null ? (float)$existingProduct->height : null;
+                            $cachedWidth = $cachedProduct['width'] !== null ? (float)$cachedProduct['width'] : null;
+                            $cachedHeight = $cachedProduct['height'] !== null ? (float)$cachedProduct['height'] : null;
+
+                            $needsUpdate = abs((float)$existingProduct->quantity - (float)$cachedProduct['quantity']) > 0.0001
+                                || abs((float)$existingProduct->price - (float)$cachedProduct['price']) > 0.0001
+                                || $existingWidth !== $cachedWidth
+                                || $existingHeight !== $cachedHeight;
+
+                            Log::info('OrderProduct Update Check (no id)', [
+                                'existing_product_id' => $existingProduct->id,
+                                'product_id' => $cachedProduct['product_id'],
+                                'needsUpdate' => $needsUpdate,
+                                'existing_quantity' => $existingProduct->quantity,
+                                'cached_quantity' => $cachedProduct['quantity'],
+                                'existing_price' => $existingProduct->price,
+                                'cached_price' => $cachedProduct['price'],
+                            ]);
+
+                            if ($needsUpdate) {
+                                Log::info('OrderProduct Updating (no id)', [
+                                    'existing_product_id' => $existingProduct->id,
+                                    'product_id' => $cachedProduct['product_id'],
+                                ]);
+                                $existingProduct->quantity = $cachedProduct['quantity'];
+                                $existingProduct->price = $cachedProduct['price'];
+                                $existingProduct->width = $cachedProduct['width'] ?? null;
+                                $existingProduct->height = $cachedProduct['height'] ?? null;
+                                Log::info('OrderProduct Before Save (no id)', [
+                                    'existing_product_id' => $existingProduct->id,
+                                    'getDirty' => $existingProduct->getDirty(),
+                                    'isDirty' => $existingProduct->isDirty(),
+                                ]);
+                                $existingProduct->save();
+                                Log::info('OrderProduct Updated (no id)', [
+                                    'existing_product_id' => $existingProduct->id,
+                                    'wasChanged' => $existingProduct->wasChanged(),
+                                    'getDirty' => $existingProduct->getDirty(),
+                                ]);
+                                $productsChanged = true;
+                            }
+
+                            $processedProductIds[] = $existingProduct->id;
+                        }
+                    } else {
+                        Log::info('OrderProduct Creating', [
+                            'order_id' => $id,
+                            'product_id' => $cachedProduct['product_id'],
+                            'quantity' => $cachedProduct['quantity'],
+                            'price' => $cachedProduct['price'],
+                        ]);
+                        $newProduct = OrderProduct::create([
+                            'order_id' => $id,
+                            'product_id' => $cachedProduct['product_id'],
+                            'quantity' => $cachedProduct['quantity'],
+                            'price' => $cachedProduct['price'],
+                            'width' => $cachedProduct['width'] ?? null,
+                            'height' => $cachedProduct['height'] ?? null,
+                        ]);
+                        Log::info('OrderProduct Created', [
+                            'new_product_id' => $newProduct->id,
+                            'wasRecentlyCreated' => $newProduct->wasRecentlyCreated,
+                        ]);
+                        $productsChanged = true;
+                    }
                 }
             }
 
-            $newTempProductNames = collect($temp_products)->pluck('name')->toArray();
-            $tempProductsToDelete = $existingTempProducts->whereNotIn('name', $newTempProductNames);
-
-            if ($tempProductsToDelete->count() > 0) {
-                $tempProductsToDelete->each(function ($item) {
-                    $itemName = $item->name;
-                    $item->delete();
-                });
-                $tempProductsChanged = true;
+            $idsToDelete = $existingProductsMap->keys()->diff($processedProductIds);
+            if ($idsToDelete->isNotEmpty()) {
+                OrderProduct::whereIn('id', $idsToDelete->all())
+                    ->get()
+                    ->each(function ($product) {
+                        $product->delete();
+                    });
+                $productsChanged = true;
             }
 
             $existingTempProducts = OrderTempProduct::where('order_id', $id)->get();
-            $existingMap = $existingTempProducts->keyBy('name');
+            $existingTempMap = $existingTempProducts->keyBy('id');
+            $tempProductsChanged = false;
+
+            if (isset($data['remove_temp_products']) && is_array($data['remove_temp_products'])) {
+                $explicitlyRemovedIds = collect($data['remove_temp_products'])
+                    ->filter(fn($value) => !is_null($value))
+                    ->map(fn($value) => (int)$value);
+
+                if ($explicitlyRemovedIds->isNotEmpty()) {
+                    $toRemove = $existingTempProducts->whereIn('id', $explicitlyRemovedIds->all());
+                    $toRemove->each(function ($item) {
+                        $item->delete();
+                    });
+                    $existingTempMap = $existingTempMap->except($explicitlyRemovedIds->all());
+                    $tempProductsChanged = true;
+                }
+            }
+            $processedTempIds = [];
 
             foreach ($temp_products as $temp_product) {
-                $productName = $temp_product['name'];
+                $tempId = $temp_product['id'] ?? null;
 
-                if ($existingMap->has($productName)) {
-                    $existing = $existingMap->get($productName);
-                    $tempProductChanged = false;
+                if ($tempId) {
+                    $existingTemp = $existingTempMap->get($tempId);
 
-                    if (
-                        $existing->description != ($temp_product['description'] ?? null) ||
-                        $existing->quantity != $temp_product['quantity'] ||
-                        $existing->price != $temp_product['price'] ||
-                        $existing->unit_id != ($temp_product['unit_id'] ?? null) ||
-                        $existing->width != ($temp_product['width'] ?? null) ||
-                        $existing->height != ($temp_product['height'] ?? null)
-                    ) {
-                        $tempProductChanged = true;
+                    if (!$existingTemp) {
+                        throw new \Exception("Временный товар с ID {$tempId} не найден или принадлежит другому заказу");
                     }
 
+                    $tempProductChanged = $existingTemp->name !== ($temp_product['name'] ?? $existingTemp->name)
+                        || $existingTemp->description != ($temp_product['description'] ?? null)
+                        || (float)$existingTemp->quantity != (float)$temp_product['quantity']
+                        || (float)$existingTemp->price != (float)$temp_product['price']
+                        || (int)$existingTemp->unit_id != (int)($temp_product['unit_id'] ?? null)
+                        || $existingTemp->width != ($temp_product['width'] ?? null)
+                        || $existingTemp->height != ($temp_product['height'] ?? null);
+
                     if ($tempProductChanged) {
-                        $existing->update([
+                        $existingTemp->update([
+                            'name' => $temp_product['name'],
                             'description' => $temp_product['description'] ?? null,
                             'quantity' => $temp_product['quantity'],
                             'price' => $temp_product['price'],
@@ -877,10 +891,12 @@ class OrdersRepository extends BaseRepository
                         ]);
                         $tempProductsChanged = true;
                     }
+
+                    $processedTempIds[] = $tempId;
                 } else {
                     OrderTempProduct::create([
                         'order_id' => $id,
-                        'name' => $productName,
+                        'name' => $temp_product['name'],
                         'description' => $temp_product['description'] ?? null,
                         'quantity' => $temp_product['quantity'],
                         'price' => $temp_product['price'],
@@ -890,6 +906,17 @@ class OrdersRepository extends BaseRepository
                     ]);
                     $tempProductsChanged = true;
                 }
+            }
+
+            $tempIdsToDelete = $existingTempMap->keys()->diff($processedTempIds);
+            if ($tempIdsToDelete->isNotEmpty()) {
+                OrderTempProduct::where('order_id', $id)
+                    ->whereIn('id', $tempIdsToDelete->all())
+                    ->get()
+                    ->each(function ($item) {
+                        $item->delete();
+                    });
+                $tempProductsChanged = true;
             }
 
             if ($tempProductsChanged) {
@@ -987,14 +1014,7 @@ class OrdersRepository extends BaseRepository
             $order = Order::findOrFail($id);
             $products = OrderProduct::where('order_id', $id)->get();
 
-            foreach ($products as $product) {
-                $productObject = Product::find($product->product_id);
-                if ($productObject && $productObject->type == 1) {
-                    WarehouseStock::where('product_id', $product->product_id)
-                        ->where('warehouse_id', $order->warehouse_id)
-                        ->update(['quantity' => DB::raw('quantity + ' . $product->quantity)]);
-                }
-            }
+            $this->returnProductsToWarehouse($products, $order->warehouse_id);
 
             OrderProduct::where('order_id', $id)->delete();
 
@@ -1050,7 +1070,8 @@ class OrdersRepository extends BaseRepository
                 ->pluck('total_paid', 'source_id');
         }
 
-        $updatedCount = 0;
+        $ordersToUpdate = [];
+        $clientIdsToInvalidate = [];
 
         foreach ($ids as $id) {
             /** @var \App\Models\Order $order */
@@ -1075,20 +1096,22 @@ class OrdersRepository extends BaseRepository
             }
 
             if ($order->status_id != $statusId) {
-                $order->status_id = $statusId;
-                $order->save();
-                $updatedCount++;
+                $ordersToUpdate[] = $id;
+                if ($order->client_id) {
+                    $clientIdsToInvalidate[$order->client_id] = true;
+                }
             }
         }
 
-        if ($updatedCount > 0) {
+        $updatedCount = 0;
+        if (!empty($ordersToUpdate)) {
+            Order::whereIn('id', $ordersToUpdate)->update(['status_id' => $statusId]);
+            $updatedCount = count($ordersToUpdate);
+
             CacheService::invalidateOrdersCache();
 
-            foreach ($ids as $id) {
-                $order = $orders->get($id);
-                if ($order && $order->client_id) {
-                    $this->invalidateClientBalanceCache($order->client_id);
-                }
+            foreach (array_keys($clientIdsToInvalidate) as $clientId) {
+                $this->invalidateClientBalanceCache($clientId);
             }
         }
 
@@ -1096,6 +1119,186 @@ class OrdersRepository extends BaseRepository
     }
 
 
+
+    /**
+     * Вернуть товары на склад
+     *
+     * @param \Illuminate\Support\Collection $orderProducts Коллекция товаров заказа
+     * @param int $warehouseId ID склада
+     * @return void
+     */
+    private function returnProductsToWarehouse($orderProducts, $warehouseId)
+    {
+        if ($orderProducts->isEmpty()) {
+            return;
+        }
+
+        $productIds = $orderProducts->pluck('product_id')->unique()->filter()->toArray();
+        if (empty($productIds)) {
+            return;
+        }
+
+        $productsData = Product::whereIn('id', $productIds)->get()->keyBy('id');
+        $quantitiesByProduct = [];
+
+        foreach ($orderProducts as $product) {
+            $productObj = $productsData->get($product->product_id);
+            if ($productObj && $productObj->type == 1) {
+                $pId = $product->product_id;
+                if (!isset($quantitiesByProduct[$pId])) {
+                    $quantitiesByProduct[$pId] = 0;
+                }
+                $quantitiesByProduct[$pId] += $product->quantity;
+            }
+        }
+
+        foreach ($quantitiesByProduct as $productId => $totalQuantity) {
+            WarehouseStock::where('product_id', $productId)
+                ->where('warehouse_id', $warehouseId)
+                ->update(['quantity' => DB::raw('quantity + ' . $totalQuantity)]);
+        }
+    }
+
+    /**
+     * Проверить наличие товаров на складе и списать их
+     *
+     * @param array $warehouseStocksToUpdate Массив товаров для списания [product_id => ['quantity' => float, 'product_name' => string]]
+     * @param int $warehouseId ID склада
+     * @param string|null $warehouseName Название склада (для ошибок)
+     * @return void
+     * @throws \Exception
+     */
+    private function checkAndDeductWarehouseStock($warehouseStocksToUpdate, $warehouseId, $warehouseName = null)
+    {
+        if (empty($warehouseStocksToUpdate)) {
+            return;
+        }
+
+        $stockProductIds = array_keys($warehouseStocksToUpdate);
+        $stocks = WarehouseStock::whereIn('product_id', $stockProductIds)
+            ->where('warehouse_id', $warehouseId)
+            ->get()
+            ->keyBy('product_id');
+
+        foreach ($warehouseStocksToUpdate as $p_id => $stockData) {
+            $stock = $stocks->get($p_id);
+            if (!$stock || $stock->quantity < $stockData['quantity']) {
+                $warehouseName = $warehouseName ?? optional(Warehouse::find($warehouseId))->name ?? (string)$warehouseId;
+                $available = $stock->quantity ?? 0;
+                throw new \Exception("На складе '{$warehouseName}' недостаточно товара '{$stockData['product_name']}' (доступно: {$available}, требуется: {$stockData['quantity']})");
+            }
+        }
+
+        foreach ($warehouseStocksToUpdate as $p_id => $stockData) {
+            WarehouseStock::where('product_id', $p_id)
+                ->where('warehouse_id', $warehouseId)
+                ->update(['quantity' => DB::raw('quantity - ' . $stockData['quantity'])]);
+        }
+    }
+
+    /**
+     * Рассчитать сумму временных товаров
+     *
+     * @param array $temp_products Массив временных товаров
+     * @param \App\Services\RoundingService $roundingService Сервис округления
+     * @param int $companyId ID компании
+     * @return float Сумма временных товаров
+     */
+    private function calculateTempProductsTotal($temp_products, $roundingService, $companyId)
+    {
+        $total = 0;
+        foreach ($temp_products as $temp_product) {
+            $q = $roundingService->roundQuantityForCompany($companyId, (float) ($temp_product['quantity']));
+            $p = $temp_product['price'];
+            $total += $q * $p;
+        }
+        return $total;
+    }
+
+    /**
+     * Рассчитать количество товара с учетом размеров
+     *
+     * @param array $product Данные товара
+     * @param \App\Models\Product $productObject Объект товара
+     * @param \App\Services\RoundingService $roundingService Сервис округления
+     * @param int $companyId ID компании
+     * @return float Рассчитанное количество
+     */
+    private function calculateProductQuantity($product, $productObject, $roundingService, $companyId)
+    {
+        $q = $roundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
+        $width = $product['width'] ?? null;
+        $height = $product['height'] ?? null;
+
+        if ($width && $height && $productObject->unit_id) {
+            $calculatedQuantity = $this->calculateQuantityFromDimensions($width, $height, $productObject->unit_id);
+            $q = $calculatedQuantity;
+        }
+
+        return $q;
+    }
+
+    /**
+     * Получить цену товара с учетом оптовой цены для проектов
+     *
+     * @param int $productId ID товара
+     * @param float $defaultPrice Цена по умолчанию
+     * @param int|null $projectId ID проекта
+     * @param \Illuminate\Support\Collection|null $productPricesData Предзагруженные данные цен товаров
+     * @return float Цена товара
+     */
+    private function getProductPrice($productId, $defaultPrice, $projectId = null, $productPricesData = null)
+    {
+        $p = $defaultPrice;
+        if ($projectId) {
+            if ($productPricesData !== null) {
+                $productPrice = $productPricesData->get($productId);
+            } else {
+                $productPrice = ProductPrice::where('product_id', $productId)->first();
+            }
+            if ($productPrice && $productPrice->wholesale_price > 0) {
+                $p = $productPrice->wholesale_price;
+            }
+        }
+        return $p;
+    }
+
+    /**
+     * Рассчитать скидку и итоговую сумму
+     *
+     * @param float $price Сумма без скидки
+     * @param float $discount Размер скидки
+     * @param string $discountType Тип скидки (fixed|percent)
+     * @param \App\Services\RoundingService $roundingService Сервис округления
+     * @param int $companyId ID компании
+     * @return array ['price' => float, 'discount' => float, 'total_price' => float]
+     * @throws \Exception
+     */
+    private function calculateDiscountAndTotal($price, $discount, $discountType, $roundingService, $companyId)
+    {
+        if ($discountType == 'percent') {
+            $percent = max(0, min(100, $discount));
+            $discount_calculated = $price * $percent / 100;
+        } else {
+            $discount_calculated = max(0, min($discount, $price));
+        }
+        $total_price = max(0, $price - $discount_calculated);
+
+        $price = $roundingService->roundForCompany($companyId, (float) $price);
+        $discount_calculated = $roundingService->roundForCompany($companyId, (float) $discount_calculated);
+
+        if ($discount_calculated > $price) {
+            throw new \Exception('Скидка не может превышать сумму заказа');
+        }
+
+        $total_price = $roundingService->roundForCompany($companyId, (float) $total_price);
+
+        return [
+            'price' => $price,
+            'discount' => $discount_calculated,
+            'total_price' => $total_price
+        ];
+    }
 
     /**
      * Рассчитать количество товара по размерам (ширина и высота)
@@ -1128,5 +1331,50 @@ class OrdersRepository extends BaseRepository
         $roundingService = new RoundingService();
         $companyId = $this->getCurrentCompanyId();
         return $roundingService->roundQuantityForCompany($companyId, (float) $raw);
+    }
+
+    /**
+     * Построить ключ сравнения для товаров заказа
+     *
+     * @param int $productId
+     * @param mixed $quantity
+     * @param mixed $price
+     * @param mixed|null $width
+     * @param mixed|null $height
+     * @return string
+     */
+    private function buildOrderProductComparisonKey($productId, $quantity, $price, $width, $height): string
+    {
+        return implode('|', [
+            (string) $productId,
+            $this->normalizeDecimalForComparison($quantity),
+            $this->normalizeDecimalForComparison($price),
+            $this->normalizeDecimalForComparison($width, true),
+            $this->normalizeDecimalForComparison($height, true),
+        ]);
+    }
+
+    /**
+     * Нормализовать числовое значение для сравнения
+     *
+     * @param mixed $value
+     * @param bool $allowNull
+     * @return string
+     */
+    private function normalizeDecimalForComparison($value, bool $allowNull = false): string
+    {
+        if ($allowNull && ($value === null || $value === '')) {
+            return 'null';
+        }
+
+        if ($value instanceof \Stringable) {
+            $value = (string) $value;
+        }
+
+        if (!is_numeric($value)) {
+            $value = 0;
+        }
+
+        return number_format((float) $value, 5, '.', '');
     }
 }
