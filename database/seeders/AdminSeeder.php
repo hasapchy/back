@@ -33,19 +33,8 @@ class AdminSeeder extends Seeder
             ]);
         }
 
-        // Получаем или создаем роль admin
-        $adminRole = Role::firstOrCreate([
-            'name' => 'admin',
-            'guard_name' => 'api',
-        ]);
-
-        // Убеждаемся, что роль admin имеет все разрешения
-        $allPermissions = \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
-        $adminRole->syncPermissions($allPermissions);
-
         $admin->syncRoles(['admin', 'basement_worker']);
 
-        // Назначаем роль admin пользователям с ID 1 и 2
         $user1 = User::find(1);
         if ($user1 && $user1->id !== $admin->id) {
             $user1->syncRoles(['admin']);
@@ -57,23 +46,27 @@ class AdminSeeder extends Seeder
             $user2->syncRoles(['admin']);
             echo "Role 'admin' assigned to user ID 2\n";
 
-            // Назначаем роль admin пользователю 2 во всех его компаниях
             $user2Companies = $user2->companies()->get();
             if ($user2Companies->isNotEmpty()) {
-                // Удаляем старые роли пользователя 2 в компаниях
                 DB::table('company_user_role')
                     ->where('user_id', $user2->id)
                     ->delete();
 
-                // Добавляем роль admin для каждой компании пользователя 2
                 foreach ($user2Companies as $company) {
-                    DB::table('company_user_role')->insert([
-                        'company_id' => $company->id,
-                        'user_id' => $user2->id,
-                        'role_id' => $adminRole->id,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                    $adminRole = Role::where('name', 'admin')
+                        ->where('guard_name', 'api')
+                        ->where('company_id', $company->id)
+                        ->first();
+                    
+                    if ($adminRole) {
+                        DB::table('company_user_role')->insert([
+                            'company_id' => $company->id,
+                            'user_id' => $user2->id,
+                            'role_id' => $adminRole->id,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
                 }
 
                 echo "Role 'admin' assigned to user ID 2 in " . $user2Companies->count() . " companies\n";

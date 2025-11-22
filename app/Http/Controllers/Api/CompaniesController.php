@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Repositories\RolesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -116,6 +117,9 @@ class CompaniesController extends Controller
         }
 
         $company = Company::create($data);
+
+        $rolesRepository = app(RolesRepository::class);
+        $rolesRepository->createDefaultRolesForCompany($company->id);
 
         return response()->json(['company' => $company]);
     }

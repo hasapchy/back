@@ -345,7 +345,8 @@ class ClientsRepository extends BaseRepository
                     ->with([
                         'cashRegister:id,name',
                         'currency:id,symbol,code',
-                        'user:id,name'
+                        'user:id,name',
+                        'category:id,name'
                     ])
                     ->select(
                         'id',
@@ -359,7 +360,8 @@ class ClientsRepository extends BaseRepository
                         'note',
                         'user_id',
                         'currency_id',
-                        'cash_id'
+                        'cash_id',
+                        'category_id'
                     )
                     ->get()
                     ->flatMap(function ($item) use ($defaultCurrencySymbol) {
@@ -400,7 +402,8 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
                                 'currency_code' => $item->currency->code,
-                                'cash_name' => $item->cashRegister->name ?? null
+                                'cash_name' => $item->cashRegister->name ?? null,
+                                'category_name' => $item->category->name ?? null
                             ];
                         } elseif ($source === 'transaction') {
                             $transactionId = $item->id;
@@ -431,7 +434,8 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
                                 'currency_code' => $item->currency->code,
-                                'cash_name' => $item->cashRegister->name ?? null
+                                'cash_name' => $item->cashRegister->name ?? null,
+                                'category_name' => $item->category->name ?? null
                             ];
                         } elseif ($source === 'sale') {
                             $saleId = $item->source_id;
@@ -450,7 +454,8 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
                                 'currency_code' => $item->currency->code,
-                                'cash_name' => $item->cashRegister->name ?? null
+                                'cash_name' => $item->cashRegister->name ?? null,
+                                'category_name' => $item->category->name ?? null
                             ];
                         } elseif ($source === 'order') {
                             $orderId = $item->source_id;
@@ -475,7 +480,8 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
                                 'currency_code' => $item->currency->code,
-                                'cash_name' => $item->cashRegister->name ?? null
+                                'cash_name' => $item->cashRegister->name ?? null,
+                                'category_name' => $item->category->name ?? null
                             ];
                         } else {
                             $description = $item->note ?? 'Транзакция';
@@ -494,7 +500,8 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
                                 'currency_code' => $item->currency->code,
-                                'cash_name' => $item->cashRegister->name ?? null
+                                'cash_name' => $item->cashRegister->name ?? null,
+                                'category_name' => $item->category->name ?? null
                             ];
                         }
 

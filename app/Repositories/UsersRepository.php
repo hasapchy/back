@@ -346,7 +346,10 @@ class UsersRepository extends BaseRepository
                 if (isset($companyRole['company_id']) && isset($companyRole['role_ids']) && is_array($companyRole['role_ids'])) {
                     if (empty($selectedCompanyIds) || in_array($companyRole['company_id'], $selectedCompanyIds)) {
                         foreach ($companyRole['role_ids'] as $roleName) {
-                            $role = Role::where('name', $roleName)->where('guard_name', 'api')->first();
+                            $role = Role::where('name', $roleName)
+                                ->where('guard_name', 'api')
+                                ->where('company_id', $companyRole['company_id'])
+                                ->first();
                             if ($role) {
                                 $user->companyRoles()->attach($role->id, ['company_id' => $companyRole['company_id']]);
                             }

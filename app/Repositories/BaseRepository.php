@@ -71,6 +71,24 @@ abstract class BaseRepository
     }
 
     /**
+     * Применить фильтр по company_id к запросу
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param int|null $companyId ID компании (если null, берется из заголовка)
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function applyCompanyFilter($query, $companyId = null)
+    {
+        $companyId = $companyId ?? $this->getCurrentCompanyId();
+        
+        if ($companyId) {
+            return $query->where('company_id', $companyId);
+        }
+        
+        return $query->whereNull('company_id');
+    }
+
+    /**
      * Добавить фильтр по компании через отношение
      *
      * @param \Illuminate\Database\Eloquent\Builder $query Query builder
