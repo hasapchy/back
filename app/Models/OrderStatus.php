@@ -23,11 +23,22 @@ class OrderStatus extends Model
 
     protected $fillable = ['name', 'category_id'];
 
+    protected static $protectedStatusIds = [1, 2, 3, 4, 5, 6];
+
+    /**
+     * Получить массив защищенных ID статусов
+     *
+     * @return array
+     */
+    public static function getProtectedIds()
+    {
+        return self::$protectedStatusIds;
+    }
+
     protected static function booted()
     {
         static::deleting(function ($status) {
-            $protectedIds = [1, 2, 3, 4, 5, 6];
-            if (in_array($status->id, $protectedIds)) {
+            if (in_array($status->id, self::$protectedStatusIds)) {
                 return false;
             }
         });

@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreCashRegisterRequest;
+use App\Http\Requests\UpdateCashRegisterRequest;
+use App\Http\Resources\CashRegisterResource;
 use App\Repositories\CahRegistersRepository;
 use Illuminate\Http\Request;
-use App\Services\CacheService;
+use App\Models\CashRegister;
 
 /**
  * Контроллер для работы с кассами
@@ -30,6 +33,12 @@ class CashRegistersController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
+    /**
+     * Получить список касс с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
@@ -37,9 +46,15 @@ class CashRegistersController extends Controller
         $page = $request->input('page', 1);
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page);
 
-        return $this->paginatedResponse($items);
+        return CashRegisterResource::collection($items)->response();
     }
 
+    /**
+     * Получить все кассы пользователя
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     /**
      * Получить все кассы пользователя
      *
@@ -50,7 +65,7 @@ class CashRegistersController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $items = $this->itemsRepository->getAllItems($userUuid);
-        return response()->json($items);
+        return CashRegisterResource::collection($items)->response();
     }
 
     /**
@@ -115,53 +130,51 @@ class CashRegistersController extends Controller
             $source
         );
 
-        return response()->json($balances);
+        return $this->dataResponse($balances);
     }
 
     /**
      * Создать новую кассу
      *
-     * @param Request $request
+     * @param StoreCashRegisterRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreCashRegisterRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $request->validate([
-            'name' => 'required|string',
-            'balance' => 'required|numeric',
-            'currency_id' => 'nullable|exists:currencies,id',
-            'users' => 'required|array',
-            'users.*' => 'exists:users,id'
-        ]);
+        try {
+            $this->itemsRepository->createItem([
+                'name' => $request->name,
+                'balance' => $request->balance,
+                'currency_id' => $request->currency_id,
+                'users' => $request->users
+            ]);
 
-        $item_created = $this->itemsRepository->createItem([
-            'name' => $request->name,
-            'balance' => $request->balance,
-            'currency_id' => $request->currency_id,
-            'users' => $request->users
-        ]);
+            $cashRegister = CashRegister::with('currency')
+                ->where('name', $request->name)
+                ->where('company_id', $this->getCurrentCompanyId())
+                ->latest()
+                ->firstOrFail();
 
-        if (!$item_created) {
-            return $this->errorResponse('Ошибка создания кассы', 400);
+            return $this->dataResponse(new CashRegisterResource($cashRegister), 'Касса создана');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка создания кассы: ' . $e->getMessage(), 400);
         }
-
-        return response()->json(['message' => 'Касса создана']);
     }
 
     /**
      * Обновить кассу
      *
-     * @param Request $request
+     * @param UpdateCashRegisterRequest $request
      * @param int $id ID кассы
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateCashRegisterRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $cashRegister = \App\Models\CashRegister::find($id);
+        $cashRegister = CashRegister::find($id);
         if (!$cashRegister) {
             return $this->notFoundResponse('Касса не найдена');
         }
@@ -169,12 +182,6 @@ class CashRegistersController extends Controller
         if (!$this->canPerformAction('cash_registers', 'update', $cashRegister)) {
             return $this->forbiddenResponse('У вас нет прав на редактирование этой кассы');
         }
-
-        $request->validate([
-            'name' => 'required|string',
-            'users' => 'required|array',
-            'users.*' => 'exists:users,id'
-        ]);
 
         $category_updated = $this->itemsRepository->updateItem($id, [
             'name' => $request->name,
@@ -185,7 +192,8 @@ class CashRegistersController extends Controller
             return $this->errorResponse('Ошибка обновления кассы', 400);
         }
 
-        return response()->json(['message' => 'Касса обновлена']);
+        $cashRegister = CashRegister::with('currency')->findOrFail($id);
+        return $this->dataResponse(new CashRegisterResource($cashRegister), 'Касса обновлена');
     }
 
     /**
@@ -198,7 +206,7 @@ class CashRegistersController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $cashRegister = \App\Models\CashRegister::find($id);
+        $cashRegister = CashRegister::find($id);
         if (!$cashRegister) {
             return $this->notFoundResponse('Касса не найдена');
         }

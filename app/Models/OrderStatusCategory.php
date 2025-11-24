@@ -24,11 +24,12 @@ class OrderStatusCategory extends Model
 
     protected $fillable = ['name', 'user_id', 'color'];
 
+    protected static $protectedCategoryIds = [1, 2, 3, 4, 5];
+
     protected static function booted()
     {
         static::deleting(function ($category) {
-            $protectedIds = [1, 2, 3, 4, 5];
-            if (in_array($category->id, $protectedIds)) {
+            if (in_array($category->id, self::$protectedCategoryIds)) {
                 return false;
             }
         });

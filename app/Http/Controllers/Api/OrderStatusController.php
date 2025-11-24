@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreOrderStatusRequest;
+use App\Http\Requests\UpdateOrderStatusRequest;
+use App\Http\Resources\OrderStatusResource;
+use App\Models\OrderStatus;
 use App\Repositories\OrderStatusRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -36,7 +40,7 @@ class OrderStatusController extends Controller
 
         $items = $this->orderStatusRepository->getItemsWithPagination($userUuid, 20);
 
-        return $this->paginatedResponse($items);
+        return OrderStatusResource::collection($items)->response();
     }
 
     /**
@@ -51,23 +55,18 @@ class OrderStatusController extends Controller
 
         $items = $this->orderStatusRepository->getAllItems($userUuid);
 
-        return response()->json($items);
+        return OrderStatusResource::collection($items)->response();
     }
 
     /**
      * Создать новый статус заказа
      *
-     * @param Request $request
+     * @param StoreOrderStatusRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreOrderStatusRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'category_id' => 'required|exists:order_status_categories,id'
-        ]);
 
         $created = $this->orderStatusRepository->createItem([
             'name' => $request->name,
@@ -75,24 +74,20 @@ class OrderStatusController extends Controller
         ]);
         if (!$created) return $this->errorResponse('Ошибка создания статуса', 400);
 
-        return response()->json(['message' => 'Статус создан']);
+        $status = OrderStatus::with('category')->findOrFail($created->id);
+        return $this->dataResponse(new OrderStatusResource($status), 'Статус создан');
     }
 
     /**
      * Обновить статус заказа
      *
-     * @param Request $request
+     * @param UpdateOrderStatusRequest $request
      * @param int $id ID статуса
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateOrderStatusRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'category_id' => 'required|exists:order_status_categories,id'
-        ]);
 
         $updated = $this->orderStatusRepository->updateItem($id, [
             'name' => $request->name,
@@ -100,7 +95,8 @@ class OrderStatusController extends Controller
         ]);
         if (!$updated) return $this->errorResponse('Ошибка обновления статуса', 400);
 
-        return response()->json(['message' => 'Статус обновлен']);
+        $status = OrderStatus::with('category')->findOrFail($id);
+        return $this->dataResponse(new OrderStatusResource($status), 'Статус обновлен');
     }
 
     /**
@@ -113,16 +109,16 @@ class OrderStatusController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $protectedIds = [1, 2, 3, 4, 5, 6];
-        if (in_array($id, $protectedIds)) {
+        if (in_array($id, OrderStatus::getProtectedIds())) {
             return $this->errorResponse('Системный статус нельзя удалить', 400);
         }
 
+        $status = OrderStatus::with('category')->findOrFail($id);
         $deleted = $this->orderStatusRepository->deleteItem($id);
         if (!$deleted) {
             return $this->errorResponse('Ошибка удаления статуса', 400);
         }
 
-        return response()->json(['message' => 'Статус удален']);
+        return $this->dataResponse(new OrderStatusResource($status), 'Статус удален');
     }
 }

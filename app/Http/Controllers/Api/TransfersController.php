@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreTransferRequest;
+use App\Http\Requests\UpdateTransferRequest;
 use App\Repositories\TransactionsRepository;
 use App\Repositories\TransfersRepository;
 use App\Services\CacheService;
@@ -44,20 +46,12 @@ class TransfersController extends Controller
     /**
      * Создать перемещение между кассами
      *
-     * @param Request $request
+     * @param StoreTransferRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreTransferRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'cash_id_from' => 'required|exists:cash_registers,id',
-            'cash_id_to' => 'required|exists:cash_registers,id',
-            'amount' => 'required|numeric|min:0.01',
-            'note' => 'nullable|sometimes|string',
-            'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001'
-        ]);
 
         $cashRegisterFrom = CashRegister::findOrFail($request->cash_id_from);
         $cashRegisterTo = CashRegister::findOrFail($request->cash_id_to);
@@ -91,21 +85,13 @@ class TransfersController extends Controller
     /**
      * Обновить перемещение между кассами
      *
-     * @param Request $request
+     * @param UpdateTransferRequest $request
      * @param int $id ID перемещения
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateTransferRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'cash_id_from' => 'required|exists:cash_registers,id',
-            'cash_id_to' => 'required|exists:cash_registers,id',
-            'amount' => 'required|numeric|min:0.01',
-            'note' => 'nullable|string',
-            'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001'
-        ]);
 
         $transfer = \App\Models\CashTransfer::findOrFail($id);
         $cashRegisterFrom = \App\Models\CashRegister::findOrFail($request->cash_id_from);

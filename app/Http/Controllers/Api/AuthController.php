@@ -3,12 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Repositories\UsersRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
-use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -19,12 +20,8 @@ class AuthController extends Controller
         $this->itemsRepository = $itemsRepository;
     }
 
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
 
         $user = User::where('email', $request->email)->first();
 
@@ -49,23 +46,14 @@ class AuthController extends Controller
         $expiresAt = $ttl ? now()->addMinutes($ttl) : null;
 
         $accessToken = $user->createToken('access-token', ['*'], $expiresAt);
-        $refreshToken = $user->createToken('refresh-token', ['refresh'], $remember ? now()->addMinutes(43200) : now()->addMinutes(10080));
 
         return response()->json([
             'access_token' => $accessToken->plainTextToken,
-            'refresh_token' => $refreshToken->plainTextToken,
             'token_type'   => 'bearer',
             'expires_in'   => $ttl ? $ttl * 60 : null,
-            'refresh_expires_in' => ($remember ? 43200 : 10080) * 60,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'photo' => $user->photo,
-                'is_admin' => $user->is_admin,
-                'roles' => $resolvedRoles,
-                'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
-            ]
+            'user' => (new UserResource($user))->resolve(request()),
+            'roles' => $resolvedRoles,
+            'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
         ]);
     }
 
@@ -80,15 +68,8 @@ class AuthController extends Controller
         $roles = $user->getAllRoleNames();
 
         return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'photo' => $user->photo,
-                'is_admin' => $user->is_admin,
-                'roles' => $roles,
-                'permissions' => $permissions
-            ],
+            'user' => (new UserResource($user))->resolve(request()),
+            'roles' => $roles,
             'permissions' => $permissions,
         ]);
     }
@@ -104,61 +85,4 @@ class AuthController extends Controller
         return response()->json(['message' => 'Successfully logged out']);
     }
 
-    public function refresh(Request $request)
-    {
-        $refreshToken = $request->input('refresh_token');
-
-        if (!$refreshToken) {
-            return $this->errorResponse('Refresh token is required', 400);
-        }
-
-        $token = PersonalAccessToken::findToken($refreshToken);
-
-        if (!$token) {
-            return $this->unauthorizedResponse('Invalid refresh token');
-        }
-
-        if (!$token->can('refresh')) {
-            $token->delete();
-            return $this->unauthorizedResponse('Invalid refresh token');
-        }
-
-        /** @var User $user */
-        $user = $token->tokenable;
-
-        if (!$user || !$user->is_active) {
-            if ($token) {
-                $token->delete();
-            }
-            return $this->forbiddenResponse('User account is deactivated');
-        }
-
-        $user->load('roles', 'permissions');
-        $resolvedRoles = $user->getAllRoleNames();
-
-        $isRemember = $token->expires_at && $token->expires_at->gt(now()->addMinutes(43200 - 1440));
-        $ttl = $isRemember ? config('sanctum.remember_expiration', 10080) : config('sanctum.expiration', 1440);
-        $expiresAt = $ttl ? now()->addMinutes($ttl) : null;
-
-        $token->delete();
-
-        $newAccessToken = $user->createToken('access-token', ['*'], $expiresAt);
-        $newRefreshToken = $user->createToken('refresh-token', ['refresh'], $isRemember ? now()->addMinutes(43200) : now()->addMinutes(10080));
-
-        return response()->json([
-            'access_token'  => $newAccessToken->plainTextToken,
-            'refresh_token' => $newRefreshToken->plainTextToken,
-            'token_type'    => 'bearer',
-            'expires_in'    => $ttl ? $ttl * 60 : null,
-            'refresh_expires_in' => ($isRemember ? 43200 : 10080) * 60,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'is_admin' => $user->is_admin,
-                'roles' => $resolvedRoles,
-                'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
-            ]
-        ]);
-    }
 }

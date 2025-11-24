@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreOrderRequest;
+use App\Http\Requests\UpdateOrderRequest;
+use App\Http\Resources\OrderResource;
 use App\Repositories\OrdersRepository;
 use App\Services\CacheService;
+use App\Services\OrderService;
 use App\Models\Order;
-use App\Models\User;
-use App\Models\Category;
-use App\Models\CategoryUser;
+use App\Models\Product;
 use Illuminate\Http\Request;
 
 /**
@@ -20,13 +22,20 @@ class OrderController extends Controller
     protected $itemRepository;
 
     /**
+     * @var OrderService
+     */
+    protected $orderService;
+
+    /**
      * Конструктор контроллера
      *
      * @param OrdersRepository $itemRepository Репозиторий заказов
+     * @param OrderService $orderService
      */
-    public function __construct(OrdersRepository $itemRepository)
+    public function __construct(OrdersRepository $itemRepository, OrderService $orderService)
     {
         $this->itemRepository = $itemRepository;
+        $this->orderService = $orderService;
     }
 
     /**
@@ -51,111 +60,21 @@ class OrderController extends Controller
 
         $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter);
 
-        return $this->paginatedResponse($items);
+        return OrderResource::collection($items)->response();
     }
 
     /**
      * Создать новый заказ
      *
-     * @param Request $request
+     * @param StoreOrderRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreOrderRequest $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-
-        $request->validate([
-            'client_id' => 'required|integer|exists:clients,id',
-            'project_id' => 'nullable|sometimes|integer|exists:projects,id',
-            'cash_id' => 'nullable|integer|exists:cash_registers,id',
-            'warehouse_id' => 'required|integer|exists:warehouses,id',
-            'currency_id' => 'nullable|integer|exists:currencies,id',
-            'category_id' => 'required|integer|exists:categories,id',
-            'discount'      => 'nullable|numeric|min:0',
-            'discount_type' => 'nullable|in:fixed,percent|required_with:discount',
-            'description' => 'nullable|string',
-            'date' => 'nullable|date',
-            'note' => 'nullable|string',
-            'status_id'    => 'nullable|integer|exists:order_statuses,id',
-            'products'              => 'sometimes|array',
-            'products.*.product_id' => 'required_with:products|integer|exists:products,id',
-            'products.*.quantity'   => 'required_with:products|numeric|min:0',
-            'products.*.price'      => 'required_with:products|numeric|min:0',
-            'products.*.width'      => 'nullable|numeric|min:0',
-            'products.*.height'    => 'nullable|numeric|min:0',
-            'temp_products'         => 'sometimes|array',
-            'temp_products.*.name'  => 'required_with:temp_products|string|max:255',
-            'temp_products.*.description' => 'nullable|string',
-            'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0',
-            'temp_products.*.price'       => 'required_with:temp_products|numeric|min:0',
-            'temp_products.*.unit_id'     => 'nullable|exists:units,id',
-            'temp_products.*.width'       => 'nullable|numeric|min:0',
-            'temp_products.*.height'      => 'nullable|numeric|min:0',
-        ]);
-
-        $categoryId = $request->category_id;
-        $user = auth('api')->user();
-        if ($user instanceof User && $user->hasRole(config('basement.worker_role'))) {
-            // Получаем категории пользователя с учетом компании
-            $companyId = $this->getCurrentCompanyId();
-            $userCategoryIds = CategoryUser::where('user_id', $userUuid)
-                ->pluck('category_id')
-                ->toArray();
-
-            // Фильтруем по компании, если указана
-            if ($companyId) {
-                $companyCategoryIds = Category::where('company_id', $companyId)
-                    ->pluck('id')
-                    ->toArray();
-                $userCategoryIds = array_intersect($userCategoryIds, $companyCategoryIds);
-            }
-
-            if (!$categoryId) {
-                // Если категория не указана, берем первую доступную категорию пользователя
-                $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
-            } elseif (!in_array($categoryId, $userCategoryIds)) {
-                // Если категория указана, проверяем доступ пользователя к ней
-                return $this->forbiddenResponse('У вас нет доступа к указанной категории');
-            }
-        }
-
-        $data = [
-            'user_id'      => $userUuid,
-            'client_id'    => $request->client_id,
-            'project_id'   => $request->project_id,
-            'cash_id'      => $request->cash_id,
-            'warehouse_id' => $request->warehouse_id,
-            'currency_id' => $request->currency_id,
-            'category_id' => $categoryId,
-            'discount' => $request->discount ?? 0,
-            'discount_type' => $request->discount_type ?? 'percent',
-            'description' => $request->description ?? '',
-            'date'         => $request->date ?? now(),
-            'note'         => $request->note ?? '',
-            'status_id'    => 1,
-            'products'     => array_map(fn($p) => [
-                'product_id' => $p['product_id'],
-                'quantity'   => $p['quantity'],
-                'price'      => $p['price'],
-                'width'      => $p['width'] ?? null,
-                'height'     => $p['height'] ?? null,
-            ], $request->products ?? []),
-            'temp_products' => array_map(fn($p) => [
-                'name'        => $p['name'],
-                'description' => $p['description'] ?? null,
-                'quantity'    => $p['quantity'],
-                'price'       => $p['price'],
-                'unit_id'     => $p['unit_id'] ?? null,
-                'width'       => $p['width'] ?? null,
-                'height'      => $p['height'] ?? null,
-            ], $request->temp_products ?? []),
-        ];
+        $user = $this->requireAuthenticatedUser();
 
         if (!empty($request->temp_products)) {
-            if (!$this->hasPermission('products_create_temp')) {
-                return $this->forbiddenResponse('У вас нет прав на создание временных товаров');
-            }
+            $this->authorize('createTemp', Product::class);
         }
 
         $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
@@ -169,7 +88,9 @@ class OrderController extends Controller
         }
 
         try {
-            $this->itemRepository->createItem($data);
+            $data = $this->orderService->prepareOrderData($request, $user);
+            $companyId = $this->getCurrentCompanyId();
+            $order = $this->orderService->createOrder($data, $user, $companyId);
 
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
@@ -179,7 +100,7 @@ class OrderController extends Controller
                 CacheService::invalidateProjectsCache();
             }
 
-            return response()->json(['message' => 'Заказ успешно создан']);
+            return $this->dataResponse(new OrderResource($order), 'Заказ успешно создан');
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage(), 400);
         }
@@ -188,118 +109,19 @@ class OrderController extends Controller
     /**
      * Обновить заказ
      *
-     * @param Request $request
+     * @param UpdateOrderRequest $request
      * @param int $id ID заказа
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateOrderRequest $request, $id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $user = $this->requireAuthenticatedUser();
+        $order = Order::findOrFail($id);
 
-        $order = $this->itemRepository->getItemById($id);
-        if (!$order) {
-            return $this->notFoundResponse('Заказ не найден');
-        }
-
-        if (!$this->canPerformAction('orders', 'update', $order)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этого заказа');
-        }
-
-        $request->validate([
-            'client_id'            => 'required|integer|exists:clients,id',
-            'project_id'           => 'nullable|sometimes|integer|exists:projects,id',
-            'cash_id'              => 'nullable|integer|exists:cash_registers,id',
-            'warehouse_id'         => 'required|integer|exists:warehouses,id',
-            'currency_id'  => 'nullable|integer|exists:currencies,id',
-            'category_id' => 'nullable|integer|exists:categories,id',
-            'date'                 => 'nullable|date',
-            'note'                 => 'nullable|string',
-            'description'          => 'nullable|string',
-            'status_id'            => 'nullable|integer|exists:order_statuses,id',
-            'products'             => 'nullable|array',
-            'products.*.id'        => 'nullable|integer|exists:order_products,id',
-            'products.*.product_id' => 'required_with:products|integer|exists:products,id',
-            'products.*.quantity'  => 'required_with:products|numeric|min:0',
-            'products.*.price'     => 'required_with:products|numeric|min:0',
-            'products.*.width'      => 'nullable|numeric|min:0',
-            'products.*.height'    => 'nullable|numeric|min:0',
-            'temp_products'         => 'nullable|array',
-            'temp_products.*.id'    => 'nullable|integer|exists:order_temp_products,id',
-            'temp_products.*.name'  => 'required_with:temp_products|string|max:255',
-            'temp_products.*.description' => 'nullable|string',
-            'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0',
-            'temp_products.*.price'       => 'required_with:temp_products|numeric|min:0',
-            'temp_products.*.unit_id'     => 'nullable|exists:units,id',
-            'temp_products.*.width'       => 'nullable|numeric|min:0',
-            'temp_products.*.height'      => 'nullable|numeric|min:0',
-            'remove_temp_products'  => 'nullable|array',
-            'remove_temp_products.*' => 'integer|exists:order_temp_products,id',
-        ]);
-
-        $categoryId = $request->category_id;
-        $user = auth('api')->user();
-        if ($user instanceof User && $user->hasRole(config('basement.worker_role'))) {
-            // Получаем категории пользователя с учетом компании
-            $companyId = $this->getCurrentCompanyId();
-            $userCategoryIds = CategoryUser::where('user_id', $userUuid)
-                ->pluck('category_id')
-                ->toArray();
-
-            // Фильтруем по компании, если указана
-            if ($companyId) {
-                $companyCategoryIds = Category::where('company_id', $companyId)
-                    ->pluck('id')
-                    ->toArray();
-                $userCategoryIds = array_intersect($userCategoryIds, $companyCategoryIds);
-            }
-
-            if (!$categoryId) {
-                // Если категория не указана, берем первую доступную категорию пользователя
-                $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
-            } elseif (!in_array($categoryId, $userCategoryIds)) {
-                // Если категория указана, проверяем доступ пользователя к ней
-                return $this->forbiddenResponse('У вас нет доступа к указанной категории');
-            }
-        }
-
-        $data = [
-            'client_id'    => $request->client_id,
-            'project_id'   => $request->project_id,
-            'cash_id'      => $request->cash_id,
-            'warehouse_id'  => $request->warehouse_id,
-            'currency_id'   => $request->currency_id,
-            'category_id' => $categoryId,
-            'discount'      => $request->discount  ?? 0,
-            'discount_type' => $request->discount_type ?? 'percent',
-            'note'         => $request->note ?? '',
-            'description'  => $request->description ?? '',
-            'status_id'    => $request->status_id,
-            'date'         => $request->date ?? now(),
-            'products'     => array_map(fn($p) => [
-                'id'         => $p['id'] ?? null,
-                'product_id' => $p['product_id'],
-                'quantity'   => $p['quantity'],
-                'price'      => $p['price'],
-                'width'      => $p['width'] ?? null,
-                'height'     => $p['height'] ?? null,
-            ], $request->products ?? []),
-            'temp_products' => array_map(fn($p) => [
-                'id'          => $p['id'] ?? null,
-                'name'        => $p['name'],
-                'description' => $p['description'] ?? null,
-                'quantity'    => $p['quantity'],
-                'price'       => $p['price'],
-                'unit_id'     => $p['unit_id'] ?? null,
-                'width'       => $p['width'] ?? null,
-                'height'      => $p['height'] ?? null,
-            ], $request->temp_products ?? []),
-            'remove_temp_products' => $request->remove_temp_products ?? [],
-        ];
+        $this->authorize('update', $order);
 
         if (!empty($request->temp_products)) {
-            if (!$this->hasPermission('products_create_temp')) {
-                return $this->forbiddenResponse('У вас нет прав на создание временных товаров');
-            }
+            $this->authorize('createTemp', Product::class);
         }
 
         $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
@@ -313,7 +135,9 @@ class OrderController extends Controller
         }
 
         try {
-            $this->itemRepository->updateItem($id, $data);
+            $data = $this->orderService->prepareOrderData($request, $user);
+            $companyId = $this->getCurrentCompanyId();
+            $order = $this->orderService->updateOrder($order, $data, $user, $companyId);
 
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
@@ -323,7 +147,7 @@ class OrderController extends Controller
                 CacheService::invalidateProjectsCache();
             }
 
-            return response()->json(['message' => 'Заказ сохранён']);
+            return $this->dataResponse(new OrderResource($order), 'Заказ сохранён');
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage(), 400);
         }
@@ -337,21 +161,14 @@ class OrderController extends Controller
      */
     public function destroy($id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $order = Order::findOrFail($id);
 
-        $order = $this->itemRepository->getItemById($id);
-        if (!$order) {
-            return $this->notFoundResponse('Заказ не найден');
-        }
-
-        if (!$this->canPerformAction('orders', 'delete', $order)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этого заказа');
-        }
+        $this->authorize('delete', $order);
 
         if ($order->cash_id) {
             $cashRegister = \App\Models\CashRegister::find($order->cash_id);
-            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
-                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            if ($cashRegister) {
+                $this->authorize('view', $cashRegister);
             }
         }
 
@@ -366,7 +183,7 @@ class OrderController extends Controller
                 CacheService::invalidateProjectsCache();
             }
 
-            return response()->json(['order' => $deleted, 'message' => 'Заказ успешно удалён']);
+            return $this->dataResponse(['order' => $deleted], 'Заказ успешно удалён');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка при удалении заказа: ' . $th->getMessage(), 400);
         }
@@ -390,9 +207,7 @@ class OrderController extends Controller
 
         $orders = Order::whereIn('id', $request->ids)->get();
         foreach ($orders as $order) {
-            if (!$this->canPerformAction('orders', 'update', $order)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование одного или нескольких заказов');
-            }
+            $this->authorize('update', $order);
         }
 
         try {
@@ -423,24 +238,23 @@ class OrderController extends Controller
      */
     public function show($id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
-        $item = $this->itemRepository->getItemById($id);
-        if (!$item) {
-            return $this->notFoundResponse('Not found');
-        }
+        $order = Order::findOrFail($id);
 
-        if (!$this->canPerformAction('orders', 'view', $item)) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр этого заказа');
-        }
+        $this->authorize('view', $order);
 
-        if ($item->cash_id) {
-            $cashRegister = \App\Models\CashRegister::find($item->cash_id);
-            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
-                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+        if ($order->cash_id) {
+            $cashRegister = \App\Models\CashRegister::find($order->cash_id);
+            if ($cashRegister) {
+                $this->authorize('view', $cashRegister);
             }
         }
 
-        return response()->json(['item' => $item]);
+        $order = Order::with([
+            'client', 'user', 'status', 'category', 'cash', 'warehouse', 'project',
+            'orderProducts.product', 'orderProducts.product.unit'
+        ])->findOrFail($id);
+
+        return $this->dataResponse(new OrderResource($order));
     }
 
     /**

@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\BatchUpdateProjectStatusRequest;
+use App\Http\Requests\StoreProjectRequest;
+use App\Http\Requests\UpdateProjectRequest;
+use App\Http\Requests\UploadProjectFilesRequest;
+use App\Http\Resources\ProjectResource;
 use App\Repositories\ProjectsRepository;
 use App\Services\CacheService;
+use App\Services\ProjectFileService;
+use App\Services\ProjectService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use App\Models\Project;
 
 /**
@@ -22,68 +26,25 @@ class ProjectsController extends Controller
     protected $itemsRepository;
 
     /**
-     * @param ProjectsRepository $itemsRepository
+     * @var ProjectFileService
      */
-    public function __construct(ProjectsRepository $itemsRepository)
+    protected $fileService;
+
+    /**
+     * @var ProjectService
+     */
+    protected $projectService;
+
+    /**
+     * @param ProjectsRepository $itemsRepository
+     * @param ProjectFileService $fileService
+     * @param ProjectService $projectService
+     */
+    public function __construct(ProjectsRepository $itemsRepository, ProjectFileService $fileService, ProjectService $projectService)
     {
         $this->itemsRepository = $itemsRepository;
-    }
-
-    /**
-     * Получить правила валидации для проекта
-     *
-     * @param Request $request
-     * @return array
-     */
-    private function getValidationRules(Request $request): array
-    {
-        $rules = [
-            'name' => 'required|string',
-            'date' => 'nullable|sometimes|date',
-            'client_id' => 'required|exists:clients,id',
-            'users' => 'required|array',
-            'users.*' => 'exists:users,id',
-            'description' => 'nullable|string',
-        ];
-
-        if ($request->has('budget') || $request->has('currency_id') || $request->has('exchange_rate')) {
-            $rules['budget'] = 'required|numeric';
-            $rules['currency_id'] = 'nullable|exists:currencies,id';
-            $rules['exchange_rate'] = 'nullable|numeric|min:0.000001';
-        }
-
-        return $rules;
-    }
-
-    /**
-     * Подготовить данные проекта из запроса
-     *
-     * @param Request $request
-     * @param int $userId ID пользователя
-     * @return array
-     */
-    private function prepareProjectData(Request $request, int $userId): array
-    {
-        $data = [
-            'name' => $request->name,
-            'date' => $request->date,
-            'user_id' => $userId,
-            'client_id' => $request->client_id,
-            'users' => $request->users,
-            'description' => $request->description,
-        ];
-
-        if ($request->has('budget')) {
-            $data['budget'] = $request->budget;
-        }
-        if ($request->has('currency_id')) {
-            $data['currency_id'] = $request->currency_id;
-        }
-        if ($request->has('exchange_rate')) {
-            $data['exchange_rate'] = $request->exchange_rate;
-        }
-
-        return $data;
+        $this->fileService = $fileService;
+        $this->projectService = $projectService;
     }
 
     /**
@@ -106,7 +67,7 @@ class ProjectsController extends Controller
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page, null, $dateFilter, $startDate, $endDate, $statusId, $clientId, null);
 
-        return $this->paginatedResponse($items);
+        return ProjectResource::collection($items)->response();
     }
 
     /**
@@ -122,38 +83,30 @@ class ProjectsController extends Controller
         $activeOnly = (bool) $request->input('active_only', false);
         $items = $this->itemsRepository->getAllItems($userUuid, $activeOnly);
 
-        return response()->json($items);
+        return ProjectResource::collection($items)->response();
     }
 
     /**
      * Создать новый проект
      *
-     * @param Request $request
+     * @param StoreProjectRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreProjectRequest $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $user = $this->requireAuthenticatedUser();
 
-        if (!$this->hasPermission('projects_create')) {
-            return $this->forbiddenResponse('У вас нет прав на создание проектов');
-        }
-
-        $request->validate($this->getValidationRules($request));
-
-        $itemData = $this->prepareProjectData($request, $userUuid);
-        $itemData['status_id'] = 1;
+        $this->authorize('create', Project::class);
 
         try {
-            $itemCreated = $this->itemsRepository->createItem($itemData);
-
-            if (!$itemCreated) {
-                return $this->errorResponse('Ошибка создания проекта', 400);
-            }
+            $itemData = $this->projectService->prepareProjectData($request, $user);
+            $itemData['status_id'] = 1;
+            $project = $this->projectService->createProject($itemData, $user);
 
             CacheService::invalidateProjectsCache();
 
-            return response()->json(['message' => 'Проект создан']);
+            $project = Project::with(['client', 'creator', 'currency', 'status', 'users'])->findOrFail($project->id);
+            return $this->dataResponse(new ProjectResource($project), 'Проект создан');
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка создания проекта: ' . $e->getMessage(), 500);
         }
@@ -162,34 +115,26 @@ class ProjectsController extends Controller
     /**
      * Обновить проект
      *
-     * @param Request $request
+     * @param UpdateProjectRequest $request
      * @param int $id ID проекта
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateProjectRequest $request, $id)
     {
         $user = $this->requireAuthenticatedUser();
 
         $project = Project::findOrFail($id);
 
-        if (!$this->canPerformAction('projects', 'update', $project)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
-        }
-
-        $request->validate($this->getValidationRules($request));
-
-        $itemData = $this->prepareProjectData($request, $user->id);
+        $this->authorize('update', $project);
 
         try {
-            $itemUpdated = $this->itemsRepository->updateItem($id, $itemData);
-
-            if (!$itemUpdated) {
-                return $this->errorResponse('Ошибка обновления проекта', 400);
-            }
+            $itemData = $this->projectService->prepareProjectData($request, $user);
+            $this->projectService->updateProject($project, $itemData, $user);
 
             CacheService::invalidateProjectsCache();
 
-            return response()->json(['message' => 'Проект обновлен']);
+            $project = Project::with(['client', 'creator', 'currency', 'status', 'users'])->findOrFail($id);
+            return $this->dataResponse(new ProjectResource($project), 'Проект обновлен');
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка обновления проекта: ' . $e->getMessage(), 500);
         }
@@ -206,18 +151,12 @@ class ProjectsController extends Controller
         try {
             $project = Project::findOrFail($id);
 
-            if (!$this->canPerformAction('projects', 'view', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
-            }
+            $this->authorize('view', $project);
 
             $userId = $this->getAuthenticatedUserIdOrFail();
-            $project = $this->itemsRepository->findItemWithRelations($id, $userId);
+            $project = Project::with(['client', 'creator', 'currency', 'status', 'users'])->findOrFail($id);
 
-            if (!$project) {
-                return $this->notFoundResponse('Проект не найден или доступ запрещен');
-            }
-
-            return response()->json(['item' => $project]);
+            return new ProjectResource($project);
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении проекта: ' . $e->getMessage(), 500);
         }
@@ -226,58 +165,23 @@ class ProjectsController extends Controller
     /**
      * Загрузить файлы проекта
      *
-     * @param Request $request
+     * @param UploadProjectFilesRequest $request
      * @param int $id ID проекта
      * @return \Illuminate\Http\JsonResponse
      */
-    public function uploadFiles(Request $request, $id)
+    public function uploadFiles(UploadProjectFilesRequest $request, $id)
     {
-        $request->validate([
-            'files.*' => 'required|file|max:10240|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,gif,bmp,svg,zip,rar,7z,txt,md'
-        ], [
-            'files.*.max' => 'Файл не должен превышать 10MB',
-            'files.*.mimes' => 'Неподдерживаемый тип файла'
-        ]);
-
-        $files = $request->file('files');
-
-        if (is_null($files)) {
-            $files = [];
-        } elseif ($files instanceof \Illuminate\Http\UploadedFile) {
-            $files = [$files];
-        }
-
-        if (count($files) == 0) {
-            return $this->errorResponse('No files uploaded', 400);
-        }
-
         try {
             $project = Project::findOrFail($id);
 
-            if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
-            }
+            $this->authorize('update', $project);
 
-            $storedFiles = $project->files ?? [];
+            $files = $request->file('files');
+            $storedFiles = $this->fileService->uploadFiles($project, $files);
 
-            foreach ($files as $file) {
-                $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('projects/' . $project->id, $filename, 'public');
-
-                $storedFiles[] = [
-                    'name' => $file->getClientOriginalName(),
-                    'path' => $path,
-                    'size' => $file->getSize(),
-                    'mime_type' => $file->getMimeType(),
-                    'uploaded_at' => now()->toDateTimeString(),
-                ];
-            }
-
-            $project->update(['files' => $storedFiles]);
-
-            return response()->json(['files' => $storedFiles, 'message' => 'Files uploaded successfully']);
+            return $this->dataResponse(['files' => $storedFiles], 'Files uploaded successfully');
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при загрузке файлов: Internal server error', 500);
+            return $this->errorResponse('Ошибка при загрузке файлов: ' . $e->getMessage(), 500);
         }
     }
 
@@ -291,45 +195,23 @@ class ProjectsController extends Controller
     public function deleteFile(Request $request, $id)
     {
         try {
-            $userId = $this->getAuthenticatedUserIdOrFail();
-
             $project = Project::findOrFail($id);
 
-            if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
-            }
+            $this->authorize('update', $project);
 
             $filePath = $request->input('path');
             if (!$filePath) {
                 return $this->errorResponse('Путь файла не указан', 400);
             }
 
-            $files = $project->files ?? [];
-            $updatedFiles = [];
-            $deletedFile = null;
+            $updatedFiles = $this->fileService->deleteFile($project, $filePath);
 
-            foreach ($files as $file) {
-                if ($file['path'] === $filePath) {
-                    $deletedFile = $file;
-                    if (Storage::disk('public')->exists($filePath)) {
-                        Storage::disk('public')->delete($filePath);
-                    }
-                    continue;
-                }
-                $updatedFiles[] = $file;
-            }
-
-            if (!$deletedFile) {
-                return $this->notFoundResponse('Файл не найден в проекте');
-            }
-
-            $project->files = $updatedFiles;
-            $project->save();
-
-
-            return response()->json(['files' => $updatedFiles, 'message' => 'Файл успешно удалён']);
+            return $this->dataResponse(['files' => $updatedFiles], 'Файл успешно удалён');
         } catch (\Exception $e) {
-            return $this->errorResponse('Внутренняя ошибка сервера', 500);
+            if ($e->getMessage() === 'Файл не найден в проекте') {
+                return $this->notFoundResponse($e->getMessage());
+            }
+            return $this->errorResponse('Внутренняя ошибка сервера: ' . $e->getMessage(), 500);
         }
     }
 
@@ -345,9 +227,7 @@ class ProjectsController extends Controller
         try {
             $project = Project::findOrFail($id);
 
-            if (!$this->canPerformAction('projects', 'view', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
-            }
+            $this->authorize('view', $project);
 
             if ($request->has('t')) {
                 $this->itemsRepository->invalidateProjectCache($id);
@@ -356,7 +236,7 @@ class ProjectsController extends Controller
             $history = $this->itemsRepository->getBalanceHistory($id);
             $balance = collect($history)->sum('amount');
 
-            return response()->json([
+            return $this->dataResponse([
                 'history' => $history,
                 'balance' => $balance,
                 'budget' => (float) $project->budget,
@@ -377,13 +257,11 @@ class ProjectsController extends Controller
         try {
             $project = Project::findOrFail($id);
 
-            if (!$this->canPerformAction('projects', 'view', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
-            }
+            $this->authorize('view', $project);
 
             $detailedBalance = $this->itemsRepository->getDetailedBalance($id);
 
-            return response()->json($detailedBalance);
+            return $this->dataResponse($detailedBalance);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении детального баланса проекта: ' . $e->getMessage(), 500);
         }
@@ -402,9 +280,7 @@ class ProjectsController extends Controller
 
         $project = Project::findOrFail($id);
 
-        if (!$this->canPerformAction('projects', 'delete', $project)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этого проекта');
-        }
+        $this->authorize('delete', $project);
 
         $project = $this->itemsRepository->findItemWithRelations($id, $userUuid);
         if (!$project) {
@@ -429,24 +305,16 @@ class ProjectsController extends Controller
     /**
      * Массовое обновление статуса проектов
      *
-     * @param Request $request
+     * @param BatchUpdateProjectStatusRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function batchUpdateStatus(Request $request)
+    public function batchUpdateStatus(BatchUpdateProjectStatusRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $request->validate([
-            'ids'       => 'required|array|min:1',
-            'ids.*'     => 'integer|exists:projects,id',
-            'status_id' => 'required|integer|exists:project_statuses,id',
-        ]);
-
         $projects = Project::whereIn('id', $request->ids)->get();
         foreach ($projects as $project) {
-            if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование одного или нескольких проектов');
-            }
+            $this->authorize('update', $project);
         }
 
         try {

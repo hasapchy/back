@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SetCurrentCompanyRequest;
+use App\Http\Resources\CompanyResource;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,7 +37,7 @@ class UserCompanyController extends Controller
                 ->first();
 
             if ($company) {
-                return response()->json(['company' => $company]);
+                return $this->dataResponse(new CompanyResource($company));
             }
         }
 
@@ -45,16 +47,16 @@ class UserCompanyController extends Controller
             return $this->notFoundResponse('No companies available for user');
         }
 
-        return response()->json(['company' => $company]);
+        return $this->dataResponse(new CompanyResource($company));
     }
 
     /**
      * Установить текущую компанию пользователя
      *
-     * @param Request $request
+     * @param SetCurrentCompanyRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function setCurrentCompany(Request $request)
+    public function setCurrentCompany(SetCurrentCompanyRequest $request)
     {
         $user = $this->getAuthenticatedUser();
         if (!$user) {
@@ -78,7 +80,7 @@ class UserCompanyController extends Controller
         }
 
 
-        return response()->json(['company' => $company, 'message' => 'Company selected successfully']);
+        return $this->dataResponse(new CompanyResource($company), 'Company selected successfully');
     }
 
     /**
@@ -111,6 +113,6 @@ class UserCompanyController extends Controller
             'companies.updated_at'
         )->get();
 
-        return response()->json($companies);
+        return CompanyResource::collection($companies)->response();
     }
 }

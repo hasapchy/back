@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreTransactionRequest;
+use App\Http\Requests\UpdateTransactionRequest;
+use App\Http\Resources\TransactionResource;
 use App\Models\Transaction;
-use App\Models\Order;
 use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
+use App\Services\TransactionService;
 use Illuminate\Http\Request;
 
 /**
@@ -17,13 +20,20 @@ class TransactionsController extends Controller
     protected $itemsRepository;
 
     /**
+     * @var TransactionService
+     */
+    protected $transactionService;
+
+    /**
      * Конструктор контроллера
      *
      * @param TransactionsRepository $itemsRepository Репозиторий транзакций
+     * @param TransactionService $transactionService
      */
-    public function __construct(TransactionsRepository $itemsRepository)
+    public function __construct(TransactionsRepository $itemsRepository, TransactionService $transactionService)
     {
         $this->itemsRepository = $itemsRepository;
+        $this->transactionService = $transactionService;
     }
 
     /**
@@ -65,16 +75,18 @@ class TransactionsController extends Controller
             $is_debt
         );
 
-        $response = [
-            'items' => $items->items(),
-            'current_page' => $items->currentPage(),
-            'next_page' => $items->nextPageUrl(),
-            'last_page' => $items->lastPage(),
-            'total' => $items->total(),
-            'total_debt_positive' => $items->total_debt_positive ?? 0,
-            'total_debt_negative' => $items->total_debt_negative ?? 0,
-            'total_debt_balance' => $items->total_debt_balance ?? 0
-        ];
+        $resourceCollection = TransactionResource::collection($items);
+        $response = $resourceCollection->response()->getData(true);
+
+        if (isset($response['data'])) {
+            $response['meta']['total_debt_positive'] = $items->total_debt_positive ?? 0;
+            $response['meta']['total_debt_negative'] = $items->total_debt_negative ?? 0;
+            $response['meta']['total_debt_balance'] = $items->total_debt_balance ?? 0;
+        } else {
+            $response['total_debt_positive'] = $items->total_debt_positive ?? 0;
+            $response['total_debt_negative'] = $items->total_debt_negative ?? 0;
+            $response['total_debt_balance'] = $items->total_debt_balance ?? 0;
+        }
 
         return response()->json($response);
     }
@@ -82,110 +94,68 @@ class TransactionsController extends Controller
     /**
      * Создать новую транзакцию
      *
-     * @param Request $request
+     * @param StoreTransactionRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreTransactionRequest $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'type' => 'required|integer|in:1,0',
-            'orig_amount' => 'required|numeric|min:0.01',
-            'currency_id' => 'required|exists:currencies,id',
-            'cash_id' => 'required|exists:cash_registers,id',
-            'category_id' => 'required|exists:transaction_categories,id',
-            'project_id' => 'nullable|sometimes|exists:projects,id',
-            'client_id' => 'nullable|sometimes|exists:clients,id',
-            'order_id' => 'nullable|integer|exists:orders,id',
-            'source_type' => 'nullable|string',
-            'source_id' => 'nullable|integer',
-            'note' => 'nullable|sometimes|string',
-            'date' => 'nullable|sometimes|date',
-            'is_debt' => 'nullable|boolean',
-            'is_adjustment' => 'nullable|boolean'
-        ]);
+        $user = $this->requireAuthenticatedUser();
 
         if ($request->has('is_adjustment') && $request->is_adjustment) {
-            if (!$this->hasPermission('settings_client_balance_adjustment')) {
-                return $this->forbiddenResponse('У вас нет прав на корректировку баланса');
-            }
+            $this->authorize('adjustBalance', Transaction::class);
         }
 
-        $cashRegister = \App\Models\CashRegister::findOrFail($request->cash_id);
         $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
         if ($cashAccessCheck) {
             return $cashAccessCheck;
         }
 
-        $sourceType = null;
-        $sourceId = null;
+        try {
+            $data = [
+                'type' => $request->type,
+                'orig_amount' => $request->orig_amount,
+                'currency_id' => $request->currency_id,
+                'cash_id' => $request->cash_id,
+                'category_id' => $request->category_id,
+                'project_id' => $request->project_id,
+                'client_id' => $request->client_id,
+                'order_id' => $request->order_id,
+                'source_type' => $request->source_type ?? null,
+                'source_id' => $request->source_id ?? null,
+                'note' => $request->note,
+                'date' => $request->date ?? now(),
+                'is_debt' => $request->is_debt ?? false
+            ];
 
-        if ($request->has('source_type') || $request->has('source_id')) {
-            $sourceType = $request->source_type;
-            $sourceId = $request->source_id;
-        }
-        elseif ($request->order_id) {
-            $sourceType = Order::class;
-            $sourceId = $request->order_id;
-        }
+            $transaction = $this->transactionService->createTransaction($data, $user);
 
-        $item_created = $this->itemsRepository->createItem([
-            'type' => $request->type,
-            'user_id' => $userUuid,
-            'orig_amount' => $request->orig_amount,
-            'currency_id' => $request->currency_id,
-            'cash_id' => $request->cash_id,
-            'category_id' => $request->category_id,
-            'project_id' => $request->project_id,
-            'client_id' => $request->client_id,
-            'source_type' => $sourceType,
-            'source_id' => $sourceId,
-            'note' => $request->note,
-            'date' => $request->date ?? now(),
-            'is_debt' => $request->is_debt ?? false
-        ]);
+            CacheService::invalidateTransactionsCache();
+            if ($request->client_id) {
+                CacheService::invalidateClientsCache();
+            }
+            if ($request->project_id) {
+                CacheService::invalidateProjectsCache();
+            }
+            CacheService::invalidateCashRegistersCache();
 
-        if (!$item_created) {
-            return $this->errorResponse('Ошибка создания транзакции', 400);
+            $transaction = Transaction::with(['cashRegister', 'category', 'client', 'currency', 'user', 'project'])->findOrFail($transaction->id);
+            return $this->dataResponse(new TransactionResource($transaction), 'Транзакция создана');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка создания транзакции: ' . $e->getMessage(), 400);
         }
-
-        CacheService::invalidateTransactionsCache();
-        if ($request->client_id) {
-            CacheService::invalidateClientsCache();
-        }
-        if ($request->project_id) {
-            CacheService::invalidateProjectsCache();
-        }
-        CacheService::invalidateCashRegistersCache();
-
-        return response()->json(['message' => 'Транзакция создана']);
     }
 
     /**
      * Обновить транзакцию
      *
-     * @param Request $request
+     * @param UpdateTransactionRequest $request
      * @param int $id ID транзакции
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateTransactionRequest $request, $id)
     {
         $user = $this->requireAuthenticatedUser();
         $userUuid = $user->id;
-
-        $request->validate([
-            'category_id' => 'required|exists:transaction_categories,id',
-            'project_id' => 'nullable|sometimes|exists:projects,id',
-            'client_id' => 'nullable|sometimes|exists:clients,id',
-            'note' => 'nullable|sometimes|string',
-            'date' => 'nullable|sometimes|date',
-            'orig_amount' => 'nullable|sometimes|numeric|min:0.01',
-            'currency_id' => 'nullable|sometimes|exists:currencies,id',
-            'is_debt' => 'nullable|boolean',
-            'source_type' => 'nullable|string',
-            'source_id' => 'nullable|integer'
-        ]);
 
         $transaction_exist = Transaction::findOrFail($id);
 
@@ -193,17 +163,13 @@ class TransactionsController extends Controller
                                 ($request->has('category_id') && in_array($request->category_id, [21, 22]));
 
         if ($isAdjustmentCategory) {
-            if (!$this->hasPermission('settings_client_balance_adjustment')) {
-                return $this->forbiddenResponse('У вас нет прав на корректировку баланса');
-            }
+            $this->authorize('adjustBalance', Transaction::class);
         }
 
-        if (!$this->canPerformAction('transactions', 'update', $transaction_exist)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этой транзакции');
-        }
+        $this->authorize('update', $transaction_exist);
 
-        if ($this->isRestrictedTransaction($transaction_exist)) {
-            $message = $this->getRestrictedTransactionMessage($transaction_exist);
+        if (!$this->transactionService->canEditTransaction($transaction_exist)) {
+            $message = $this->transactionService->getRestrictionMessage($transaction_exist);
             return $this->forbiddenResponse($message);
         }
 
@@ -211,22 +177,13 @@ class TransactionsController extends Controller
         if ($cashAccessCheck) {
             return $cashAccessCheck;
         }
-        $updateSourceType = null;
-        $updateSourceId = null;
-
-        if ($request->has('source_type') || $request->has('source_id')) {
-            $updateSourceType = $request->input('source_type');
-            $updateSourceId = $request->input('source_id');
-        }
-        elseif ($request->has('order_id')) {
-            if ($request->order_id) {
-                $updateSourceType = Order::class;
-                $updateSourceId = $request->order_id;
-            } else {
-                $updateSourceType = null;
-                $updateSourceId = null;
-            }
-        }
+        $sourceData = $this->transactionService->determineSourceType([
+            'source_type' => $request->source_type ?? null,
+            'source_id' => $request->source_id ?? null,
+            'order_id' => $request->order_id ?? null,
+        ]);
+        $updateSourceType = $sourceData['source_type'];
+        $updateSourceId = $sourceData['source_id'];
 
         $updateData = [
             'category_id' => $request->category_id,
@@ -266,7 +223,8 @@ class TransactionsController extends Controller
         }
         CacheService::invalidateCashRegistersCache();
 
-        return response()->json(['message' => 'Транзакция обновлена']);
+        $transaction = Transaction::with(['cashRegister', 'category', 'client', 'currency', 'user', 'project'])->findOrFail($id);
+        return $this->dataResponse(new TransactionResource($transaction), 'Транзакция обновлена');
     }
 
     /**
@@ -282,12 +240,10 @@ class TransactionsController extends Controller
 
         $transaction_exist = Transaction::findOrFail($id);
 
-        if (!$this->canPerformAction('transactions', 'delete', $transaction_exist)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этой транзакции');
-        }
+        $this->authorize('delete', $transaction_exist);
 
-        if ($this->isRestrictedTransaction($transaction_exist)) {
-            $message = $this->getRestrictedTransactionMessage($transaction_exist);
+        if (!$this->transactionService->canDeleteTransaction($transaction_exist)) {
+            $message = $this->transactionService->getRestrictionMessage($transaction_exist);
             return $this->forbiddenResponse($message);
         }
 
@@ -325,7 +281,7 @@ class TransactionsController extends Controller
         }
 
         $total = $this->itemsRepository->getTotalByOrderId($userUuid, $orderId);
-        return response()->json(['total' => $total]);
+        return $this->dataResponse(['total' => $total]);
     }
 
     /**
@@ -338,53 +294,15 @@ class TransactionsController extends Controller
     {
         $transaction = Transaction::findOrFail($id);
 
-        if (!$this->canPerformAction('transactions', 'view', $transaction)) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр этой транзакции');
-        }
+        $this->authorize('view', $transaction);
 
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->itemsRepository->getItemById($id);
         if (!$item) {
             return $this->notFoundResponse('Not found');
         }
-        return response()->json(['item' => $item]);
+        return $this->dataResponse(new TransactionResource($item));
     }
 
-    private function isRestrictedTransaction($transaction)
-    {
-        if ($transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists()) {
-            return true;
-        }
-
-        if ($transaction->source_type && $transaction->source_id) {
-            return true;
-        }
-
-        return false;
-    }
-
-    private function getRestrictedTransactionMessage($transaction)
-    {
-        if ($transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists()) {
-            return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с переводом между кассами';
-        }
-
-        if ($transaction->source_type && $transaction->source_id) {
-            $sourceType = class_basename($transaction->source_type);
-
-            switch ($sourceType) {
-                case 'Sale':
-                    return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через продажу. Управляйте ей через раздел "Продажи"';
-                case 'Order':
-                    return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через заказ. Управляйте ей через раздел "Заказы"';
-                case 'WhReceipt':
-                    return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через складское поступление. Управляйте ей через раздел "Склад"';
-                default:
-                    return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с другой операцией в системе';
-            }
-        }
-
-        return 'Нельзя редактировать/удалить эту транзакцию';
-    }
 
 }

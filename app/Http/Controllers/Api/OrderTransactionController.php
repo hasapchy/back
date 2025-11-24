@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\LinkOrderTransactionRequest;
 use App\Models\Order;
 use App\Models\Transaction;
 use App\Repositories\OrdersRepository;
@@ -29,15 +30,12 @@ class OrderTransactionController extends Controller
     /**
      * Связать транзакцию с заказом
      *
-     * @param Request $request
+     * @param LinkOrderTransactionRequest $request
      * @param int $orderId ID заказа
      * @return \Illuminate\Http\JsonResponse
      */
-    public function linkTransaction(Request $request, $orderId)
+    public function linkTransaction(LinkOrderTransactionRequest $request, $orderId)
     {
-        $request->validate([
-            'transaction_id' => 'required|integer|exists:transactions,id',
-        ]);
 
         $order = Order::findOrFail($orderId);
 
@@ -113,6 +111,6 @@ class OrderTransactionController extends Controller
             ->where('source_id', $orderId)
             ->get();
 
-        return response()->json(['transactions' => $transactions]);
+        return $this->dataResponse(['transactions' => $transactions]);
     }
 }

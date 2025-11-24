@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\WarehouseStockResource;
 use App\Repositories\WarehouseStockRepository;
 use Illuminate\Http\Request;
 
@@ -50,6 +51,6 @@ class WarehouseStockController extends Controller
             $availability
         );
 
-        return $this->paginatedResponse($warehouses);
+        return WarehouseStockResource::collection($warehouses)->response();
     }
 }

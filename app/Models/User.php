@@ -262,4 +262,20 @@ class User extends Authenticatable
             ->values()
             ->toArray();
     }
+
+    /**
+     * Проверить наличие разрешения у пользователя с учетом компании
+     *
+     * @param string $permission
+     * @param int|null $companyId
+     * @return bool
+     */
+    public function hasPermission(string $permission, ?int $companyId = null): bool
+    {
+        $companyId = $companyId ?? (request()?->header('X-Company-ID'));
+
+        return $this->getAllPermissionsForCompany($companyId ? (int) $companyId : null)
+            ->pluck('name')
+            ->contains($permission);
+    }
 }

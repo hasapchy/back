@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreWarehouseWriteoffRequest;
+use App\Http\Requests\UpdateWarehouseWriteoffRequest;
+use App\Http\Resources\WarehouseWriteoffResource;
+use App\Models\WhWriteoff;
 use App\Repositories\WarehouseWriteoffRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -36,26 +40,18 @@ class WarehouseWriteoffController extends Controller
 
         $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20);
 
-        return $this->paginatedResponse($warehouses);
+        return WarehouseWriteoffResource::collection($warehouses)->response();
     }
 
     /**
      * Создать списание со склада
      *
-     * @param Request $request
+     * @param StoreWarehouseWriteoffRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreWarehouseWriteoffRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'warehouse_id' => 'required|integer|exists:warehouses,id',
-            'note' => 'nullable|string',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:0'
-        ]);
 
         $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
         if ($warehouseAccessCheck) {
@@ -79,7 +75,8 @@ class WarehouseWriteoffController extends Controller
                 return $this->errorResponse('Ошибка списания', 400);
             }
 
-            return response()->json(['message' => 'Списание создано']);
+            $writeoff = WhWriteoff::with(['warehouse', 'user'])->findOrFail($warehouse_created->id);
+            return $this->dataResponse(new WarehouseWriteoffResource($writeoff), 'Списание создано');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка списания' . $th->getMessage(), 400);
         }
@@ -88,20 +85,13 @@ class WarehouseWriteoffController extends Controller
     /**
      * Обновить списание со склада
      *
-     * @param Request $request
+     * @param UpdateWarehouseWriteoffRequest $request
      * @param int $id ID списания
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateWarehouseWriteoffRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-        $request->validate([
-            'warehouse_id' => 'required|integer|exists:warehouses,id',
-            'note' => 'nullable|string',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:0'
-        ]);
 
         $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
         if ($warehouseAccessCheck) {
@@ -125,7 +115,8 @@ class WarehouseWriteoffController extends Controller
                 return $this->errorResponse('Ошибка списания', 400);
             }
 
-            return response()->json(['message' => 'Списание обновлено']);
+            $writeoff = WhWriteoff::with(['warehouse', 'user'])->findOrFail($id);
+            return $this->dataResponse(new WarehouseWriteoffResource($writeoff), 'Списание обновлено');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка списания' . $th->getMessage(), 400);
         }
@@ -154,6 +145,6 @@ class WarehouseWriteoffController extends Controller
             return $this->errorResponse('Ошибка удаления списания', 400);
         }
 
-        return response()->json(['message' => 'Списание удалено']);
+        return $this->dataResponse(new WarehouseWriteoffResource($writeoff), 'Списание удалено');
     }
 }

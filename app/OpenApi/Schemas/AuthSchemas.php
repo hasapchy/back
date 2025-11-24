@@ -27,11 +27,9 @@ use OpenApi\Annotations as OA;
  * @OA\Schema(
  *     schema="AuthTokensResponse",
  *     type="object",
- *     @OA\Property(property="access_token", type="string", example="eyJ0eXAiOiJKV1QiLCJh..."),
- *     @OA\Property(property="refresh_token", type="string", example="eyJ0eXAiOiJKV1QiLCJh..."),
+ *     @OA\Property(property="access_token", type="string", example="1|abc123def456..."),
  *     @OA\Property(property="token_type", type="string", example="bearer"),
- *     @OA\Property(property="expires_in", type="integer", example=3600),
- *     @OA\Property(property="refresh_expires_in", type="integer", example=86400),
+ *     @OA\Property(property="expires_in", type="integer", example=86400),
  *     @OA\Property(property="user", ref="#/components/schemas/AuthUser")
  * )
  */

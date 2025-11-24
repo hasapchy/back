@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\CurrencyResource;
+use App\Http\Resources\UnitResource;
 use App\Models\Currency;
 use App\Models\Unit;
 use App\Services\CacheService;
@@ -37,7 +39,7 @@ class AppController extends Controller
             return $query->get();
         });
 
-        return response()->json($items);
+        return CurrencyResource::collection($items)->response();
     }
 
     /**
@@ -51,7 +53,7 @@ class AppController extends Controller
             return Unit::all();
         });
 
-        return response()->json($items);
+        return UnitResource::collection($items)->response();
     }
 
     /**
@@ -82,7 +84,7 @@ class AppController extends Controller
             return $rateHistory ? $rateHistory->exchange_rate : 1;
         });
 
-        return response()->json([
+        return $this->dataResponse([
             'currency_id' => $currencyId,
             'exchange_rate' => $exchangeRate,
             'currency_name' => $currency->name,

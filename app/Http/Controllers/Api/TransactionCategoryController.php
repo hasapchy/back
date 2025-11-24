@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreTransactionCategoryRequest;
+use App\Http\Requests\UpdateTransactionCategoryRequest;
+use App\Http\Resources\TransactionCategoryResource;
+use App\Models\TransactionCategory;
 use App\Repositories\TransactionCategoryRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -36,25 +40,7 @@ class TransactionCategoryController extends Controller
 
         $items = $this->transactionCategoryRepository->getItemsWithPagination(20);
 
-        $mappedItems = collect($items->items())->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'type' => $item->type,
-                'user_id' => $item->user_id,
-                'user_name' => $item->user ? $item->user->name : null,
-                'created_at' => $item->created_at,
-                'updated_at' => $item->updated_at,
-            ];
-        });
-
-        return response()->json([
-            'items' => $mappedItems,
-            'current_page' => $items->currentPage(),
-            'next_page' => $items->nextPageUrl(),
-            'last_page' => $items->lastPage(),
-            'total' => $items->total()
-        ]);
+        return TransactionCategoryResource::collection($items)->response();
     }
 
     /**
@@ -67,33 +53,18 @@ class TransactionCategoryController extends Controller
     {
         $items = $this->transactionCategoryRepository->getAllItems();
 
-        return response()->json($items->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'type' => $item->type,
-                'user_id' => $item->user_id,
-                'user_name' => $item->user ? $item->user->name : null,
-                'created_at' => $item->created_at,
-                'updated_at' => $item->updated_at,
-            ];
-        }));
+        return TransactionCategoryResource::collection($items)->response();
     }
 
     /**
      * Создать новую категорию транзакций
      *
-     * @param Request $request
+     * @param StoreTransactionCategoryRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreTransactionCategoryRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'type' => 'required|boolean',
-        ]);
 
         $created = $this->transactionCategoryRepository->createItem([
             'name' => $request->name,
@@ -103,24 +74,20 @@ class TransactionCategoryController extends Controller
 
         if (!$created) return $this->errorResponse('Ошибка создания категории транзакции', 400);
 
-        return response()->json(['message' => 'Категория транзакции создана']);
+        $category = TransactionCategory::with('user')->findOrFail($created->id);
+        return $this->dataResponse(new TransactionCategoryResource($category), 'Категория транзакции создана');
     }
 
     /**
      * Обновить категорию транзакций
      *
-     * @param Request $request
+     * @param UpdateTransactionCategoryRequest $request
      * @param int $id ID категории
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateTransactionCategoryRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'type' => 'required|boolean',
-        ]);
 
         try {
             $updated = $this->transactionCategoryRepository->updateItem($id, [
@@ -131,7 +98,8 @@ class TransactionCategoryController extends Controller
 
             if (!$updated) return $this->notFoundResponse('Категория транзакции не найдена');
 
-            return response()->json(['message' => 'Категория транзакции обновлена']);
+            $category = TransactionCategory::with('user')->findOrFail($id);
+            return $this->dataResponse(new TransactionCategoryResource($category), 'Категория транзакции обновлена');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -148,10 +116,11 @@ class TransactionCategoryController extends Controller
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         try {
+            $category = TransactionCategory::with('user')->findOrFail($id);
             $deleted = $this->transactionCategoryRepository->deleteItem($id);
             if (!$deleted) return $this->notFoundResponse('Категория транзакции не найдена');
 
-            return response()->json(['message' => 'Категория транзакции удалена']);
+            return $this->dataResponse(new TransactionCategoryResource($category), 'Категория транзакции удалена');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }

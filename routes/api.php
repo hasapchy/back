@@ -34,7 +34,6 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['throttle:auth'])->group(function () {
     Route::post('user/login', [AuthController::class, 'login']);
-    Route::post('user/refresh', [AuthController::class, 'refresh']);
 });
 
 Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);

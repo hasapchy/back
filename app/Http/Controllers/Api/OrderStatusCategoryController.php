@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreOrderStatusCategoryRequest;
+use App\Http\Requests\UpdateOrderStatusCategoryRequest;
 use App\Repositories\OrderStatusCategoryRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -58,17 +60,12 @@ class OrderStatusCategoryController extends Controller
     /**
      * Создать новую категорию статусов заказов
      *
-     * @param Request $request
+     * @param StoreOrderStatusCategoryRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreOrderStatusCategoryRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'color' => 'nullable|string'
-        ]);
 
         $created = $this->orderStatusCategoryRepository->createItem([
             'name' => $request->name,
@@ -83,18 +80,13 @@ class OrderStatusCategoryController extends Controller
     /**
      * Обновить категорию статусов заказов
      *
-     * @param Request $request
+     * @param UpdateOrderStatusCategoryRequest $request
      * @param int $id ID категории
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateOrderStatusCategoryRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'color' => 'nullable|string'
-        ]);
 
         $updated = $this->orderStatusCategoryRepository->updateItem($id, [
             'name' => $request->name,

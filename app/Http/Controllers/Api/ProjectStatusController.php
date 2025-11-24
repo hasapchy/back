@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreProjectStatusRequest;
+use App\Http\Requests\UpdateProjectStatusRequest;
+use App\Http\Resources\ProjectStatusResource;
 use App\Models\ProjectStatus;
 use App\Repositories\ProjectStatusRepository;
 use App\Services\CacheService;
@@ -37,7 +40,7 @@ class ProjectStatusController extends Controller
 
         $items = $this->projectStatusRepository->getItemsWithPagination($userUuid, 20);
 
-        return $this->paginatedResponse($items);
+        return ProjectStatusResource::collection($items)->response();
     }
 
     /**
@@ -52,23 +55,18 @@ class ProjectStatusController extends Controller
 
         $items = $this->projectStatusRepository->getAllItems($userUuid);
 
-        return response()->json($items);
+        return ProjectStatusResource::collection($items)->response();
     }
 
     /**
      * Создать новый статус проекта
      *
-     * @param Request $request
+     * @param StoreProjectStatusRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreProjectStatusRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'color' => 'nullable|string|max:7'
-        ]);
 
         $created = $this->projectStatusRepository->createItem([
             'name' => $request->name,
@@ -77,24 +75,20 @@ class ProjectStatusController extends Controller
         ]);
         if (!$created) return $this->errorResponse('Ошибка создания статуса', 400);
 
-        return response()->json(['message' => 'Статус создан']);
+        $status = ProjectStatus::with('user')->findOrFail($created->id);
+        return $this->dataResponse(new ProjectStatusResource($status), 'Статус создан');
     }
 
     /**
      * Обновить статус проекта
      *
-     * @param Request $request
+     * @param UpdateProjectStatusRequest $request
      * @param int $id ID статуса
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateProjectStatusRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'color' => 'nullable|string|max:7'
-        ]);
 
         $updated = $this->projectStatusRepository->updateItem($id, [
             'name' => $request->name,
@@ -102,7 +96,8 @@ class ProjectStatusController extends Controller
         ]);
         if (!$updated) return $this->errorResponse('Ошибка обновления статуса', 400);
 
-        return response()->json(['message' => 'Статус обновлен']);
+        $status = ProjectStatus::with('user')->findOrFail($id);
+        return $this->dataResponse(new ProjectStatusResource($status), 'Статус обновлен');
     }
 
     /**
@@ -120,11 +115,12 @@ class ProjectStatusController extends Controller
             return $this->errorResponse('Нельзя удалить статус, который используется в проектах', 400);
         }
 
+        $status = ProjectStatus::with('user')->findOrFail($id);
         $deleted = $this->projectStatusRepository->deleteItem($id);
         if (!$deleted) {
             return $this->errorResponse('Ошибка удаления статуса', 400);
         }
 
-        return response()->json(['message' => 'Статус удален']);
+        return $this->dataResponse(new ProjectStatusResource($status), 'Статус удален');
     }
 }

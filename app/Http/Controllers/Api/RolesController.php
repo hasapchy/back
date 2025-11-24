@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreRoleRequest;
+use App\Http\Requests\UpdateRoleRequest;
+use App\Http\Resources\RoleResource;
+use App\Models\Role;
 use App\Repositories\RolesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 /**
  * Контроллер для работы с ролями
@@ -38,7 +40,8 @@ class RolesController extends Controller
         $page = $request->input('page', 1);
         $search = $request->input('search');
         $companyId = $this->getCurrentCompanyId();
-        return $this->paginatedResponse($this->itemsRepository->getItemsWithPagination($page, 20, $search, $companyId));
+        $items = $this->itemsRepository->getItemsWithPagination($page, 20, $search, $companyId);
+        return RoleResource::collection($items)->response();
     }
 
     /**
@@ -49,7 +52,8 @@ class RolesController extends Controller
     public function all()
     {
         $companyId = $this->getCurrentCompanyId();
-        return response()->json($this->itemsRepository->getAllItems($companyId));
+        $items = $this->itemsRepository->getAllItems($companyId);
+        return RoleResource::collection($items)->response();
     }
 
     /**
@@ -63,7 +67,8 @@ class RolesController extends Controller
         try {
             $companyId = $this->getCurrentCompanyId();
             $role = $this->itemsRepository->getItem($id, $companyId);
-            return response()->json($role);
+            $role = Role::with('permissions')->findOrFail($id);
+            return $this->dataResponse(new RoleResource($role));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Роль не найдена', 404);
         } catch (\Exception $e) {
@@ -74,47 +79,19 @@ class RolesController extends Controller
     /**
      * Создать новую роль
      *
-     * @param Request $request
+     * @param StoreRoleRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreRoleRequest $request)
     {
         try {
-            $data = $request->all();
+            $data = $request->validated();
             $companyId = $this->getCurrentCompanyId();
 
-            if (isset($data['name'])) {
-                $data['name'] = trim($data['name']);
-                if (empty($data['name'])) {
-                    return $this->errorResponse('Название роли не может быть пустым', 422);
-                }
-            }
-
-            $uniqueRule = Rule::unique('roles', 'name')
-                ->where('guard_name', 'api');
-            
-            if ($companyId) {
-                $uniqueRule->where('company_id', $companyId);
-            } else {
-                $uniqueRule->whereNull('company_id');
-            }
-
-            $validator = Validator::make($data, [
-                'name' => ['required', 'string', 'max:255', $uniqueRule],
-                'permissions' => 'nullable|array|max:1000',
-                'permissions.*' => 'string|exists:permissions,name,guard_name,api',
-            ]);
-
-            if ($validator->fails()) {
-                return $this->validationErrorResponse($validator);
-            }
-
             $role = $this->itemsRepository->createItem($data, $companyId);
+            $role = Role::with('permissions')->findOrFail($role->id);
 
-            return response()->json([
-                'message' => 'Роль создана успешно',
-                'role' => $role
-            ], 201);
+            return $this->dataResponse(new RoleResource($role), 'Роль создана успешно', 201);
         } catch (\Illuminate\Database\QueryException $e) {
             return $this->errorResponse('Ошибка при создании роли: ' . $e->getMessage(), 500);
         } catch (\Exception $e) {
@@ -125,51 +102,20 @@ class RolesController extends Controller
     /**
      * Обновить роль
      *
-     * @param Request $request
+     * @param UpdateRoleRequest $request
      * @param int $id ID роли
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateRoleRequest $request, $id)
     {
         try {
-            $data = $request->all();
+            $data = $request->validated();
             $companyId = $this->getCurrentCompanyId();
 
-            $rules = [
-                'permissions' => 'nullable|array|max:1000',
-                'permissions.*' => 'string|exists:permissions,name,guard_name,api',
-            ];
-
-            if (isset($data['name'])) {
-                $data['name'] = trim($data['name']);
-                if (empty($data['name'])) {
-                    return $this->errorResponse('Название роли не может быть пустым', 422);
-                }
-                $uniqueRule = Rule::unique('roles', 'name')
-                    ->ignore($id)
-                    ->where('guard_name', 'api');
-                
-                if ($companyId) {
-                    $uniqueRule->where('company_id', $companyId);
-                } else {
-                    $uniqueRule->whereNull('company_id');
-                }
-                
-                $rules['name'] = ['required', 'string', 'max:255', $uniqueRule];
-            }
-
-            $validator = Validator::make($data, $rules);
-
-            if ($validator->fails()) {
-                return $this->validationErrorResponse($validator);
-            }
-
             $role = $this->itemsRepository->updateItem($id, $data, $companyId);
+            $role = Role::with('permissions')->findOrFail($id);
 
-            return response()->json([
-                'message' => 'Роль обновлена успешно',
-                'role' => $role
-            ]);
+            return $this->dataResponse(new RoleResource($role), 'Роль обновлена успешно');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Роль не найдена', 404);
         } catch (\Illuminate\Database\QueryException $e) {
@@ -189,8 +135,9 @@ class RolesController extends Controller
     {
         try {
             $companyId = $this->getCurrentCompanyId();
+            $role = Role::findOrFail($id);
             $this->itemsRepository->deleteItem($id, $companyId);
-            return response()->json(['message' => 'Роль удалена успешно']);
+            return $this->dataResponse(new RoleResource($role), 'Роль удалена успешно');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Роль не найдена', 404);
         } catch (\Exception $e) {

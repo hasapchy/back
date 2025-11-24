@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreCategoryRequest;
+use App\Http\Requests\UpdateCategoryRequest;
+use App\Http\Resources\CategoryResource;
+use App\Models\Category;
 use App\Repositories\CategoriesRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
@@ -35,7 +39,7 @@ class CategoriesController extends Controller
         $page = $request->input('page', 1);
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page);
 
-        return $this->paginatedResponse($items);
+        return CategoryResource::collection($items)->response();
     }
 
     /**
@@ -48,7 +52,7 @@ class CategoriesController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $items = $this->itemsRepository->getAllItems($userUuid);
-        return response()->json($items);
+        return CategoryResource::collection($items)->response();
     }
 
     /**
@@ -61,25 +65,18 @@ class CategoriesController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $items = $this->itemsRepository->getParentCategories($userUuid);
-        return response()->json($items);
+        return CategoryResource::collection($items)->response();
     }
 
     /**
      * Создать категорию
      *
-     * @param Request $request
+     * @param StoreCategoryRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreCategoryRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'parent_id' => 'nullable|exists:categories,id',
-            'users' => 'required|array',
-            'users.*' => 'exists:users,id'
-        ]);
 
         $category_created = $this->itemsRepository->createItem([
             'name' => $request->name,
@@ -93,26 +90,22 @@ class CategoriesController extends Controller
         }
 
         CacheService::invalidateCategoriesCache();
-        return response()->json(['message' => 'Категория создана']);
+        $category = Category::with(['parent', 'children', 'user'])->findOrFail($category_created->id);
+        return (new CategoryResource($category))->additional([
+            'message' => 'Категория создана'
+        ])->response();
     }
 
     /**
      * Обновить категорию
      *
-     * @param Request $request
+     * @param UpdateCategoryRequest $request
      * @param int $id ID категории
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateCategoryRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'parent_id' => 'nullable|exists:categories,id',
-            'users' => 'required|array',
-            'users.*' => 'exists:users,id'
-        ]);
 
         $category_updated = $this->itemsRepository->updateItem($id, [
             'name' => $request->name,
@@ -126,7 +119,10 @@ class CategoriesController extends Controller
         }
 
         CacheService::invalidateCategoriesCache();
-        return response()->json(['message' => 'Категория обновлена']);
+        $category = Category::with(['parent', 'children', 'user'])->findOrFail($id);
+        return (new CategoryResource($category))->additional([
+            'message' => 'Категория обновлена'
+        ])->response();
     }
 
     /**
@@ -146,6 +142,9 @@ class CategoriesController extends Controller
         }
 
         CacheService::invalidateCategoriesCache();
-        return response()->json(['message' => 'Категория удалена']);
+        $category = Category::with(['parent', 'children', 'user'])->findOrFail($id);
+        return (new CategoryResource($category))->additional([
+            'message' => 'Категория удалена'
+        ])->response();
     }
 }

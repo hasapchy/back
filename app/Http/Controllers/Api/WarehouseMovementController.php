@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreWarehouseMovementRequest;
+use App\Http\Requests\UpdateWarehouseMovementRequest;
+use App\Http\Resources\WarehouseMovementResource;
+use App\Models\WhMovement;
 use App\Repositories\WarehouseMovementRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -36,28 +40,18 @@ class WarehouseMovementController extends Controller
 
         $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20);
 
-        return $this->paginatedResponse($warehouses);
+        return WarehouseMovementResource::collection($warehouses)->response();
     }
 
     /**
      * Создать перемещение между складами
      *
-     * @param Request $request
+     * @param StoreWarehouseMovementRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreWarehouseMovementRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'warehouse_from_id' => 'required|integer|exists:warehouses,id',
-            'warehouse_to_id' => 'required|integer|exists:warehouses,id',
-            'date' => 'nullable|date',
-            'note' => 'nullable|string',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:0'
-        ]);
 
         $warehouseFromAccessCheck = $this->checkWarehouseAccess($request->warehouse_from_id);
         if ($warehouseFromAccessCheck) {
@@ -88,7 +82,8 @@ class WarehouseMovementController extends Controller
                 return $this->errorResponse('Ошибка перемещения', 400);
             }
 
-            return response()->json(['message' => 'Перемещение создано']);
+            $movement = WhMovement::with(['warehouseFrom', 'warehouseTo', 'user'])->findOrFail($warehouse_created->id);
+            return $this->dataResponse(new WarehouseMovementResource($movement), 'Перемещение создано');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка перемещения' . $th->getMessage(), 400);
         }
@@ -97,23 +92,13 @@ class WarehouseMovementController extends Controller
     /**
      * Обновить перемещение между складами
      *
-     * @param Request $request
+     * @param UpdateWarehouseMovementRequest $request
      * @param int $id ID перемещения
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateWarehouseMovementRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'warehouse_from_id' => 'required|integer|exists:warehouses,id',
-            'warehouse_to_id' => 'required|integer|exists:warehouses,id',
-            'date' => 'nullable|date',
-            'note' => 'nullable|string',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:0'
-        ]);
 
         $warehouseFromAccessCheck = $this->checkWarehouseAccess($request->warehouse_from_id);
         if ($warehouseFromAccessCheck) {
@@ -144,7 +129,8 @@ class WarehouseMovementController extends Controller
                 return $this->errorResponse('Ошибка обновления перемещения', 400);
             }
 
-            return response()->json(['message' => 'Перемещение обновлено']);
+            $movement = WhMovement::with(['warehouseFrom', 'warehouseTo', 'user'])->findOrFail($id);
+            return $this->dataResponse(new WarehouseMovementResource($movement), 'Перемещение обновлено');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка обновления перемещения' . $th->getMessage(), 400);
         }
@@ -180,6 +166,6 @@ class WarehouseMovementController extends Controller
             return $this->errorResponse('Ошибка удаления перемещения', 400);
         }
 
-        return response()->json(['message' => 'Перемещение удалено']);
+        return $this->dataResponse(new WarehouseMovementResource($movement), 'Перемещение удалено');
     }
 }

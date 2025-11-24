@@ -39,10 +39,12 @@ class CashRegister extends Model
         'balance' => 'decimal:2',
     ];
 
+    protected static $protectedCashRegisterIds = [1];
+
     protected static function booted()
     {
         static::deleting(function ($cashRegister) {
-            if ($cashRegister->id === 1) {
+            if (in_array($cashRegister->id, self::$protectedCashRegisterIds)) {
                 return false;
             }
         });

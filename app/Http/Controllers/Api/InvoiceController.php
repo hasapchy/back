@@ -3,8 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\GetOrdersForInvoiceRequest;
+use App\Http\Requests\StoreInvoiceRequest;
+use App\Http\Requests\UpdateInvoiceRequest;
+use App\Http\Resources\InvoiceResource;
+use App\Http\Resources\OrderResource;
+use App\Models\Invoice;
 use App\Repositories\InvoicesRepository;
 use App\Services\CacheService;
+use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 
 /**
@@ -15,13 +22,20 @@ class InvoiceController extends Controller
     protected $itemRepository;
 
     /**
+     * @var InvoiceService
+     */
+    protected $invoiceService;
+
+    /**
      * Конструктор контроллера
      *
      * @param InvoicesRepository $itemRepository
+     * @param InvoiceService $invoiceService
      */
-    public function __construct(InvoicesRepository $itemRepository)
+    public function __construct(InvoicesRepository $itemRepository, InvoiceService $invoiceService)
     {
         $this->itemRepository = $itemRepository;
+        $this->invoiceService = $invoiceService;
     }
 
     /**
@@ -45,61 +59,29 @@ class InvoiceController extends Controller
 
         $items = $this->itemRepository->getItemsWithPagination($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page);
 
-        return $this->paginatedResponse($items);
+        return InvoiceResource::collection($items)->response();
     }
 
     /**
      * Создать новый счет
      *
-     * @param Request $request
+     * @param StoreInvoiceRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreInvoiceRequest $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'client_id' => 'required|integer|exists:clients,id',
-            'invoice_date' => 'nullable|date',
-            'note' => 'nullable|string',
-            'order_ids' => 'required|array|min:1',
-            'order_ids.*' => 'integer|exists:orders,id',
-        ]);
+        $user = $this->requireAuthenticatedUser();
 
         try {
-            $orders = $this->itemRepository->getOrdersForInvoice($request->order_ids);
-
-            if ($orders->isEmpty()) {
-                return $this->errorResponse('Заказы не найдены', 400);
-            }
-
-            $clientId = $orders->first()->client_id;
-            if ($orders->where('client_id', '!=', $clientId)->isNotEmpty()) {
-                return $this->errorResponse('Все заказы должны принадлежать одному клиенту', 400);
-            }
-
-            $productsData = $this->itemRepository->prepareProductsFromOrders($orders);
-            $products = $productsData['products'];
-
-            $totalAmount = collect($products)->sum('total_price');
-
             $data = [
                 'client_id' => $request->client_id,
-                'user_id' => $userUuid,
                 'invoice_date' => $request->invoice_date ?? now()->toDateString(),
                 'note' => $request->note ?? '',
-                'order_ids' => $request->order_ids,
-                'products' => $products,
-                'total_amount' => $totalAmount,
             ];
 
-            $created = $this->itemRepository->createItem($data);
+            $invoice = $this->invoiceService->createFromOrders($request->order_ids, $data, $user);
 
-            if (!$created) {
-                return $this->errorResponse('Ошибка создания счета', 400);
-            }
-
-            return response()->json(['invoice' => $created, 'message' => 'Счет успешно создан']);
+            return $this->dataResponse(new InvoiceResource($invoice), 'Счет успешно создан');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка создания счета: ' . $th->getMessage(), 400);
         }
@@ -108,26 +90,15 @@ class InvoiceController extends Controller
     /**
      * Обновить счет
      *
-     * @param Request $request
+     * @param UpdateInvoiceRequest $request
      * @param int $id ID счета
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateInvoiceRequest $request, $id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $invoice = Invoice::findOrFail($id);
 
-        $request->validate([
-            'client_id' => 'required|integer|exists:clients,id',
-            'invoice_date' => 'nullable|date',
-            'note' => 'nullable|string',
-            'status' => 'nullable|string|in:new,in_progress,paid,cancelled',
-            'order_ids' => 'nullable|array',
-            'order_ids.*' => 'integer|exists:orders,id',
-            'products' => 'nullable|array',
-            'products.*.product_name' => 'required_with:products|string|max:255',
-            'products.*.quantity' => 'required_with:products|numeric|min:0.01',
-            'products.*.price' => 'required_with:products|numeric|min:0',
-        ]);
+        $this->authorize('update', $invoice);
 
         try {
             $data = [
@@ -140,12 +111,9 @@ class InvoiceController extends Controller
                 'total_amount' => $request->total_amount,
             ];
 
-            $updated = $this->itemRepository->updateItem($id, $data);
-            if (!$updated) {
-                return $this->errorResponse('Ошибка обновления счета', 400);
-            }
+            $invoice = $this->invoiceService->updateInvoice($invoice, $data);
 
-            return response()->json(['message' => 'Счет сохранён']);
+            return $this->dataResponse(new InvoiceResource($invoice), 'Счет сохранён');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка: ' . $th->getMessage(), 400);
         }
@@ -159,12 +127,14 @@ class InvoiceController extends Controller
      */
     public function destroy($id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $invoice = Invoice::findOrFail($id);
+
+        $this->authorize('delete', $invoice);
 
         try {
             $deleted = $this->itemRepository->deleteItem($id);
 
-            return response()->json(['invoice' => $deleted, 'message' => 'Счет успешно удалён']);
+            return $this->dataResponse(['invoice' => $deleted], 'Счет успешно удалён');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка при удалении счета: ' . $th->getMessage(), 400);
         }
@@ -178,25 +148,23 @@ class InvoiceController extends Controller
      */
     public function show($id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
-        $item = $this->itemRepository->getItemById($id);
-        return response()->json(['item' => $item]);
+        $invoice = Invoice::findOrFail($id);
+
+        $this->authorize('view', $invoice);
+
+        $invoice = Invoice::with(['client', 'user', 'orders', 'products.product', 'products.unit'])->findOrFail($id);
+        return $this->dataResponse(new InvoiceResource($invoice));
     }
 
     /**
      * Получить заказы для счета
      *
-     * @param Request $request
+     * @param GetOrdersForInvoiceRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getOrdersForInvoice(Request $request)
+    public function getOrdersForInvoice(GetOrdersForInvoiceRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'order_ids' => 'required|array|min:1',
-            'order_ids.*' => 'integer|exists:orders,id',
-        ]);
 
         try {
             $orders = $this->itemRepository->getOrdersForInvoice($request->order_ids);
@@ -204,8 +172,8 @@ class InvoiceController extends Controller
             $products = $productsData['products'];
             $orderDate = $productsData['order_date'];
 
-            return response()->json([
-                'orders' => $orders,
+            return $this->dataResponse([
+                'orders' => OrderResource::collection($orders)->resolve(),
                 'products' => $products,
                 'order_date' => $orderDate,
                 'total_amount' => collect($products)->sum('total_price')

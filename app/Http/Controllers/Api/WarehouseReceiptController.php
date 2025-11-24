@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreWarehouseReceiptRequest;
+use App\Http\Requests\UpdateWarehouseReceiptRequest;
+use App\Http\Resources\WarehouseReceiptResource;
+use App\Models\WhReceipt;
 use App\Repositories\WarehouseReceiptRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -36,7 +40,7 @@ class WarehouseReceiptController extends Controller
 
         $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20);
 
-        return $this->paginatedResponse($warehouses);
+        return WarehouseReceiptResource::collection($warehouses)->response();
     }
 
     /**
@@ -53,31 +57,19 @@ class WarehouseReceiptController extends Controller
             return $this->notFoundResponse('Оприходование не найдено');
         }
 
-        return response()->json(['item' => $item]);
+        $receipt = WhReceipt::with(['warehouse', 'user', 'client', 'cash', 'project'])->findOrFail($id);
+        return $this->dataResponse(new WarehouseReceiptResource($receipt));
     }
 
     /**
      * Создать оприходование на склад
      *
-     * @param Request $request
+     * @param StoreWarehouseReceiptRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreWarehouseReceiptRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-        $request->validate([
-            'client_id' => 'required|integer|exists:clients,id',
-            'warehouse_id' => 'required|integer|exists:warehouses,id',
-            'type'         => 'required|in:cash,balance',
-            'cash_id'      => 'nullable|integer|exists:cash_registers,id',
-            'date' => 'nullable|date',
-            'note' => 'nullable|string',
-            'project_id' => 'nullable|integer|exists:projects,id',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:0',
-            'products.*.price' => 'required|numeric|min:0'
-        ]);
 
         $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
         if ($warehouseAccessCheck) {
@@ -113,7 +105,12 @@ class WarehouseReceiptController extends Controller
                 return $this->errorResponse('Ошибка оприходования', 400);
             }
 
-            return response()->json(['message' => 'Оприходование создано']);
+            $receipt = WhReceipt::with(['warehouse', 'user', 'client', 'cash', 'project'])
+                ->where('user_id', $userUuid)
+                ->where('warehouse_id', $request->warehouse_id)
+                ->latest()
+                ->firstOrFail();
+            return $this->dataResponse(new WarehouseReceiptResource($receipt), 'Оприходование создано');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка оприходования: ' . $th->getMessage(), 400);
         }
@@ -122,18 +119,13 @@ class WarehouseReceiptController extends Controller
     /**
      * Обновить оприходование на склад
      *
-     * @param Request $request
+     * @param UpdateWarehouseReceiptRequest $request
      * @param int $id ID оприходования
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateWarehouseReceiptRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'date' => 'nullable|date',
-            'note' => 'nullable|string',
-        ]);
 
         $receipt = $this->warehouseRepository->getItemById($id, $userUuid);
         if (!$receipt) {
@@ -166,7 +158,8 @@ class WarehouseReceiptController extends Controller
                 return $this->errorResponse('Ошибка обновления приходования', 400);
             }
 
-            return response()->json(['message' => 'Приходование обновлено']);
+            $receipt = WhReceipt::with(['warehouse', 'user', 'client', 'cash', 'project'])->findOrFail($id);
+            return $this->dataResponse(new WarehouseReceiptResource($receipt), 'Приходование обновлено');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка обновления приходования: ' . $th->getMessage(), 400);
         }
@@ -187,7 +180,8 @@ class WarehouseReceiptController extends Controller
                 return $this->errorResponse('Ошибка удаления оприходования', 400);
             }
 
-            return response()->json(['message' => 'Оприходование удалено']);
+            $receipt = WhReceipt::with(['warehouse', 'user', 'client', 'cash', 'project'])->findOrFail($id);
+            return $this->dataResponse(new WarehouseReceiptResource($receipt), 'Оприходование удалено');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->notFoundResponse('Оприходование не найдено');
         } catch (\Throwable $th) {

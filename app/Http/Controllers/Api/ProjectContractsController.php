@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreProjectContractRequest;
+use App\Http\Requests\UpdateProjectContractRequest;
 use App\Models\Project;
 use App\Models\ProjectContract;
 use App\Repositories\ProjectContractsRepository;
@@ -79,7 +81,7 @@ class ProjectContractsController extends Controller
 
             $contracts = $this->repository->getAllItems($projectId);
 
-            return response()->json($contracts);
+            return $this->dataResponse($contracts);
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении контрактов проекта: ' . $e->getMessage(), 500);
         }
@@ -88,22 +90,12 @@ class ProjectContractsController extends Controller
     /**
      * Создание нового контракта
      *
-     * @param Request $request
+     * @param StoreProjectContractRequest $request
      * @return JsonResponse
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreProjectContractRequest $request): JsonResponse
     {
         try {
-            $request->validate([
-                'project_id' => 'required|exists:projects,id',
-                'number' => 'required|string|max:255',
-                'amount' => 'required|numeric|min:0',
-                'currency_id' => 'nullable|exists:currencies,id',
-                'date' => 'required|date',
-                'returned' => 'nullable|boolean',
-                'files' => 'nullable|array',
-                'note' => 'nullable|string'
-            ]);
 
             $project = Project::find($request->project_id);
             if (!$project) {
@@ -127,10 +119,7 @@ class ProjectContractsController extends Controller
 
             $contract = $this->repository->createContract($data);
 
-            return response()->json([
-                'message' => 'Контракт успешно создан',
-                'item' => $contract->load(['currency', 'project'])
-            ]);
+            return $this->dataResponse($contract->load(['currency', 'project']), 'Контракт успешно создан');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
@@ -162,7 +151,7 @@ class ProjectContractsController extends Controller
                 return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
             }
 
-            return response()->json(['item' => $contract]);
+            return $this->dataResponse($contract);
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении контракта: ' . $e->getMessage(), 500);
         }
@@ -171,11 +160,11 @@ class ProjectContractsController extends Controller
     /**
      * Обновление контракта
      *
-     * @param Request $request
+     * @param UpdateProjectContractRequest $request
      * @param int $id ID контракта
      * @return JsonResponse
      */
-    public function update(Request $request, $id): JsonResponse
+    public function update(UpdateProjectContractRequest $request, $id): JsonResponse
     {
         try {
             $contract = ProjectContract::find($id);
@@ -192,16 +181,6 @@ class ProjectContractsController extends Controller
                 return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
             }
 
-            $request->validate([
-                'number' => 'required|string|max:255',
-                'amount' => 'required|numeric|min:0',
-                'currency_id' => 'nullable|exists:currencies,id',
-                'date' => 'required|date',
-                'returned' => 'nullable|boolean',
-                'files' => 'nullable|array',
-                'note' => 'nullable|string'
-            ]);
-
             $data = $request->only([
                 'number',
                 'amount',
@@ -214,10 +193,7 @@ class ProjectContractsController extends Controller
 
             $contract = $this->repository->updateContract($id, $data);
 
-            return response()->json([
-                'message' => 'Контракт успешно обновлен',
-                'item' => $contract->load(['currency', 'project'])
-            ]);
+            return $this->dataResponse($contract->load(['currency', 'project']), 'Контракт успешно обновлен');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {

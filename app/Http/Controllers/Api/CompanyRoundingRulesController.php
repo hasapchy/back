@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpsertCompanyRoundingRuleRequest;
 use App\Models\CompanyRoundingRule;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 /**
  * Контроллер для работы с правилами округления компаний
@@ -22,31 +22,19 @@ class CompanyRoundingRulesController extends Controller
     {
         $companyId = $this->getCurrentCompanyId();
         $rules = CompanyRoundingRule::where('company_id', $companyId)->get();
-        return response()->json($rules);
+        return $this->dataResponse($rules);
     }
 
     /**
      * Создать или обновить правило округления
      *
-     * @param Request $request
+     * @param UpsertCompanyRoundingRuleRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function upsert(Request $request)
+    public function upsert(UpsertCompanyRoundingRuleRequest $request)
     {
         $companyId = $this->getCurrentCompanyId();
-
-        $validator = Validator::make($request->all(), [
-            'context' => 'required|string|in:orders,receipts,sales,transactions',
-            'decimals' => 'required|integer|min:2|max:5',
-            'direction' => 'required|string|in:standard,up,down,custom',
-            'custom_threshold' => 'nullable|numeric|min:0|max:1',
-        ]);
-
-        if ($validator->fails()) {
-            return $this->validationErrorResponse($validator);
-        }
-
-        $data = $validator->validated();
+        $data = $request->validated();
 
         $rule = CompanyRoundingRule::updateOrCreate(
             [
@@ -60,7 +48,7 @@ class CompanyRoundingRulesController extends Controller
             ]
         );
 
-        return response()->json(['rule' => $rule]);
+        return $this->dataResponse(['rule' => $rule]);
     }
 }
 

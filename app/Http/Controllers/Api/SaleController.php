@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreSaleRequest;
+use App\Http\Resources\SaleResource;
+use App\Models\Sale;
 use App\Repositories\SalesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -43,35 +46,18 @@ class SaleController extends Controller
 
         $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $page);
 
-        return $this->paginatedResponse($items);
+        return SaleResource::collection($items)->response();
     }
 
     /**
      * Создать новую продажу
      *
-     * @param Request $request
+     * @param StoreSaleRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreSaleRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'client_id'     => 'required|integer|exists:clients,id',
-            'project_id'    => 'nullable|integer|exists:projects,id',
-            'type'          => 'required|in:cash,balance',
-            'cash_id'       => 'nullable|integer|exists:cash_registers,id',
-            'warehouse_id'  => 'required|integer|exists:warehouses,id',
-            'currency_id'   => 'nullable|integer|exists:currencies,id',
-            'discount'      => 'nullable|numeric|min:0',
-            'discount_type' => 'nullable|in:fixed,percent|required_with:discount',
-            'date'          => 'nullable|date',
-            'note'          => 'nullable|string',
-            'products'      => 'required|array',
-            'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity'   => 'required|numeric|min:1',
-            'products.*.price'      => 'required|numeric|min:0',
-        ]);
 
         $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
         if ($cashAccessCheck) {
@@ -103,7 +89,8 @@ class SaleController extends Controller
         ];
 
         try {
-            $this->itemRepository->createItem($data);
+            $sale = $this->itemRepository->createItem($data);
+            $sale = Sale::with(['client', 'user', 'project', 'cash', 'warehouse'])->findOrFail($sale->id);
 
             CacheService::invalidateSalesCache();
             CacheService::invalidateClientsCache();
@@ -111,7 +98,7 @@ class SaleController extends Controller
                 CacheService::invalidateProjectsCache();
             }
 
-            return response()->json(['message' => 'Продажа добавлена'], 201);
+            return $this->dataResponse(new SaleResource($sale), 'Продажа добавлена', 201);
         } catch (\Throwable $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -135,7 +122,8 @@ class SaleController extends Controller
             return $this->forbiddenResponse('У вас нет прав на просмотр этой продажи');
         }
 
-        return response()->json(['item' => $item]);
+        $sale = Sale::with(['client', 'user', 'project', 'cash', 'warehouse'])->findOrFail($id);
+        return $this->dataResponse(new SaleResource($sale));
     }
 
     /**
@@ -174,7 +162,8 @@ class SaleController extends Controller
                 CacheService::invalidateProjectsCache();
             }
 
-            return response()->json(['sale' => $saleData, 'message' => 'Продажа удалена успешно']);
+            $sale = Sale::with(['client', 'user', 'project', 'cash', 'warehouse'])->findOrFail($id);
+            return $this->dataResponse(new SaleResource($sale), 'Продажа удалена успешно');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка при удалении продажи: ' . $th->getMessage(), 400);
         }

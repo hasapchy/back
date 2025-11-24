@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreCurrencyHistoryRequest;
+use App\Http\Requests\UpdateCurrencyHistoryRequest;
+use App\Http\Resources\CurrencyHistoryResource;
+use App\Http\Resources\CurrencyResource;
 use App\Models\Currency;
 use App\Models\CurrencyHistory;
 use App\Services\CacheService;
@@ -67,12 +71,16 @@ class CurrencyHistoryController extends Controller
             );
 
             return response()->json([
-                'currency' => $currency,
-                'history' => $items,
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'total' => $paginator->total(),
-                'per_page' => $paginator->perPage()
+                'data' => [
+                    'currency' => $currency,
+                    'history' => $items,
+                ],
+                'meta' => [
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                    'total' => $paginator->total(),
+                    'per_page' => $paginator->perPage()
+                ]
             ]);
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении истории курсов: ' . $e->getMessage(), 500);
@@ -82,11 +90,11 @@ class CurrencyHistoryController extends Controller
     /**
      * Создать новую запись в истории курсов валюты
      *
-     * @param Request $request
+     * @param StoreCurrencyHistoryRequest $request
      * @param int $currencyId ID валюты
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request, $currencyId)
+    public function store(StoreCurrencyHistoryRequest $request, $currencyId)
     {
         try {
             $user = $this->getAuthenticatedUser();
@@ -104,12 +112,6 @@ class CurrencyHistoryController extends Controller
             if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
                 return $this->forbiddenResponse('Нет доступа к этой валюте');
             }
-
-            $request->validate([
-                'exchange_rate' => 'required|numeric|min:0.000001',
-                'start_date' => 'required|date',
-                'end_date' => 'nullable|date|after:start_date'
-            ]);
 
             $companyId = $this->getCurrentCompanyId();
 
@@ -132,7 +134,7 @@ class CurrencyHistoryController extends Controller
 
             CacheService::invalidateCurrenciesCache();
 
-            return response()->json(['history' => $history, 'message' => 'Курс валюты успешно добавлен']);
+            return $this->dataResponse(new CurrencyHistoryResource($history), 'Курс валюты успешно добавлен');
         } catch (\Exception $e) {
             DB::rollback();
             return $this->errorResponse('Ошибка при создании записи курса: ' . $e->getMessage(), 500);
@@ -142,12 +144,12 @@ class CurrencyHistoryController extends Controller
     /**
      * Обновить запись в истории курсов валюты
      *
-     * @param Request $request
+     * @param UpdateCurrencyHistoryRequest $request
      * @param int $currencyId ID валюты
      * @param int $historyId ID записи истории
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $currencyId, $historyId)
+    public function update(UpdateCurrencyHistoryRequest $request, $currencyId, $historyId)
     {
         try {
             $user = $this->getAuthenticatedUser();
@@ -177,12 +179,6 @@ class CurrencyHistoryController extends Controller
                 return response()->json(['error' => 'Запись в истории не найдена'], 404);
             }
 
-            $request->validate([
-                'exchange_rate' => 'required|numeric|min:0.000001',
-                'start_date' => 'required|date',
-                'end_date' => 'nullable|date|after:start_date'
-            ]);
-
             DB::beginTransaction();
 
             if (!$request->end_date) {
@@ -203,7 +199,7 @@ class CurrencyHistoryController extends Controller
 
             CacheService::invalidateCurrenciesCache();
 
-            return response()->json(['history' => $history, 'message' => 'Курс валюты успешно обновлен']);
+            return $this->dataResponse(['history' => $history], 'Курс валюты успешно обновлен');
         } catch (\Exception $e) {
             DB::rollback();
             return $this->errorResponse('Ошибка при обновлении записи курса: ' . $e->getMessage(), 500);
@@ -256,7 +252,7 @@ class CurrencyHistoryController extends Controller
 
             CacheService::invalidateCurrenciesCache();
 
-            return response()->json(['message' => 'Запись курса успешно удалена']);
+            return $this->dataResponse(new CurrencyHistoryResource($history), 'Запись курса успешно удалена');
         } catch (\Exception $e) {
             DB::rollback();
             return $this->errorResponse('Ошибка при удалении записи курса: ' . $e->getMessage(), 500);
@@ -309,7 +305,7 @@ class CurrencyHistoryController extends Controller
                 });
             });
 
-            return response()->json($result);
+            return $this->dataResponse($result);
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении валют с курсами: ' . $e->getMessage(), 500);
         }

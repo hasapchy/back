@@ -264,15 +264,92 @@ class Controller extends BaseController
         return response()->json($response, $status);
     }
 
+    /**
+     * Вернуть пагинированный ответ
+     * Поддерживает как обычные коллекции, так и ResourceCollection
+     *
+     * @param mixed $items
+     * @return \Illuminate\Http\JsonResponse
+     */
     protected function paginatedResponse($items)
     {
+        if ($items instanceof \Illuminate\Http\Resources\Json\ResourceCollection) {
+            $response = $items->response()->getData(true);
+            if (isset($response['data'])) {
+                return response()->json([
+                    'data' => $response['data'],
+                    'meta' => [
+                        'current_page' => $response['meta']['current_page'] ?? 1,
+                        'last_page' => $response['meta']['last_page'] ?? 1,
+                        'per_page' => $response['meta']['per_page'] ?? 20,
+                        'total' => $response['meta']['total'] ?? 0,
+                    ],
+                    'links' => $response['links'] ?? []
+                ]);
+            }
+            return $items->response();
+        }
+
+        if ($items instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator) {
+            $firstItem = $items->items()[0] ?? null;
+
+            if ($firstItem && $firstItem instanceof \Illuminate\Http\Resources\Json\JsonResource) {
+                return response()->json([
+                    'data' => $items->items(),
+                    'meta' => [
+                        'current_page' => $items->currentPage(),
+                        'last_page' => $items->lastPage(),
+                        'per_page' => $items->perPage(),
+                        'total' => $items->total()
+                    ],
+                    'links' => [
+                        'first' => $items->url(1),
+                        'last' => $items->url($items->lastPage()),
+                        'prev' => $items->previousPageUrl(),
+                        'next' => $items->nextPageUrl()
+                    ]
+                ]);
+            }
+        }
+
         return response()->json([
-            'items' => $items->items(),
-            'current_page' => $items->currentPage(),
-            'next_page' => $items->nextPageUrl(),
-            'last_page' => $items->lastPage(),
-            'total' => $items->total()
+            'data' => $items->items(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total()
+            ],
+            'links' => [
+                'first' => $items->url(1),
+                'last' => $items->url($items->lastPage()),
+                'prev' => $items->previousPageUrl(),
+                'next' => $items->nextPageUrl()
+            ]
         ]);
+    }
+
+    /**
+     * Вернуть ответ с данными в стандартизированном формате
+     *
+     * @param mixed $data Данные для возврата
+     * @param string|null $message Сообщение
+     * @param int $status HTTP статус код
+     * @return \Illuminate\Http\JsonResponse
+     */
+    protected function dataResponse($data, $message = null, $status = 200)
+    {
+        if ($data instanceof \Illuminate\Http\Resources\Json\JsonResource) {
+            $data = $data->resolve(request());
+        }
+
+        $response = ['data' => $data];
+
+        if ($message !== null) {
+            $response['message'] = $message;
+        }
+
+        return response()->json($response, $status);
     }
 
     /**

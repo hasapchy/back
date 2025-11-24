@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreWarehouseRequest;
+use App\Http\Requests\UpdateWarehouseRequest;
+use App\Http\Resources\WarehouseResource;
+use App\Models\Warehouse;
 use App\Repositories\WarehouseRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
@@ -37,7 +41,7 @@ class WarehouseController extends Controller
         $page = $request->input('page', 1);
         $warehouses = $this->warehouseRepository->getWarehousesWithPagination($userUuid, 20, $page);
 
-        return $this->paginatedResponse($warehouses);
+        return WarehouseResource::collection($warehouses)->response();
     }
 
     /**
@@ -52,22 +56,17 @@ class WarehouseController extends Controller
 
         $warehouses = $this->warehouseRepository->getAllItems($userUuid);
 
-        return response()->json($warehouses);
+        return WarehouseResource::collection($warehouses)->response();
     }
 
     /**
      * Создать новый склад
      *
-     * @param Request $request
+     * @param StoreWarehouseRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreWarehouseRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string',
-            'users' => 'required|array',
-            'users.*' => 'exists:users,id'
-        ]);
 
         $warehouse_created = $this->warehouseRepository->createItem($request->name, $request->users);
 
@@ -75,17 +74,20 @@ class WarehouseController extends Controller
             return $this->errorResponse('Ошибка создания склада', 400);
         }
 
-        return response()->json(['warehouse' => $warehouse_created, 'message' => 'Склад создан']);
+        $warehouse = Warehouse::with('users')->findOrFail($warehouse_created->id);
+        return (new WarehouseResource($warehouse))->additional([
+            'message' => 'Склад создан'
+        ])->response();
     }
 
     /**
      * Обновить склад
      *
-     * @param Request $request
+     * @param UpdateWarehouseRequest $request
      * @param int $id ID склада
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateWarehouseRequest $request, $id)
     {
         $warehouse = \App\Models\Warehouse::findOrFail($id);
 
@@ -93,19 +95,16 @@ class WarehouseController extends Controller
             return $this->forbiddenResponse('У вас нет прав на редактирование этого склада');
         }
 
-        $request->validate([
-            'name' => 'required|string',
-            'users' => 'required|array',
-            'users.*' => 'exists:users,id'
-        ]);
-
         $warehouse_updated = $this->warehouseRepository->updateItem($id, $request->name, $request->users);
 
         if (!$warehouse_updated) {
             return $this->errorResponse('Ошибка обновления склада', 400);
         }
 
-        return response()->json(['warehouse' => $warehouse_updated, 'message' => 'Склад обновлен']);
+        $warehouse = Warehouse::with('users')->findOrFail($id);
+        return (new WarehouseResource($warehouse))->additional([
+            'message' => 'Склад обновлен'
+        ])->response();
     }
 
     /**
@@ -128,6 +127,8 @@ class WarehouseController extends Controller
             return $this->errorResponse('Ошибка удаления склада', 400);
         }
 
-        return response()->json(['message' => 'Склад удален']);
+        return (new WarehouseResource($warehouse))->additional([
+            'message' => 'Склад удален'
+        ])->response();
     }
 }
