@@ -77,7 +77,7 @@ class CompaniesController extends Controller
             return $this->validationErrorResponse($validator);
         }
 
-        $data = $request->only(['name', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold', 'rounding_quantity_decimals', 'rounding_quantity_enabled', 'rounding_quantity_direction', 'rounding_quantity_custom_threshold', 'skip_project_order_balance']);
+        $data = $request->all();
 
         if (isset($data['show_deleted_transactions'])) {
             $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
@@ -133,7 +133,7 @@ class CompaniesController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $data = $request->only(['name', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold', 'rounding_quantity_decimals', 'rounding_quantity_enabled', 'rounding_quantity_direction', 'rounding_quantity_custom_threshold', 'skip_project_order_balance']);
+        $data = $request->all();
 
         if (isset($data['show_deleted_transactions'])) {
             $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
@@ -176,6 +176,20 @@ class CompaniesController extends Controller
 
         $company = Company::findOrFail($id);
 
+        $data = $request->all();
+
+        if (isset($data['show_deleted_transactions'])) {
+            $data['show_deleted_transactions'] = filter_var($data['show_deleted_transactions'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($data['rounding_enabled'])) {
+            $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($data['rounding_quantity_enabled'])) {
+            $data['rounding_quantity_enabled'] = filter_var($data['rounding_quantity_enabled'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($data['skip_project_order_balance'])) {
+            $data['skip_project_order_balance'] = filter_var($data['skip_project_order_balance'], FILTER_VALIDATE_BOOLEAN);
+        }
 
         if (isset($data['rounding_custom_threshold']) && $data['rounding_custom_threshold'] === '') {
             $data['rounding_custom_threshold'] = null;
