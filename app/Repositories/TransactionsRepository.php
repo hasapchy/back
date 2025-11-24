@@ -80,8 +80,8 @@ class TransactionsRepository extends BaseRepository
                 }
 
                 $query->when($cash_id, function ($query, $cash_id) {
-                        return $query->where('transactions.cash_id', $cash_id);
-                    })
+                    return $query->where('transactions.cash_id', $cash_id);
+                })
                     ->when($date_filter_type && $date_filter_type !== 'all_time', function ($query) use ($date_filter_type, $start_date, $end_date) {
                         if ($date_filter_type === 'custom') {
                             if ($start_date && $end_date) {
@@ -114,12 +114,12 @@ class TransactionsRepository extends BaseRepository
                                         ->orWhere('last_name', 'like', "%{$searchNormalized}%")
                                         ->orWhere('contact_person', 'like', "%{$searchNormalized}%");
                                 })
-                                ->orWhereHas('phones', function ($phoneQuery) use ($searchNormalized) {
-                                    $phoneQuery->where('phone', 'like', "%{$searchNormalized}%");
-                                })
-                                ->orWhereHas('emails', function ($emailQuery) use ($searchNormalized) {
-                                    $emailQuery->where('email', 'like', "%{$searchNormalized}%");
-                                });
+                                    ->orWhereHas('phones', function ($phoneQuery) use ($searchNormalized) {
+                                        $phoneQuery->where('phone', 'like', "%{$searchNormalized}%");
+                                    })
+                                    ->orWhereHas('emails', function ($emailQuery) use ($searchNormalized) {
+                                        $emailQuery->where('email', 'like', "%{$searchNormalized}%");
+                                    });
                             });
                         });
                     })
@@ -366,12 +366,17 @@ class TransactionsRepository extends BaseRepository
                 }
             }
 
-                $skipForOrderProject = (($data['source_type'] ?? null) === \App\Models\Order::class) && !empty($data['project_id']);
+            $skipForOrderProject = (($data['source_type'] ?? null) === \App\Models\Order::class) && !empty($data['project_id']);
+
             if ($skipForOrderProject) {
                 $companyId = $this->getCurrentCompanyId();
-                $company = $companyId ? Company::findOrFail($companyId) : null;
-                $skipForOrderProject = $company ? (bool)$company->skip_project_order_balance : $skipForOrderProject;
+                $company = $companyId ? Company::find($companyId) : null;
+
+                if ($company) {
+                    $skipForOrderProject = (bool)$company->skip_project_order_balance;
+                }
             }
+
             if (! $skipClientUpdate && ! empty($data['client_id']) && !$skipForOrderProject) {
                 if (($data['is_debt'] ?? false)) {
                     if ($data['type'] === 1) {
