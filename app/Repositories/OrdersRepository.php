@@ -37,17 +37,26 @@ class OrdersRepository extends BaseRepository
      * @param int|null $clientFilter Фильтр по клиенту
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null, $unpaidOnly = false)
     {
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, 'single', $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, 'single', $currentUser?->id, $companyId]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $currentUser) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser) {
+            $orderClass = Order::class;
             $query = Order::select([
                 'orders.*',
-                DB::raw('(orders.price - orders.discount) as total_price')
+                DB::raw('(orders.price - orders.discount) as total_price'),
+                DB::raw("COALESCE((
+                    SELECT SUM(orig_amount)
+                    FROM transactions
+                    WHERE transactions.source_type = '{$orderClass}'
+                    AND transactions.source_id = orders.id
+                    AND transactions.is_debt = 0
+                    AND transactions.is_deleted = 0
+                ), 0) as paid_amount")
             ])
                 ->with([
                     'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at,balance',
@@ -115,6 +124,18 @@ class OrdersRepository extends BaseRepository
 
             if ($clientFilter) {
                 $query->where('orders.client_id', $clientFilter);
+            }
+
+            if ($unpaidOnly) {
+                $query->whereNull('orders.project_id')
+                    ->whereRaw('(orders.price - orders.discount) > COALESCE((
+                        SELECT SUM(orig_amount)
+                        FROM transactions
+                        WHERE transactions.source_type = ?
+                        AND transactions.source_id = orders.id
+                        AND transactions.is_debt = 0
+                        AND transactions.is_deleted = 0
+                    ), 0)', [Order::class]);
             }
 
             $query->where(function ($q) use ($userUuid) {
@@ -224,9 +245,69 @@ class OrdersRepository extends BaseRepository
                 }
 
                 $order->products = $allProducts;
+                $order->paid_amount = (float) ($order->paid_amount ?? 0);
 
                 return $order;
             });
+
+            $unpaidOrdersTotal = 0;
+            $orderClass = Order::class;
+            $unpaidQuery = Order::select([
+                DB::raw("SUM((orders.price - orders.discount) - COALESCE((
+                    SELECT SUM(orig_amount)
+                    FROM transactions
+                    WHERE transactions.source_type = '{$orderClass}'
+                    AND transactions.source_id = orders.id
+                    AND transactions.is_debt = 0
+                    AND transactions.is_deleted = 0
+                ), 0)) as unpaid_total")
+            ])
+            ->whereNull('orders.project_id')
+            ->whereRaw("(orders.price - orders.discount) > COALESCE((
+                SELECT SUM(orig_amount)
+                FROM transactions
+                WHERE transactions.source_type = '{$orderClass}'
+                AND transactions.source_id = orders.id
+                AND transactions.is_debt = 0
+                AND transactions.is_deleted = 0
+            ), 0)")
+            ->where(function ($q) use ($userUuid, $currentUser) {
+                $q->whereNull('orders.cash_id');
+                if ($currentUser) {
+                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                    $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
+                        $subQuery->where('user_id', $filterUserId);
+                    });
+                } else {
+                    $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($userUuid) {
+                        $subQuery->where('user_id', $userUuid);
+                    });
+                }
+            });
+
+            $this->applyOwnFilter($unpaidQuery, 'orders', 'orders', 'user_id', $currentUser);
+            $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cash');
+
+            $unpaidQuery->where(function ($q) use ($userUuid) {
+                $q->whereNull('orders.project_id')
+                    ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
+                        $subQuery->where('user_id', $userUuid);
+                    });
+            });
+
+            if ($isBasementWorker) {
+                $unpaidQuery->where(function ($q) use ($userUuid) {
+                    $q->whereHas('category.categoryUsers', function ($subQuery) use ($userUuid) {
+                        $subQuery->where('user_id', $userUuid);
+                    })
+                        ->orWhereNull('orders.category_id');
+                });
+            }
+
+            $unpaidResult = $unpaidQuery->first();
+            $unpaidOrdersTotal = $unpaidResult && $unpaidResult->unpaid_total !== null ? (float) $unpaidResult->unpaid_total : 0;
+
+            $orders->unpaid_orders_total = $unpaidOrdersTotal;
 
             return $orders;
         }, (int)$page);
@@ -498,12 +579,6 @@ class OrdersRepository extends BaseRepository
             $order->save();
 
             foreach ($productsCache as $cached) {
-                Log::info('OrderProduct Creating (createItem)', [
-                    'order_id' => $order->id,
-                    'product_id' => $cached['product_id'],
-                    'quantity' => $cached['quantity'],
-                    'price' => $cached['price'],
-                ]);
                 $newProduct = OrderProduct::create([
                     'order_id' => $order->id,
                     'product_id' => $cached['product_id'],
@@ -511,10 +586,6 @@ class OrdersRepository extends BaseRepository
                     'price' => $cached['price'],
                     'width' => $cached['width'],
                     'height' => $cached['height'],
-                ]);
-                Log::info('OrderProduct Created (createItem)', [
-                    'new_product_id' => $newProduct->id,
-                    'wasRecentlyCreated' => $newProduct->wasRecentlyCreated,
                 ]);
             }
 
@@ -718,39 +789,13 @@ class OrdersRepository extends BaseRepository
                         || $existingWidth !== $cachedWidth
                         || $existingHeight !== $cachedHeight;
 
-                    Log::info('OrderProduct Update Check', [
-                        'order_product_id' => $orderProductId,
-                        'product_id' => $cachedProduct['product_id'],
-                        'needsUpdate' => $needsUpdate,
-                        'existing_quantity' => $existingProduct->quantity,
-                        'cached_quantity' => $cachedProduct['quantity'],
-                        'existing_price' => $existingProduct->price,
-                        'cached_price' => $cachedProduct['price'],
-                    ]);
-
                     if ($needsUpdate) {
-                        Log::info('OrderProduct Updating', [
-                            'order_product_id' => $orderProductId,
-                            'product_id' => $cachedProduct['product_id'],
-                            'before_getDirty' => $existingProduct->getDirty(),
-                        ]);
                         $existingProduct->product_id = $cachedProduct['product_id'];
                         $existingProduct->quantity = $cachedProduct['quantity'];
                         $existingProduct->price = $cachedProduct['price'];
                         $existingProduct->width = $cachedProduct['width'] ?? null;
                         $existingProduct->height = $cachedProduct['height'] ?? null;
-                        Log::info('OrderProduct Before Save', [
-                            'order_product_id' => $orderProductId,
-                            'getDirty' => $existingProduct->getDirty(),
-                            'isDirty' => $existingProduct->isDirty(),
-                        ]);
                         $existingProduct->save();
-                        Log::info('OrderProduct Updated', [
-                            'order_product_id' => $orderProductId,
-                            'wasRecentlyCreated' => $existingProduct->wasRecentlyCreated,
-                            'wasChanged' => $existingProduct->wasChanged(),
-                            'getDirty' => $existingProduct->getDirty(),
-                        ]);
                         $productsChanged = true;
                     }
 
@@ -772,48 +817,18 @@ class OrdersRepository extends BaseRepository
                                 || $existingWidth !== $cachedWidth
                                 || $existingHeight !== $cachedHeight;
 
-                            Log::info('OrderProduct Update Check (no id)', [
-                                'existing_product_id' => $existingProduct->id,
-                                'product_id' => $cachedProduct['product_id'],
-                                'needsUpdate' => $needsUpdate,
-                                'existing_quantity' => $existingProduct->quantity,
-                                'cached_quantity' => $cachedProduct['quantity'],
-                                'existing_price' => $existingProduct->price,
-                                'cached_price' => $cachedProduct['price'],
-                            ]);
-
                             if ($needsUpdate) {
-                                Log::info('OrderProduct Updating (no id)', [
-                                    'existing_product_id' => $existingProduct->id,
-                                    'product_id' => $cachedProduct['product_id'],
-                                ]);
                                 $existingProduct->quantity = $cachedProduct['quantity'];
                                 $existingProduct->price = $cachedProduct['price'];
                                 $existingProduct->width = $cachedProduct['width'] ?? null;
                                 $existingProduct->height = $cachedProduct['height'] ?? null;
-                                Log::info('OrderProduct Before Save (no id)', [
-                                    'existing_product_id' => $existingProduct->id,
-                                    'getDirty' => $existingProduct->getDirty(),
-                                    'isDirty' => $existingProduct->isDirty(),
-                                ]);
                                 $existingProduct->save();
-                                Log::info('OrderProduct Updated (no id)', [
-                                    'existing_product_id' => $existingProduct->id,
-                                    'wasChanged' => $existingProduct->wasChanged(),
-                                    'getDirty' => $existingProduct->getDirty(),
-                                ]);
                                 $productsChanged = true;
                             }
 
                             $processedProductIds[] = $existingProduct->id;
                         }
                     } else {
-                        Log::info('OrderProduct Creating', [
-                            'order_id' => $id,
-                            'product_id' => $cachedProduct['product_id'],
-                            'quantity' => $cachedProduct['quantity'],
-                            'price' => $cachedProduct['price'],
-                        ]);
                         $newProduct = OrderProduct::create([
                             'order_id' => $id,
                             'product_id' => $cachedProduct['product_id'],
@@ -821,10 +836,6 @@ class OrdersRepository extends BaseRepository
                             'price' => $cachedProduct['price'],
                             'width' => $cachedProduct['width'] ?? null,
                             'height' => $cachedProduct['height'] ?? null,
-                        ]);
-                        Log::info('OrderProduct Created', [
-                            'new_product_id' => $newProduct->id,
-                            'wasRecentlyCreated' => $newProduct->wasRecentlyCreated,
                         ]);
                         $productsChanged = true;
                     }

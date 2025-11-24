@@ -48,10 +48,23 @@ class OrderController extends Controller
         $statusFilter = $request->input('status_id');
         $projectFilter = $request->input('project_id');
         $clientFilter = $request->input('client_id');
+        $unpaidOnly = $request->boolean('unpaid_only', false);
 
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter);
+        $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly);
 
-        return $this->paginatedResponse($items);
+        $response = [
+            'items' => $items->items(),
+            'current_page' => $items->currentPage(),
+            'next_page' => $items->nextPageUrl(),
+            'last_page' => $items->lastPage(),
+            'total' => $items->total()
+        ];
+
+        if (isset($items->unpaid_orders_total)) {
+            $response['unpaid_orders_total'] = $items->unpaid_orders_total;
+        }
+
+        return response()->json($response);
     }
 
     /**
