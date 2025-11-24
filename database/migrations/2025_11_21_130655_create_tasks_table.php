@@ -1,0 +1,57 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('tasks', function (Blueprint $table) {
+            $table->id();
+            // Основные поля
+            $table->string('title');
+            $table->text('description')->nullable();
+
+            // Связи с пользователями
+            $table->foreignId('creator_id')->constrained('users');
+            $table->foreignId('supervisor_id')->constrained('users');
+            $table->foreignId('executor_id')->constrained('users');
+
+            // Связи с проектами и компаниями
+            $table->foreignId('project_id')->nullable()->constrained('projects');
+            $table->foreignId('company_id')->constrained('companies');
+
+            // Статус и сроки
+            $table->enum('status', ['in_progress', 'pending', 'completed', 'postponed'])->default('in_progress');
+            $table->timestamp('deadline');
+
+            // Файлы (храним как JSON)
+            $table->json('files')->nullable();
+
+            // Комментарии (храним как JSON для таймлайна)
+            $table->json('comments')->nullable();
+
+            // Стандартные временные метки
+            $table->timestamps();
+            $table->softDeletes();
+
+            // Индексы для оптимизации
+            $table->index('status');
+            $table->index('deadline');
+            $table->index(['company_id', 'status']);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('tasks');
+    }
+};
