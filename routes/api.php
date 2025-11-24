@@ -39,7 +39,7 @@ Route::middleware(['throttle:auth'])->group(function () {
 
 Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
 
-Route::middleware(['auth:sanctum', 'user.active', 'role:basement_worker'])->prefix('basement')->group(function () {
+Route::middleware(['auth:sanctum', 'user.active', 'basement.worker'])->prefix('basement')->group(function () {
     Route::get('user/me', [AuthController::class, 'me']);
     Route::post('user/logout', [AuthController::class, 'logout']);
 
@@ -147,8 +147,8 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::get('categories/all', [CategoriesController::class, 'all']);
     Route::get('categories/parents', [CategoriesController::class, 'parents']);
     Route::middleware('permission:categories_create')->post('categories', [CategoriesController::class, 'store']);
-    Route::middleware('permission:categories_update')->put('categories/{id}', [CategoriesController::class, 'update']);
-    Route::middleware('permission:categories_delete')->delete('categories/{id}', [CategoriesController::class, 'destroy']);
+    Route::middleware('permission:categories_update_all')->put('categories/{id}', [CategoriesController::class, 'update']);
+    Route::middleware('permission:categories_delete_all')->delete('categories/{id}', [CategoriesController::class, 'destroy']);
 
     Route::middleware('permission.scope:products_view_all,products_view')->get('products', [ProductController::class, 'products']);
     Route::middleware('permission.scope:products_view_all,products_view')->get('services', [ProductController::class, 'services']);

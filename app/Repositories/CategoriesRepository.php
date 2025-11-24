@@ -96,7 +96,7 @@ class CategoriesRepository extends BaseRepository
 
         $item = new Category();
         $item->name = $data['name'];
-        $item->parent_id = $data['parent_id'];
+        $item->parent_id = ($data['parent_id'] === '' || $data['parent_id'] === null) ? null : (int) $data['parent_id'];
         $item->user_id = $data['user_id'];
         $item->company_id = $companyId;
         $item->save();
@@ -121,7 +121,7 @@ class CategoriesRepository extends BaseRepository
 
         $item = Category::findOrFail($id);
         $item->name = $data['name'];
-        $item->parent_id = $data['parent_id'];
+        $item->parent_id = ($data['parent_id'] === '' || $data['parent_id'] === null) ? null : (int) $data['parent_id'];
         $item->user_id = $data['user_id'];
         $item->company_id = $companyId;
         $item->save();
@@ -160,15 +160,19 @@ class CategoriesRepository extends BaseRepository
     {
         CategoryUser::where('category_id', $categoryId)->delete();
 
-        if (!empty($userIds)) {
+        if (!empty($userIds) && is_array($userIds)) {
             $insertData = [];
             foreach ($userIds as $userId) {
-                $insertData[] = [
-                    'category_id' => $categoryId,
-                    'user_id' => $userId,
-                ];
+                if (!empty($userId)) {
+                    $insertData[] = [
+                        'category_id' => $categoryId,
+                        'user_id' => (int) $userId,
+                    ];
+                }
             }
-            CategoryUser::insert($insertData);
+            if (!empty($insertData)) {
+                CategoryUser::insert($insertData);
+            }
         }
     }
 }
