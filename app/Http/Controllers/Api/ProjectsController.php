@@ -94,7 +94,7 @@ class ProjectsController extends Controller
      */
     public function index(Request $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->getAuthenticatedUserIdOrFail();
 
         $page = (int) $request->input('page', 1);
         $perPage = (int) $request->input('per_page', 20);
@@ -104,7 +104,7 @@ class ProjectsController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page, null, $dateFilter, $startDate, $endDate, $statusId, $clientId, null);
+        $items = $this->itemsRepository->getItemsWithPagination($perPage, $page, null, $dateFilter, $startDate, $endDate, $statusId, $clientId, null);
 
         return $this->paginatedResponse($items);
     }
@@ -117,10 +117,10 @@ class ProjectsController extends Controller
      */
     public function all(Request $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->getAuthenticatedUserIdOrFail();
 
         $activeOnly = (bool) $request->input('active_only', false);
-        $items = $this->itemsRepository->getAllItems($userUuid, $activeOnly);
+        $items = $this->itemsRepository->getAllItems($activeOnly);
 
         return response()->json($items);
     }
@@ -210,8 +210,8 @@ class ProjectsController extends Controller
                 return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
             }
 
-            $userId = $this->getAuthenticatedUserIdOrFail();
-            $project = $this->itemsRepository->findItemWithRelations($id, $userId);
+        $this->getAuthenticatedUserIdOrFail();
+        $project = $this->itemsRepository->findItemWithRelations($id);
 
             if (!$project) {
                 return $this->notFoundResponse('Проект не найден или доступ запрещен');
@@ -397,18 +397,12 @@ class ProjectsController extends Controller
      */
     public function destroy($id)
     {
-        $user = $this->requireAuthenticatedUser();
-        $userUuid = $user->id;
+        $this->requireAuthenticatedUser();
 
         $project = Project::findOrFail($id);
 
         if (!$this->canPerformAction('projects', 'delete', $project)) {
             return $this->forbiddenResponse('У вас нет прав на удаление этого проекта');
-        }
-
-        $project = $this->itemsRepository->findItemWithRelations($id, $userUuid);
-        if (!$project) {
-            return $this->notFoundResponse('Проект не найден или доступ запрещен');
         }
 
         try {

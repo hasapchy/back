@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 /**
  * Контроллер для работы с транзакциями
@@ -187,7 +188,11 @@ class TransactionsController extends Controller
             'source_id' => 'nullable|integer'
         ]);
 
-        $transaction_exist = Transaction::findOrFail($id);
+        try {
+            $transaction_exist = Transaction::where('is_deleted', false)->findOrFail($id);
+        } catch (ModelNotFoundException $e) {
+            return $this->errorResponse('Транзакция не найдена или уже удалена', 404);
+        }
 
         $isAdjustmentCategory = in_array($transaction_exist->category_id, [21, 22]) ||
                                 ($request->has('category_id') && in_array($request->category_id, [21, 22]));

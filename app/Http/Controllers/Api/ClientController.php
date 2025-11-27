@@ -115,12 +115,22 @@ class ClientController extends Controller
     /**
      * Получить всех клиентов
      *
+     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function all()
+    public function all(Request $request)
     {
         try {
-            $items = $this->itemsRepository->getAllItems();
+            $typeFilterInput = $request->input('type_filter');
+            $typeFilter = [];
+
+            if (is_array($typeFilterInput)) {
+                $typeFilter = $typeFilterInput;
+            } elseif (!is_null($typeFilterInput)) {
+                $typeFilter = [$typeFilterInput];
+            }
+
+            $items = $this->itemsRepository->getAllItems($typeFilter);
             return response()->json($items);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении всех клиентов: ' . $e->getMessage(), 500);
@@ -375,4 +385,5 @@ class ClientController extends Controller
 
         return null;
     }
+
 }

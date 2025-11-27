@@ -57,7 +57,6 @@ class ProjectsRepository extends BaseRepository
     /**
      * Получить проекты с пагинацией
      *
-     * @param int $userUuid ID пользователя
      * @param int $perPage Количество записей на страницу
      * @param int $page Номер страницы
      * @param string|null $search Поисковый запрос
@@ -69,16 +68,16 @@ class ProjectsRepository extends BaseRepository
      * @param string|null $contractType Тип контракта
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null, $clientId = null, $contractType = null)
+    public function getItemsWithPagination($perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null, $clientId = null, $contractType = null)
     {
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('projects_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, $contractType, $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('projects_paginated', [$perPage, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, $contractType, $currentUser?->id, $companyId]);
 
         $ttl = (!$search && $dateFilter === 'all_time' && !$statusId && !$clientId && $contractType === null) ? 1800 : 600;
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId, $clientId, $contractType, $currentUser) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId, $clientId, $contractType, $currentUser) {
             $query = Project::select(['projects.*'])
                 ->with(array_merge($this->getBaseRelations(), [
                     'projectUsers:id,project_id,user_id'
@@ -106,10 +105,6 @@ class ProjectsRepository extends BaseRepository
                 $query->where('projects.client_id', $clientId);
             }
 
-            $query->whereHas('projectUsers', function ($query) use ($userUuid) {
-                $query->where('user_id', $userUuid);
-            });
-
             $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
 
             return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
@@ -121,18 +116,17 @@ class ProjectsRepository extends BaseRepository
     /**
      * Получить все проекты
      *
-     * @param int $userUuid ID пользователя
      * @param bool $activeOnly Только активные проекты
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getAllItems($userUuid, $activeOnly = false)
+    public function getAllItems($activeOnly = false)
     {
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('projects_all', [$userUuid, $activeOnly, $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('projects_all', [$activeOnly, $currentUser?->id, $companyId]);
 
-        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $activeOnly, $currentUser) {
+        return CacheService::getReferenceData($cacheKey, function () use ($activeOnly, $currentUser) {
             $query = Project::select(['projects.*'])
                 ->with($this->getBaseRelations());
 
@@ -141,10 +135,6 @@ class ProjectsRepository extends BaseRepository
             if ($activeOnly) {
                 $query->whereNotIn('projects.status_id', [3, 4]);
             }
-
-            $query->whereHas('projectUsers', function ($query) use ($userUuid) {
-                $query->where('user_id', $userUuid);
-            });
 
             $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
 
@@ -243,14 +233,13 @@ class ProjectsRepository extends BaseRepository
      * Найти проект с отношениями
      *
      * @param int $id ID проекта
-     * @param int|null $userUuid ID пользователя
      * @return Project|null
      */
-    public function findItemWithRelations($id, $userUuid = null)
+    public function findItemWithRelations($id)
     {
-        $cacheKey = $this->generateCacheKey('project_item_relations', [$id, $userUuid]);
+        $cacheKey = $this->generateCacheKey('project_item_relations', [$id]);
 
-        return CacheService::remember($cacheKey, function () use ($id, $userUuid) {
+        return CacheService::remember($cacheKey, function () use ($id) {
             $query = Project::select([
                 'projects.id',
                 'projects.name',
@@ -274,12 +263,6 @@ class ProjectsRepository extends BaseRepository
                     'projectUsers:id,project_id,user_id'
                 ])
                 ->where('id', $id);
-
-            if ($userUuid) {
-                $query->whereHas('projectUsers', function ($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                });
-            }
 
             $result = $query->first();
 

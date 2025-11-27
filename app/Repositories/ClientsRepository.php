@@ -20,15 +20,18 @@ class ClientsRepository extends BaseRepository
      * @param bool $includeInactive Включать неактивных клиентов
      * @param int $page Номер страницы
      * @param string|null $statusFilter Фильтр по статусу ('active' или 'inactive')
-     * @param string|null $typeFilter Фильтр по типу клиента
+     * @param array $typeFilter Фильтр по типу клиента
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($perPage = 10, $search = null, $includeInactive = false, $page = 1, $statusFilter = null, $typeFilter = null)
+    public function getItemsWithPagination($perPage = 10, $search = null, $includeInactive = false, $page = 1, $statusFilter = null, $typeFilter = [])
     {
+        $typeFilter = $this->normalizeTypeFilter($typeFilter);
+
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('clients_paginated', [$perPage, $search, $includeInactive, $statusFilter, $typeFilter, $currentUser?->id, $companyId]);
+        $typeFilterKey = implode(',', $typeFilter);
+        $cacheKey = $this->generateCacheKey('clients_paginated', [$perPage, $search, $includeInactive, $statusFilter, $typeFilterKey, $currentUser?->id, $companyId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter, $currentUser) {
             $query = Client::with([
@@ -58,8 +61,8 @@ class ClientsRepository extends BaseRepository
                 }
             }
 
-            if ($typeFilter !== null && $typeFilter !== '') {
-                $query->where('clients.client_type', $typeFilter);
+            if (!empty($typeFilter)) {
+                $query->whereIn('clients.client_type', $typeFilter);
             }
 
             if ($search) {
@@ -88,16 +91,19 @@ class ClientsRepository extends BaseRepository
     /**
      * Получить всех активных клиентов
      *
+     * @param array $typeFilter
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getAllItems()
+    public function getAllItems(array $typeFilter = [])
     {
+        $typeFilter = $this->normalizeTypeFilter($typeFilter);
+
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter)]);
 
-        return CacheService::remember($cacheKey, function () use ($currentUser) {
+        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter) {
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
@@ -113,6 +119,10 @@ class ClientsRepository extends BaseRepository
             $query = $this->addCompanyFilterDirect($query, 'clients');
 
             $this->applyOwnFilter($query, 'clients', 'clients', 'user_id', $currentUser);
+
+            if (!empty($typeFilter)) {
+                $query->whereIn('clients.client_type', $typeFilter);
+            }
 
             $query->orderBy('clients.created_at', 'desc');
 
@@ -521,6 +531,31 @@ class ClientsRepository extends BaseRepository
                 return [];
             }
         }, 900);
+    }
+
+    /**
+     * @param mixed $value
+     * @return array
+     */
+    private function normalizeTypeFilter($value): array
+    {
+        if (empty($value)) {
+            return [];
+        }
+
+        $rawValues = is_array($value)
+            ? $value
+            : explode(',', (string) $value);
+
+        $normalized = array_map(static function ($item) {
+            return trim((string) $item);
+        }, $rawValues);
+
+        $filtered = array_values(array_filter($normalized, static function ($item) {
+            return in_array($item, Client::CLIENT_TYPES, true);
+        }));
+
+        return array_values(array_unique($filtered));
     }
 
 

@@ -42,7 +42,6 @@ class PermissionsSeeder extends Seeder
             'companies',
             'warehouses',
             'cash_registers',
-            'projects',
             'project_statuses',
             'order_statuses',
             'order_statuscategories',
@@ -90,6 +89,9 @@ class PermissionsSeeder extends Seeder
         $customPermissions = [
             'settings_edit_any_date',
             'settings_project_budget_view',
+            'settings_project_files_view',
+            'settings_project_balance_view',
+            'settings_project_contracts_view',
             'settings_currencies_view',
             'settings_cash_balance_view',
             'settings_client_balance_view',

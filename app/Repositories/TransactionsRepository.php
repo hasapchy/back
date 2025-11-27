@@ -10,7 +10,6 @@ use App\Models\Company;
 use App\Models\Transaction;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
-use App\Repositories\ProjectsRepository;
 use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
 
@@ -49,7 +48,7 @@ class TransactionsRepository extends BaseRepository
             $currentUser = auth('api')->user();
             $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';
             $showDeletedKey = $showDeleted ? '1' : '0';
-            $cacheKey = $this->generateCacheKey('transactions_paginated', [$userUuid, $perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeletedKey, $currentUser?->id]);
+        $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeletedKey, $currentUser?->id, $this->getCurrentCompanyId()]);
 
             return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeleted, $currentUser) {
                 $searchNormalized = trim((string)$search);
@@ -169,14 +168,11 @@ class TransactionsRepository extends BaseRepository
                             return $q->where('transactions.is_debt', false);
                         }
                         return $q;
-                    })
-                    ->where(function ($q) use ($userUuid) {
-                        $q->whereNull('transactions.project_id')
-                            ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
-                                $subQuery->where('user_id', $userUuid);
-                            });
-                    })
-                    ->orderBy('transactions.id', 'desc');
+                    });
+
+                $this->applyOwnFilter($query, 'transactions', 'transactions', 'user_id', $currentUser);
+
+                $query->orderBy('transactions.id', 'desc');
 
                 /** @var \Illuminate\Pagination\LengthAwarePaginator $paginatedResults */
                 $paginatedResults = $query->paginate($perPage, ['*'], 'page', (int)$page);
@@ -378,27 +374,20 @@ class TransactionsRepository extends BaseRepository
             }
 
             if (! $skipClientUpdate && ! empty($data['client_id']) && !$skipForOrderProject) {
-                if (($data['is_debt'] ?? false)) {
-                    if ($data['type'] === 1) {
-                        DB::table('clients')->where('id', $data['client_id'])->update([
-                            'balance' => DB::raw('balance + ' . ($roundedConvertedAmountDefault + 0))
-                        ]);
-                    } else {
-                        DB::table('clients')->where('id', $data['client_id'])->update([
-                            'balance' => DB::raw('balance - ' . ($roundedConvertedAmountDefault + 0))
-                        ]);
-                    }
-                } else {
-                    if ($data['type'] === 1) {
-                        DB::table('clients')->where('id', $data['client_id'])->update([
-                            'balance' => DB::raw('balance - ' . ($roundedConvertedAmountDefault + 0))
-                        ]);
-                    } else {
-                        DB::table('clients')->where('id', $data['client_id'])->update([
-                            'balance' => DB::raw('balance + ' . ($roundedConvertedAmountDefault + 0))
-                        ]);
-                    }
-                }
+                $amountForClient = $this->convertAmountToDefaultCurrency(
+                    $originalAmount,
+                    $fromCurrency,
+                    $defaultCurrency,
+                    $companyId,
+                    $transactionDate
+                );
+
+                $this->updateClientBalanceValue(
+                    $data['client_id'],
+                    $amountForClient,
+                    $data['type'],
+                    (bool)($data['is_debt'] ?? false)
+                );
 
                 CacheService::invalidateClientsCache();
                 $this->invalidateClientBalanceCache($data['client_id']);
@@ -437,6 +426,9 @@ class TransactionsRepository extends BaseRepository
     public function updateItem($id, $data)
     {
         $transaction = Transaction::findOrFail($id);
+
+        $transaction->setSkipClientBalanceUpdate(true);
+        $transaction->setSkipCashBalanceUpdate(true);
 
         $needsBalanceUpdate = isset($data['orig_amount']) || isset($data['currency_id']) || isset($data['is_debt']) || isset($data['client_id']);
 
@@ -564,8 +556,8 @@ class TransactionsRepository extends BaseRepository
 
             $transaction->amount = $newConvertedAmount;
 
-            $shouldSkipClientBalanceUpdate = $transaction->is_debt;
-            $transaction->setSkipClientBalanceUpdate($shouldSkipClientBalanceUpdate);
+            $transaction->setSkipClientBalanceUpdate(true);
+            $transaction->setSkipCashBalanceUpdate(true);
 
             $transaction->save();
 
@@ -581,91 +573,58 @@ class TransactionsRepository extends BaseRepository
                 }
             }
 
-            $oldIsRegularTransaction = empty($oldSourceType);
-            if ($oldClientId && $oldClientId !== $transaction->client_id && ($oldIsDebt || $oldIsRegularTransaction)) {
-                if ($oldCurrencyId !== $defaultCurrencyId) {
-                    $oldConvertedAmountDefault = CurrencyConverter::convert($oldOrigAmount, $currencies[$oldCurrencyId], $currencies[$defaultCurrencyId]);
-                } else {
-                    $oldConvertedAmountDefault = $oldOrigAmount;
-                }
-
-                if ($oldIsDebt) {
-                    if ($oldType == 1) {
-                        $oldConvertedAmountDefault = (new RoundingService())->roundForCompany($this->getCurrentCompanyId(), (float) $oldConvertedAmountDefault);
-                        DB::table('clients')->where('id', $oldClientId)->update([
-                            'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
-                        ]);
-                    } else {
-                        $oldConvertedAmountDefault = (new RoundingService())->roundForCompany($this->getCurrentCompanyId(), (float) $oldConvertedAmountDefault);
-                        DB::table('clients')->where('id', $oldClientId)->update([
-                            'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
-                        ]);
-                    }
-                } else {
-                    if ($oldType == 1) {
-                        $oldConvertedAmountDefault = (new RoundingService())->roundForCompany($this->getCurrentCompanyId(), (float) $oldConvertedAmountDefault);
-                        DB::table('clients')->where('id', $oldClientId)->update([
-                            'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
-                        ]);
-                    } else {
-                        $oldConvertedAmountDefault = (new RoundingService())->roundForCompany($this->getCurrentCompanyId(), (float) $oldConvertedAmountDefault);
-                        DB::table('clients')->where('id', $oldClientId)->update([
-                            'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
-                        ]);
-                    }
-                }
-
-                $this->invalidateClientBalanceCache($oldClientId);
+            $skipForOrderProject = ($transaction->source_type === \App\Models\Order::class) && !empty($transaction->project_id);
+            if ($skipForOrderProject) {
+                $companyId = $this->getCurrentCompanyId();
+                $company = $companyId ? Company::find($companyId) : null;
+                $skipForOrderProject = $company ? (bool)$company->skip_project_order_balance : $skipForOrderProject;
             }
 
-            if ($transaction->client_id) {
-                $skipForOrderProject = ($transaction->source_type === \App\Models\Order::class) && !empty($transaction->project_id);
-                if ($skipForOrderProject) {
-                    $companyId = $this->getCurrentCompanyId();
-                    $company = $companyId ? Company::find($companyId) : null;
-                    $skipForOrderProject = $company ? (bool)$company->skip_project_order_balance : $skipForOrderProject;
+            if (!$skipForOrderProject) {
+                $defaultCurrency = $currencies[$defaultCurrencyId];
+                $companyId = $this->getCurrentCompanyId();
+
+                if ($oldClientId) {
+                    $oldAmountDefault = $this->convertAmountToDefaultCurrency(
+                        $oldOrigAmount,
+                        $currencies[$oldCurrencyId],
+                        $defaultCurrency,
+                        $companyId,
+                        $transaction->date
+                    );
+
+                    $this->updateClientBalanceValue(
+                        $oldClientId,
+                        $oldAmountDefault,
+                        $oldType,
+                        $oldIsDebt,
+                        true
+                    );
                 }
-                if ($transaction->is_debt && !$skipForOrderProject) {
-                    $if_need_rollback = $oldClientId === $transaction->client_id && ($oldIsDebt || empty($oldSourceType));
-                    if ($if_need_rollback) {
-                        if ($oldCurrencyId !== $defaultCurrencyId) {
-                            $oldConvertedAmountDefault = CurrencyConverter::convert($oldOrigAmount, $currencies[$oldCurrencyId], $currencies[$defaultCurrencyId]);
-                        } else {
-                            $oldConvertedAmountDefault = $oldOrigAmount;
-                        }
 
-                        $oldConvertedAmountDefault = (new RoundingService())->roundForCompany($this->getCurrentCompanyId(), (float) $oldConvertedAmountDefault);
-                        if ($transaction->type == 1) {
-                            DB::table('clients')->where('id', $transaction->client_id)->update([
-                                'balance' => DB::raw('balance - ' . ($oldConvertedAmountDefault + 0))
-                            ]);
-                        } else {
-                            DB::table('clients')->where('id', $transaction->client_id)->update([
-                                'balance' => DB::raw('balance + ' . ($oldConvertedAmountDefault + 0))
-                            ]);
-                        }
-                    }
+                if ($transaction->client_id) {
+                    $newAmountDefault = $this->convertAmountToDefaultCurrency(
+                        $newOrigAmount,
+                        $fromCurrency,
+                        $defaultCurrency,
+                        $companyId,
+                        $transaction->date
+                    );
 
-                    if ($newCurrencyId !== $defaultCurrencyId) {
-                        $newConvertedAmountDefault = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $currencies[$defaultCurrencyId]);
-                    } else {
-                        $newConvertedAmountDefault = $newOrigAmount;
-                    }
-
-                    $newConvertedAmountDefault = (new RoundingService())->roundForCompany($this->getCurrentCompanyId(), (float) $newConvertedAmountDefault);
-                    if ($transaction->type == 1) {
-                        DB::table('clients')->where('id', $transaction->client_id)->update([
-                            'balance' => DB::raw('balance + ' . ($newConvertedAmountDefault + 0))
-                        ]);
-                    } else {
-                        DB::table('clients')->where('id', $transaction->client_id)->update([
-                            'balance' => DB::raw('balance - ' . ($newConvertedAmountDefault + 0))
-                        ]);
-                    }
+                    $this->updateClientBalanceValue(
+                        $transaction->client_id,
+                        $newAmountDefault,
+                        $transaction->type,
+                        (bool)$transaction->is_debt
+                    );
 
                     CacheService::invalidateClientsCache();
                     $this->invalidateClientBalanceCache($transaction->client_id);
                     CacheService::invalidateProjectsCache();
+                }
+
+                if ($oldClientId && $oldClientId !== $transaction->client_id) {
+                    $this->invalidateClientBalanceCache($oldClientId);
                 }
             }
 
@@ -723,14 +682,6 @@ class TransactionsRepository extends BaseRepository
 
             $convertedAmount = $transaction->amount;
 
-            if ($fromCurrency->id !== $defaultCurrency->id) {
-                $convertedAmountDefault = CurrencyConverter::convert($transaction->orig_amount, $fromCurrency, $defaultCurrency, null, $companyId, $transactionDate);
-            } else {
-                $convertedAmountDefault = $transaction->orig_amount;
-            }
-
-            $convertedAmountDefault = $roundingService->roundForCompany($companyId, (float) $convertedAmountDefault);
-
             if (!$transaction->is_debt) {
                 if ($transaction->type == 1) {
                     DB::table('cash_registers')->where('id', $cashRegister->id)->update([
@@ -743,8 +694,7 @@ class TransactionsRepository extends BaseRepository
                 }
             }
 
-            $shouldSkipClientBalanceUpdate = $transaction->is_debt;
-            $transaction->setSkipClientBalanceUpdate($shouldSkipClientBalanceUpdate);
+            $transaction->setSkipClientBalanceUpdate(true);
             $transaction->setSkipCashBalanceUpdate(true);
 
             DB::table('transactions')->where('id', $transaction->id)->update(['is_deleted' => true]);
@@ -755,27 +705,21 @@ class TransactionsRepository extends BaseRepository
                 $skipForOrderProject = $company ? (bool)$company->skip_project_order_balance : $skipForOrderProject;
             }
             if (! $skipClientUpdate && $transaction->client_id && !$skipForOrderProject) {
-                if ($transaction->is_debt) {
-                    if ($transaction->type == 1) {
-                        DB::table('clients')->where('id', $transaction->client_id)->update([
-                            'balance' => DB::raw('balance - ' . ($convertedAmountDefault + 0))
-                        ]);
-                    } else {
-                        DB::table('clients')->where('id', $transaction->client_id)->update([
-                            'balance' => DB::raw('balance + ' . ($convertedAmountDefault + 0))
-                        ]);
-                    }
-                } else {
-                    if ($transaction->type == 1) {
-                        DB::table('clients')->where('id', $transaction->client_id)->update([
-                            'balance' => DB::raw('balance + ' . ($convertedAmountDefault + 0))
-                        ]);
-                    } else {
-                        DB::table('clients')->where('id', $transaction->client_id)->update([
-                            'balance' => DB::raw('balance - ' . ($convertedAmountDefault + 0))
-                        ]);
-                    }
-                }
+                $amountForClient = $this->convertAmountToDefaultCurrency(
+                    $transaction->orig_amount,
+                    $fromCurrency,
+                    $defaultCurrency,
+                    $companyId,
+                    $transactionDate
+                );
+
+                $this->updateClientBalanceValue(
+                    $transaction->client_id,
+                    $amountForClient,
+                    $transaction->type,
+                    (bool)$transaction->is_debt,
+                    true
+                );
 
                 CacheService::invalidateClientsCache();
                 CacheService::invalidateClientBalanceCache($transaction->client_id);
@@ -969,5 +913,36 @@ class TransactionsRepository extends BaseRepository
             $item->client = $clients->get($item->client_id);
         }
         return $items;
+    }
+
+    private function convertAmountToDefaultCurrency(float $amount, \App\Models\Currency $fromCurrency, \App\Models\Currency $defaultCurrency, ?int $companyId, $date = null): float
+    {
+        if ($fromCurrency->id !== $defaultCurrency->id) {
+            $amount = CurrencyConverter::convert($amount, $fromCurrency, $defaultCurrency, null, $companyId, $date ?? now());
+        }
+
+        $roundingService = new RoundingService();
+        return $roundingService->roundForCompany($companyId, (float) $amount);
+    }
+
+    private function updateClientBalanceValue(int $clientId, float $amount, int $type, bool $isDebt, bool $reverse = false): void
+    {
+        if ($amount == 0.0) {
+            return;
+        }
+
+        $sign = $isDebt
+            ? ($type === 1 ? 1 : -1)
+            : ($type === 1 ? -1 : 1);
+
+        if ($reverse) {
+            $sign *= -1;
+        }
+
+        $delta = $sign * $amount;
+
+        DB::table('clients')->where('id', $clientId)->update([
+            'balance' => DB::raw('balance + ' . ($delta + 0))
+        ]);
     }
 }

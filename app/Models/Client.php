@@ -40,6 +40,8 @@ class Client extends Model
 {
     use HasFactory;
 
+    public const CLIENT_TYPES = ['company', 'individual', 'employee', 'investor'];
+
     protected $fillable = [
         'user_id',
         'company_id',
