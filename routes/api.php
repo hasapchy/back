@@ -100,10 +100,10 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission.scope:users_delete_all,users_delete')->delete('users/{id}', [UsersController::class, 'destroy']);
     Route::get('permissions', [UsersController::class, 'permissions']);
     Route::get('users/{id}/permissions', [UsersController::class, 'checkPermissions']);
-    Route::middleware('permission.scope:users_view_all,users_view')->get('users/{id}/salaries', [UsersController::class, 'getSalaries']);
-    Route::middleware('permission.scope:users_update_all,users_update')->post('users/{id}/salaries', [UsersController::class, 'createSalary']);
-    Route::middleware('permission.scope:users_update_all,users_update')->put('users/{userId}/salaries/{salaryId}', [UsersController::class, 'updateSalary']);
-    Route::middleware('permission.scope:users_update_all,users_update')->delete('users/{userId}/salaries/{salaryId}', [UsersController::class, 'deleteSalary']);
+    Route::middleware('permission.scope:employee_salaries_view_all,employee_salaries_view_own')->get('users/{id}/salaries', [UsersController::class, 'getSalaries']);
+    Route::middleware('permission:employee_salaries_create')->post('users/{id}/salaries', [UsersController::class, 'createSalary']);
+    Route::middleware('permission.scope:employee_salaries_update_all,employee_salaries_update_own')->put('users/{userId}/salaries/{salaryId}', [UsersController::class, 'updateSalary']);
+    Route::middleware('permission.scope:employee_salaries_delete_all,employee_salaries_delete_own')->delete('users/{userId}/salaries/{salaryId}', [UsersController::class, 'deleteSalary']);
     Route::middleware('permission.scope:users_view_all,users_view')->get('users/{id}/balance', [UsersController::class, 'getEmployeeBalance']);
     Route::middleware('permission.scope:users_view_all,users_view')->get('users/{id}/balance-history', [UsersController::class, 'getEmployeeBalanceHistory']);
 

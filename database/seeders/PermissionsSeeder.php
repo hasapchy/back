@@ -34,6 +34,7 @@ class PermissionsSeeder extends Seeder
             'roles',
             'companies',
             'currency_history',
+            'employee_salaries',
         ];
 
         $resourcesWithoutUserId = [

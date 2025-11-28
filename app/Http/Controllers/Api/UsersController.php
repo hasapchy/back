@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Repositories\UsersRepository;
 use App\Models\User;
+use App\Models\EmployeeSalary;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -489,9 +490,12 @@ class UsersController extends Controller
     {
         try {
             $user = User::findOrFail($id);
+            $currentUser = $this->getAuthenticatedUser();
 
-            if (!$this->canPerformAction('users', 'view', $user)) {
-                return $this->forbiddenResponse('Нет прав на просмотр зарплат этого пользователя');
+            if (!$this->hasPermission('employee_salaries_view_all')) {
+                if (!$this->hasPermission('employee_salaries_view_own') || $user->id !== $currentUser->id) {
+                    return $this->forbiddenResponse('Нет прав на просмотр зарплат');
+                }
             }
 
             $salaries = $this->itemsRepository->getSalaries($id);
@@ -516,8 +520,8 @@ class UsersController extends Controller
         try {
             $user = User::findOrFail($id);
 
-            if (!$this->canPerformAction('users', 'update', $user)) {
-                return $this->forbiddenResponse('Нет прав на создание зарплаты для этого пользователя');
+            if (!$this->hasPermission('employee_salaries_create')) {
+                return $this->forbiddenResponse('Нет прав на создание зарплат');
             }
 
             $validatedData = $request->validate([
@@ -550,10 +554,10 @@ class UsersController extends Controller
     public function updateSalary(Request $request, $userId, $salaryId)
     {
         try {
-            $user = User::findOrFail($userId);
+            $salary = EmployeeSalary::findOrFail($salaryId);
 
-            if (!$this->canPerformAction('users', 'update', $user)) {
-                return $this->forbiddenResponse('Нет прав на обновление зарплаты для этого пользователя');
+            if (!$this->canPerformAction('employee_salaries', 'update', $salary)) {
+                return $this->forbiddenResponse('Нет прав на обновление этой зарплаты');
             }
 
             $validatedData = $request->validate([
@@ -563,9 +567,9 @@ class UsersController extends Controller
                 'currency_id' => 'nullable|exists:currencies,id',
             ]);
 
-            $salary = $this->itemsRepository->updateSalary($salaryId, $validatedData);
+            $updatedSalary = $this->itemsRepository->updateSalary($salaryId, $validatedData);
 
-            return response()->json(['salary' => $salary, 'message' => 'Зарплата обновлена успешно']);
+            return response()->json(['salary' => $updatedSalary, 'message' => 'Зарплата обновлена успешно']);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Пользователь или зарплата не найдены', 404);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -585,10 +589,10 @@ class UsersController extends Controller
     public function deleteSalary($userId, $salaryId)
     {
         try {
-            $user = User::findOrFail($userId);
+            $salary = EmployeeSalary::findOrFail($salaryId);
 
-            if (!$this->canPerformAction('users', 'update', $user)) {
-                return $this->forbiddenResponse('Нет прав на удаление зарплаты для этого пользователя');
+            if (!$this->canPerformAction('employee_salaries', 'delete', $salary)) {
+                return $this->forbiddenResponse('Нет прав на удаление этой зарплаты');
             }
 
             $this->itemsRepository->deleteSalary($salaryId);
