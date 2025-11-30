@@ -77,8 +77,8 @@ class OrdersRepository extends BaseRepository
                     'tempProducts.unit:id,name,short_name'
                 ])
                 ->where(function ($q) use ($userUuid) {
-                    $q->whereNull('orders.cash_id');
                     if ($this->shouldApplyUserFilter('cash_registers')) {
+                        $q->whereNull('orders.cash_id');
                         $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
                         $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
                             $subQuery->where('user_id', $filterUserId);
@@ -259,16 +259,12 @@ class OrdersRepository extends BaseRepository
                 AND transactions.is_debt = 0
                 AND transactions.is_deleted = 0
             ), 0)")
-            ->where(function ($q) use ($userUuid, $currentUser) {
-                $q->whereNull('orders.cash_id');
-                if ($currentUser) {
+            ->where(function ($q) use ($userUuid) {
+                if ($this->shouldApplyUserFilter('cash_registers')) {
+                    $q->whereNull('orders.cash_id');
                     $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
                     $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
                         $subQuery->where('user_id', $filterUserId);
-                    });
-                } else {
-                    $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($userUuid) {
-                        $subQuery->where('user_id', $userUuid);
                     });
                 }
             });
