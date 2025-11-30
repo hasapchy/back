@@ -10,9 +10,15 @@ class CheckPermission
 {
     public function handle(Request $request, Closure $next, string $permission)
     {
-       $userUuid = optional(auth('api')->user())->id;
-        if (!$userUuid) {
+        /** @var \App\Models\User $user */
+        $user = auth('api')->user();
+
+        if (!$user) {
             return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        if ($user->is_admin) {
+            return $next($request);
         }
 
         if (!Gate::allows($permission)) {

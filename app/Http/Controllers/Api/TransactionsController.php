@@ -8,7 +8,6 @@ use App\Models\Order;
 use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 /**
  * Контроллер для работы с транзакциями
@@ -36,6 +35,7 @@ class TransactionsController extends Controller
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $user = $this->getAuthenticatedUser();
 
         $page = $request->input('page', 1);
         $per_page = $request->input('per_page', 10);
@@ -49,6 +49,7 @@ class TransactionsController extends Controller
         $start_date = $request->query('start_date');
         $end_date = $request->query('end_date');
         $is_debt = $request->query('is_debt');
+
 
         $items = $this->itemsRepository->getItemsWithPagination(
             $userUuid,
@@ -76,6 +77,7 @@ class TransactionsController extends Controller
             'total_debt_negative' => $items->total_debt_negative ?? 0,
             'total_debt_balance' => $items->total_debt_balance ?? 0
         ];
+
 
         return response()->json($response);
     }
@@ -130,6 +132,7 @@ class TransactionsController extends Controller
             $sourceType = Order::class;
             $sourceId = $request->order_id;
         }
+        // Логика установки source для зарплаты теперь в observer модели Transaction
 
         $item_created = $this->itemsRepository->createItem([
             'type' => $request->type,
@@ -188,11 +191,7 @@ class TransactionsController extends Controller
             'source_id' => 'nullable|integer'
         ]);
 
-        try {
-            $transaction_exist = Transaction::where('is_deleted', false)->findOrFail($id);
-        } catch (ModelNotFoundException $e) {
-            return $this->errorResponse('Транзакция не найдена или уже удалена', 404);
-        }
+        $transaction_exist = Transaction::findOrFail($id);
 
         $isAdjustmentCategory = in_array($transaction_exist->category_id, [21, 22]) ||
                                 ($request->has('category_id') && in_array($request->category_id, [21, 22]));
@@ -232,6 +231,7 @@ class TransactionsController extends Controller
                 $updateSourceId = null;
             }
         }
+        // Логика установки source для зарплаты теперь в observer модели Transaction
 
         $updateData = [
             'category_id' => $request->category_id,
@@ -384,6 +384,8 @@ class TransactionsController extends Controller
                     return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через заказ. Управляйте ей через раздел "Заказы"';
                 case 'WhReceipt':
                     return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через складское поступление. Управляйте ей через раздел "Склад"';
+                case 'EmployeeSalary':
+                    return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с зарплатой сотрудника. Управляйте ей через раздел "Сотрудники"';
                 default:
                     return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с другой операцией в системе';
             }

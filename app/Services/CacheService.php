@@ -187,11 +187,6 @@ class CacheService
 
             DB::table($cacheTable)->where('key', 'like', $like)->delete();
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Cache invalidation failed', [
-                'original_pattern' => $originalPattern ?? $like,
-                'final_pattern' => $like,
-                'error' => $e->getMessage()
-            ]);
         }
     }
 
@@ -213,11 +208,7 @@ class CacheService
                 Cache::flush();
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Cache flush failed', [
-                'pattern' => $like,
-                'driver' => $driver,
-                'error' => $e->getMessage()
-            ]);
+            // Cache flush failed silently
         }
     }
 
@@ -563,10 +554,7 @@ class CacheService
             $cacheTable = config('cache.stores.database.table', 'cache');
             DB::table($cacheTable)->where('key', $fullKey)->delete();
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Cache forget failed', [
-                'key' => $fullKey,
-                'error' => $e->getMessage()
-            ]);
+            // Cache forget failed silently
         }
     }
 
@@ -581,10 +569,7 @@ class CacheService
         try {
             Cache::forget($fullKey);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Cache forget failed', [
-                'key' => $fullKey,
-                'error' => $e->getMessage()
-            ]);
+            // Cache forget failed silently
         }
     }
 
@@ -605,10 +590,7 @@ class CacheService
                 Cache::flush();
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Cache flush failed', [
-                'driver' => $driver,
-                'error' => $e->getMessage()
-            ]);
+            // Cache flush failed silently
         }
     }
 }

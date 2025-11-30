@@ -8,7 +8,6 @@ use App\Repositories\RolesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 
@@ -219,13 +218,7 @@ class CompaniesController extends Controller
             $data['logo'] = $request->file('logo')->store('companies', 'public');
         }
 
-        try {
-            $company->update($data);
-        } catch (\Exception $e) {
-            Log::error('Ошибка обновления компании: ' . $e->getMessage());
-            Log::error('Данные: ' . json_encode($data));
-            throw $e;
-        }
+        $company->update($data);
 
         $company = $company->fresh();
 

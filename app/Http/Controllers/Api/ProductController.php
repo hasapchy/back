@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\User;
 use App\Repositories\ProductsRepository;
-use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -64,19 +63,6 @@ class ProductController extends Controller
         $categoryId = $this->normalizeCategoryIdForBasementWorker($request->query('category_id'));
 
         $items = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId);
-        
-        \Log::info('ProductController::search response', [
-            'count' => $items->count(),
-            'first_item' => $items->first() ? [
-                'id' => $items->first()->id,
-                'name' => $items->first()->name,
-                'retail_price' => $items->first()->retail_price ?? 'NOT SET',
-                'wholesale_price' => $items->first()->wholesale_price ?? 'NOT SET',
-                'purchase_price' => $items->first()->purchase_price ?? 'NOT SET',
-                'stock_quantity' => $items->first()->stock_quantity ?? 'NOT SET',
-                'toArray' => $items->first()->toArray()
-            ] : null
-        ]);
 
         return response()->json($items);
     }
@@ -220,7 +206,6 @@ class ProductController extends Controller
         $data = array_filter($data, function ($value) {
             return !is_null($value);
         });
-
 
         $product = $this->itemsRepository->updateItem($id, $data);
 

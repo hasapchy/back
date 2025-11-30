@@ -132,7 +132,7 @@ class CashRegistersController extends Controller
             'name' => 'required|string',
             'balance' => 'required|numeric',
             'currency_id' => 'nullable|exists:currencies,id',
-            'users' => 'required|array',
+            'users' => 'required|array|min:1',
             'users.*' => 'exists:users,id'
         ]);
 
@@ -172,7 +172,7 @@ class CashRegistersController extends Controller
 
         $request->validate([
             'name' => 'required|string',
-            'users' => 'required|array',
+            'users' => 'required|array|min:1',
             'users.*' => 'exists:users,id'
         ]);
 

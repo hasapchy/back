@@ -130,7 +130,24 @@ class ClientController extends Controller
                 $typeFilter = [$typeFilterInput];
             }
 
-            $items = $this->itemsRepository->getAllItems($typeFilter);
+            $forMutualSettlements = $request->input('for_mutual_settlements', false);
+
+            if ($forMutualSettlements) {
+                $user = $this->requireAuthenticatedUser();
+                $allowedTypes = $this->getAllowedMutualSettlementsClientTypes($user);
+
+                if (empty($allowedTypes)) {
+                    return response()->json([]);
+                }
+
+                if (empty($typeFilter)) {
+                    $typeFilter = $allowedTypes;
+                } else {
+                    $typeFilter = array_intersect($typeFilter, $allowedTypes);
+                }
+            }
+
+            $items = $this->itemsRepository->getAllItems($typeFilter, $forMutualSettlements);
             return response()->json($items);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении всех клиентов: ' . $e->getMessage(), 500);

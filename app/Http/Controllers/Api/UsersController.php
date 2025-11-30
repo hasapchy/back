@@ -58,7 +58,12 @@ class UsersController extends Controller
             $data['is_active'] = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
         }
         if (isset($data['is_admin'])) {
-            $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
+            $currentUser = $this->getAuthenticatedUser();
+            if (!$currentUser || !$currentUser->is_admin) {
+                unset($data['is_admin']);
+            } else {
+                $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
+            }
         }
 
         if (isset($data['roles']) && is_string($data['roles'])) {
@@ -96,6 +101,7 @@ class UsersController extends Controller
 
         $validator = Validator::make($data, [
             'name'     => 'required|string|max:255',
+            'surname'  => 'nullable|string|max:255',
             'email'    => 'required|string|email|unique:users,email',
             'password' => 'required|string|min:6',
             'hire_date' => 'nullable|date',
@@ -152,7 +158,12 @@ class UsersController extends Controller
             $data['is_active'] = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
         }
         if (isset($data['is_admin'])) {
-            $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
+            $currentUser = $this->getAuthenticatedUser();
+            if (!$currentUser || !$currentUser->is_admin) {
+                unset($data['is_admin']);
+            } else {
+                $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
+            }
         }
 
         if (isset($data['roles']) && is_string($data['roles'])) {
@@ -197,6 +208,7 @@ class UsersController extends Controller
         try {
             $data = $request->validate([
                 'name'     => 'nullable|string|max:255',
+                'surname'  => 'nullable|string|max:255',
                 'email'    => "nullable|email|unique:users,email,{$id},id",
                 'password' => 'nullable|string|min:6',
                 'hire_date' => 'nullable|date',
@@ -529,6 +541,7 @@ class UsersController extends Controller
                 'end_date' => 'nullable|date|after:start_date',
                 'amount' => 'required|numeric|min:0',
                 'currency_id' => 'required|exists:currencies,id',
+                'note' => 'nullable|string|max:120',
             ]);
 
             $salary = $this->itemsRepository->createSalary($id, $validatedData);
@@ -539,7 +552,11 @@ class UsersController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при создании зарплаты: ' . $e->getMessage(), 500);
+            $message = $e->getMessage();
+            if (str_contains($message, 'активная зарплата') || str_contains($message, 'пересекается по датам')) {
+                return $this->errorResponse($message, 422);
+            }
+            return $this->errorResponse('Ошибка при создании зарплаты: ' . $message, 500);
         }
     }
 
@@ -565,6 +582,7 @@ class UsersController extends Controller
                 'end_date' => 'nullable|date|after:start_date',
                 'amount' => 'nullable|numeric|min:0',
                 'currency_id' => 'nullable|exists:currencies,id',
+                'note' => 'nullable|string|max:120',
             ]);
 
             $updatedSalary = $this->itemsRepository->updateSalary($salaryId, $validatedData);
@@ -575,7 +593,14 @@ class UsersController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при обновлении зарплаты: ' . $e->getMessage(), 500);
+            $message = $e->getMessage();
+            if (str_contains($message, 'активная зарплата') ||
+                str_contains($message, 'более новая активная') ||
+                str_contains($message, 'разблокировать') ||
+                str_contains($message, 'пересекается по датам')) {
+                return $this->errorResponse($message, 422);
+            }
+            return $this->errorResponse('Ошибка при обновлении зарплаты: ' . $message, 500);
         }
     }
 

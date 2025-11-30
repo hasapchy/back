@@ -62,7 +62,6 @@ class Transaction extends Model
         'project_id',
         'type',
         'user_id',
-        'company_id',
         'is_debt',
         'source_type',
         'source_id',
@@ -156,6 +155,69 @@ class Transaction extends Model
         static::creating(function ($transaction) {
             if (!empty($transaction->no_balance_update)) {
                 $transaction->setSkipClientBalanceUpdate(true);
+            }
+
+            // Автоматически устанавливаем source для категорий зарплаты
+            if (!$transaction->source_type && !$transaction->source_id) {
+                $salaryCategories = [7, 23, 24, 26, 27]; // Выплата зарплаты, Аванс, Начисление зарплаты, Премия, Штраф
+                if (in_array($transaction->category_id, $salaryCategories) && $transaction->client_id) {
+                    $client = \App\Models\Client::find($transaction->client_id);
+                    if ($client && $client->employee_id) {
+                        $companyId = $transaction->company_id ?? request()->header('X-Company-ID');
+                        if ($companyId) {
+                            $activeSalary = \App\Models\EmployeeSalary::where('user_id', $client->employee_id)
+                                ->where('company_id', $companyId)
+                                ->whereNull('end_date')
+                                ->orderBy('start_date', 'desc')
+                                ->first();
+
+                            if (!$activeSalary) {
+                                $activeSalary = \App\Models\EmployeeSalary::where('user_id', $client->employee_id)
+                                    ->where('company_id', $companyId)
+                                    ->orderBy('start_date', 'desc')
+                                    ->first();
+                            }
+
+                            if ($activeSalary) {
+                                $transaction->source_type = \App\Models\EmployeeSalary::class;
+                                $transaction->source_id = $activeSalary->id;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        static::updating(function ($transaction) {
+            // Автоматически устанавливаем source для категорий зарплаты при обновлении
+            // Только если source не установлен явно
+            if (!$transaction->source_type && !$transaction->source_id) {
+                $salaryCategories = [7, 23, 24, 26, 27]; // Выплата зарплаты, Аванс, Начисление зарплаты, Премия, Штраф
+                if (in_array($transaction->category_id, $salaryCategories) && $transaction->client_id) {
+                    $client = \App\Models\Client::find($transaction->client_id);
+                    if ($client && $client->employee_id) {
+                        $companyId = $transaction->company_id ?? request()->header('X-Company-ID');
+                        if ($companyId) {
+                            $activeSalary = \App\Models\EmployeeSalary::where('user_id', $client->employee_id)
+                                ->where('company_id', $companyId)
+                                ->whereNull('end_date')
+                                ->orderBy('start_date', 'desc')
+                                ->first();
+
+                            if (!$activeSalary) {
+                                $activeSalary = \App\Models\EmployeeSalary::where('user_id', $client->employee_id)
+                                    ->where('company_id', $companyId)
+                                    ->orderBy('start_date', 'desc')
+                                    ->first();
+                            }
+
+                            if ($activeSalary) {
+                                $transaction->source_type = \App\Models\EmployeeSalary::class;
+                                $transaction->source_id = $activeSalary->id;
+                            }
+                        }
+                    }
+                }
             }
         });
 
@@ -447,7 +509,7 @@ class Transaction extends Model
             return null;
         }
 
-        $companyId = $this->company_id;
+        $companyId = request()->header('X-Company-ID');
         $rate = $currency->getExchangeRateForCompany($companyId, $this->date ? $this->date->toDateString() : null);
 
         return $rate;

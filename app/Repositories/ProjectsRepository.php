@@ -347,7 +347,7 @@ class ProjectsRepository extends BaseRepository
                 $currencyRates[$currencyId] = $histories->first()?->exchange_rate;
             }
 
-            $transactions = Transaction::where('project_id', $projectId)
+            $transactionsQuery = Transaction::where('project_id', $projectId)
                 ->where('is_deleted', false)
                 ->with([
                     'cashRegister.currency:id,symbol',
@@ -368,7 +368,10 @@ class ProjectsRepository extends BaseRepository
                     'cash_id'
                 );
 
-            $transactionsResult = $transactions
+            $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
+            $transactionsQuery = $transactionsRepository->applySourceTypeFilter($transactionsQuery);
+
+            $transactionsResult = $transactionsQuery
                 ->get()
                 ->map(function ($item) use ($projectCurrencyId, $projectExchangeRate, $currencyRates) {
                     $source = 'transaction';

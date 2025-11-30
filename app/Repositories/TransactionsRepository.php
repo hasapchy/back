@@ -48,7 +48,8 @@ class TransactionsRepository extends BaseRepository
             $currentUser = auth('api')->user();
             $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';
             $showDeletedKey = $showDeleted ? '1' : '0';
-        $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeletedKey, $currentUser?->id, $this->getCurrentCompanyId()]);
+            $sourcePermissionsKey = $this->getSourcePermissionsKey($currentUser);
+            $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId()]);
 
             return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeleted, $currentUser) {
                 $searchNormalized = trim((string)$search);
@@ -152,9 +153,13 @@ class TransactionsRepository extends BaseRepository
                                 $subQ->where('source_type', 'App\\Models\\Sale');
                             } elseif ($source === 'order') {
                                 $subQ->where('source_type', 'App\\Models\\Order');
+                            } elseif ($source === 'receipt') {
+                                $subQ->where('source_type', 'App\\Models\\WhReceipt');
+                            } elseif ($source === 'salary') {
+                                $subQ->where('source_type', 'App\\Models\\EmployeeSalary');
                             } elseif ($source === 'other') {
                                 $subQ->whereNull('source_type')
-                                    ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
+                                    ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order', 'App\\Models\\WhReceipt', 'App\\Models\\EmployeeSalary']);
                             }
                         });
                     })
@@ -171,6 +176,7 @@ class TransactionsRepository extends BaseRepository
                     });
 
                 $this->applyOwnFilter($query, 'transactions', 'transactions', 'user_id', $currentUser);
+                $this->applySourceTypeFilter($query, $currentUser);
 
                 $query->orderBy('transactions.id', 'desc');
 
@@ -913,6 +919,121 @@ class TransactionsRepository extends BaseRepository
             $item->client = $clients->get($item->client_id);
         }
         return $items;
+    }
+
+    /**
+     * Применить фильтр по источникам транзакций на основе пермишенов пользователя
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param \App\Models\User|null $user Пользователь
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function applySourceTypeFilter($query, $user = null)
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $user ?? auth('api')->user();
+        if (!$user) {
+            return $query;
+        }
+
+        if ($user->is_admin) {
+            return $query;
+        }
+
+        $permissions = $this->getUserPermissionsForCompany($user);
+
+        // Права по источникам работают независимо от transactions_view_all
+        // transactions_view_all влияет только на фильтр по user_id (через applyOwnFilter)
+        $hasViewSale = in_array('transactions_view_sale', $permissions);
+        $hasViewOrder = in_array('transactions_view_order', $permissions);
+        $hasViewReceipt = in_array('transactions_view_receipt', $permissions);
+        $hasViewSalary = in_array('transactions_view_salary', $permissions);
+        $hasViewOther = in_array('transactions_view_other', $permissions);
+
+        $hasAnySourcePermission = $hasViewSale || $hasViewOrder || $hasViewReceipt || $hasViewSalary || $hasViewOther;
+
+        // Если есть права по источникам, применяем фильтр
+        // Если нет прав по источникам, но есть базовое право transactions_view, показываем все
+        // Если нет никаких прав, фильтр не применяется (для обратной совместимости)
+        if (!$hasAnySourcePermission) {
+            return $query;
+        }
+
+        $query->where(function ($q) use ($hasViewSale, $hasViewOrder, $hasViewReceipt, $hasViewSalary, $hasViewOther) {
+            if ($hasViewSale) {
+                $q->orWhere('transactions.source_type', 'App\\Models\\Sale');
+            }
+            if ($hasViewOrder) {
+                $q->orWhere('transactions.source_type', 'App\\Models\\Order');
+            }
+            if ($hasViewReceipt) {
+                $q->orWhere('transactions.source_type', 'App\\Models\\WhReceipt');
+            }
+            if ($hasViewSalary) {
+                $q->orWhere('transactions.source_type', 'App\\Models\\EmployeeSalary');
+            }
+            if ($hasViewOther) {
+                $q->orWhere(function ($subQ) {
+                    $subQ->whereNull('transactions.source_type')
+                        ->orWhereNotIn('transactions.source_type', [
+                            'App\\Models\\Sale',
+                            'App\\Models\\Order',
+                            'App\\Models\\WhReceipt',
+                            'App\\Models\\EmployeeSalary'
+                        ]);
+                });
+            }
+        });
+
+        return $query;
+    }
+
+    /**
+     * Получить ключ для кэша на основе пермишенов пользователя по источникам
+     *
+     * @param \App\Models\User|null $user Пользователь
+     * @return string
+     */
+    private function getSourcePermissionsKey($user = null)
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $user ?? auth('api')->user();
+        if (!$user) {
+            return 'no_user';
+        }
+
+        if ($user->is_admin) {
+            return 'admin';
+        }
+
+        $permissions = $this->getUserPermissionsForCompany($user);
+        
+        // Права по источникам работают независимо от transactions_view_all
+        // transactions_view_all влияет только на фильтр по user_id
+        $sources = [];
+        if (in_array('transactions_view_sale', $permissions)) {
+            $sources[] = 'sale';
+        }
+        if (in_array('transactions_view_order', $permissions)) {
+            $sources[] = 'order';
+        }
+        if (in_array('transactions_view_receipt', $permissions)) {
+            $sources[] = 'receipt';
+        }
+        if (in_array('transactions_view_salary', $permissions)) {
+            $sources[] = 'salary';
+        }
+        if (in_array('transactions_view_other', $permissions)) {
+            $sources[] = 'other';
+        }
+
+        if (empty($sources)) {
+            // Если нет прав по источникам, возвращаем 'all' для кэша
+            // (это означает, что фильтр по источникам не применяется)
+            return 'all';
+        }
+        sort($sources);
+        return implode('_', $sources);
     }
 
     private function convertAmountToDefaultCurrency(float $amount, \App\Models\Currency $fromCurrency, \App\Models\Currency $defaultCurrency, ?int $companyId, $date = null): float

@@ -80,11 +80,11 @@ abstract class BaseRepository
     protected function applyCompanyFilter($query, $companyId = null)
     {
         $companyId = $companyId ?? $this->getCurrentCompanyId();
-        
+
         if ($companyId) {
             return $query->where('company_id', $companyId);
         }
-        
+
         return $query->whereNull('company_id');
     }
 
@@ -446,16 +446,18 @@ abstract class BaseRepository
             return $defaultUserId ?? auth('api')->id();
         }
 
+        if ($currentUser->is_admin) {
+            return $defaultUserId ?? $currentUser->id;
+        }
+
         $permissions = $this->getUserPermissionsForCompany($currentUser);
         $hasViewAll = in_array("{$resource}_view_all", $permissions);
         $hasViewOwn = in_array("{$resource}_view_own", $permissions);
 
-        // Если есть только _own (без _all), используем ID текущего пользователя
         if (!$hasViewAll && $hasViewOwn) {
             return $currentUser->id;
         }
 
-        // Для _all или если нет разрешений - используем defaultUserId
         return $defaultUserId ?? $currentUser->id;
     }
 
@@ -473,6 +475,10 @@ abstract class BaseRepository
         /** @var \App\Models\User|null $user */
         $user = $user ?? auth('api')->user();
         if (!$user) {
+            return $query;
+        }
+
+        if ($user->is_admin) {
             return $query;
         }
 

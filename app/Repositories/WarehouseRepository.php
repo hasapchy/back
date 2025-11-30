@@ -33,7 +33,7 @@ class WarehouseRepository extends BaseRepository
             }
 
             $query = Warehouse::whereIn('id', $warehouseIds)
-                ->with(['users:id,name,email']);
+                ->with(['users:id,name,surname,email,position']);
 
             $query = $this->addCompanyFilterDirect($query, 'warehouses');
 
@@ -65,7 +65,7 @@ class WarehouseRepository extends BaseRepository
             }
 
             $query = Warehouse::whereIn('id', $warehouseIds)
-                ->with(['users:id,name,email']);
+                ->with(['users:id,name,surname,email,position']);
 
             $query = $this->addCompanyFilterDirect($query, 'warehouses');
 
@@ -93,7 +93,7 @@ class WarehouseRepository extends BaseRepository
 
         CacheService::invalidateWarehousesCache();
 
-        return $warehouse->load(['users:id,name,email']);
+        return $warehouse->load(['users:id,name,surname,email,position']);
     }
 
     /**
@@ -118,7 +118,7 @@ class WarehouseRepository extends BaseRepository
 
         CacheService::invalidateWarehousesCache();
 
-        return $warehouse->load(['users:id,name,email']);
+        return $warehouse->load(['users:id,name,surname,email,position']);
     }
 
     /**
@@ -143,21 +143,24 @@ class WarehouseRepository extends BaseRepository
      * @param int $warehouseId ID склада
      * @param array $userIds Массив ID пользователей
      * @return void
+     * @throws \Exception Если пытаются удалить всех пользователей
      */
     private function syncUsers(int $warehouseId, array $userIds)
     {
+        if (empty($userIds)) {
+            throw new \Exception('Склад должен иметь хотя бы одного пользователя');
+        }
+
         WhUser::where('warehouse_id', $warehouseId)->delete();
 
-        if (!empty($userIds)) {
-            $insertData = [];
-            foreach ($userIds as $userId) {
-                $insertData[] = [
-                    'warehouse_id' => $warehouseId,
-                    'user_id' => $userId,
-                ];
-            }
-            WhUser::insert($insertData);
+        $insertData = [];
+        foreach ($userIds as $userId) {
+            $insertData[] = [
+                'warehouse_id' => $warehouseId,
+                'user_id' => $userId,
+            ];
         }
+        WhUser::insert($insertData);
     }
 
 }

@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Контроллер для работы с ролями
@@ -35,10 +37,35 @@ class RolesController extends Controller
      */
     public function index(Request $request)
     {
-        $page = $request->input('page', 1);
-        $search = $request->input('search');
-        $companyId = $this->getCurrentCompanyId();
-        return $this->paginatedResponse($this->itemsRepository->getItemsWithPagination($page, 20, $search, $companyId));
+        $maxAttempts = 3;
+        $attempt = 0;
+
+        while ($attempt < $maxAttempts) {
+            try {
+                if ($attempt > 0) {
+                    Cache::forget('spatie.permission.cache');
+                }
+
+                $page = $request->input('page', 1);
+                $search = $request->input('search');
+                $companyId = $this->getCurrentCompanyId();
+                return $this->paginatedResponse($this->itemsRepository->getItemsWithPagination($page, 20, $search, $companyId));
+            } catch (\Illuminate\Database\QueryException $e) {
+                $attempt++;
+
+                if ($e->getCode() == '40001' && str_contains($e->getMessage(), 'Deadlock')) {
+                    if ($attempt >= $maxAttempts) {
+                        return $this->errorResponse('Ошибка при получении ролей. Попробуйте обновить страницу.', 500);
+                    }
+
+                    Cache::forget('spatie.permission.cache');
+                    usleep(100000 * $attempt);
+                    continue;
+                }
+
+                throw $e;
+            }
+        }
     }
 
     /**
@@ -92,7 +119,7 @@ class RolesController extends Controller
 
             $uniqueRule = Rule::unique('roles', 'name')
                 ->where('guard_name', 'api');
-            
+
             if ($companyId) {
                 $uniqueRule->where('company_id', $companyId);
             } else {
@@ -148,13 +175,13 @@ class RolesController extends Controller
                 $uniqueRule = Rule::unique('roles', 'name')
                     ->ignore($id)
                     ->where('guard_name', 'api');
-                
+
                 if ($companyId) {
                     $uniqueRule->where('company_id', $companyId);
                 } else {
                     $uniqueRule->whereNull('company_id');
                 }
-                
+
                 $rules['name'] = ['required', 'string', 'max:255', $uniqueRule];
             }
 

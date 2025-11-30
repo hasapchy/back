@@ -105,11 +105,33 @@ class CahRegistersRepository extends BaseRepository
             ->where('is_deleted', false)
             ->when($startDate || $endDate, function ($q) use ($startDate, $endDate) {
                 if ($startDate && $endDate) {
-                    return $q->whereBetween('date', [$startDate, $endDate]);
+                    // Парсим даты, поддерживая формат DD.MM.YYYY
+                    try {
+                        $parsedStart = \Carbon\Carbon::createFromFormat('d.m.Y', $startDate)->startOfDay();
+                        $parsedEnd = \Carbon\Carbon::createFromFormat('d.m.Y', $endDate)->endOfDay();
+                        return $q->whereBetween('date', [$parsedStart->toDateTimeString(), $parsedEnd->toDateTimeString()]);
+                    } catch (\Exception $e) {
+                        // Если не получилось распарсить как DD.MM.YYYY, пробуем стандартный parse
+                        $parsedStart = \Carbon\Carbon::parse($startDate)->startOfDay();
+                        $parsedEnd = \Carbon\Carbon::parse($endDate)->endOfDay();
+                        return $q->whereBetween('date', [$parsedStart->toDateTimeString(), $parsedEnd->toDateTimeString()]);
+                    }
                 } elseif ($startDate) {
-                    return $q->where('date', '>=', $startDate);
+                    try {
+                        $parsedStart = \Carbon\Carbon::createFromFormat('d.m.Y', $startDate)->startOfDay();
+                        return $q->where('date', '>=', $parsedStart->toDateTimeString());
+                    } catch (\Exception $e) {
+                        $parsedStart = \Carbon\Carbon::parse($startDate)->startOfDay();
+                        return $q->where('date', '>=', $parsedStart->toDateTimeString());
+                    }
                 } elseif ($endDate) {
-                    return $q->where('date', '<=', $endDate);
+                    try {
+                        $parsedEnd = \Carbon\Carbon::createFromFormat('d.m.Y', $endDate)->endOfDay();
+                        return $q->where('date', '<=', $parsedEnd->toDateTimeString());
+                    } catch (\Exception $e) {
+                        $parsedEnd = \Carbon\Carbon::parse($endDate)->endOfDay();
+                        return $q->where('date', '<=', $parsedEnd->toDateTimeString());
+                    }
                 }
                 return $q;
             })
@@ -148,19 +170,48 @@ class CahRegistersRepository extends BaseRepository
                         }
                         $hasConditions = true;
                     }
+                    if (in_array('receipt', $source)) {
+                        if ($hasConditions) {
+                            $subQ->orWhere('source_type', 'App\\Models\\WhReceipt');
+                        } else {
+                            $subQ->where('source_type', 'App\\Models\\WhReceipt');
+                        }
+                        $hasConditions = true;
+                    }
+                    if (in_array('salary', $source)) {
+                        if ($hasConditions) {
+                            $subQ->orWhere('source_type', 'App\\Models\\EmployeeSalary');
+                        } else {
+                            $subQ->where('source_type', 'App\\Models\\EmployeeSalary');
+                        }
+                        $hasConditions = true;
+                    }
                     if (in_array('other', $source)) {
                         if ($hasConditions) {
                             $subQ->orWhere(function ($otherQ) {
                                 $otherQ->whereNull('source_type')
-                                    ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
+                                    ->orWhereNotIn('source_type', [
+                                        'App\\Models\\Sale',
+                                        'App\\Models\\Order',
+                                        'App\\Models\\WhReceipt',
+                                        'App\\Models\\EmployeeSalary'
+                                    ]);
                             });
                         } else {
                             $subQ->whereNull('source_type')
-                                ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
+                                ->orWhereNotIn('source_type', [
+                                    'App\\Models\\Sale',
+                                    'App\\Models\\Order',
+                                    'App\\Models\\WhReceipt',
+                                    'App\\Models\\EmployeeSalary'
+                                ]);
                         }
                     }
                 });
             });
+
+        $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
+        $transactionsQuery = $transactionsRepository->applySourceTypeFilter($transactionsQuery);
 
         $transactionsStats = $transactionsQuery
             ->select('cash_id')
@@ -312,21 +363,24 @@ class CahRegistersRepository extends BaseRepository
      * @param int $cashRegisterId ID кассы
      * @param array $userIds Массив ID пользователей
      * @return void
+     * @throws \Exception Если пытаются удалить всех пользователей
      */
     private function syncUsers(int $cashRegisterId, array $userIds)
     {
+        if (empty($userIds)) {
+            throw new \Exception('Касса должна иметь хотя бы одного пользователя');
+        }
+
         CashRegisterUser::where('cash_register_id', $cashRegisterId)->delete();
 
-        if (!empty($userIds)) {
-            $insertData = [];
-            foreach ($userIds as $userId) {
-                $insertData[] = [
-                    'cash_register_id' => $cashRegisterId,
-                    'user_id' => $userId,
-                ];
-            }
-            CashRegisterUser::insert($insertData);
+        $insertData = [];
+        foreach ($userIds as $userId) {
+            $insertData[] = [
+                'cash_register_id' => $cashRegisterId,
+                'user_id' => $userId,
+            ];
         }
+        CashRegisterUser::insert($insertData);
     }
 
     /**

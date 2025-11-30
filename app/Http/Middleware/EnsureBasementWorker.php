@@ -23,6 +23,10 @@ class EnsureBasementWorker
             return response()->json(['error' => 'Unauthenticated'], 401);
         }
 
+        if ($user->is_admin) {
+            return $next($request);
+        }
+
         $basementRole = config('basement.worker_role', 'basement_worker');
         $roleNames = method_exists($user, 'getAllRoleNames')
             ? $user->getAllRoleNames()

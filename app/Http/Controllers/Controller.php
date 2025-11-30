@@ -8,10 +8,22 @@ use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
+use App\Services\PermissionCheckService;
+use App\Services\PermissionParser;
 
 class Controller extends BaseController
 {
     use AuthorizesRequests, ValidatesRequests;
+
+    protected ?PermissionCheckService $permissionCheckService = null;
+
+    protected function getPermissionCheckService(): PermissionCheckService
+    {
+        if ($this->permissionCheckService === null) {
+            $this->permissionCheckService = new PermissionCheckService();
+        }
+        return $this->permissionCheckService;
+    }
 
     /**
      * Получить текущую компанию пользователя из заголовка запроса
@@ -91,6 +103,12 @@ class Controller extends BaseController
             return [];
         }
 
+        if ($user->is_admin) {
+            return \Spatie\Permission\Models\Permission::where('guard_name', 'api')
+                ->pluck('name')
+                ->toArray();
+        }
+
         $companyId = $companyId ?? $this->getCurrentCompanyId();
 
         if ($companyId) {
@@ -109,6 +127,12 @@ class Controller extends BaseController
      */
     protected function hasPermission($permission, $user = null)
     {
+        $user = $user ?? $this->getAuthenticatedUser();
+
+        if ($user && $user->is_admin) {
+            return true;
+        }
+
         $permissions = $this->getUserPermissions($user);
         return in_array($permission, $permissions);
     }
@@ -130,44 +154,65 @@ class Controller extends BaseController
         }
 
         $permissions = $this->getUserPermissions($user);
+        return $this->getPermissionCheckService()->canPerformAction($user, $resource, $action, $record, $permissions);
+    }
 
-        // Проверяем право на все записи
-        if (in_array("{$resource}_{$action}_all", $permissions)) {
+    /**
+     * Проверить доступ к взаиморасчетам по типу клиента
+     *
+     * @param string $clientType Тип клиента (individual, company, employee, investor)
+     * @param \App\Models\User|null $user Пользователь
+     * @return bool
+     */
+    protected function canViewMutualSettlementsByClientType($clientType, $user = null)
+    {
+        $user = $user ?? $this->getAuthenticatedUser();
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->is_admin) {
             return true;
         }
 
-        // Проверяем право на свои записи
-        if (in_array("{$resource}_{$action}_own", $permissions)) {
-            if ($record) {
-                // Для пользователей проверяем по id
-                if ($resource === 'users' && method_exists($record, 'getKey')) {
-                    return $record->getKey() === $user->id;
-                }
+        $permissions = $this->getUserPermissions($user);
+        $config = config("permissions.resources.mutual_settlements");
+        $permissionName = $config['custom_permissions']["view_{$clientType}"] ?? "mutual_settlements_view_{$clientType}";
 
-                // Для касс проверяем через связь many-to-many
-                if ($resource === 'cash_registers' && method_exists($record, 'hasUser')) {
-                    return $record->hasUser($user->id);
-                }
+        return in_array($permissionName, $permissions);
+    }
 
-                // Для складов проверяем через связь many-to-many
-                if ($resource === 'warehouses' && method_exists($record, 'users')) {
-                    return $record->users()->where('user_id', $user->id)->exists();
-                }
+    /**
+     * Получить доступные типы клиентов для просмотра взаиморасчетов
+     *
+     * @param \App\Models\User|null $user Пользователь
+     * @return array Массив типов клиентов, к которым есть доступ
+     */
+    protected function getAllowedMutualSettlementsClientTypes($user = null)
+    {
+        $user = $user ?? $this->getAuthenticatedUser();
+        if (!$user) {
+            return [];
+        }
 
-                // Для остальных проверяем по user_id
-                $userId = $record->user_id ?? null;
-                return $userId && $userId === $user->id;
+        if ($user->is_admin) {
+            return ['individual', 'company', 'employee', 'investor'];
+        }
+
+        $permissions = $this->getUserPermissions($user);
+        $allowedTypes = [];
+        $config = config("permissions.resources.mutual_settlements");
+
+        if (isset($config['custom_permissions'])) {
+            foreach ($config['custom_permissions'] as $key => $permissionName) {
+                if (in_array($permissionName, $permissions)) {
+                    $type = str_replace('view_', '', $key);
+                    $allowedTypes[] = $type;
+                }
             }
-            // Если записи нет, считаем что это своя запись
-            return true;
         }
 
-        // Обратная совместимость: проверяем старое разрешение
-        if (in_array("{$resource}_{$action}", $permissions)) {
-            return true;
-        }
-
-        return false;
+        return $allowedTypes;
     }
 
     /**
@@ -179,6 +224,12 @@ class Controller extends BaseController
      */
     protected function hasAnyPermission(array $permissions, $user = null)
     {
+        $user = $user ?? $this->getAuthenticatedUser();
+
+        if ($user && $user->is_admin) {
+            return true;
+        }
+
         $userPermissions = $this->getUserPermissions($user);
 
         foreach ($permissions as $permission) {

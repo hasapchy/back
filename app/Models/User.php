@@ -34,6 +34,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'surname',
         'email',
         'password',
         'is_active',
@@ -147,6 +148,23 @@ class User extends Authenticatable
     }
 
     /**
+     * Получить все разрешения пользователя (глобальные, через роли)
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public function getAllPermissions()
+    {
+        if ($this->is_admin) {
+            return \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
+        }
+
+        $permissionsViaRoles = $this->getPermissionsViaRoles();
+        $directPermissions = $this->getDirectPermissions();
+
+        return $permissionsViaRoles->merge($directPermissions)->unique('id');
+    }
+
+    /**
      * Получить все разрешения пользователя с учетом текущей компании
      * Если компания не указана, возвращает глобальные разрешения (для обратной совместимости)
      *
@@ -155,6 +173,10 @@ class User extends Authenticatable
      */
     public function getAllPermissionsForCompany(?int $companyId = null)
     {
+        if ($this->is_admin) {
+            return \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
+        }
+
         if (!$companyId) {
             return $this->getAllPermissions();
         }

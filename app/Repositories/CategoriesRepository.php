@@ -31,7 +31,7 @@ class CategoriesRepository extends BaseRepository
 
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            return $query->with('users')->paginate($perPage, ['*'], 'page', (int)$page);
+            return $query->with(['users:id,name,surname,email,position'])->paginate($perPage, ['*'], 'page', (int)$page);
         }, (int)$page);
     }
 
@@ -55,7 +55,7 @@ class CategoriesRepository extends BaseRepository
 
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            return $query->with('users')->get();
+            return $query->with(['users:id,name,surname,email,position'])->get();
         });
     }
 
@@ -80,7 +80,7 @@ class CategoriesRepository extends BaseRepository
 
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            return $query->with('users')->get();
+            return $query->with(['users:id,name,surname,email,position'])->get();
         });
     }
 
@@ -155,24 +155,29 @@ class CategoriesRepository extends BaseRepository
      * @param int $categoryId ID категории
      * @param array $userIds Массив ID пользователей
      * @return void
+     * @throws \Exception Если пытаются удалить всех пользователей
      */
     private function syncUsers(int $categoryId, array $userIds)
     {
-        CategoryUser::where('category_id', $categoryId)->delete();
+        if (empty($userIds) || !is_array($userIds)) {
+            throw new \Exception('Категория должна иметь хотя бы одного пользователя');
+        }
 
-        if (!empty($userIds) && is_array($userIds)) {
-            $insertData = [];
-            foreach ($userIds as $userId) {
-                if (!empty($userId)) {
-                    $insertData[] = [
-                        'category_id' => $categoryId,
-                        'user_id' => (int) $userId,
-                    ];
-                }
-            }
-            if (!empty($insertData)) {
-                CategoryUser::insert($insertData);
+        $insertData = [];
+        foreach ($userIds as $userId) {
+            if (!empty($userId)) {
+                $insertData[] = [
+                    'category_id' => $categoryId,
+                    'user_id' => (int) $userId,
+                ];
             }
         }
+
+        if (empty($insertData)) {
+            throw new \Exception('Категория должна иметь хотя бы одного пользователя');
+        }
+
+        CategoryUser::where('category_id', $categoryId)->delete();
+        CategoryUser::insert($insertData);
     }
 }

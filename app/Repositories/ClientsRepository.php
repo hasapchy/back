@@ -7,6 +7,7 @@ use App\Models\ClientsEmail;
 use App\Models\ClientsPhone;
 use App\Models\Currency;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
@@ -92,16 +93,30 @@ class ClientsRepository extends BaseRepository
      * Получить всех активных клиентов
      *
      * @param array $typeFilter
+     * @param bool $forMutualSettlements Применять фильтр по правам доступа к взаиморасчетам
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getAllItems(array $typeFilter = [])
+    public function getAllItems(array $typeFilter = [], bool $forMutualSettlements = false)
     {
         $typeFilter = $this->normalizeTypeFilter($typeFilter);
 
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter)]);
+
+        if ($forMutualSettlements && $currentUser) {
+            $allowedTypes = $this->getAllowedMutualSettlementsClientTypes($currentUser);
+            if (empty($allowedTypes)) {
+                return collect([]);
+            }
+            if (empty($typeFilter)) {
+                $typeFilter = $allowedTypes;
+            } else {
+                $typeFilter = array_intersect($typeFilter, $allowedTypes);
+            }
+        }
+
+        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter), $forMutualSettlements]);
 
         return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter) {
             $query = Client::with([
@@ -128,6 +143,40 @@ class ClientsRepository extends BaseRepository
 
             return $query->get();
         }, 1800);
+    }
+
+    /**
+     * Получить доступные типы клиентов для просмотра взаиморасчетов
+     *
+     * @param \App\Models\User|null $user Пользователь
+     * @return array Массив типов клиентов, к которым есть доступ
+     */
+    protected function getAllowedMutualSettlementsClientTypes($user = null)
+    {
+        if (!$user) {
+            return [];
+        }
+
+        if ($user->is_admin) {
+            return ['individual', 'company', 'employee', 'investor'];
+        }
+
+        $permissions = $this->getUserPermissionsForCompany($user);
+        $hasViewAll = in_array('mutual_settlements_view_all', $permissions);
+
+        if (!$hasViewAll) {
+            return [];
+        }
+
+        $allowedTypes = [];
+        $clientTypes = ['individual', 'company', 'employee', 'investor'];
+        foreach ($clientTypes as $type) {
+            if (in_array("mutual_settlements_view_{$type}", $permissions)) {
+                $allowedTypes[] = $type;
+            }
+        }
+
+        return $allowedTypes;
     }
 
     /**
@@ -350,7 +399,7 @@ class ClientsRepository extends BaseRepository
                 $defaultCurrency = Currency::where('is_default', true)->first();
                 $defaultCurrencySymbol = $defaultCurrency?->symbol;
 
-                $transactions = Transaction::where('client_id', $clientId)
+                $transactionsQuery = Transaction::where('client_id', $clientId)
                     ->where('is_deleted', false)
                     ->with([
                         'cashRegister:id,name',
@@ -372,8 +421,12 @@ class ClientsRepository extends BaseRepository
                         'currency_id',
                         'cash_id',
                         'category_id'
-                    )
-                    ->get()
+                    );
+
+                $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
+                $transactionsQuery = $transactionsRepository->applySourceTypeFilter($transactionsQuery);
+
+                $transactions = $transactionsQuery->get()
                     ->flatMap(function ($item) use ($defaultCurrencySymbol) {
                         $source = 'transaction';
                         if ($item->source_type === 'App\\Models\\Sale') {

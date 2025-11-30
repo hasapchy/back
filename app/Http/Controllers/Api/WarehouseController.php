@@ -65,7 +65,7 @@ class WarehouseController extends Controller
     {
         $request->validate([
             'name' => 'required|string',
-            'users' => 'required|array',
+            'users' => 'required|array|min:1',
             'users.*' => 'exists:users,id'
         ]);
 
@@ -95,7 +95,7 @@ class WarehouseController extends Controller
 
         $request->validate([
             'name' => 'required|string',
-            'users' => 'required|array',
+            'users' => 'required|array|min:1',
             'users.*' => 'exists:users,id'
         ]);
 

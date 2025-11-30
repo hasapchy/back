@@ -77,7 +77,7 @@ class CategoriesController extends Controller
         $request->validate([
             'name' => 'required|string',
             'parent_id' => 'nullable|exists:categories,id',
-            'users' => 'required|array',
+            'users' => 'required|array|min:1',
             'users.*' => 'exists:users,id'
         ]);
 
@@ -110,7 +110,7 @@ class CategoriesController extends Controller
         $request->validate([
             'name' => 'required|string',
             'parent_id' => 'nullable|exists:categories,id',
-            'users' => 'required|array',
+            'users' => 'required|array|min:1',
             'users.*' => 'exists:users,id'
         ]);
 

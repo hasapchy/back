@@ -53,6 +53,7 @@ class UsersRepository extends BaseRepository
             $query = User::select([
                 'users.id',
                 'users.name',
+                'users.surname',
                 'users.email',
                 'users.is_active',
                 'users.hire_date',
@@ -78,7 +79,7 @@ class UsersRepository extends BaseRepository
                 });
             }
 
-            if ($currentUser) {
+            if ($currentUser && !$currentUser->is_admin) {
                 $permissions = $this->getUserPermissionsForCompany($currentUser);
                 $hasViewAll = in_array('users_view_all', $permissions) || in_array('users_view', $permissions);
                 if (!$hasViewAll && in_array('users_view_own', $permissions)) {
@@ -89,6 +90,7 @@ class UsersRepository extends BaseRepository
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('users.name', 'like', "%{$search}%")
+                        ->orWhere('users.surname', 'like', "%{$search}%")
                         ->orWhere('users.email', 'like', "%{$search}%")
                         ->orWhere('users.position', 'like', "%{$search}%");
                 });
@@ -152,6 +154,7 @@ class UsersRepository extends BaseRepository
             $query = User::select([
                 'users.id',
                 'users.name',
+                'users.surname',
                 'users.email',
                 'users.is_active',
                 'users.hire_date',
@@ -175,7 +178,7 @@ class UsersRepository extends BaseRepository
                 });
             }
 
-            if ($currentUser) {
+            if ($currentUser && !$currentUser->is_admin) {
                 $permissions = $this->getUserPermissionsForCompany($currentUser);
                 $hasViewAll = in_array('users_view_all', $permissions) || in_array('users_view', $permissions);
                 if (!$hasViewAll && in_array('users_view_own', $permissions)) {
@@ -233,6 +236,7 @@ class UsersRepository extends BaseRepository
 
             $user = new User();
             $user->name     = $data['name'];
+            $user->surname  = $data['surname'] ?? null;
             $user->email    = $data['email'];
             $user->password = Hash::make($data['password']);
             $user->hire_date = $data['hire_date'] ?? null;
@@ -287,6 +291,7 @@ class UsersRepository extends BaseRepository
 
 
             $user->name = $data['name'] ?? $user->name;
+            $user->surname = array_key_exists('surname', $data) ? $data['surname'] : $user->surname;
             $user->email = $data['email'] ?? $user->email;
             $user->hire_date = array_key_exists('hire_date', $data) ? $data['hire_date'] : $user->hire_date;
             $user->birthday = array_key_exists('birthday', $data) ? $data['birthday'] : $user->birthday;
@@ -587,13 +592,47 @@ class UsersRepository extends BaseRepository
 
         DB::beginTransaction();
         try {
+            $startDate = $data['start_date'];
+            $endDate = $data['end_date'] ?? null;
+
+            if ($endDate === null) {
+                $activeSalary = EmployeeSalary::where('user_id', $userId)
+                    ->where('company_id', $companyId)
+                    ->whereNull('end_date')
+                    ->first();
+
+                if ($activeSalary) {
+                    throw new \Exception('У сотрудника уже есть активная зарплата. Сначала закройте текущую зарплату.');
+                }
+            }
+
+            $conflictingSalary = EmployeeSalary::where('user_id', $userId)
+                ->where('company_id', $companyId)
+                ->where(function ($query) use ($startDate, $endDate) {
+                    $query->where(function ($q) use ($startDate, $endDate) {
+                        $q->where(function ($subQ) use ($startDate, $endDate) {
+                            $subQ->where('start_date', '<=', $endDate ?? '9999-12-31')
+                                ->where(function ($dateQ) use ($startDate) {
+                                    $dateQ->whereNull('end_date')
+                                        ->orWhere('end_date', '>=', $startDate);
+                                });
+                        });
+                    });
+                })
+                ->first();
+
+            if ($conflictingSalary) {
+                throw new \Exception('Зарплата пересекается по датам с существующей зарплатой. Проверьте даты начала и окончания.');
+            }
+
             $salary = EmployeeSalary::create([
                 'user_id' => $userId,
                 'company_id' => $companyId,
-                'start_date' => $data['start_date'],
-                'end_date' => $data['end_date'] ?? null,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
                 'amount' => $data['amount'],
                 'currency_id' => $data['currency_id'],
+                'note' => $data['note'] ?? null,
             ]);
 
             DB::commit();
@@ -620,12 +659,84 @@ class UsersRepository extends BaseRepository
         try {
             $salary = EmployeeSalary::findOrFail($salaryId);
 
-            $salary->update([
-                'start_date' => $data['start_date'] ?? $salary->start_date,
-                'end_date' => $data['end_date'] ?? $salary->end_date,
-                'amount' => $data['amount'] ?? $salary->amount,
-                'currency_id' => $data['currency_id'] ?? $salary->currency_id,
-            ]);
+            $newStartDate = $data['start_date'] ?? $salary->start_date;
+            $newEndDate = array_key_exists('end_date', $data) ? $data['end_date'] : $salary->end_date;
+
+            if (array_key_exists('end_date', $data)) {
+                if ($newEndDate === null) {
+                    $newerActiveSalary = EmployeeSalary::where('user_id', $salary->user_id)
+                        ->where('company_id', $salary->company_id)
+                        ->whereNull('end_date')
+                        ->where('start_date', '>', $newStartDate)
+                        ->where('id', '!=', $salaryId)
+                        ->first();
+
+                    if ($newerActiveSalary) {
+                        throw new \Exception('Нельзя разблокировать эту зарплату, так как есть более новая активная зарплата. Сначала закройте более новую зарплату.');
+                    }
+
+                    $activeSalary = EmployeeSalary::where('user_id', $salary->user_id)
+                        ->where('company_id', $salary->company_id)
+                        ->whereNull('end_date')
+                        ->where('id', '!=', $salaryId)
+                        ->first();
+
+                    if ($activeSalary) {
+                        throw new \Exception('У сотрудника уже есть активная зарплата. Сначала закройте текущую зарплату.');
+                    }
+                } else {
+                    $newerActiveSalary = EmployeeSalary::where('user_id', $salary->user_id)
+                        ->where('company_id', $salary->company_id)
+                        ->whereNull('end_date')
+                        ->where('start_date', '>', $newStartDate)
+                        ->where('id', '!=', $salaryId)
+                        ->first();
+
+                    if ($newerActiveSalary) {
+                        throw new \Exception('Нельзя закрыть эту зарплату, так как есть более новая активная зарплата. Сначала закройте более новую зарплату.');
+                    }
+                }
+            }
+
+            if (isset($data['start_date']) || array_key_exists('end_date', $data)) {
+                $conflictingSalary = EmployeeSalary::where('user_id', $salary->user_id)
+                    ->where('company_id', $salary->company_id)
+                    ->where('id', '!=', $salaryId)
+                    ->where(function ($query) use ($newStartDate, $newEndDate) {
+                        $query->where(function ($q) use ($newStartDate, $newEndDate) {
+                            $q->where('start_date', '<=', $newEndDate ?? '9999-12-31')
+                                ->where(function ($dateQ) use ($newStartDate) {
+                                    $dateQ->whereNull('end_date')
+                                        ->orWhere('end_date', '>=', $newStartDate);
+                                });
+                        });
+                    })
+                    ->first();
+
+                if ($conflictingSalary) {
+                    throw new \Exception('Зарплата пересекается по датам с существующей зарплатой. Проверьте даты начала и окончания.');
+                }
+            }
+
+            $updateData = [];
+
+            if (isset($data['start_date'])) {
+                $updateData['start_date'] = $data['start_date'];
+            }
+            if (array_key_exists('end_date', $data)) {
+                $updateData['end_date'] = $data['end_date'];
+            }
+            if (isset($data['amount'])) {
+                $updateData['amount'] = $data['amount'];
+            }
+            if (isset($data['currency_id'])) {
+                $updateData['currency_id'] = $data['currency_id'];
+            }
+            if (array_key_exists('note', $data)) {
+                $updateData['note'] = $data['note'];
+            }
+
+            $salary->update($updateData);
 
             DB::commit();
 
