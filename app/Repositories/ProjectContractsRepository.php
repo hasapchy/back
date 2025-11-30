@@ -35,19 +35,18 @@ class ProjectContractsRepository extends BaseRepository
             'currencies.code as currency_code',
             'currencies.symbol as currency_symbol'
         ])
-            ->leftJoin('currencies', 'project_contracts.currency_id', '=', 'currencies.id')
-            ->with(['currency:id,name,code,symbol']);
+            ->leftJoin('currencies', 'project_contracts.currency_id', '=', 'currencies.id');
     }
 
     /**
      * Применить фильтрацию по компании через связь с проектом
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int|null $companyId ID компании (игнорируется, так как в project_contracts нет company_id)
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    private function applyCompanyFilter($query)
+    protected function applyCompanyFilter($query, $companyId = null)
     {
-        // TODO: restore company filter when multi-company isolation is re-enabled
         return $query;
     }
 
@@ -73,8 +72,7 @@ class ProjectContractsRepository extends BaseRepository
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('project_contracts.number', 'like', "%{$search}%")
-                        ->orWhere('project_contracts.amount', 'like', "%{$search}%")
-                        ->orWhere('project_contracts.note', 'like', "%{$search}%");
+                        ->orWhere('project_contracts.amount', 'like', "%{$search}%");
                 });
             }
 
