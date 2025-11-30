@@ -92,10 +92,11 @@ class ClientController extends Controller
     /**
      * Получить историю баланса клиента
      *
+     * @param Request $request
      * @param int $id ID клиента
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getBalanceHistory($id)
+    public function getBalanceHistory(Request $request, $id)
     {
         $user = $this->requireAuthenticatedUser();
 
@@ -104,7 +105,12 @@ class ClientController extends Controller
         }
 
         try {
-            $history = $this->itemsRepository->getBalanceHistory($id);
+            $excludeDebt = $request->input('exclude_debt', null);
+            if ($excludeDebt !== null) {
+                $excludeDebt = filter_var($excludeDebt, FILTER_VALIDATE_BOOLEAN);
+            }
+            
+            $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt);
 
             return response()->json(['history' => $history]);
         } catch (\Throwable $e) {

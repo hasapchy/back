@@ -388,20 +388,26 @@ class ClientsRepository extends BaseRepository
      * Получить историю баланса клиента
      *
      * @param int $clientId ID клиента
+     * @param bool|null $excludeDebt Исключить кредитные транзакции (true - только платежи, false/null - все)
      * @return array Массив транзакций с описаниями
      */
-    public function getBalanceHistory($clientId)
+    public function getBalanceHistory($clientId, $excludeDebt = null)
     {
-        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId]);
+        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt]);
 
-        return CacheService::remember($cacheKey, function () use ($clientId) {
+        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt) {
             try {
                 $defaultCurrency = Currency::where('is_default', true)->first();
                 $defaultCurrencySymbol = $defaultCurrency?->symbol;
 
                 $transactionsQuery = Transaction::where('client_id', $clientId)
-                    ->where('is_deleted', false)
-                    ->with([
+                    ->where('is_deleted', false);
+                
+                if ($excludeDebt === true) {
+                    $transactionsQuery->where('is_debt', false);
+                }
+                
+                $transactionsQuery->with([
                         'cashRegister:id,name',
                         'currency:id,symbol,code',
                         'user:id,name',
