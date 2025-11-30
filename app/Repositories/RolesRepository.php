@@ -99,7 +99,11 @@ class RolesRepository extends BaseRepository
 
             if (isset($data['name'])) {
                 $newName = trim($data['name']);
-                if ($role->name === 'admin' && $newName !== 'admin') {
+                /** @var \App\Models\User|null $user */
+                $user = auth('api')->user();
+                $isAdmin = $user && $user->is_admin;
+
+                if (!$isAdmin && $role->name === 'admin' && $newName !== 'admin') {
                     throw new \Exception('Нельзя изменить название роли администратора');
                 }
                 $role->name = $newName;

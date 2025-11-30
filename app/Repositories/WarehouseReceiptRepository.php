@@ -102,13 +102,7 @@ class WarehouseReceiptRepository extends BaseRepository
                 'products.product:id,name,image,unit_id',
                 'products.product.unit:id,name,short_name'
             ])
-            ->whereIn('wh_receipts.warehouse_id', $warehouseIds)
-            ->where(function ($q) use ($userUuid) {
-                $q->whereNull('wh_receipts.project_id')
-                    ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
-                        $subQuery->where('user_id', $userUuid);
-                    });
-            });
+            ->whereIn('wh_receipts.warehouse_id', $warehouseIds);
 
         return $this->addCompanyFilterThroughRelation($query, 'warehouse');
     }

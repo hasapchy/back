@@ -138,14 +138,6 @@ class OrdersRepository extends BaseRepository
                     ), 0)', [Order::class]);
             }
 
-            $query->where(function ($q) use ($userUuid) {
-                $q->whereNull('orders.project_id')
-                    ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
-                        $subQuery->where('user_id', $userUuid);
-                    });
-            });
-
-            // Фильтрация по категориям пользователя - только для basement workers
             $isBasementWorker = $currentUser instanceof User && $currentUser->hasRole(config('basement.worker_role'));
 
             if ($isBasementWorker) {
@@ -287,13 +279,6 @@ class OrdersRepository extends BaseRepository
 
             $this->applyOwnFilter($unpaidQuery, 'orders', 'orders', 'user_id', $currentUser);
             $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cash');
-
-            $unpaidQuery->where(function ($q) use ($userUuid) {
-                $q->whereNull('orders.project_id')
-                    ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
-                        $subQuery->where('user_id', $userUuid);
-                    });
-            });
 
             if ($isBasementWorker) {
                 $unpaidQuery->where(function ($q) use ($userUuid) {

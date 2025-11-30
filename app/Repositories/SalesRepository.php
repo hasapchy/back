@@ -75,13 +75,6 @@ class SalesRepository extends BaseRepository
                 $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'sales.date');
             }
 
-            $query->where(function ($q) use ($userUuid) {
-                $q->whereNull('sales.project_id')
-                    ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
-                        $subQuery->where('user_id', $userUuid);
-                    });
-            });
-
             $this->applyOwnFilter($query, 'sales', 'sales', 'user_id', $currentUser);
 
             $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');

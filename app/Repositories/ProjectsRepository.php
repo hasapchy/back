@@ -133,7 +133,7 @@ class ProjectsRepository extends BaseRepository
             $query = $this->addCompanyFilterDirect($query, 'projects');
 
             if ($activeOnly) {
-                $query->whereNotIn('projects.status_id', [4, 5]);
+                $query->whereNotIn('projects.status_id', [3, 4]);
             }
 
             $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
@@ -347,7 +347,7 @@ class ProjectsRepository extends BaseRepository
                 $currencyRates[$currencyId] = $histories->first()?->exchange_rate;
             }
 
-            $transactionsQuery = Transaction::where('project_id', $projectId)
+            $transactions = Transaction::where('project_id', $projectId)
                 ->where('is_deleted', false)
                 ->with([
                     'cashRegister.currency:id,symbol',
@@ -368,10 +368,7 @@ class ProjectsRepository extends BaseRepository
                     'cash_id'
                 );
 
-            $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
-            $transactionsQuery = $transactionsRepository->applySourceTypeFilter($transactionsQuery);
-
-            $transactionsResult = $transactionsQuery
+            $transactionsResult = $transactions
                 ->get()
                 ->map(function ($item) use ($projectCurrencyId, $projectExchangeRate, $currencyRates) {
                     $source = 'transaction';
@@ -494,19 +491,11 @@ class ProjectsRepository extends BaseRepository
     {
         $targetStatus = \App\Models\ProjectStatus::findOrFail($statusId);
 
-        $projects = Project::with([
-            'projectUsers' => function ($query) use ($userId) {
-                $query->where('user_id', $userId);
-            }
-        ])->whereIn('id', $ids)->get()->keyBy('id');
+        $projects = Project::whereIn('id', $ids)->get()->keyBy('id');
 
         foreach ($ids as $id) {
             if (!$projects->has($id)) {
                 throw new \Exception("Проект ID {$id} не найден");
-            }
-
-            if ($projects->get($id)->projectUsers->isEmpty()) {
-                throw new \Exception("Нет доступа к проекту ID {$id}");
             }
         }
 

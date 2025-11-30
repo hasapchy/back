@@ -22,12 +22,19 @@ class CategoriesRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('categories_paginated', [$userUuid, $perPage]);
 
         return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
+            /** @var \App\Models\User|null $user */
+            $user = auth('api')->user();
+            $isAdmin = $user && $user->is_admin;
+
             $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
                 ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
-                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name')
-                ->whereHas('categoryUsers', function($query) use ($userUuid) {
+                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
+
+            if (!$isAdmin) {
+                $query->whereHas('categoryUsers', function($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
                 });
+            }
 
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
@@ -46,12 +53,19 @@ class CategoriesRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('categories_all', [$userUuid]);
 
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
+            /** @var \App\Models\User|null $user */
+            $user = auth('api')->user();
+            $isAdmin = $user && $user->is_admin;
+
             $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
                 ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
-                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name')
-                ->whereHas('categoryUsers', function($query) use ($userUuid) {
+                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
+
+            if (!$isAdmin) {
+                $query->whereHas('categoryUsers', function($query) use ($userUuid) {
                     $query->where('user_id', $userUuid);
                 });
+            }
 
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
@@ -70,13 +84,20 @@ class CategoriesRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('categories_parents', [$userUuid]);
 
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
+            /** @var \App\Models\User|null $user */
+            $user = auth('api')->user();
+            $isAdmin = $user && $user->is_admin;
+
             $query = Category::leftJoin('users as users', 'categories.user_id', '=', 'users.id')
                 ->select('categories.*', 'users.name as user_name')
                 ->whereNull('categories.parent_id')
-                ->whereHas('categoryUsers', function($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                })
                 ->whereHas('children');
+
+            if (!$isAdmin) {
+                $query->whereHas('categoryUsers', function($query) use ($userUuid) {
+                    $query->where('user_id', $userUuid);
+                });
+            }
 
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
