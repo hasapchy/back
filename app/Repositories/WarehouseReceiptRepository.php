@@ -64,14 +64,6 @@ class WarehouseReceiptRepository extends BaseRepository
      */
     protected function buildBaseQuery($userUuid)
     {
-        /** @var \App\Models\User|null $currentUser */
-        $currentUser = auth('api')->user();
-        $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
-
-        $warehouseIds = WhUser::where('user_id', $filterUserId)
-            ->pluck('warehouse_id')
-            ->toArray();
-
         $query = WhReceipt::select([
             'wh_receipts.id',
             'wh_receipts.warehouse_id',
@@ -101,8 +93,20 @@ class WarehouseReceiptRepository extends BaseRepository
                 'products:id,receipt_id,product_id,quantity,price',
                 'products.product:id,name,image,unit_id',
                 'products.product.unit:id,name,short_name'
-            ])
-            ->whereIn('wh_receipts.warehouse_id', $warehouseIds);
+            ]);
+
+        if ($this->shouldApplyUserFilter('warehouses')) {
+            $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+            $warehouseIds = WhUser::where('user_id', $filterUserId)
+                ->pluck('warehouse_id')
+                ->toArray();
+
+            if (empty($warehouseIds)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('wh_receipts.warehouse_id', $warehouseIds);
+            }
+        }
 
         return $this->addCompanyFilterThroughRelation($query, 'warehouse');
     }

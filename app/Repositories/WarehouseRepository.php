@@ -23,17 +23,20 @@ class WarehouseRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('warehouses_paginated', [$userUuid, $perPage, $currentUser?->id, $companyId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
-            $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
-            $warehouseIds = WhUser::where('user_id', $filterUserId)
-                ->pluck('warehouse_id')
-                ->toArray();
+            $query = Warehouse::with(['users:id,name,surname,email,position']);
 
-            if (empty($warehouseIds)) {
-                return collect([])->paginate($perPage);
+            if ($this->shouldApplyUserFilter('warehouses')) {
+                $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+                $warehouseIds = WhUser::where('user_id', $filterUserId)
+                    ->pluck('warehouse_id')
+                    ->toArray();
+
+                if (empty($warehouseIds)) {
+                    return collect([])->paginate($perPage);
+                }
+
+                $query->whereIn('id', $warehouseIds);
             }
-
-            $query = Warehouse::whereIn('id', $warehouseIds)
-                ->with(['users:id,name,surname,email,position']);
 
             $query = $this->addCompanyFilterDirect($query, 'warehouses');
 
@@ -55,17 +58,20 @@ class WarehouseRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('warehouses_all', [$userUuid, $currentUser?->id, $companyId]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($userUuid) {
-            $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
-            $warehouseIds = WhUser::where('user_id', $filterUserId)
-                ->pluck('warehouse_id')
-                ->toArray();
+            $query = Warehouse::with(['users:id,name,surname,email,position']);
 
-            if (empty($warehouseIds)) {
-                return collect([]);
+            if ($this->shouldApplyUserFilter('warehouses')) {
+                $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+                $warehouseIds = WhUser::where('user_id', $filterUserId)
+                    ->pluck('warehouse_id')
+                    ->toArray();
+
+                if (empty($warehouseIds)) {
+                    return collect([]);
+                }
+
+                $query->whereIn('id', $warehouseIds);
             }
-
-            $query = Warehouse::whereIn('id', $warehouseIds)
-                ->with(['users:id,name,surname,email,position']);
 
             $query = $this->addCompanyFilterDirect($query, 'warehouses');
 

@@ -76,16 +76,12 @@ class OrdersRepository extends BaseRepository
                     'tempProducts:id,order_id,name,description,quantity,price,unit_id,width,height',
                     'tempProducts.unit:id,name,short_name'
                 ])
-                ->where(function ($q) use ($userUuid, $currentUser) {
+                ->where(function ($q) use ($userUuid) {
                     $q->whereNull('orders.cash_id');
-                    if ($currentUser) {
+                    if ($this->shouldApplyUserFilter('cash_registers')) {
                         $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
                         $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
                             $subQuery->where('user_id', $filterUserId);
-                        });
-                    } else {
-                        $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($userUuid) {
-                            $subQuery->where('user_id', $userUuid);
                         });
                     }
                 });
@@ -140,7 +136,7 @@ class OrdersRepository extends BaseRepository
 
             $isBasementWorker = $currentUser instanceof User && $currentUser->hasRole(config('basement.worker_role'));
 
-            if ($isBasementWorker) {
+            if ($isBasementWorker && !$currentUser->is_admin) {
                 $query->where(function ($q) use ($userUuid) {
                     $q->whereHas('category.categoryUsers', function ($subQuery) use ($userUuid) {
                         $subQuery->where('user_id', $userUuid);
@@ -280,7 +276,7 @@ class OrdersRepository extends BaseRepository
             $this->applyOwnFilter($unpaidQuery, 'orders', 'orders', 'user_id', $currentUser);
             $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cash');
 
-            if ($isBasementWorker) {
+            if ($isBasementWorker && !$currentUser->is_admin) {
                 $unpaidQuery->where(function ($q) use ($userUuid) {
                     $q->whereHas('category.categoryUsers', function ($subQuery) use ($userUuid) {
                         $subQuery->where('user_id', $userUuid);

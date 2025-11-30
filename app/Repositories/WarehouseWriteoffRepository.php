@@ -25,8 +25,11 @@ class WarehouseWriteoffRepository extends BaseRepository
         return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
             $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
                 ->leftJoin('users', 'wh_write_offs.user_id', '=', 'users.id')
-                ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id')
-                ->where('wh_users.user_id', $userUuid)
+                ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id');
+
+            if ($this->shouldApplyUserFilter('warehouses')) {
+                $items->where('wh_users.user_id', $userUuid);
+            }
                 ->select(
                     'wh_write_offs.id as id',
                     'wh_write_offs.warehouse_id as warehouse_id',

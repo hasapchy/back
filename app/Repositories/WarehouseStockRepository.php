@@ -27,10 +27,10 @@ class WarehouseStockRepository extends BaseRepository
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
         $searchNormalized = trim((string)$search);
-        $userCategoryIds = $this->getUserCategoryIds($filterUserId);
-        $categoryAccessHash = md5(json_encode($userCategoryIds));
+        $shouldApplyCategoryFilter = $this->shouldApplyUserFilter('categories');
+        $userCategoryIds = $shouldApplyCategoryFilter ? $this->getUserCategoryIds($userUuid) : [];
+        $categoryAccessHash = md5(json_encode([$shouldApplyCategoryFilter, $userCategoryIds]));
         $cacheKey = $this->generateCacheKey('warehouse_stocks_paginated', [
             $userUuid,
             $perPage,
@@ -44,24 +44,28 @@ class WarehouseStockRepository extends BaseRepository
             $categoryAccessHash
         ]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($filterUserId, $perPage, $warehouse_id, $category_id, $page, $searchNormalized, $availability, $userCategoryIds) {
-            $userWarehouseIds = \App\Models\WhUser::where('user_id', $filterUserId)
-                ->pluck('warehouse_id')
-                ->toArray();
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id, $page, $searchNormalized, $availability, $shouldApplyCategoryFilter, $userCategoryIds) {
+            $userWarehouseIds = [];
+            if ($this->shouldApplyUserFilter('warehouses')) {
+                $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+                $userWarehouseIds = \App\Models\WhUser::where('user_id', $filterUserId)
+                    ->pluck('warehouse_id')
+                    ->toArray();
 
-            if (empty($userWarehouseIds)) {
-                return new LengthAwarePaginator(
-                    collect([]),
-                    0,
-                    $perPage,
-                    $page,
-                    ['path' => request()->url(), 'query' => request()->query()]
-                );
+                if (empty($userWarehouseIds)) {
+                    return new LengthAwarePaginator(
+                        collect([]),
+                        0,
+                        $perPage,
+                        $page,
+                        ['path' => request()->url(), 'query' => request()->query()]
+                    );
+                }
             }
 
             $warehouseName = null;
             if ($warehouse_id) {
-                if (!in_array((int)$warehouse_id, $userWarehouseIds, true)) {
+                if (!empty($userWarehouseIds) && !in_array((int)$warehouse_id, $userWarehouseIds, true)) {
                     return new LengthAwarePaginator(
                         collect([]),
                         0,
@@ -74,7 +78,7 @@ class WarehouseStockRepository extends BaseRepository
                 $warehouseName = Warehouse::findOrFail($warehouse_id)->name;
             }
 
-            if (empty($userCategoryIds)) {
+            if ($shouldApplyCategoryFilter && empty($userCategoryIds)) {
                 return new LengthAwarePaginator(
                     collect([]),
                     0,
@@ -84,18 +88,22 @@ class WarehouseStockRepository extends BaseRepository
                 );
             }
 
-            $categoryFilterIds = $userCategoryIds;
+            $categoryFilterIds = $shouldApplyCategoryFilter ? $userCategoryIds : null;
             if ($category_id) {
-                $categoryFilterIds = array_values(array_intersect($userCategoryIds, [(int)$category_id]));
+                if ($shouldApplyCategoryFilter) {
+                    $categoryFilterIds = array_values(array_intersect($userCategoryIds, [(int)$category_id]));
 
-                if (empty($categoryFilterIds)) {
-                    return new LengthAwarePaginator(
-                        collect([]),
-                        0,
-                        $perPage,
-                        $page,
-                        ['path' => request()->url(), 'query' => request()->query()]
-                    );
+                    if (empty($categoryFilterIds)) {
+                        return new LengthAwarePaginator(
+                            collect([]),
+                            0,
+                            $perPage,
+                            $page,
+                            ['path' => request()->url(), 'query' => request()->query()]
+                        );
+                    }
+                } else {
+                    $categoryFilterIds = [(int)$category_id];
                 }
             }
 
@@ -112,12 +120,14 @@ class WarehouseStockRepository extends BaseRepository
                     $q->whereIn('products.type', [1, true, '1']);
                 });
 
-            $productsQuery->whereExists(function ($q) use ($categoryFilterIds) {
-                $q->select(DB::raw(1))
-                    ->from('product_categories as pc_filter')
-                    ->whereColumn('pc_filter.product_id', 'products.id')
-                    ->whereIn('pc_filter.category_id', $categoryFilterIds);
-            });
+            if ($categoryFilterIds !== null) {
+                $productsQuery->whereExists(function ($q) use ($categoryFilterIds) {
+                    $q->select(DB::raw(1))
+                        ->from('product_categories as pc_filter')
+                        ->whereColumn('pc_filter.product_id', 'products.id')
+                        ->whereIn('pc_filter.category_id', $categoryFilterIds);
+                });
+            }
 
             if ($searchNormalized !== '') {
                 $like = '%' . $searchNormalized . '%';
@@ -129,8 +139,11 @@ class WarehouseStockRepository extends BaseRepository
                 });
             }
 
-            $stockQuery = WarehouseStock::select('product_id', DB::raw('SUM(quantity) as quantity'))
-                ->whereIn('warehouse_id', $userWarehouseIds);
+            $stockQuery = WarehouseStock::select('product_id', DB::raw('SUM(quantity) as quantity'));
+
+            if (!empty($userWarehouseIds)) {
+                $stockQuery->whereIn('warehouse_id', $userWarehouseIds);
+            }
 
             if ($warehouse_id) {
                 $stockQuery->where('warehouse_id', $warehouse_id);

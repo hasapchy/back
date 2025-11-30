@@ -392,6 +392,10 @@ class CahRegistersRepository extends BaseRepository
      */
     private function applyUserFilter($query, $userUuid)
     {
+        if (!$this->shouldApplyUserFilter('cash_registers')) {
+            return;
+        }
+
         $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
         $query->whereHas('cashRegisterUsers', function($q) use ($filterUserId) {
             $q->where('user_id', $filterUserId);

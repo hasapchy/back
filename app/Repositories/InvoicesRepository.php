@@ -36,8 +36,9 @@ class InvoicesRepository extends BaseRepository
                 'orders.cash.currency',
                 'products.unit',
                 'products.order'
-            ])
-                ->where('user_id', $userUuid);
+            ]);
+
+            $this->applyOwnFilter($query, 'invoices', 'invoices', 'user_id');
 
             if ($search) {
                 $query->where(function ($q) use ($search) {

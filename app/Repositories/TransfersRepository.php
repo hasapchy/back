@@ -43,19 +43,13 @@ class TransfersRepository extends BaseRepository
                     'user:id,name',
                 ])
                 ->select('cash_transfers.*')
-                ->where(function ($q) use ($userUuid, $currentUser) {
-                    if ($currentUser) {
+                ->where(function ($q) use ($userUuid) {
+                    if ($this->shouldApplyUserFilter('cash_registers')) {
                         $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
                         $q->whereHas('fromCashRegister.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
                             $subQuery->where('user_id', $filterUserId);
                         })->orWhereHas('toCashRegister.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
                             $subQuery->where('user_id', $filterUserId);
-                        });
-                    } else {
-                        $q->whereHas('fromCashRegister.cashRegisterUsers', function ($subQuery) use ($userUuid) {
-                            $subQuery->where('user_id', $userUuid);
-                        })->orWhereHas('toCashRegister.cashRegisterUsers', function ($subQuery) use ($userUuid) {
-                            $subQuery->where('user_id', $userUuid);
                         });
                     }
                 });

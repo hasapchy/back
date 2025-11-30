@@ -97,13 +97,20 @@ class CommentsRepository extends BaseRepository
     {
         DB::beginTransaction();
         try {
-            $comment = Comment::select([
+            /** @var \App\Models\User|null $currentUser */
+            $currentUser = auth('api')->user();
+            
+            $query = Comment::select([
                 'comments.id', 'comments.body', 'comments.commentable_type',
                 'comments.commentable_id', 'comments.user_id'
             ])
-            ->where('id', $id)
-            ->where('user_id', $userId)
-            ->first();
+            ->where('id', $id);
+            
+            if (!$currentUser || !$currentUser->is_admin) {
+                $query->where('user_id', $userId);
+            }
+            
+            $comment = $query->first();
 
             if (!$comment) {
                 DB::rollBack();
@@ -136,12 +143,19 @@ class CommentsRepository extends BaseRepository
     {
         DB::beginTransaction();
         try {
-            $comment = Comment::select([
+            /** @var \App\Models\User|null $currentUser */
+            $currentUser = auth('api')->user();
+            
+            $query = Comment::select([
                 'comments.id', 'comments.commentable_type', 'comments.commentable_id'
             ])
-            ->where('id', $id)
-            ->where('user_id', $userId)
-            ->first();
+            ->where('id', $id);
+            
+            if (!$currentUser || !$currentUser->is_admin) {
+                $query->where('user_id', $userId);
+            }
+            
+            $comment = $query->first();
 
             if (!$comment) {
                 DB::rollBack();

@@ -492,4 +492,30 @@ abstract class BaseRepository
 
         return $query;
     }
+
+    /**
+     * Проверить, должен ли применяться фильтр по пользователям
+     * Для админа или пользователей с правом view_all фильтр не применяется
+     *
+     * @param string $resource Название ресурса (например, 'cash_registers', 'warehouses', 'categories')
+     * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
+     * @return bool true - фильтр нужно применять, false - фильтр не нужен
+     */
+    protected function shouldApplyUserFilter(string $resource, $user = null): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = $user ?? auth('api')->user();
+        if (!$user) {
+            return true;
+        }
+
+        if ($user->is_admin) {
+            return false;
+        }
+
+        $permissions = $this->getUserPermissionsForCompany($user);
+        $hasViewAll = in_array("{$resource}_view_all", $permissions);
+
+        return !$hasViewAll;
+    }
 }

@@ -97,14 +97,21 @@ class ProductsRepository extends BaseRepository
                         ->value('quantity');
                     $product->stock_quantity = $stock ?? 0;
                 } else {
-                    // Сумма остатков по всем доступным складам пользователя
-                    $warehouseIds = WhUser::where('user_id', $userUuid)
-                        ->pluck('warehouse_id')
-                        ->toArray();
+                    $warehouseIds = [];
+                    if ($this->shouldApplyUserFilter('warehouses')) {
+                        $warehouseIds = WhUser::where('user_id', $userUuid)
+                            ->pluck('warehouse_id')
+                            ->toArray();
+                    }
 
-                    $totalStock = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
-                        ->where('product_id', $product->id)
-                        ->sum('quantity');
+                    if (empty($warehouseIds)) {
+                        $totalStock = WarehouseStock::where('product_id', $product->id)
+                            ->sum('quantity');
+                    } else {
+                        $totalStock = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
+                            ->where('product_id', $product->id)
+                            ->sum('quantity');
+                    }
                     $product->stock_quantity = $totalStock;
                 }
             });
@@ -178,13 +185,21 @@ class ProductsRepository extends BaseRepository
                         ->value('quantity');
                     $product->stock_quantity = $stock ?? 0;
                 } else {
-                    $warehouseIds = WhUser::where('user_id', $userUuid)
-                        ->pluck('warehouse_id')
-                        ->toArray();
+                    $warehouseIds = [];
+                    if ($this->shouldApplyUserFilter('warehouses')) {
+                        $warehouseIds = WhUser::where('user_id', $userUuid)
+                            ->pluck('warehouse_id')
+                            ->toArray();
+                    }
 
-                    $totalStock = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
-                        ->where('product_id', $product->id)
-                        ->sum('quantity');
+                    if (empty($warehouseIds)) {
+                        $totalStock = WarehouseStock::where('product_id', $product->id)
+                            ->sum('quantity');
+                    } else {
+                        $totalStock = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
+                            ->where('product_id', $product->id)
+                            ->sum('quantity');
+                    }
                     $product->stock_quantity = $totalStock;
                 }
             });

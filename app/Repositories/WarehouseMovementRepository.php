@@ -27,9 +27,12 @@ class WarehouseMovementRepository extends BaseRepository
                 ->leftJoin('users', 'wh_movements.user_id', '=', 'users.id')
                 ->leftJoin('warehouses as warehouses_to', 'wh_movements.wh_to', '=', 'warehouses_to.id')
                 ->leftJoin('wh_users as wh_users_from', 'warehouses_from.id', '=', 'wh_users_from.warehouse_id')
-                ->leftJoin('wh_users as wh_users_to', 'warehouses_to.id', '=', 'wh_users_to.warehouse_id')
-                ->where('wh_users_from.user_id', $userUuid)
-                ->where('wh_users_to.user_id', $userUuid)
+                ->leftJoin('wh_users as wh_users_to', 'warehouses_to.id', '=', 'wh_users_to.warehouse_id');
+
+            if ($this->shouldApplyUserFilter('warehouses')) {
+                $items->where('wh_users_from.user_id', $userUuid)
+                    ->where('wh_users_to.user_id', $userUuid);
+            }
                 ->select(
                     'wh_movements.id as id',
                     'wh_movements.wh_from as warehouse_from_id',
