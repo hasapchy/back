@@ -30,7 +30,8 @@ class WarehouseWriteoffRepository extends BaseRepository
             if ($this->shouldApplyUserFilter('warehouses')) {
                 $items->where('wh_users.user_id', $userUuid);
             }
-                ->select(
+
+            $items = $items->select(
                     'wh_write_offs.id as id',
                     'wh_write_offs.warehouse_id as warehouse_id',
                     'warehouses.name as warehouse_name',
