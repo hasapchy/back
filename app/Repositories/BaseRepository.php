@@ -495,7 +495,10 @@ abstract class BaseRepository
 
     /**
      * Проверить, должен ли применяться фильтр по пользователям
-     * Для админа или пользователей с правом view_all фильтр не применяется
+     * Для админа фильтр не применяется.
+     * Для остальных:
+     *  - для касс фильтр ВСЕГДА применяется (только по привязкам к кассе),
+     *  - для других ресурсов пользователи с *_view_all видят всё, остальные фильтруются.
      *
      * @param string $resource Название ресурса (например, 'cash_registers', 'warehouses', 'categories')
      * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
@@ -511,6 +514,11 @@ abstract class BaseRepository
 
         if ($user->is_admin) {
             return false;
+        }
+
+        // Для касс: только админ видит всё, обычные пользователи всегда фильтруются по своим кассам
+        if ($resource === 'cash_registers') {
+            return true;
         }
 
         $permissions = $this->getUserPermissionsForCompany($user);
