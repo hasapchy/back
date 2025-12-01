@@ -8,6 +8,7 @@ use App\Repositories\UsersRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
@@ -28,7 +29,13 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user) {
+            Log::warning('Login attempt: user not found', ['email' => $request->email]);
+            return $this->unauthorizedResponse('Unauthorized');
+        }
+
+        if (!Hash::check($request->password, $user->password)) {
+            Log::warning('Login attempt: invalid password', ['email' => $request->email, 'user_id' => $user->id]);
             return $this->unauthorizedResponse('Unauthorized');
         }
 
