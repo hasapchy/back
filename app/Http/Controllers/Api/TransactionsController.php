@@ -362,6 +362,12 @@ class TransactionsController extends Controller
         }
 
         if ($transaction->source_type && $transaction->source_id) {
+            $sourceType = class_basename($transaction->source_type);
+
+            if ($sourceType === 'EmployeeSalary') {
+                return false;
+            }
+
             return true;
         }
 

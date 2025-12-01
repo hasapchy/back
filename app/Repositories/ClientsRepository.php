@@ -402,11 +402,11 @@ class ClientsRepository extends BaseRepository
 
                 $transactionsQuery = Transaction::where('client_id', $clientId)
                     ->where('is_deleted', false);
-                
+
                 if ($excludeDebt === true) {
                     $transactionsQuery->where('is_debt', false);
                 }
-                
+
                 $transactionsQuery->with([
                         'cashRegister:id,name',
                         'currency:id,symbol,code',
@@ -713,5 +713,10 @@ class ClientsRepository extends BaseRepository
         CacheService::invalidateClientBalanceCache($clientId);
         CacheService::invalidateClientBalanceHistoryCache($clientId);
         CacheService::invalidateClientsCache();
+
+        $client = Client::find($clientId);
+        if ($client && $client->employee_id) {
+            CacheService::invalidateByLike("%user_employee_balance_{$client->employee_id}_%");
+        }
     }
 }

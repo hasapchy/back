@@ -33,7 +33,8 @@ class WarehouseMovementRepository extends BaseRepository
                 $items->where('wh_users_from.user_id', $userUuid)
                     ->where('wh_users_to.user_id', $userUuid);
             }
-                ->select(
+
+            $items = $items->select(
                     'wh_movements.id as id',
                     'wh_movements.wh_from as warehouse_from_id',
                     'warehouses_from.name as warehouse_from_name',
