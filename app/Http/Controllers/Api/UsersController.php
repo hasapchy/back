@@ -433,9 +433,6 @@ class UsersController extends Controller
             }
         }
 
-        if (isset($data['password'])) {
-            $data['password'] = bcrypt($data['password']);
-        }
 
         if (array_key_exists('birthday', $data) && $data['birthday'] === '') {
             $data['birthday'] = null;

@@ -165,11 +165,6 @@ class OrderController extends Controller
             ], $request->temp_products ?? []),
         ];
 
-        if (!empty($request->temp_products)) {
-            if (!$this->hasPermission('products_create_temp')) {
-                return $this->forbiddenResponse('У вас нет прав на создание временных товаров');
-            }
-        }
 
         $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
         if ($cashAccessCheck) {
@@ -309,11 +304,6 @@ class OrderController extends Controller
             'remove_temp_products' => $request->remove_temp_products ?? [],
         ];
 
-        if (!empty($request->temp_products)) {
-            if (!$this->hasPermission('products_create_temp')) {
-                return $this->forbiddenResponse('У вас нет прав на создание временных товаров');
-            }
-        }
 
         $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
         if ($cashAccessCheck) {

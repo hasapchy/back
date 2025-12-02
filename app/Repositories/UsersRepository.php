@@ -239,7 +239,7 @@ class UsersRepository extends BaseRepository
             $user->name     = $data['name'];
             $user->surname  = $data['surname'] ?? null;
             $user->email    = $data['email'];
-            $user->password = Hash::make($data['password']);
+            $user->password = $data['password'];
             $user->hire_date = $data['hire_date'] ?? null;
             $user->birthday = $data['birthday'] ? Carbon::parse($data['birthday'])->format('Y-m-d') : null;
             $user->is_active = $data['is_active'] ?? true;
@@ -307,7 +307,7 @@ class UsersRepository extends BaseRepository
             }
 
             if (!empty($data['password'])) {
-                $user->password = Hash::make($data['password']);
+                $user->password = $data['password'];
             }
 
             $user->save();
