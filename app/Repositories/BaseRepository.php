@@ -283,7 +283,9 @@ abstract class BaseRepository
 
         $query->where("{$tablePrefix}first_name", 'like', "%{$search}%")
             ->orWhere("{$tablePrefix}last_name", 'like', "%{$search}%")
-            ->orWhere("{$tablePrefix}contact_person", 'like', "%{$search}%");
+            ->orWhere("{$tablePrefix}patronymic", 'like', "%{$search}%")
+            ->orWhere("{$tablePrefix}contact_person", 'like', "%{$search}%")
+            ->orWhere("{$tablePrefix}position", 'like', "%{$search}%");
 
         return $query;
     }

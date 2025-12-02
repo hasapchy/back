@@ -19,7 +19,9 @@ use App\Models\ClientsEmail;
  * @property bool $is_conflict Есть ли конфликт
  * @property string $first_name Имя
  * @property string|null $last_name Фамилия
+ * @property string|null $patronymic Отчество
  * @property string|null $contact_person Контактное лицо
+ * @property string|null $position Должность
  * @property string|null $address Адрес
  * @property string|null $note Примечание
  * @property string|null $discount_type Тип скидки (fixed, percent)
@@ -51,7 +53,9 @@ class Client extends Model
         'is_conflict',
         'first_name',
         'last_name',
+        'patronymic',
         'contact_person',
+        'position',
         'address',
         'note',
         'discount_type',

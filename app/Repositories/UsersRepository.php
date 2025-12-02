@@ -7,6 +7,7 @@ use App\Services\CacheService;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use App\Models\CashRegisterUser;
 use App\Models\Transaction;
 use App\Models\Order;
@@ -240,7 +241,7 @@ class UsersRepository extends BaseRepository
             $user->email    = $data['email'];
             $user->password = Hash::make($data['password']);
             $user->hire_date = $data['hire_date'] ?? null;
-            $user->birthday = $data['birthday'] ?? null;
+            $user->birthday = $data['birthday'] ? Carbon::parse($data['birthday'])->format('Y-m-d') : null;
             $user->is_active = $data['is_active'] ?? true;
             $user->position = $data['position'] ?? null;
             $user->is_admin = $data['is_admin'] ?? false;
@@ -294,7 +295,9 @@ class UsersRepository extends BaseRepository
             $user->surname = array_key_exists('surname', $data) ? $data['surname'] : $user->surname;
             $user->email = $data['email'] ?? $user->email;
             $user->hire_date = array_key_exists('hire_date', $data) ? $data['hire_date'] : $user->hire_date;
-            $user->birthday = array_key_exists('birthday', $data) ? $data['birthday'] : $user->birthday;
+            $user->birthday = array_key_exists('birthday', $data) && $data['birthday'] 
+                ? Carbon::parse($data['birthday'])->format('Y-m-d') 
+                : (array_key_exists('birthday', $data) ? null : $user->birthday);
             $user->is_active = $data['is_active'] ?? $user->is_active;
             $user->position = array_key_exists('position', $data) ? $data['position'] : $user->position;
             $user->is_admin = $data['is_admin'] ?? $user->is_admin;

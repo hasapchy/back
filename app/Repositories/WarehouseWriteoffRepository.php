@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\WarehouseStock;
+use App\Models\WhUser;
 use App\Models\WhWriteoff;
 use App\Models\WhWriteoffProduct;
 use App\Services\CacheService;
@@ -24,11 +25,19 @@ class WarehouseWriteoffRepository extends BaseRepository
 
         return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
             $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
-                ->leftJoin('users', 'wh_write_offs.user_id', '=', 'users.id')
-                ->leftJoin('wh_users', 'warehouses.id', '=', 'wh_users.warehouse_id');
+                ->leftJoin('users', 'wh_write_offs.user_id', '=', 'users.id');
 
             if ($this->shouldApplyUserFilter('warehouses')) {
-                $items->where('wh_users.user_id', $userUuid);
+                $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+                $warehouseIds = WhUser::where('user_id', $filterUserId)
+                    ->pluck('warehouse_id')
+                    ->toArray();
+
+                if (empty($warehouseIds)) {
+                    $items->whereRaw('1 = 0');
+                } else {
+                    $items->whereIn('wh_write_offs.warehouse_id', $warehouseIds);
+                }
             }
 
             $items = $items->select(
@@ -123,6 +132,7 @@ class WarehouseWriteoffRepository extends BaseRepository
 
         try {
             $writeoff = WhWriteoff::findOrFail($writeoff_id);
+            $old_warehouse_id = $writeoff->warehouse_id;
 
             $writeoff->warehouse_id = $warehouse_id;
             $writeoff->note = $note;
@@ -130,6 +140,12 @@ class WarehouseWriteoffRepository extends BaseRepository
 
             $existingProducts = WhWriteoffProduct::where('write_off_id', $writeoff_id)->get();
             $existingProductIds = $existingProducts->pluck('product_id')->toArray();
+
+            if ($old_warehouse_id != $warehouse_id) {
+                foreach ($existingProducts as $existingProduct) {
+                    $this->updateStock($old_warehouse_id, $existingProduct->product_id, -$existingProduct->quantity);
+                }
+            }
 
             foreach ($products as $product) {
                 $product_id = $product['product_id'];
@@ -141,7 +157,8 @@ class WarehouseWriteoffRepository extends BaseRepository
                 );
 
                 $existingProduct = $existingProducts->firstWhere('product_id', $product_id);
-                $quantityDifference = $quantity - ($existingProduct ? $existingProduct->quantity : 0);
+                $oldQuantity = ($existingProduct && $old_warehouse_id == $warehouse_id) ? $existingProduct->quantity : 0;
+                $quantityDifference = $quantity - $oldQuantity;
                 $stock_updated = $this->updateStock($warehouse_id, $product_id, $quantityDifference);
                 if (!$stock_updated) {
                     throw new \Exception('Ошибка обновления стоков');
@@ -151,7 +168,9 @@ class WarehouseWriteoffRepository extends BaseRepository
             $deletedProducts = array_diff($existingProductIds, array_column($products, 'product_id'));
             foreach ($deletedProducts as $deletedProductId) {
                 $deletedProduct = $existingProducts->firstWhere('product_id', $deletedProductId);
-                $this->updateStock($warehouse_id, $deletedProductId, -$deletedProduct->quantity);
+                if ($old_warehouse_id == $warehouse_id) {
+                    $this->updateStock($warehouse_id, $deletedProductId, -$deletedProduct->quantity);
+                }
                 $deletedProduct->delete();
             }
 

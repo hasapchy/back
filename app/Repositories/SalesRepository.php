@@ -292,7 +292,7 @@ class SalesRepository extends BaseRepository
                     'client_id'    => $clientId,
                     'amount'       => $totalPrice,
                     'orig_amount'  => $totalPrice,
-                    'type'         => 0,
+                    'type'         => 1,
                     'is_debt'      => true,
                     'cash_id'      => $cashId,
                     'category_id'  => 1,

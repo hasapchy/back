@@ -31,12 +31,12 @@ class AuthController extends Controller
 
         if (!$user) {
             Log::warning('Login attempt: user not found', ['email' => $request->email]);
-            return $this->unauthorizedResponse('Unauthorized');
+            return $this->unauthorizedResponse('Неверный логин или пароль');
         }
 
         if (!Hash::check($request->password, $user->password)) {
             Log::warning('Login attempt: invalid password', ['email' => $request->email, 'user_id' => $user->id]);
-            return $this->unauthorizedResponse('Unauthorized');
+            return $this->unauthorizedResponse('Неверный логин или пароль');
         }
 
         if (!$user->is_active) {

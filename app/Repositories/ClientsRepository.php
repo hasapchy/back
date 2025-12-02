@@ -39,7 +39,7 @@ class ClientsRepository extends BaseRepository
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
                 'user:id,name,photo',
-                'employee:id,name,photo'
+                'employee:id,name,surname,position,photo'
             ])
                 ->select([
                     'clients.*',
@@ -72,7 +72,9 @@ class ClientsRepository extends BaseRepository
                     $q->where('clients.id', 'like', $searchTerm)
                       ->orWhere('clients.first_name', 'like', $searchTerm)
                       ->orWhere('clients.last_name', 'like', $searchTerm)
+                      ->orWhere('clients.patronymic', 'like', $searchTerm)
                       ->orWhere('clients.contact_person', 'like', $searchTerm)
+                      ->orWhere('clients.position', 'like', $searchTerm)
                       ->orWhere('clients.address', 'like', $searchTerm)
                       ->orWhereHas('phones', function ($phoneQuery) use ($searchTerm) {
                           $phoneQuery->where('phone', 'like', $searchTerm);
@@ -123,7 +125,7 @@ class ClientsRepository extends BaseRepository
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
                 'user:id,name,photo',
-                'employee:id,name,photo'
+                'employee:id,name,surname,position,photo'
             ])
                 ->select([
                     'clients.*',
@@ -198,7 +200,7 @@ class ClientsRepository extends BaseRepository
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
                 'user:id,name,photo',
-                'employee:id,name,photo'
+                'employee:id,name,surname,position,photo'
             ])
                 ->select([
                     'clients.*',
@@ -215,7 +217,9 @@ class ClientsRepository extends BaseRepository
                     $q->orWhere(function ($subQuery) use ($term) {
                         $subQuery->where('clients.first_name', 'like', "%{$term}%")
                             ->orWhere('clients.last_name', 'like', "%{$term}%")
+                            ->orWhere('clients.patronymic', 'like', "%{$term}%")
                             ->orWhere('clients.contact_person', 'like', "%{$term}%")
+                            ->orWhere('clients.position', 'like', "%{$term}%")
                             ->orWhereHas('phones', function ($phoneQuery) use ($term) {
                                 $phoneQuery->where('phone', 'like', "%{$term}%");
                             })
@@ -247,7 +251,7 @@ class ClientsRepository extends BaseRepository
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
                 'user:id,name,photo',
-                'employee:id,name,photo'
+                'employee:id,name,surname,position,photo'
             ])
                 ->select([
                     'clients.*',
@@ -280,7 +284,9 @@ class ClientsRepository extends BaseRepository
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,
                 'last_name'      => $data['last_name'] ?? "",
+                'patronymic'     => $data['patronymic'] ?? null,
                 'contact_person' => $data['contact_person'] ?? null,
+                'position'       => $data['position'] ?? null,
                 'client_type'    => $data['client_type'],
                 'address'        => $data['address'] ?? null,
                 'note'           => $data['note'] ?? null,
@@ -319,7 +325,9 @@ class ClientsRepository extends BaseRepository
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,
                 'last_name'      => $data['last_name'] ?? "",
+                'patronymic'     => $data['patronymic'] ?? null,
                 'contact_person' => $data['contact_person'] ?? null,
+                'position'       => $data['position'] ?? null,
                 'client_type'    => $data['client_type'],
                 'address'        => $data['address'] ?? null,
                 'note'           => $data['note'] ?? null,
@@ -350,7 +358,7 @@ class ClientsRepository extends BaseRepository
     {
 
         $query = Client::whereIn('id', $ids)
-            ->with(['employee:id,name', 'emails:id,client_id,email', 'phones:id,client_id,phone']);
+            ->with(['employee:id,name,surname,position,photo', 'emails:id,client_id,email', 'phones:id,client_id,phone']);
 
         $companyId = $this->getCurrentCompanyId();
         if ($companyId) {
@@ -366,7 +374,9 @@ class ClientsRepository extends BaseRepository
                 'is_conflict' => $client->is_conflict,
                 'first_name' => $client->first_name,
                 'last_name' => $client->last_name,
+                'patronymic' => $client->patronymic,
                 'contact_person' => $client->contact_person,
+                'position' => $client->position,
                 'address' => $client->address,
                 'note' => $client->note,
                 'status' => $client->status,
