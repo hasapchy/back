@@ -500,6 +500,7 @@ class TransactionsRepository extends BaseRepository
             $oldClientId = $transaction->client_id;
             $oldSourceType = $transaction->source_type;
             $oldType = $transaction->type;
+            $oldProjectId = $transaction->project_id;
 
             if (!$oldIsDebt) {
                 if ($oldType == 1) {
@@ -579,59 +580,63 @@ class TransactionsRepository extends BaseRepository
                 }
             }
 
-            $skipForOrderProject = ($transaction->source_type === \App\Models\Order::class) && !empty($transaction->project_id);
-            if ($skipForOrderProject) {
-                $companyId = $this->getCurrentCompanyId();
-                $company = $companyId ? Company::find($companyId) : null;
-                $skipForOrderProject = $company ? (bool)$company->skip_project_order_balance : $skipForOrderProject;
+            $companyId = $this->getCurrentCompanyId();
+            $company = $companyId ? Company::find($companyId) : null;
+            $skipProjectOrderBalance = $company ? (bool)$company->skip_project_order_balance : true;
+            
+            $isOrder = ($transaction->source_type === \App\Models\Order::class);
+            $hadProject = !empty($oldProjectId);
+            $hasProject = !empty($transaction->project_id);
+            
+            $shouldSkipOld = $isOrder && $hadProject && $skipProjectOrderBalance;
+            $shouldSkipNew = $isOrder && $hasProject && $skipProjectOrderBalance;
+
+            if (!$shouldSkipOld && $oldClientId) {
+                $defaultCurrency = $currencies[$defaultCurrencyId];
+                $oldAmountDefault = $this->convertAmountToDefaultCurrency(
+                    $oldOrigAmount,
+                    $currencies[$oldCurrencyId],
+                    $defaultCurrency,
+                    $companyId,
+                    $transaction->date
+                );
+
+                $this->updateClientBalanceValue(
+                    $oldClientId,
+                    $oldAmountDefault,
+                    $oldType,
+                    $oldIsDebt,
+                    true
+                );
             }
 
-            if (!$skipForOrderProject) {
+            if (!$shouldSkipNew && $transaction->client_id) {
                 $defaultCurrency = $currencies[$defaultCurrencyId];
-                $companyId = $this->getCurrentCompanyId();
+                $newAmountDefault = $this->convertAmountToDefaultCurrency(
+                    $newOrigAmount,
+                    $fromCurrency,
+                    $defaultCurrency,
+                    $companyId,
+                    $transaction->date
+                );
 
+                $this->updateClientBalanceValue(
+                    $transaction->client_id,
+                    $newAmountDefault,
+                    $transaction->type,
+                    (bool)$transaction->is_debt
+                );
+            }
+
+            if ($oldClientId || $transaction->client_id) {
+                CacheService::invalidateClientsCache();
                 if ($oldClientId) {
-                    $oldAmountDefault = $this->convertAmountToDefaultCurrency(
-                        $oldOrigAmount,
-                        $currencies[$oldCurrencyId],
-                        $defaultCurrency,
-                        $companyId,
-                        $transaction->date
-                    );
-
-                    $this->updateClientBalanceValue(
-                        $oldClientId,
-                        $oldAmountDefault,
-                        $oldType,
-                        $oldIsDebt,
-                        true
-                    );
-                }
-
-                if ($transaction->client_id) {
-                    $newAmountDefault = $this->convertAmountToDefaultCurrency(
-                        $newOrigAmount,
-                        $fromCurrency,
-                        $defaultCurrency,
-                        $companyId,
-                        $transaction->date
-                    );
-
-                    $this->updateClientBalanceValue(
-                        $transaction->client_id,
-                        $newAmountDefault,
-                        $transaction->type,
-                        (bool)$transaction->is_debt
-                    );
-
-                    CacheService::invalidateClientsCache();
-                    $this->invalidateClientBalanceCache($transaction->client_id);
-                    CacheService::invalidateProjectsCache();
-                }
-
-                if ($oldClientId && $oldClientId !== $transaction->client_id) {
                     $this->invalidateClientBalanceCache($oldClientId);
                 }
+                if ($transaction->client_id && $transaction->client_id !== $oldClientId) {
+                    $this->invalidateClientBalanceCache($transaction->client_id);
+                }
+                CacheService::invalidateProjectsCache();
             }
 
             DB::commit();
