@@ -52,20 +52,11 @@ class WhReceipt extends Model
     protected static function booted()
     {
         static::deleting(function ($receipt) {
+            $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
             $transactions = $receipt->transactions()->get();
-            foreach ($transactions as $transaction) {
-                $transaction->delete();
-            }
 
-            CacheService::invalidateTransactionsCache();
-            if ($receipt->supplier_id) {
-                CacheService::invalidateClientsCache();
-                CacheService::invalidateClientBalanceCache($receipt->supplier_id);
-            }
-            CacheService::invalidateCashRegistersCache();
-            if ($receipt->project_id) {
-                $projectsRepository = new \App\Repositories\ProjectsRepository();
-                $projectsRepository->invalidateProjectCache($receipt->project_id);
+            foreach ($transactions as $transaction) {
+                $transactionsRepository->deleteItem($transaction->id);
             }
         });
     }

@@ -1002,6 +1002,13 @@ class OrdersRepository extends BaseRepository
             $order = Order::findOrFail($id);
             $products = OrderProduct::where('order_id', $id)->get();
 
+            $transactionsRepository = new TransactionsRepository();
+            $transactions = $order->transactions()->get();
+
+            foreach ($transactions as $transaction) {
+                $transactionsRepository->deleteItem($transaction->id);
+            }
+
             $this->returnProductsToWarehouse($products, $order->warehouse_id);
 
             OrderProduct::where('order_id', $id)->delete();

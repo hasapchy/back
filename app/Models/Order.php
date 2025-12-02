@@ -115,11 +115,6 @@ class Order extends Model
     protected static function booted()
     {
         static::deleting(function ($order) {
-            $transactions = $order->transactions()->get();
-            foreach ($transactions as $transaction) {
-                $transaction->delete();
-            }
-
             CacheService::invalidateTransactionsCache();
             if ($order->client_id) {
                 CacheService::invalidateClientsCache();
