@@ -69,10 +69,12 @@ class OrdersRepository extends BaseRepository
                 ]);
             }
 
-            $query = Order::select([
+            $baseSelect = [
                 'orders.*',
                 DB::raw('(orders.price - orders.discount) as total_price')
-            ])->with($withRelations)
+            ];
+
+            $query = Order::select($baseSelect)->with($withRelations)
                 ->where(function ($q) use ($userUuid) {
                     if ($this->shouldApplyUserFilter('cash_registers')) {
                         $q->whereNull('orders.cash_id');
@@ -1291,49 +1293,43 @@ class OrdersRepository extends BaseRepository
         $order->user_photo = $order->user->photo ?? null;
 
         if ($loadProducts) {
-            $allProducts = collect();
+            $regularProducts = $order->orderProducts ? $order->orderProducts->map(function ($orderProduct) {
+                return [
+                    'id' => $orderProduct->id,
+                    'order_id' => $orderProduct->order_id,
+                    'product_id' => $orderProduct->product_id,
+                    'product_name' => $orderProduct->product->name ?? null,
+                    'product_image' => $orderProduct->product->image ?? null,
+                    'unit_id' => $orderProduct->product->unit_id ?? null,
+                    'unit_name' => $orderProduct->product->unit->name ?? null,
+                    'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
+                    'quantity' => $orderProduct->quantity,
+                    'price' => $orderProduct->price,
+                    'width' => $orderProduct->width,
+                    'height' => $orderProduct->height,
+                    'product_type' => 'regular'
+                ];
+            }) : collect();
 
-            if ($order->orderProducts) {
-                foreach ($order->orderProducts as $orderProduct) {
-                    $allProducts->push([
-                        'id' => $orderProduct->id,
-                        'order_id' => $orderProduct->order_id,
-                        'product_id' => $orderProduct->product_id,
-                        'product_name' => $orderProduct->product->name ?? null,
-                        'product_image' => $orderProduct->product->image ?? null,
-                        'unit_id' => $orderProduct->product->unit_id ?? null,
-                        'unit_name' => $orderProduct->product->unit->name ?? null,
-                        'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
-                        'quantity' => $orderProduct->quantity,
-                        'price' => $orderProduct->price,
-                        'width' => $orderProduct->width,
-                        'height' => $orderProduct->height,
-                        'product_type' => 'regular'
-                    ]);
-                }
-            }
+            $tempProducts = $order->tempProducts ? $order->tempProducts->map(function ($tempProduct) {
+                return [
+                    'id' => $tempProduct->id,
+                    'order_id' => $tempProduct->order_id,
+                    'product_id' => null,
+                    'product_name' => $tempProduct->name,
+                    'product_image' => null,
+                    'unit_id' => $tempProduct->unit_id,
+                    'unit_name' => $tempProduct->unit->name ?? null,
+                    'unit_short_name' => $tempProduct->unit->short_name ?? null,
+                    'quantity' => $tempProduct->quantity,
+                    'price' => $tempProduct->price,
+                    'width' => $tempProduct->width,
+                    'height' => $tempProduct->height,
+                    'product_type' => 'temp'
+                ];
+            }) : collect();
 
-            if ($order->tempProducts) {
-                foreach ($order->tempProducts as $tempProduct) {
-                    $allProducts->push([
-                        'id' => $tempProduct->id,
-                        'order_id' => $tempProduct->order_id,
-                        'product_id' => null,
-                        'product_name' => $tempProduct->name,
-                        'product_image' => null,
-                        'unit_id' => $tempProduct->unit_id,
-                        'unit_name' => $tempProduct->unit->name ?? null,
-                        'unit_short_name' => $tempProduct->unit->short_name ?? null,
-                        'quantity' => $tempProduct->quantity,
-                        'price' => $tempProduct->price,
-                        'width' => $tempProduct->width,
-                        'height' => $tempProduct->height,
-                        'product_type' => 'temp'
-                    ]);
-                }
-            }
-
-            $order->products = $allProducts;
+            $order->products = $regularProducts->merge($tempProducts)->values();
         } else {
             $order->products = collect();
         }
