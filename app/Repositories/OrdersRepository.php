@@ -121,14 +121,19 @@ class OrdersRepository extends BaseRepository
 
             if ($unpaidOnly) {
                 $query->whereNull('orders.project_id')
-                    ->whereRaw('(orders.price - orders.discount) > COALESCE((
-                        SELECT SUM(orig_amount)
-                        FROM transactions
-                        WHERE transactions.source_type = ?
-                        AND transactions.source_id = orders.id
-                        AND transactions.is_debt = 0
-                        AND transactions.is_deleted = 0
-                    ), 0)', [Order::class]);
+                    ->leftJoinSub(
+                        Transaction::select('source_id', DB::raw('SUM(orig_amount) as total_paid'))
+                            ->where('source_type', Order::class)
+                            ->where('is_debt', 0)
+                            ->where('is_deleted', 0)
+                            ->groupBy('source_id'),
+                        'paid_transactions',
+                        function ($join) {
+                            $join->on('orders.id', '=', 'paid_transactions.source_id');
+                        }
+                    )
+                    ->whereRaw('(orders.price - orders.discount) > COALESCE(paid_transactions.total_paid, 0)')
+                    ->select('orders.*', DB::raw('(orders.price - orders.discount) as total_price'));
             }
 
             $isBasementWorker = $currentUser instanceof User && $currentUser->hasRole(config('basement.worker_role'));
@@ -1291,49 +1296,43 @@ class OrdersRepository extends BaseRepository
         $order->user_photo = $order->user->photo ?? null;
 
         if ($loadProducts) {
-            $allProducts = collect();
+            $regularProducts = $order->orderProducts ? $order->orderProducts->map(function ($orderProduct) {
+                return [
+                    'id' => $orderProduct->id,
+                    'order_id' => $orderProduct->order_id,
+                    'product_id' => $orderProduct->product_id,
+                    'product_name' => $orderProduct->product->name ?? null,
+                    'product_image' => $orderProduct->product->image ?? null,
+                    'unit_id' => $orderProduct->product->unit_id ?? null,
+                    'unit_name' => $orderProduct->product->unit->name ?? null,
+                    'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
+                    'quantity' => $orderProduct->quantity,
+                    'price' => $orderProduct->price,
+                    'width' => $orderProduct->width,
+                    'height' => $orderProduct->height,
+                    'product_type' => 'regular'
+                ];
+            }) : collect();
 
-            if ($order->orderProducts) {
-                foreach ($order->orderProducts as $orderProduct) {
-                    $allProducts->push([
-                        'id' => $orderProduct->id,
-                        'order_id' => $orderProduct->order_id,
-                        'product_id' => $orderProduct->product_id,
-                        'product_name' => $orderProduct->product->name ?? null,
-                        'product_image' => $orderProduct->product->image ?? null,
-                        'unit_id' => $orderProduct->product->unit_id ?? null,
-                        'unit_name' => $orderProduct->product->unit->name ?? null,
-                        'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
-                        'quantity' => $orderProduct->quantity,
-                        'price' => $orderProduct->price,
-                        'width' => $orderProduct->width,
-                        'height' => $orderProduct->height,
-                        'product_type' => 'regular'
-                    ]);
-                }
-            }
+            $tempProducts = $order->tempProducts ? $order->tempProducts->map(function ($tempProduct) {
+                return [
+                    'id' => $tempProduct->id,
+                    'order_id' => $tempProduct->order_id,
+                    'product_id' => null,
+                    'product_name' => $tempProduct->name,
+                    'product_image' => null,
+                    'unit_id' => $tempProduct->unit_id,
+                    'unit_name' => $tempProduct->unit->name ?? null,
+                    'unit_short_name' => $tempProduct->unit->short_name ?? null,
+                    'quantity' => $tempProduct->quantity,
+                    'price' => $tempProduct->price,
+                    'width' => $tempProduct->width,
+                    'height' => $tempProduct->height,
+                    'product_type' => 'temp'
+                ];
+            }) : collect();
 
-            if ($order->tempProducts) {
-                foreach ($order->tempProducts as $tempProduct) {
-                    $allProducts->push([
-                        'id' => $tempProduct->id,
-                        'order_id' => $tempProduct->order_id,
-                        'product_id' => null,
-                        'product_name' => $tempProduct->name,
-                        'product_image' => null,
-                        'unit_id' => $tempProduct->unit_id,
-                        'unit_name' => $tempProduct->unit->name ?? null,
-                        'unit_short_name' => $tempProduct->unit->short_name ?? null,
-                        'quantity' => $tempProduct->quantity,
-                        'price' => $tempProduct->price,
-                        'width' => $tempProduct->width,
-                        'height' => $tempProduct->height,
-                        'product_type' => 'temp'
-                    ]);
-                }
-            }
-
-            $order->products = $allProducts;
+            $order->products = $regularProducts->merge($tempProducts);
         } else {
             $order->products = collect();
         }
