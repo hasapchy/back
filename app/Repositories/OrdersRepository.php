@@ -44,28 +44,35 @@ class OrdersRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, 'single', $currentUser?->id, $companyId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser) {
-            $query = Order::select([
-                'orders.*',
-                DB::raw('(orders.price - orders.discount) as total_price')
-            ])
-                ->with([
-                    'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at,balance',
-                    'client.phones:id,client_id,phone',
-                    'client.emails:id,client_id,email',
-                    'user:id,name,photo',
-                    'status:id,name',
-                    'status.category:id,name,color',
-                    'warehouse:id,name',
-                    'cash:id,name,currency_id',
-                    'cash.currency:id,name,code,symbol',
-                    'project:id,name',
-                    'category:id,name',
+            $loadProducts = $perPage <= 50;
+
+            $withRelations = [
+                'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict',
+                'client.phones:id,client_id,phone',
+                'user:id,name,photo',
+                'status:id,name',
+                'status.category:id,name,color',
+                'warehouse:id,name',
+                'cash:id,name,currency_id',
+                'cash.currency:id,name,code,symbol',
+                'project:id,name',
+                'category:id,name',
+            ];
+
+            if ($loadProducts) {
+                $withRelations = array_merge($withRelations, [
                     'orderProducts:id,order_id,product_id,quantity,price,width,height',
                     'orderProducts.product:id,name,image,unit_id',
                     'orderProducts.product.unit:id,name,short_name',
                     'tempProducts:id,order_id,name,description,quantity,price,unit_id,width,height',
                     'tempProducts.unit:id,name,short_name'
-                ])
+                ]);
+            }
+
+            $query = Order::select([
+                'orders.*',
+                DB::raw('(orders.price - orders.discount) as total_price')
+            ])->with($withRelations)
                 ->where(function ($q) use ($userUuid) {
                     if ($this->shouldApplyUserFilter('cash_registers')) {
                         $q->whereNull('orders.cash_id');
@@ -141,13 +148,12 @@ class OrdersRepository extends BaseRepository
 
             $ordersCollection = $orders->getCollection();
             if ($ordersCollection->isNotEmpty()) {
-                // Временно отключена логика оплаты для производительности
-                // $orderIds = $ordersCollection->pluck('id');
-                // $paidAmountsMap = $this->getPaidAmountsMap($orderIds);
+                $orderIds = $ordersCollection->pluck('id');
+                $paidAmountsMap = $this->getPaidAmountsMap($orderIds);
 
-                $ordersCollection->transform(function ($order) {
-                    $this->enrichOrderData($order);
-                    // $this->setOrderPaymentInfo($order, $paidAmountsMap[$order->id] ?? 0);
+                $ordersCollection->transform(function ($order) use ($paidAmountsMap, $loadProducts) {
+                    $this->enrichOrderData($order, $loadProducts);
+                    $this->setOrderPaymentInfo($order, $paidAmountsMap[$order->id] ?? 0);
                     return $order;
                 });
             }
@@ -223,10 +229,9 @@ class OrdersRepository extends BaseRepository
         $client_ids = $orders->pluck('client_id')->unique()->filter()->toArray();
         $client_repository = new ClientsRepository();
         $clients = $client_repository->getItemsByIds($client_ids)->keyBy('id');
-        // Временно отключена логика оплаты для производительности
-        // $paidAmountsMap = $this->getPaidAmountsMap($order_ids);
+        $paidAmountsMap = $this->getPaidAmountsMap($order_ids);
 
-        $items = $orders->map(function ($order) use ($products, $clients) {
+        $items = $orders->map(function ($order) use ($products, $clients, $paidAmountsMap) {
             $item = (object) [
                 'id' => $order->id,
                 'note' => $order->note,
@@ -271,11 +276,10 @@ class OrdersRepository extends BaseRepository
                 ],
             ];
 
-            // Временно отключена логика оплаты для производительности
-            // $paidAmount = $paidAmountsMap[$order->id] ?? 0;
-            // $totalPrice = (float) ($item->total_price ?? 0);
-            // $item->paid_amount = $paidAmount;
-            // $item->payment_status = $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid');
+            $paidAmount = $paidAmountsMap[$order->id] ?? 0;
+            $totalPrice = (float) ($item->total_price ?? 0);
+            $item->paid_amount = $paidAmount;
+            $item->payment_status = $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid');
 
             return $item;
         });
@@ -1264,91 +1268,75 @@ class OrdersRepository extends BaseRepository
             ->toArray();
     }
 
-    protected function enrichOrderData($order): void
+    protected function enrichOrderData($order, $loadProducts = true): void
     {
-        if ($order->client) {
-            $order->client_first_name = $order->client->first_name;
-            $order->client_last_name = $order->client->last_name;
-            $order->client_contact_person = $order->client->contact_person;
+        $order->status_name = $order->status->name ?? null;
+        if ($order->status && $order->status->category) {
+            $order->status_category_name = $order->status->category->name;
+            $order->status_category_color = $order->status->category->color;
         }
 
-        if ($order->user) {
-            $order->user_name = $order->user->name;
-            $order->user_photo = $order->user->photo;
+        $order->warehouse_name = $order->warehouse->name ?? null;
+        $order->cash_name = $order->cash->name ?? null;
+
+        if ($order->cash && $order->cash->currency) {
+            $order->currency_name = $order->cash->currency->name;
+            $order->currency_code = $order->cash->currency->code;
+            $order->currency_symbol = $order->cash->currency->symbol;
         }
 
-        if ($order->status) {
-            $order->status_name = $order->status->name;
-            if ($order->status->category) {
-                $order->status_category_name = $order->status->category->name;
-                $order->status_category_color = $order->status->category->color;
+        $order->project_name = $order->project->name ?? null;
+        $order->category_name = $order->category->name ?? null;
+        $order->user_name = $order->user->name ?? null;
+        $order->user_photo = $order->user->photo ?? null;
+
+        if ($loadProducts) {
+            $allProducts = collect();
+
+            if ($order->orderProducts) {
+                foreach ($order->orderProducts as $orderProduct) {
+                    $allProducts->push([
+                        'id' => $orderProduct->id,
+                        'order_id' => $orderProduct->order_id,
+                        'product_id' => $orderProduct->product_id,
+                        'product_name' => $orderProduct->product->name ?? null,
+                        'product_image' => $orderProduct->product->image ?? null,
+                        'unit_id' => $orderProduct->product->unit_id ?? null,
+                        'unit_name' => $orderProduct->product->unit->name ?? null,
+                        'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
+                        'quantity' => $orderProduct->quantity,
+                        'price' => $orderProduct->price,
+                        'width' => $orderProduct->width,
+                        'height' => $orderProduct->height,
+                        'product_type' => 'regular'
+                    ]);
+                }
             }
-        }
 
-        if ($order->warehouse) {
-            $order->warehouse_name = $order->warehouse->name;
-        }
-
-        if ($order->cash) {
-            $order->cash_name = $order->cash->name;
-            if ($order->cash->currency) {
-                $order->currency_name = $order->cash->currency->name;
-                $order->currency_code = $order->cash->currency->code;
-                $order->currency_symbol = $order->cash->currency->symbol;
+            if ($order->tempProducts) {
+                foreach ($order->tempProducts as $tempProduct) {
+                    $allProducts->push([
+                        'id' => $tempProduct->id,
+                        'order_id' => $tempProduct->order_id,
+                        'product_id' => null,
+                        'product_name' => $tempProduct->name,
+                        'product_image' => null,
+                        'unit_id' => $tempProduct->unit_id,
+                        'unit_name' => $tempProduct->unit->name ?? null,
+                        'unit_short_name' => $tempProduct->unit->short_name ?? null,
+                        'quantity' => $tempProduct->quantity,
+                        'price' => $tempProduct->price,
+                        'width' => $tempProduct->width,
+                        'height' => $tempProduct->height,
+                        'product_type' => 'temp'
+                    ]);
+                }
             }
+
+            $order->products = $allProducts;
+        } else {
+            $order->products = collect();
         }
-
-        if ($order->project) {
-            $order->project_name = $order->project->name;
-        }
-
-        if ($order->category) {
-            $order->category_name = $order->category->name;
-        }
-
-        $allProducts = collect();
-
-        if ($order->orderProducts) {
-            foreach ($order->orderProducts as $orderProduct) {
-                $allProducts->push([
-                    'id' => $orderProduct->id,
-                    'order_id' => $orderProduct->order_id,
-                    'product_id' => $orderProduct->product_id,
-                    'product_name' => $orderProduct->product->name ?? null,
-                    'product_image' => $orderProduct->product->image ?? null,
-                    'unit_id' => $orderProduct->product->unit_id ?? null,
-                    'unit_name' => $orderProduct->product->unit->name ?? null,
-                    'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
-                    'quantity' => $orderProduct->quantity,
-                    'price' => $orderProduct->price,
-                    'width' => $orderProduct->width,
-                    'height' => $orderProduct->height,
-                    'product_type' => 'regular'
-                ]);
-            }
-        }
-
-        if ($order->tempProducts) {
-            foreach ($order->tempProducts as $tempProduct) {
-                $allProducts->push([
-                    'id' => $tempProduct->id,
-                    'order_id' => $tempProduct->order_id,
-                    'product_id' => null,
-                    'product_name' => $tempProduct->name,
-                    'product_image' => null,
-                    'unit_id' => $tempProduct->unit_id,
-                    'unit_name' => $tempProduct->unit->name ?? null,
-                    'unit_short_name' => $tempProduct->unit->short_name ?? null,
-                    'quantity' => $tempProduct->quantity,
-                    'price' => $tempProduct->price,
-                    'width' => $tempProduct->width,
-                    'height' => $tempProduct->height,
-                    'product_type' => 'temp'
-                ]);
-            }
-        }
-
-        $order->products = $allProducts;
     }
 
     protected function setOrderPaymentInfo($order, float $paidAmount): void
