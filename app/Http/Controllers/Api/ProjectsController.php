@@ -41,7 +41,7 @@ class ProjectsController extends Controller
             'name' => 'required|string',
             'date' => 'nullable|sometimes|date',
             'client_id' => 'required|exists:clients,id',
-            'users' => 'required|array',
+            'users' => 'nullable|array',
             'users.*' => 'exists:users,id',
             'description' => 'nullable|string',
         ];
