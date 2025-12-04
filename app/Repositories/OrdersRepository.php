@@ -44,8 +44,6 @@ class OrdersRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, 'single', $currentUser?->id, $companyId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser) {
-            $transactionsRepository = new \App\Repositories\TransactionsRepository();
-
             $query = Order::select([
                 'orders.*',
                 DB::raw('(orders.price - orders.discount) as total_price')
@@ -154,39 +152,6 @@ class OrdersRepository extends BaseRepository
             }
 
             return $orders;
-
-            $unpaidOrdersTotal = 0;
-
-            $unpaidQuery = Order::select(['orders.id', 'orders.price', 'orders.discount', 'orders.user_id', 'orders.project_id'])
-            ->whereNull('orders.project_id')
-            ->where(function ($q) use ($userUuid) {
-                if ($this->shouldApplyUserFilter('cash_registers')) {
-                    $q->whereNull('orders.cash_id');
-                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
-                    $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
-                        $subQuery->where('user_id', $filterUserId);
-                    });
-                }
-            });
-
-            $this->applyOwnFilter($unpaidQuery, 'orders', 'orders', 'user_id', $currentUser);
-            $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cash');
-
-            if ($isBasementWorker && !$currentUser->is_admin) {
-                $unpaidQuery->where(function ($q) use ($userUuid) {
-                    $q->whereHas('category.categoryUsers', function ($subQuery) use ($userUuid) {
-                        $subQuery->where('user_id', $userUuid);
-                    })
-                        ->orWhereNull('orders.category_id');
-                });
-            }
-
-            $unpaidResult = $unpaidQuery->first();
-            $unpaidOrdersTotal = $unpaidResult && $unpaidResult->unpaid_total !== null ? (float) $unpaidResult->unpaid_total : 0;
-
-            $orders->unpaid_orders_total = $unpaidOrdersTotal;
-
-            return $orders;
         }, (int)$page);
     }
 
@@ -243,9 +208,11 @@ class OrdersRepository extends BaseRepository
             ->whereIn('orders.id', $order_ids)
             ->with([
                 'warehouse:id,name',
+                'cash:id,name,currency_id',
                 'cash.currency:id,name,code,symbol',
                 'project:id,name',
                 'user:id,name,photo',
+                'status:id,name,category_id',
                 'status.category:id,name,color',
                 'category:id,name'
             ])
@@ -255,7 +222,7 @@ class OrdersRepository extends BaseRepository
         $client_ids = $orders->pluck('client_id')->unique()->filter()->toArray();
         $client_repository = new ClientsRepository();
         $clients = $client_repository->getItemsByIds($client_ids)->keyBy('id');
-        $paidAmountsMap = $this->getPaidAmountsMap(collect($order_ids));
+        $paidAmountsMap = $this->getPaidAmountsMap($order_ids);
 
         $items = $orders->map(function ($order) use ($products, $clients, $paidAmountsMap) {
             $item = (object) [
@@ -440,7 +407,7 @@ class OrdersRepository extends BaseRepository
                 $price += $q * $p;
             }
 
-            $warehouseName = optional(Warehouse::find($warehouse_id))->name ?? (string)$warehouse_id;
+            $warehouseName = Warehouse::find($warehouse_id)?->name ?? (string)$warehouse_id;
             $this->checkAndDeductWarehouseStock($warehouseStocksToUpdate, $warehouse_id, $warehouseName);
 
             $price += $this->calculateTempProductsTotal($temp_products, $roundingService, $companyId);
@@ -585,7 +552,7 @@ class OrdersRepository extends BaseRepository
                 ? ProductPrice::whereIn('product_id', $productPriceIds)->get()->keyBy('product_id')
                 : collect();
 
-            $warehouseName = $warehouseChanged ? optional(Warehouse::find($warehouse_id))->name : null;
+            $warehouseName = $warehouseChanged ? Warehouse::find($warehouse_id)?->name : null;
 
             $productsCache = [];
             $warehouseStocksToUpdate = [];
@@ -645,16 +612,10 @@ class OrdersRepository extends BaseRepository
                 'description' => $description
             ];
 
-            $hasChanges = false;
-            foreach ($updateData as $key => $value) {
-                if ($order->$key != $value) {
-                    $hasChanges = true;
-                    break;
-                }
-            }
-
+            $order->fill($updateData);
+            $hasChanges = $order->isDirty();
             if ($hasChanges) {
-                $order->update($updateData);
+                $order->save();
             }
 
             $existingProducts = OrderProduct::where('order_id', $id)->get();
@@ -811,10 +772,7 @@ class OrdersRepository extends BaseRepository
             if ($tempIdsToDelete->isNotEmpty()) {
                 OrderTempProduct::where('order_id', $id)
                     ->whereIn('id', $tempIdsToDelete->all())
-                    ->get()
-                    ->each(function ($item) {
-                        $item->delete();
-                    });
+                    ->delete();
                 $tempProductsChanged = true;
             }
 
@@ -1286,12 +1244,14 @@ class OrdersRepository extends BaseRepository
 
     protected function getPaidAmountsMap($orderIds): array
     {
-        if ($orderIds->isEmpty()) {
+        $orderIdsArray = is_array($orderIds) ? $orderIds : (is_iterable($orderIds) ? collect($orderIds)->toArray() : []);
+
+        if (empty($orderIdsArray)) {
             return [];
         }
 
         return Transaction::where('source_type', 'App\Models\Order')
-            ->whereIn('source_id', $orderIds)
+            ->whereIn('source_id', $orderIdsArray)
             ->where('is_debt', 0)
             ->where('is_deleted', false)
             ->select('source_id', DB::raw('SUM(orig_amount) as total'))
