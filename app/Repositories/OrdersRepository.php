@@ -16,7 +16,6 @@ use App\Models\User;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use App\Services\RoundingService;
 
 class OrdersRepository extends BaseRepository
@@ -45,18 +44,11 @@ class OrdersRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, 'single', $currentUser?->id, $companyId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser) {
-            $orderClass = Order::class;
+            $transactionsRepository = new \App\Repositories\TransactionsRepository();
+
             $query = Order::select([
                 'orders.*',
-                DB::raw('(orders.price - orders.discount) as total_price'),
-                DB::raw("COALESCE((
-                    SELECT SUM(orig_amount)
-                    FROM transactions
-                    WHERE transactions.source_type = '{$orderClass}'
-                    AND transactions.source_id = orders.id
-                    AND transactions.is_debt = 0
-                    AND transactions.is_deleted = 0
-                ), 0) as paid_amount")
+                DB::raw('(orders.price - orders.discount) as total_price')
             ])
                 ->with([
                     'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at,balance',
@@ -149,7 +141,9 @@ class OrdersRepository extends BaseRepository
 
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
-            $orders->getCollection()->transform(function ($order) {
+            $transactionsRepository = new \App\Repositories\TransactionsRepository();
+
+            $orders->getCollection()->transform(function ($order) use ($transactionsRepository) {
                 if ($order->client) {
                     $order->client_first_name = $order->client->first_name;
                     $order->client_last_name = $order->client->last_name;
@@ -233,32 +227,29 @@ class OrdersRepository extends BaseRepository
                 }
 
                 $order->products = $allProducts;
-                $order->paid_amount = (float) ($order->paid_amount ?? 0);
+
+                $paidAmount = (float) $transactionsRepository->getTotalByOrderId($order->user_id ?? 1, $order->id);
+                $totalPrice = (float) ($order->total_price ?? 0);
+
+                $order->setAttribute('paid_amount', $paidAmount);
+
+                if ($paidAmount <= 0) {
+                    $order->setAttribute('payment_status', 'unpaid');
+                } elseif ($paidAmount < $totalPrice) {
+                    $order->setAttribute('payment_status', 'partially_paid');
+                } else {
+                    $order->setAttribute('payment_status', 'paid');
+                }
+
+                $order->makeVisible(['paid_amount', 'payment_status']);
 
                 return $order;
             });
 
             $unpaidOrdersTotal = 0;
-            $orderClass = Order::class;
-            $unpaidQuery = Order::select([
-                DB::raw("SUM((orders.price - orders.discount) - COALESCE((
-                    SELECT SUM(orig_amount)
-                    FROM transactions
-                    WHERE transactions.source_type = '{$orderClass}'
-                    AND transactions.source_id = orders.id
-                    AND transactions.is_debt = 0
-                    AND transactions.is_deleted = 0
-                ), 0)) as unpaid_total")
-            ])
+
+            $unpaidQuery = Order::select(['orders.id', 'orders.price', 'orders.discount', 'orders.user_id', 'orders.project_id'])
             ->whereNull('orders.project_id')
-            ->whereRaw("(orders.price - orders.discount) > COALESCE((
-                SELECT SUM(orig_amount)
-                FROM transactions
-                WHERE transactions.source_type = '{$orderClass}'
-                AND transactions.source_id = orders.id
-                AND transactions.is_debt = 0
-                AND transactions.is_deleted = 0
-            ), 0)")
             ->where(function ($q) use ($userUuid) {
                 if ($this->shouldApplyUserFilter('cash_registers')) {
                     $q->whereNull('orders.cash_id');
@@ -336,7 +327,11 @@ class OrdersRepository extends BaseRepository
             return collect();
         }
 
-        $orders = Order::whereIn('id', $order_ids)
+        $orders = Order::select([
+                'orders.*',
+                DB::raw('(orders.price - orders.discount) as total_price')
+            ])
+            ->whereIn('orders.id', $order_ids)
             ->with([
                 'warehouse:id,name',
                 'cash.currency:id,name,code,symbol',
@@ -347,12 +342,14 @@ class OrdersRepository extends BaseRepository
             ])
             ->get();
 
+        $transactionsRepository = new \App\Repositories\TransactionsRepository();
+
         $products = $this->getProducts($order_ids);
         $client_ids = $orders->pluck('client_id')->unique()->filter()->toArray();
         $client_repository = new ClientsRepository();
         $clients = $client_repository->getItemsByIds($client_ids)->keyBy('id');
 
-        $items = $orders->map(function ($order) use ($products, $clients) {
+        $items = $orders->map(function ($order) use ($products, $clients, $transactionsRepository) {
             $item = (object) [
                 'id' => $order->id,
                 'note' => $order->note,
@@ -396,6 +393,19 @@ class OrdersRepository extends BaseRepository
                     ] : null,
                 ],
             ];
+
+            $paidAmount = (float) $transactionsRepository->getTotalByOrderId($order->user_id ?? 1, $order->id);
+            $totalPrice = (float) ($item->total_price ?? 0);
+
+            $item->paid_amount = $paidAmount;
+
+            if ($paidAmount <= 0) {
+                $item->payment_status = 'unpaid';
+            } elseif ($paidAmount < $totalPrice) {
+                $item->payment_status = 'partially_paid';
+            } else {
+                $item->payment_status = 'paid';
+            }
 
             return $item;
         });
@@ -1055,7 +1065,7 @@ class OrdersRepository extends BaseRepository
         }
 
         $paidTotals = collect();
-        if (in_array($statusId, [3, 5], true)) {
+        if (in_array($statusId, [5], true)) {
             $paidTotals = Transaction::where('source_type', \App\Models\Order::class)
                 ->whereIn('source_id', $orders->keys())
                 ->where('is_debt', false)
@@ -1072,7 +1082,7 @@ class OrdersRepository extends BaseRepository
             /** @var \App\Models\Order $order */
             $order = $orders->get($id);
 
-            if (in_array($statusId, [3, 5], true) && !$order->project_id) {
+            if (in_array($statusId, [5], true) && !$order->project_id) {
                 $orderTotal = $order->price - $order->discount;
                 $paidTotal = (float) ($paidTotals->get($order->id) ?? 0);
 

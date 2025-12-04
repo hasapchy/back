@@ -21,14 +21,26 @@ class OrderStatus extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'category_id'];
+    protected $fillable = ['name', 'category_id', 'is_active'];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
 
     protected static function booted()
     {
         static::deleting(function ($status) {
-            $protectedIds = [1, 2, 3, 4, 5, 6];
+            $protectedIds = [1, 2, 4, 5, 6];
             if (in_array($status->id, $protectedIds)) {
                 return false;
+            }
+        });
+
+        static::updating(function ($status) {
+            $protectedIds = [1, 5, 6]; // Новый, Завершено, Отменено
+            if (in_array($status->id, $protectedIds) && $status->isDirty('is_active')) {
+                // Запрещаем изменение is_active для защищенных статусов
+                $status->is_active = true;
             }
         });
     }

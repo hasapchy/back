@@ -413,6 +413,10 @@ class TransactionsRepository extends BaseRepository
                 $projectsRepository = new \App\Repositories\ProjectsRepository();
                 $projectsRepository->invalidateProjectCache($data['project_id']);
             }
+
+            if (($data['source_type'] ?? null) === 'App\Models\Order' && !empty($data['source_id'])) {
+                CacheService::invalidateOrdersCache();
+            }
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -471,6 +475,10 @@ class TransactionsRepository extends BaseRepository
         if ($transaction->project_id) {
             $projectsRepository = new ProjectsRepository();
             $projectsRepository->invalidateProjectCache($transaction->project_id);
+        }
+
+        if ($transaction->source_type === 'App\Models\Order' && $transaction->source_id) {
+            CacheService::invalidateOrdersCache();
         }
 
         return true;
@@ -653,6 +661,10 @@ class TransactionsRepository extends BaseRepository
                 $projectsRepository->invalidateProjectCache($transaction->project_id);
             }
 
+            if ($transaction->source_type === 'App\Models\Order' && $transaction->source_id) {
+                CacheService::invalidateOrdersCache();
+            }
+
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
@@ -751,6 +763,10 @@ class TransactionsRepository extends BaseRepository
                 $projectsRepository->invalidateProjectCache($transaction->project_id);
             }
 
+            if ($transaction->source_type === 'App\Models\Order' && $transaction->source_id) {
+                CacheService::invalidateOrdersCache();
+            }
+
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
@@ -767,11 +783,13 @@ class TransactionsRepository extends BaseRepository
      */
     public function getTotalByOrderId($userId, $orderId)
     {
-        return Transaction::where('source_type', 'App\Models\Order')
+        $total = Transaction::where('source_type', 'App\Models\Order')
             ->where('source_id', $orderId)
             ->where('is_debt', 0)
             ->where('is_deleted', false)
             ->sum('orig_amount');
+        
+        return $total;
     }
 
     /**

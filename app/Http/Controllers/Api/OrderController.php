@@ -52,8 +52,10 @@ class OrderController extends Controller
 
         $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly);
 
+        $itemsArray = $items->items();
+
         $response = [
-            'items' => $items->items(),
+            'items' => $itemsArray,
             'current_page' => $items->currentPage(),
             'next_page' => $items->nextPageUrl(),
             'last_page' => $items->lastPage(),

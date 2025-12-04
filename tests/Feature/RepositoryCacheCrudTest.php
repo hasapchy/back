@@ -58,7 +58,7 @@ class RepositoryCacheCrudTest extends TestCase
             $repo->updateItem($status->id, ['name' => 'Updated Status']);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after update');
 
-            if (!in_array($status->id, [1, 2, 3, 4, 5, 6])) {
+            if (!in_array($status->id, [1, 2, 4, 5, 6])) {
                 Cache::put($fullKey, ['test'], 3600);
                 $repo->deleteItem($status->id);
                 $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after delete');

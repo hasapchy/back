@@ -146,78 +146,191 @@ class UsersRepository extends BaseRepository
      */
     public function getAllItems()
     {
-        /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('users_all', [$currentUser?->id, $companyId]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($currentUser, $companyId) {
-            $query = User::select([
-                'users.id',
-                'users.name',
-                'users.surname',
-                'users.email',
-                'users.is_active',
-                'users.hire_date',
-                'users.birthday',
-                'users.position',
-                'users.is_admin',
-                'users.photo',
-                'users.created_at',
-                'users.last_login_at'
-            ])
-                ->with([
-                    'roles:id,name',
-                    'permissions:id,name',
-                    'companies:id,name'
-                ]);
+            $users = $this->buildUsersQuery($currentUser, $companyId)->get();
 
-            // Фильтрация по компании: показываем только пользователей, связанных с текущей компанией
-            if ($companyId) {
-                $query->whereHas('companies', function ($q) use ($companyId) {
-                    $q->where('companies.id', $companyId);
-                });
+            if ($users->isEmpty()) {
+                return collect();
             }
 
-            if ($currentUser && !$currentUser->is_admin) {
-                $permissions = $this->getUserPermissionsForCompany($currentUser);
-                $hasViewAll = in_array('users_view_all', $permissions) || in_array('users_view', $permissions);
-                if (!$hasViewAll && in_array('users_view_own', $permissions)) {
-                    $query->where('users.id', $currentUser->id);
-                }
-            }
+            $userIds = $users->pluck('id');
+            $salariesMap = $this->getSalariesMap($userIds, $companyId);
+            [$permissionsMap, $rolesMap] = $this->getPermissionsAndRolesMaps($users, $userIds, $companyId);
+            $companyRolesMap = $this->getCompanyRolesMap($userIds);
+            $allPermissionsForAdmins = !$companyId
+                ? \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get()
+                : null;
 
-            $users = $query->orderBy('users.created_at', 'desc')->get();
-
-            $userIds = $users->pluck('id')->toArray();
-            $salariesMap = [];
-            if (!empty($userIds) && $companyId) {
-                $salaries = EmployeeSalary::whereIn('user_id', $userIds)
-                    ->where('company_id', $companyId)
-                    ->with('currency:id,code,symbol,name')
-                    ->orderBy('user_id')
-                    ->orderBy('start_date', 'desc')
-                    ->get()
-                    ->groupBy('user_id');
-
-                foreach ($salaries as $userId => $userSalaries) {
-                    $lastSalary = $userSalaries->first();
-                    $salariesMap[$userId] = [
-                        'id' => $lastSalary->id,
-                        'amount' => $lastSalary->amount,
-                        'start_date' => $lastSalary->start_date,
-                        'end_date' => $lastSalary->end_date,
-                        'currency' => $lastSalary->currency,
-                    ];
-                }
-            }
-
-            $salariesMapForTransform = $salariesMap;
-            return $users->map(function ($user) use ($companyId, $salariesMapForTransform) {
-                $user->last_salary = $salariesMapForTransform[$user->id] ?? null;
-                return $this->transformUserWithRelations($user, $companyId);
+            return $users->map(function ($user) use ($salariesMap, $permissionsMap, $rolesMap, $companyRolesMap, $allPermissionsForAdmins) {
+                $user->last_salary = $salariesMap[$user->id] ?? null;
+                $user->setRelation('permissions', $user->is_admin && $allPermissionsForAdmins
+                    ? $allPermissionsForAdmins
+                    : ($permissionsMap[$user->id] ?? collect()));
+                $user->setRelation('roles', $rolesMap[$user->id] ?? collect());
+                $user->company_roles = $companyRolesMap[$user->id] ?? [];
+                return $user;
             });
         });
+    }
+
+    protected function buildUsersQuery($currentUser, $companyId)
+    {
+        $query = User::select([
+            'users.id', 'users.name', 'users.surname', 'users.email', 'users.is_active',
+            'users.hire_date', 'users.birthday', 'users.position', 'users.is_admin',
+            'users.photo', 'users.created_at', 'users.last_login_at'
+        ])->with(['roles:id,name', 'permissions:id,name', 'companies:id,name']);
+
+        if ($companyId) {
+            $query->whereHas('companies', fn($q) => $q->where('companies.id', $companyId));
+        }
+
+        if ($currentUser && !$currentUser->is_admin) {
+            $permissions = $this->getUserPermissionsForCompany($currentUser);
+            $hasViewAll = in_array('users_view_all', $permissions) || in_array('users_view', $permissions);
+            if (!$hasViewAll && in_array('users_view_own', $permissions)) {
+                $query->where('users.id', $currentUser->id);
+            }
+        }
+
+        return $query->orderBy('users.created_at', 'desc');
+    }
+
+    protected function getSalariesMap($userIds, $companyId): array
+    {
+        if ($userIds->isEmpty() || !$companyId) {
+            return [];
+        }
+
+        return EmployeeSalary::whereIn('user_id', $userIds)
+            ->where('company_id', $companyId)
+            ->with('currency:id,code,symbol,name')
+            ->orderBy('user_id')
+            ->orderBy('start_date', 'desc')
+            ->get()
+            ->groupBy('user_id')
+            ->map(fn($salaries) => [
+                'id' => $salaries->first()->id,
+                'amount' => $salaries->first()->amount,
+                'start_date' => $salaries->first()->start_date,
+                'end_date' => $salaries->first()->end_date,
+                'currency' => $salaries->first()->currency,
+            ])
+            ->toArray();
+    }
+
+    protected function getPermissionsAndRolesMaps($users, $userIds, $companyId): array
+    {
+        $permissionsMap = [];
+        $rolesMap = [];
+
+        if ($userIds->isEmpty()) {
+            return [$permissionsMap, $rolesMap];
+        }
+
+        if ($companyId) {
+            [$permissionsMap, $rolesMap] = $this->getCompanyScopedPermissionsAndRoles($userIds, $companyId);
+        } else {
+            $allPermissions = \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
+            foreach ($users as $user) {
+                $permissionsMap[$user->id] = $user->is_admin
+                    ? $allPermissions
+                    : $user->getPermissionsViaRoles()->merge($user->getDirectPermissions())->unique('id');
+                $rolesMap[$user->id] = $user->roles;
+            }
+        }
+
+        return [$permissionsMap, $rolesMap];
+    }
+
+    protected function getCompanyScopedPermissionsAndRoles($userIds, $companyId): array
+    {
+        $permissionsMap = [];
+        $rolesMap = [];
+
+        $companyUserRoles = DB::table('company_user_role')
+            ->whereIn('user_id', $userIds)
+            ->where('company_id', $companyId)
+            ->get()
+            ->groupBy('user_id');
+
+        $allRoleIds = $companyUserRoles->flatten()->pluck('role_id')->unique()->filter();
+
+        if ($allRoleIds->isEmpty()) {
+            return [$permissionsMap, $rolesMap];
+        }
+
+        $roles = \Spatie\Permission\Models\Role::where('guard_name', 'api')
+            ->whereIn('id', $allRoleIds)
+            ->with('permissions:id,name')
+            ->get()
+            ->keyBy('id');
+
+        $allPermissionIds = $roles->flatMap->permissions->pluck('id')->unique();
+        $permissions = $allPermissionIds->isNotEmpty()
+            ? \Spatie\Permission\Models\Permission::where('guard_name', 'api')
+                ->whereIn('id', $allPermissionIds)
+                ->get()
+                ->keyBy('id')
+            : collect();
+
+        foreach ($companyUserRoles as $userId => $userRoles) {
+            $roleIds = $userRoles->pluck('role_id');
+            $userRolesCollection = $roles->whereIn('id', $roleIds)->values();
+            $rolesMap[$userId] = $userRolesCollection;
+            $permissionsMap[$userId] = $permissions->whereIn(
+                'id',
+                $userRolesCollection->flatMap->permissions->pluck('id')->unique()
+            )->values();
+        }
+
+        return [$permissionsMap, $rolesMap];
+    }
+
+    protected function getCompanyRolesMap($userIds): array
+    {
+        if ($userIds->isEmpty()) {
+            return [];
+        }
+
+        $allCompanyRoles = DB::table('company_user_role')
+            ->whereIn('user_id', $userIds)
+            ->select('user_id', 'company_id', 'role_id')
+            ->get()
+            ->groupBy('user_id');
+
+        $allRoleIds = $allCompanyRoles->flatten()->pluck('role_id')->unique()->filter();
+
+        if ($allRoleIds->isEmpty()) {
+            return [];
+        }
+
+        $allRoles = \Spatie\Permission\Models\Role::where('guard_name', 'api')
+            ->whereIn('id', $allRoleIds)
+            ->get(['id', 'name'])
+            ->keyBy('id');
+
+        $companyRolesMap = [];
+        foreach ($allCompanyRoles as $userId => $userCompanyRoles) {
+            $companyRolesMap[$userId] = $userCompanyRoles
+                ->groupBy('company_id')
+                ->map(fn($roles, $compId) => [
+                    'company_id' => $compId,
+                    'role_ids' => $roles->pluck('role_id')
+                        ->map(fn($roleId) => $allRoles->get($roleId)?->name)
+                        ->filter()
+                        ->values()
+                        ->toArray()
+                ])
+                ->values()
+                ->toArray();
+        }
+
+        return $companyRolesMap;
     }
 
     /**
@@ -295,8 +408,8 @@ class UsersRepository extends BaseRepository
             $user->surname = array_key_exists('surname', $data) ? $data['surname'] : $user->surname;
             $user->email = $data['email'] ?? $user->email;
             $user->hire_date = array_key_exists('hire_date', $data) ? $data['hire_date'] : $user->hire_date;
-            $user->birthday = array_key_exists('birthday', $data) && $data['birthday'] 
-                ? Carbon::parse($data['birthday'])->format('Y-m-d') 
+            $user->birthday = array_key_exists('birthday', $data) && $data['birthday']
+                ? Carbon::parse($data['birthday'])->format('Y-m-d')
                 : (array_key_exists('birthday', $data) ? null : $user->birthday);
             $user->is_active = $data['is_active'] ?? $user->is_active;
             $user->position = array_key_exists('position', $data) ? $data['position'] : $user->position;

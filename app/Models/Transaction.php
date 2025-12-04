@@ -257,6 +257,9 @@ class Transaction extends Model
 
             $transaction->updateCashBalance();
             CacheService::invalidateTransactionsCache();
+            if ($transaction->source_type === 'App\\Models\\Order' && $transaction->source_id) {
+                CacheService::invalidateOrdersCache();
+            }
         });
 
         static::updated(function ($transaction) {
@@ -341,6 +344,9 @@ class Transaction extends Model
             }
 
             CacheService::invalidateTransactionsCache();
+            if ($transaction->source_type === 'App\\Models\\Order' && $transaction->source_id) {
+                CacheService::invalidateOrdersCache();
+            }
         });
 
         static::deleted(function ($transaction) {
