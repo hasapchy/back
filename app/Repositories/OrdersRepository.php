@@ -141,12 +141,13 @@ class OrdersRepository extends BaseRepository
 
             $ordersCollection = $orders->getCollection();
             if ($ordersCollection->isNotEmpty()) {
-                $orderIds = $ordersCollection->pluck('id');
-                $paidAmountsMap = $this->getPaidAmountsMap($orderIds);
+                // Временно отключена логика оплаты для производительности
+                // $orderIds = $ordersCollection->pluck('id');
+                // $paidAmountsMap = $this->getPaidAmountsMap($orderIds);
 
-                $ordersCollection->transform(function ($order) use ($paidAmountsMap) {
+                $ordersCollection->transform(function ($order) {
                     $this->enrichOrderData($order);
-                    $this->setOrderPaymentInfo($order, $paidAmountsMap[$order->id] ?? 0);
+                    // $this->setOrderPaymentInfo($order, $paidAmountsMap[$order->id] ?? 0);
                     return $order;
                 });
             }
@@ -222,9 +223,10 @@ class OrdersRepository extends BaseRepository
         $client_ids = $orders->pluck('client_id')->unique()->filter()->toArray();
         $client_repository = new ClientsRepository();
         $clients = $client_repository->getItemsByIds($client_ids)->keyBy('id');
-        $paidAmountsMap = $this->getPaidAmountsMap($order_ids);
+        // Временно отключена логика оплаты для производительности
+        // $paidAmountsMap = $this->getPaidAmountsMap($order_ids);
 
-        $items = $orders->map(function ($order) use ($products, $clients, $paidAmountsMap) {
+        $items = $orders->map(function ($order) use ($products, $clients) {
             $item = (object) [
                 'id' => $order->id,
                 'note' => $order->note,
@@ -269,10 +271,11 @@ class OrdersRepository extends BaseRepository
                 ],
             ];
 
-            $paidAmount = $paidAmountsMap[$order->id] ?? 0;
-            $totalPrice = (float) ($item->total_price ?? 0);
-            $item->paid_amount = $paidAmount;
-            $item->payment_status = $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid');
+            // Временно отключена логика оплаты для производительности
+            // $paidAmount = $paidAmountsMap[$order->id] ?? 0;
+            // $totalPrice = (float) ($item->total_price ?? 0);
+            // $item->paid_amount = $paidAmount;
+            // $item->payment_status = $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid');
 
             return $item;
         });
