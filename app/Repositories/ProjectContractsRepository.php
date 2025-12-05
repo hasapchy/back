@@ -168,7 +168,7 @@ class ProjectContractsRepository extends BaseRepository
 
             DB::commit();
 
-            $this->invalidateProjectContractsCache($contract->project_id);
+            $this->invalidateProjectContractsCache($contract->project_id, $id);
 
             return $contract;
         } catch (\Exception $e) {
@@ -217,7 +217,7 @@ class ProjectContractsRepository extends BaseRepository
 
             DB::commit();
 
-            $this->invalidateProjectContractsCache($projectId);
+            $this->invalidateProjectContractsCache($projectId, $id);
 
             return true;
         } catch (\Exception $e) {
@@ -230,14 +230,16 @@ class ProjectContractsRepository extends BaseRepository
      * Инвалидация кэша контрактов проекта
      *
      * @param int $projectId ID проекта
+     * @param int|null $contractId ID контракта (опционально, для инвалидации конкретного контракта)
      * @return void
      */
-    private function invalidateProjectContractsCache(int $projectId): void
+    private function invalidateProjectContractsCache(int $projectId, ?int $contractId = null): void
     {
-        $companyId = $this->getCurrentCompanyId() ?? 'default';
-        CacheService::forget($this->generateCacheKey('project_contracts_all', [$projectId]));
-        CacheService::invalidateByLike("%project_contracts_paginated_{$projectId}_{$companyId}%");
-        CacheService::invalidateByLike("%project_contract_item_{$companyId}%");
+        if ($contractId !== null) {
+            CacheService::forget($this->generateCacheKey('project_contract_item', [$contractId]));
+        }
+
+        CacheService::invalidateProjectsCache();
     }
 
 }
