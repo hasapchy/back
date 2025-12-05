@@ -349,6 +349,7 @@ class OrdersRepository extends BaseRepository
                 'cash.currency:id,name,code,symbol',
                 'project:id,name',
                 'user:id,name,photo',
+                'status:id,name,category_id',
                 'status.category:id,name,color',
                 'category:id,name'
             ])
