@@ -141,9 +141,21 @@ class OrdersRepository extends BaseRepository
 
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
-            $transactionsRepository = new \App\Repositories\TransactionsRepository();
+            $orderIds = $orders->getCollection()->pluck('id');
+            $paidAmountsMap = [];
+            if ($orderIds->isNotEmpty()) {
+                $paidAmountsMap = Transaction::where('source_type', Order::class)
+                    ->whereIn('source_id', $orderIds)
+                    ->where('is_debt', false)
+                    ->where('is_deleted', false)
+                    ->select('source_id', DB::raw('SUM(orig_amount) as total_paid'))
+                    ->groupBy('source_id')
+                    ->pluck('total_paid', 'source_id')
+                    ->map(fn($amount) => (float) $amount)
+                    ->toArray();
+            }
 
-            $orders->getCollection()->transform(function ($order) use ($transactionsRepository) {
+            $orders->getCollection()->transform(function ($order) use ($paidAmountsMap) {
                 if ($order->client) {
                     $order->client_first_name = $order->client->first_name;
                     $order->client_last_name = $order->client->last_name;
@@ -228,7 +240,7 @@ class OrdersRepository extends BaseRepository
 
                 $order->products = $allProducts;
 
-                $paidAmount = (float) $transactionsRepository->getTotalByOrderId($order->user_id ?? 1, $order->id);
+                $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
                 $totalPrice = (float) ($order->total_price ?? 0);
 
                 $order->setAttribute('paid_amount', $paidAmount);
@@ -342,14 +354,22 @@ class OrdersRepository extends BaseRepository
             ])
             ->get();
 
-        $transactionsRepository = new \App\Repositories\TransactionsRepository();
-
         $products = $this->getProducts($order_ids);
         $client_ids = $orders->pluck('client_id')->unique()->filter()->toArray();
         $client_repository = new ClientsRepository();
         $clients = $client_repository->getItemsByIds($client_ids)->keyBy('id');
 
-        $items = $orders->map(function ($order) use ($products, $clients, $transactionsRepository) {
+        $paidAmountsMap = Transaction::where('source_type', Order::class)
+            ->whereIn('source_id', $order_ids)
+            ->where('is_debt', false)
+            ->where('is_deleted', false)
+            ->select('source_id', DB::raw('SUM(orig_amount) as total_paid'))
+            ->groupBy('source_id')
+            ->pluck('total_paid', 'source_id')
+            ->map(fn($amount) => (float) $amount)
+            ->toArray();
+
+        $items = $orders->map(function ($order) use ($products, $clients, $paidAmountsMap) {
             $item = (object) [
                 'id' => $order->id,
                 'note' => $order->note,
@@ -394,7 +414,7 @@ class OrdersRepository extends BaseRepository
                 ],
             ];
 
-            $paidAmount = (float) $transactionsRepository->getTotalByOrderId($order->user_id ?? 1, $order->id);
+            $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
             $totalPrice = (float) ($item->total_price ?? 0);
 
             $item->paid_amount = $paidAmount;
