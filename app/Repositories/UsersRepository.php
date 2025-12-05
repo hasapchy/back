@@ -66,11 +66,7 @@ class UsersRepository extends BaseRepository
                 'users.updated_at',
                 'users.last_login_at'
             ])
-                ->with([
-                    'roles:id,name',
-                    'permissions:id,name',
-                    'companies:id,name'
-                ]);
+                ->with(['companies:id,name']);
 
             // Фильтрация по компании: показываем только пользователей, связанных с текущей компанией
             $companyId = $this->getCurrentCompanyId();
@@ -172,10 +168,19 @@ class UsersRepository extends BaseRepository
     protected function buildUsersQuery($currentUser, $companyId)
     {
         $query = User::select([
-            'users.id', 'users.name', 'users.surname', 'users.email', 'users.is_active',
-            'users.hire_date', 'users.birthday', 'users.position', 'users.is_admin',
-            'users.photo', 'users.created_at', 'users.last_login_at'
-        ])->with(['roles:id,name', 'permissions:id,name', 'companies:id,name']);
+            'users.id',
+            'users.name',
+            'users.surname',
+            'users.email',
+            'users.is_active',
+            'users.hire_date',
+            'users.birthday',
+            'users.position',
+            'users.is_admin',
+            'users.photo',
+            'users.created_at',
+            'users.last_login_at'
+        ])->with(['companies:id,name']);
 
         if ($companyId) {
             $query->whereHas('companies', fn($q) => $q->where('companies.id', $companyId));
@@ -225,9 +230,10 @@ class UsersRepository extends BaseRepository
         }
 
         if ($companyId) {
-            [$permissionsMap, $rolesMap] = $this->getCompanyScopedPermissionsAndRoles($userIds, $companyId);
+            [$permissionsMap, $rolesMap] = $this->getCompanyScopedPermissionsAndRoles($users, $userIds, $companyId);
         } else {
             $allPermissions = \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
+            $users->load(['roles.permissions', 'permissions']);
             foreach ($users as $user) {
                 $permissionsMap[$user->id] = $user->is_admin
                     ? $allPermissions
@@ -239,10 +245,11 @@ class UsersRepository extends BaseRepository
         return [$permissionsMap, $rolesMap];
     }
 
-    protected function getCompanyScopedPermissionsAndRoles($userIds, $companyId): array
+    protected function getCompanyScopedPermissionsAndRoles($users, $userIds, $companyId): array
     {
         $permissionsMap = [];
         $rolesMap = [];
+        $allPermissions = \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
 
         $companyUserRoles = DB::table('company_user_role')
             ->whereIn('user_id', $userIds)
@@ -253,6 +260,11 @@ class UsersRepository extends BaseRepository
         $allRoleIds = $companyUserRoles->flatten()->pluck('role_id')->unique()->filter();
 
         if ($allRoleIds->isEmpty()) {
+            foreach ($users as $user) {
+                if ($user->is_admin) {
+                    $permissionsMap[$user->id] = $allPermissions;
+                }
+            }
             return [$permissionsMap, $rolesMap];
         }
 
@@ -265,9 +277,9 @@ class UsersRepository extends BaseRepository
         $allPermissionIds = $roles->flatMap->permissions->pluck('id')->unique();
         $permissions = $allPermissionIds->isNotEmpty()
             ? \Spatie\Permission\Models\Permission::where('guard_name', 'api')
-                ->whereIn('id', $allPermissionIds)
-                ->get()
-                ->keyBy('id')
+            ->whereIn('id', $allPermissionIds)
+            ->get()
+            ->keyBy('id')
             : collect();
 
         foreach ($companyUserRoles as $userId => $userRoles) {
@@ -278,6 +290,12 @@ class UsersRepository extends BaseRepository
                 'id',
                 $userRolesCollection->flatMap->permissions->pluck('id')->unique()
             )->values();
+        }
+
+        foreach ($users as $user) {
+            if ($user->is_admin) {
+                $permissionsMap[$user->id] = $allPermissions;
+            }
         }
 
         return [$permissionsMap, $rolesMap];
@@ -455,17 +473,35 @@ class UsersRepository extends BaseRepository
 
             $selectedCompanyIds = isset($data['companies']) && is_array($data['companies']) ? $data['companies'] : [];
 
+            $roleNamesByCompany = [];
             foreach ($data['company_roles'] as $companyRole) {
                 if (isset($companyRole['company_id']) && isset($companyRole['role_ids']) && is_array($companyRole['role_ids'])) {
                     if (empty($selectedCompanyIds) || in_array($companyRole['company_id'], $selectedCompanyIds)) {
                         foreach ($companyRole['role_ids'] as $roleName) {
-                            $role = Role::where('name', $roleName)
-                                ->where('guard_name', 'api')
-                                ->where('company_id', $companyRole['company_id'])
-                                ->first();
-                            if ($role) {
-                                $user->companyRoles()->attach($role->id, ['company_id' => $companyRole['company_id']]);
+                            if (!isset($roleNamesByCompany[$companyRole['company_id']])) {
+                                $roleNamesByCompany[$companyRole['company_id']] = [];
                             }
+                            $roleNamesByCompany[$companyRole['company_id']][] = $roleName;
+                        }
+                    }
+                }
+            }
+
+            if (!empty($roleNamesByCompany)) {
+                $allRoleNames = collect($roleNamesByCompany)->flatten()->unique()->values()->all();
+                $roles = Role::where('guard_name', 'api')
+                    ->whereIn('name', $allRoleNames)
+                    ->get()
+                    ->keyBy(function ($role) {
+                        return $role->company_id . '|' . $role->name;
+                    });
+
+                foreach ($roleNamesByCompany as $companyId => $roleNames) {
+                    foreach ($roleNames as $roleName) {
+                        $key = $companyId . '|' . $roleName;
+                        $role = $roles->get($key);
+                        if ($role) {
+                            $user->companyRoles()->attach($role->id, ['company_id' => $companyId]);
                         }
                     }
                 }
@@ -570,94 +606,32 @@ class UsersRepository extends BaseRepository
     {
         $relatedData = [];
 
-        $transactionsCount = Transaction::where('user_id', $user->id)->count();
-        if ($transactionsCount > 0) {
-            $relatedData[] = "транзакции ({$transactionsCount})";
-        }
+        $checks = [
+            [Transaction::class, 'user_id', 'транзакции'],
+            [Order::class, 'user_id', 'заказы'],
+            [Sale::class, 'user_id', 'продажи'],
+            [WhReceipt::class, 'user_id', 'приходы на склад'],
+            [WhWriteoff::class, 'user_id', 'списания со склада'],
+            [WhMovement::class, 'user_id', 'перемещения между складами'],
+            [Project::class, 'user_id', 'проекты'],
+            [Client::class, 'employee_id', 'клиенты как сотрудник'],
+            [Client::class, 'user_id', 'клиенты'],
+            [Category::class, 'user_id', 'категории'],
+            [Product::class, 'user_id', 'товары'],
+            [Invoice::class, 'user_id', 'счета'],
+            [CashTransfer::class, 'user_id', 'переводы между кассами'],
+            [TransactionCategory::class, 'user_id', 'категории транзакций'],
+            [OrderStatusCategory::class, 'user_id', 'категории статусов заказов'],
+            [ProjectStatus::class, 'user_id', 'статусы проектов'],
+            [Template::class, 'user_id', 'шаблоны'],
+            [Comment::class, 'user_id', 'комментарии'],
+        ];
 
-        $ordersCount = Order::where('user_id', $user->id)->count();
-        if ($ordersCount > 0) {
-            $relatedData[] = "заказы ({$ordersCount})";
-        }
-
-        $salesCount = Sale::where('user_id', $user->id)->count();
-        if ($salesCount > 0) {
-            $relatedData[] = "продажи ({$salesCount})";
-        }
-
-        $receiptsCount = WhReceipt::where('user_id', $user->id)->count();
-        if ($receiptsCount > 0) {
-            $relatedData[] = "приходы на склад ({$receiptsCount})";
-        }
-
-        $writeoffsCount = WhWriteoff::where('user_id', $user->id)->count();
-        if ($writeoffsCount > 0) {
-            $relatedData[] = "списания со склада ({$writeoffsCount})";
-        }
-
-        $movementsCount = WhMovement::where('user_id', $user->id)->count();
-        if ($movementsCount > 0) {
-            $relatedData[] = "перемещения между складами ({$movementsCount})";
-        }
-
-        $projectsCount = Project::where('user_id', $user->id)->count();
-        if ($projectsCount > 0) {
-            $relatedData[] = "проекты ({$projectsCount})";
-        }
-
-        $clientsAsEmployeeCount = Client::where('employee_id', $user->id)->count();
-        if ($clientsAsEmployeeCount > 0) {
-            $relatedData[] = "клиенты как сотрудник ({$clientsAsEmployeeCount})";
-        }
-
-        $clientsAsUserCount = Client::where('user_id', $user->id)->count();
-        if ($clientsAsUserCount > 0) {
-            $relatedData[] = "клиенты ({$clientsAsUserCount})";
-        }
-
-        $categoriesCount = Category::where('user_id', $user->id)->count();
-        if ($categoriesCount > 0) {
-            $relatedData[] = "категории ({$categoriesCount})";
-        }
-
-        $productsCount = Product::where('user_id', $user->id)->count();
-        if ($productsCount > 0) {
-            $relatedData[] = "товары ({$productsCount})";
-        }
-
-        $invoicesCount = Invoice::where('user_id', $user->id)->count();
-        if ($invoicesCount > 0) {
-            $relatedData[] = "счета ({$invoicesCount})";
-        }
-
-        $cashTransfersCount = CashTransfer::where('user_id', $user->id)->count();
-        if ($cashTransfersCount > 0) {
-            $relatedData[] = "переводы между кассами ({$cashTransfersCount})";
-        }
-
-        $transactionCategoriesCount = TransactionCategory::where('user_id', $user->id)->count();
-        if ($transactionCategoriesCount > 0) {
-            $relatedData[] = "категории транзакций ({$transactionCategoriesCount})";
-        }
-
-        $orderStatusCategoriesCount = OrderStatusCategory::where('user_id', $user->id)->count();
-        if ($orderStatusCategoriesCount > 0) {
-            $relatedData[] = "категории статусов заказов ({$orderStatusCategoriesCount})";
-        }
-
-        $projectStatusesCount = ProjectStatus::where('user_id', $user->id)->count();
-        if ($projectStatusesCount > 0) {
-            $relatedData[] = "статусы проектов ({$projectStatusesCount})";
-        }
-
-        $templatesCount = Template::where('user_id', $user->id)->count();
-        if ($templatesCount > 0) {
-            $relatedData[] = "шаблоны ({$templatesCount})";
-        }
-
-        $commentsCount = Comment::where('user_id', $user->id)->count();
-        if ($commentsCount > 0) {
-            $relatedData[] = "комментарии ({$commentsCount})";
+        foreach ($checks as [$model, $field, $label]) {
+            $count = $model::where($field, $user->id)->count();
+            if ($count > 0) {
+                $relatedData[] = "{$label} ({$count})";
+            }
         }
 
         return $relatedData;

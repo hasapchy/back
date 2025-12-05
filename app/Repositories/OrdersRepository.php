@@ -151,17 +151,141 @@ class OrdersRepository extends BaseRepository
 
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
-            $ordersCollection = $orders->getCollection();
-            if ($ordersCollection->isNotEmpty()) {
-                $orderIds = $ordersCollection->pluck('id');
-                $paidAmountsMap = $this->getPaidAmountsMap($orderIds);
+            $transactionsRepository = new \App\Repositories\TransactionsRepository();
 
-                $ordersCollection->transform(function ($order) use ($paidAmountsMap, $loadProducts) {
-                    $this->enrichOrderData($order, $loadProducts);
-                    $this->setOrderPaymentInfo($order, $paidAmountsMap[$order->id] ?? 0);
-                    return $order;
+            $orders->getCollection()->transform(function ($order) use ($transactionsRepository) {
+                if ($order->client) {
+                    $order->client_first_name = $order->client->first_name;
+                    $order->client_last_name = $order->client->last_name;
+                    $order->client_contact_person = $order->client->contact_person;
+                }
+
+                if ($order->user) {
+                    $order->user_name = $order->user->name;
+                    $order->user_photo = $order->user->photo;
+                }
+
+                if ($order->status) {
+                    $order->status_name = $order->status->name;
+                    if ($order->status->category) {
+                        $order->status_category_name = $order->status->category->name;
+                        $order->status_category_color = $order->status->category->color;
+                    }
+                }
+
+                if ($order->warehouse) {
+                    $order->warehouse_name = $order->warehouse->name;
+                }
+
+                if ($order->cash) {
+                    $order->cash_name = $order->cash->name;
+                    if ($order->cash->currency) {
+                        $order->currency_name = $order->cash->currency->name;
+                        $order->currency_code = $order->cash->currency->code;
+                        $order->currency_symbol = $order->cash->currency->symbol;
+                    }
+                }
+
+                if ($order->project) {
+                    $order->project_name = $order->project->name;
+                }
+
+                if ($order->category) {
+                    $order->category_name = $order->category->name;
+                }
+
+                $allProducts = collect();
+
+                if ($order->orderProducts) {
+                    foreach ($order->orderProducts as $orderProduct) {
+                        $allProducts->push([
+                            'id' => $orderProduct->id,
+                            'order_id' => $orderProduct->order_id,
+                            'product_id' => $orderProduct->product_id,
+                            'product_name' => $orderProduct->product->name ?? null,
+                            'product_image' => $orderProduct->product->image ?? null,
+                            'unit_id' => $orderProduct->product->unit_id ?? null,
+                            'unit_name' => $orderProduct->product->unit->name ?? null,
+                            'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
+                            'quantity' => $orderProduct->quantity,
+                            'price' => $orderProduct->price,
+                            'width' => $orderProduct->width,
+                            'height' => $orderProduct->height,
+                            'product_type' => 'regular'
+                        ]);
+                    }
+                }
+
+                if ($order->tempProducts) {
+                    foreach ($order->tempProducts as $tempProduct) {
+                        $allProducts->push([
+                            'id' => $tempProduct->id,
+                            'order_id' => $tempProduct->order_id,
+                            'product_id' => null,
+                            'product_name' => $tempProduct->name,
+                            'product_image' => null,
+                            'unit_id' => $tempProduct->unit_id,
+                            'unit_name' => $tempProduct->unit->name ?? null,
+                            'unit_short_name' => $tempProduct->unit->short_name ?? null,
+                            'quantity' => $tempProduct->quantity,
+                            'price' => $tempProduct->price,
+                            'width' => $tempProduct->width,
+                            'height' => $tempProduct->height,
+                            'product_type' => 'temp'
+                        ]);
+                    }
+                }
+
+                $order->products = $allProducts;
+
+                $paidAmount = (float) $transactionsRepository->getTotalByOrderId($order->user_id ?? 1, $order->id);
+                $totalPrice = (float) ($order->total_price ?? 0);
+
+                $order->setAttribute('paid_amount', $paidAmount);
+
+                if ($paidAmount <= 0) {
+                    $order->setAttribute('payment_status', 'unpaid');
+                } elseif ($paidAmount < $totalPrice) {
+                    $order->setAttribute('payment_status', 'partially_paid');
+                } else {
+                    $order->setAttribute('payment_status', 'paid');
+                }
+
+                $order->makeVisible(['paid_amount', 'payment_status']);
+
+                return $order;
+            });
+
+            $unpaidOrdersTotal = 0;
+
+            $unpaidQuery = Order::select(['orders.id', 'orders.price', 'orders.discount', 'orders.user_id', 'orders.project_id'])
+            ->whereNull('orders.project_id')
+            ->where(function ($q) use ($userUuid) {
+                if ($this->shouldApplyUserFilter('cash_registers')) {
+                    $q->whereNull('orders.cash_id');
+                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                    $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
+                        $subQuery->where('user_id', $filterUserId);
+                    });
+                }
+            });
+
+            $this->applyOwnFilter($unpaidQuery, 'orders', 'orders', 'user_id', $currentUser);
+            $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cash');
+
+            if ($isBasementWorker && !$currentUser->is_admin) {
+                $unpaidQuery->where(function ($q) use ($userUuid) {
+                    $q->whereHas('category.categoryUsers', function ($subQuery) use ($userUuid) {
+                        $subQuery->where('user_id', $userUuid);
+                    })
+                        ->orWhereNull('orders.category_id');
                 });
             }
+
+            $unpaidResult = $unpaidQuery->first();
+            $unpaidOrdersTotal = $unpaidResult && $unpaidResult->unpaid_total !== null ? (float) $unpaidResult->unpaid_total : 0;
+
+            $orders->unpaid_orders_total = $unpaidOrdersTotal;
 
             return $orders;
         }, (int)$page);
@@ -236,7 +360,7 @@ class OrdersRepository extends BaseRepository
         $clients = $client_repository->getItemsByIds($client_ids)->keyBy('id');
         $paidAmountsMap = $this->getPaidAmountsMap($order_ids);
 
-        $items = $orders->map(function ($order) use ($products, $clients, $paidAmountsMap) {
+        $items = $orders->map(function ($order) use ($products, $clients, $transactionsRepository) {
             $item = (object) [
                 'id' => $order->id,
                 'note' => $order->note,
@@ -281,7 +405,7 @@ class OrdersRepository extends BaseRepository
                 ],
             ];
 
-            $paidAmount = $paidAmountsMap[$order->id] ?? 0;
+            $paidAmount = (float) $transactionsRepository->getTotalByOrderId($order->user_id ?? 1, $order->id);
             $totalPrice = (float) ($item->total_price ?? 0);
             $item->paid_amount = $paidAmount;
             $item->payment_status = $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid');
