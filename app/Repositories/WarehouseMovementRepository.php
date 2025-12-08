@@ -76,9 +76,7 @@ class WarehouseMovementRepository extends BaseRepository
         $date = $data['date'];
         $products = $data['products'];
 
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($warehouse_from_id, $warehouse_to_id, $date, $note, $products) {
             $movement = new WhMovement();
             $movement->wh_from = $warehouse_from_id;
             $movement->wh_to = $warehouse_to_id;
@@ -103,16 +101,12 @@ class WarehouseMovementRepository extends BaseRepository
                     throw new \Exception('Ошибка обновления стоков');
                 }
             }
-            DB::commit();
 
             CacheService::invalidateWarehouseMovementsCache();
             CacheService::invalidateWarehouseStocksCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -131,9 +125,7 @@ class WarehouseMovementRepository extends BaseRepository
         $date = $data['date'];
         $products = $data['products'];
 
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($movement_id, $warehouse_from_id, $warehouse_to_id, $date, $note, $products) {
             $movement = WhMovement::findOrFail($movement_id);
 
             $movement->wh_from = $warehouse_from_id;
@@ -171,16 +163,11 @@ class WarehouseMovementRepository extends BaseRepository
                 $deletedProduct->delete();
             }
 
-            DB::commit();
-
             CacheService::invalidateWarehouseMovementsCache();
             CacheService::invalidateWarehouseStocksCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -192,9 +179,7 @@ class WarehouseMovementRepository extends BaseRepository
      */
     public function deleteItem($movement_id)
     {
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($movement_id) {
             $movement = WhMovement::findOrFail($movement_id);
 
             $products = WhMovementProduct::where('movement_id', $movement_id)->get();
@@ -204,16 +189,12 @@ class WarehouseMovementRepository extends BaseRepository
             }
 
             $movement->delete();
-            DB::commit();
 
             CacheService::invalidateWarehouseMovementsCache();
             CacheService::invalidateWarehouseStocksCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**

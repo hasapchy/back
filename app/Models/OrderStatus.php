@@ -21,6 +21,9 @@ class OrderStatus extends Model
 {
     use HasFactory;
 
+    protected const PROTECTED_STATUS_IDS = [1, 2, 4, 5, 6];
+    protected const PROTECTED_STATUS_IDS_FOR_IS_ACTIVE = [1, 5, 6];
+
     protected $fillable = ['name', 'category_id', 'is_active'];
 
     protected $casts = [
@@ -30,16 +33,13 @@ class OrderStatus extends Model
     protected static function booted()
     {
         static::deleting(function ($status) {
-            $protectedIds = [1, 2, 4, 5, 6];
-            if (in_array($status->id, $protectedIds)) {
+            if (in_array($status->id, self::PROTECTED_STATUS_IDS)) {
                 return false;
             }
         });
 
         static::updating(function ($status) {
-            $protectedIds = [1, 5, 6]; // Новый, Завершено, Отменено
-            if (in_array($status->id, $protectedIds) && $status->isDirty('is_active')) {
-                // Запрещаем изменение is_active для защищенных статусов
+            if (in_array($status->id, self::PROTECTED_STATUS_IDS_FOR_IS_ACTIVE) && $status->isDirty('is_active')) {
                 $status->is_active = true;
             }
         });

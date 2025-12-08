@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreClientRequest;
+use App\Http\Requests\UpdateClientRequest;
 use Illuminate\Http\Request;
 use App\Repositories\ClientsRepository;
 use App\Models\Client;
@@ -12,7 +14,7 @@ use App\Services\CacheService;
 /**
  * Контроллер для работы с клиентами
  */
-class ClientController extends Controller
+class ClientController extends BaseController
 {
     protected $itemsRepository;
 
@@ -109,7 +111,7 @@ class ClientController extends Controller
             if ($excludeDebt !== null) {
                 $excludeDebt = filter_var($excludeDebt, FILTER_VALIDATE_BOOLEAN);
             }
-            
+
             $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt);
 
             return response()->json(['history' => $history]);
@@ -166,28 +168,9 @@ class ClientController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreClientRequest $request)
     {
-        $validatedData = $request->validate([
-            'first_name'       => 'required|string',
-            'is_conflict'      => 'sometimes|nullable|boolean',
-            'is_supplier'      => 'sometimes|nullable|boolean',
-            'last_name'        => 'nullable|string',
-            'patronymic'       => 'nullable|string',
-            'contact_person'   => 'nullable|string',
-            'position'         => 'nullable|string',
-            'client_type'      => 'required|string|in:company,individual,employee,investor',
-            'employee_id'      => 'nullable|exists:users,id',
-            'address'          => 'nullable|string',
-            'phones'           => 'required|array',
-            'phones.*'         => 'string|distinct|min:6',
-            'emails'           => 'sometimes|nullable',
-            'emails.*'         => 'nullable|email|distinct',
-            'note'             => 'nullable|string',
-            'status'           => 'boolean',
-            'discount'         => 'nullable|numeric|min:0',
-            'discount_type'    => 'nullable|in:fixed,percent',
-        ]);
+        $validatedData = $request->validated();
 
         $employeeCheck = $this->checkEmployeeIdDuplicate($validatedData['employee_id'] ?? null);
         if ($employeeCheck) {
@@ -230,28 +213,9 @@ class ClientController extends Controller
      * @param int $id ID клиента
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateClientRequest $request, $id)
     {
-        $validatedData = $request->validate([
-            'first_name'       => 'required|string',
-            'is_conflict'      => 'sometimes|nullable|boolean',
-            'is_supplier'      => 'sometimes|nullable|boolean',
-            'last_name'        => 'nullable|string',
-            'patronymic'       => 'nullable|string',
-            'contact_person'   => 'nullable|string',
-            'position'         => 'nullable|string',
-            'client_type'      => 'required|string|in:company,individual,employee,investor',
-            'employee_id'      => 'nullable|exists:users,id',
-            'address'          => 'nullable|string',
-            'phones'           => 'required|array',
-            'phones.*'         => 'string|distinct|min:6',
-            'emails'           => 'sometimes|nullable',
-            'emails.*'         => 'nullable|email|distinct',
-            'note'             => 'nullable|string',
-            'status'           => 'boolean',
-            'discount'         => 'nullable|numeric|min:0',
-            'discount_type'    => 'nullable|in:fixed,percent',
-        ]);
+        $validatedData = $request->validated();
 
         try {
             $existingClient = Client::find($id);
@@ -412,5 +376,4 @@ class ClientController extends Controller
 
         return null;
     }
-
 }

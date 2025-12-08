@@ -16,7 +16,7 @@ class WarehouseRepository extends BaseRepository
      * @param int $page Номер страницы
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getWarehousesWithPagination($userUuid, $perPage = 20, $page = 1)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
@@ -153,20 +153,16 @@ class WarehouseRepository extends BaseRepository
      */
     private function syncUsers(int $warehouseId, array $userIds)
     {
-        if (empty($userIds)) {
-            throw new \Exception('Склад должен иметь хотя бы одного пользователя');
-        }
-
-        WhUser::where('warehouse_id', $warehouseId)->delete();
-
-        $insertData = [];
-        foreach ($userIds as $userId) {
-            $insertData[] = [
-                'warehouse_id' => $warehouseId,
-                'user_id' => $userId,
-            ];
-        }
-        WhUser::insert($insertData);
+        $this->syncManyToManyUsers(
+            WhUser::class,
+            'warehouse_id',
+            $warehouseId,
+            $userIds,
+            [
+                'require_at_least_one' => true,
+                'error_message' => 'Склад должен иметь хотя бы одного пользователя'
+            ]
+        );
     }
 
 }

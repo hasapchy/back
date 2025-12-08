@@ -61,8 +61,7 @@ class RolesRepository extends BaseRepository
     {
         $companyId = $companyId ?? $this->getCurrentCompanyId();
 
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($data, $companyId) {
             $role = Role::create([
                 'name' => trim($data['name'] ?? ''),
                 'guard_name' => 'api',
@@ -71,13 +70,8 @@ class RolesRepository extends BaseRepository
 
             $this->syncRolePermissions($role, $data['permissions'] ?? []);
 
-            DB::commit();
-
             return $role->load('permissions');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -91,8 +85,7 @@ class RolesRepository extends BaseRepository
      */
     public function updateItem($id, array $data, $companyId = null)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id, $data, $companyId) {
             $query = Role::where('guard_name', 'api');
             $this->applyCompanyFilter($query, $companyId);
             $role = $query->findOrFail($id);
@@ -114,13 +107,8 @@ class RolesRepository extends BaseRepository
                 $this->syncRolePermissions($role, $data['permissions']);
             }
 
-            DB::commit();
-
             return $role->load('permissions');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**

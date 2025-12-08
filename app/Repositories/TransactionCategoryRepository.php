@@ -11,14 +11,15 @@ class TransactionCategoryRepository extends BaseRepository
      * Получить категории транзакций с пагинацией
      *
      * @param int $perPage Количество записей на страницу
+     * @param int $page Номер страницы
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($perPage = 20)
+    public function getItemsWithPagination($perPage = 20, $page = 1)
     {
-        $cacheKey = $this->generateCacheKey('transaction_categories_paginated', [$perPage]);
+        $cacheKey = $this->generateCacheKey('transaction_categories_paginated', [$perPage, $page]);
 
-        return CacheService::getPaginatedData($cacheKey, function() use ($perPage) {
-            return TransactionCategory::with('user')->paginate($perPage);
+        return CacheService::getPaginatedData($cacheKey, function() use ($perPage, $page) {
+            return TransactionCategory::with('user')->paginate($perPage, ['*'], 'page', (int) $page);
         }, 1);
     }
 

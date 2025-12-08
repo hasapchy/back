@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreProjectStatusRequest;
+use App\Http\Requests\UpdateProjectStatusRequest;
 use App\Models\ProjectStatus;
 use App\Repositories\ProjectStatusRepository;
 use App\Services\CacheService;
@@ -11,7 +13,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы со статусами проектов
  */
-class ProjectStatusController extends Controller
+class ProjectStatusController extends BaseController
 {
     protected $projectStatusRepository;
 
@@ -35,7 +37,9 @@ class ProjectStatusController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->projectStatusRepository->getItemsWithPagination($userUuid, 20);
+        $perPage = $request->input('per_page', 20);
+
+        $items = $this->projectStatusRepository->getItemsWithPagination($userUuid, $perPage);
 
         return $this->paginatedResponse($items);
     }
@@ -61,18 +65,14 @@ class ProjectStatusController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreProjectStatusRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'color' => 'nullable|string|max:7'
-        ]);
+        $validatedData = $request->validated();
 
         $created = $this->projectStatusRepository->createItem([
-            'name' => $request->name,
-            'color' => $request->color ?? '#6c757d',
+            'name' => $validatedData['name'],
+            'color' => $validatedData['color'] ?? '#6c757d',
             'user_id' => $userUuid,
         ]);
         if (!$created) return $this->errorResponse('Ошибка создания статуса', 400);
@@ -87,18 +87,14 @@ class ProjectStatusController extends Controller
      * @param int $id ID статуса
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateProjectStatusRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'color' => 'nullable|string|max:7'
-        ]);
+        $validatedData = $request->validated();
 
         $updated = $this->projectStatusRepository->updateItem($id, [
-            'name' => $request->name,
-            'color' => $request->color ?? '#6c757d',
+            'name' => $validatedData['name'],
+            'color' => $validatedData['color'] ?? '#6c757d',
         ]);
         if (!$updated) return $this->errorResponse('Ошибка обновления статуса', 400);
 

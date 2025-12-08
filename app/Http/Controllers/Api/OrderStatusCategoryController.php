@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreOrderStatusCategoryRequest;
+use App\Http\Requests\UpdateOrderStatusCategoryRequest;
 use App\Repositories\OrderStatusCategoryRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -10,7 +12,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с категориями статусов заказов
  */
-class OrderStatusCategoryController extends Controller
+class OrderStatusCategoryController extends BaseController
 {
     protected $orderStatusCategoryRepository;
 
@@ -58,21 +60,17 @@ class OrderStatusCategoryController extends Controller
     /**
      * Создать новую категорию статусов заказов
      *
-     * @param Request $request
+     * @param StoreOrderStatusCategoryRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreOrderStatusCategoryRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'color' => 'nullable|string'
-        ]);
+        $validatedData = $request->validated();
 
         $created = $this->orderStatusCategoryRepository->createItem([
-            'name' => $request->name,
-            'color' => $request->color ?? null,
+            'name' => $validatedData['name'],
+            'color' => $validatedData['color'] ?? '#6c757d',
             'user_id' => $userUuid
         ]);
         if (!$created) return $this->errorResponse('Ошибка создания категории статусов', 400);
@@ -83,24 +81,21 @@ class OrderStatusCategoryController extends Controller
     /**
      * Обновить категорию статусов заказов
      *
-     * @param Request $request
+     * @param UpdateOrderStatusCategoryRequest $request
      * @param int $id ID категории
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateOrderStatusCategoryRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $validatedData = $request->validated();
 
-        $request->validate([
-            'name' => 'required|string',
-            'color' => 'nullable|string'
-        ]);
+        $updateData = ['name' => $validatedData['name']];
+        if (isset($validatedData['color'])) {
+            $updateData['color'] = $validatedData['color'];
+        }
 
-        $updated = $this->orderStatusCategoryRepository->updateItem($id, [
-            'name' => $request->name,
-            'color' => $request->color ?? null,
-        ]);
-        if (!$updated) return $this->errorResponse('Ошибка обновления', 400);
+        $this->orderStatusCategoryRepository->updateItem($id, $updateData);
 
         return response()->json(['message' => 'Категория статусов обновлена']);
     }

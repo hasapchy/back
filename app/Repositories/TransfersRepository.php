@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\DB;
 class TransfersRepository extends BaseRepository
 {
     /**
+     * ID категории транзакций для перемещений между кассами
+     */
+    private const TRANSFER_CATEGORY_ID = 17;
+    /**
      * Получить перемещения с пагинацией
      *
      * @param int $userUuid ID пользователя
@@ -46,10 +50,16 @@ class TransfersRepository extends BaseRepository
                 ->where(function ($q) use ($userUuid) {
                     if ($this->shouldApplyUserFilter('cash_registers')) {
                         $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
-                        $q->whereHas('fromCashRegister.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
-                            $subQuery->where('user_id', $filterUserId);
-                        })->orWhereHas('toCashRegister.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
-                            $subQuery->where('user_id', $filterUserId);
+                        $q->whereExists(function ($subQuery) use ($filterUserId) {
+                            $subQuery->select(DB::raw(1))
+                                ->from('cash_register_users')
+                                ->whereColumn('cash_register_users.cash_register_id', 'transfers.from_cash_register_id')
+                                ->where('cash_register_users.user_id', $filterUserId);
+                        })->orWhereExists(function ($subQuery) use ($filterUserId) {
+                            $subQuery->select(DB::raw(1))
+                                ->from('cash_register_users')
+                                ->whereColumn('cash_register_users.cash_register_id', 'transfers.to_cash_register_id')
+                                ->where('cash_register_users.user_id', $filterUserId);
                         });
                     }
                 });
@@ -84,7 +94,7 @@ class TransfersRepository extends BaseRepository
                     'user_name' => $transfer->user?->name,
                     'date' => $transfer->date,
                     'note' => $transfer->note,
-                    'category_id' => 17,
+                    'category_id' => self::TRANSFER_CATEGORY_ID,
                     'category_name' => 'Перемещение',
                 ];
             });
@@ -128,13 +138,11 @@ class TransfersRepository extends BaseRepository
             $amountInTargetCurrency = $amount;
         }
 
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($fromCashRegister, $toCashRegister, $amount, $amountInTargetCurrency, $userUuid, $note, $date_of_transfer) {
             $transferNote = "Трансфер из кассы '{$fromCashRegister->name}' в кассу '{$toCashRegister->name}'.";
 
             $fromTransactionData = [
-                'type' => '0', // Расход
+                'type' => '0',
                 'user_id' => $userUuid,
                 'orig_amount' => $amount,
                 'currency_id' => $fromCashRegister->currency_id,
@@ -147,7 +155,7 @@ class TransfersRepository extends BaseRepository
             ];
 
             $toTransactionData = [
-                'type' => '1', // Приход
+                'type' => '1',
                 'user_id' => $userUuid,
                 'orig_amount' => $amountInTargetCurrency,
                 'currency_id' => $toCashRegister->currency_id,
@@ -174,16 +182,11 @@ class TransfersRepository extends BaseRepository
                 'date' => $date_of_transfer,
             ]);
 
-            DB::commit();
-
             $transaction_repository->invalidateTransactionsCache();
             CacheService::invalidateCashRegistersCache();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
 
-        return true;
+            return true;
+        });
     }
 
     /**
@@ -196,16 +199,11 @@ class TransfersRepository extends BaseRepository
      */
     public function updateItem($id, $data)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id, $data) {
             $this->deleteItem($id);
             $this->createItem($data);
-            DB::commit();
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -217,8 +215,7 @@ class TransfersRepository extends BaseRepository
      */
     public function deleteItem($id)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id) {
             $transfer = CashTransfer::findOrFail($id);
 
             $fromTransactionId = $transfer->tr_id_from;
@@ -228,15 +225,10 @@ class TransfersRepository extends BaseRepository
             app(TransactionsRepository::class)->deleteItem($fromTransactionId);
             app(TransactionsRepository::class)->deleteItem($toTransactionId);
 
-            DB::commit();
-
             app(TransactionsRepository::class)->invalidateTransactionsCache();
             CacheService::invalidateCashRegistersCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 }

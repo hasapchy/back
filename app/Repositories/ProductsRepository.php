@@ -485,6 +485,12 @@ class ProductsRepository extends BaseRepository
         return ['success' => true];
     }
 
+    /**
+     * Проверить, является ли значение типом продукта
+     *
+     * @param mixed $value Значение для проверки
+     * @return bool true если значение является типом продукта, false в противном случае
+     */
     private function isProductTypeValue($value): bool
     {
         return in_array($value, [1, '1', true, 'product'], true);

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\WarehouseStock;
+use App\Models\Traits\HasManyToManyUsers;
 
 /**
  * Модель склада
@@ -22,7 +23,7 @@ use App\Models\WarehouseStock;
  */
 class Warehouse extends Model
 {
-    use HasFactory;
+    use HasFactory, HasManyToManyUsers;
 
     protected $fillable = ['name', 'company_id'];
 
@@ -56,21 +57,6 @@ class Warehouse extends Model
         return $this->belongsToMany(User::class, 'wh_users', 'warehouse_id', 'user_id');
     }
 
-    /**
-     * Accessor для получения пользователей
-     *
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    public function getUsersAttribute()
-    {
-        $relation = $this->getRelationValue('users');
-
-        if ($relation !== null) {
-            return $relation;
-        }
-
-        return $this->users()->get();
-    }
 
     /**
      * Связь с компанией

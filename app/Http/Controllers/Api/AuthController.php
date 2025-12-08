@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
 use App\Models\User;
 use App\Repositories\UsersRepository;
 use Illuminate\Http\Request;
@@ -11,15 +11,29 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
 
-class AuthController extends Controller
+class AuthController extends BaseController
 {
+    /**
+     * @var UsersRepository
+     */
     protected $itemsRepository;
 
+    /**
+     * Конструктор контроллера
+     *
+     * @param UsersRepository $itemsRepository Репозиторий пользователей
+     */
     public function __construct(UsersRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
     }
 
+    /**
+     * Аутентификация пользователя
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function login(Request $request)
     {
         $request->validate([
@@ -76,6 +90,12 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Получить данные текущего аутентифицированного пользователя
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function me(Request $request)
     {
         /** @var User $user */
@@ -100,6 +120,12 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Выход пользователя из системы
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function logout(Request $request)
     {
         $user = $request->user();
@@ -111,6 +137,12 @@ class AuthController extends Controller
         return response()->json(['message' => 'Successfully logged out']);
     }
 
+    /**
+     * Обновить access token используя refresh token
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function refresh(Request $request)
     {
         $refreshToken = $request->input('refresh_token');

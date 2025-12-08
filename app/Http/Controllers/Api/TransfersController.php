@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreTransferRequest;
+use App\Http\Requests\UpdateTransferRequest;
 use App\Repositories\TransactionsRepository;
 use App\Repositories\TransfersRepository;
 use App\Services\CacheService;
@@ -12,7 +14,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с перемещениями между кассами
  */
-class TransfersController extends Controller
+class TransfersController extends BaseController
 {
     protected $itemsRepository;
 
@@ -36,7 +38,9 @@ class TransfersController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20);
+        $perPage = $request->input('per_page', 20);
+
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage);
 
         return $this->paginatedResponse($items);
     }
@@ -44,41 +48,31 @@ class TransfersController extends Controller
     /**
      * Создать перемещение между кассами
      *
-     * @param Request $request
+     * @param StoreTransferRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreTransferRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $validatedData = $request->validated();
 
-        $request->validate([
-            'cash_id_from' => 'required|exists:cash_registers,id',
-            'cash_id_to' => 'required|exists:cash_registers,id',
-            'amount' => 'required|numeric|min:0.01',
-            'note' => 'nullable|sometimes|string',
-            'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001'
-        ]);
-
-        $cashRegisterFrom = CashRegister::findOrFail($request->cash_id_from);
-        $cashRegisterTo = CashRegister::findOrFail($request->cash_id_to);
-
-        $cashFromAccessCheck = $this->checkCashRegisterAccess($request->cash_id_from);
+        $cashFromAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id_from']);
         if ($cashFromAccessCheck) {
             return $cashFromAccessCheck;
         }
 
-        $cashToAccessCheck = $this->checkCashRegisterAccess($request->cash_id_to);
+        $cashToAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id_to']);
         if ($cashToAccessCheck) {
             return $cashToAccessCheck;
         }
 
         $item_created = $this->itemsRepository->createItem([
-            'cash_id_from' => $request->cash_id_from,
-            'cash_id_to' => $request->cash_id_to,
-            'amount' => $request->amount,
+            'cash_id_from' => $validatedData['cash_id_from'],
+            'cash_id_to' => $validatedData['cash_id_to'],
+            'amount' => $validatedData['amount'],
             'user_id' => $userUuid,
-            'note' => $request->note,
-            'exchange_rate' => $request->exchange_rate
+            'note' => $validatedData['note'] ?? null,
+            'exchange_rate' => $validatedData['exchange_rate'] ?? null
         ]);
 
         if (!$item_created) {
@@ -91,43 +85,34 @@ class TransfersController extends Controller
     /**
      * Обновить перемещение между кассами
      *
-     * @param Request $request
+     * @param UpdateTransferRequest $request
      * @param int $id ID перемещения
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateTransferRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'cash_id_from' => 'required|exists:cash_registers,id',
-            'cash_id_to' => 'required|exists:cash_registers,id',
-            'amount' => 'required|numeric|min:0.01',
-            'note' => 'nullable|string',
-            'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001'
-        ]);
+        $validatedData = $request->validated();
 
         $transfer = \App\Models\CashTransfer::findOrFail($id);
-        $cashRegisterFrom = \App\Models\CashRegister::findOrFail($request->cash_id_from);
-        $cashRegisterTo = \App\Models\CashRegister::findOrFail($request->cash_id_to);
 
-        $cashFromAccessCheck = $this->checkCashRegisterAccess($request->cash_id_from);
+        $cashFromAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id_from']);
         if ($cashFromAccessCheck) {
             return $cashFromAccessCheck;
         }
 
-        $cashToAccessCheck = $this->checkCashRegisterAccess($request->cash_id_to);
+        $cashToAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id_to']);
         if ($cashToAccessCheck) {
             return $cashToAccessCheck;
         }
 
         $updated = $this->itemsRepository->updateItem($id, [
-            'cash_id_from' => $request->cash_id_from,
-            'cash_id_to' => $request->cash_id_to,
-            'amount' => $request->amount,
-            'note' => $request->note,
+            'cash_id_from' => $validatedData['cash_id_from'],
+            'cash_id_to' => $validatedData['cash_id_to'],
+            'amount' => $validatedData['amount'],
+            'note' => $validatedData['note'] ?? null,
             'user_id' => $userUuid,
-            'exchange_rate' => $request->exchange_rate
+            'exchange_rate' => $validatedData['exchange_rate'] ?? null
         ]);
 
         if (!$updated) {
@@ -145,8 +130,6 @@ class TransfersController extends Controller
      */
     public function destroy($id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
-
         $deleted = $this->itemsRepository->deleteItem($id);
 
         if (!$deleted) {
