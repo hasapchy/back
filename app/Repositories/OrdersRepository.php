@@ -360,7 +360,7 @@ class OrdersRepository extends BaseRepository
         $clients = $client_repository->getItemsByIds($client_ids)->keyBy('id');
         $paidAmountsMap = $this->getPaidAmountsMap($order_ids);
 
-        $items = $orders->map(function ($order) use ($products, $clients, $transactionsRepository) {
+        $items = $orders->map(function ($order) use ($products, $clients, $paidAmountsMap) {
             $item = (object) [
                 'id' => $order->id,
                 'note' => $order->note,
@@ -405,7 +405,7 @@ class OrdersRepository extends BaseRepository
                 ],
             ];
 
-            $paidAmount = (float) $transactionsRepository->getTotalByOrderId($order->user_id ?? 1, $order->id);
+            $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
             $totalPrice = (float) ($item->total_price ?? 0);
             $item->paid_amount = $paidAmount;
             $item->payment_status = $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid');
