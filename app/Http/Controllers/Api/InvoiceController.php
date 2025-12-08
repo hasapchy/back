@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreInvoiceRequest;
+use App\Http\Requests\UpdateInvoiceRequest;
 use App\Repositories\InvoicesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -10,7 +12,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы со счетами
  */
-class InvoiceController extends Controller
+class InvoiceController extends BaseController
 {
     protected $itemRepository;
 
@@ -51,23 +53,17 @@ class InvoiceController extends Controller
     /**
      * Создать новый счет
      *
-     * @param Request $request
+     * @param StoreInvoiceRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreInvoiceRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $request->validate([
-            'client_id' => 'required|integer|exists:clients,id',
-            'invoice_date' => 'nullable|date',
-            'note' => 'nullable|string',
-            'order_ids' => 'required|array|min:1',
-            'order_ids.*' => 'integer|exists:orders,id',
-        ]);
+        $validatedData = $request->validated();
 
         try {
-            $orders = $this->itemRepository->getOrdersForInvoice($request->order_ids);
+            $orders = $this->itemRepository->getOrdersForInvoice($validatedData['order_ids']);
 
             if ($orders->isEmpty()) {
                 return $this->errorResponse('Заказы не найдены', 400);
@@ -84,11 +80,11 @@ class InvoiceController extends Controller
             $totalAmount = collect($products)->sum('total_price');
 
             $data = [
-                'client_id' => $request->client_id,
+                'client_id' => $validatedData['client_id'],
                 'user_id' => $userUuid,
-                'invoice_date' => $request->invoice_date ?? now()->toDateString(),
-                'note' => $request->note ?? '',
-                'order_ids' => $request->order_ids,
+                'invoice_date' => $validatedData['invoice_date'] ?? now()->toDateString(),
+                'note' => $validatedData['note'] ?? '',
+                'order_ids' => $validatedData['order_ids'],
                 'products' => $products,
                 'total_amount' => $totalAmount,
             ];
@@ -108,36 +104,25 @@ class InvoiceController extends Controller
     /**
      * Обновить счет
      *
-     * @param Request $request
+     * @param UpdateInvoiceRequest $request
      * @param int $id ID счета
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateInvoiceRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $request->validate([
-            'client_id' => 'required|integer|exists:clients,id',
-            'invoice_date' => 'nullable|date',
-            'note' => 'nullable|string',
-            'status' => 'nullable|string|in:new,in_progress,paid,cancelled',
-            'order_ids' => 'nullable|array',
-            'order_ids.*' => 'integer|exists:orders,id',
-            'products' => 'nullable|array',
-            'products.*.product_name' => 'required_with:products|string|max:255',
-            'products.*.quantity' => 'required_with:products|numeric|min:0.01',
-            'products.*.price' => 'required_with:products|numeric|min:0',
-        ]);
+        $validatedData = $request->validated();
 
         try {
             $data = [
-                'client_id' => $request->client_id,
-                'invoice_date' => $request->invoice_date,
-                'note' => $request->note,
-                'status' => $request->status,
-                'order_ids' => $request->order_ids,
-                'products' => $request->products,
-                'total_amount' => $request->total_amount,
+                'client_id' => $validatedData['client_id'],
+                'invoice_date' => $validatedData['invoice_date'] ?? null,
+                'note' => $validatedData['note'] ?? null,
+                'status' => $validatedData['status'] ?? null,
+                'order_ids' => $validatedData['order_ids'] ?? null,
+                'products' => $validatedData['products'] ?? null,
+                'total_amount' => $request->input('total_amount'),
             ];
 
             $updated = $this->itemRepository->updateItem($id, $data);
@@ -178,7 +163,6 @@ class InvoiceController extends Controller
      */
     public function show($id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->itemRepository->getItemById($id);
         return response()->json(['item' => $item]);
     }

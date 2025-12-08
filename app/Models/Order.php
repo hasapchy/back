@@ -122,8 +122,7 @@ class Order extends Model
             }
             CacheService::invalidateCashRegistersCache();
             if ($order->project_id) {
-                $projectsRepository = new \App\Repositories\ProjectsRepository();
-                $projectsRepository->invalidateProjectCache($order->project_id);
+                CacheService::invalidateProjectCache($order->project_id);
             }
         });
     }
@@ -230,9 +229,20 @@ class Order extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function cash()
+    public function cashRegister()
     {
         return $this->belongsTo(CashRegister::class, 'cash_id');
+    }
+
+    /**
+     * Алиас для обратной совместимости
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @deprecated Используйте cashRegister() вместо cash()
+     */
+    public function cash()
+    {
+        return $this->cashRegister();
     }
 
     /**
@@ -273,5 +283,50 @@ class Order extends Model
     public function category()
     {
         return $this->belongsTo(Category::class, 'category_id');
+    }
+
+    /**
+     * Scope для фильтрации по компании
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int|null $companyId ID компании
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeForCompany($query, $companyId = null)
+    {
+        if ($companyId) {
+            return $query->where('company_id', $companyId);
+        }
+        return $query;
+    }
+
+    /**
+     * Scope для фильтрации по статусу
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int|null $statusId ID статуса
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByStatus($query, $statusId = null)
+    {
+        if ($statusId) {
+            return $query->where('status_id', $statusId);
+        }
+        return $query;
+    }
+
+    /**
+     * Scope для фильтрации по дате
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string|null $date Дата
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByDate($query, $date = null)
+    {
+        if ($date) {
+            return $query->whereDate('date', $date);
+        }
+        return $query;
     }
 }

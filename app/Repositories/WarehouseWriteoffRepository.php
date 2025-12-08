@@ -77,15 +77,12 @@ class WarehouseWriteoffRepository extends BaseRepository
         $note = $data['note'];
         $products = $data['products'];
 
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($warehouse_id, $note, $products) {
             $writeoff = new WhWriteoff();
             $writeoff->warehouse_id = $warehouse_id;
             $writeoff->note = $note;
             $writeoff->user_id      = auth('api')->id();
             $writeoff->save();
-
 
             foreach ($products as $product) {
                 $product_id = $product['product_id'];
@@ -102,16 +99,12 @@ class WarehouseWriteoffRepository extends BaseRepository
                     throw new \Exception('Ошибка обновления стоков');
                 }
             }
-            DB::commit();
 
             CacheService::invalidateWarehouseWriteoffsCache();
             CacheService::invalidateWarehouseStocksCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -128,9 +121,7 @@ class WarehouseWriteoffRepository extends BaseRepository
         $note = $data['note'];
         $products = $data['products'];
 
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($writeoff_id, $warehouse_id, $note, $products) {
             $writeoff = WhWriteoff::findOrFail($writeoff_id);
             $old_warehouse_id = $writeoff->warehouse_id;
 
@@ -174,16 +165,11 @@ class WarehouseWriteoffRepository extends BaseRepository
                 $deletedProduct->delete();
             }
 
-            DB::commit();
-
             CacheService::invalidateWarehouseWriteoffsCache();
             CacheService::invalidateWarehouseStocksCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -195,9 +181,7 @@ class WarehouseWriteoffRepository extends BaseRepository
      */
     public function deleteItem($writeoff_id)
     {
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($writeoff_id) {
             $writeoff = WhWriteoff::findOrFail($writeoff_id);
 
             $warehouse_id = $writeoff->warehouse_id;
@@ -213,16 +197,11 @@ class WarehouseWriteoffRepository extends BaseRepository
 
             $writeoff->delete();
 
-            DB::commit();
-
             CacheService::invalidateWarehouseWriteoffsCache();
             CacheService::invalidateWarehouseStocksCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**

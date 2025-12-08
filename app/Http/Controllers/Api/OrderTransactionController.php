@@ -2,17 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
 use App\Models\Order;
 use App\Models\Transaction;
 use App\Repositories\OrdersRepository;
-use App\Models\CashRegister;
 use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы со связями заказов и транзакций
  */
-class OrderTransactionController extends Controller
+class OrderTransactionController extends BaseController
 {
     protected $ordersRepository;
 
@@ -43,9 +42,9 @@ class OrderTransactionController extends Controller
 
         $userId = $this->getAuthenticatedUserIdOrFail();
         if ($order->cash_id) {
-            $cashRegister = CashRegister::findOrFail($order->cash_id);
-            if (!$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
-                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
+            if ($cashAccessCheck) {
+                return $cashAccessCheck;
             }
         }
 
@@ -75,9 +74,9 @@ class OrderTransactionController extends Controller
 
         $userId = $this->getAuthenticatedUserIdOrFail();
         if ($order->cash_id) {
-            $cashRegister = \App\Models\CashRegister::findOrFail($order->cash_id);
-            if (!$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
-                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
+            if ($cashAccessCheck) {
+                return $cashAccessCheck;
             }
         }
 
@@ -103,9 +102,9 @@ class OrderTransactionController extends Controller
 
         $userId = $this->getAuthenticatedUserIdOrFail();
         if ($order->cash_id) {
-            $cashRegister = \App\Models\CashRegister::findOrFail($order->cash_id);
-            if (!$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
-                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
+            if ($cashAccessCheck) {
+                return $cashAccessCheck;
             }
         }
 

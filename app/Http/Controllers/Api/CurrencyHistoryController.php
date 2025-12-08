@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreCurrencyHistoryRequest;
+use App\Http\Requests\UpdateCurrencyHistoryRequest;
 use App\Models\Currency;
 use App\Models\CurrencyHistory;
 use App\Services\CacheService;
@@ -13,7 +15,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 /**
  * Контроллер для работы с историей курсов валют
  */
-class CurrencyHistoryController extends Controller
+class CurrencyHistoryController extends BaseController
 {
     /**
      * Получить историю курсов валюты с пагинацией
@@ -82,11 +84,11 @@ class CurrencyHistoryController extends Controller
     /**
      * Создать новую запись в истории курсов валюты
      *
-     * @param Request $request
+     * @param StoreCurrencyHistoryRequest $request
      * @param int $currencyId ID валюты
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request, $currencyId)
+    public function store(StoreCurrencyHistoryRequest $request, $currencyId)
     {
         try {
             $user = $this->getAuthenticatedUser();
@@ -105,11 +107,7 @@ class CurrencyHistoryController extends Controller
                 return $this->forbiddenResponse('Нет доступа к этой валюте');
             }
 
-            $request->validate([
-                'exchange_rate' => 'required|numeric|min:0.000001',
-                'start_date' => 'required|date',
-                'end_date' => 'nullable|date|after:start_date'
-            ]);
+            $validatedData = $request->validated();
 
             $companyId = $this->getCurrentCompanyId();
 
@@ -118,14 +116,14 @@ class CurrencyHistoryController extends Controller
             CurrencyHistory::where('currency_id', $currencyId)
                 ->whereNull('end_date')
                 ->forCompany($companyId)
-                ->update(['end_date' => $request->start_date]);
+                ->update(['end_date' => $validatedData['start_date']]);
 
             $history = CurrencyHistory::create([
                 'currency_id' => $currencyId,
                 'company_id' => $companyId,
-                'exchange_rate' => $request->exchange_rate,
-                'start_date' => $request->start_date,
-                'end_date' => $request->end_date
+                'exchange_rate' => $validatedData['exchange_rate'],
+                'start_date' => $validatedData['start_date'],
+                'end_date' => $validatedData['end_date'] ?? null
             ]);
 
             DB::commit();
@@ -142,12 +140,12 @@ class CurrencyHistoryController extends Controller
     /**
      * Обновить запись в истории курсов валюты
      *
-     * @param Request $request
+     * @param UpdateCurrencyHistoryRequest $request
      * @param int $currencyId ID валюты
      * @param int $historyId ID записи истории
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $currencyId, $historyId)
+    public function update(UpdateCurrencyHistoryRequest $request, $currencyId, $historyId)
     {
         try {
             $user = $this->getAuthenticatedUser();
@@ -177,26 +175,22 @@ class CurrencyHistoryController extends Controller
                 return response()->json(['error' => 'Запись в истории не найдена'], 404);
             }
 
-            $request->validate([
-                'exchange_rate' => 'required|numeric|min:0.000001',
-                'start_date' => 'required|date',
-                'end_date' => 'nullable|date|after:start_date'
-            ]);
+            $validatedData = $request->validated();
 
             DB::beginTransaction();
 
-            if (!$request->end_date) {
+            if (!isset($validatedData['end_date']) || !$validatedData['end_date']) {
                 CurrencyHistory::where('currency_id', $currencyId)
                     ->where('id', '!=', $historyId)
                     ->whereNull('end_date')
                     ->forCompany($companyId)
-                    ->update(['end_date' => $request->start_date]);
+                    ->update(['end_date' => $validatedData['start_date']]);
             }
 
             $history->update([
-                'exchange_rate' => $request->exchange_rate,
-                'start_date' => $request->start_date,
-                'end_date' => $request->end_date
+                'exchange_rate' => $validatedData['exchange_rate'],
+                'start_date' => $validatedData['start_date'],
+                'end_date' => $validatedData['end_date'] ?? null
             ]);
 
             DB::commit();

@@ -59,7 +59,7 @@ class ProjectContractsRepository extends BaseRepository
      * @param string|null $search Поисковый запрос
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getProjectContractsWithPagination($projectId, $perPage = 20, $page = 1, $search = null)
+    public function getItemsWithPagination($projectId, $perPage = 20, $page = 1, $search = null)
     {
         $cacheKey = $this->generateCacheKey('project_contracts_paginated', [$projectId, $perPage, $page, $search]);
 
@@ -113,8 +113,7 @@ class ProjectContractsRepository extends BaseRepository
      */
     public function createContract(array $data): ProjectContract
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($data) {
             $project = Project::findOrFail($data['project_id']);
 
             $contract = new ProjectContract();
@@ -128,15 +127,10 @@ class ProjectContractsRepository extends BaseRepository
             $contract->note = $data['note'] ?? null;
             $contract->save();
 
-            DB::commit();
-
             $this->invalidateProjectContractsCache($data['project_id']);
 
             return $contract;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -149,8 +143,7 @@ class ProjectContractsRepository extends BaseRepository
      */
     public function updateContract(int $id, array $data): ProjectContract
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id, $data) {
             $contract = ProjectContract::findOrFail($id);
 
             $contract->number = $data['number'];
@@ -166,15 +159,10 @@ class ProjectContractsRepository extends BaseRepository
 
             $contract->save();
 
-            DB::commit();
-
             $this->invalidateProjectContractsCache($contract->project_id, $id);
 
             return $contract;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -196,7 +184,7 @@ class ProjectContractsRepository extends BaseRepository
             $this->applyCompanyFilter($query);
 
             return $query->first();
-        }, 1800);
+        }, $this->getCacheTTL('item'));
     }
 
     /**
@@ -208,22 +196,16 @@ class ProjectContractsRepository extends BaseRepository
      */
     public function deleteContract(int $id): bool
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id) {
             $contract = ProjectContract::findOrFail($id);
 
             $projectId = $contract->project_id;
             $contract->delete();
 
-            DB::commit();
-
             $this->invalidateProjectContractsCache($projectId, $id);
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**

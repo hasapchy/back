@@ -40,18 +40,12 @@ class ProjectsRepository extends BaseRepository
      */
     private function syncProjectUsers(int $projectId, array $userIds): void
     {
-        ProjectUser::where('project_id', $projectId)->delete();
-
-        if (!empty($userIds)) {
-            $insertData = [];
-            foreach ($userIds as $userId) {
-                $insertData[] = [
-                    'project_id' => $projectId,
-                    'user_id' => $userId,
-                ];
-            }
-            ProjectUser::insert($insertData);
-        }
+        $this->syncManyToManyUsers(
+            ProjectUser::class,
+            'project_id',
+            $projectId,
+            $userIds
+        );
     }
 
     /**
@@ -139,7 +133,7 @@ class ProjectsRepository extends BaseRepository
             $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
 
             return $query->orderBy('created_at', 'desc')->get();
-        }, 1800);
+        }, $this->getCacheTTL('reference'));
     }
 
     /**
@@ -151,8 +145,7 @@ class ProjectsRepository extends BaseRepository
      */
     public function createItem(array $data): bool
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($data) {
             $companyId = $this->getCurrentCompanyId();
 
             $item = new Project();
@@ -173,15 +166,10 @@ class ProjectsRepository extends BaseRepository
                 $this->syncProjectUsers($item->id, $data['users']);
             }
 
-            DB::commit();
-
             CacheService::invalidateProjectsCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -194,8 +182,7 @@ class ProjectsRepository extends BaseRepository
      */
     public function updateItem(int $id, array $data): bool
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id, $data) {
             $item = Project::findOrFail($id);
 
             if (isset($data['files']) && is_array($data['files'])) {
@@ -218,15 +205,10 @@ class ProjectsRepository extends BaseRepository
                 $this->syncProjectUsers($id, $data['users']);
             }
 
-            DB::commit();
-
             CacheService::invalidateProjectsCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -268,7 +250,7 @@ class ProjectsRepository extends BaseRepository
 
 
             return $result;
-        }, 1800);
+        }, $this->getCacheTTL('reference'));
     }
 
     /**
@@ -280,8 +262,7 @@ class ProjectsRepository extends BaseRepository
      */
     public function deleteItem($id)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id) {
             $item = Project::findOrFail($id);
 
             $transactionsCount = \App\Models\Transaction::where('project_id', $id)
@@ -295,16 +276,10 @@ class ProjectsRepository extends BaseRepository
 
             $item->delete();
 
-            DB::commit();
-
-            // Инвалидируем кэш проектов
             CacheService::invalidateProjectsCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -439,7 +414,7 @@ class ProjectsRepository extends BaseRepository
         return CacheService::remember($cacheKey, function () use ($projectId) {
             $history = $this->getBalanceHistory($projectId);
             return collect($history)->sum('amount');
-        }, 900);
+        }, $this->getCacheTTL('reference', true));
     }
 
     /**
@@ -458,7 +433,7 @@ class ProjectsRepository extends BaseRepository
                 'total_balance' => $balance,
                 'real_balance' => $balance
             ];
-        }, 900);
+        }, $this->getCacheTTL('reference', true));
     }
 
     /**

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreProjectContractRequest;
+use App\Http\Requests\UpdateProjectContractRequest;
 use App\Models\Project;
 use App\Models\ProjectContract;
 use App\Repositories\ProjectContractsRepository;
@@ -12,7 +14,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для управления контрактами проектов
  */
-class ProjectContractsController extends Controller
+class ProjectContractsController extends BaseController
 {
     /**
      * @var ProjectContractsRepository
@@ -50,7 +52,7 @@ class ProjectContractsController extends Controller
             $page = (int) $request->get('page', 1);
             $search = $request->get('search');
 
-            $result = $this->repository->getProjectContractsWithPagination($projectId, $perPage, $page, $search);
+            $result = $this->repository->getItemsWithPagination($projectId, $perPage, $page, $search);
 
             return $this->paginatedResponse($result);
         } catch (\Exception $e) {
@@ -88,24 +90,15 @@ class ProjectContractsController extends Controller
     /**
      * Создание нового контракта
      *
-     * @param Request $request
+     * @param StoreProjectContractRequest $request
      * @return JsonResponse
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreProjectContractRequest $request): JsonResponse
     {
         try {
-            $request->validate([
-                'project_id' => 'required|exists:projects,id',
-                'number' => 'required|string|max:255',
-                'amount' => 'required|numeric|min:0',
-                'currency_id' => 'nullable|exists:currencies,id',
-                'date' => 'required|date',
-                'returned' => 'nullable|boolean',
-                'files' => 'nullable|array',
-                'note' => 'nullable|string'
-            ]);
+            $validatedData = $request->validated();
 
-            $project = Project::find($request->project_id);
+            $project = Project::find($validatedData['project_id']);
             if (!$project) {
                 return $this->notFoundResponse('Проект не найден');
             }
@@ -114,16 +107,7 @@ class ProjectContractsController extends Controller
                 return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
             }
 
-            $data = $request->only([
-                'project_id',
-                'number',
-                'amount',
-                'currency_id',
-                'date',
-                'returned',
-                'files',
-                'note'
-            ]);
+            $data = $validatedData;
 
             $contract = $this->repository->createContract($data);
 
@@ -171,11 +155,11 @@ class ProjectContractsController extends Controller
     /**
      * Обновление контракта
      *
-     * @param Request $request
+     * @param UpdateProjectContractRequest $request
      * @param int $id ID контракта
      * @return JsonResponse
      */
-    public function update(Request $request, $id): JsonResponse
+    public function update(UpdateProjectContractRequest $request, $id): JsonResponse
     {
         try {
             $contract = ProjectContract::find($id);
@@ -192,25 +176,9 @@ class ProjectContractsController extends Controller
                 return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
             }
 
-            $request->validate([
-                'number' => 'required|string|max:255',
-                'amount' => 'required|numeric|min:0',
-                'currency_id' => 'nullable|exists:currencies,id',
-                'date' => 'required|date',
-                'returned' => 'nullable|boolean',
-                'files' => 'nullable|array',
-                'note' => 'nullable|string'
-            ]);
+            $validatedData = $request->validated();
 
-            $data = $request->only([
-                'number',
-                'amount',
-                'currency_id',
-                'date',
-                'returned',
-                'files',
-                'note'
-            ]);
+            $data = $validatedData;
 
             $contract = $this->repository->updateContract($id, $data);
 

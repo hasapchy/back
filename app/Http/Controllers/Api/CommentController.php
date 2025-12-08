@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreCommentRequest;
+use App\Http\Requests\UpdateCommentRequest;
 use App\Repositories\CommentsRepository;
 use App\Services\CacheService;
 use App\Services\RoundingService;
@@ -30,7 +32,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * Контроллер для работы с комментариями
  */
-class CommentController extends Controller
+class CommentController extends BaseController
 {
     protected CommentsRepository $itemsRepository;
     private array $productUnitCache = [];
@@ -75,22 +77,18 @@ class CommentController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreCommentRequest $request)
     {
         $user = $this->getAuthenticatedUser();
         if (! $user) {
             return $this->unauthorizedResponse();
         }
 
-        $request->validate([
-            'type' => 'required|string',
-            'id' => 'required|integer',
-            'body' => 'required|string|max:1000',
-        ]);
+        $validatedData = $request->validated();
 
-        $comment = $this->itemsRepository->createItem($request->type, $request->id, $request->body, $user->id);
+        $comment = $this->itemsRepository->createItem($validatedData['type'], $validatedData['id'], $validatedData['body'], $user->id);
 
-        $this->invalidateTimelineCache($request->type, $request->id);
+        $this->invalidateTimelineCache($validatedData['type'], $validatedData['id']);
 
         return response()->json([
             'message' => 'Комментарий добавлен',
@@ -105,18 +103,16 @@ class CommentController extends Controller
      * @param int $id ID комментария
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateCommentRequest $request, $id)
     {
         $user = $this->getAuthenticatedUser();
         if (! $user) {
             return $this->unauthorizedResponse();
         }
 
-        $request->validate([
-            'body' => 'required|string|max:1000',
-        ]);
+        $validatedData = $request->validated();
 
-        $updatedComment = $this->itemsRepository->updateItem($id, $user->id, $request->body);
+        $updatedComment = $this->itemsRepository->updateItem($id, $user->id, $validatedData['body']);
 
         if (! $updatedComment) {
             return response()->json(['message' => 'Комментарий не найден или нет прав'], 403);

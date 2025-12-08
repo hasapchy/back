@@ -129,9 +129,7 @@ class WarehouseReceiptRepository extends BaseRepository
         $note         = !empty($data['note']) ? $data['note'] : null;
         $products     = $data['products'];
 
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($data, $client_id, $warehouse_id, $type, $cash_id, $date, $note, $products) {
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $currency = $defaultCurrency;
 
@@ -205,13 +203,9 @@ class WarehouseReceiptRepository extends BaseRepository
                 $this->createTransactionForSource($paymentTxData, \App\Models\WhReceipt::class, $receipt->id, true);
             }
 
-            DB::commit();
             $this->invalidateCaches($data['project_id'] ?? null);
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -232,9 +226,7 @@ class WarehouseReceiptRepository extends BaseRepository
         $products     = $data['products'];
         $project_id   = $data['project_id'] ?? null;
 
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($receipt_id, $client_id, $warehouse_id, $cash_id, $date, $note, $products, $project_id) {
             $receipt = WhReceipt::findOrFail($receipt_id);
 
             $old_total_amount = $receipt->amount;
@@ -294,13 +286,9 @@ class WarehouseReceiptRepository extends BaseRepository
                 $deletedProduct->delete();
             }
 
-            DB::commit();
             $this->invalidateCaches($project_id);
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**

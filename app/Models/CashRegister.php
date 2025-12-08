@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Template;
+use App\Models\Traits\HasManyToManyUsers;
 
 /**
  * Модель кассы
@@ -26,7 +27,7 @@ use App\Models\Template;
  */
 class CashRegister extends Model
 {
-    use HasFactory;
+    use HasFactory, HasManyToManyUsers;
 
     protected $fillable = [
         'name',
@@ -35,14 +36,16 @@ class CashRegister extends Model
         'company_id',
     ];
 
+    protected const PROTECTED_CASH_REGISTER_ID = 1;
+
     protected $casts = [
-        'balance' => 'decimal:2',
+        'balance' => 'decimal:5',
     ];
 
     protected static function booted()
     {
         static::deleting(function ($cashRegister) {
-            if ($cashRegister->id === 1) {
+            if ($cashRegister->id === self::PROTECTED_CASH_REGISTER_ID) {
                 return false;
             }
         });
@@ -108,37 +111,11 @@ class CashRegister extends Model
         return $this->belongsToMany(User::class, 'cash_register_users', 'cash_register_id', 'user_id');
     }
 
-    /**
-     * Accessor для получения пользователей
-     *
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    public function getUsersAttribute()
-    {
-        $relation = $this->getRelationValue('users');
-
-        if ($relation !== null) {
-            return $relation;
-        }
-
-        return $this->users()->get();
-    }
-
-    /**
-     * Проверить, есть ли у кассы пользователь
-     *
-     * @param int $userId ID пользователя
-     * @return bool
-     */
-    public function hasUser($userId)
-    {
-        return $this->cashRegisterUsers()->where('user_id', $userId)->exists();
-    }
 
     /**
      * Получить разрешенных пользователей кассы
      *
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @return \Illuminate\Database\Eloquent\Collection|\App\Models\User[]
      */
     public function permittedUsers()
     {

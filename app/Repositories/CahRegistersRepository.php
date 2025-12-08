@@ -20,17 +20,13 @@ class CahRegistersRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        try {
-            $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name']);
+        $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name']);
 
-            $this->applyUserFilter($query, $userUuid);
-            $query = $this->addCompanyFilterDirect($query, 'cash_registers');
+        $this->applyUserFilter($query, $userUuid);
+        $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
-            return $query->orderBy('created_at', 'desc')
-                ->paginate($perPage, ['*'], 'page', (int)$page);
-        } catch (\Exception $e) {
-            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
-        }
+        return $query->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', (int)$page);
     }
 
     /**
@@ -41,26 +37,22 @@ class CahRegistersRepository extends BaseRepository
      */
     public function getAllItems($userUuid)
     {
-        try {
-            if (!\Illuminate\Support\Facades\Schema::hasTable('cash_registers')) {
-                throw new \Exception('Table cash_registers does not exist');
-            }
-
-            $currentUser = auth('api')->user();
-            $companyId = $this->getCurrentCompanyId();
-            $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid, $currentUser?->id, $companyId]);
-
-            return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
-                $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name']);
-
-                $this->applyUserFilter($query, $userUuid);
-                $query = $this->addCompanyFilterDirect($query, 'cash_registers');
-
-                return $query->get();
-            });
-        } catch (\Exception $e) {
-            return \Illuminate\Support\Collection::make();
+        if (!\Illuminate\Support\Facades\Schema::hasTable('cash_registers')) {
+            throw new \Exception('Table cash_registers does not exist');
         }
+
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid, $currentUser?->id, $companyId]);
+
+        return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
+            $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name']);
+
+            $this->applyUserFilter($query, $userUuid);
+            $query = $this->addCompanyFilterDirect($query, 'cash_registers');
+
+            return $query->get();
+        });
     }
 
     /**
@@ -262,8 +254,7 @@ class CahRegistersRepository extends BaseRepository
      */
     public function createItem($data)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($data) {
             $item = new CashRegister();
             $item->name = $data['name'];
             $item->balance = $data['balance'];
@@ -273,15 +264,10 @@ class CahRegistersRepository extends BaseRepository
 
             $this->syncUsers($item->id, $data['users'] ?? []);
 
-            DB::commit();
-
             CacheService::invalidateCashRegistersCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -298,8 +284,7 @@ class CahRegistersRepository extends BaseRepository
      */
     public function updateItem($id, $data)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id, $data) {
             $item = CashRegister::findOrFail($id);
 
             if (isset($data['name'])) {
@@ -318,15 +303,10 @@ class CahRegistersRepository extends BaseRepository
                 $this->syncUsers($id, $data['users']);
             }
 
-            DB::commit();
-
             CacheService::invalidateCashRegistersCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -339,22 +319,16 @@ class CahRegistersRepository extends BaseRepository
      */
     public function deleteItem($id)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id) {
             $item = CashRegister::findOrFail($id);
             $item->delete();
 
             CashRegisterUser::where('cash_register_id', $id)->delete();
 
-            DB::commit();
-
             CacheService::invalidateCashRegistersCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -367,20 +341,16 @@ class CahRegistersRepository extends BaseRepository
      */
     private function syncUsers(int $cashRegisterId, array $userIds)
     {
-        if (empty($userIds)) {
-            throw new \Exception('Касса должна иметь хотя бы одного пользователя');
-        }
-
-        CashRegisterUser::where('cash_register_id', $cashRegisterId)->delete();
-
-        $insertData = [];
-        foreach ($userIds as $userId) {
-            $insertData[] = [
-                'cash_register_id' => $cashRegisterId,
-                'user_id' => $userId,
-            ];
-        }
-        CashRegisterUser::insert($insertData);
+        $this->syncManyToManyUsers(
+            CashRegisterUser::class,
+            'cash_register_id',
+            $cashRegisterId,
+            $userIds,
+            [
+                'require_at_least_one' => true,
+                'error_message' => 'Касса должна иметь хотя бы одного пользователя'
+            ]
+        );
     }
 
     /**
@@ -397,9 +367,9 @@ class CahRegistersRepository extends BaseRepository
         }
 
         $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
-        $query->whereHas('cashRegisterUsers', function($q) use ($filterUserId) {
-            $q->where('user_id', $filterUserId);
-        });
+        $query->join('cash_register_users', 'cash_registers.id', '=', 'cash_register_users.cash_register_id')
+            ->where('cash_register_users.user_id', $filterUserId)
+            ->distinct();
     }
 
 }

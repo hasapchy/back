@@ -66,7 +66,10 @@ class Client extends Model
     ];
 
     protected $casts = [
-        'balance' => 'decimal:2',
+        'balance' => 'decimal:5',
+        'is_supplier' => 'boolean',
+        'is_conflict' => 'boolean',
+        'status' => 'boolean',
     ];
 
     /**
@@ -117,5 +120,35 @@ class Client extends Model
     public function emails()
     {
         return $this->hasMany(ClientsEmail::class, 'client_id');
+    }
+
+    /**
+     * Scope для фильтрации по компании
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int|null $companyId ID компании
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeForCompany($query, $companyId = null)
+    {
+        if ($companyId) {
+            return $query->where('company_id', $companyId);
+        }
+        return $query;
+    }
+
+    /**
+     * Scope для фильтрации по типу клиента
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string|null $clientType Тип клиента
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByType($query, $clientType = null)
+    {
+        if ($clientType) {
+            return $query->where('client_type', $clientType);
+        }
+        return $query;
     }
 }

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreWarehouseWriteoffRequest;
+use App\Http\Requests\UpdateWarehouseWriteoffRequest;
 use App\Repositories\WarehouseWriteoffRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -10,7 +12,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы со списаниями со склада
  */
-class WarehouseWriteoffController extends Controller
+class WarehouseWriteoffController extends BaseController
 {
     protected $warehouseRepository;
 
@@ -34,7 +36,9 @@ class WarehouseWriteoffController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20);
+        $perPage = $request->input('per_page', 20);
+
+        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage);
 
         return $this->paginatedResponse($warehouses);
     }
@@ -45,32 +49,24 @@ class WarehouseWriteoffController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreWarehouseWriteoffRequest $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $validatedData = $request->validated();
 
-        $request->validate([
-            'warehouse_id' => 'required|integer|exists:warehouses,id',
-            'note' => 'nullable|string',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:0'
-        ]);
-
-        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        $warehouseAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_id']);
         if ($warehouseAccessCheck) {
             return $warehouseAccessCheck;
         }
 
         $data = array(
-            'warehouse_id' => $request->warehouse_id,
-            'note' => $request->note ?? '',
+            'warehouse_id' => $validatedData['warehouse_id'],
+            'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
                 return [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity']
                 ];
-            }, $request->products)
+            }, $validatedData['products'])
         );
 
         try {
@@ -92,31 +88,24 @@ class WarehouseWriteoffController extends Controller
      * @param int $id ID списания
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateWarehouseWriteoffRequest $request, $id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
-        $request->validate([
-            'warehouse_id' => 'required|integer|exists:warehouses,id',
-            'note' => 'nullable|string',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:0'
-        ]);
+        $validatedData = $request->validated();
 
-        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        $warehouseAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_id']);
         if ($warehouseAccessCheck) {
             return $warehouseAccessCheck;
         }
 
         $data = array(
-            'warehouse_id' => $request->warehouse_id,
-            'note' => $request->note ?? '',
+            'warehouse_id' => $validatedData['warehouse_id'],
+            'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
                 return [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity']
                 ];
-            }, $request->products)
+            }, $validatedData['products'])
         );
 
         try {
@@ -142,9 +131,9 @@ class WarehouseWriteoffController extends Controller
         $writeoff = \App\Models\WhWriteoff::findOrFail($id);
 
         if ($writeoff->warehouse_id) {
-            $warehouse = \App\Models\Warehouse::findOrFail($writeoff->warehouse_id);
-            if (!$this->canPerformAction('warehouses', 'view', $warehouse)) {
-                return $this->forbiddenResponse('У вас нет прав на этот склад');
+            $warehouseAccessCheck = $this->checkWarehouseAccess($writeoff->warehouse_id);
+            if ($warehouseAccessCheck) {
+                return $warehouseAccessCheck;
             }
         }
 

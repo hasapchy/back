@@ -20,6 +20,10 @@ use App\Services\RoundingService;
 
 class OrdersRepository extends BaseRepository
 {
+    /**
+     * ID статуса заказа "Оплачен"
+     */
+    private const PAID_STATUS_ID = 5;
 
     /**
      * Получить заказы с пагинацией и фильтрацией
@@ -72,8 +76,11 @@ class OrdersRepository extends BaseRepository
                     if ($this->shouldApplyUserFilter('cash_registers')) {
                         $q->whereNull('orders.cash_id');
                         $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
-                        $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
-                            $subQuery->where('user_id', $filterUserId);
+                        $q->orWhereExists(function ($subQuery) use ($filterUserId) {
+                            $subQuery->select(DB::raw(1))
+                                ->from('cash_register_users')
+                                ->whereColumn('cash_register_users.cash_register_id', 'orders.cash_id')
+                                ->where('cash_register_users.user_id', $filterUserId);
                         });
                     }
                 });
@@ -84,17 +91,11 @@ class OrdersRepository extends BaseRepository
                 $searchTrimmed = trim($search);
                 $query->where(function ($q) use ($searchTrimmed) {
                     $q->where('orders.id', 'like', "%{$searchTrimmed}%")
-                        ->orWhere('orders.note', 'like', "%{$searchTrimmed}%")
-                        ->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
-                            $clientQuery->where(function ($subQuery) use ($searchTrimmed) {
-                                $subQuery->where('first_name', 'like', "%{$searchTrimmed}%")
-                                    ->orWhere('last_name', 'like', "%{$searchTrimmed}%")
-                                    ->orWhere('contact_person', 'like', "%{$searchTrimmed}%");
-                            });
-                        })
-                        ->orWhereHas('client.phones', function ($phoneQuery) use ($searchTrimmed) {
-                            $phoneQuery->where('phone', 'like', "%{$searchTrimmed}%");
-                        });
+                        ->orWhere('orders.note', 'like', "%{$searchTrimmed}%");
+                    $this->applyClientSearchFilterThroughRelation($q, 'client', $searchTrimmed);
+                    $q->orWhereHas('client.phones', function ($phoneQuery) use ($searchTrimmed) {
+                        $phoneQuery->where('phone', 'like', "%{$searchTrimmed}%");
+                    });
                 });
             }
 
@@ -130,8 +131,11 @@ class OrdersRepository extends BaseRepository
 
             if ($isBasementWorker && !$currentUser->is_admin) {
                 $query->where(function ($q) use ($userUuid) {
-                    $q->whereHas('category.categoryUsers', function ($subQuery) use ($userUuid) {
-                        $subQuery->where('user_id', $userUuid);
+                    $q->whereExists(function ($subQuery) use ($userUuid) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('category_users')
+                            ->whereColumn('category_users.category_id', 'orders.category_id')
+                            ->where('category_users.user_id', $userUuid);
                     })
                         ->orWhereNull('orders.category_id');
                 });
@@ -266,8 +270,12 @@ class OrdersRepository extends BaseRepository
                 if ($this->shouldApplyUserFilter('cash_registers')) {
                     $q->whereNull('orders.cash_id');
                     $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
-                    $q->orWhereHas('cash.cashRegisterUsers', function ($subQuery) use ($filterUserId) {
-                        $subQuery->where('user_id', $filterUserId);
+                    $q->orWhereExists(function ($subQuery) use ($filterUserId) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('cash_register_users')
+                            ->join('cash_registers', 'cash_register_users.cash_register_id', '=', 'cash_registers.id')
+                            ->whereColumn('cash_registers.id', 'orders.cash_id')
+                            ->where('cash_register_users.user_id', $filterUserId);
                     });
                 }
             });
@@ -277,8 +285,11 @@ class OrdersRepository extends BaseRepository
 
             if ($isBasementWorker && !$currentUser->is_admin) {
                 $unpaidQuery->where(function ($q) use ($userUuid) {
-                    $q->whereHas('category.categoryUsers', function ($subQuery) use ($userUuid) {
-                        $subQuery->where('user_id', $userUuid);
+                    $q->whereExists(function ($subQuery) use ($userUuid) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('category_users')
+                            ->whereColumn('category_users.category_id', 'orders.category_id')
+                            ->where('category_users.user_id', $userUuid);
                     })
                         ->orWhereNull('orders.category_id');
                 });
@@ -561,7 +572,7 @@ class OrdersRepository extends BaseRepository
                 $price += $q * $p;
             }
 
-            $warehouseName = optional(Warehouse::find($warehouse_id))->name ?? (string)$warehouse_id;
+            $warehouseName = Warehouse::find($warehouse_id)?->name ?? (string)$warehouse_id;
             $this->checkAndDeductWarehouseStock($warehouseStocksToUpdate, $warehouse_id, $warehouseName);
 
             $price += $this->calculateTempProductsTotal($temp_products, $roundingService, $companyId);
@@ -698,7 +709,7 @@ class OrdersRepository extends BaseRepository
                 ? ProductPrice::whereIn('product_id', $productPriceIds)->get()->keyBy('product_id')
                 : collect();
 
-            $warehouseName = $warehouseChanged ? optional(Warehouse::find($warehouse_id))->name : null;
+            $warehouseName = $warehouseChanged ? Warehouse::find($warehouse_id)?->name : null;
 
             $productsCache = [];
             $warehouseStocksToUpdate = [];
@@ -1086,7 +1097,7 @@ class OrdersRepository extends BaseRepository
         }
 
         $paidTotals = collect();
-        if (in_array($statusId, [5], true)) {
+        if (in_array($statusId, [self::PAID_STATUS_ID], true)) {
             $paidTotals = Transaction::where('source_type', \App\Models\Order::class)
                 ->whereIn('source_id', $orders->keys())
                 ->where('is_debt', false)
@@ -1209,7 +1220,7 @@ class OrdersRepository extends BaseRepository
         foreach ($warehouseStocksToUpdate as $p_id => $stockData) {
             $stock = $stocks->get($p_id);
             if (!$stock || $stock->quantity < $stockData['quantity']) {
-                $warehouseName = $warehouseName ?? optional(Warehouse::find($warehouseId))->name ?? (string)$warehouseId;
+                $warehouseName = $warehouseName ?? Warehouse::find($warehouseId)?->name ?? (string)$warehouseId;
                 $available = $stock->quantity ?? 0;
                 throw new \Exception("На складе '{$warehouseName}' недостаточно товара '{$stockData['product_name']}' (доступно: {$available}, требуется: {$stockData['quantity']})");
             }

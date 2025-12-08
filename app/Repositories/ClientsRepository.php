@@ -10,6 +10,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ClientsRepository extends BaseRepository
 {
@@ -144,7 +145,7 @@ class ClientsRepository extends BaseRepository
             $query->orderBy('clients.created_at', 'desc');
 
             return $query->get();
-        }, 1800);
+        }, $this->getCacheTTL('reference'));
     }
 
     /**
@@ -283,7 +284,7 @@ class ClientsRepository extends BaseRepository
                 'first_name'     => $data['first_name'],
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,
-                'last_name'      => $data['last_name'] ?? "",
+                'last_name'      => $data['last_name'] ?? null,
                 'patronymic'     => $data['patronymic'] ?? null,
                 'contact_person' => $data['contact_person'] ?? null,
                 'position'       => $data['position'] ?? null,
@@ -318,23 +319,27 @@ class ClientsRepository extends BaseRepository
     {
         $client = DB::transaction(function () use ($id, $data) {
             $client = Client::findOrFail($id);
-            $client->update([
+            $updateData = [
                 'user_id'        => $data['user_id'] ?? $client->user_id,
                 'employee_id'    => $data['employee_id'] ?? $client->employee_id,
                 'first_name'     => $data['first_name'],
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,
-                'last_name'      => $data['last_name'] ?? "",
-                'patronymic'     => $data['patronymic'] ?? null,
-                'contact_person' => $data['contact_person'] ?? null,
-                'position'       => $data['position'] ?? null,
                 'client_type'    => $data['client_type'],
-                'address'        => $data['address'] ?? null,
-                'note'           => $data['note'] ?? null,
                 'status'         => $data['status'] ?? true,
                 'discount' => $data['discount'] ?? 0,
-                'discount_type'  => $data['discount_type'] ?? null,
-            ]);
+            ];
+
+            $nullableFields = ['last_name', 'patronymic', 'contact_person', 'position', 'address', 'note', 'discount_type'];
+            foreach ($nullableFields as $field) {
+                if (array_key_exists($field, $data)) {
+                    $updateData[$field] = $data[$field];
+                } else {
+                    $updateData[$field] = $client->$field;
+                }
+            }
+
+            $client->update($updateData);
 
             $this->syncPhones($client->id, $data['phones'] ?? []);
             $this->syncEmails($client->id, $data['emails'] ?? []);
@@ -597,9 +602,14 @@ class ClientsRepository extends BaseRepository
 
                 return $result;
             } catch (\Exception $e) {
-                return [];
+                Log::error('Error in getBalanceHistory: ' . $e->getMessage(), [
+                    'client_id' => $clientId,
+                    'exclude_debt' => $excludeDebt,
+                    'exception' => $e
+                ]);
+                throw $e;
             }
-        }, 900);
+        }, $this->getCacheTTL('reference', true));
     }
 
     /**

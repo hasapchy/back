@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\HasManyToManyUsers;
 
 /**
  * Модель категории
@@ -24,7 +25,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Category extends Model
 {
-    use HasFactory;
+    use HasFactory, HasManyToManyUsers;
 
     protected $fillable = ['name', 'parent_id', 'user_id', 'company_id'];
 
@@ -68,32 +69,6 @@ class Category extends Model
         return $this->belongsToMany(User::class, 'category_users', 'category_id', 'user_id');
     }
 
-    /**
-     * Accessor для получения пользователей
-     *
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    public function getUsersAttribute()
-    {
-        $relation = $this->getRelationValue('users');
-
-        if ($relation !== null) {
-            return $relation;
-        }
-
-        return $this->users()->get();
-    }
-
-    /**
-     * Проверить, есть ли у категории пользователь
-     *
-     * @param int $userId ID пользователя
-     * @return bool
-     */
-    public function hasUser($userId)
-    {
-        return $this->users()->where('user_id', $userId)->exists();
-    }
 
     /**
      * Связь с компанией

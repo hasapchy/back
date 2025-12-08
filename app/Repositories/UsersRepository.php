@@ -68,12 +68,11 @@ class UsersRepository extends BaseRepository
             ])
                 ->with(['companies:id,name']);
 
-            // Фильтрация по компании: показываем только пользователей, связанных с текущей компанией
             $companyId = $this->getCurrentCompanyId();
             if ($companyId) {
-                $query->whereHas('companies', function ($q) use ($companyId) {
-                    $q->where('companies.id', $companyId);
-                });
+                $query->join('company_user', 'users.id', '=', 'company_user.user_id')
+                    ->where('company_user.company_id', $companyId)
+                    ->distinct();
             }
 
             if ($currentUser && !$currentUser->is_admin) {
@@ -184,6 +183,13 @@ class UsersRepository extends BaseRepository
         });
     }
 
+    /**
+     * Построить базовый запрос для получения пользователей
+     *
+     * @param \App\Models\User|null $currentUser Текущий пользователь
+     * @param int|null $companyId ID компании
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     protected function buildUsersQuery($currentUser, $companyId)
     {
         $query = User::select([
@@ -202,7 +208,9 @@ class UsersRepository extends BaseRepository
         ])->with(['companies:id,name']);
 
         if ($companyId) {
-            $query->whereHas('companies', fn($q) => $q->where('companies.id', $companyId));
+            $query->join('company_user', 'users.id', '=', 'company_user.user_id')
+                ->where('company_user.company_id', $companyId)
+                ->distinct();
         }
 
         if ($currentUser && !$currentUser->is_admin) {
@@ -216,6 +224,13 @@ class UsersRepository extends BaseRepository
         return $query->orderBy('users.created_at', 'desc');
     }
 
+    /**
+     * Получить карту зарплат пользователей
+     *
+     * @param \Illuminate\Support\Collection $userIds Коллекция ID пользователей
+     * @param int|null $companyId ID компании
+     * @return array Массив зарплат, сгруппированных по ID пользователя
+     */
     protected function getSalariesMap($userIds, $companyId): array
     {
         if ($userIds->isEmpty() || !$companyId) {
@@ -239,6 +254,14 @@ class UsersRepository extends BaseRepository
             ->toArray();
     }
 
+    /**
+     * Получить карты разрешений и ролей для пользователей
+     *
+     * @param \Illuminate\Database\Eloquent\Collection $users Коллекция пользователей
+     * @param \Illuminate\Support\Collection $userIds Коллекция ID пользователей
+     * @param int|null $companyId ID компании
+     * @return array Массив [permissionsMap, rolesMap]
+     */
     protected function getPermissionsAndRolesMaps($users, $userIds, $companyId): array
     {
         $permissionsMap = [];
@@ -264,6 +287,14 @@ class UsersRepository extends BaseRepository
         return [$permissionsMap, $rolesMap];
     }
 
+    /**
+     * Получить карты разрешений и ролей для пользователей в рамках компании
+     *
+     * @param \Illuminate\Database\Eloquent\Collection $users Коллекция пользователей
+     * @param \Illuminate\Support\Collection $userIds Коллекция ID пользователей
+     * @param int $companyId ID компании
+     * @return array Массив [permissionsMap, rolesMap]
+     */
     protected function getCompanyScopedPermissionsAndRoles($users, $userIds, $companyId): array
     {
         $permissionsMap = [];
@@ -320,6 +351,12 @@ class UsersRepository extends BaseRepository
         return [$permissionsMap, $rolesMap];
     }
 
+    /**
+     * Получить карту ролей компаний для пользователей
+     *
+     * @param \Illuminate\Support\Collection $userIds Коллекция ID пользователей
+     * @return array Массив ролей, сгруппированных по ID пользователя
+     */
     protected function getCompanyRolesMap($userIds): array
     {
         if ($userIds->isEmpty()) {
@@ -371,8 +408,7 @@ class UsersRepository extends BaseRepository
      */
     public function createItem(array $data)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($data) {
             if (empty($data['companies']) || !is_array($data['companies'])) {
                 throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
             }
@@ -383,7 +419,7 @@ class UsersRepository extends BaseRepository
             $user->email    = $data['email'];
             $user->password = $data['password'];
             $user->hire_date = $data['hire_date'] ?? null;
-            $user->birthday = $data['birthday'] ? Carbon::parse($data['birthday'])->format('Y-m-d') : null;
+            $user->birthday = isset($data['birthday']) && $data['birthday'] ? Carbon::parse($data['birthday'])->format('Y-m-d') : null;
             $user->is_active = $data['is_active'] ?? true;
             $user->position = $data['position'] ?? null;
             $user->is_admin = $data['is_admin'] ?? false;
@@ -404,18 +440,13 @@ class UsersRepository extends BaseRepository
                 throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
             }
 
-            DB::commit();
-
             $this->loadUserRelations($user);
 
             CacheService::invalidateByLike('%users_paginated%');
             CacheService::invalidateByLike('%users_all%');
 
             return $user;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -428,10 +459,8 @@ class UsersRepository extends BaseRepository
      */
     public function updateItem($id, array $data)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id, $data) {
             $user = User::findOrFail($id);
-
 
             $user->name = $data['name'] ?? $user->name;
             $user->surname = array_key_exists('surname', $data) ? $data['surname'] : $user->surname;
@@ -464,18 +493,13 @@ class UsersRepository extends BaseRepository
                 throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
             }
 
-            DB::commit();
-
             $this->loadUserRelations($user);
 
             CacheService::invalidateByLike('%users_paginated%');
             CacheService::invalidateByLike('%users_all%');
 
             return $user;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -590,8 +614,7 @@ class UsersRepository extends BaseRepository
             throw new \Exception($message);
         }
 
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($user) {
             $user->companies()->detach();
             $user->warehouses()->detach();
             $user->projects()->detach();
@@ -603,16 +626,11 @@ class UsersRepository extends BaseRepository
 
             $user->delete();
 
-            DB::commit();
-
             CacheService::invalidateByLike('%users_paginated%');
             CacheService::invalidateByLike('%users_all%');
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -677,7 +695,7 @@ class UsersRepository extends BaseRepository
             }
 
             return $query->orderBy('start_date', 'desc')->get();
-        }, 1800);
+        }, $this->getCacheTTL('user_data'));
     }
 
     /**
@@ -691,8 +709,7 @@ class UsersRepository extends BaseRepository
     {
         $companyId = $this->getCurrentCompanyId();
 
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($userId, $data, $companyId) {
             $startDate = $data['start_date'];
             $endDate = $data['end_date'] ?? null;
 
@@ -736,15 +753,10 @@ class UsersRepository extends BaseRepository
                 'note' => $data['note'] ?? null,
             ]);
 
-            DB::commit();
-
             CacheService::invalidateByLike('%user_salaries%');
 
             return $salary->load('currency');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -756,8 +768,7 @@ class UsersRepository extends BaseRepository
      */
     public function updateSalary($salaryId, array $data)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($salaryId, $data) {
             $salary = EmployeeSalary::findOrFail($salaryId);
 
             $newStartDate = $data['start_date'] ?? $salary->start_date;
@@ -839,15 +850,10 @@ class UsersRepository extends BaseRepository
 
             $salary->update($updateData);
 
-            DB::commit();
-
             CacheService::invalidateByLike('%user_salaries%');
 
             return $salary->fresh('currency');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
