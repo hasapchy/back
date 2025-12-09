@@ -249,15 +249,17 @@ abstract class BaseRepository
      * @param string|null $tableAlias Алиас таблицы
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    private function applyClientSearchConditions($query, $search, $tableAlias = null)
+    protected function applyClientSearchConditions($query, $search, $tableAlias = null)
     {
         $tablePrefix = $tableAlias ? "{$tableAlias}." : '';
+        $searchLower = mb_strtolower($search);
 
-        $query->where("{$tablePrefix}first_name", 'like', "%{$search}%")
-            ->orWhere("{$tablePrefix}last_name", 'like', "%{$search}%")
-            ->orWhere("{$tablePrefix}patronymic", 'like', "%{$search}%")
-            ->orWhere("{$tablePrefix}contact_person", 'like', "%{$search}%")
-            ->orWhere("{$tablePrefix}position", 'like', "%{$search}%");
+        $query->whereRaw("LOWER({$tablePrefix}first_name) LIKE ?", ["%{$searchLower}%"])
+            ->orWhereRaw("LOWER({$tablePrefix}last_name) LIKE ?", ["%{$searchLower}%"])
+            ->orWhereRaw("LOWER({$tablePrefix}patronymic) LIKE ?", ["%{$searchLower}%"])
+            ->orWhereRaw("LOWER({$tablePrefix}contact_person) LIKE ?", ["%{$searchLower}%"])
+            ->orWhereRaw("LOWER({$tablePrefix}position) LIKE ?", ["%{$searchLower}%"])
+            ->orWhereRaw("LOWER(CONCAT(COALESCE({$tablePrefix}first_name, ''), ' ', COALESCE({$tablePrefix}last_name, ''), ' ', COALESCE({$tablePrefix}patronymic, ''))) LIKE ?", ["%{$searchLower}%"]);
 
         return $query;
     }

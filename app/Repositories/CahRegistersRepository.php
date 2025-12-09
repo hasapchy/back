@@ -25,7 +25,7 @@ class CahRegistersRepository extends BaseRepository
         $this->applyUserFilter($query, $userUuid);
         $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
-        return $query->orderBy('created_at', 'desc')
+        return $query->orderBy('cash_registers.created_at', 'desc')
             ->paginate($perPage, ['*'], 'page', (int)$page);
     }
 
@@ -51,7 +51,7 @@ class CahRegistersRepository extends BaseRepository
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
-            return $query->get();
+            return $query->orderBy('cash_registers.id')->get();
         });
     }
 
@@ -82,7 +82,7 @@ class CahRegistersRepository extends BaseRepository
         $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
         if (!$all && !empty($cash_register_ids)) {
-            $query->whereIn('id', $cash_register_ids);
+            $query->whereIn('cash_registers.id', $cash_register_ids);
         }
 
         $cashRegisters = $query->get();
@@ -369,6 +369,7 @@ class CahRegistersRepository extends BaseRepository
         $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
         $query->join('cash_register_users', 'cash_registers.id', '=', 'cash_register_users.cash_register_id')
             ->where('cash_register_users.user_id', $filterUserId)
+            ->select('cash_registers.*')
             ->distinct();
     }
 

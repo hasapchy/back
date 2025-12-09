@@ -11,11 +11,19 @@ class CashRegisterAccessRule implements ValidationRule
 {
     protected $user;
 
+    /**
+     * @param mixed|null $user
+     */
     public function __construct($user = null)
     {
         $this->user = $user ?? auth('api')->user();
     }
 
+    /**
+     * @param string $attribute
+     * @param mixed $value
+     * @param \Closure $fail
+     */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if (!$value) {
@@ -30,6 +38,7 @@ class CashRegisterAccessRule implements ValidationRule
         $cashRegister = CashRegister::find($value);
 
         if (!$cashRegister) {
+            $fail('Касса не найдена.');
             return;
         }
 
@@ -53,6 +62,9 @@ class CashRegisterAccessRule implements ValidationRule
         }
     }
 
+    /**
+     * @return array
+     */
     protected function getUserPermissions(): array
     {
         $companyId = request()->header('X-Company-ID');
