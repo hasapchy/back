@@ -97,9 +97,10 @@ class ClientsRepository extends BaseRepository
      *
      * @param array $typeFilter
      * @param bool $forMutualSettlements Применять фильтр по правам доступа к взаиморасчетам
+     * @param array $cashRegisterFilter Фильтр по кассам
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getAllItems(array $typeFilter = [], bool $forMutualSettlements = false)
+    public function getAllItems(array $typeFilter = [], bool $forMutualSettlements = false, array $cashRegisterFilter = [])
     {
         $typeFilter = $this->normalizeTypeFilter($typeFilter);
 
@@ -119,9 +120,10 @@ class ClientsRepository extends BaseRepository
             }
         }
 
-        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter), $forMutualSettlements]);
+        $cashRegisterFilterKey = !empty($cashRegisterFilter) ? implode(',', $cashRegisterFilter) : '';
+        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter), $forMutualSettlements, $cashRegisterFilterKey]);
 
-        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter) {
+        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter, $cashRegisterFilter) {
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
@@ -140,6 +142,13 @@ class ClientsRepository extends BaseRepository
 
             if (!empty($typeFilter)) {
                 $query->whereIn('clients.client_type', $typeFilter);
+            }
+
+            if (!empty($cashRegisterFilter)) {
+                $query->whereHas('transactions', function ($transactionQuery) use ($cashRegisterFilter) {
+                    $transactionQuery->whereIn('cash_id', $cashRegisterFilter)
+                        ->where('is_deleted', false);
+                });
             }
 
             $query->orderBy('clients.created_at', 'desc');

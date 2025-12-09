@@ -2,6 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\CashRegisterAccessRule;
+use App\Rules\WarehouseAccessRule;
+use App\Rules\ProjectAccessRule;
+use App\Rules\ClientAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -26,13 +30,13 @@ class StoreWarehouseReceiptRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'client_id' => 'required|integer|exists:clients,id',
-            'warehouse_id' => 'required|integer|exists:warehouses,id',
+            'client_id' => ['required', 'integer', new ClientAccessRule()],
+            'warehouse_id' => ['required', 'integer', new WarehouseAccessRule()],
             'type' => 'required|in:cash,balance',
-            'cash_id' => 'nullable|integer|exists:cash_registers,id',
+            'cash_id' => ['nullable', 'integer', new CashRegisterAccessRule()],
             'date' => 'nullable|date',
             'note' => 'nullable|string',
-            'project_id' => 'nullable|integer|exists:projects,id',
+            'project_id' => ['nullable', 'integer', new ProjectAccessRule()],
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity' => 'required|numeric|min:0',

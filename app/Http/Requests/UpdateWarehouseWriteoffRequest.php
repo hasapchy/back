@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\WarehouseAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -26,7 +27,7 @@ class UpdateWarehouseWriteoffRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'warehouse_id' => 'required|integer|exists:warehouses,id',
+            'warehouse_id' => ['required', 'integer', new WarehouseAccessRule()],
             'note' => 'nullable|string',
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',

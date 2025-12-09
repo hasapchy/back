@@ -181,6 +181,7 @@ class ProjectsController extends BaseController
         $validatedData = $request->validated();
 
         $itemData = $this->prepareProjectData($validatedData, $user->id);
+        unset($itemData['user_id']);
 
         try {
             $itemUpdated = $this->itemsRepository->updateItem($id, $itemData);

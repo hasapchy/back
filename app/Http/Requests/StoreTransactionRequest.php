@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\CashRegisterAccessRule;
+use App\Rules\ProjectAccessRule;
+use App\Rules\ClientAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -29,10 +32,10 @@ class StoreTransactionRequest extends FormRequest
             'type' => 'required|integer|in:1,0',
             'orig_amount' => 'required|numeric|min:0.01',
             'currency_id' => 'required|exists:currencies,id',
-            'cash_id' => 'required|exists:cash_registers,id',
+            'cash_id' => ['required', 'integer', new CashRegisterAccessRule()],
             'category_id' => 'required|exists:transaction_categories,id',
-            'project_id' => 'nullable|sometimes|exists:projects,id',
-            'client_id' => 'nullable|sometimes|exists:clients,id',
+            'project_id' => ['nullable', 'sometimes', new ProjectAccessRule()],
+            'client_id' => ['nullable', 'sometimes', new ClientAccessRule()],
             'order_id' => 'nullable|integer|exists:orders,id',
             'source_type' => 'nullable|string',
             'source_id' => 'nullable|integer',

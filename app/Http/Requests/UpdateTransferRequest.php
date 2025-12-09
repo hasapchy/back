@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\CashRegisterAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -26,8 +27,8 @@ class UpdateTransferRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'cash_id_from' => 'required|exists:cash_registers,id',
-            'cash_id_to' => 'required|exists:cash_registers,id',
+            'cash_id_from' => ['required', 'integer', new CashRegisterAccessRule()],
+            'cash_id_to' => ['required', 'integer', new CashRegisterAccessRule()],
             'amount' => 'required|numeric|min:0.01',
             'note' => 'nullable|string',
             'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001',
