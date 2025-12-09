@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             UnitsSeeder::class,
             WarehouseSeeder::class,
             CompanySeeder::class,
+            LeaveTypeSeeder::class,
             TestUserSeeder::class,
         ]);
     }
