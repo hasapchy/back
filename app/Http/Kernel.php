@@ -65,11 +65,12 @@ class Kernel extends HttpKernel
         'signed' => \App\Http\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
-        'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+        'permission' => \App\Http\Middleware\PermissionMiddleware::class,
         'permission.scope' => \App\Http\Middleware\PermissionWithScopeMiddleware::class,
         'role'       => \Spatie\Permission\Middleware\RoleMiddleware::class,
         'time.restriction' => \App\Http\Middleware\CheckTimeRestriction::class,
         'prevent.basement' => \App\Http\Middleware\PreventBasementAccess::class,
+        'basement.worker' => \App\Http\Middleware\EnsureBasementWorker::class,
         'user.active' => \App\Http\Middleware\CheckUserActive::class,
     ];
 }

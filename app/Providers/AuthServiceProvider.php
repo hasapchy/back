@@ -23,6 +23,9 @@ class AuthServiceProvider extends ServiceProvider
     public function boot()
     {
         Gate::before(function ($user, $ability) {
+            if ($user->is_admin) {
+                return true;
+            }
             return $user->hasPermissionTo($ability);
         });
     }

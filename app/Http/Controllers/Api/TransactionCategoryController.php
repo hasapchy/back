@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreTransactionCategoryRequest;
+use App\Http\Requests\UpdateTransactionCategoryRequest;
 use App\Repositories\TransactionCategoryRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -10,7 +12,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с категориями транзакций
  */
-class TransactionCategoryController extends Controller
+class TransactionCategoryController extends BaseController
 {
     protected $transactionCategoryRepository;
 
@@ -34,7 +36,10 @@ class TransactionCategoryController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->transactionCategoryRepository->getItemsWithPagination(20);
+        $page = $request->input('page', 1);
+        $perPage = $request->input('per_page', 20);
+
+        $items = $this->transactionCategoryRepository->getItemsWithPagination($perPage, $page);
 
         $mappedItems = collect($items->items())->map(function ($item) {
             return [
@@ -86,18 +91,14 @@ class TransactionCategoryController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreTransactionCategoryRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'type' => 'required|boolean',
-        ]);
+        $validatedData = $request->validated();
 
         $created = $this->transactionCategoryRepository->createItem([
-            'name' => $request->name,
-            'type' => $request->type,
+            'name' => $validatedData['name'],
+            'type' => $validatedData['type'],
             'user_id' => $userUuid,
         ]);
 
@@ -113,19 +114,15 @@ class TransactionCategoryController extends Controller
      * @param int $id ID категории
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateTransactionCategoryRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'type' => 'required|boolean',
-        ]);
+        $validatedData = $request->validated();
 
         try {
             $updated = $this->transactionCategoryRepository->updateItem($id, [
-                'name' => $request->name,
-                'type' => $request->type,
+                'name' => $validatedData['name'],
+                'type' => $validatedData['type'],
                 'user_id' => $userUuid,
             ]);
 

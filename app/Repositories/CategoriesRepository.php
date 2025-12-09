@@ -24,14 +24,17 @@ class CategoriesRepository extends BaseRepository
         return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
             $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
                 ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
-                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name')
-                ->whereHas('categoryUsers', function($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                });
+                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
+
+            if ($this->shouldApplyUserFilter('categories')) {
+                $query->join('category_users', 'categories.id', '=', 'category_users.category_id')
+                    ->where('category_users.user_id', $userUuid)
+                    ->distinct();
+            }
 
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            return $query->with('users')->paginate($perPage, ['*'], 'page', (int)$page);
+            return $query->with(['users:id,name,surname,email,position'])->paginate($perPage, ['*'], 'page', (int)$page);
         }, (int)$page);
     }
 
@@ -48,14 +51,17 @@ class CategoriesRepository extends BaseRepository
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
             $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
                 ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
-                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name')
-                ->whereHas('categoryUsers', function($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                });
+                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
+
+            if ($this->shouldApplyUserFilter('categories')) {
+                $query->join('category_users', 'categories.id', '=', 'category_users.category_id')
+                    ->where('category_users.user_id', $userUuid)
+                    ->distinct();
+            }
 
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            return $query->with('users')->get();
+            return $query->with(['users:id,name,surname,email,position'])->get();
         });
     }
 
@@ -73,14 +79,17 @@ class CategoriesRepository extends BaseRepository
             $query = Category::leftJoin('users as users', 'categories.user_id', '=', 'users.id')
                 ->select('categories.*', 'users.name as user_name')
                 ->whereNull('categories.parent_id')
-                ->whereHas('categoryUsers', function($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                })
                 ->whereHas('children');
+
+            if ($this->shouldApplyUserFilter('categories')) {
+                $query->join('category_users', 'categories.id', '=', 'category_users.category_id')
+                    ->where('category_users.user_id', $userUuid)
+                    ->distinct();
+            }
 
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            return $query->with('users')->get();
+            return $query->with(['users:id,name,surname,email,position'])->get();
         });
     }
 
@@ -96,7 +105,7 @@ class CategoriesRepository extends BaseRepository
 
         $item = new Category();
         $item->name = $data['name'];
-        $item->parent_id = $data['parent_id'];
+        $item->parent_id = ($data['parent_id'] === '' || $data['parent_id'] === null) ? null : (int) $data['parent_id'];
         $item->user_id = $data['user_id'];
         $item->company_id = $companyId;
         $item->save();
@@ -121,7 +130,7 @@ class CategoriesRepository extends BaseRepository
 
         $item = Category::findOrFail($id);
         $item->name = $data['name'];
-        $item->parent_id = $data['parent_id'];
+        $item->parent_id = ($data['parent_id'] === '' || $data['parent_id'] === null) ? null : (int) $data['parent_id'];
         $item->user_id = $data['user_id'];
         $item->company_id = $companyId;
         $item->save();
@@ -155,20 +164,20 @@ class CategoriesRepository extends BaseRepository
      * @param int $categoryId ID категории
      * @param array $userIds Массив ID пользователей
      * @return void
+     * @throws \Exception Если пытаются удалить всех пользователей
      */
     private function syncUsers(int $categoryId, array $userIds)
     {
-        CategoryUser::where('category_id', $categoryId)->delete();
-
-        if (!empty($userIds)) {
-            $insertData = [];
-            foreach ($userIds as $userId) {
-                $insertData[] = [
-                    'category_id' => $categoryId,
-                    'user_id' => $userId,
-                ];
-            }
-            CategoryUser::insert($insertData);
-        }
+        $this->syncManyToManyUsers(
+            CategoryUser::class,
+            'category_id',
+            $categoryId,
+            $userIds,
+            [
+                'require_at_least_one' => true,
+                'filter_empty' => true,
+                'error_message' => 'Категория должна иметь хотя бы одного пользователя'
+            ]
+        );
     }
 }

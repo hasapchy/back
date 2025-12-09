@@ -28,12 +28,18 @@ class ProjectStatusSeeder extends Seeder
             ],
             [
                 'id' => 3,
+                'name' => 'Ожидает оплаты',
+                'color' => '#f49510',
+                'user_id' => 1
+            ],
+            [
+                'id' => 4,
                 'name' => 'Завершен',
                 'color' => '#6c757d',
                 'user_id' => 1
             ],
             [
-                'id' => 4,
+                'id' => 5,
                 'name' => 'Отменен',
                 'color' => '#dc3545',
                 'user_id' => 1

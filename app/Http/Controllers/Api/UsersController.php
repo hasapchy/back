@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
 use App\Repositories\UsersRepository;
 use App\Models\User;
+use App\Models\EmployeeSalary;
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -17,7 +20,7 @@ use App\Services\CacheService;
 /**
  * Контроллер для работы с пользователями
  */
-class UsersController extends Controller
+class UsersController extends BaseController
 {
     protected $itemsRepository;
 
@@ -40,82 +43,20 @@ class UsersController extends Controller
     public function index(Request $request)
     {
         $page = $request->input('page', 1);
-        return $this->paginatedResponse($this->itemsRepository->getItemsWithPagination($page));
+        $perPage = $request->input('per_page', 20);
+
+        return $this->paginatedResponse($this->itemsRepository->getItemsWithPagination($page, $perPage));
     }
 
     /**
      * Создать нового пользователя
      *
-     * @param Request $request
+     * @param StoreUserRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreUserRequest $request)
     {
-        $data = $request->all();
-
-        if (isset($data['is_active'])) {
-            $data['is_active'] = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
-        }
-        if (isset($data['is_admin'])) {
-            $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
-        }
-
-        if (isset($data['roles']) && is_string($data['roles'])) {
-            $data['roles'] = explode(',', $data['roles']);
-        }
-
-        if (isset($data['companies'])) {
-            if (is_string($data['companies'])) {
-                $data['companies'] = array_filter(explode(',', $data['companies']), function ($c) {
-                    return trim($c) !== '';
-                });
-            }
-            if (is_array($data['companies'])) {
-                $data['companies'] = array_values(array_map('intval', $data['companies']));
-            }
-        }
-
-        if (isset($data['company_roles']) && is_string($data['company_roles'])) {
-            try {
-                $data['company_roles'] = json_decode($data['company_roles'], true);
-            } catch (\Exception $e) {
-                $data['company_roles'] = [];
-            }
-        }
-
-        if (isset($data['position']) && trim($data['position']) === '') {
-            $data['position'] = null;
-        }
-        if (isset($data['hire_date']) && trim($data['hire_date']) === '') {
-            $data['hire_date'] = null;
-        }
-        if (isset($data['birthday']) && trim($data['birthday']) === '') {
-            $data['birthday'] = null;
-        }
-
-        $validator = Validator::make($data, [
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|string|email|unique:users,email',
-            'password' => 'required|string|min:6',
-            'hire_date' => 'nullable|date',
-            'birthday' => 'nullable|date',
-            'position' => 'nullable|string|max:255',
-            'is_active'   => 'nullable|boolean',
-            'is_admin'   => 'nullable|boolean',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'roles' => 'nullable|array',
-            'roles.*' => 'string|exists:roles,name,guard_name,api',
-            'companies' => 'required|array|min:1',
-            'companies.*' => 'integer|exists:companies,id',
-            'company_roles' => 'nullable|array',
-            'company_roles.*.company_id' => 'required_with:company_roles|integer|exists:companies,id',
-            'company_roles.*.role_ids' => 'required_with:company_roles|array',
-            'company_roles.*.role_ids.*' => 'string|exists:roles,name,guard_name,api',
-        ]);
-
-        if ($validator->fails()) {
-            return $this->validationErrorResponse($validator);
-        }
+        $data = $request->validated();
 
         if ($request->hasFile('photo')) {
             $photo = $request->file('photo');
@@ -132,11 +73,11 @@ class UsersController extends Controller
     /**
      * Обновить пользователя
      *
-     * @param Request $request
+     * @param UpdateUserRequest $request
      * @param int $id ID пользователя
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateUserRequest $request, $id)
     {
         $targetUser = User::findOrFail($id);
 
@@ -144,82 +85,7 @@ class UsersController extends Controller
             return $this->forbiddenResponse('Нет прав на редактирование этого пользователя');
         }
 
-        $data = $request->all();
-
-
-        if (isset($data['is_active'])) {
-            $data['is_active'] = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
-        }
-        if (isset($data['is_admin'])) {
-            $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
-        }
-
-        if (isset($data['roles']) && is_string($data['roles'])) {
-            $data['roles'] = explode(',', $data['roles']);
-        }
-
-        if (isset($data['companies'])) {
-            if (is_string($data['companies'])) {
-                $data['companies'] = array_filter(explode(',', $data['companies']), function ($c) {
-                    return trim($c) !== '';
-                });
-            }
-            if (is_array($data['companies'])) {
-                $data['companies'] = array_values(array_map('intval', $data['companies']));
-            }
-        }
-
-        if (isset($data['company_roles']) && is_string($data['company_roles'])) {
-            try {
-                $data['company_roles'] = json_decode($data['company_roles'], true);
-            } catch (\Exception $e) {
-                $data['company_roles'] = [];
-            }
-        }
-
-        $hasPosition = array_key_exists('position', $data);
-        $hasHireDate = array_key_exists('hire_date', $data);
-        $hasBirthday = array_key_exists('birthday', $data);
-
-        if (isset($data['position']) && trim($data['position']) === '') {
-            $data['position'] = null;
-        }
-        if (isset($data['hire_date']) && trim($data['hire_date']) === '') {
-            $data['hire_date'] = null;
-        }
-        if (isset($data['birthday']) && trim($data['birthday']) === '') {
-            $data['birthday'] = null;
-        }
-
-        $request->merge($data);
-
-        try {
-            $data = $request->validate([
-                'name'     => 'nullable|string|max:255',
-                'email'    => "nullable|email|unique:users,email,{$id},id",
-                'password' => 'nullable|string|min:6',
-                'hire_date' => 'nullable|date',
-                'birthday' => 'nullable|date',
-                'position' => 'nullable|string|max:255',
-                'is_active'   => 'nullable|boolean',
-                'is_admin'   => 'nullable|boolean',
-                'photo' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
-                'roles' => 'nullable|array',
-                'roles.*' => 'string|exists:roles,name,guard_name,api',
-                'companies' => 'sometimes|array|min:1',
-                'companies.*' => 'integer|exists:companies,id',
-                'company_roles' => 'nullable|array',
-                'company_roles.*.company_id' => 'required_with:company_roles|integer|exists:companies,id',
-                'company_roles.*.role_ids' => 'required_with:company_roles|array',
-                'company_roles.*.role_ids.*' => 'string|exists:roles,name,guard_name,api',
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], 422);
-        }
-
+        $data = $request->validated();
         unset($data['photo']);
 
         $companies = $data['companies'] ?? null;
@@ -228,6 +94,10 @@ class UsersController extends Controller
         $position = $data['position'] ?? null;
         $hireDate = $data['hire_date'] ?? null;
         $birthday = $data['birthday'] ?? null;
+
+        $hasPosition = array_key_exists('position', $request->all());
+        $hasHireDate = array_key_exists('hire_date', $request->all());
+        $hasBirthday = array_key_exists('birthday', $request->all());
 
         $data = array_filter($data, function ($value) {
             return $value !== null;
@@ -372,9 +242,9 @@ class UsersController extends Controller
      */
     public function getCurrentUser(Request $request)
     {
-        $user = $request->user()->load(['clientAccounts' => function($query) {
+        $user = $request->user()->load(['clientAccounts' => function ($query) {
             $query->where('status', 'active')
-                  ->select('id', 'employee_id', 'client_type', 'first_name', 'balance', 'status', 'company_id');
+                ->select('id', 'employee_id', 'client_type', 'first_name', 'balance', 'status', 'company_id');
         }]);
 
         return response()->json(['user' => $user]);
@@ -420,9 +290,6 @@ class UsersController extends Controller
             }
         }
 
-        if (isset($data['password'])) {
-            $data['password'] = bcrypt($data['password']);
-        }
 
         if (array_key_exists('birthday', $data) && $data['birthday'] === '') {
             $data['birthday'] = null;
@@ -489,9 +356,12 @@ class UsersController extends Controller
     {
         try {
             $user = User::findOrFail($id);
+            $currentUser = $this->getAuthenticatedUser();
 
-            if (!$this->canPerformAction('users', 'view', $user)) {
-                return $this->forbiddenResponse('Нет прав на просмотр зарплат этого пользователя');
+            if (!$this->hasPermission('employee_salaries_view_all')) {
+                if (!$this->hasPermission('employee_salaries_view_own') || $user->id !== $currentUser->id) {
+                    return $this->forbiddenResponse('Нет прав на просмотр зарплат');
+                }
             }
 
             $salaries = $this->itemsRepository->getSalaries($id);
@@ -516,8 +386,8 @@ class UsersController extends Controller
         try {
             $user = User::findOrFail($id);
 
-            if (!$this->canPerformAction('users', 'update', $user)) {
-                return $this->forbiddenResponse('Нет прав на создание зарплаты для этого пользователя');
+            if (!$this->hasPermission('employee_salaries_create')) {
+                return $this->forbiddenResponse('Нет прав на создание зарплат');
             }
 
             $validatedData = $request->validate([
@@ -525,6 +395,7 @@ class UsersController extends Controller
                 'end_date' => 'nullable|date|after:start_date',
                 'amount' => 'required|numeric|min:0',
                 'currency_id' => 'required|exists:currencies,id',
+                'note' => 'nullable|string|max:120',
             ]);
 
             $salary = $this->itemsRepository->createSalary($id, $validatedData);
@@ -535,7 +406,11 @@ class UsersController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при создании зарплаты: ' . $e->getMessage(), 500);
+            $message = $e->getMessage();
+            if (str_contains($message, 'активная зарплата') || str_contains($message, 'пересекается по датам')) {
+                return $this->errorResponse($message, 422);
+            }
+            return $this->errorResponse('Ошибка при создании зарплаты: ' . $message, 500);
         }
     }
 
@@ -550,10 +425,10 @@ class UsersController extends Controller
     public function updateSalary(Request $request, $userId, $salaryId)
     {
         try {
-            $user = User::findOrFail($userId);
+            $salary = EmployeeSalary::findOrFail($salaryId);
 
-            if (!$this->canPerformAction('users', 'update', $user)) {
-                return $this->forbiddenResponse('Нет прав на обновление зарплаты для этого пользователя');
+            if (!$this->canPerformAction('employee_salaries', 'update', $salary)) {
+                return $this->forbiddenResponse('Нет прав на обновление этой зарплаты');
             }
 
             $validatedData = $request->validate([
@@ -561,17 +436,27 @@ class UsersController extends Controller
                 'end_date' => 'nullable|date|after:start_date',
                 'amount' => 'nullable|numeric|min:0',
                 'currency_id' => 'nullable|exists:currencies,id',
+                'note' => 'nullable|string|max:120',
             ]);
 
-            $salary = $this->itemsRepository->updateSalary($salaryId, $validatedData);
+            $updatedSalary = $this->itemsRepository->updateSalary($salaryId, $validatedData);
 
-            return response()->json(['salary' => $salary, 'message' => 'Зарплата обновлена успешно']);
+            return response()->json(['salary' => $updatedSalary, 'message' => 'Зарплата обновлена успешно']);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Пользователь или зарплата не найдены', 404);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при обновлении зарплаты: ' . $e->getMessage(), 500);
+            $message = $e->getMessage();
+            if (
+                str_contains($message, 'активная зарплата') ||
+                str_contains($message, 'более новая активная') ||
+                str_contains($message, 'разблокировать') ||
+                str_contains($message, 'пересекается по датам')
+            ) {
+                return $this->errorResponse($message, 422);
+            }
+            return $this->errorResponse('Ошибка при обновлении зарплаты: ' . $message, 500);
         }
     }
 
@@ -585,10 +470,10 @@ class UsersController extends Controller
     public function deleteSalary($userId, $salaryId)
     {
         try {
-            $user = User::findOrFail($userId);
+            $salary = EmployeeSalary::findOrFail($salaryId);
 
-            if (!$this->canPerformAction('users', 'update', $user)) {
-                return $this->forbiddenResponse('Нет прав на удаление зарплаты для этого пользователя');
+            if (!$this->canPerformAction('employee_salaries', 'delete', $salary)) {
+                return $this->forbiddenResponse('Нет прав на удаление этой зарплаты');
             }
 
             $this->itemsRepository->deleteSalary($salaryId);

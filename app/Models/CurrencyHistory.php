@@ -1,6 +1,7 @@
 <?php
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class CurrencyHistory extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'currency_id',
         'company_id',
@@ -27,7 +30,7 @@ class CurrencyHistory extends Model
     ];
 
     protected $casts = [
-        'exchange_rate' => 'decimal:4',
+         'exchange_rate' => 'decimal:5',
         'start_date' => 'date',
         'end_date' => 'date',
     ];

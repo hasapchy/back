@@ -33,58 +33,71 @@ class AdminSeeder extends Seeder
             ]);
         }
 
-        // Получаем или создаем роль admin
-        $adminRole = Role::firstOrCreate([
-            'name' => 'admin',
-            'guard_name' => 'api',
-        ]);
+        $this->assignRolesToUserForAllCompanies($admin, ['admin', 'basement_worker']);
 
-        // Убеждаемся, что роль admin имеет все разрешения
-        $allPermissions = \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
-        $adminRole->syncPermissions($allPermissions);
-
-        $admin->syncRoles(['admin', 'basement_worker']);
-
-        // Назначаем роль admin пользователям с ID 1 и 2
         $user1 = User::find(1);
         if ($user1 && $user1->id !== $admin->id) {
-            $user1->syncRoles(['admin']);
+            $this->assignRolesToUserForAllCompanies($user1, ['admin']);
             echo "Role 'admin' assigned to user ID 1\n";
         }
 
         $user2 = User::find(2);
         if ($user2 && $user2->id !== $admin->id) {
-            $user2->syncRoles(['admin']);
+            $this->assignRolesToUserForAllCompanies($user2, ['admin']);
             echo "Role 'admin' assigned to user ID 2\n";
-
-            // Назначаем роль admin пользователю 2 во всех его компаниях
-            $user2Companies = $user2->companies()->get();
-            if ($user2Companies->isNotEmpty()) {
-                // Удаляем старые роли пользователя 2 в компаниях
-                DB::table('company_user_role')
-                    ->where('user_id', $user2->id)
-                    ->delete();
-
-                // Добавляем роль admin для каждой компании пользователя 2
-                foreach ($user2Companies as $company) {
-                    DB::table('company_user_role')->insert([
-                        'company_id' => $company->id,
-                        'user_id' => $user2->id,
-                        'role_id' => $adminRole->id,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                }
-
-                echo "Role 'admin' assigned to user ID 2 in " . $user2Companies->count() . " companies\n";
-            } else {
-                echo "User ID 2 has no companies assigned\n";
-            }
         }
 
-        $permissionsCount = $adminRole->permissions()->count();
+        $adminRole = Role::where('name', 'admin')
+            ->where('guard_name', 'api')
+            ->first();
+
+        if ($adminRole) {
+            $permissionsCount = $adminRole->permissions()->count();
+        } else {
+            $permissionsCount = 0;
+        }
 
         echo "Admin user created/updated with role 'admin' (containing " . $permissionsCount . " permissions) and 'basement_worker'\n";
         echo "Users with ID 1 and 2 have been assigned 'admin' role\n";
+    }
+
+    private function assignRolesToUserForAllCompanies(User $user, array $roleNames): void
+    {
+        $userCompanies = $user->companies()->get();
+
+        if ($userCompanies->isEmpty()) {
+            echo "User ID {$user->id} has no companies assigned\n";
+            return;
+        }
+
+        foreach ($userCompanies as $company) {
+            foreach ($roleNames as $roleName) {
+                $role = Role::where('name', $roleName)
+                    ->where('guard_name', 'api')
+                    ->where('company_id', $company->id)
+                    ->first();
+
+                if ($role) {
+                    $exists = DB::table('company_user_role')
+                        ->where('company_id', $company->id)
+                        ->where('user_id', $user->id)
+                        ->where('role_id', $role->id)
+                        ->exists();
+
+                    if (!$exists) {
+                        DB::table('company_user_role')->insert([
+                            'company_id' => $company->id,
+                            'user_id' => $user->id,
+                            'role_id' => $role->id,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                        echo "Role '{$roleName}' assigned to user ID {$user->id} in company '{$company->name}' (ID: {$company->id})\n";
+                    }
+                } else {
+                    echo "Role '{$roleName}' not found for company '{$company->name}' (ID: {$company->id})\n";
+                }
+            }
+        }
     }
 }

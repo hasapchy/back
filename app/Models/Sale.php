@@ -76,8 +76,7 @@ class Sale extends Model
             }
             CacheService::invalidateCashRegistersCache();
             if ($sale->project_id) {
-                $projectsRepository = new \App\Repositories\ProjectsRepository();
-                $projectsRepository->invalidateProjectCache($sale->project_id);
+                CacheService::invalidateProjectCache($sale->project_id);
             }
         });
     }

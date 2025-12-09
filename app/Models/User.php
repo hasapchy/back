@@ -16,10 +16,8 @@ class User extends Authenticatable
 
     protected $guard_name = 'api';
 
-    protected static function boot()
+    protected static function booted()
     {
-        parent::boot();
-
         static::updating(function ($user) {
             if ($user->isDirty('is_active') && !$user->is_active) {
                 $user->tokens()->delete();
@@ -34,6 +32,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'surname',
         'email',
         'password',
         'is_active',
@@ -63,13 +62,19 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'last_login_at' => 'datetime',
         'password' => 'hashed',
-        'birthday' => 'date',
+        'birthday' => 'date:Y-m-d',
+        'is_active' => 'boolean',
+        'is_admin' => 'boolean',
     ];
 
 
     /**
      * Защита от изменения поля is_admin
      * Запрещаем только снятие прав администратора у пользователя с ID 1 (главный админ)
+     *
+     * @param bool $value Значение is_admin
+     * @return void
+     * @throws \Exception Если пытаются убрать права администратора у главного администратора
      */
     public function setIsAdminAttribute($value)
     {
@@ -115,6 +120,11 @@ class User extends Authenticatable
         return $this->belongsToMany(\App\Models\Project::class, 'project_users', 'user_id', 'project_id');
     }
 
+    /**
+     * Категории, к которым принадлежит пользователь
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
     public function categories()
     {
         return $this->belongsToMany(\App\Models\Category::class, 'category_users', 'user_id', 'category_id');
@@ -147,6 +157,23 @@ class User extends Authenticatable
     }
 
     /**
+     * Получить все разрешения пользователя (глобальные, через роли)
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public function getAllPermissions()
+    {
+        if ($this->is_admin) {
+            return \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
+        }
+
+        $permissionsViaRoles = $this->getPermissionsViaRoles();
+        $directPermissions = $this->getDirectPermissions();
+
+        return $permissionsViaRoles->merge($directPermissions)->unique('id');
+    }
+
+    /**
      * Получить все разрешения пользователя с учетом текущей компании
      * Если компания не указана, возвращает глобальные разрешения (для обратной совместимости)
      *
@@ -155,6 +182,10 @@ class User extends Authenticatable
      */
     public function getAllPermissionsForCompany(?int $companyId = null)
     {
+        if ($this->is_admin) {
+            return \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
+        }
+
         if (!$companyId) {
             return $this->getAllPermissions();
         }
@@ -245,6 +276,8 @@ class User extends Authenticatable
 
     /**
      * Получить полный список ролей пользователя (глобальные + по компаниям)
+     *
+     * @return array Массив имен ролей
      */
     public function getAllRoleNames(): array
     {

@@ -19,7 +19,9 @@ use App\Models\ClientsEmail;
  * @property bool $is_conflict Есть ли конфликт
  * @property string $first_name Имя
  * @property string|null $last_name Фамилия
+ * @property string|null $patronymic Отчество
  * @property string|null $contact_person Контактное лицо
+ * @property string|null $position Должность
  * @property string|null $address Адрес
  * @property string|null $note Примечание
  * @property string|null $discount_type Тип скидки (fixed, percent)
@@ -40,6 +42,8 @@ class Client extends Model
 {
     use HasFactory;
 
+    public const CLIENT_TYPES = ['company', 'individual', 'employee', 'investor'];
+
     protected $fillable = [
         'user_id',
         'company_id',
@@ -49,7 +53,9 @@ class Client extends Model
         'is_conflict',
         'first_name',
         'last_name',
+        'patronymic',
         'contact_person',
+        'position',
         'address',
         'note',
         'discount_type',
@@ -60,7 +66,10 @@ class Client extends Model
     ];
 
     protected $casts = [
-        'balance' => 'decimal:2',
+        'balance' => 'decimal:5',
+        'is_supplier' => 'boolean',
+        'is_conflict' => 'boolean',
+        'status' => 'boolean',
     ];
 
     /**
@@ -111,5 +120,45 @@ class Client extends Model
     public function emails()
     {
         return $this->hasMany(ClientsEmail::class, 'client_id');
+    }
+
+    /**
+     * Связь с транзакциями клиента
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function transactions()
+    {
+        return $this->hasMany(\App\Models\Transaction::class, 'client_id');
+    }
+
+    /**
+     * Scope для фильтрации по компании
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int|null $companyId ID компании
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeForCompany($query, $companyId = null)
+    {
+        if ($companyId) {
+            return $query->where('company_id', $companyId);
+        }
+        return $query;
+    }
+
+    /**
+     * Scope для фильтрации по типу клиента
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string|null $clientType Тип клиента
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByType($query, $clientType = null)
+    {
+        if ($clientType) {
+            return $query->where('client_type', $clientType);
+        }
+        return $query;
     }
 }

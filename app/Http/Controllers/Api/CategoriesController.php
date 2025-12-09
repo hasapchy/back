@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreCategoryRequest;
+use App\Http\Requests\UpdateCategoryRequest;
 use App\Repositories\CategoriesRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
 
-class CategoriesController extends Controller
+class CategoriesController extends BaseController
 {
     /**
      * @var CategoriesRepository
@@ -33,7 +35,8 @@ class CategoriesController extends Controller
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, $page);
+        $perPage = $request->input('per_page', 20);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
         return $this->paginatedResponse($items);
     }
@@ -67,25 +70,19 @@ class CategoriesController extends Controller
     /**
      * Создать категорию
      *
-     * @param Request $request
+     * @param StoreCategoryRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreCategoryRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'parent_id' => 'nullable|exists:categories,id',
-            'users' => 'required|array',
-            'users.*' => 'exists:users,id'
-        ]);
+        $validatedData = $request->validated();
 
         $category_created = $this->itemsRepository->createItem([
-            'name' => $request->name,
-            'parent_id' => $request->parent_id,
+            'name' => $validatedData['name'],
+            'parent_id' => $validatedData['parent_id'] ?? null,
             'user_id' => $userUuid,
-            'users' => $request->users
+            'users' => $validatedData['users']
         ]);
 
         if (!$category_created) {
@@ -99,26 +96,20 @@ class CategoriesController extends Controller
     /**
      * Обновить категорию
      *
-     * @param Request $request
+     * @param UpdateCategoryRequest $request
      * @param int $id ID категории
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateCategoryRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'name' => 'required|string',
-            'parent_id' => 'nullable|exists:categories,id',
-            'users' => 'required|array',
-            'users.*' => 'exists:users,id'
-        ]);
+        $validatedData = $request->validated();
 
         $category_updated = $this->itemsRepository->updateItem($id, [
-            'name' => $request->name,
-            'parent_id' => $request->parent_id,
+            'name' => $validatedData['name'],
+            'parent_id' => $validatedData['parent_id'] ?? null,
             'user_id' => $userUuid,
-            'users' => $request->users
+            'users' => $validatedData['users']
         ]);
 
         if (!$category_updated) {

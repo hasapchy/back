@@ -64,28 +64,11 @@ class OrderStatusSeeder extends Seeder
             ]
         );
 
-        OrderStatusCategory::updateOrCreate(
-            ['id' => 6],
-            [
-                'name' => 'Оплачено',
-                'user_id' => 1,
-                'color' => '#5cb85c',
-            ]
-        );
-
         OrderStatus::updateOrCreate(
             ['id' => 2],
             [
                 'name' => 'В работе',
                 'category_id' => 2,
-            ]
-        );
-
-        OrderStatus::updateOrCreate(
-            ['id' => 3],
-            [
-                'name' => 'Оплачено',
-                'category_id' => 6,
             ]
         );
 

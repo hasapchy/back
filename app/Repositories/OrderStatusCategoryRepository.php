@@ -18,9 +18,10 @@ class OrderStatusCategoryRepository extends BaseRepository
     {
         $cacheKey = $this->generateCacheKey('order_status_categories_paginated', [$userUuid, $perPage]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage) {
-            return OrderStatusCategory::where('user_id', $userUuid)
-                ->orderBy('created_at', 'desc')
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage) {
+            $query = OrderStatusCategory::query();
+            $this->applyOwnFilter($query, 'order_status_categories', 'order_status_categories', 'user_id');
+            return $query->orderBy('created_at', 'desc')
                 ->paginate($perPage);
         }, 1);
     }
@@ -35,8 +36,10 @@ class OrderStatusCategoryRepository extends BaseRepository
     {
         $cacheKey = $this->generateCacheKey('order_status_categories_all', [$userUuid]);
 
-        return CacheService::getReferenceData($cacheKey, function () use ($userUuid) {
-            return OrderStatusCategory::where('user_id', $userUuid)->get();
+        return CacheService::getReferenceData($cacheKey, function () {
+            $query = OrderStatusCategory::query();
+            $this->applyOwnFilter($query, 'order_status_categories', 'order_status_categories', 'user_id');
+            return $query->get();
         });
     }
 

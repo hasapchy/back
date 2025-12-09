@@ -20,17 +20,13 @@ class CahRegistersRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        try {
-            $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name']);
+        $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name']);
 
-            $this->applyUserFilter($query, $userUuid);
-            $query = $this->addCompanyFilterDirect($query, 'cash_registers');
+        $this->applyUserFilter($query, $userUuid);
+        $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
-            return $query->orderBy('created_at', 'desc')
-                ->paginate($perPage, ['*'], 'page', (int)$page);
-        } catch (\Exception $e) {
-            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
-        }
+        return $query->orderBy('cash_registers.created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', (int)$page);
     }
 
     /**
@@ -41,26 +37,22 @@ class CahRegistersRepository extends BaseRepository
      */
     public function getAllItems($userUuid)
     {
-        try {
-            if (!\Illuminate\Support\Facades\Schema::hasTable('cash_registers')) {
-                throw new \Exception('Table cash_registers does not exist');
-            }
-
-            $currentUser = auth('api')->user();
-            $companyId = $this->getCurrentCompanyId();
-            $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid, $currentUser?->id, $companyId]);
-
-            return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
-                $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name']);
-
-                $this->applyUserFilter($query, $userUuid);
-                $query = $this->addCompanyFilterDirect($query, 'cash_registers');
-
-                return $query->get();
-            });
-        } catch (\Exception $e) {
-            return \Illuminate\Support\Collection::make();
+        if (!\Illuminate\Support\Facades\Schema::hasTable('cash_registers')) {
+            throw new \Exception('Table cash_registers does not exist');
         }
+
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid, $currentUser?->id, $companyId]);
+
+        return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
+            $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name']);
+
+            $this->applyUserFilter($query, $userUuid);
+            $query = $this->addCompanyFilterDirect($query, 'cash_registers');
+
+            return $query->orderBy('cash_registers.id')->get();
+        });
     }
 
     /**
@@ -90,7 +82,7 @@ class CahRegistersRepository extends BaseRepository
         $query = $this->addCompanyFilterDirect($query, 'cash_registers');
 
         if (!$all && !empty($cash_register_ids)) {
-            $query->whereIn('id', $cash_register_ids);
+            $query->whereIn('cash_registers.id', $cash_register_ids);
         }
 
         $cashRegisters = $query->get();
@@ -105,11 +97,33 @@ class CahRegistersRepository extends BaseRepository
             ->where('is_deleted', false)
             ->when($startDate || $endDate, function ($q) use ($startDate, $endDate) {
                 if ($startDate && $endDate) {
-                    return $q->whereBetween('date', [$startDate, $endDate]);
+                    // Парсим даты, поддерживая формат DD.MM.YYYY
+                    try {
+                        $parsedStart = \Carbon\Carbon::createFromFormat('d.m.Y', $startDate)->startOfDay();
+                        $parsedEnd = \Carbon\Carbon::createFromFormat('d.m.Y', $endDate)->endOfDay();
+                        return $q->whereBetween('date', [$parsedStart->toDateTimeString(), $parsedEnd->toDateTimeString()]);
+                    } catch (\Exception $e) {
+                        // Если не получилось распарсить как DD.MM.YYYY, пробуем стандартный parse
+                        $parsedStart = \Carbon\Carbon::parse($startDate)->startOfDay();
+                        $parsedEnd = \Carbon\Carbon::parse($endDate)->endOfDay();
+                        return $q->whereBetween('date', [$parsedStart->toDateTimeString(), $parsedEnd->toDateTimeString()]);
+                    }
                 } elseif ($startDate) {
-                    return $q->where('date', '>=', $startDate);
+                    try {
+                        $parsedStart = \Carbon\Carbon::createFromFormat('d.m.Y', $startDate)->startOfDay();
+                        return $q->where('date', '>=', $parsedStart->toDateTimeString());
+                    } catch (\Exception $e) {
+                        $parsedStart = \Carbon\Carbon::parse($startDate)->startOfDay();
+                        return $q->where('date', '>=', $parsedStart->toDateTimeString());
+                    }
                 } elseif ($endDate) {
-                    return $q->where('date', '<=', $endDate);
+                    try {
+                        $parsedEnd = \Carbon\Carbon::createFromFormat('d.m.Y', $endDate)->endOfDay();
+                        return $q->where('date', '<=', $parsedEnd->toDateTimeString());
+                    } catch (\Exception $e) {
+                        $parsedEnd = \Carbon\Carbon::parse($endDate)->endOfDay();
+                        return $q->where('date', '<=', $parsedEnd->toDateTimeString());
+                    }
                 }
                 return $q;
             })
@@ -148,19 +162,48 @@ class CahRegistersRepository extends BaseRepository
                         }
                         $hasConditions = true;
                     }
+                    if (in_array('receipt', $source)) {
+                        if ($hasConditions) {
+                            $subQ->orWhere('source_type', 'App\\Models\\WhReceipt');
+                        } else {
+                            $subQ->where('source_type', 'App\\Models\\WhReceipt');
+                        }
+                        $hasConditions = true;
+                    }
+                    if (in_array('salary', $source)) {
+                        if ($hasConditions) {
+                            $subQ->orWhere('source_type', 'App\\Models\\EmployeeSalary');
+                        } else {
+                            $subQ->where('source_type', 'App\\Models\\EmployeeSalary');
+                        }
+                        $hasConditions = true;
+                    }
                     if (in_array('other', $source)) {
                         if ($hasConditions) {
                             $subQ->orWhere(function ($otherQ) {
                                 $otherQ->whereNull('source_type')
-                                    ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
+                                    ->orWhereNotIn('source_type', [
+                                        'App\\Models\\Sale',
+                                        'App\\Models\\Order',
+                                        'App\\Models\\WhReceipt',
+                                        'App\\Models\\EmployeeSalary'
+                                    ]);
                             });
                         } else {
                             $subQ->whereNull('source_type')
-                                ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order']);
+                                ->orWhereNotIn('source_type', [
+                                    'App\\Models\\Sale',
+                                    'App\\Models\\Order',
+                                    'App\\Models\\WhReceipt',
+                                    'App\\Models\\EmployeeSalary'
+                                ]);
                         }
                     }
                 });
             });
+
+        $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
+        $transactionsQuery = $transactionsRepository->applySourceTypeFilter($transactionsQuery);
 
         $transactionsStats = $transactionsQuery
             ->select('cash_id')
@@ -211,8 +254,7 @@ class CahRegistersRepository extends BaseRepository
      */
     public function createItem($data)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($data) {
             $item = new CashRegister();
             $item->name = $data['name'];
             $item->balance = $data['balance'];
@@ -222,15 +264,10 @@ class CahRegistersRepository extends BaseRepository
 
             $this->syncUsers($item->id, $data['users'] ?? []);
 
-            DB::commit();
-
             CacheService::invalidateCashRegistersCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -247,8 +284,7 @@ class CahRegistersRepository extends BaseRepository
      */
     public function updateItem($id, $data)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id, $data) {
             $item = CashRegister::findOrFail($id);
 
             if (isset($data['name'])) {
@@ -267,15 +303,10 @@ class CahRegistersRepository extends BaseRepository
                 $this->syncUsers($id, $data['users']);
             }
 
-            DB::commit();
-
             CacheService::invalidateCashRegistersCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -288,22 +319,16 @@ class CahRegistersRepository extends BaseRepository
      */
     public function deleteItem($id)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id) {
             $item = CashRegister::findOrFail($id);
             $item->delete();
 
             CashRegisterUser::where('cash_register_id', $id)->delete();
 
-            DB::commit();
-
             CacheService::invalidateCashRegistersCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -312,21 +337,20 @@ class CahRegistersRepository extends BaseRepository
      * @param int $cashRegisterId ID кассы
      * @param array $userIds Массив ID пользователей
      * @return void
+     * @throws \Exception Если пытаются удалить всех пользователей
      */
     private function syncUsers(int $cashRegisterId, array $userIds)
     {
-        CashRegisterUser::where('cash_register_id', $cashRegisterId)->delete();
-
-        if (!empty($userIds)) {
-            $insertData = [];
-            foreach ($userIds as $userId) {
-                $insertData[] = [
-                    'cash_register_id' => $cashRegisterId,
-                    'user_id' => $userId,
-                ];
-            }
-            CashRegisterUser::insert($insertData);
-        }
+        $this->syncManyToManyUsers(
+            CashRegisterUser::class,
+            'cash_register_id',
+            $cashRegisterId,
+            $userIds,
+            [
+                'require_at_least_one' => true,
+                'error_message' => 'Касса должна иметь хотя бы одного пользователя'
+            ]
+        );
     }
 
     /**
@@ -338,10 +362,15 @@ class CahRegistersRepository extends BaseRepository
      */
     private function applyUserFilter($query, $userUuid)
     {
+        if (!$this->shouldApplyUserFilter('cash_registers')) {
+            return;
+        }
+
         $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
-        $query->whereHas('cashRegisterUsers', function($q) use ($filterUserId) {
-            $q->where('user_id', $filterUserId);
-        });
+        $query->join('cash_register_users', 'cash_registers.id', '=', 'cash_register_users.cash_register_id')
+            ->where('cash_register_users.user_id', $filterUserId)
+            ->select('cash_registers.*')
+            ->distinct();
     }
 
 }

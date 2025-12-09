@@ -64,14 +64,6 @@ class WarehouseReceiptRepository extends BaseRepository
      */
     protected function buildBaseQuery($userUuid)
     {
-        /** @var \App\Models\User|null $currentUser */
-        $currentUser = auth('api')->user();
-        $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
-
-        $warehouseIds = WhUser::where('user_id', $filterUserId)
-            ->pluck('warehouse_id')
-            ->toArray();
-
         $query = WhReceipt::select([
             'wh_receipts.id',
             'wh_receipts.warehouse_id',
@@ -101,14 +93,20 @@ class WarehouseReceiptRepository extends BaseRepository
                 'products:id,receipt_id,product_id,quantity,price',
                 'products.product:id,name,image,unit_id',
                 'products.product.unit:id,name,short_name'
-            ])
-            ->whereIn('wh_receipts.warehouse_id', $warehouseIds)
-            ->where(function ($q) use ($userUuid) {
-                $q->whereNull('wh_receipts.project_id')
-                    ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
-                        $subQuery->where('user_id', $userUuid);
-                    });
-            });
+            ]);
+
+        if ($this->shouldApplyUserFilter('warehouses')) {
+            $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+            $warehouseIds = WhUser::where('user_id', $filterUserId)
+                ->pluck('warehouse_id')
+                ->toArray();
+
+            if (empty($warehouseIds)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('wh_receipts.warehouse_id', $warehouseIds);
+            }
+        }
 
         return $this->addCompanyFilterThroughRelation($query, 'warehouse');
     }
@@ -131,9 +129,7 @@ class WarehouseReceiptRepository extends BaseRepository
         $note         = !empty($data['note']) ? $data['note'] : null;
         $products     = $data['products'];
 
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($data, $client_id, $warehouse_id, $type, $cash_id, $date, $note, $products) {
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $currency = $defaultCurrency;
 
@@ -207,13 +203,9 @@ class WarehouseReceiptRepository extends BaseRepository
                 $this->createTransactionForSource($paymentTxData, \App\Models\WhReceipt::class, $receipt->id, true);
             }
 
-            DB::commit();
             $this->invalidateCaches($data['project_id'] ?? null);
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -234,9 +226,7 @@ class WarehouseReceiptRepository extends BaseRepository
         $products     = $data['products'];
         $project_id   = $data['project_id'] ?? null;
 
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($receipt_id, $client_id, $warehouse_id, $cash_id, $date, $note, $products, $project_id) {
             $receipt = WhReceipt::findOrFail($receipt_id);
 
             $old_total_amount = $receipt->amount;
@@ -296,13 +286,9 @@ class WarehouseReceiptRepository extends BaseRepository
                 $deletedProduct->delete();
             }
 
-            DB::commit();
             $this->invalidateCaches($project_id);
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**

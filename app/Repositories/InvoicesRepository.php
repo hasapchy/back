@@ -36,8 +36,9 @@ class InvoicesRepository extends BaseRepository
                 'orders.cash.currency',
                 'products.unit',
                 'products.order'
-            ])
-                ->where('user_id', $userUuid);
+            ]);
+
+            $this->applyOwnFilter($query, 'invoices', 'invoices', 'user_id');
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -48,12 +49,7 @@ class InvoicesRepository extends BaseRepository
             }
 
             if ($dateFilter !== 'all_time') {
-                $dateRange = $this->getDateRange($dateFilter, $startDate, $endDate);
-                if (is_array($dateRange)) {
-                    $query->whereBetween('invoice_date', $dateRange);
-                } else {
-                    $query->whereDate('invoice_date', $dateRange);
-                }
+                $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'invoice_date');
             }
 
             if ($typeFilter) {

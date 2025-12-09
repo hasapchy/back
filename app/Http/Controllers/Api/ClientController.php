@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreClientRequest;
+use App\Http\Requests\UpdateClientRequest;
 use Illuminate\Http\Request;
 use App\Repositories\ClientsRepository;
 use App\Models\Client;
@@ -12,7 +14,7 @@ use App\Services\CacheService;
 /**
  * Контроллер для работы с клиентами
  */
-class ClientController extends Controller
+class ClientController extends BaseController
 {
     protected $itemsRepository;
 
@@ -92,10 +94,11 @@ class ClientController extends Controller
     /**
      * Получить историю баланса клиента
      *
+     * @param Request $request
      * @param int $id ID клиента
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getBalanceHistory($id)
+    public function getBalanceHistory(Request $request, $id)
     {
         $user = $this->requireAuthenticatedUser();
 
@@ -104,7 +107,12 @@ class ClientController extends Controller
         }
 
         try {
-            $history = $this->itemsRepository->getBalanceHistory($id);
+            $excludeDebt = $request->input('exclude_debt', null);
+            if ($excludeDebt !== null) {
+                $excludeDebt = filter_var($excludeDebt, FILTER_VALIDATE_BOOLEAN);
+            }
+
+            $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt);
 
             return response()->json(['history' => $history]);
         } catch (\Throwable $e) {
@@ -115,12 +123,48 @@ class ClientController extends Controller
     /**
      * Получить всех клиентов
      *
+     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function all()
+    public function all(Request $request)
     {
         try {
-            $items = $this->itemsRepository->getAllItems();
+            $typeFilterInput = $request->input('type_filter');
+            $typeFilter = [];
+
+            if (is_array($typeFilterInput)) {
+                $typeFilter = $typeFilterInput;
+            } elseif (!is_null($typeFilterInput)) {
+                $typeFilter = [$typeFilterInput];
+            }
+
+            $cashRegisterFilterInput = $request->input('cash_register_ids');
+            $cashRegisterFilter = [];
+
+            if (is_array($cashRegisterFilterInput)) {
+                $cashRegisterFilter = array_filter(array_map('intval', $cashRegisterFilterInput));
+            } elseif (!is_null($cashRegisterFilterInput) && $cashRegisterFilterInput !== '') {
+                $cashRegisterFilter = array_filter(array_map('intval', explode(',', $cashRegisterFilterInput)));
+            }
+
+            $forMutualSettlements = $request->input('for_mutual_settlements', false);
+
+            if ($forMutualSettlements) {
+                $user = $this->requireAuthenticatedUser();
+                $allowedTypes = $this->getAllowedMutualSettlementsClientTypes($user);
+
+                if (empty($allowedTypes)) {
+                    return response()->json([]);
+                }
+
+                if (empty($typeFilter)) {
+                    $typeFilter = $allowedTypes;
+                } else {
+                    $typeFilter = array_intersect($typeFilter, $allowedTypes);
+                }
+            }
+
+            $items = $this->itemsRepository->getAllItems($typeFilter, $forMutualSettlements, $cashRegisterFilter);
             return response()->json($items);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении всех клиентов: ' . $e->getMessage(), 500);
@@ -133,26 +177,9 @@ class ClientController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreClientRequest $request)
     {
-        $validatedData = $request->validate([
-            'first_name'       => 'required|string',
-            'is_conflict'      => 'sometimes|nullable|boolean',
-            'is_supplier'      => 'sometimes|nullable|boolean',
-            'last_name'        => 'nullable|string',
-            'contact_person'   => 'nullable|string',
-            'client_type'      => 'required|string|in:company,individual,employee,investor',
-            'employee_id'      => 'nullable|exists:users,id',
-            'address'          => 'nullable|string',
-            'phones'           => 'required|array',
-            'phones.*'         => 'string|distinct|min:6',
-            'emails'           => 'sometimes|nullable',
-            'emails.*'         => 'nullable|email|distinct',
-            'note'             => 'nullable|string',
-            'status'           => 'boolean',
-            'discount'         => 'nullable|numeric|min:0',
-            'discount_type'    => 'nullable|in:fixed,percent',
-        ]);
+        $validatedData = $request->validated();
 
         $employeeCheck = $this->checkEmployeeIdDuplicate($validatedData['employee_id'] ?? null);
         if ($employeeCheck) {
@@ -195,26 +222,9 @@ class ClientController extends Controller
      * @param int $id ID клиента
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateClientRequest $request, $id)
     {
-        $validatedData = $request->validate([
-            'first_name'       => 'required|string',
-            'is_conflict'      => 'sometimes|nullable|boolean',
-            'is_supplier'      => 'sometimes|nullable|boolean',
-            'last_name'        => 'nullable|string',
-            'contact_person'   => 'nullable|string',
-            'client_type'      => 'required|string|in:company,individual,employee,investor',
-            'employee_id'      => 'nullable|exists:users,id',
-            'address'          => 'nullable|string',
-            'phones'           => 'required|array',
-            'phones.*'         => 'string|distinct|min:6',
-            'emails'           => 'sometimes|nullable',
-            'emails.*'         => 'nullable|email|distinct',
-            'note'             => 'nullable|string',
-            'status'           => 'boolean',
-            'discount'         => 'nullable|numeric|min:0',
-            'discount_type'    => 'nullable|in:fixed,percent',
-        ]);
+        $validatedData = $request->validated();
 
         try {
             $existingClient = Client::find($id);

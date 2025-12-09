@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -20,6 +21,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Currency extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'code',
         'name',
@@ -31,7 +34,7 @@ class Currency extends Model
     ];
 
     protected $casts = [
-        'exchange_rate' => 'decimal:4',
+        'exchange_rate' => 'decimal:5',
         'is_default' => 'boolean',
         'is_report' => 'boolean',
     ];
@@ -112,20 +115,4 @@ class Currency extends Model
         return $history ? $history->exchange_rate : 1;
     }
 
-    /**
-     * Accessor для получения курса обмена
-     *
-     * ВНИМАНИЕ: Использование request() в модели нарушает принцип разделения ответственности.
-     * Рекомендуется использовать метод getExchangeRateForCompany() напрямую с явным указанием company_id.
-     *
-     * @return float
-     */
-    public function getExchangeRateAttribute()
-    {
-        $companyId = request()->header('X-Company-ID');
-        if ($companyId) {
-            $companyId = (int) $companyId;
-        }
-        return $this->getExchangeRateForCompany($companyId ?: null);
-    }
 }

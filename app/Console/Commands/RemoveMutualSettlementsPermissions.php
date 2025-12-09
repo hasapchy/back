@@ -10,57 +10,59 @@ class RemoveMutualSettlementsPermissions extends Command
 {
     protected $signature = 'permissions:remove-mutual-settlements';
 
-    protected $description = 'Remove create, update, delete permissions for mutual_settlements (only view should remain)';
+    protected $description = 'Remove old mutual_settlements permissions (view_own, create) that are no longer needed';
 
     public function handle()
     {
-        $this->info('Starting removal of mutual_settlements create/update/delete permissions...');
+        $this->info('Starting removal of old mutual_settlements permissions...');
+        $this->info('Removing: mutual_settlements_view_own,
+        mutual_settlements_create');
+        $this->info('Note: mutual_settlements_view_all is kept (required for viewing mutual settlements page)');
+        $this->newLine();
 
-        $actions = ['create', 'update', 'delete'];
-        $scopeActions = ['update', 'delete'];
+        $permissionNames = [
+            'mutual_settlements_view_own',
+            'mutual_settlements_create',
+        ];
 
         $deletedCount = 0;
         $rolesUpdated = 0;
 
-        foreach ($actions as $action) {
-            if (in_array($action, $scopeActions)) {
-                $permissionNames = [
-                    "mutual_settlements_{$action}_all",
-                    "mutual_settlements_{$action}_own",
-                    "mutual_settlements_{$action}",
-                ];
-            } else {
-                $permissionNames = [
-                    "mutual_settlements_{$action}",
-                ];
+        foreach ($permissionNames as $permissionName) {
+            $permission = Permission::where('name', $permissionName)->first();
+
+            if (!$permission) {
+                $this->line("  ⚠ Permission not found: {$permissionName}");
+                continue;
             }
 
-            foreach ($permissionNames as $permissionName) {
-                $permission = Permission::where('name', $permissionName)->first();
+            $this->line("Processing: {$permissionName}");
 
-                if (!$permission) {
-                    continue;
-                }
+            $rolesWithPermission = Role::permission($permissionName)->get();
 
-                $this->line("Processing: {$permissionName}");
-
-                $rolesWithPermission = Role::permission($permissionName)->get();
-
+            if ($rolesWithPermission->isEmpty()) {
+                $this->line("  - No roles found with this permission");
+            } else {
                 foreach ($rolesWithPermission as $role) {
                     $role->revokePermissionTo($permission);
                     $this->line("  - Removed {$permissionName} from role: {$role->name}");
                     $rolesUpdated++;
                 }
-
-                $permission->delete();
-                $deletedCount++;
-                $this->info("  ✓ Deleted permission: {$permissionName}");
             }
+
+            $permission->delete();
+            $deletedCount++;
+            $this->info("  ✓ Deleted permission: {$permissionName}");
         }
 
-        $this->info("\nCompleted!");
+        $this->newLine();
+        $this->info("Completed!");
         $this->info("Deleted permissions: {$deletedCount}");
         $this->info("Roles updated: {$rolesUpdated}");
+        $this->newLine();
+        $this->info("Next steps:");
+        $this->info("1. Run: php artisan db:seed --class=PermissionsSeeder (if needed to ensure all permissions are up to date)");
+        $this->info("2. Review roles and assign mutual_settlements_view_all and type-specific permissions as needed");
 
         return Command::SUCCESS;
     }

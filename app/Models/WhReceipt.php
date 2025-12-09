@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\CacheService;
+use App\Services\TransactionDeletionService;
 
 /**
  * Модель прихода на склад
@@ -53,20 +54,7 @@ class WhReceipt extends Model
     {
         static::deleting(function ($receipt) {
             $transactions = $receipt->transactions()->get();
-            foreach ($transactions as $transaction) {
-                $transaction->delete();
-            }
-
-            CacheService::invalidateTransactionsCache();
-            if ($receipt->supplier_id) {
-                CacheService::invalidateClientsCache();
-                CacheService::invalidateClientBalanceCache($receipt->supplier_id);
-            }
-            CacheService::invalidateCashRegistersCache();
-            if ($receipt->project_id) {
-                $projectsRepository = new \App\Repositories\ProjectsRepository();
-                $projectsRepository->invalidateProjectCache($receipt->project_id);
-            }
+            TransactionDeletionService::softDeleteMany($transactions);
         });
     }
 

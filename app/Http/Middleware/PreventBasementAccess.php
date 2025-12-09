@@ -23,6 +23,10 @@ class PreventBasementAccess
             return response()->json(['error' => 'Unauthenticated'], 401);
         }
 
+        if ($user->is_admin) {
+            return $next($request);
+        }
+
         $roles = $user->getAllRoleNames();
 
         if (in_array('basement_worker', $roles, true) && !in_array('admin', $roles, true)) {

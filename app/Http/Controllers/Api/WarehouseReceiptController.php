@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreWarehouseReceiptRequest;
+use App\Http\Requests\UpdateWarehouseReceiptRequest;
 use App\Repositories\WarehouseReceiptRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -10,7 +12,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с оприходованиями на склад
  */
-class WarehouseReceiptController extends Controller
+class WarehouseReceiptController extends BaseController
 {
     protected $warehouseRepository;
 
@@ -34,7 +36,9 @@ class WarehouseReceiptController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20);
+        $perPage = $request->input('per_page', 20);
+
+        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage);
 
         return $this->paginatedResponse($warehouses);
     }
@@ -62,49 +66,37 @@ class WarehouseReceiptController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreWarehouseReceiptRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-        $request->validate([
-            'client_id' => 'required|integer|exists:clients,id',
-            'warehouse_id' => 'required|integer|exists:warehouses,id',
-            'type'         => 'required|in:cash,balance',
-            'cash_id'      => 'nullable|integer|exists:cash_registers,id',
-            'date' => 'nullable|date',
-            'note' => 'nullable|string',
-            'project_id' => 'nullable|integer|exists:projects,id',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:0',
-            'products.*.price' => 'required|numeric|min:0'
-        ]);
+        $validatedData = $request->validated();
 
-        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        $warehouseAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_id']);
         if ($warehouseAccessCheck) {
             return $warehouseAccessCheck;
         }
 
-        $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
+        $cashAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id'] ?? null);
         if ($cashAccessCheck) {
             return $cashAccessCheck;
         }
 
         $data = array(
-            'client_id' => $request->client_id,
-            'warehouse_id' => $request->warehouse_id,
-            'type'        => $request->type,
-            'cash_id'     => $request->cash_id,
+            'client_id' => $validatedData['client_id'],
+            'warehouse_id' => $validatedData['warehouse_id'],
+            'type'        => $validatedData['type'],
+            'cash_id'     => $validatedData['cash_id'] ?? null,
             'user_id' => $userUuid,
-            'date' => $request->date ?? now(),
-            'note' => $request->note ?? '',
-            'project_id' => $request->project_id ?? null,
+            'date' => $validatedData['date'] ?? now(),
+            'note' => $validatedData['note'] ?? '',
+            'project_id' => $validatedData['project_id'] ?? null,
             'products' => array_map(function ($product) {
                 return [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity'],
                     'price' => $product['price']
                 ];
-            }, $request->products)
+            }, $validatedData['products'])
         );
 
         try {
@@ -126,38 +118,24 @@ class WarehouseReceiptController extends Controller
      * @param int $id ID оприходования
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateWarehouseReceiptRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'date' => 'nullable|date',
-            'note' => 'nullable|string',
-        ]);
+        $validatedData = $request->validated();
 
         $receipt = $this->warehouseRepository->getItemById($id, $userUuid);
         if (!$receipt) {
             return $this->notFoundResponse('Оприходование не найдено');
         }
 
-        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
-        if ($warehouseAccessCheck) {
-            return $warehouseAccessCheck;
-        }
-
-        $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
-        if ($cashAccessCheck) {
-            return $cashAccessCheck;
-        }
-
         $data = [
-            'client_id' => $request->client_id,
-            'warehouse_id' => $request->warehouse_id,
-            'cash_id' => $request->cash_id,
-            'date' => $request->date,
-            'note' => $request->note,
-            'products' => $request->products,
-            'project_id' => $request->project_id ?? null,
+            'client_id' => $receipt->client_id,
+            'warehouse_id' => $receipt->warehouse_id,
+            'cash_id' => $receipt->cash_id,
+            'date' => $validatedData['date'] ?? $receipt->date,
+            'note' => $validatedData['note'] ?? $receipt->note,
+            'products' => $receipt->products,
+            'project_id' => $receipt->project_id,
         ];
 
         try {

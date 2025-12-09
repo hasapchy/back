@@ -14,13 +14,16 @@ class RolesRepository extends BaseRepository
      * @param int $page Номер страницы
      * @param int $perPage Количество записей на страницу
      * @param string|null $search Поисковый запрос
+     * @param int|null $companyId ID компании
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($page = 1, $perPage = 20, $search = null)
+    public function getItemsWithPagination($page = 1, $perPage = 20, $search = null, $companyId = null)
     {
         $query = Role::where('guard_name', 'api')
             ->with('permissions:id,name')
-            ->select(['id', 'name', 'guard_name', 'created_at', 'updated_at']);
+            ->select(['id', 'name', 'guard_name', 'company_id', 'created_at', 'updated_at']);
+
+        $this->applyCompanyFilter($query, $companyId);
 
         if ($search && ($searchTerm = trim($search))) {
             $query->where('name', 'like', '%' . $searchTerm . '%');
@@ -32,42 +35,43 @@ class RolesRepository extends BaseRepository
     /**
      * Получить все роли
      *
+     * @param int|null $companyId ID компании
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getAllItems()
+    public function getAllItems($companyId = null)
     {
-        return Role::where('guard_name', 'api')
+        $query = Role::where('guard_name', 'api')
             ->with('permissions:id,name')
-            ->select(['id', 'name', 'guard_name'])
-            ->orderBy('name')
-            ->get();
+            ->select(['id', 'name', 'guard_name', 'company_id']);
+
+        $this->applyCompanyFilter($query, $companyId);
+
+        return $query->orderBy('name')->get();
     }
 
     /**
      * Создать роль
      *
      * @param array $data Данные роли
+     * @param int|null $companyId ID компании
      * @return Role
      * @throws \Exception
      */
-    public function createItem(array $data)
+    public function createItem(array $data, $companyId = null)
     {
-        DB::beginTransaction();
-        try {
+        $companyId = $companyId ?? $this->getCurrentCompanyId();
+
+        return DB::transaction(function () use ($data, $companyId) {
             $role = Role::create([
                 'name' => trim($data['name'] ?? ''),
                 'guard_name' => 'api',
+                'company_id' => $companyId ? (int)$companyId : null,
             ]);
 
             $this->syncRolePermissions($role, $data['permissions'] ?? []);
 
-            DB::commit();
-
             return $role->load('permissions');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -75,18 +79,24 @@ class RolesRepository extends BaseRepository
      *
      * @param int $id ID роли
      * @param array $data Данные для обновления
+     * @param int|null $companyId ID компании
      * @return Role
      * @throws \Exception
      */
-    public function updateItem($id, array $data)
+    public function updateItem($id, array $data, $companyId = null)
     {
-        DB::beginTransaction();
-        try {
-            $role = Role::where('guard_name', 'api')->findOrFail($id);
+        return DB::transaction(function () use ($id, $data, $companyId) {
+            $query = Role::where('guard_name', 'api');
+            $this->applyCompanyFilter($query, $companyId);
+            $role = $query->findOrFail($id);
 
             if (isset($data['name'])) {
                 $newName = trim($data['name']);
-                if ($role->name === 'admin' && $newName !== 'admin') {
+                /** @var \App\Models\User|null $user */
+                $user = auth('api')->user();
+                $isAdmin = $user && $user->is_admin;
+
+                if (!$isAdmin && $role->name === 'admin' && $newName !== 'admin') {
                     throw new \Exception('Нельзя изменить название роли администратора');
                 }
                 $role->name = $newName;
@@ -97,13 +107,8 @@ class RolesRepository extends BaseRepository
                 $this->syncRolePermissions($role, $data['permissions']);
             }
 
-            DB::commit();
-
             return $role->load('permissions');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -198,16 +203,19 @@ class RolesRepository extends BaseRepository
      * Удалить роль
      *
      * @param int $id ID роли
+     * @param int|null $companyId ID компании
      * @return bool
      * @throws \Exception
      */
-    public function deleteItem($id)
+    public function deleteItem($id, $companyId = null)
     {
         if (empty($id)) {
             throw new \Exception('ID роли не указан');
         }
 
-        $role = Role::where('guard_name', 'api')->findOrFail($id);
+        $query = Role::where('guard_name', 'api');
+        $this->applyCompanyFilter($query, $companyId);
+        $role = $query->findOrFail($id);
 
         if ($role->name === 'admin') {
             throw new \Exception('Нельзя удалить роль администратора');
@@ -226,14 +234,76 @@ class RolesRepository extends BaseRepository
      * Получить роль по ID
      *
      * @param int $id ID роли
+     * @param int|null $companyId ID компании
      * @return Role
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
-    public function getItem($id)
+    public function getItem($id, $companyId = null)
     {
-        return Role::where('guard_name', 'api')
-            ->with('permissions:id,name')
-            ->findOrFail($id);
+        $query = Role::where('guard_name', 'api')
+            ->with('permissions:id,name');
+
+        $this->applyCompanyFilter($query, $companyId);
+
+        return $query->findOrFail($id);
+    }
+
+    /**
+     * Создать роли для компании (admin и basement_worker)
+     *
+     * @param int $companyId ID компании
+     * @return void
+     */
+    public function createDefaultRolesForCompany(int $companyId): void
+    {
+        $allPermissions = Permission::where('guard_name', 'api')->get();
+
+        $adminRole = Role::firstOrCreate(
+            [
+                'name' => 'admin',
+                'guard_name' => 'api',
+                'company_id' => $companyId,
+            ],
+            [
+                'name' => 'admin',
+                'guard_name' => 'api',
+                'company_id' => $companyId,
+            ]
+        );
+        $adminRole->syncPermissions($allPermissions);
+
+        $basementPermissions = [
+            'orders_view',
+            'orders_create',
+            'orders_update',
+            'clients_view',
+            'clients_create',
+            'clients_update',
+            'products_view',
+            'projects_view',
+            'categories_view',
+            'order_statuses_view',
+            'cash_registers_view',
+            'warehouses_view',
+        ];
+
+        $basementPermissionModels = Permission::whereIn('name', $basementPermissions)
+            ->where('guard_name', 'api')
+            ->get();
+
+        $basementRole = Role::firstOrCreate(
+            [
+                'name' => 'basement_worker',
+                'guard_name' => 'api',
+                'company_id' => $companyId,
+            ],
+            [
+                'name' => 'basement_worker',
+                'guard_name' => 'api',
+                'company_id' => $companyId,
+            ]
+        );
+        $basementRole->syncPermissions($basementPermissionModels);
     }
 
 }

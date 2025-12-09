@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreTransactionRequest;
+use App\Http\Requests\UpdateTransactionRequest;
 use App\Models\Transaction;
 use App\Models\Order;
 use App\Repositories\TransactionsRepository;
@@ -12,7 +14,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с транзакциями
  */
-class TransactionsController extends Controller
+class TransactionsController extends BaseController
 {
     protected $itemsRepository;
 
@@ -37,7 +39,7 @@ class TransactionsController extends Controller
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
-        $per_page = $request->input('per_page', 10);
+        $per_page = $request->input('per_page', 20);
         $cash_register_id = $request->query('cash_id');
         $date_filter_type = $request->query('date_filter_type');
         $order_id = $request->query('order_id');
@@ -48,6 +50,7 @@ class TransactionsController extends Controller
         $start_date = $request->query('start_date');
         $end_date = $request->query('end_date');
         $is_debt = $request->query('is_debt');
+
 
         $items = $this->itemsRepository->getItemsWithPagination(
             $userUuid,
@@ -76,44 +79,29 @@ class TransactionsController extends Controller
             'total_debt_balance' => $items->total_debt_balance ?? 0
         ];
 
+
         return response()->json($response);
     }
 
     /**
      * Создать новую транзакцию
      *
-     * @param Request $request
+     * @param StoreTransactionRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreTransactionRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $request->validate([
-            'type' => 'required|integer|in:1,0',
-            'orig_amount' => 'required|numeric|min:0.01',
-            'currency_id' => 'required|exists:currencies,id',
-            'cash_id' => 'required|exists:cash_registers,id',
-            'category_id' => 'required|exists:transaction_categories,id',
-            'project_id' => 'nullable|sometimes|exists:projects,id',
-            'client_id' => 'nullable|sometimes|exists:clients,id',
-            'order_id' => 'nullable|integer|exists:orders,id',
-            'source_type' => 'nullable|string',
-            'source_id' => 'nullable|integer',
-            'note' => 'nullable|sometimes|string',
-            'date' => 'nullable|sometimes|date',
-            'is_debt' => 'nullable|boolean',
-            'is_adjustment' => 'nullable|boolean'
-        ]);
+        $validatedData = $request->validated();
 
-        if ($request->has('is_adjustment') && $request->is_adjustment) {
+        if (isset($validatedData['is_adjustment']) && $validatedData['is_adjustment']) {
             if (!$this->hasPermission('settings_client_balance_adjustment')) {
                 return $this->forbiddenResponse('У вас нет прав на корректировку баланса');
             }
         }
 
-        $cashRegister = \App\Models\CashRegister::findOrFail($request->cash_id);
-        $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
+        $cashAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id']);
         if ($cashAccessCheck) {
             return $cashAccessCheck;
         }
@@ -121,29 +109,28 @@ class TransactionsController extends Controller
         $sourceType = null;
         $sourceId = null;
 
-        if ($request->has('source_type') || $request->has('source_id')) {
-            $sourceType = $request->source_type;
-            $sourceId = $request->source_id;
-        }
-        elseif ($request->order_id) {
+        if (isset($validatedData['source_type']) || isset($validatedData['source_id'])) {
+            $sourceType = $validatedData['source_type'] ?? null;
+            $sourceId = $validatedData['source_id'] ?? null;
+        } elseif (isset($validatedData['order_id']) && $validatedData['order_id']) {
             $sourceType = Order::class;
-            $sourceId = $request->order_id;
+            $sourceId = $validatedData['order_id'];
         }
 
         $item_created = $this->itemsRepository->createItem([
-            'type' => $request->type,
+            'type' => $validatedData['type'],
             'user_id' => $userUuid,
-            'orig_amount' => $request->orig_amount,
-            'currency_id' => $request->currency_id,
-            'cash_id' => $request->cash_id,
-            'category_id' => $request->category_id,
-            'project_id' => $request->project_id,
-            'client_id' => $request->client_id,
+            'orig_amount' => $validatedData['orig_amount'],
+            'currency_id' => $validatedData['currency_id'],
+            'cash_id' => $validatedData['cash_id'],
+            'category_id' => $validatedData['category_id'],
+            'project_id' => $validatedData['project_id'] ?? null,
+            'client_id' => $validatedData['client_id'] ?? null,
             'source_type' => $sourceType,
             'source_id' => $sourceId,
-            'note' => $request->note,
-            'date' => $request->date ?? now(),
-            'is_debt' => $request->is_debt ?? false
+            'note' => $validatedData['note'] ?? null,
+            'date' => $validatedData['date'] ?? now(),
+            'is_debt' => $validatedData['is_debt'] ?? false
         ]);
 
         if (!$item_created) {
@@ -151,10 +138,10 @@ class TransactionsController extends Controller
         }
 
         CacheService::invalidateTransactionsCache();
-        if ($request->client_id) {
+        if (isset($validatedData['client_id']) && $validatedData['client_id']) {
             CacheService::invalidateClientsCache();
         }
-        if ($request->project_id) {
+        if (isset($validatedData['project_id']) && $validatedData['project_id']) {
             CacheService::invalidateProjectsCache();
         }
         CacheService::invalidateCashRegistersCache();
@@ -165,32 +152,21 @@ class TransactionsController extends Controller
     /**
      * Обновить транзакцию
      *
-     * @param Request $request
+     * @param UpdateTransactionRequest $request
      * @param int $id ID транзакции
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateTransactionRequest $request, $id)
     {
         $user = $this->requireAuthenticatedUser();
         $userUuid = $user->id;
 
-        $request->validate([
-            'category_id' => 'required|exists:transaction_categories,id',
-            'project_id' => 'nullable|sometimes|exists:projects,id',
-            'client_id' => 'nullable|sometimes|exists:clients,id',
-            'note' => 'nullable|sometimes|string',
-            'date' => 'nullable|sometimes|date',
-            'orig_amount' => 'nullable|sometimes|numeric|min:0.01',
-            'currency_id' => 'nullable|sometimes|exists:currencies,id',
-            'is_debt' => 'nullable|boolean',
-            'source_type' => 'nullable|string',
-            'source_id' => 'nullable|integer'
-        ]);
+        $validatedData = $request->validated();
 
         $transaction_exist = Transaction::findOrFail($id);
 
         $isAdjustmentCategory = in_array($transaction_exist->category_id, [21, 22]) ||
-                                ($request->has('category_id') && in_array($request->category_id, [21, 22]));
+            (isset($validatedData['category_id']) && in_array($validatedData['category_id'], [21, 22]));
 
         if ($isAdjustmentCategory) {
             if (!$this->hasPermission('settings_client_balance_adjustment')) {
@@ -214,11 +190,10 @@ class TransactionsController extends Controller
         $updateSourceType = null;
         $updateSourceId = null;
 
-        if ($request->has('source_type') || $request->has('source_id')) {
-            $updateSourceType = $request->input('source_type');
-            $updateSourceId = $request->input('source_id');
-        }
-        elseif ($request->has('order_id')) {
+        if (isset($validatedData['source_type']) || isset($validatedData['source_id'])) {
+            $updateSourceType = $validatedData['source_type'] ?? null;
+            $updateSourceId = $validatedData['source_id'] ?? null;
+        } elseif ($request->has('order_id')) {
             if ($request->order_id) {
                 $updateSourceType = Order::class;
                 $updateSourceId = $request->order_id;
@@ -229,24 +204,24 @@ class TransactionsController extends Controller
         }
 
         $updateData = [
-            'category_id' => $request->category_id,
-            'project_id' => $request->project_id,
-            'client_id' => $request->client_id,
-            'note' => $request->note,
-            'date' => $request->date ?? now(),
-            'is_debt' => $request->is_debt ?? false
+            'category_id' => $validatedData['category_id'],
+            'project_id' => $validatedData['project_id'] ?? null,
+            'client_id' => $validatedData['client_id'] ?? null,
+            'note' => $validatedData['note'] ?? null,
+            'date' => $validatedData['date'] ?? now(),
+            'is_debt' => $validatedData['is_debt'] ?? false
         ];
 
-        if ($request->has('orig_amount')) {
-            $updateData['orig_amount'] = $request->orig_amount;
+        if (isset($validatedData['orig_amount'])) {
+            $updateData['orig_amount'] = $validatedData['orig_amount'];
         } elseif ($request->has('amount')) {
             $updateData['orig_amount'] = $request->amount;
         }
-        if ($request->has('currency_id')) {
-            $updateData['currency_id'] = $request->currency_id;
+        if (isset($validatedData['currency_id'])) {
+            $updateData['currency_id'] = $validatedData['currency_id'];
         }
 
-        if ($request->has('source_type') || $request->has('source_id') || $request->has('order_id')) {
+        if (isset($validatedData['source_type']) || isset($validatedData['source_id']) || $request->has('order_id')) {
             $updateData['source_type'] = $updateSourceType;
             $updateData['source_id'] = $updateSourceId;
         }
@@ -258,10 +233,10 @@ class TransactionsController extends Controller
         }
 
         CacheService::invalidateTransactionsCache();
-        if ($request->client_id || $transaction_exist->client_id) {
+        if ((isset($validatedData['client_id']) && $validatedData['client_id']) || $transaction_exist->client_id) {
             CacheService::invalidateClientsCache();
         }
-        if ($request->project_id || $transaction_exist->project_id) {
+        if ((isset($validatedData['project_id']) && $validatedData['project_id']) || $transaction_exist->project_id) {
             CacheService::invalidateProjectsCache();
         }
         CacheService::invalidateCashRegistersCache();
@@ -357,6 +332,12 @@ class TransactionsController extends Controller
         }
 
         if ($transaction->source_type && $transaction->source_id) {
+            $sourceType = class_basename($transaction->source_type);
+
+            if ($sourceType === 'EmployeeSalary') {
+                return false;
+            }
+
             return true;
         }
 
@@ -379,6 +360,8 @@ class TransactionsController extends Controller
                     return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через заказ. Управляйте ей через раздел "Заказы"';
                 case 'WhReceipt':
                     return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через складское поступление. Управляйте ей через раздел "Склад"';
+                case 'EmployeeSalary':
+                    return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с зарплатой сотрудника. Управляйте ей через раздел "Сотрудники"';
                 default:
                     return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с другой операцией в системе';
             }
@@ -386,5 +369,4 @@ class TransactionsController extends Controller
 
         return 'Нельзя редактировать/удалить эту транзакцию';
     }
-
 }

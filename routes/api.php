@@ -40,7 +40,7 @@ Route::middleware(['throttle:auth'])->group(function () {
 
 Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
 
-Route::middleware(['auth:sanctum', 'user.active', 'role:basement_worker'])->prefix('basement')->group(function () {
+Route::middleware(['auth:sanctum', 'user.active', 'basement.worker'])->prefix('basement')->group(function () {
     Route::get('user/me', [AuthController::class, 'me']);
     Route::post('user/logout', [AuthController::class, 'logout']);
 
@@ -101,10 +101,10 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission.scope:users_delete_all,users_delete')->delete('users/{id}', [UsersController::class, 'destroy']);
     Route::get('permissions', [UsersController::class, 'permissions']);
     Route::get('users/{id}/permissions', [UsersController::class, 'checkPermissions']);
-    Route::middleware('permission.scope:users_view_all,users_view')->get('users/{id}/salaries', [UsersController::class, 'getSalaries']);
-    Route::middleware('permission.scope:users_update_all,users_update')->post('users/{id}/salaries', [UsersController::class, 'createSalary']);
-    Route::middleware('permission.scope:users_update_all,users_update')->put('users/{userId}/salaries/{salaryId}', [UsersController::class, 'updateSalary']);
-    Route::middleware('permission.scope:users_update_all,users_update')->delete('users/{userId}/salaries/{salaryId}', [UsersController::class, 'deleteSalary']);
+    Route::middleware('permission.scope:employee_salaries_view_all,employee_salaries_view_own')->get('users/{id}/salaries', [UsersController::class, 'getSalaries']);
+    Route::middleware('permission:employee_salaries_create')->post('users/{id}/salaries', [UsersController::class, 'createSalary']);
+    Route::middleware('permission.scope:employee_salaries_update_all,employee_salaries_update_own')->put('users/{userId}/salaries/{salaryId}', [UsersController::class, 'updateSalary']);
+    Route::middleware('permission.scope:employee_salaries_delete_all,employee_salaries_delete_own')->delete('users/{userId}/salaries/{salaryId}', [UsersController::class, 'deleteSalary']);
     Route::middleware('permission.scope:users_view_all,users_view')->get('users/{id}/balance', [UsersController::class, 'getEmployeeBalance']);
     Route::middleware('permission.scope:users_view_all,users_view')->get('users/{id}/balance-history', [UsersController::class, 'getEmployeeBalanceHistory']);
 
@@ -117,8 +117,8 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
 
     Route::get('companies', [CompaniesController::class, 'index']);
     Route::middleware('permission:companies_create')->post('companies', [CompaniesController::class, 'store']);
-    Route::middleware('permission:companies_update')->put('companies/{id}', [CompaniesController::class, 'update']);
-    Route::middleware('permission:companies_delete')->delete('companies/{id}', [CompaniesController::class, 'destroy']);
+    Route::middleware('permission:companies_update_all')->post('companies/{id}', [CompaniesController::class, 'update']);
+    Route::middleware('permission:companies_delete_all')->delete('companies/{id}', [CompaniesController::class, 'destroy']);
 
     Route::middleware('permission.scope:warehouses_view_all,warehouses_view')->get('warehouses', [WarehouseController::class, 'index']);
     Route::get('warehouses/all', [WarehouseController::class, 'all']);
@@ -148,8 +148,8 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::get('categories/all', [CategoriesController::class, 'all']);
     Route::get('categories/parents', [CategoriesController::class, 'parents']);
     Route::middleware('permission:categories_create')->post('categories', [CategoriesController::class, 'store']);
-    Route::middleware('permission:categories_update')->put('categories/{id}', [CategoriesController::class, 'update']);
-    Route::middleware('permission:categories_delete')->delete('categories/{id}', [CategoriesController::class, 'destroy']);
+    Route::middleware('permission:categories_update_all')->put('categories/{id}', [CategoriesController::class, 'update']);
+    Route::middleware('permission:categories_delete_all')->delete('categories/{id}', [CategoriesController::class, 'destroy']);
 
     Route::middleware('permission.scope:products_view_all,products_view')->get('products', [ProductController::class, 'products']);
     Route::middleware('permission.scope:products_view_all,products_view')->get('services', [ProductController::class, 'services']);

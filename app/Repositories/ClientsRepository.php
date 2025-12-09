@@ -7,8 +7,10 @@ use App\Models\ClientsEmail;
 use App\Models\ClientsPhone;
 use App\Models\Currency;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ClientsRepository extends BaseRepository
 {
@@ -20,22 +22,25 @@ class ClientsRepository extends BaseRepository
      * @param bool $includeInactive Включать неактивных клиентов
      * @param int $page Номер страницы
      * @param string|null $statusFilter Фильтр по статусу ('active' или 'inactive')
-     * @param string|null $typeFilter Фильтр по типу клиента
+     * @param array $typeFilter Фильтр по типу клиента
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($perPage = 10, $search = null, $includeInactive = false, $page = 1, $statusFilter = null, $typeFilter = null)
+    public function getItemsWithPagination($perPage = 10, $search = null, $includeInactive = false, $page = 1, $statusFilter = null, $typeFilter = [])
     {
+        $typeFilter = $this->normalizeTypeFilter($typeFilter);
+
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('clients_paginated', [$perPage, $search, $includeInactive, $statusFilter, $typeFilter, $currentUser?->id, $companyId]);
+        $typeFilterKey = implode(',', $typeFilter);
+        $cacheKey = $this->generateCacheKey('clients_paginated', [$perPage, $search, $includeInactive, $statusFilter, $typeFilterKey, $currentUser?->id, $companyId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter, $currentUser) {
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
                 'user:id,name,photo',
-                'employee:id,name,photo'
+                'employee:id,name,surname,position,photo'
             ])
                 ->select([
                     'clients.*',
@@ -58,8 +63,8 @@ class ClientsRepository extends BaseRepository
                 }
             }
 
-            if ($typeFilter !== null && $typeFilter !== '') {
-                $query->where('clients.client_type', $typeFilter);
+            if (!empty($typeFilter)) {
+                $query->whereIn('clients.client_type', $typeFilter);
             }
 
             if ($search) {
@@ -68,7 +73,9 @@ class ClientsRepository extends BaseRepository
                     $q->where('clients.id', 'like', $searchTerm)
                       ->orWhere('clients.first_name', 'like', $searchTerm)
                       ->orWhere('clients.last_name', 'like', $searchTerm)
+                      ->orWhere('clients.patronymic', 'like', $searchTerm)
                       ->orWhere('clients.contact_person', 'like', $searchTerm)
+                      ->orWhere('clients.position', 'like', $searchTerm)
                       ->orWhere('clients.address', 'like', $searchTerm)
                       ->orWhereHas('phones', function ($phoneQuery) use ($searchTerm) {
                           $phoneQuery->where('phone', 'like', $searchTerm);
@@ -88,21 +95,40 @@ class ClientsRepository extends BaseRepository
     /**
      * Получить всех активных клиентов
      *
+     * @param array $typeFilter
+     * @param bool $forMutualSettlements Применять фильтр по правам доступа к взаиморасчетам
+     * @param array $cashRegisterFilter Фильтр по кассам
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getAllItems()
+    public function getAllItems(array $typeFilter = [], bool $forMutualSettlements = false, array $cashRegisterFilter = [])
     {
+        $typeFilter = $this->normalizeTypeFilter($typeFilter);
+
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId]);
 
-        return CacheService::remember($cacheKey, function () use ($currentUser) {
+        if ($forMutualSettlements && $currentUser) {
+            $allowedTypes = $this->getAllowedMutualSettlementsClientTypes($currentUser);
+            if (empty($allowedTypes)) {
+                return collect([]);
+            }
+            if (empty($typeFilter)) {
+                $typeFilter = $allowedTypes;
+            } else {
+                $typeFilter = array_intersect($typeFilter, $allowedTypes);
+            }
+        }
+
+        $cashRegisterFilterKey = !empty($cashRegisterFilter) ? implode(',', $cashRegisterFilter) : '';
+        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter), $forMutualSettlements, $cashRegisterFilterKey]);
+
+        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter, $cashRegisterFilter) {
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
                 'user:id,name,photo',
-                'employee:id,name,photo'
+                'employee:id,name,surname,position,photo'
             ])
                 ->select([
                     'clients.*',
@@ -114,10 +140,55 @@ class ClientsRepository extends BaseRepository
 
             $this->applyOwnFilter($query, 'clients', 'clients', 'user_id', $currentUser);
 
+            if (!empty($typeFilter)) {
+                $query->whereIn('clients.client_type', $typeFilter);
+            }
+
+            if (!empty($cashRegisterFilter)) {
+                $query->whereHas('transactions', function ($transactionQuery) use ($cashRegisterFilter) {
+                    $transactionQuery->whereIn('cash_id', $cashRegisterFilter)
+                        ->where('is_deleted', false);
+                });
+            }
+
             $query->orderBy('clients.created_at', 'desc');
 
             return $query->get();
-        }, 1800);
+        }, $this->getCacheTTL('reference'));
+    }
+
+    /**
+     * Получить доступные типы клиентов для просмотра взаиморасчетов
+     *
+     * @param \App\Models\User|null $user Пользователь
+     * @return array Массив типов клиентов, к которым есть доступ
+     */
+    protected function getAllowedMutualSettlementsClientTypes($user = null)
+    {
+        if (!$user) {
+            return [];
+        }
+
+        if ($user->is_admin) {
+            return ['individual', 'company', 'employee', 'investor'];
+        }
+
+        $permissions = $this->getUserPermissionsForCompany($user);
+        $hasViewAll = in_array('mutual_settlements_view_all', $permissions);
+
+        if (!$hasViewAll) {
+            return [];
+        }
+
+        $allowedTypes = [];
+        $clientTypes = ['individual', 'company', 'employee', 'investor'];
+        foreach ($clientTypes as $type) {
+            if (in_array("mutual_settlements_view_{$type}", $permissions)) {
+                $allowedTypes[] = $type;
+            }
+        }
+
+        return $allowedTypes;
     }
 
     /**
@@ -139,7 +210,7 @@ class ClientsRepository extends BaseRepository
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
                 'user:id,name,photo',
-                'employee:id,name,photo'
+                'employee:id,name,surname,position,photo'
             ])
                 ->select([
                     'clients.*',
@@ -156,7 +227,9 @@ class ClientsRepository extends BaseRepository
                     $q->orWhere(function ($subQuery) use ($term) {
                         $subQuery->where('clients.first_name', 'like', "%{$term}%")
                             ->orWhere('clients.last_name', 'like', "%{$term}%")
+                            ->orWhere('clients.patronymic', 'like', "%{$term}%")
                             ->orWhere('clients.contact_person', 'like', "%{$term}%")
+                            ->orWhere('clients.position', 'like', "%{$term}%")
                             ->orWhereHas('phones', function ($phoneQuery) use ($term) {
                                 $phoneQuery->where('phone', 'like', "%{$term}%");
                             })
@@ -188,7 +261,7 @@ class ClientsRepository extends BaseRepository
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
                 'user:id,name,photo',
-                'employee:id,name,photo'
+                'employee:id,name,surname,position,photo'
             ])
                 ->select([
                     'clients.*',
@@ -220,8 +293,10 @@ class ClientsRepository extends BaseRepository
                 'first_name'     => $data['first_name'],
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,
-                'last_name'      => $data['last_name'] ?? "",
+                'last_name'      => $data['last_name'] ?? null,
+                'patronymic'     => $data['patronymic'] ?? null,
                 'contact_person' => $data['contact_person'] ?? null,
+                'position'       => $data['position'] ?? null,
                 'client_type'    => $data['client_type'],
                 'address'        => $data['address'] ?? null,
                 'note'           => $data['note'] ?? null,
@@ -253,21 +328,27 @@ class ClientsRepository extends BaseRepository
     {
         $client = DB::transaction(function () use ($id, $data) {
             $client = Client::findOrFail($id);
-            $client->update([
+            $updateData = [
                 'user_id'        => $data['user_id'] ?? $client->user_id,
                 'employee_id'    => $data['employee_id'] ?? $client->employee_id,
                 'first_name'     => $data['first_name'],
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,
-                'last_name'      => $data['last_name'] ?? "",
-                'contact_person' => $data['contact_person'] ?? null,
                 'client_type'    => $data['client_type'],
-                'address'        => $data['address'] ?? null,
-                'note'           => $data['note'] ?? null,
                 'status'         => $data['status'] ?? true,
                 'discount' => $data['discount'] ?? 0,
-                'discount_type'  => $data['discount_type'] ?? null,
-            ]);
+            ];
+
+            $nullableFields = ['last_name', 'patronymic', 'contact_person', 'position', 'address', 'note', 'discount_type'];
+            foreach ($nullableFields as $field) {
+                if (array_key_exists($field, $data)) {
+                    $updateData[$field] = $data[$field];
+                } else {
+                    $updateData[$field] = $client->$field;
+                }
+            }
+
+            $client->update($updateData);
 
             $this->syncPhones($client->id, $data['phones'] ?? []);
             $this->syncEmails($client->id, $data['emails'] ?? []);
@@ -291,7 +372,7 @@ class ClientsRepository extends BaseRepository
     {
 
         $query = Client::whereIn('id', $ids)
-            ->with(['employee:id,name', 'emails:id,client_id,email', 'phones:id,client_id,phone']);
+            ->with(['employee:id,name,surname,position,photo', 'emails:id,client_id,email', 'phones:id,client_id,phone']);
 
         $companyId = $this->getCurrentCompanyId();
         if ($companyId) {
@@ -307,7 +388,9 @@ class ClientsRepository extends BaseRepository
                 'is_conflict' => $client->is_conflict,
                 'first_name' => $client->first_name,
                 'last_name' => $client->last_name,
+                'patronymic' => $client->patronymic,
                 'contact_person' => $client->contact_person,
+                'position' => $client->position,
                 'address' => $client->address,
                 'note' => $client->note,
                 'status' => $client->status,
@@ -329,23 +412,30 @@ class ClientsRepository extends BaseRepository
      * Получить историю баланса клиента
      *
      * @param int $clientId ID клиента
+     * @param bool|null $excludeDebt Исключить кредитные транзакции (true - только платежи, false/null - все)
      * @return array Массив транзакций с описаниями
      */
-    public function getBalanceHistory($clientId)
+    public function getBalanceHistory($clientId, $excludeDebt = null)
     {
-        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId]);
+        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt]);
 
-        return CacheService::remember($cacheKey, function () use ($clientId) {
+        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt) {
             try {
                 $defaultCurrency = Currency::where('is_default', true)->first();
                 $defaultCurrencySymbol = $defaultCurrency?->symbol;
 
-                $transactions = Transaction::where('client_id', $clientId)
-                    ->where('is_deleted', false)
-                    ->with([
+                $transactionsQuery = Transaction::where('client_id', $clientId)
+                    ->where('is_deleted', false);
+
+                if ($excludeDebt === true) {
+                    $transactionsQuery->where('is_debt', false);
+                }
+
+                $transactionsQuery->with([
                         'cashRegister:id,name',
                         'currency:id,symbol,code',
-                        'user:id,name'
+                        'user:id,name',
+                        'category:id,name'
                     ])
                     ->select(
                         'id',
@@ -359,9 +449,14 @@ class ClientsRepository extends BaseRepository
                         'note',
                         'user_id',
                         'currency_id',
-                        'cash_id'
-                    )
-                    ->get()
+                        'cash_id',
+                        'category_id'
+                    );
+
+                $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
+                $transactionsQuery = $transactionsRepository->applySourceTypeFilter($transactionsQuery);
+
+                $transactions = $transactionsQuery->get()
                     ->flatMap(function ($item) use ($defaultCurrencySymbol) {
                         $source = 'transaction';
                         if ($item->source_type === 'App\\Models\\Sale') {
@@ -400,7 +495,8 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
                                 'currency_code' => $item->currency->code,
-                                'cash_name' => $item->cashRegister->name ?? null
+                                'cash_name' => $item->cashRegister->name ?? null,
+                                'category_name' => $item->category->name ?? null
                             ];
                         } elseif ($source === 'transaction') {
                             $transactionId = $item->id;
@@ -431,7 +527,8 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
                                 'currency_code' => $item->currency->code,
-                                'cash_name' => $item->cashRegister->name ?? null
+                                'cash_name' => $item->cashRegister->name ?? null,
+                                'category_name' => $item->category->name ?? null
                             ];
                         } elseif ($source === 'sale') {
                             $saleId = $item->source_id;
@@ -450,7 +547,8 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
                                 'currency_code' => $item->currency->code,
-                                'cash_name' => $item->cashRegister->name ?? null
+                                'cash_name' => $item->cashRegister->name ?? null,
+                                'category_name' => $item->category->name ?? null
                             ];
                         } elseif ($source === 'order') {
                             $orderId = $item->source_id;
@@ -475,7 +573,8 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
                                 'currency_code' => $item->currency->code,
-                                'cash_name' => $item->cashRegister->name ?? null
+                                'cash_name' => $item->cashRegister->name ?? null,
+                                'category_name' => $item->category->name ?? null
                             ];
                         } else {
                             $description = $item->note ?? 'Транзакция';
@@ -494,7 +593,8 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
                                 'currency_code' => $item->currency->code,
-                                'cash_name' => $item->cashRegister->name ?? null
+                                'cash_name' => $item->cashRegister->name ?? null,
+                                'category_name' => $item->category->name ?? null
                             ];
                         }
 
@@ -511,9 +611,39 @@ class ClientsRepository extends BaseRepository
 
                 return $result;
             } catch (\Exception $e) {
-                return [];
+                Log::error('Error in getBalanceHistory: ' . $e->getMessage(), [
+                    'client_id' => $clientId,
+                    'exclude_debt' => $excludeDebt,
+                    'exception' => $e
+                ]);
+                throw $e;
             }
-        }, 900);
+        }, $this->getCacheTTL('reference', true));
+    }
+
+    /**
+     * @param mixed $value
+     * @return array
+     */
+    private function normalizeTypeFilter($value): array
+    {
+        if (empty($value)) {
+            return [];
+        }
+
+        $rawValues = is_array($value)
+            ? $value
+            : explode(',', (string) $value);
+
+        $normalized = array_map(static function ($item) {
+            return trim((string) $item);
+        }, $rawValues);
+
+        $filtered = array_values(array_filter($normalized, static function ($item) {
+            return in_array($item, Client::CLIENT_TYPES, true);
+        }));
+
+        return array_values(array_unique($filtered));
     }
 
 
@@ -612,5 +742,10 @@ class ClientsRepository extends BaseRepository
         CacheService::invalidateClientBalanceCache($clientId);
         CacheService::invalidateClientBalanceHistoryCache($clientId);
         CacheService::invalidateClientsCache();
+
+        $client = Client::find($clientId);
+        if ($client && $client->employee_id) {
+            CacheService::invalidateByLike("%user_employee_balance_{$client->employee_id}_%");
+        }
     }
 }

@@ -22,13 +22,14 @@ class OrderStatusCategory extends Model
 {
     use HasFactory;
 
+    protected const PROTECTED_CATEGORY_IDS = [1, 2, 3, 4, 5];
+
     protected $fillable = ['name', 'user_id', 'color'];
 
     protected static function booted()
     {
         static::deleting(function ($category) {
-            $protectedIds = [1, 2, 3, 4, 5];
-            if (in_array($category->id, $protectedIds)) {
+            if (in_array($category->id, self::PROTECTED_CATEGORY_IDS)) {
                 return false;
             }
         });

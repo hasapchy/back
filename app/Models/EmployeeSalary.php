@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $end_date Дата окончания действия зарплаты
  * @property float $amount Сумма зарплаты
  * @property int $currency_id ID валюты
+ * @property string|null $note Примечание
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -33,6 +34,7 @@ class EmployeeSalary extends Model
         'end_date',
         'amount',
         'currency_id',
+        'note',
     ];
 
     protected $casts = [

@@ -22,6 +22,10 @@ class PermissionWithScopeMiddleware
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
+        if ($user->is_admin) {
+            return $next($request);
+        }
+
         $companyId = $request->header('X-Company-ID');
         $userPermissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray() : $user->getAllPermissions()->pluck('name')->toArray();
 

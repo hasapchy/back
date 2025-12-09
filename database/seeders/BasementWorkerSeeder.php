@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 
 class BasementWorkerSeeder extends Seeder
 {
@@ -17,13 +18,7 @@ class BasementWorkerSeeder extends Seeder
             $user = User::find($userId);
 
             if ($user) {
-                // Проверяем, есть ли уже эта роль у пользователя
-                if (!$user->hasRole('basement_worker')) {
-                    $user->assignRole('basement_worker');
-                    echo "Role 'basement_worker' assigned to user ID {$userId} ({$user->name})\n";
-                } else {
-                    echo "User ID {$userId} ({$user->name}) already has 'basement_worker' role\n";
-                }
+                $this->assignBasementWorkerRoleToUserForAllCompanies($user);
 
                 // Добавляем права на кассы
                 $cashRegisterPermissions = [
@@ -126,6 +121,46 @@ class BasementWorkerSeeder extends Seeder
                 }
             } else {
                 echo "User with ID {$userId} not found\n";
+            }
+        }
+    }
+
+    private function assignBasementWorkerRoleToUserForAllCompanies(User $user): void
+    {
+        $userCompanies = $user->companies()->get();
+
+        if ($userCompanies->isEmpty()) {
+            echo "User ID {$user->id} ({$user->name}) has no companies assigned\n";
+            return;
+        }
+
+        foreach ($userCompanies as $company) {
+            $basementRole = Role::where('name', 'basement_worker')
+                ->where('guard_name', 'api')
+                ->where('company_id', $company->id)
+                ->first();
+
+            if ($basementRole) {
+                $exists = DB::table('company_user_role')
+                    ->where('company_id', $company->id)
+                    ->where('user_id', $user->id)
+                    ->where('role_id', $basementRole->id)
+                    ->exists();
+
+                if (!$exists) {
+                    DB::table('company_user_role')->insert([
+                        'company_id' => $company->id,
+                        'user_id' => $user->id,
+                        'role_id' => $basementRole->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    echo "Role 'basement_worker' assigned to user ID {$user->id} ({$user->name}) in company '{$company->name}' (ID: {$company->id})\n";
+                } else {
+                    echo "User ID {$user->id} ({$user->name}) already has 'basement_worker' role in company '{$company->name}' (ID: {$company->id})\n";
+                }
+            } else {
+                echo "Role 'basement_worker' not found for company '{$company->name}' (ID: {$company->id})\n";
             }
         }
     }

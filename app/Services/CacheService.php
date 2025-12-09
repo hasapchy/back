@@ -187,11 +187,6 @@ class CacheService
 
             DB::table($cacheTable)->where('key', 'like', $like)->delete();
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Cache invalidation failed', [
-                'original_pattern' => $originalPattern ?? $like,
-                'final_pattern' => $like,
-                'error' => $e->getMessage()
-            ]);
         }
     }
 
@@ -213,11 +208,7 @@ class CacheService
                 Cache::flush();
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Cache flush failed', [
-                'pattern' => $like,
-                'driver' => $driver,
-                'error' => $e->getMessage()
-            ]);
+            // Cache flush failed silently
         }
     }
 
@@ -259,6 +250,24 @@ class CacheService
     public static function invalidateProjectsCache(): void
     {
         self::invalidateByLike('%project%');
+    }
+
+    /**
+     * Invalidate specific project cache
+     *
+     * @param int $projectId ID проекта
+     * @return void
+     */
+    public static function invalidateProjectCache(int $projectId): void
+    {
+        self::forget("project_item_{$projectId}");
+        self::forget("project_balance_history_{$projectId}");
+        self::forget("project_balance_{$projectId}");
+        self::forget("project_total_balance_{$projectId}");
+        self::forget("project_real_balance_{$projectId}");
+        self::forget("project_detailed_balance_{$projectId}");
+        self::forget("project_item_relations_{$projectId}_null");
+        self::invalidateProjectsCache();
     }
 
     /**
@@ -563,10 +572,7 @@ class CacheService
             $cacheTable = config('cache.stores.database.table', 'cache');
             DB::table($cacheTable)->where('key', $fullKey)->delete();
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Cache forget failed', [
-                'key' => $fullKey,
-                'error' => $e->getMessage()
-            ]);
+            // Cache forget failed silently
         }
     }
 
@@ -581,10 +587,7 @@ class CacheService
         try {
             Cache::forget($fullKey);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Cache forget failed', [
-                'key' => $fullKey,
-                'error' => $e->getMessage()
-            ]);
+            // Cache forget failed silently
         }
     }
 
@@ -605,10 +608,7 @@ class CacheService
                 Cache::flush();
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Cache flush failed', [
-                'driver' => $driver,
-                'error' => $e->getMessage()
-            ]);
+            // Cache flush failed silently
         }
     }
 }

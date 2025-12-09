@@ -75,13 +75,6 @@ class SalesRepository extends BaseRepository
                 $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'sales.date');
             }
 
-            $query->where(function ($q) use ($userUuid) {
-                $q->whereNull('sales.project_id')
-                    ->orWhereHas('project.projectUsers', function ($subQuery) use ($userUuid) {
-                        $subQuery->where('user_id', $userUuid);
-                    });
-            });
-
             $this->applyOwnFilter($query, 'sales', 'sales', 'user_id', $currentUser);
 
             $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
@@ -121,30 +114,6 @@ class SalesRepository extends BaseRepository
 
 
 
-    /**
-     * Получить TTL для кэша в зависимости от типа и наличия фильтров
-     *
-     * @param string $type Тип кэша ('search', 'paginated', 'reference', 'item')
-     * @param bool $hasFilters Есть ли примененные фильтры
-     * @return int TTL в секундах
-     */
-    private function getCacheTTL(string $type, bool $hasFilters = false): int
-    {
-        if (!$hasFilters) {
-            return CacheService::CACHE_TTL['reference_data'];
-        }
-
-        switch ($type) {
-            case 'search':
-                return CacheService::CACHE_TTL['search_results'];
-            case 'paginated':
-                return CacheService::CACHE_TTL['sales_list'];
-            case 'reference':
-            case 'item':
-            default:
-                return CacheService::CACHE_TTL['reference_data'];
-        }
-    }
 
     /**
      * Применить фильтр поиска к запросу
@@ -162,20 +131,14 @@ class SalesRepository extends BaseRepository
 
         $query->where(function ($q) use ($searchTrimmed) {
             $q->where('sales.id', 'like', "%{$searchTrimmed}%")
-                ->orWhere('sales.note', 'like', "%{$searchTrimmed}%")
-                ->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
-                    $clientQuery->where(function ($inner) use ($searchTrimmed) {
-                        $inner->where('first_name', 'like', "%{$searchTrimmed}%")
-                            ->orWhere('last_name', 'like', "%{$searchTrimmed}%")
-                            ->orWhere('contact_person', 'like', "%{$searchTrimmed}%");
-                    })
-                    ->orWhereHas('phones', function ($phoneQuery) use ($searchTrimmed) {
-                        $phoneQuery->where('phone', 'like', "%{$searchTrimmed}%");
-                    })
-                    ->orWhereHas('emails', function ($emailQuery) use ($searchTrimmed) {
-                        $emailQuery->where('email', 'like', "%{$searchTrimmed}%");
-                    });
-                });
+                ->orWhere('sales.note', 'like', "%{$searchTrimmed}%");
+            $this->applyClientSearchFilterThroughRelation($q, 'client', $searchTrimmed);
+            $q->orWhereHas('client.phones', function ($phoneQuery) use ($searchTrimmed) {
+                $phoneQuery->where('phone', 'like', "%{$searchTrimmed}%");
+            })
+            ->orWhereHas('client.emails', function ($emailQuery) use ($searchTrimmed) {
+                $emailQuery->where('email', 'like', "%{$searchTrimmed}%");
+            });
         });
     }
 
@@ -211,8 +174,7 @@ class SalesRepository extends BaseRepository
      */
     public function createItem(array $data)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($data) {
             $userId      = $data['user_id'];
             $clientId    = $data['client_id'];
             $projectId   = $data['project_id'] ?? null;
@@ -299,7 +261,7 @@ class SalesRepository extends BaseRepository
                     'client_id'    => $clientId,
                     'amount'       => $totalPrice,
                     'orig_amount'  => $totalPrice,
-                    'type'         => 0,
+                    'type'         => 1,
                     'is_debt'      => true,
                     'cash_id'      => $cashId,
                     'category_id'  => 1,
@@ -344,17 +306,12 @@ class SalesRepository extends BaseRepository
                 ]);
             }
 
-            DB::commit();
-
             $this->clearSalesCache();
             CacheService::invalidateClientsCache();
             $this->invalidateClientBalanceCache($clientId);
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
