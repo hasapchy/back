@@ -47,7 +47,10 @@ class OrdersRepository extends BaseRepository
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, 'single', $currentUser?->id, $companyId]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser) {
+        $searchTrimmed = is_string($search) ? trim($search) : '';
+        $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
+
+        $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser, $hasSearch) {
             $transactionsRepository = new \App\Repositories\TransactionsRepository();
 
             $query = Order::select([
@@ -87,15 +90,17 @@ class OrdersRepository extends BaseRepository
 
             $this->applyOwnFilter($query, 'orders', 'orders', 'user_id', $currentUser);
 
-            if ($search && strlen(trim($search)) >= 3) {
-                $searchTrimmed = trim($search);
-                $query->where(function ($q) use ($searchTrimmed) {
+            if ($hasSearch) {
+                $searchLower = mb_strtolower($searchTrimmed);
+                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
                     $q->where('orders.id', 'like', "%{$searchTrimmed}%")
-                        ->orWhere('orders.note', 'like', "%{$searchTrimmed}%");
-                    $this->applyClientSearchFilterThroughRelation($q, 'client', $searchTrimmed);
-                    $q->orWhereHas('client.phones', function ($phoneQuery) use ($searchTrimmed) {
-                        $phoneQuery->where('phone', 'like', "%{$searchTrimmed}%");
-                    });
+                        ->orWhereRaw('LOWER(orders.note) LIKE ?', ["%{$searchLower}%"])
+                        ->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
+                            $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
+                        })
+                        ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
+                            $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                        });
                 });
             }
 
@@ -301,7 +306,14 @@ class OrdersRepository extends BaseRepository
             $orders->unpaid_orders_total = $unpaidOrdersTotal;
 
             return $orders;
-        }, (int)$page);
+        };
+
+        // Не кешируем поисковые запросы, чтобы сразу получать актуальные результаты
+        if ($hasSearch) {
+            return $buildResult();
+        }
+
+        return CacheService::getPaginatedData($cacheKey, $buildResult, (int)$page);
     }
 
     /**
