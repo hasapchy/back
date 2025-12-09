@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\WarehouseAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -26,8 +27,8 @@ class UpdateWarehouseMovementRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'warehouse_from_id' => 'required|integer|exists:warehouses,id',
-            'warehouse_to_id' => 'required|integer|exists:warehouses,id',
+            'warehouse_from_id' => ['required', 'integer', new WarehouseAccessRule()],
+            'warehouse_to_id' => ['required', 'integer', new WarehouseAccessRule()],
             'date' => 'nullable|date',
             'note' => 'nullable|string',
             'products' => 'required|array',

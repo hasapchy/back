@@ -2,6 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\CashRegisterAccessRule;
+use App\Rules\WarehouseAccessRule;
+use App\Rules\ProjectAccessRule;
+use App\Rules\ClientAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -26,10 +30,10 @@ class UpdateOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'client_id'            => 'required|integer|exists:clients,id',
-            'project_id'           => 'nullable|sometimes|integer|exists:projects,id',
-            'cash_id'              => 'nullable|integer|exists:cash_registers,id',
-            'warehouse_id'         => 'required|integer|exists:warehouses,id',
+            'client_id'            => ['required', 'integer', new ClientAccessRule()],
+            'project_id'           => ['nullable', 'sometimes', 'integer', new ProjectAccessRule()],
+            'cash_id'              => ['nullable', 'integer', new CashRegisterAccessRule()],
+            'warehouse_id'         => ['required', 'integer', new WarehouseAccessRule()],
             'currency_id'          => 'nullable|integer|exists:currencies,id',
             'category_id'          => 'nullable|integer|exists:categories,id',
             'date'                 => 'nullable|date',

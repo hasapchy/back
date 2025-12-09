@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\ClientAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -26,7 +27,7 @@ class StoreInvoiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'client_id' => 'required|integer|exists:clients,id',
+            'client_id' => ['required', 'integer', new ClientAccessRule()],
             'invoice_date' => 'nullable|date',
             'note' => 'nullable|string',
             'order_ids' => 'required|array|min:1',

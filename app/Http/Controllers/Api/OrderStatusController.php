@@ -98,7 +98,14 @@ class OrderStatusController extends BaseController
         }
 
         if (isset($validatedData['is_active']) && !$validatedData['is_active']) {
-            $ordersCount = Order::where('status_id', $id)->count();
+            $companyId = $this->getCurrentCompanyId();
+            $query = Order::where('status_id', $id);
+            
+            if ($companyId) {
+                $query->forCompany((int)$companyId);
+            }
+            
+            $ordersCount = $query->count();
             if ($ordersCount > 0) {
                 return $this->errorResponse("Нельзя отключить статус, на котором есть заказы ({$ordersCount} шт.)", 400);
             }

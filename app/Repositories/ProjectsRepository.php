@@ -101,7 +101,17 @@ class ProjectsRepository extends BaseRepository
 
             $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
 
-            return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+            $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+
+            $paginated->getCollection()->transform(function ($project) {
+                if ($project->creator) {
+                    $project->user_name = $project->creator->name;
+                    $project->user_photo = $project->creator->photo;
+                }
+                return $project;
+            });
+
+            return $paginated;
         }, (int)$page);
     }
 
@@ -127,12 +137,22 @@ class ProjectsRepository extends BaseRepository
             $query = $this->addCompanyFilterDirect($query, 'projects');
 
             if ($activeOnly) {
-                $query->whereNotIn('projects.status_id', [3, 4]);
+                $query->whereNotIn('projects.status_id', [4, 5]);
             }
 
             $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
 
-            return $query->orderBy('created_at', 'desc')->get();
+            $items = $query->orderBy('created_at', 'desc')->get();
+
+            $items->transform(function ($project) {
+                if ($project->creator) {
+                    $project->user_name = $project->creator->name;
+                    $project->user_photo = $project->creator->photo;
+                }
+                return $project;
+            });
+
+            return $items;
         }, $this->getCacheTTL('reference'));
     }
 
@@ -239,7 +259,7 @@ class ProjectsRepository extends BaseRepository
                     'client:id,first_name,last_name,contact_person,balance',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
-
+                    'creator:id,name,photo',
                     'currency:id,name,code,symbol',
                     'users:id,name',
                     'projectUsers:id,project_id,user_id'
@@ -248,6 +268,10 @@ class ProjectsRepository extends BaseRepository
 
             $result = $query->first();
 
+            if ($result && $result->creator) {
+                $result->user_name = $result->creator->name;
+                $result->user_photo = $result->creator->photo;
+            }
 
             return $result;
         }, $this->getCacheTTL('reference'));

@@ -123,6 +123,16 @@ class Client extends Model
     }
 
     /**
+     * Связь с транзакциями клиента
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function transactions()
+    {
+        return $this->hasMany(\App\Models\Transaction::class, 'client_id');
+    }
+
+    /**
      * Scope для фильтрации по компании
      *
      * @param \Illuminate\Database\Eloquent\Builder $query

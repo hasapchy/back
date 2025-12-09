@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\ProjectAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -26,7 +27,7 @@ class StoreProjectContractRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'project_id' => 'required|exists:projects,id',
+            'project_id' => ['required', new ProjectAccessRule()],
             'number' => 'required|string|max:255',
             'amount' => 'required|numeric|min:0',
             'currency_id' => 'nullable|exists:currencies,id',

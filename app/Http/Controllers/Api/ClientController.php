@@ -138,6 +138,15 @@ class ClientController extends BaseController
                 $typeFilter = [$typeFilterInput];
             }
 
+            $cashRegisterFilterInput = $request->input('cash_register_ids');
+            $cashRegisterFilter = [];
+
+            if (is_array($cashRegisterFilterInput)) {
+                $cashRegisterFilter = array_filter(array_map('intval', $cashRegisterFilterInput));
+            } elseif (!is_null($cashRegisterFilterInput) && $cashRegisterFilterInput !== '') {
+                $cashRegisterFilter = array_filter(array_map('intval', explode(',', $cashRegisterFilterInput)));
+            }
+
             $forMutualSettlements = $request->input('for_mutual_settlements', false);
 
             if ($forMutualSettlements) {
@@ -155,7 +164,7 @@ class ClientController extends BaseController
                 }
             }
 
-            $items = $this->itemsRepository->getAllItems($typeFilter, $forMutualSettlements);
+            $items = $this->itemsRepository->getAllItems($typeFilter, $forMutualSettlements, $cashRegisterFilter);
             return response()->json($items);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении всех клиентов: ' . $e->getMessage(), 500);
