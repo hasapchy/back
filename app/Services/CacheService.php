@@ -425,6 +425,27 @@ class CacheService
     }
 
     /**
+     * Invalidate leaves cache
+     *
+     * @return void
+     */
+    public static function invalidateLeavesCache(): void
+    {
+        self::invalidateByLike('%leaves%');
+    }
+
+    /**
+     * Invalidate leave types cache
+     *
+     * @return void
+     */
+    public static function invalidateLeaveTypesCache(): void
+    {
+        self::invalidateByLike('%leave_types%');
+        self::invalidateByLike('%leave_type%');
+    }
+
+    /**
      * Clear user cache
      *
      * @param int $userId User ID
