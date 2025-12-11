@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreProjectRequest;
+use App\Http\Requests\UpdateProjectRequest;
 use App\Repositories\ProjectsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -14,7 +16,7 @@ use App\Models\Project;
 /**
  * Контроллер для управления проектами
  */
-class ProjectsController extends Controller
+class ProjectsController extends BaseController
 {
     /**
      * @var ProjectsRepository
@@ -41,7 +43,7 @@ class ProjectsController extends Controller
             'name' => 'required|string',
             'date' => 'nullable|sometimes|date',
             'client_id' => 'required|exists:clients,id',
-            'users' => 'required|array',
+            'users' => 'nullable|array',
             'users.*' => 'exists:users,id',
             'description' => 'nullable|string',
         ];
@@ -62,25 +64,25 @@ class ProjectsController extends Controller
      * @param int $userId ID пользователя
      * @return array
      */
-    private function prepareProjectData(Request $request, int $userId): array
+    private function prepareProjectData(array $validatedData, int $userId): array
     {
         $data = [
-            'name' => $request->name,
-            'date' => $request->date,
+            'name' => $validatedData['name'],
+            'date' => $validatedData['date'] ?? null,
             'user_id' => $userId,
-            'client_id' => $request->client_id,
-            'users' => $request->users,
-            'description' => $request->description,
+            'client_id' => $validatedData['client_id'],
+            'users' => $validatedData['users'] ?? null,
+            'description' => $validatedData['description'] ?? null,
         ];
 
-        if ($request->has('budget')) {
-            $data['budget'] = $request->budget;
+        if (isset($validatedData['budget'])) {
+            $data['budget'] = $validatedData['budget'];
         }
-        if ($request->has('currency_id')) {
-            $data['currency_id'] = $request->currency_id;
+        if (isset($validatedData['currency_id'])) {
+            $data['currency_id'] = $validatedData['currency_id'];
         }
-        if ($request->has('exchange_rate')) {
-            $data['exchange_rate'] = $request->exchange_rate;
+        if (isset($validatedData['exchange_rate'])) {
+            $data['exchange_rate'] = $validatedData['exchange_rate'];
         }
 
         return $data;
@@ -128,10 +130,10 @@ class ProjectsController extends Controller
     /**
      * Создать новый проект
      *
-     * @param Request $request
+     * @param StoreProjectRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreProjectRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
@@ -139,9 +141,9 @@ class ProjectsController extends Controller
             return $this->forbiddenResponse('У вас нет прав на создание проектов');
         }
 
-        $request->validate($this->getValidationRules($request));
+        $validatedData = $request->validated();
 
-        $itemData = $this->prepareProjectData($request, $userUuid);
+        $itemData = $this->prepareProjectData($validatedData, $userUuid);
         $itemData['status_id'] = 1;
 
         try {
@@ -162,11 +164,11 @@ class ProjectsController extends Controller
     /**
      * Обновить проект
      *
-     * @param Request $request
+     * @param UpdateProjectRequest $request
      * @param int $id ID проекта
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateProjectRequest $request, $id)
     {
         $user = $this->requireAuthenticatedUser();
 
@@ -176,9 +178,10 @@ class ProjectsController extends Controller
             return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
         }
 
-        $request->validate($this->getValidationRules($request));
+        $validatedData = $request->validated();
 
-        $itemData = $this->prepareProjectData($request, $user->id);
+        $itemData = $this->prepareProjectData($validatedData, $user->id);
+        unset($itemData['user_id']);
 
         try {
             $itemUpdated = $this->itemsRepository->updateItem($id, $itemData);

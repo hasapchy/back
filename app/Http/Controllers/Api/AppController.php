@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
 use App\Models\Currency;
 use App\Models\Unit;
 use App\Services\CacheService;
 use Spatie\Permission\Traits\HasRoles;
 
-class AppController extends Controller
+class AppController extends BaseController
 {
     use HasRoles;
 

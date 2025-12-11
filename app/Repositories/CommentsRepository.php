@@ -35,7 +35,7 @@ class CommentsRepository extends BaseRepository
             ->where('commentable_id', $id)
             ->orderBy('created_at', 'desc')
             ->get();
-        }, 1800);
+        }, $this->getCacheTTL('reference'));
     }
 
     /**
@@ -50,8 +50,7 @@ class CommentsRepository extends BaseRepository
      */
     public function createItem(string $type, int $id, string $body, int $userId): array
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($type, $id, $body, $userId) {
             $modelClass = $this->resolveType($type);
 
             $comment = Comment::create([
@@ -60,8 +59,6 @@ class CommentsRepository extends BaseRepository
                 'commentable_type' => $modelClass,
                 'commentable_id' => $id,
             ])->load(['user:id,name,email']);
-
-            DB::commit();
 
             $this->invalidateCommentsCache($type, $id);
 
@@ -78,10 +75,7 @@ class CommentsRepository extends BaseRepository
                     'name' => $comment->user->name,
                 ],
             ];
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ClientsRepository extends BaseRepository
 {
@@ -96,9 +97,10 @@ class ClientsRepository extends BaseRepository
      *
      * @param array $typeFilter
      * @param bool $forMutualSettlements Применять фильтр по правам доступа к взаиморасчетам
+     * @param array $cashRegisterFilter Фильтр по кассам
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getAllItems(array $typeFilter = [], bool $forMutualSettlements = false)
+    public function getAllItems(array $typeFilter = [], bool $forMutualSettlements = false, array $cashRegisterFilter = [])
     {
         $typeFilter = $this->normalizeTypeFilter($typeFilter);
 
@@ -118,9 +120,10 @@ class ClientsRepository extends BaseRepository
             }
         }
 
-        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter), $forMutualSettlements]);
+        $cashRegisterFilterKey = !empty($cashRegisterFilter) ? implode(',', $cashRegisterFilter) : '';
+        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter), $forMutualSettlements, $cashRegisterFilterKey]);
 
-        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter) {
+        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter, $cashRegisterFilter) {
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
@@ -141,10 +144,17 @@ class ClientsRepository extends BaseRepository
                 $query->whereIn('clients.client_type', $typeFilter);
             }
 
+            if (!empty($cashRegisterFilter)) {
+                $query->whereHas('transactions', function ($transactionQuery) use ($cashRegisterFilter) {
+                    $transactionQuery->whereIn('cash_id', $cashRegisterFilter)
+                        ->where('is_deleted', false);
+                });
+            }
+
             $query->orderBy('clients.created_at', 'desc');
 
             return $query->get();
-        }, 1800);
+        }, $this->getCacheTTL('reference'));
     }
 
     /**
@@ -170,15 +180,8 @@ class ClientsRepository extends BaseRepository
             return [];
         }
 
-        $allowedTypes = [];
         $clientTypes = ['individual', 'company', 'employee', 'investor'];
-        foreach ($clientTypes as $type) {
-            if (in_array("mutual_settlements_view_{$type}", $permissions)) {
-                $allowedTypes[] = $type;
-            }
-        }
-
-        return $allowedTypes;
+        return array_filter($clientTypes, fn($type) => in_array("mutual_settlements_view_{$type}", $permissions));
     }
 
     /**
@@ -283,7 +286,7 @@ class ClientsRepository extends BaseRepository
                 'first_name'     => $data['first_name'],
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,
-                'last_name'      => $data['last_name'] ?? "",
+                'last_name'      => $data['last_name'] ?? null,
                 'patronymic'     => $data['patronymic'] ?? null,
                 'contact_person' => $data['contact_person'] ?? null,
                 'position'       => $data['position'] ?? null,
@@ -318,23 +321,27 @@ class ClientsRepository extends BaseRepository
     {
         $client = DB::transaction(function () use ($id, $data) {
             $client = Client::findOrFail($id);
-            $client->update([
+            $updateData = [
                 'user_id'        => $data['user_id'] ?? $client->user_id,
                 'employee_id'    => $data['employee_id'] ?? $client->employee_id,
                 'first_name'     => $data['first_name'],
                 'is_conflict'    => $data['is_conflict'] ?? false,
                 'is_supplier'    => $data['is_supplier'] ?? false,
-                'last_name'      => $data['last_name'] ?? "",
-                'patronymic'     => $data['patronymic'] ?? null,
-                'contact_person' => $data['contact_person'] ?? null,
-                'position'       => $data['position'] ?? null,
                 'client_type'    => $data['client_type'],
-                'address'        => $data['address'] ?? null,
-                'note'           => $data['note'] ?? null,
                 'status'         => $data['status'] ?? true,
                 'discount' => $data['discount'] ?? 0,
-                'discount_type'  => $data['discount_type'] ?? null,
-            ]);
+            ];
+
+            $nullableFields = ['last_name', 'patronymic', 'contact_person', 'position', 'address', 'note', 'discount_type'];
+            foreach ($nullableFields as $field) {
+                if (array_key_exists($field, $data)) {
+                    $updateData[$field] = $data[$field];
+                } else {
+                    $updateData[$field] = $client->$field;
+                }
+            }
+
+            $client->update($updateData);
 
             $this->syncPhones($client->id, $data['phones'] ?? []);
             $this->syncEmails($client->id, $data['emails'] ?? []);
@@ -597,9 +604,14 @@ class ClientsRepository extends BaseRepository
 
                 return $result;
             } catch (\Exception $e) {
-                return [];
+                Log::error('Error in getBalanceHistory: ' . $e->getMessage(), [
+                    'client_id' => $clientId,
+                    'exclude_debt' => $excludeDebt,
+                    'exception' => $e
+                ]);
+                throw $e;
             }
-        }, 900);
+        }, $this->getCacheTTL('reference', true));
     }
 
     /**
@@ -657,20 +669,19 @@ class ClientsRepository extends BaseRepository
      */
     private function syncPhones(int $clientId, array $phones)
     {
-        $existingPhones = ClientsPhone::where('client_id', $clientId)
-            ->pluck('phone')
-            ->toArray();
-
+        $existingPhones = ClientsPhone::where('client_id', $clientId)->pluck('phone')->toArray();
         $phonesToAdd = array_diff($phones, $existingPhones);
         $phonesToRemove = array_diff($existingPhones, $phones);
 
         if (!empty($phonesToAdd)) {
-            foreach ($phonesToAdd as $phone) {
-                ClientsPhone::create([
+            ClientsPhone::insert(
+                collect($phonesToAdd)->map(fn($phone) => [
                     'client_id' => $clientId,
                     'phone' => $phone,
-                ]);
-            }
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])->toArray()
+            );
         }
 
         if (!empty($phonesToRemove)) {
@@ -689,20 +700,19 @@ class ClientsRepository extends BaseRepository
      */
     private function syncEmails(int $clientId, array $emails)
     {
-        $existingEmails = ClientsEmail::where('client_id', $clientId)
-            ->pluck('email')
-            ->toArray();
-
+        $existingEmails = ClientsEmail::where('client_id', $clientId)->pluck('email')->toArray();
         $emailsToAdd = array_diff($emails, $existingEmails);
         $emailsToRemove = array_diff($existingEmails, $emails);
 
         if (!empty($emailsToAdd)) {
-            foreach ($emailsToAdd as $email) {
-                ClientsEmail::create([
+            ClientsEmail::insert(
+                collect($emailsToAdd)->map(fn($email) => [
                     'client_id' => $clientId,
                     'email' => $email,
-                ]);
-            }
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])->toArray()
+            );
         }
 
         if (!empty($emailsToRemove)) {

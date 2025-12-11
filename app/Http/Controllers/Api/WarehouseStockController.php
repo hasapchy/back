@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
 use App\Repositories\WarehouseStockRepository;
 use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы с остатками на складах
  */
-class WarehouseStockController extends Controller
+class WarehouseStockController extends BaseController
 {
     protected $warehouseRepository;
 

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreWarehouseRequest;
+use App\Http\Requests\UpdateWarehouseRequest;
 use App\Repositories\WarehouseRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
@@ -10,7 +12,7 @@ use App\Services\CacheService;
 /**
  * Контроллер для работы со складами
  */
-class WarehouseController extends Controller
+class WarehouseController extends BaseController
 {
     protected $warehouseRepository;
 
@@ -35,7 +37,8 @@ class WarehouseController extends Controller
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
-        $warehouses = $this->warehouseRepository->getWarehousesWithPagination($userUuid, 20, $page);
+        $perPage = $request->input('per_page', 20);
+        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
         return $this->paginatedResponse($warehouses);
     }
@@ -61,15 +64,11 @@ class WarehouseController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreWarehouseRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string',
-            'users' => 'required|array|min:1',
-            'users.*' => 'exists:users,id'
-        ]);
+        $validatedData = $request->validated();
 
-        $warehouse_created = $this->warehouseRepository->createItem($request->name, $request->users);
+        $warehouse_created = $this->warehouseRepository->createItem($validatedData['name'], $validatedData['users']);
 
         if (!$warehouse_created) {
             return $this->errorResponse('Ошибка создания склада', 400);
@@ -85,7 +84,7 @@ class WarehouseController extends Controller
      * @param int $id ID склада
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateWarehouseRequest $request, $id)
     {
         $warehouse = \App\Models\Warehouse::findOrFail($id);
 
@@ -93,13 +92,9 @@ class WarehouseController extends Controller
             return $this->forbiddenResponse('У вас нет прав на редактирование этого склада');
         }
 
-        $request->validate([
-            'name' => 'required|string',
-            'users' => 'required|array|min:1',
-            'users.*' => 'exists:users,id'
-        ]);
+        $validatedData = $request->validated();
 
-        $warehouse_updated = $this->warehouseRepository->updateItem($id, $request->name, $request->users);
+        $warehouse_updated = $this->warehouseRepository->updateItem($id, $validatedData['name'], $validatedData['users']);
 
         if (!$warehouse_updated) {
             return $this->errorResponse('Ошибка обновления склада', 400);

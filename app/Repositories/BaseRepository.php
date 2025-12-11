@@ -100,12 +100,12 @@ abstract class BaseRepository
     {
         $companyId = $this->getCurrentCompanyId();
         if ($companyId) {
-            $query->whereHas($relationName, function($q) use ($companyId, $relationTable) {
+            $query->whereHas($relationName, function ($q) use ($companyId, $relationTable) {
                 $table = $relationTable ?? $q->getModel()->getTable();
                 $q->where("{$table}.company_id", $companyId);
             });
         } else {
-            $query->whereHas($relationName, function($q) use ($relationTable) {
+            $query->whereHas($relationName, function ($q) use ($relationTable) {
                 $table = $relationTable ?? $q->getModel()->getTable();
                 $q->whereNull("{$table}.company_id");
             });
@@ -174,34 +174,6 @@ abstract class BaseRepository
             default:
                 return null;
         }
-    }
-
-    /**
-     * Получить диапазон дат (для backward compatibility с InvoicesRepository)
-     *
-     * @deprecated Используйте getDateRangeForFilter или applyDateFilter
-     * @param string $dateFilter Тип фильтра по дате
-     * @param string|null $startDate Начальная дата
-     * @param string|null $endDate Конечная дата
-     * @return array|string
-     */
-    protected function getDateRange($dateFilter, $startDate = null, $endDate = null)
-    {
-        $range = $this->getDateRangeForFilter($dateFilter, $startDate, $endDate);
-
-        if ($range) {
-            return [
-                $range[0]->toDateTimeString(),
-                $range[1]->toDateTimeString()
-            ];
-        }
-
-        // Для backward compatibility
-        if ($dateFilter === 'custom' && $startDate) {
-            return $startDate;
-        }
-
-        return now()->toDateString();
     }
 
     /**
@@ -277,15 +249,17 @@ abstract class BaseRepository
      * @param string|null $tableAlias Алиас таблицы
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    private function applyClientSearchConditions($query, $search, $tableAlias = null)
+    protected function applyClientSearchConditions($query, $search, $tableAlias = null)
     {
         $tablePrefix = $tableAlias ? "{$tableAlias}." : '';
+        $searchLower = mb_strtolower($search);
 
-        $query->where("{$tablePrefix}first_name", 'like', "%{$search}%")
-            ->orWhere("{$tablePrefix}last_name", 'like', "%{$search}%")
-            ->orWhere("{$tablePrefix}patronymic", 'like', "%{$search}%")
-            ->orWhere("{$tablePrefix}contact_person", 'like', "%{$search}%")
-            ->orWhere("{$tablePrefix}position", 'like', "%{$search}%");
+        $query->whereRaw("LOWER({$tablePrefix}first_name) LIKE ?", ["%{$searchLower}%"])
+            ->orWhereRaw("LOWER({$tablePrefix}last_name) LIKE ?", ["%{$searchLower}%"])
+            ->orWhereRaw("LOWER({$tablePrefix}patronymic) LIKE ?", ["%{$searchLower}%"])
+            ->orWhereRaw("LOWER({$tablePrefix}contact_person) LIKE ?", ["%{$searchLower}%"])
+            ->orWhereRaw("LOWER({$tablePrefix}position) LIKE ?", ["%{$searchLower}%"])
+            ->orWhereRaw("LOWER(CONCAT(COALESCE({$tablePrefix}first_name, ''), ' ', COALESCE({$tablePrefix}last_name, ''), ' ', COALESCE({$tablePrefix}patronymic, ''))) LIKE ?", ["%{$searchLower}%"]);
 
         return $query;
     }
@@ -342,6 +316,8 @@ abstract class BaseRepository
     /**
      * Получить валюту по умолчанию (глобальная для всех компаний)
      * Использует статическое кэширование для оптимизации
+     *
+     * @return Currency
      */
     protected function getDefaultCurrency(): Currency
     {
@@ -527,5 +503,87 @@ abstract class BaseRepository
         $hasViewAll = in_array("{$resource}_view_all", $permissions);
 
         return !$hasViewAll;
+    }
+
+    /**
+     * Получить TTL для кэширования в зависимости от типа данных и наличия фильтров
+     *
+     * @param string $type Тип кэша ('search', 'paginated', 'reference', 'item', 'user_data')
+     * @param bool $hasFilters Есть ли примененные фильтры (поиск, фильтры по дате и т.д.)
+     * @return int TTL в секундах
+     */
+    protected function getCacheTTL(string $type = 'reference', bool $hasFilters = false): int
+    {
+        if (!$hasFilters && $type === 'reference') {
+            return \App\Services\CacheService::CACHE_TTL['reference_data'];
+        }
+
+        switch ($type) {
+            case 'search':
+                return \App\Services\CacheService::CACHE_TTL['search_results'];
+            case 'paginated':
+                return \App\Services\CacheService::CACHE_TTL['sales_list'];
+            case 'user_data':
+                return \App\Services\CacheService::CACHE_TTL['user_data'];
+            case 'reference':
+            case 'item':
+            default:
+                return $hasFilters
+                    ? \App\Services\CacheService::CACHE_TTL['sales_list']
+                    : \App\Services\CacheService::CACHE_TTL['reference_data'];
+        }
+    }
+
+    /**
+     * Универсальный метод для синхронизации связей many-to-many с пользователями
+     *
+     * @param string $modelClass Класс модели промежуточной таблицы (например, ProjectUser::class)
+     * @param string $foreignKey Название колонки для основной сущности (например, 'project_id')
+     * @param int $entityId ID основной сущности
+     * @param array $userIds Массив ID пользователей
+     * @param array $options Опции:
+     *   - 'require_at_least_one' (bool) - требуется ли хотя бы один пользователь (по умолчанию false)
+     *   - 'filter_empty' (bool) - фильтровать ли пустые значения из массива (по умолчанию false)
+     *   - 'error_message' (string) - сообщение об ошибке, если требуется хотя бы один пользователь
+     * @return void
+     * @throws \Exception
+     */
+    protected function syncManyToManyUsers(
+        string $modelClass,
+        string $foreignKey,
+        int $entityId,
+        array $userIds,
+        array $options = []
+    ): void {
+        $requireAtLeastOne = $options['require_at_least_one'] ?? false;
+        $filterEmpty = $options['filter_empty'] ?? false;
+        $errorMessage = $options['error_message'] ?? 'Должен быть указан хотя бы один пользователь';
+
+        // Фильтруем пустые значения, если требуется
+        if ($filterEmpty) {
+            $userIds = array_filter($userIds, function ($userId) {
+                return !empty($userId);
+            });
+        }
+
+        // Проверяем, требуется ли хотя бы один пользователь
+        if ($requireAtLeastOne && empty($userIds)) {
+            throw new \Exception($errorMessage);
+        }
+
+        // Удаляем старые связи
+        $modelClass::where($foreignKey, $entityId)->delete();
+
+        // Создаем новые связи, если есть пользователи
+        if (!empty($userIds)) {
+            $insertData = [];
+            foreach ($userIds as $userId) {
+                $insertData[] = [
+                    $foreignKey => $entityId,
+                    'user_id' => (int) $userId,
+                ];
+            }
+            $modelClass::insert($insertData);
+        }
     }
 }

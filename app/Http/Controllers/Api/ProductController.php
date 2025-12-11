@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use App\Models\User;
 use App\Repositories\ProductsRepository;
@@ -12,7 +14,7 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Контроллер для работы с товарами и услугами
  */
-class ProductController extends Controller
+class ProductController extends BaseController
 {
     protected $itemsRepository;
 
@@ -37,7 +39,7 @@ class ProductController extends Controller
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->query('page', 1);
-        $per_page = $request->query('per_page', 10);
+        $per_page = $request->query('per_page', 20);
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
         $categoryId = $this->normalizeCategoryIdForBasementWorker($request->query('category_id'));
@@ -100,11 +102,12 @@ class ProductController extends Controller
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->query('page', 1);
+        $per_page = $request->query('per_page', 20);
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
         $categoryId = $this->normalizeCategoryIdForBasementWorker($request->query('category_id'));
 
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, 20, false, $page, $warehouseId, $search, $categoryId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, false, $page, $warehouseId, $search, $categoryId);
 
         return $this->paginatedResponse($items);
     }
@@ -112,44 +115,13 @@ class ProductController extends Controller
     /**
      * Создать новый товар/услугу
      *
-     * @param Request $request
+     * @param StoreProductRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreProductRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        if ($request->has('categories')) {
-            $categories = $request->input('categories');
-            if (is_string($categories)) {
-                $categories = explode(',', $categories);
-                $categories = array_map('trim', $categories);
-                $categories = array_filter($categories);
-                $request->merge(['categories' => $categories]);
-            }
-        }
-
-        $data = $request->validate([
-            'type' => 'required',
-            'image' => 'nullable|sometimes|file|mimes:jpeg,png,jpg,gif|max:2048',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|sometimes|string|max:255',
-            'sku' => 'required|string|unique:products,sku',
-            'barcode' => 'nullable|string',
-            'category_id' => 'nullable|exists:categories,id',
-            'categories' => 'nullable|array',
-            'categories.*' => 'exists:categories,id',
-            'unit_id' => 'nullable|sometimes|exists:units,id',
-            'retail_price' => 'nullable|numeric|min:0',
-            'wholesale_price' => 'nullable|numeric|min:0',
-            'purchase_price' => 'nullable|numeric|min:0',
-            'date' => 'nullable|date',
-            'user_id' => 'nullable|exists:users,id',
-        ]);
-
-        if (empty($data['category_id']) && empty($data['categories'])) {
-            return $this->errorResponse('Необходимо указать хотя бы одну категорию', 422);
-        }
+        $data = $request->validated();
 
         if ($request->hasFile('image')) {
             $data['image'] = $request->file('image')->store('products', 'public');
@@ -163,11 +135,11 @@ class ProductController extends Controller
     /**
      * Обновить товар/услугу
      *
-     * @param Request $request
+     * @param UpdateProductRequest $request
      * @param int $id ID товара/услуги
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateProductRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
@@ -177,32 +149,7 @@ class ProductController extends Controller
             return $this->forbiddenResponse('У вас нет прав на редактирование этого товара');
         }
 
-        if ($request->has('categories')) {
-            $categories = $request->input('categories');
-            if (is_string($categories)) {
-                $categories = explode(',', $categories);
-                $categories = array_map('trim', $categories);
-                $categories = array_filter($categories);
-                $request->merge(['categories' => $categories]);
-            }
-        }
-
-        $data = $request->validate([
-            'type' => 'nullable|integer',
-            'image' => 'nullable|sometimes|file|mimes:jpeg,png,jpg,gif|max:2048',
-            'name' => 'nullable|string|max:255',
-            'description' => 'nullable|string|max:255',
-            'category_id' => 'nullable|exists:categories,id',
-            'categories' => 'nullable|array',
-            'categories.*' => 'exists:categories,id',
-            'unit_id' => 'nullable|exists:units,id',
-            'retail_price' => 'nullable|numeric|min:0',
-            'wholesale_price' => 'nullable|numeric|min:0',
-            'purchase_price' => 'nullable|numeric|min:0',
-            'date' => 'nullable|date',
-            'user_id' => 'nullable|exists:users,id',
-        ]);
-
+        $data = $request->validated();
         $data = array_filter($data, function ($value) {
             return !is_null($value);
         });

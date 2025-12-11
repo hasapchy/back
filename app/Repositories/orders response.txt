@@ -1,0 +1,3670 @@
+{
+    "items": [
+        {
+            "id": 328,
+            "client_id": 23,
+            "user_id": 7,
+            "status_id": 1,
+            "note": null,
+            "price": "605.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:39:21",
+            "created_at": "2025-12-04T09:39:21.000000Z",
+            "updated_at": "2025-12-04T09:39:21.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 3,
+            "total_price": "605.00000",
+            "status_name": "\u041d\u043e\u0432\u044b\u0439",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 861,
+                    "order_id": 328,
+                    "product_id": 71,
+                    "product_name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                    "unit_id": 1,
+                    "unit_name": "\u041c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c",
+                    "quantity": "121.00000",
+                    "price": "5.00000",
+                    "width": null,
+                    "height": null,
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 23,
+                "first_name": "\u0428\u0430\u043a\u0438\u0440",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "individual",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 26,
+                        "client_id": 23,
+                        "phone": "99364018931"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 1,
+                "name": "\u041d\u043e\u0432\u044b\u0439",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 861,
+                    "order_id": 328,
+                    "product_id": 71,
+                    "quantity": "121.00000",
+                    "price": "5.00000",
+                    "width": null,
+                    "height": null,
+                    "product": {
+                        "id": 71,
+                        "name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                        "unit_id": 1,
+                        "unit": {
+                            "id": 1,
+                            "name": "\u041c\u0435\u0442\u0440",
+                            "short_name": "\u043c"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 327,
+            "client_id": 118,
+            "user_id": 7,
+            "status_id": 1,
+            "note": null,
+            "price": "8345.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:37:28",
+            "created_at": "2025-12-04T09:37:28.000000Z",
+            "updated_at": "2025-12-04T09:37:28.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 3,
+            "total_price": "8345.00000",
+            "status_name": "\u041d\u043e\u0432\u044b\u0439",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 846,
+                    "order_id": 327,
+                    "product_id": 70,
+                    "product_name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.62000",
+                    "price": "70.00000",
+                    "width": "1.07",
+                    "height": "1.51",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 847,
+                    "order_id": 327,
+                    "product_id": 70,
+                    "product_name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.02000",
+                    "price": "70.00000",
+                    "width": "0.70",
+                    "height": "1.46",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 848,
+                    "order_id": 327,
+                    "product_id": 68,
+                    "product_name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "3.84000",
+                    "price": "40.00000",
+                    "width": "1.20",
+                    "height": "3.20",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 849,
+                    "order_id": 327,
+                    "product_id": 68,
+                    "product_name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "3.84000",
+                    "price": "40.00000",
+                    "width": "1.20",
+                    "height": "3.20",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 850,
+                    "order_id": 327,
+                    "product_id": 68,
+                    "product_name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "2.88000",
+                    "price": "40.00000",
+                    "width": "1.20",
+                    "height": "2.40",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 851,
+                    "order_id": 327,
+                    "product_id": 68,
+                    "product_name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.46000",
+                    "price": "40.00000",
+                    "width": "0.86",
+                    "height": "1.70",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 852,
+                    "order_id": 327,
+                    "product_id": 71,
+                    "product_name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                    "unit_id": 1,
+                    "unit_name": "\u041c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c",
+                    "quantity": "102.00000",
+                    "price": "5.00000",
+                    "width": null,
+                    "height": null,
+                    "product_type": "regular"
+                },
+                {
+                    "id": 853,
+                    "order_id": 327,
+                    "product_id": 134,
+                    "product_name": "\u0410\u043b\u044e\u043a\u0430\u0431\u043e\u043d\u0434 \u0437\u0435\u043b\u0435\u043d\u044b\u0439 4\u043c\u043c",
+                    "product_image": "products\/TD2azjlavUPMYqSTDzyQdj7mKvolZ8T63mvfPk3t.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "3.84000",
+                    "price": "300.00000",
+                    "width": "1.20",
+                    "height": "3.20",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 854,
+                    "order_id": 327,
+                    "product_id": 134,
+                    "product_name": "\u0410\u043b\u044e\u043a\u0430\u0431\u043e\u043d\u0434 \u0437\u0435\u043b\u0435\u043d\u044b\u0439 4\u043c\u043c",
+                    "product_image": "products\/TD2azjlavUPMYqSTDzyQdj7mKvolZ8T63mvfPk3t.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "3.84000",
+                    "price": "300.00000",
+                    "width": "1.20",
+                    "height": "3.20",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 855,
+                    "order_id": 327,
+                    "product_id": 65,
+                    "product_name": "\u041d\u0435\u0440\u0436\u0430\u0432\u0435\u0439\u043a\u0430 \u0437\u043e\u043b\u043e\u0442\u043e 0,8\u043c\u043c",
+                    "product_image": "products\/dMnan4cqedDmqn5uU29lnla6iftTjqHBC5wHV9a8.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "2.88000",
+                    "price": "677.00000",
+                    "width": "1.20",
+                    "height": "2.40",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 856,
+                    "order_id": 327,
+                    "product_id": 38,
+                    "product_name": "\u0410\u043a\u0440\u0438\u043b \u0431\u0435\u043b\u044b\u0439 3\u043c\u043c",
+                    "product_image": "products\/alfKrV7rPXNly6awqMdHDhFyxrbo7ZOlw0IUQ02o.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.81000",
+                    "price": "340.00000",
+                    "width": "1.20",
+                    "height": "1.51",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 857,
+                    "order_id": 327,
+                    "product_id": 37,
+                    "product_name": "\u0424\u043e\u0440\u0435\u043a\u0441 10\u043c\u043c",
+                    "product_image": "products\/wMXBm8yrxOZKdi0qL6jRtyE5DLfGBuN4pM027JYM.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "2.04000",
+                    "price": "250.00000",
+                    "width": "1.20",
+                    "height": "1.70",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 858,
+                    "order_id": 327,
+                    "product_id": 36,
+                    "product_name": "\u0424\u043e\u0440\u0435\u043a\u0441 5\u043c\u043c",
+                    "product_image": "products\/LydfXKb43JfYhwuXbAkNKCFGoziJT3754Wnlvlcj.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "2.88000",
+                    "price": "135.00000",
+                    "width": "1.20",
+                    "height": "2.40",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 859,
+                    "order_id": 327,
+                    "product_id": 70,
+                    "product_name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.02000",
+                    "price": "70.00000",
+                    "width": "0.18",
+                    "height": "0.13",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 860,
+                    "order_id": 327,
+                    "product_id": 49,
+                    "product_name": "\u041e\u0440\u0433\u0441\u0442\u0435\u043a\u043b\u043e 8\u043c\u043c",
+                    "product_image": "products\/MjA2NMcfOjBQMfOlgzDOP4xFknTs3k2w3AeeEwgb.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.75000",
+                    "price": "800.00000",
+                    "width": "1.20",
+                    "height": "1.46",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 118,
+                "first_name": "Halk Bank",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "individual",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 126,
+                        "client_id": 118,
+                        "phone": "99312444837"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 1,
+                "name": "\u041d\u043e\u0432\u044b\u0439",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 846,
+                    "order_id": 327,
+                    "product_id": 70,
+                    "quantity": "1.62000",
+                    "price": "70.00000",
+                    "width": "1.07",
+                    "height": "1.51",
+                    "product": {
+                        "id": 70,
+                        "name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 847,
+                    "order_id": 327,
+                    "product_id": 70,
+                    "quantity": "1.02000",
+                    "price": "70.00000",
+                    "width": "0.70",
+                    "height": "1.46",
+                    "product": {
+                        "id": 70,
+                        "name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 848,
+                    "order_id": 327,
+                    "product_id": 68,
+                    "quantity": "3.84000",
+                    "price": "40.00000",
+                    "width": "1.20",
+                    "height": "3.20",
+                    "product": {
+                        "id": 68,
+                        "name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 849,
+                    "order_id": 327,
+                    "product_id": 68,
+                    "quantity": "3.84000",
+                    "price": "40.00000",
+                    "width": "1.20",
+                    "height": "3.20",
+                    "product": {
+                        "id": 68,
+                        "name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 850,
+                    "order_id": 327,
+                    "product_id": 68,
+                    "quantity": "2.88000",
+                    "price": "40.00000",
+                    "width": "1.20",
+                    "height": "2.40",
+                    "product": {
+                        "id": 68,
+                        "name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 851,
+                    "order_id": 327,
+                    "product_id": 68,
+                    "quantity": "1.46000",
+                    "price": "40.00000",
+                    "width": "0.86",
+                    "height": "1.70",
+                    "product": {
+                        "id": 68,
+                        "name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 852,
+                    "order_id": 327,
+                    "product_id": 71,
+                    "quantity": "102.00000",
+                    "price": "5.00000",
+                    "width": null,
+                    "height": null,
+                    "product": {
+                        "id": 71,
+                        "name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                        "unit_id": 1,
+                        "unit": {
+                            "id": 1,
+                            "name": "\u041c\u0435\u0442\u0440",
+                            "short_name": "\u043c"
+                        }
+                    }
+                },
+                {
+                    "id": 853,
+                    "order_id": 327,
+                    "product_id": 134,
+                    "quantity": "3.84000",
+                    "price": "300.00000",
+                    "width": "1.20",
+                    "height": "3.20",
+                    "product": {
+                        "id": 134,
+                        "name": "\u0410\u043b\u044e\u043a\u0430\u0431\u043e\u043d\u0434 \u0437\u0435\u043b\u0435\u043d\u044b\u0439 4\u043c\u043c",
+                        "image": "products\/TD2azjlavUPMYqSTDzyQdj7mKvolZ8T63mvfPk3t.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 854,
+                    "order_id": 327,
+                    "product_id": 134,
+                    "quantity": "3.84000",
+                    "price": "300.00000",
+                    "width": "1.20",
+                    "height": "3.20",
+                    "product": {
+                        "id": 134,
+                        "name": "\u0410\u043b\u044e\u043a\u0430\u0431\u043e\u043d\u0434 \u0437\u0435\u043b\u0435\u043d\u044b\u0439 4\u043c\u043c",
+                        "image": "products\/TD2azjlavUPMYqSTDzyQdj7mKvolZ8T63mvfPk3t.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 855,
+                    "order_id": 327,
+                    "product_id": 65,
+                    "quantity": "2.88000",
+                    "price": "677.00000",
+                    "width": "1.20",
+                    "height": "2.40",
+                    "product": {
+                        "id": 65,
+                        "name": "\u041d\u0435\u0440\u0436\u0430\u0432\u0435\u0439\u043a\u0430 \u0437\u043e\u043b\u043e\u0442\u043e 0,8\u043c\u043c",
+                        "image": "products\/dMnan4cqedDmqn5uU29lnla6iftTjqHBC5wHV9a8.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 856,
+                    "order_id": 327,
+                    "product_id": 38,
+                    "quantity": "1.81000",
+                    "price": "340.00000",
+                    "width": "1.20",
+                    "height": "1.51",
+                    "product": {
+                        "id": 38,
+                        "name": "\u0410\u043a\u0440\u0438\u043b \u0431\u0435\u043b\u044b\u0439 3\u043c\u043c",
+                        "image": "products\/alfKrV7rPXNly6awqMdHDhFyxrbo7ZOlw0IUQ02o.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 857,
+                    "order_id": 327,
+                    "product_id": 37,
+                    "quantity": "2.04000",
+                    "price": "250.00000",
+                    "width": "1.20",
+                    "height": "1.70",
+                    "product": {
+                        "id": 37,
+                        "name": "\u0424\u043e\u0440\u0435\u043a\u0441 10\u043c\u043c",
+                        "image": "products\/wMXBm8yrxOZKdi0qL6jRtyE5DLfGBuN4pM027JYM.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 858,
+                    "order_id": 327,
+                    "product_id": 36,
+                    "quantity": "2.88000",
+                    "price": "135.00000",
+                    "width": "1.20",
+                    "height": "2.40",
+                    "product": {
+                        "id": 36,
+                        "name": "\u0424\u043e\u0440\u0435\u043a\u0441 5\u043c\u043c",
+                        "image": "products\/LydfXKb43JfYhwuXbAkNKCFGoziJT3754Wnlvlcj.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 859,
+                    "order_id": 327,
+                    "product_id": 70,
+                    "quantity": "0.02000",
+                    "price": "70.00000",
+                    "width": "0.18",
+                    "height": "0.13",
+                    "product": {
+                        "id": 70,
+                        "name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 860,
+                    "order_id": 327,
+                    "product_id": 49,
+                    "quantity": "1.75000",
+                    "price": "800.00000",
+                    "width": "1.20",
+                    "height": "1.46",
+                    "product": {
+                        "id": 49,
+                        "name": "\u041e\u0440\u0433\u0441\u0442\u0435\u043a\u043b\u043e 8\u043c\u043c",
+                        "image": "products\/MjA2NMcfOjBQMfOlgzDOP4xFknTs3k2w3AeeEwgb.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 326,
+            "client_id": 17,
+            "user_id": 12,
+            "status_id": 4,
+            "note": null,
+            "price": "30.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:14:50",
+            "created_at": "2025-12-04T09:14:50.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 14,
+            "total_price": "30.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u041f\u043e\u043b\u0438\u0433\u0440\u0430\u0444\u0438\u044f",
+            "user_name": "\u0412\u043e\u043b\u043e\u0434\u044f",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 845,
+                    "order_id": 326,
+                    "product_id": 75,
+                    "product_name": "\u0421\u0442\u0440\u0443\u0439\u043d\u0430\u044f \u043f\u0435\u0447\u0430\u0442\u044c \u04104 (\u0434\u0432\u0443\u0441\u0442\u043e\u0440\u043e\u043d\u043d\u044f\u044f)",
+                    "product_image": "products\/frdvwK6Kl15EKZJQJxhTZ6N3xbi0eSKpcM4bQBkj.jpg",
+                    "unit_id": 6,
+                    "unit_name": "\u0428\u0442\u0443\u043a\u0430",
+                    "unit_short_name": "\u0448\u0442",
+                    "quantity": "10.00000",
+                    "price": "3.00000",
+                    "width": null,
+                    "height": null,
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 17,
+                "first_name": "\u041c\u0430\u043a\u0441",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "individual",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 20,
+                        "client_id": 17,
+                        "phone": "99364011020"
+                    }
+                ]
+            },
+            "user": {
+                "id": 12,
+                "name": "\u0412\u043e\u043b\u043e\u0434\u044f",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 14,
+                "name": "\u041f\u043e\u043b\u0438\u0433\u0440\u0430\u0444\u0438\u044f"
+            },
+            "order_products": [
+                {
+                    "id": 845,
+                    "order_id": 326,
+                    "product_id": 75,
+                    "quantity": "10.00000",
+                    "price": "3.00000",
+                    "width": null,
+                    "height": null,
+                    "product": {
+                        "id": 75,
+                        "name": "\u0421\u0442\u0440\u0443\u0439\u043d\u0430\u044f \u043f\u0435\u0447\u0430\u0442\u044c \u04104 (\u0434\u0432\u0443\u0441\u0442\u043e\u0440\u043e\u043d\u043d\u044f\u044f)",
+                        "image": "products\/frdvwK6Kl15EKZJQJxhTZ6N3xbi0eSKpcM4bQBkj.jpg",
+                        "unit_id": 6,
+                        "unit": {
+                            "id": 6,
+                            "name": "\u0428\u0442\u0443\u043a\u0430",
+                            "short_name": "\u0448\u0442"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 325,
+            "client_id": 6,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "17040.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:14:10",
+            "created_at": "2025-12-04T09:14:10.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": 8,
+            "category_id": 3,
+            "total_price": "17040.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": "\u041f\u0435\u0434\u0438\u0430\u0442\u0440\u0438\u044f,\u0421\u0442\u043e\u043c\u0430\u0442\u043e\u043b\u043e\u0433\u0438\u044f,\u041e\u043d\u043a\u043e\u043b\u043e\u0433\u0438\u044f",
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 843,
+                    "order_id": 325,
+                    "product_id": 65,
+                    "product_name": "\u041d\u0435\u0440\u0436\u0430\u0432\u0435\u0439\u043a\u0430 \u0437\u043e\u043b\u043e\u0442\u043e 0,8\u043c\u043c",
+                    "product_image": "products\/dMnan4cqedDmqn5uU29lnla6iftTjqHBC5wHV9a8.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "28.80000",
+                    "price": "550.00000",
+                    "width": "1.20",
+                    "height": "24.00",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 844,
+                    "order_id": 325,
+                    "product_id": 71,
+                    "product_name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                    "unit_id": 1,
+                    "unit_name": "\u041c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c",
+                    "quantity": "300.00000",
+                    "price": "4.00000",
+                    "width": null,
+                    "height": null,
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 6,
+                "first_name": "Gap In\u015faat",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "company",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 7,
+                        "client_id": 6,
+                        "phone": "99346546546"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": {
+                "id": 8,
+                "name": "\u041f\u0435\u0434\u0438\u0430\u0442\u0440\u0438\u044f,\u0421\u0442\u043e\u043c\u0430\u0442\u043e\u043b\u043e\u0433\u0438\u044f,\u041e\u043d\u043a\u043e\u043b\u043e\u0433\u0438\u044f"
+            },
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 843,
+                    "order_id": 325,
+                    "product_id": 65,
+                    "quantity": "28.80000",
+                    "price": "550.00000",
+                    "width": "1.20",
+                    "height": "24.00",
+                    "product": {
+                        "id": 65,
+                        "name": "\u041d\u0435\u0440\u0436\u0430\u0432\u0435\u0439\u043a\u0430 \u0437\u043e\u043b\u043e\u0442\u043e 0,8\u043c\u043c",
+                        "image": "products\/dMnan4cqedDmqn5uU29lnla6iftTjqHBC5wHV9a8.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 844,
+                    "order_id": 325,
+                    "product_id": 71,
+                    "quantity": "300.00000",
+                    "price": "4.00000",
+                    "width": null,
+                    "height": null,
+                    "product": {
+                        "id": 71,
+                        "name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                        "unit_id": 1,
+                        "unit": {
+                            "id": 1,
+                            "name": "\u041c\u0435\u0442\u0440",
+                            "short_name": "\u043c"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 324,
+            "client_id": 15,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "17040.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:13:36",
+            "created_at": "2025-12-04T09:13:36.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": 6,
+            "category_id": 3,
+            "total_price": "17040.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": "\u0410\u0440\u0447\u043c\u0430\u043d \u0421\u0430\u043d\u0430\u0442\u043e\u0440\u0438\u0439",
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 841,
+                    "order_id": 324,
+                    "product_id": 71,
+                    "product_name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                    "unit_id": 1,
+                    "unit_name": "\u041c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c",
+                    "quantity": "300.00000",
+                    "price": "4.00000",
+                    "width": null,
+                    "height": null,
+                    "product_type": "regular"
+                },
+                {
+                    "id": 842,
+                    "order_id": 324,
+                    "product_id": 65,
+                    "product_name": "\u041d\u0435\u0440\u0436\u0430\u0432\u0435\u0439\u043a\u0430 \u0437\u043e\u043b\u043e\u0442\u043e 0,8\u043c\u043c",
+                    "product_image": "products\/dMnan4cqedDmqn5uU29lnla6iftTjqHBC5wHV9a8.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "28.80000",
+                    "price": "550.00000",
+                    "width": "1.20",
+                    "height": "24.00",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 15,
+                "first_name": "Nahal HJ",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "company",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 18,
+                        "client_id": 15,
+                        "phone": "99312754555"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": {
+                "id": 6,
+                "name": "\u0410\u0440\u0447\u043c\u0430\u043d \u0421\u0430\u043d\u0430\u0442\u043e\u0440\u0438\u0439"
+            },
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 841,
+                    "order_id": 324,
+                    "product_id": 71,
+                    "quantity": "300.00000",
+                    "price": "4.00000",
+                    "width": null,
+                    "height": null,
+                    "product": {
+                        "id": 71,
+                        "name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                        "unit_id": 1,
+                        "unit": {
+                            "id": 1,
+                            "name": "\u041c\u0435\u0442\u0440",
+                            "short_name": "\u043c"
+                        }
+                    }
+                },
+                {
+                    "id": 842,
+                    "order_id": 324,
+                    "product_id": 65,
+                    "quantity": "28.80000",
+                    "price": "550.00000",
+                    "width": "1.20",
+                    "height": "24.00",
+                    "product": {
+                        "id": 65,
+                        "name": "\u041d\u0435\u0440\u0436\u0430\u0432\u0435\u0439\u043a\u0430 \u0437\u043e\u043b\u043e\u0442\u043e 0,8\u043c\u043c",
+                        "image": "products\/dMnan4cqedDmqn5uU29lnla6iftTjqHBC5wHV9a8.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 323,
+            "client_id": 82,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "315.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:07:38",
+            "created_at": "2025-12-04T09:07:38.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 3,
+            "total_price": "315.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 840,
+                    "order_id": 323,
+                    "product_id": 71,
+                    "product_name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                    "unit_id": 1,
+                    "unit_name": "\u041c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c",
+                    "quantity": "63.00000",
+                    "price": "5.00000",
+                    "width": null,
+                    "height": null,
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 82,
+                "first_name": "\u0410\u0439\u0434\u043e\u0433\u0434\u044b",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "individual",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 91,
+                        "client_id": 82,
+                        "phone": "99362232323"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 840,
+                    "order_id": 323,
+                    "product_id": 71,
+                    "quantity": "63.00000",
+                    "price": "5.00000",
+                    "width": null,
+                    "height": null,
+                    "product": {
+                        "id": 71,
+                        "name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                        "unit_id": 1,
+                        "unit": {
+                            "id": 1,
+                            "name": "\u041c\u0435\u0442\u0440",
+                            "short_name": "\u043c"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 322,
+            "client_id": 6,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "1336.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:07:20",
+            "created_at": "2025-12-04T09:07:20.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": 8,
+            "category_id": 3,
+            "total_price": "1336.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": "\u041f\u0435\u0434\u0438\u0430\u0442\u0440\u0438\u044f,\u0421\u0442\u043e\u043c\u0430\u0442\u043e\u043b\u043e\u0433\u0438\u044f,\u041e\u043d\u043a\u043e\u043b\u043e\u0433\u0438\u044f",
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 836,
+                    "order_id": 322,
+                    "product_id": 57,
+                    "product_name": "\u0410\u043b\u044e\u043a\u0430\u0431\u043e\u043d\u0434 \u0431\u0435\u043b\u044b\u0439 4\u043c\u043c",
+                    "product_image": "products\/C8Pvey8IinQV1TblFoRyx7wmVGQamjA334b24Omn.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "3.84000",
+                    "price": "230.00000",
+                    "width": "1.20",
+                    "height": "3.20",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 837,
+                    "order_id": 322,
+                    "product_id": 68,
+                    "product_name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "3.84000",
+                    "price": "35.00000",
+                    "width": "1.20",
+                    "height": "3.20",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 838,
+                    "order_id": 322,
+                    "product_id": 57,
+                    "product_name": "\u0410\u043b\u044e\u043a\u0430\u0431\u043e\u043d\u0434 \u0431\u0435\u043b\u044b\u0439 4\u043c\u043c",
+                    "product_image": "products\/C8Pvey8IinQV1TblFoRyx7wmVGQamjA334b24Omn.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.20000",
+                    "price": "230.00000",
+                    "width": "1.20",
+                    "height": "1.00",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 839,
+                    "order_id": 322,
+                    "product_id": 68,
+                    "product_name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.20000",
+                    "price": "35.00000",
+                    "width": "1.20",
+                    "height": "1.00",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 6,
+                "first_name": "Gap In\u015faat",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "company",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 7,
+                        "client_id": 6,
+                        "phone": "99346546546"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": {
+                "id": 8,
+                "name": "\u041f\u0435\u0434\u0438\u0430\u0442\u0440\u0438\u044f,\u0421\u0442\u043e\u043c\u0430\u0442\u043e\u043b\u043e\u0433\u0438\u044f,\u041e\u043d\u043a\u043e\u043b\u043e\u0433\u0438\u044f"
+            },
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 836,
+                    "order_id": 322,
+                    "product_id": 57,
+                    "quantity": "3.84000",
+                    "price": "230.00000",
+                    "width": "1.20",
+                    "height": "3.20",
+                    "product": {
+                        "id": 57,
+                        "name": "\u0410\u043b\u044e\u043a\u0430\u0431\u043e\u043d\u0434 \u0431\u0435\u043b\u044b\u0439 4\u043c\u043c",
+                        "image": "products\/C8Pvey8IinQV1TblFoRyx7wmVGQamjA334b24Omn.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 837,
+                    "order_id": 322,
+                    "product_id": 68,
+                    "quantity": "3.84000",
+                    "price": "35.00000",
+                    "width": "1.20",
+                    "height": "3.20",
+                    "product": {
+                        "id": 68,
+                        "name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 838,
+                    "order_id": 322,
+                    "product_id": 57,
+                    "quantity": "1.20000",
+                    "price": "230.00000",
+                    "width": "1.20",
+                    "height": "1.00",
+                    "product": {
+                        "id": 57,
+                        "name": "\u0410\u043b\u044e\u043a\u0430\u0431\u043e\u043d\u0434 \u0431\u0435\u043b\u044b\u0439 4\u043c\u043c",
+                        "image": "products\/C8Pvey8IinQV1TblFoRyx7wmVGQamjA334b24Omn.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 839,
+                    "order_id": 322,
+                    "product_id": 68,
+                    "quantity": "1.20000",
+                    "price": "35.00000",
+                    "width": "1.20",
+                    "height": "1.00",
+                    "product": {
+                        "id": 68,
+                        "name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 321,
+            "client_id": 58,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "169.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:05:58",
+            "created_at": "2025-12-04T09:05:58.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 3,
+            "total_price": "169.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 833,
+                    "order_id": 321,
+                    "product_id": 70,
+                    "product_name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.69000",
+                    "price": "70.00000",
+                    "width": "1.10",
+                    "height": "0.63",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 834,
+                    "order_id": 321,
+                    "product_id": 68,
+                    "product_name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.94000",
+                    "price": "40.00000",
+                    "width": "1.18",
+                    "height": "0.80",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 835,
+                    "order_id": 321,
+                    "product_id": 70,
+                    "product_name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.18000",
+                    "price": "70.00000",
+                    "width": "1.12",
+                    "height": "1.05",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 58,
+                "first_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "employee",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 61,
+                        "client_id": 58,
+                        "phone": "99362967040"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 833,
+                    "order_id": 321,
+                    "product_id": 70,
+                    "quantity": "0.69000",
+                    "price": "70.00000",
+                    "width": "1.10",
+                    "height": "0.63",
+                    "product": {
+                        "id": 70,
+                        "name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 834,
+                    "order_id": 321,
+                    "product_id": 68,
+                    "quantity": "0.94000",
+                    "price": "40.00000",
+                    "width": "1.18",
+                    "height": "0.80",
+                    "product": {
+                        "id": 68,
+                        "name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 835,
+                    "order_id": 321,
+                    "product_id": 70,
+                    "quantity": "1.18000",
+                    "price": "70.00000",
+                    "width": "1.12",
+                    "height": "1.05",
+                    "product": {
+                        "id": 70,
+                        "name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 320,
+            "client_id": 17,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "400.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:04:58",
+            "created_at": "2025-12-04T09:04:58.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 3,
+            "total_price": "400.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 830,
+                    "order_id": 320,
+                    "product_id": 68,
+                    "product_name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "2.88000",
+                    "price": "40.00000",
+                    "width": "1.20",
+                    "height": "2.40",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 831,
+                    "order_id": 320,
+                    "product_id": 68,
+                    "product_name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "2.47000",
+                    "price": "40.00000",
+                    "width": "1.20",
+                    "height": "2.06",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 832,
+                    "order_id": 320,
+                    "product_id": 70,
+                    "product_name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "2.66000",
+                    "price": "70.00000",
+                    "width": "1.20",
+                    "height": "2.22",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 17,
+                "first_name": "\u041c\u0430\u043a\u0441",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "individual",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 20,
+                        "client_id": 17,
+                        "phone": "99364011020"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 830,
+                    "order_id": 320,
+                    "product_id": 68,
+                    "quantity": "2.88000",
+                    "price": "40.00000",
+                    "width": "1.20",
+                    "height": "2.40",
+                    "product": {
+                        "id": 68,
+                        "name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 831,
+                    "order_id": 320,
+                    "product_id": 68,
+                    "quantity": "2.47000",
+                    "price": "40.00000",
+                    "width": "1.20",
+                    "height": "2.06",
+                    "product": {
+                        "id": 68,
+                        "name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 832,
+                    "order_id": 320,
+                    "product_id": 70,
+                    "quantity": "2.66000",
+                    "price": "70.00000",
+                    "width": "1.20",
+                    "height": "2.22",
+                    "product": {
+                        "id": 70,
+                        "name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 319,
+            "client_id": 6,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "12543.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:03:32",
+            "created_at": "2025-12-04T09:03:32.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": 8,
+            "category_id": 3,
+            "total_price": "12543.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": "\u041f\u0435\u0434\u0438\u0430\u0442\u0440\u0438\u044f,\u0421\u0442\u043e\u043c\u0430\u0442\u043e\u043b\u043e\u0433\u0438\u044f,\u041e\u043d\u043a\u043e\u043b\u043e\u0433\u0438\u044f",
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 827,
+                    "order_id": 319,
+                    "product_id": 70,
+                    "product_name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "31.68000",
+                    "price": "65.00000",
+                    "width": "1.20",
+                    "height": "26.40",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 828,
+                    "order_id": 319,
+                    "product_id": 46,
+                    "product_name": "\u0410\u043a\u0440\u0438\u043b \u0431\u0435\u043b\u044b\u0439 3\u043c\u043c (\u043d\u0435 \u0441\u0432\u0435\u0442\u043e\u0432\u043e\u0439)",
+                    "product_image": "products\/nSZDrNdU4BIczIcIc12AnDI0HgM2mOu1LRh6HJe4.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "31.68000",
+                    "price": "300.00000",
+                    "width": "1.20",
+                    "height": "26.40",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 829,
+                    "order_id": 319,
+                    "product_id": 71,
+                    "product_name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                    "unit_id": 1,
+                    "unit_name": "\u041c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c",
+                    "quantity": "245.00000",
+                    "price": "4.00000",
+                    "width": null,
+                    "height": null,
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 6,
+                "first_name": "Gap In\u015faat",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "company",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 7,
+                        "client_id": 6,
+                        "phone": "99346546546"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": {
+                "id": 8,
+                "name": "\u041f\u0435\u0434\u0438\u0430\u0442\u0440\u0438\u044f,\u0421\u0442\u043e\u043c\u0430\u0442\u043e\u043b\u043e\u0433\u0438\u044f,\u041e\u043d\u043a\u043e\u043b\u043e\u0433\u0438\u044f"
+            },
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 827,
+                    "order_id": 319,
+                    "product_id": 70,
+                    "quantity": "31.68000",
+                    "price": "65.00000",
+                    "width": "1.20",
+                    "height": "26.40",
+                    "product": {
+                        "id": 70,
+                        "name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 828,
+                    "order_id": 319,
+                    "product_id": 46,
+                    "quantity": "31.68000",
+                    "price": "300.00000",
+                    "width": "1.20",
+                    "height": "26.40",
+                    "product": {
+                        "id": 46,
+                        "name": "\u0410\u043a\u0440\u0438\u043b \u0431\u0435\u043b\u044b\u0439 3\u043c\u043c (\u043d\u0435 \u0441\u0432\u0435\u0442\u043e\u0432\u043e\u0439)",
+                        "image": "products\/nSZDrNdU4BIczIcIc12AnDI0HgM2mOu1LRh6HJe4.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 829,
+                    "order_id": 319,
+                    "product_id": 71,
+                    "quantity": "245.00000",
+                    "price": "4.00000",
+                    "width": null,
+                    "height": null,
+                    "product": {
+                        "id": 71,
+                        "name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                        "unit_id": 1,
+                        "unit": {
+                            "id": 1,
+                            "name": "\u041c\u0435\u0442\u0440",
+                            "short_name": "\u043c"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 318,
+            "client_id": 17,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "4.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:02:12",
+            "created_at": "2025-12-04T09:02:12.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 3,
+            "total_price": "4.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 826,
+                    "order_id": 318,
+                    "product_id": 70,
+                    "product_name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.06000",
+                    "price": "70.00000",
+                    "width": "0.57",
+                    "height": "0.10",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 17,
+                "first_name": "\u041c\u0430\u043a\u0441",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "individual",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 20,
+                        "client_id": 17,
+                        "phone": "99364011020"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 826,
+                    "order_id": 318,
+                    "product_id": 70,
+                    "quantity": "0.06000",
+                    "price": "70.00000",
+                    "width": "0.57",
+                    "height": "0.10",
+                    "product": {
+                        "id": 70,
+                        "name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 317,
+            "client_id": 82,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "475.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:01:45",
+            "created_at": "2025-12-04T09:01:45.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 3,
+            "total_price": "475.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 825,
+                    "order_id": 317,
+                    "product_id": 71,
+                    "product_name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                    "unit_id": 1,
+                    "unit_name": "\u041c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c",
+                    "quantity": "95.00000",
+                    "price": "5.00000",
+                    "width": null,
+                    "height": null,
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 82,
+                "first_name": "\u0410\u0439\u0434\u043e\u0433\u0434\u044b",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "individual",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 91,
+                        "client_id": 82,
+                        "phone": "99362232323"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 825,
+                    "order_id": 317,
+                    "product_id": 71,
+                    "quantity": "95.00000",
+                    "price": "5.00000",
+                    "width": null,
+                    "height": null,
+                    "product": {
+                        "id": 71,
+                        "name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                        "unit_id": 1,
+                        "unit": {
+                            "id": 1,
+                            "name": "\u041c\u0435\u0442\u0440",
+                            "short_name": "\u043c"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 316,
+            "client_id": 69,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "92.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:01:23",
+            "created_at": "2025-12-04T09:01:23.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 3,
+            "total_price": "92.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 824,
+                    "order_id": 316,
+                    "product_id": 70,
+                    "product_name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.32000",
+                    "price": "70.00000",
+                    "width": "1.20",
+                    "height": "1.10",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 69,
+                "first_name": "\u0411\u0430\u0439\u044f",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "employee",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 73,
+                        "client_id": 69,
+                        "phone": "99365650818"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 824,
+                    "order_id": 316,
+                    "product_id": 70,
+                    "quantity": "1.32000",
+                    "price": "70.00000",
+                    "width": "1.20",
+                    "height": "1.10",
+                    "product": {
+                        "id": 70,
+                        "name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 315,
+            "client_id": 82,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "115.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:00:47",
+            "created_at": "2025-12-04T09:00:47.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 3,
+            "total_price": "115.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 823,
+                    "order_id": 315,
+                    "product_id": 71,
+                    "product_name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                    "unit_id": 1,
+                    "unit_name": "\u041c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c",
+                    "quantity": "23.00000",
+                    "price": "5.00000",
+                    "width": null,
+                    "height": null,
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 82,
+                "first_name": "\u0410\u0439\u0434\u043e\u0433\u0434\u044b",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "individual",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 91,
+                        "client_id": 82,
+                        "phone": "99362232323"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 823,
+                    "order_id": 315,
+                    "product_id": 71,
+                    "quantity": "23.00000",
+                    "price": "5.00000",
+                    "width": null,
+                    "height": null,
+                    "product": {
+                        "id": 71,
+                        "name": "\u041e\u043f\u0442\u043e\u0432\u043e\u043b\u043e\u043a\u043e\u043d\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/JXplbEzhCmn7Md9FXigL3mkowqpSD5wE9QCMomf8.jpg",
+                        "unit_id": 1,
+                        "unit": {
+                            "id": 1,
+                            "name": "\u041c\u0435\u0442\u0440",
+                            "short_name": "\u043c"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 314,
+            "client_id": 58,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "70.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 14:00:29",
+            "created_at": "2025-12-04T09:00:29.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 3,
+            "total_price": "70.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 820,
+                    "order_id": 314,
+                    "product_id": 36,
+                    "product_name": "\u0424\u043e\u0440\u0435\u043a\u0441 5\u043c\u043c",
+                    "product_image": "products\/LydfXKb43JfYhwuXbAkNKCFGoziJT3754Wnlvlcj.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.34000",
+                    "price": "135.00000",
+                    "width": "0.78",
+                    "height": "0.44",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 821,
+                    "order_id": 314,
+                    "product_id": 68,
+                    "product_name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.34000",
+                    "price": "40.00000",
+                    "width": "0.78",
+                    "height": "0.44",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 822,
+                    "order_id": 314,
+                    "product_id": 68,
+                    "product_name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.27000",
+                    "price": "40.00000",
+                    "width": "0.72",
+                    "height": "0.38",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 58,
+                "first_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "employee",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 61,
+                        "client_id": 58,
+                        "phone": "99362967040"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 820,
+                    "order_id": 314,
+                    "product_id": 36,
+                    "quantity": "0.34000",
+                    "price": "135.00000",
+                    "width": "0.78",
+                    "height": "0.44",
+                    "product": {
+                        "id": 36,
+                        "name": "\u0424\u043e\u0440\u0435\u043a\u0441 5\u043c\u043c",
+                        "image": "products\/LydfXKb43JfYhwuXbAkNKCFGoziJT3754Wnlvlcj.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 821,
+                    "order_id": 314,
+                    "product_id": 68,
+                    "quantity": "0.34000",
+                    "price": "40.00000",
+                    "width": "0.78",
+                    "height": "0.44",
+                    "product": {
+                        "id": 68,
+                        "name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 822,
+                    "order_id": 314,
+                    "product_id": 68,
+                    "quantity": "0.27000",
+                    "price": "40.00000",
+                    "width": "0.72",
+                    "height": "0.38",
+                    "product": {
+                        "id": 68,
+                        "name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 313,
+            "client_id": 17,
+            "user_id": 7,
+            "status_id": 4,
+            "note": null,
+            "price": "167.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 13:58:40",
+            "created_at": "2025-12-04T08:58:40.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 3,
+            "total_price": "167.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438",
+            "user_name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 816,
+                    "order_id": 313,
+                    "product_id": 68,
+                    "product_name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.48000",
+                    "price": "40.00000",
+                    "width": "0.77",
+                    "height": "0.62",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 817,
+                    "order_id": 313,
+                    "product_id": 70,
+                    "product_name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.67000",
+                    "price": "70.00000",
+                    "width": "1.33",
+                    "height": "0.50",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 818,
+                    "order_id": 313,
+                    "product_id": 70,
+                    "product_name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.55000",
+                    "price": "70.00000",
+                    "width": "0.90",
+                    "height": "0.61",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 819,
+                    "order_id": 313,
+                    "product_id": 70,
+                    "product_name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.89000",
+                    "price": "70.00000",
+                    "width": "1.18",
+                    "height": "0.75",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 17,
+                "first_name": "\u041c\u0430\u043a\u0441",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "individual",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 20,
+                        "client_id": 17,
+                        "phone": "99364011020"
+                    }
+                ]
+            },
+            "user": {
+                "id": 7,
+                "name": "\u0420\u0443\u0441\u0442\u0430\u043c",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 3,
+                "name": "\u0426\u0435\u0445 \u0440\u0435\u0437\u043a\u0438"
+            },
+            "order_products": [
+                {
+                    "id": 816,
+                    "order_id": 313,
+                    "product_id": 68,
+                    "quantity": "0.48000",
+                    "price": "40.00000",
+                    "width": "0.77",
+                    "height": "0.62",
+                    "product": {
+                        "id": 68,
+                        "name": "\u0424\u0440\u0435\u0439\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/KffJv0PHtFbQ5BYOvA46EEhCjZa0Lb5wbzhqkvWf.png",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 817,
+                    "order_id": 313,
+                    "product_id": 70,
+                    "quantity": "0.67000",
+                    "price": "70.00000",
+                    "width": "1.33",
+                    "height": "0.50",
+                    "product": {
+                        "id": 70,
+                        "name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 818,
+                    "order_id": 313,
+                    "product_id": 70,
+                    "quantity": "0.55000",
+                    "price": "70.00000",
+                    "width": "0.90",
+                    "height": "0.61",
+                    "product": {
+                        "id": 70,
+                        "name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 819,
+                    "order_id": 313,
+                    "product_id": 70,
+                    "quantity": "0.89000",
+                    "price": "70.00000",
+                    "width": "1.18",
+                    "height": "0.75",
+                    "product": {
+                        "id": 70,
+                        "name": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/LCWSUGLaGcEbabfpC08OTUVmdIle4LYjreq3j3gr.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 312,
+            "client_id": 119,
+            "user_id": 6,
+            "status_id": 4,
+            "note": null,
+            "price": "35.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 13:56:43",
+            "created_at": "2025-12-04T08:56:43.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 2,
+            "total_price": "35.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u041f\u0435\u0447\u0430\u0442\u043d\u044b\u0439 \u0446\u0435\u0445",
+            "user_name": "\u0428\u0438\u0440\u043c\u0443\u0445\u0430\u043c\u043c\u0435\u0434",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 814,
+                    "order_id": 312,
+                    "product_id": 72,
+                    "product_name": "UV \u043f\u0435\u0447\u0430\u0442\u044c",
+                    "product_image": "products\/vFL88L2CgSbyF0eE35kLZBD3SXjFxyUErUjuEeWP.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.39000",
+                    "price": "50.00000",
+                    "width": "1.30",
+                    "height": "0.30",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 815,
+                    "order_id": 312,
+                    "product_id": 25,
+                    "product_name": "\u0421\u0442\u0438\u043a\u0435\u0440 \u0433\u043b\u044f\u043d\u0446\u0435\u0432\u044b\u0439 1,37",
+                    "product_image": "products\/BP6UQviWiYLPW8DSCktHK5NMPQ9C80XPaMCNq6ot.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.39000",
+                    "price": "40.00000",
+                    "width": "1.30",
+                    "height": "0.30",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 119,
+                "first_name": "\u0413\u0443\u043b\u044c\u0448\u0430\u0442",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "individual",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 127,
+                        "client_id": 119,
+                        "phone": "99365628626"
+                    }
+                ]
+            },
+            "user": {
+                "id": 6,
+                "name": "\u0428\u0438\u0440\u043c\u0443\u0445\u0430\u043c\u043c\u0435\u0434",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 2,
+                "name": "\u041f\u0435\u0447\u0430\u0442\u043d\u044b\u0439 \u0446\u0435\u0445"
+            },
+            "order_products": [
+                {
+                    "id": 814,
+                    "order_id": 312,
+                    "product_id": 72,
+                    "quantity": "0.39000",
+                    "price": "50.00000",
+                    "width": "1.30",
+                    "height": "0.30",
+                    "product": {
+                        "id": 72,
+                        "name": "UV \u043f\u0435\u0447\u0430\u0442\u044c",
+                        "image": "products\/vFL88L2CgSbyF0eE35kLZBD3SXjFxyUErUjuEeWP.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 815,
+                    "order_id": 312,
+                    "product_id": 25,
+                    "quantity": "0.39000",
+                    "price": "40.00000",
+                    "width": "1.30",
+                    "height": "0.30",
+                    "product": {
+                        "id": 25,
+                        "name": "\u0421\u0442\u0438\u043a\u0435\u0440 \u0433\u043b\u044f\u043d\u0446\u0435\u0432\u044b\u0439 1,37",
+                        "image": "products\/BP6UQviWiYLPW8DSCktHK5NMPQ9C80XPaMCNq6ot.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 311,
+            "client_id": 25,
+            "user_id": 6,
+            "status_id": 4,
+            "note": null,
+            "price": "114.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 13:53:40",
+            "created_at": "2025-12-04T08:53:40.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 2,
+            "total_price": "114.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u041f\u0435\u0447\u0430\u0442\u043d\u044b\u0439 \u0446\u0435\u0445",
+            "user_name": "\u0428\u0438\u0440\u043c\u0443\u0445\u0430\u043c\u043c\u0435\u0434",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 811,
+                    "order_id": 311,
+                    "product_id": 25,
+                    "product_name": "\u0421\u0442\u0438\u043a\u0435\u0440 \u0433\u043b\u044f\u043d\u0446\u0435\u0432\u044b\u0439 1,37",
+                    "product_image": "products\/BP6UQviWiYLPW8DSCktHK5NMPQ9C80XPaMCNq6ot.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.04000",
+                    "price": "40.00000",
+                    "width": "1.30",
+                    "height": "0.80",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 812,
+                    "order_id": 311,
+                    "product_id": 72,
+                    "product_name": "UV \u043f\u0435\u0447\u0430\u0442\u044c",
+                    "product_image": "products\/vFL88L2CgSbyF0eE35kLZBD3SXjFxyUErUjuEeWP.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.04000",
+                    "price": "50.00000",
+                    "width": "1.30",
+                    "height": "0.80",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 813,
+                    "order_id": 311,
+                    "product_id": 73,
+                    "product_name": "\u041f\u043b\u043e\u0442\u0442\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/Yc8G07u2tHTIX2j7VBqpTIrfKNGzUvlMng1J8XHh.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.04000",
+                    "price": "20.00000",
+                    "width": "1.30",
+                    "height": "0.80",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 25,
+                "first_name": "\u0412\u043e\u043b\u043e\u0434\u044f",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "employee",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 28,
+                        "client_id": 25,
+                        "phone": "99371276891"
+                    }
+                ]
+            },
+            "user": {
+                "id": 6,
+                "name": "\u0428\u0438\u0440\u043c\u0443\u0445\u0430\u043c\u043c\u0435\u0434",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 2,
+                "name": "\u041f\u0435\u0447\u0430\u0442\u043d\u044b\u0439 \u0446\u0435\u0445"
+            },
+            "order_products": [
+                {
+                    "id": 811,
+                    "order_id": 311,
+                    "product_id": 25,
+                    "quantity": "1.04000",
+                    "price": "40.00000",
+                    "width": "1.30",
+                    "height": "0.80",
+                    "product": {
+                        "id": 25,
+                        "name": "\u0421\u0442\u0438\u043a\u0435\u0440 \u0433\u043b\u044f\u043d\u0446\u0435\u0432\u044b\u0439 1,37",
+                        "image": "products\/BP6UQviWiYLPW8DSCktHK5NMPQ9C80XPaMCNq6ot.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 812,
+                    "order_id": 311,
+                    "product_id": 72,
+                    "quantity": "1.04000",
+                    "price": "50.00000",
+                    "width": "1.30",
+                    "height": "0.80",
+                    "product": {
+                        "id": 72,
+                        "name": "UV \u043f\u0435\u0447\u0430\u0442\u044c",
+                        "image": "products\/vFL88L2CgSbyF0eE35kLZBD3SXjFxyUErUjuEeWP.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 813,
+                    "order_id": 311,
+                    "product_id": 73,
+                    "quantity": "1.04000",
+                    "price": "20.00000",
+                    "width": "1.30",
+                    "height": "0.80",
+                    "product": {
+                        "id": 73,
+                        "name": "\u041f\u043b\u043e\u0442\u0442\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/Yc8G07u2tHTIX2j7VBqpTIrfKNGzUvlMng1J8XHh.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 310,
+            "client_id": 31,
+            "user_id": 6,
+            "status_id": 4,
+            "note": null,
+            "price": "65.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 13:26:18",
+            "created_at": "2025-12-04T08:26:18.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 2,
+            "total_price": "65.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u041f\u0435\u0447\u0430\u0442\u043d\u044b\u0439 \u0446\u0435\u0445",
+            "user_name": "\u0428\u0438\u0440\u043c\u0443\u0445\u0430\u043c\u043c\u0435\u0434",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 809,
+                    "order_id": 310,
+                    "product_id": 24,
+                    "product_name": "\u0421\u0442\u0438\u043a\u0435\u0440 \u0433\u043b\u044f\u043d\u0446\u0435\u0432\u044b\u0439 1,27",
+                    "product_image": "products\/8b0dq7syd0RjzlCttgaRuqdU5e9LoRm5wUJr69SY.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.72000",
+                    "price": "40.00000",
+                    "width": "1.20",
+                    "height": "0.60",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 810,
+                    "order_id": 310,
+                    "product_id": 72,
+                    "product_name": "UV \u043f\u0435\u0447\u0430\u0442\u044c",
+                    "product_image": "products\/vFL88L2CgSbyF0eE35kLZBD3SXjFxyUErUjuEeWP.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.72000",
+                    "price": "50.00000",
+                    "width": "1.20",
+                    "height": "0.60",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 31,
+                "first_name": "\u042d\u043d\u0432\u0435\u0440",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "employee",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 34,
+                        "client_id": 31,
+                        "phone": "99365950101"
+                    }
+                ]
+            },
+            "user": {
+                "id": 6,
+                "name": "\u0428\u0438\u0440\u043c\u0443\u0445\u0430\u043c\u043c\u0435\u0434",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 2,
+                "name": "\u041f\u0435\u0447\u0430\u0442\u043d\u044b\u0439 \u0446\u0435\u0445"
+            },
+            "order_products": [
+                {
+                    "id": 809,
+                    "order_id": 310,
+                    "product_id": 24,
+                    "quantity": "0.72000",
+                    "price": "40.00000",
+                    "width": "1.20",
+                    "height": "0.60",
+                    "product": {
+                        "id": 24,
+                        "name": "\u0421\u0442\u0438\u043a\u0435\u0440 \u0433\u043b\u044f\u043d\u0446\u0435\u0432\u044b\u0439 1,27",
+                        "image": "products\/8b0dq7syd0RjzlCttgaRuqdU5e9LoRm5wUJr69SY.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 810,
+                    "order_id": 310,
+                    "product_id": 72,
+                    "quantity": "0.72000",
+                    "price": "50.00000",
+                    "width": "1.20",
+                    "height": "0.60",
+                    "product": {
+                        "id": 72,
+                        "name": "UV \u043f\u0435\u0447\u0430\u0442\u044c",
+                        "image": "products\/vFL88L2CgSbyF0eE35kLZBD3SXjFxyUErUjuEeWP.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        },
+        {
+            "id": 309,
+            "client_id": 25,
+            "user_id": 6,
+            "status_id": 4,
+            "note": null,
+            "price": "210.00000",
+            "discount": "0.00000",
+            "description": "",
+            "date": "2025-12-04 13:25:39",
+            "created_at": "2025-12-04T08:25:39.000000Z",
+            "updated_at": "2025-12-04T09:18:47.000000Z",
+            "warehouse_id": 1,
+            "cash_id": 1,
+            "project_id": null,
+            "category_id": 2,
+            "total_price": "210.00000",
+            "status_name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+            "warehouse_name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434",
+            "cash_name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+            "currency_name": "Turkmen Manat",
+            "currency_code": "TMT",
+            "currency_symbol": "TMT",
+            "project_name": null,
+            "category_name": "\u041f\u0435\u0447\u0430\u0442\u043d\u044b\u0439 \u0446\u0435\u0445",
+            "user_name": "\u0428\u0438\u0440\u043c\u0443\u0445\u0430\u043c\u043c\u0435\u0434",
+            "user_photo": null,
+            "products": [
+                {
+                    "id": 804,
+                    "order_id": 309,
+                    "product_id": 25,
+                    "product_name": "\u0421\u0442\u0438\u043a\u0435\u0440 \u0433\u043b\u044f\u043d\u0446\u0435\u0432\u044b\u0439 1,37",
+                    "product_image": "products\/BP6UQviWiYLPW8DSCktHK5NMPQ9C80XPaMCNq6ot.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.11000",
+                    "price": "40.00000",
+                    "width": "1.30",
+                    "height": "0.85",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 805,
+                    "order_id": 309,
+                    "product_id": 72,
+                    "product_name": "UV \u043f\u0435\u0447\u0430\u0442\u044c",
+                    "product_image": "products\/vFL88L2CgSbyF0eE35kLZBD3SXjFxyUErUjuEeWP.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.11000",
+                    "price": "50.00000",
+                    "width": "1.30",
+                    "height": "0.85",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 806,
+                    "order_id": 309,
+                    "product_id": 73,
+                    "product_name": "\u041f\u043b\u043e\u0442\u0442\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                    "product_image": "products\/Yc8G07u2tHTIX2j7VBqpTIrfKNGzUvlMng1J8XHh.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "1.11000",
+                    "price": "20.00000",
+                    "width": "1.30",
+                    "height": "0.85",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 807,
+                    "order_id": 309,
+                    "product_id": 26,
+                    "product_name": "\u0421\u0442\u0438\u043a\u0435\u0440 \u0433\u043b\u044f\u043d\u0446\u0435\u0432\u044b\u0439 1,52",
+                    "product_image": "products\/kXstqfBPuW36YpYo5g3M28z9fD3OPJ3m52gnGYnB.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.98000",
+                    "price": "40.00000",
+                    "width": "1.50",
+                    "height": "0.65",
+                    "product_type": "regular"
+                },
+                {
+                    "id": 808,
+                    "order_id": 309,
+                    "product_id": 72,
+                    "product_name": "UV \u043f\u0435\u0447\u0430\u0442\u044c",
+                    "product_image": "products\/vFL88L2CgSbyF0eE35kLZBD3SXjFxyUErUjuEeWP.jpg",
+                    "unit_id": 2,
+                    "unit_name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                    "unit_short_name": "\u043c\u00b2",
+                    "quantity": "0.98000",
+                    "price": "50.00000",
+                    "width": "1.50",
+                    "height": "0.65",
+                    "product_type": "regular"
+                }
+            ],
+            "paid_amount": 0,
+            "payment_status": "unpaid",
+            "client": {
+                "id": 25,
+                "first_name": "\u0412\u043e\u043b\u043e\u0434\u044f",
+                "last_name": "",
+                "contact_person": null,
+                "client_type": "employee",
+                "is_supplier": 0,
+                "is_conflict": 0,
+                "phones": [
+                    {
+                        "id": 28,
+                        "client_id": 25,
+                        "phone": "99371276891"
+                    }
+                ]
+            },
+            "user": {
+                "id": 6,
+                "name": "\u0428\u0438\u0440\u043c\u0443\u0445\u0430\u043c\u043c\u0435\u0434",
+                "photo": null
+            },
+            "status": {
+                "id": 4,
+                "name": "\u0413\u043e\u0442\u043e\u0432\u043e",
+                "category": null
+            },
+            "warehouse": {
+                "id": 1,
+                "name": "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u043a\u043b\u0430\u0434"
+            },
+            "cash": {
+                "id": 1,
+                "name": "\u041d\u0430\u043b\u0438\u0447\u043d\u0430\u044f",
+                "currency_id": 1,
+                "currency": {
+                    "id": 1,
+                    "name": "Turkmen Manat",
+                    "code": "TMT",
+                    "symbol": "TMT"
+                }
+            },
+            "project": null,
+            "category": {
+                "id": 2,
+                "name": "\u041f\u0435\u0447\u0430\u0442\u043d\u044b\u0439 \u0446\u0435\u0445"
+            },
+            "order_products": [
+                {
+                    "id": 804,
+                    "order_id": 309,
+                    "product_id": 25,
+                    "quantity": "1.11000",
+                    "price": "40.00000",
+                    "width": "1.30",
+                    "height": "0.85",
+                    "product": {
+                        "id": 25,
+                        "name": "\u0421\u0442\u0438\u043a\u0435\u0440 \u0433\u043b\u044f\u043d\u0446\u0435\u0432\u044b\u0439 1,37",
+                        "image": "products\/BP6UQviWiYLPW8DSCktHK5NMPQ9C80XPaMCNq6ot.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 805,
+                    "order_id": 309,
+                    "product_id": 72,
+                    "quantity": "1.11000",
+                    "price": "50.00000",
+                    "width": "1.30",
+                    "height": "0.85",
+                    "product": {
+                        "id": 72,
+                        "name": "UV \u043f\u0435\u0447\u0430\u0442\u044c",
+                        "image": "products\/vFL88L2CgSbyF0eE35kLZBD3SXjFxyUErUjuEeWP.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 806,
+                    "order_id": 309,
+                    "product_id": 73,
+                    "quantity": "1.11000",
+                    "price": "20.00000",
+                    "width": "1.30",
+                    "height": "0.85",
+                    "product": {
+                        "id": 73,
+                        "name": "\u041f\u043b\u043e\u0442\u0442\u0435\u0440\u043d\u0430\u044f \u0440\u0435\u0437\u043a\u0430",
+                        "image": "products\/Yc8G07u2tHTIX2j7VBqpTIrfKNGzUvlMng1J8XHh.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 807,
+                    "order_id": 309,
+                    "product_id": 26,
+                    "quantity": "0.98000",
+                    "price": "40.00000",
+                    "width": "1.50",
+                    "height": "0.65",
+                    "product": {
+                        "id": 26,
+                        "name": "\u0421\u0442\u0438\u043a\u0435\u0440 \u0433\u043b\u044f\u043d\u0446\u0435\u0432\u044b\u0439 1,52",
+                        "image": "products\/kXstqfBPuW36YpYo5g3M28z9fD3OPJ3m52gnGYnB.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                },
+                {
+                    "id": 808,
+                    "order_id": 309,
+                    "product_id": 72,
+                    "quantity": "0.98000",
+                    "price": "50.00000",
+                    "width": "1.50",
+                    "height": "0.65",
+                    "product": {
+                        "id": 72,
+                        "name": "UV \u043f\u0435\u0447\u0430\u0442\u044c",
+                        "image": "products\/vFL88L2CgSbyF0eE35kLZBD3SXjFxyUErUjuEeWP.jpg",
+                        "unit_id": 2,
+                        "unit": {
+                            "id": 2,
+                            "name": "\u041a\u0432\u0430\u0434\u0440\u0430\u0442\u043d\u044b\u0439 \u043c\u0435\u0442\u0440",
+                            "short_name": "\u043c\u00b2"
+                        }
+                    }
+                }
+            ],
+            "temp_products": []
+        }
+    ],
+    "current_page": 1,
+    "next_page": "https:\/\/hasapp.online\/api\/orders?page=2",
+    "last_page": 14,
+    "total": 267
+}

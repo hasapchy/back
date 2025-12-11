@@ -81,7 +81,40 @@ class ProductsRepository extends BaseRepository
 
             $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
-            $products->getCollection()->each(function ($product) use ($warehouseId, $userUuid) {
+            $productIds = $products->getCollection()->pluck('id');
+            $warehouseIds = [];
+            if (!$warehouseId && $this->shouldApplyUserFilter('warehouses')) {
+                $warehouseIds = WhUser::where('user_id', $userUuid)
+                    ->pluck('warehouse_id')
+                    ->toArray();
+            }
+
+            $stocksMap = [];
+            if ($productIds->isNotEmpty()) {
+                if ($warehouseId) {
+                    $stocksMap = WarehouseStock::where('warehouse_id', $warehouseId)
+                        ->whereIn('product_id', $productIds)
+                        ->pluck('quantity', 'product_id')
+                        ->toArray();
+                } elseif (empty($warehouseIds)) {
+                    $stocks = WarehouseStock::whereIn('product_id', $productIds)
+                        ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total'))
+                        ->groupBy('product_id')
+                        ->pluck('total', 'product_id')
+                        ->toArray();
+                    $stocksMap = $stocks;
+                } else {
+                    $stocks = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
+                        ->whereIn('product_id', $productIds)
+                        ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total'))
+                        ->groupBy('product_id')
+                        ->pluck('total', 'product_id')
+                        ->toArray();
+                    $stocksMap = $stocks;
+                }
+            }
+
+            $products->getCollection()->each(function ($product) use ($stocksMap) {
                 $product->category_name = $product->categories->first()?->name;
                 $product->unit_name = $product->unit?->name;
                 $product->unit_short_name = $product->unit?->short_name;
@@ -89,31 +122,7 @@ class ProductsRepository extends BaseRepository
                 $product->retail_price = $price?->retail_price;
                 $product->wholesale_price = $price?->wholesale_price;
                 $product->purchase_price = $price?->purchase_price;
-
-                if ($warehouseId) {
-                    // Остатки на конкретном складе
-                    $stock = WarehouseStock::where('warehouse_id', $warehouseId)
-                        ->where('product_id', $product->id)
-                        ->value('quantity');
-                    $product->stock_quantity = $stock ?? 0;
-                } else {
-                    $warehouseIds = [];
-                    if ($this->shouldApplyUserFilter('warehouses')) {
-                        $warehouseIds = WhUser::where('user_id', $userUuid)
-                            ->pluck('warehouse_id')
-                            ->toArray();
-                    }
-
-                    if (empty($warehouseIds)) {
-                        $totalStock = WarehouseStock::where('product_id', $product->id)
-                            ->sum('quantity');
-                    } else {
-                        $totalStock = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
-                            ->where('product_id', $product->id)
-                            ->sum('quantity');
-                    }
-                    $product->stock_quantity = $totalStock;
-                }
+                $product->stock_quantity = (float) ($stocksMap[$product->id] ?? 0);
             });
 
             return $products;
@@ -170,7 +179,40 @@ class ProductsRepository extends BaseRepository
 
             $products = $query->limit(50)->get();
 
-            $products->each(function ($product) use ($warehouseId, $userUuid) {
+            $productIds = $products->pluck('id');
+            $warehouseIds = [];
+            if (!$warehouseId && $this->shouldApplyUserFilter('warehouses')) {
+                $warehouseIds = WhUser::where('user_id', $userUuid)
+                    ->pluck('warehouse_id')
+                    ->toArray();
+            }
+
+            $stocksMap = [];
+            if ($productIds->isNotEmpty()) {
+                if ($warehouseId) {
+                    $stocksMap = WarehouseStock::where('warehouse_id', $warehouseId)
+                        ->whereIn('product_id', $productIds)
+                        ->pluck('quantity', 'product_id')
+                        ->toArray();
+                } elseif (empty($warehouseIds)) {
+                    $stocks = WarehouseStock::whereIn('product_id', $productIds)
+                        ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total'))
+                        ->groupBy('product_id')
+                        ->pluck('total', 'product_id')
+                        ->toArray();
+                    $stocksMap = $stocks;
+                } else {
+                    $stocks = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
+                        ->whereIn('product_id', $productIds)
+                        ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total'))
+                        ->groupBy('product_id')
+                        ->pluck('total', 'product_id')
+                        ->toArray();
+                    $stocksMap = $stocks;
+                }
+            }
+
+            $products->each(function ($product) use ($stocksMap) {
                 $product->category_name = $product->categories->first()?->name;
                 $product->unit_name = $product->unit?->name;
                 $product->unit_short_name = $product->unit?->short_name;
@@ -178,30 +220,7 @@ class ProductsRepository extends BaseRepository
                 $product->retail_price = $price?->retail_price;
                 $product->wholesale_price = $price?->wholesale_price;
                 $product->purchase_price = $price?->purchase_price;
-
-                if ($warehouseId) {
-                    $stock = WarehouseStock::where('warehouse_id', $warehouseId)
-                        ->where('product_id', $product->id)
-                        ->value('quantity');
-                    $product->stock_quantity = $stock ?? 0;
-                } else {
-                    $warehouseIds = [];
-                    if ($this->shouldApplyUserFilter('warehouses')) {
-                        $warehouseIds = WhUser::where('user_id', $userUuid)
-                            ->pluck('warehouse_id')
-                            ->toArray();
-                    }
-
-                    if (empty($warehouseIds)) {
-                        $totalStock = WarehouseStock::where('product_id', $product->id)
-                            ->sum('quantity');
-                    } else {
-                        $totalStock = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
-                            ->where('product_id', $product->id)
-                            ->sum('quantity');
-                    }
-                    $product->stock_quantity = $totalStock;
-                }
+                $product->stock_quantity = (float) ($stocksMap[$product->id] ?? 0);
             });
 
             return $products;
@@ -466,6 +485,12 @@ class ProductsRepository extends BaseRepository
         return ['success' => true];
     }
 
+    /**
+     * Проверить, является ли значение типом продукта
+     *
+     * @param mixed $value Значение для проверки
+     * @return bool true если значение является типом продукта, false в противном случае
+     */
     private function isProductTypeValue($value): bool
     {
         return in_array($value, [1, '1', true, 'product'], true);

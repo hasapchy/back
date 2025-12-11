@@ -29,7 +29,7 @@ class WhWriteoffProduct extends Model
     protected $fillable = ['write_off_id', 'product_id', 'quantity', 'sn_id'];
 
     protected $casts = [
-        'quantity' => 'decimal:2',
+        'quantity' => 'decimal:5',
     ];
 
     /**

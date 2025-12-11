@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\CurrencyConverter;
+use App\Services\TransactionSourceService;
+use App\Services\BalanceService;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Services\CacheService;
@@ -48,6 +50,9 @@ class Transaction extends Model
     use HasFactory, LogsActivity {
         LogsActivity::shouldLogEvent as protected traitShouldLogEvent;
     }
+
+    public const SALARY_CATEGORY_IDS = [7, 23, 24, 26, 27];
+
     protected $skipClientBalanceUpdate = false;
     protected $skipCashBalanceUpdate = false;
     protected $fillable = [
@@ -130,21 +135,43 @@ class Transaction extends Model
         'skipCashBalanceUpdate',
     ];
 
+    /**
+     * Установить флаг пропуска обновления баланса клиента
+     *
+     * @param bool $value Значение флага
+     * @return void
+     */
     public function setSkipClientBalanceUpdate($value)
     {
         $this->skipClientBalanceUpdate = $value;
     }
 
+    /**
+     * Получить флаг пропуска обновления баланса клиента
+     *
+     * @return bool
+     */
     public function getSkipClientBalanceUpdate()
     {
         return $this->skipClientBalanceUpdate;
     }
 
+    /**
+     * Установить флаг пропуска обновления баланса кассы
+     *
+     * @param bool $value Значение флага
+     * @return void
+     */
     public function setSkipCashBalanceUpdate($value)
     {
         $this->skipCashBalanceUpdate = $value;
     }
 
+    /**
+     * Получить флаг пропуска обновления баланса кассы
+     *
+     * @return bool
+     */
     public function getSkipCashBalanceUpdate()
     {
         return $this->skipCashBalanceUpdate;
@@ -157,229 +184,34 @@ class Transaction extends Model
                 $transaction->setSkipClientBalanceUpdate(true);
             }
 
-            // Автоматически устанавливаем source для категорий зарплаты
-            if (!$transaction->source_type && !$transaction->source_id) {
-                $salaryCategories = [7, 23, 24, 26, 27]; // Выплата зарплаты, Аванс, Начисление зарплаты, Премия, Штраф
-                if (in_array($transaction->category_id, $salaryCategories) && $transaction->client_id) {
-                    $client = \App\Models\Client::find($transaction->client_id);
-                    if ($client && $client->employee_id) {
-                        $companyId = $transaction->company_id ?? request()->header('X-Company-ID');
-                        if ($companyId) {
-                            $activeSalary = \App\Models\EmployeeSalary::where('user_id', $client->employee_id)
-                                ->where('company_id', $companyId)
-                                ->whereNull('end_date')
-                                ->orderBy('start_date', 'desc')
-                                ->first();
-
-                            if (!$activeSalary) {
-                                $activeSalary = \App\Models\EmployeeSalary::where('user_id', $client->employee_id)
-                                    ->where('company_id', $companyId)
-                                    ->orderBy('start_date', 'desc')
-                                    ->first();
-                            }
-
-                            if ($activeSalary) {
-                                $transaction->source_type = \App\Models\EmployeeSalary::class;
-                                $transaction->source_id = $activeSalary->id;
-                            }
-                        }
-                    }
-                }
-            }
+            TransactionSourceService::setSalarySource($transaction);
         });
 
         static::updating(function ($transaction) {
-            // Автоматически устанавливаем source для категорий зарплаты при обновлении
-            // Только если source не установлен явно
-            if (!$transaction->source_type && !$transaction->source_id) {
-                $salaryCategories = [7, 23, 24, 26, 27]; // Выплата зарплаты, Аванс, Начисление зарплаты, Премия, Штраф
-                if (in_array($transaction->category_id, $salaryCategories) && $transaction->client_id) {
-                    $client = \App\Models\Client::find($transaction->client_id);
-                    if ($client && $client->employee_id) {
-                        $companyId = $transaction->company_id ?? request()->header('X-Company-ID');
-                        if ($companyId) {
-                            $activeSalary = \App\Models\EmployeeSalary::where('user_id', $client->employee_id)
-                                ->where('company_id', $companyId)
-                                ->whereNull('end_date')
-                                ->orderBy('start_date', 'desc')
-                                ->first();
-
-                            if (!$activeSalary) {
-                                $activeSalary = \App\Models\EmployeeSalary::where('user_id', $client->employee_id)
-                                    ->where('company_id', $companyId)
-                                    ->orderBy('start_date', 'desc')
-                                    ->first();
-                            }
-
-                            if ($activeSalary) {
-                                $transaction->source_type = \App\Models\EmployeeSalary::class;
-                                $transaction->source_id = $activeSalary->id;
-                            }
-                        }
-                    }
-                }
-            }
+            TransactionSourceService::setSalarySource($transaction);
         });
 
         static::created(function ($transaction) {
-            $isOrderWithProject = ($transaction->source_type === 'App\\Models\\Order') && !empty($transaction->project_id);
-            if (
-                $transaction->client_id
-                && !$transaction->getSkipClientBalanceUpdate()
-                && !$isOrderWithProject
-            ) {
-                $client = Client::find($transaction->client_id);
-                $defaultCurrency = Currency::where('is_default', true)->first();
-
-                if ($transaction->currency_id != $defaultCurrency->id) {
-                    $convertedAmount = CurrencyConverter::convert(
-                        $transaction->orig_amount,
-                        $transaction->currency,
-                        $defaultCurrency
-                    );
-                } else {
-                    $convertedAmount = $transaction->orig_amount;
-                }
-
-                if ($client) {
-                    if ($transaction->type == 1) {
-                        $client->balance = ($client->balance ?? 0) - $convertedAmount;
-                    } else {
-                        $client->balance = ($client->balance ?? 0) + $convertedAmount;
-                    }
-                    $client->save();
-                }
-
-                CacheService::invalidateClientsCache();
-                CacheService::invalidateClientBalanceCache($transaction->client_id);
-                CacheService::invalidateProjectsCache();
-            }
+            BalanceService::updateClientBalanceOnCreate($transaction);
 
             $transaction->updateCashBalance();
             CacheService::invalidateTransactionsCache();
+            if ($transaction->source_type === 'App\\Models\\Order' && $transaction->source_id) {
+                CacheService::invalidateOrdersCache();
+            }
         });
 
         static::updated(function ($transaction) {
-            $isOrderWithProject = ($transaction->source_type === 'App\\Models\\Order') && !empty($transaction->project_id);
-            if ($transaction->client_id && !$transaction->getSkipClientBalanceUpdate() && !$isOrderWithProject) {
-                $client = Client::find($transaction->client_id);
-                $defaultCurrency = Currency::where('is_default', true)->first();
-
-                // ВАЖНО: сравнение и откат считаем по исходной сумме/валюте
-                $originalAmount = $transaction->getOriginal('orig_amount');
-                $originalCurrency = Currency::find($transaction->getOriginal('currency_id'));
-                $originalIsDebt = $transaction->getOriginal('is_debt');
-
-                if ($transaction->getOriginal('currency_id') != $defaultCurrency->id) {
-                    $originalConverted = CurrencyConverter::convert(
-                        $originalAmount,
-                        $originalCurrency,
-                        $defaultCurrency
-                    );
-                } else {
-                    $originalConverted = $originalAmount;
-                }
-
-                if ($transaction->currency_id != $defaultCurrency->id) {
-                    $currentConverted = CurrencyConverter::convert(
-                        $transaction->orig_amount,
-                        $transaction->currency,
-                        $defaultCurrency
-                    );
-                } else {
-                    $currentConverted = $transaction->orig_amount;
-                }
-
-                if ($client) {
-                    $oldClientId = $transaction->getOriginal('client_id');
-                    $originalType = $transaction->getOriginal('type');
-
-                    if ($oldClientId && $oldClientId != $transaction->client_id) {
-                        // Клиент изменился: откатить на старом клиенте, применить на новом
-                        $oldClient = Client::find($oldClientId);
-                        if ($oldClient) {
-                            if ($originalType == 1) {
-                                $oldClient->balance = ($oldClient->balance ?? 0) + $originalConverted;
-                            } else {
-                                $oldClient->balance = ($oldClient->balance ?? 0) - $originalConverted;
-                            }
-                            $oldClient->save();
-                        }
-
-                        if ($transaction->type == 1) {
-                            $client->balance = ($client->balance ?? 0) - $currentConverted;
-                        } else {
-                            $client->balance = ($client->balance ?? 0) + $currentConverted;
-                        }
-                        $client->save();
-                    } elseif (!$oldClientId) {
-                        if ($transaction->type == 1) {
-                            $client->balance = ($client->balance ?? 0) - $currentConverted;
-                        } else {
-                            $client->balance = ($client->balance ?? 0) + $currentConverted;
-                        }
-                        $client->save();
-                    } else {
-                        if ($originalType == 1) {
-                            $client->balance = ($client->balance ?? 0) + $originalConverted;
-                        } else {
-                            $client->balance = ($client->balance ?? 0) - $originalConverted;
-                        }
-                        if ($transaction->type == 1) {
-                            $client->balance = ($client->balance ?? 0) - $currentConverted;
-                        } else {
-                            $client->balance = ($client->balance ?? 0) + $currentConverted;
-                        }
-                        $client->save();
-                    }
-                }
-
-                // Инвалидируем кэш клиента и проектов после обновления баланса
-                CacheService::invalidateClientsCache();
-                CacheService::invalidateClientBalanceCache($transaction->client_id);
-                CacheService::invalidateProjectsCache();
-            }
+            BalanceService::updateClientBalanceOnUpdate($transaction);
 
             CacheService::invalidateTransactionsCache();
+            if ($transaction->source_type === 'App\\Models\\Order' && $transaction->source_id) {
+                CacheService::invalidateOrdersCache();
+            }
         });
 
         static::deleted(function ($transaction) {
-            if ($transaction->client_id && !$transaction->getSkipClientBalanceUpdate()) {
-                $client = Client::find($transaction->client_id);
-                $defaultCurrency = Currency::where('is_default', true)->first();
-
-                if ($transaction->currency_id != $defaultCurrency->id) {
-                    $convertedAmount = CurrencyConverter::convert(
-                        $transaction->orig_amount,
-                        $transaction->currency,
-                        $defaultCurrency
-                    );
-                } else {
-                    $convertedAmount = $transaction->orig_amount;
-                }
-
-                if ($client) {
-                    if ($transaction->is_debt) {
-                        if ($transaction->type == 1) {
-                            $client->balance = ($client->balance ?? 0) - $convertedAmount;
-                        } else {
-                            $client->balance = ($client->balance ?? 0) + $convertedAmount;
-                        }
-                    } else {
-                        if ($transaction->type == 1) {
-                            $client->balance = ($client->balance ?? 0) + $convertedAmount;
-                        } else {
-                            $client->balance = ($client->balance ?? 0) - $convertedAmount;
-                        }
-                    }
-                    $client->save();
-                }
-
-                // Инвалидируем кэш клиента и проектов после обновления баланса
-                CacheService::invalidateClientsCache();
-                CacheService::invalidateClientBalanceCache($transaction->client_id);
-                CacheService::invalidateProjectsCache();
-            }
+            BalanceService::updateClientBalanceOnDelete($transaction);
 
             if ($transaction->cash_id && !$transaction->is_debt && !$transaction->getSkipCashBalanceUpdate()) {
                 $cash = CashRegister::find($transaction->cash_id);
@@ -500,16 +332,17 @@ class Transaction extends Model
     /**
      * Получить курс обмена валюты для компании
      *
+     * @param int|null $companyId ID компании
      * @return float|null
      */
-    public function getExchangeRateAttribute()
+    public function getExchangeRate($companyId = null)
     {
         $currency = $this->currency;
         if (!$currency) {
             return null;
         }
 
-        $companyId = request()->header('X-Company-ID');
+        $companyId = $companyId ?? $this->company_id;
         $rate = $currency->getExchangeRateForCompany($companyId, $this->date ? $this->date->toDateString() : null);
 
         return $rate;
@@ -568,5 +401,50 @@ class Transaction extends Model
             }
             $cash->save();
         }
+    }
+
+    /**
+     * Scope для фильтрации по компании
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int|null $companyId ID компании
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeForCompany($query, $companyId = null)
+    {
+        if ($companyId) {
+            return $query->where('company_id', $companyId);
+        }
+        return $query;
+    }
+
+    /**
+     * Scope для фильтрации по дате
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string|null $date Дата
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByDate($query, $date = null)
+    {
+        if ($date) {
+            return $query->whereDate('date', $date);
+        }
+        return $query;
+    }
+
+    /**
+     * Scope для фильтрации по типу транзакции
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int|null $type Тип транзакции (0 - расход, 1 - доход)
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByType($query, $type = null)
+    {
+        if ($type !== null) {
+            return $query->where('type', $type);
+        }
+        return $query;
     }
 }

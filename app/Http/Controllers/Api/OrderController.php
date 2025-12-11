@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreOrderRequest;
+use App\Http\Requests\UpdateOrderRequest;
 use App\Repositories\OrdersRepository;
 use App\Services\CacheService;
 use App\Models\Order;
@@ -14,7 +16,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с заказами
  */
-class OrderController extends Controller
+class OrderController extends BaseController
 {
 
     protected $itemRepository;
@@ -40,7 +42,7 @@ class OrderController extends Controller
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
-        $per_page = $request->input('per_page', 10);
+        $per_page = $request->input('per_page', 20);
         $search = $request->input('search');
         $dateFilter = $request->input('date_filter_type', 'all_time');
         $startDate = $request->input('start_date');
@@ -52,8 +54,10 @@ class OrderController extends Controller
 
         $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly);
 
+        $itemsArray = $items->items();
+
         $response = [
-            'items' => $items->items(),
+            'items' => $itemsArray,
             'current_page' => $items->currentPage(),
             'next_page' => $items->nextPageUrl(),
             'last_page' => $items->lastPage(),
@@ -70,44 +74,16 @@ class OrderController extends Controller
     /**
      * Создать новый заказ
      *
-     * @param Request $request
+     * @param StoreOrderRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreOrderRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
+        $validatedData = $request->validated();
 
-        $request->validate([
-            'client_id' => 'required|integer|exists:clients,id',
-            'project_id' => 'nullable|sometimes|integer|exists:projects,id',
-            'cash_id' => 'nullable|integer|exists:cash_registers,id',
-            'warehouse_id' => 'required|integer|exists:warehouses,id',
-            'currency_id' => 'nullable|integer|exists:currencies,id',
-            'category_id' => 'required|integer|exists:categories,id',
-            'discount'      => 'nullable|numeric|min:0',
-            'discount_type' => 'nullable|in:fixed,percent|required_with:discount',
-            'description' => 'nullable|string',
-            'date' => 'nullable|date',
-            'note' => 'nullable|string',
-            'status_id'    => 'nullable|integer|exists:order_statuses,id',
-            'products'              => 'sometimes|array',
-            'products.*.product_id' => 'required_with:products|integer|exists:products,id',
-            'products.*.quantity'   => 'required_with:products|numeric|min:0',
-            'products.*.price'      => 'required_with:products|numeric|min:0',
-            'products.*.width'      => 'nullable|numeric|min:0',
-            'products.*.height'    => 'nullable|numeric|min:0',
-            'temp_products'         => 'sometimes|array',
-            'temp_products.*.name'  => 'required_with:temp_products|string|max:255',
-            'temp_products.*.description' => 'nullable|string',
-            'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0',
-            'temp_products.*.price'       => 'required_with:temp_products|numeric|min:0',
-            'temp_products.*.unit_id'     => 'nullable|exists:units,id',
-            'temp_products.*.width'       => 'nullable|numeric|min:0',
-            'temp_products.*.height'      => 'nullable|numeric|min:0',
-        ]);
-
-        $categoryId = $request->category_id;
+        $categoryId = $validatedData['category_id'];
         $user = auth('api')->user();
         if ($user instanceof User && $user->hasRole(config('basement.worker_role'))) {
             // Получаем категории пользователя с учетом компании
@@ -135,17 +111,17 @@ class OrderController extends Controller
 
         $data = [
             'user_id'      => $userUuid,
-            'client_id'    => $request->client_id,
-            'project_id'   => $request->project_id,
-            'cash_id'      => $request->cash_id,
-            'warehouse_id' => $request->warehouse_id,
-            'currency_id' => $request->currency_id,
+            'client_id'    => $validatedData['client_id'],
+            'project_id'   => $validatedData['project_id'] ?? null,
+            'cash_id'      => $validatedData['cash_id'] ?? null,
+            'warehouse_id' => $validatedData['warehouse_id'],
+            'currency_id' => $validatedData['currency_id'] ?? null,
             'category_id' => $categoryId,
-            'discount' => $request->discount ?? 0,
-            'discount_type' => $request->discount_type ?? 'percent',
-            'description' => $request->description ?? '',
-            'date'         => $request->date ?? now(),
-            'note'         => $request->note ?? '',
+            'discount' => $validatedData['discount'] ?? 0,
+            'discount_type' => $validatedData['discount_type'] ?? 'percent',
+            'description' => $validatedData['description'] ?? '',
+            'date'         => $validatedData['date'] ?? now(),
+            'note'         => $validatedData['note'] ?? '',
             'status_id'    => 1,
             'products'     => array_map(fn($p) => [
                 'product_id' => $p['product_id'],
@@ -153,7 +129,7 @@ class OrderController extends Controller
                 'price'      => $p['price'],
                 'width'      => $p['width'] ?? null,
                 'height'     => $p['height'] ?? null,
-            ], $request->products ?? []),
+            ], $validatedData['products'] ?? []),
             'temp_products' => array_map(fn($p) => [
                 'name'        => $p['name'],
                 'description' => $p['description'] ?? null,
@@ -162,16 +138,16 @@ class OrderController extends Controller
                 'unit_id'     => $p['unit_id'] ?? null,
                 'width'       => $p['width'] ?? null,
                 'height'      => $p['height'] ?? null,
-            ], $request->temp_products ?? []),
+            ], $validatedData['temp_products'] ?? []),
         ];
 
 
-        $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
+        $cashAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id'] ?? null);
         if ($cashAccessCheck) {
             return $cashAccessCheck;
         }
 
-        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        $warehouseAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_id']);
         if ($warehouseAccessCheck) {
             return $warehouseAccessCheck;
         }
@@ -183,7 +159,7 @@ class OrderController extends Controller
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
             CacheService::invalidateClientsCache();
-            if ($request->project_id) {
+            if (isset($validatedData['project_id']) && $validatedData['project_id']) {
                 CacheService::invalidateProjectsCache();
             }
 
@@ -196,11 +172,11 @@ class OrderController extends Controller
     /**
      * Обновить заказ
      *
-     * @param Request $request
+     * @param UpdateOrderRequest $request
      * @param int $id ID заказа
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateOrderRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
@@ -213,38 +189,9 @@ class OrderController extends Controller
             return $this->forbiddenResponse('У вас нет прав на редактирование этого заказа');
         }
 
-        $request->validate([
-            'client_id'            => 'required|integer|exists:clients,id',
-            'project_id'           => 'nullable|sometimes|integer|exists:projects,id',
-            'cash_id'              => 'nullable|integer|exists:cash_registers,id',
-            'warehouse_id'         => 'required|integer|exists:warehouses,id',
-            'currency_id'  => 'nullable|integer|exists:currencies,id',
-            'category_id' => 'nullable|integer|exists:categories,id',
-            'date'                 => 'nullable|date',
-            'note'                 => 'nullable|string',
-            'description'          => 'nullable|string',
-            'status_id'            => 'nullable|integer|exists:order_statuses,id',
-            'products'             => 'nullable|array',
-            'products.*.id'        => 'nullable|integer|exists:order_products,id',
-            'products.*.product_id' => 'required_with:products|integer|exists:products,id',
-            'products.*.quantity'  => 'required_with:products|numeric|min:0',
-            'products.*.price'     => 'required_with:products|numeric|min:0',
-            'products.*.width'      => 'nullable|numeric|min:0',
-            'products.*.height'    => 'nullable|numeric|min:0',
-            'temp_products'         => 'nullable|array',
-            'temp_products.*.id'    => 'nullable|integer|exists:order_temp_products,id',
-            'temp_products.*.name'  => 'required_with:temp_products|string|max:255',
-            'temp_products.*.description' => 'nullable|string',
-            'temp_products.*.quantity'    => 'required_with:temp_products|numeric|min:0',
-            'temp_products.*.price'       => 'required_with:temp_products|numeric|min:0',
-            'temp_products.*.unit_id'     => 'nullable|exists:units,id',
-            'temp_products.*.width'       => 'nullable|numeric|min:0',
-            'temp_products.*.height'      => 'nullable|numeric|min:0',
-            'remove_temp_products'  => 'nullable|array',
-            'remove_temp_products.*' => 'integer|exists:order_temp_products,id',
-        ]);
+        $validatedData = $request->validated();
 
-        $categoryId = $request->category_id;
+        $categoryId = $validatedData['category_id'] ?? null;
         $user = auth('api')->user();
         if ($user instanceof User && $user->hasRole(config('basement.worker_role'))) {
             // Получаем категории пользователя с учетом компании
@@ -271,18 +218,18 @@ class OrderController extends Controller
         }
 
         $data = [
-            'client_id'    => $request->client_id,
-            'project_id'   => $request->project_id,
-            'cash_id'      => $request->cash_id,
-            'warehouse_id'  => $request->warehouse_id,
-            'currency_id'   => $request->currency_id,
+            'client_id'    => $validatedData['client_id'],
+            'project_id'   => $validatedData['project_id'] ?? null,
+            'cash_id'      => $validatedData['cash_id'] ?? null,
+            'warehouse_id'  => $validatedData['warehouse_id'],
+            'currency_id'   => $validatedData['currency_id'] ?? null,
             'category_id' => $categoryId,
-            'discount'      => $request->discount  ?? 0,
-            'discount_type' => $request->discount_type ?? 'percent',
-            'note'         => $request->note ?? '',
-            'description'  => $request->description ?? '',
-            'status_id'    => $request->status_id,
-            'date'         => $request->date ?? now(),
+            'discount'      => $validatedData['discount'] ?? 0,
+            'discount_type' => $validatedData['discount_type'] ?? 'percent',
+            'note'         => $validatedData['note'] ?? '',
+            'description'  => $validatedData['description'] ?? '',
+            'status_id'    => $validatedData['status_id'] ?? null,
+            'date'         => $validatedData['date'] ?? now(),
             'products'     => array_map(fn($p) => [
                 'id'         => $p['id'] ?? null,
                 'product_id' => $p['product_id'],
@@ -290,7 +237,7 @@ class OrderController extends Controller
                 'price'      => $p['price'],
                 'width'      => $p['width'] ?? null,
                 'height'     => $p['height'] ?? null,
-            ], $request->products ?? []),
+            ], $validatedData['products'] ?? []),
             'temp_products' => array_map(fn($p) => [
                 'id'          => $p['id'] ?? null,
                 'name'        => $p['name'],
@@ -300,17 +247,17 @@ class OrderController extends Controller
                 'unit_id'     => $p['unit_id'] ?? null,
                 'width'       => $p['width'] ?? null,
                 'height'      => $p['height'] ?? null,
-            ], $request->temp_products ?? []),
-            'remove_temp_products' => $request->remove_temp_products ?? [],
+            ], $validatedData['temp_products'] ?? []),
+            'remove_temp_products' => $validatedData['remove_temp_products'] ?? [],
         ];
 
 
-        $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
+        $cashAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id'] ?? null);
         if ($cashAccessCheck) {
             return $cashAccessCheck;
         }
 
-        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        $warehouseAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_id']);
         if ($warehouseAccessCheck) {
             return $warehouseAccessCheck;
         }
@@ -322,7 +269,7 @@ class OrderController extends Controller
             CacheService::invalidateWarehouseStocksCache();
             CacheService::invalidateProductsCache();
             CacheService::invalidateClientsCache();
-            if ($request->project_id) {
+            if (isset($validatedData['project_id']) && $validatedData['project_id']) {
                 CacheService::invalidateProjectsCache();
             }
 
@@ -340,8 +287,6 @@ class OrderController extends Controller
      */
     public function destroy($id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
-
         $order = $this->itemRepository->getItemById($id);
         if (!$order) {
             return $this->notFoundResponse('Заказ не найден');
@@ -352,9 +297,9 @@ class OrderController extends Controller
         }
 
         if ($order->cash_id) {
-            $cashRegister = \App\Models\CashRegister::find($order->cash_id);
-            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
-                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
+            if ($cashAccessCheck) {
+                return $cashAccessCheck;
             }
         }
 
@@ -426,7 +371,6 @@ class OrderController extends Controller
      */
     public function show($id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->itemRepository->getItemById($id);
         if (!$item) {
             return $this->notFoundResponse('Not found');
@@ -437,9 +381,9 @@ class OrderController extends Controller
         }
 
         if ($item->cash_id) {
-            $cashRegister = \App\Models\CashRegister::find($item->cash_id);
-            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
-                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            $cashAccessCheck = $this->checkCashRegisterAccess($item->cash_id);
+            if ($cashAccessCheck) {
+                return $cashAccessCheck;
             }
         }
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\HasManyToManyUsers;
 
 /**
  * Модель проекта
@@ -35,15 +36,15 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Project extends Model
 {
-    use HasFactory;
+    use HasFactory, HasManyToManyUsers;
 
     protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'exchange_rate', 'date', 'description', 'status_id', 'company_id'];
 
     protected $casts = [
         'files' => 'array',
         'date' => 'datetime',
-        'budget' => 'decimal:2',
-        'exchange_rate' => 'decimal:4',
+        'budget' => 'decimal:5',
+        'exchange_rate' => 'decimal:5',
     ];
 
     /**
@@ -116,37 +117,12 @@ class Project extends Model
         return $this->belongsTo(ProjectStatus::class, 'status_id');
     }
 
-    /**
-     * Accessor для получения пользователей
-     *
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    public function getUsersAttribute()
-    {
-        $relation = $this->getRelationValue('users');
-
-        if ($relation !== null) {
-            return $relation;
-        }
-
-        return $this->users()->get();
-    }
-
-    /**
-     * Проверить, есть ли у проекта пользователь
-     *
-     * @param int $userId ID пользователя
-     * @return bool
-     */
-    public function hasUser($userId)
-    {
-        return $this->users()->where('user_id', $userId)->exists();
-    }
 
     /**
      * Получить курс обмена валюты
+     * Если курс указан вручную, использует его, иначе берет актуальный курс из истории валют
      *
-     * @return float
+     * @return float Курс обмена валюты
      */
     public function getExchangeRateAttribute()
     {

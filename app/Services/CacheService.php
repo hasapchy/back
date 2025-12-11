@@ -253,6 +253,24 @@ class CacheService
     }
 
     /**
+     * Invalidate specific project cache
+     *
+     * @param int $projectId ID проекта
+     * @return void
+     */
+    public static function invalidateProjectCache(int $projectId): void
+    {
+        self::forget("project_item_{$projectId}");
+        self::forget("project_balance_history_{$projectId}");
+        self::forget("project_balance_{$projectId}");
+        self::forget("project_total_balance_{$projectId}");
+        self::forget("project_real_balance_{$projectId}");
+        self::forget("project_detailed_balance_{$projectId}");
+        self::forget("project_item_relations_{$projectId}_null");
+        self::invalidateProjectsCache();
+    }
+
+    /**
      * Invalidate order statuses cache
      *
      * @return void

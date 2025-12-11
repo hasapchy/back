@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
 use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
 
-class CacheController extends Controller
+class CacheController extends BaseController
 {
     /**
      * Clear backend cache storage.

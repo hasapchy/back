@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreWarehouseMovementRequest;
+use App\Http\Requests\UpdateWarehouseMovementRequest;
 use App\Repositories\WarehouseMovementRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -10,7 +12,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с перемещениями между складами
  */
-class WarehouseMovementController extends Controller
+class WarehouseMovementController extends BaseController
 {
     protected $warehouseRepository;
 
@@ -34,7 +36,9 @@ class WarehouseMovementController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, 20);
+        $perPage = $request->input('per_page', 20);
+
+        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage);
 
         return $this->paginatedResponse($warehouses);
     }
@@ -45,41 +49,31 @@ class WarehouseMovementController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreWarehouseMovementRequest $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $validatedData = $request->validated();
 
-        $request->validate([
-            'warehouse_from_id' => 'required|integer|exists:warehouses,id',
-            'warehouse_to_id' => 'required|integer|exists:warehouses,id',
-            'date' => 'nullable|date',
-            'note' => 'nullable|string',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:0'
-        ]);
-
-        $warehouseFromAccessCheck = $this->checkWarehouseAccess($request->warehouse_from_id);
+        $warehouseFromAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_from_id']);
         if ($warehouseFromAccessCheck) {
             return $warehouseFromAccessCheck;
         }
 
-        $warehouseToAccessCheck = $this->checkWarehouseAccess($request->warehouse_to_id);
+        $warehouseToAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_to_id']);
         if ($warehouseToAccessCheck) {
             return $warehouseToAccessCheck;
         }
 
         $data = array(
-            'warehouse_from_id' => $request->warehouse_from_id,
-            'warehouse_to_id' => $request->warehouse_to_id,
-            'date' => $request->date ?? now(),
-            'note' => $request->note ?? '',
+            'warehouse_from_id' => $validatedData['warehouse_from_id'],
+            'warehouse_to_id' => $validatedData['warehouse_to_id'],
+            'date' => $validatedData['date'] ?? now(),
+            'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
                 return [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity']
                 ];
-            }, $request->products)
+            }, $validatedData['products'])
         );
 
         try {
@@ -101,41 +95,31 @@ class WarehouseMovementController extends Controller
      * @param int $id ID перемещения
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id)
+    public function update(UpdateWarehouseMovementRequest $request, $id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $validatedData = $request->validated();
 
-        $request->validate([
-            'warehouse_from_id' => 'required|integer|exists:warehouses,id',
-            'warehouse_to_id' => 'required|integer|exists:warehouses,id',
-            'date' => 'nullable|date',
-            'note' => 'nullable|string',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|numeric|min:0'
-        ]);
-
-        $warehouseFromAccessCheck = $this->checkWarehouseAccess($request->warehouse_from_id);
+        $warehouseFromAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_from_id']);
         if ($warehouseFromAccessCheck) {
             return $warehouseFromAccessCheck;
         }
 
-        $warehouseToAccessCheck = $this->checkWarehouseAccess($request->warehouse_to_id);
+        $warehouseToAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_to_id']);
         if ($warehouseToAccessCheck) {
             return $warehouseToAccessCheck;
         }
 
         $data = array(
-            'warehouse_from_id' => $request->warehouse_from_id,
-            'warehouse_to_id' => $request->warehouse_to_id,
-            'date' => $request->date ?? now(),
-            'note' => $request->note ?? '',
+            'warehouse_from_id' => $validatedData['warehouse_from_id'],
+            'warehouse_to_id' => $validatedData['warehouse_to_id'],
+            'date' => $validatedData['date'] ?? now(),
+            'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
                 return [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity']
                 ];
-            }, $request->products)
+            }, $validatedData['products'])
         );
 
         try {
@@ -161,16 +145,16 @@ class WarehouseMovementController extends Controller
         $movement = \App\Models\WhMovement::findOrFail($id);
 
         if ($movement->wh_from) {
-            $warehouseFrom = \App\Models\Warehouse::findOrFail($movement->wh_from);
-            if (!$this->canPerformAction('warehouses', 'view', $warehouseFrom)) {
-                return $this->forbiddenResponse('У вас нет прав на склад-отправитель');
+            $warehouseFromAccessCheck = $this->checkWarehouseAccess($movement->wh_from);
+            if ($warehouseFromAccessCheck) {
+                return $warehouseFromAccessCheck;
             }
         }
 
         if ($movement->wh_to) {
-            $warehouseTo = \App\Models\Warehouse::findOrFail($movement->wh_to);
-            if (!$this->canPerformAction('warehouses', 'view', $warehouseTo)) {
-                return $this->forbiddenResponse('У вас нет прав на склад-получатель');
+            $warehouseToAccessCheck = $this->checkWarehouseAccess($movement->wh_to);
+            if ($warehouseToAccessCheck) {
+                return $warehouseToAccessCheck;
             }
         }
 

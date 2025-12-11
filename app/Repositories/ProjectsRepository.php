@@ -40,18 +40,12 @@ class ProjectsRepository extends BaseRepository
      */
     private function syncProjectUsers(int $projectId, array $userIds): void
     {
-        ProjectUser::where('project_id', $projectId)->delete();
-
-        if (!empty($userIds)) {
-            $insertData = [];
-            foreach ($userIds as $userId) {
-                $insertData[] = [
-                    'project_id' => $projectId,
-                    'user_id' => $userId,
-                ];
-            }
-            ProjectUser::insert($insertData);
-        }
+        $this->syncManyToManyUsers(
+            ProjectUser::class,
+            'project_id',
+            $projectId,
+            $userIds
+        );
     }
 
     /**
@@ -107,7 +101,17 @@ class ProjectsRepository extends BaseRepository
 
             $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
 
-            return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+            $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+
+            $paginated->getCollection()->transform(function ($project) {
+                if ($project->creator) {
+                    $project->user_name = $project->creator->name;
+                    $project->user_photo = $project->creator->photo;
+                }
+                return $project;
+            });
+
+            return $paginated;
         }, (int)$page);
     }
 
@@ -133,13 +137,23 @@ class ProjectsRepository extends BaseRepository
             $query = $this->addCompanyFilterDirect($query, 'projects');
 
             if ($activeOnly) {
-                $query->whereNotIn('projects.status_id', [3, 4]);
+                $query->whereNotIn('projects.status_id', [4, 5]);
             }
 
             $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
 
-            return $query->orderBy('created_at', 'desc')->get();
-        }, 1800);
+            $items = $query->orderBy('created_at', 'desc')->get();
+
+            $items->transform(function ($project) {
+                if ($project->creator) {
+                    $project->user_name = $project->creator->name;
+                    $project->user_photo = $project->creator->photo;
+                }
+                return $project;
+            });
+
+            return $items;
+        }, $this->getCacheTTL('reference'));
     }
 
     /**
@@ -151,8 +165,7 @@ class ProjectsRepository extends BaseRepository
      */
     public function createItem(array $data): bool
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($data) {
             $companyId = $this->getCurrentCompanyId();
 
             $item = new Project();
@@ -173,15 +186,10 @@ class ProjectsRepository extends BaseRepository
                 $this->syncProjectUsers($item->id, $data['users']);
             }
 
-            DB::commit();
-
             CacheService::invalidateProjectsCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -194,8 +202,7 @@ class ProjectsRepository extends BaseRepository
      */
     public function updateItem(int $id, array $data): bool
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id, $data) {
             $item = Project::findOrFail($id);
 
             if (isset($data['files']) && is_array($data['files'])) {
@@ -218,15 +225,10 @@ class ProjectsRepository extends BaseRepository
                 $this->syncProjectUsers($id, $data['users']);
             }
 
-            DB::commit();
-
             CacheService::invalidateProjectsCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -257,7 +259,7 @@ class ProjectsRepository extends BaseRepository
                     'client:id,first_name,last_name,contact_person,balance',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
-
+                    'creator:id,name,photo',
                     'currency:id,name,code,symbol',
                     'users:id,name',
                     'projectUsers:id,project_id,user_id'
@@ -266,9 +268,13 @@ class ProjectsRepository extends BaseRepository
 
             $result = $query->first();
 
+            if ($result && $result->creator) {
+                $result->user_name = $result->creator->name;
+                $result->user_photo = $result->creator->photo;
+            }
 
             return $result;
-        }, 1800);
+        }, $this->getCacheTTL('reference'));
     }
 
     /**
@@ -280,8 +286,7 @@ class ProjectsRepository extends BaseRepository
      */
     public function deleteItem($id)
     {
-        DB::beginTransaction();
-        try {
+        return DB::transaction(function () use ($id) {
             $item = Project::findOrFail($id);
 
             $transactionsCount = \App\Models\Transaction::where('project_id', $id)
@@ -295,16 +300,10 @@ class ProjectsRepository extends BaseRepository
 
             $item->delete();
 
-            DB::commit();
-
-            // Инвалидируем кэш проектов
             CacheService::invalidateProjectsCache();
 
             return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -343,9 +342,7 @@ class ProjectsRepository extends BaseRepository
                 ->get()
                 ->groupBy('currency_id');
 
-            foreach ($currencyHistories as $currencyId => $histories) {
-                $currencyRates[$currencyId] = $histories->first()?->exchange_rate;
-            }
+            $currencyRates = $currencyHistories->map(fn($histories) => $histories->first()?->exchange_rate)->toArray();
 
             $transactions = Transaction::where('project_id', $projectId)
                 ->where('is_deleted', false)
@@ -368,54 +365,48 @@ class ProjectsRepository extends BaseRepository
                     'cash_id'
                 );
 
-            $transactionsResult = $transactions
-                ->get()
-                ->map(function ($item) use ($projectCurrencyId, $projectExchangeRate, $currencyRates) {
-                    $source = 'transaction';
-                    if ($item->source_type === 'App\\Models\\Sale') {
-                        $source = 'sale';
-                    } elseif ($item->source_type === 'App\\Models\\Order') {
-                        $source = 'order';
-                    } elseif ($item->source_type === 'App\\Models\\WhReceipt') {
-                        $source = 'receipt';
-                    }
+            $sourceMap = [
+                'App\\Models\\Sale' => 'sale',
+                'App\\Models\\Order' => 'order',
+                'App\\Models\\WhReceipt' => 'receipt',
+            ];
 
-                    $amount = $item->orig_amount;
+            $transactionsResult = $transactions->get()->map(function ($item) use ($projectCurrencyId, $projectExchangeRate, $currencyRates, $sourceMap) {
+                $source = $sourceMap[$item->source_type] ?? 'transaction';
+                $amount = $item->orig_amount;
 
-                    if ($item->currency_id != $projectCurrencyId) {
-                        $transactionRate = $currencyRates[$item->currency_id] ?? 1;
-                        $amount = ($item->orig_amount * $transactionRate) * $projectExchangeRate;
-                    }
+                if ($item->currency_id != $projectCurrencyId) {
+                    $transactionRate = $currencyRates[$item->currency_id] ?? 1;
+                    $amount = ($item->orig_amount * $transactionRate) * $projectExchangeRate;
+                }
 
-                    if ($source === 'receipt') {
-                        $amount = -$amount;
-                    } elseif ($source === 'transaction') {
-                        $amount = $item->type == 1 ? +$amount : -$amount;
-                    } elseif ($source === 'sale') {
-                        $amount = +$amount;
-                    } elseif ($source === 'order') {
-                        $amount = -$amount;
-                    }
+                $amount = match($source) {
+                    'receipt' => -$amount,
+                    'transaction' => $item->type == 1 ? +$amount : -$amount,
+                    'sale' => +$amount,
+                    'order' => -$amount,
+                    default => $amount
+                };
 
-                    return [
-                        'source' => $source,
-                        'source_id' => $item->id,
-                        'source_type' => $item->source_type,
-                        'source_source_id' => $item->source_id,
-                        'date' => $item->created_at,
-                        'amount' => $amount,
-                        'orig_amount' => $item->orig_amount,
-                        'is_debt' => $item->is_debt,
-                        'note' => $item->note,
-                        'user_id' => $item->user_id,
-                        'user_name' => $item->user->name,
-                        'cash_currency_symbol' => $item->cashRegister?->currency->symbol ?? $item->currency->symbol,
-                        'debug_transaction_currency' => $item->currency_id,
-                        'debug_transaction_rate' => $currencyRates[$item->currency_id] ?? 1,
-                        'debug_project_currency' => $projectCurrencyId,
-                        'debug_project_rate' => $projectExchangeRate
-                    ];
-                });
+                return [
+                    'source' => $source,
+                    'source_id' => $item->id,
+                    'source_type' => $item->source_type,
+                    'source_source_id' => $item->source_id,
+                    'date' => $item->created_at,
+                    'amount' => $amount,
+                    'orig_amount' => $item->orig_amount,
+                    'is_debt' => $item->is_debt,
+                    'note' => $item->note,
+                    'user_id' => $item->user_id,
+                    'user_name' => $item->user->name,
+                    'cash_currency_symbol' => $item->cashRegister?->currency->symbol ?? $item->currency->symbol,
+                    'debug_transaction_currency' => $item->currency_id,
+                    'debug_transaction_rate' => $currencyRates[$item->currency_id] ?? 1,
+                    'debug_project_currency' => $projectCurrencyId,
+                    'debug_project_rate' => $projectExchangeRate
+                ];
+            });
 
             $result = $transactionsResult
                 ->sortBy('date')
@@ -439,7 +430,7 @@ class ProjectsRepository extends BaseRepository
         return CacheService::remember($cacheKey, function () use ($projectId) {
             $history = $this->getBalanceHistory($projectId);
             return collect($history)->sum('amount');
-        }, 900);
+        }, $this->getCacheTTL('reference', true));
     }
 
     /**
@@ -458,7 +449,7 @@ class ProjectsRepository extends BaseRepository
                 'total_balance' => $balance,
                 'real_balance' => $balance
             ];
-        }, 900);
+        }, $this->getCacheTTL('reference', true));
     }
 
     /**

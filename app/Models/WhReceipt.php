@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\CacheService;
+use App\Services\TransactionDeletionService;
 
 /**
  * Модель прихода на склад
@@ -52,12 +53,8 @@ class WhReceipt extends Model
     protected static function booted()
     {
         static::deleting(function ($receipt) {
-            $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
             $transactions = $receipt->transactions()->get();
-
-            foreach ($transactions as $transaction) {
-                $transactionsRepository->deleteItem($transaction->id);
-            }
+            TransactionDeletionService::softDeleteMany($transactions);
         });
     }
 

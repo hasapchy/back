@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\StoreSaleRequest;
 use App\Repositories\SalesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -10,7 +11,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с продажами
  */
-class SaleController extends Controller
+class SaleController extends BaseController
 {
     protected $itemRepository;
 
@@ -35,7 +36,7 @@ class SaleController extends Controller
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
-        $per_page = $request->input('per_page', 10);
+        $per_page = $request->input('per_page', 20);
         $search = $request->input('search');
         $dateFilter = $request->input('date_filter_type', 'all_time');
         $startDate = $request->input('start_date');
@@ -49,57 +50,42 @@ class SaleController extends Controller
     /**
      * Создать новую продажу
      *
-     * @param Request $request
+     * @param StoreSaleRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function store(Request $request)
+    public function store(StoreSaleRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $request->validate([
-            'client_id'     => 'required|integer|exists:clients,id',
-            'project_id'    => 'nullable|integer|exists:projects,id',
-            'type'          => 'required|in:cash,balance',
-            'cash_id'       => 'nullable|integer|exists:cash_registers,id',
-            'warehouse_id'  => 'required|integer|exists:warehouses,id',
-            'currency_id'   => 'nullable|integer|exists:currencies,id',
-            'discount'      => 'nullable|numeric|min:0',
-            'discount_type' => 'nullable|in:fixed,percent|required_with:discount',
-            'date'          => 'nullable|date',
-            'note'          => 'nullable|string',
-            'products'      => 'required|array',
-            'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity'   => 'required|numeric|min:1',
-            'products.*.price'      => 'required|numeric|min:0',
-        ]);
+        $validatedData = $request->validated();
 
-        $cashAccessCheck = $this->checkCashRegisterAccess($request->cash_id);
+        $cashAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id'] ?? null);
         if ($cashAccessCheck) {
             return $cashAccessCheck;
         }
 
-        $warehouseAccessCheck = $this->checkWarehouseAccess($request->warehouse_id);
+        $warehouseAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_id']);
         if ($warehouseAccessCheck) {
             return $warehouseAccessCheck;
         }
 
         $data = [
             'user_id'       => $userUuid,
-            'client_id'     => $request->client_id,
-            'project_id'    => $request->project_id,
-            'type'          => $request->type,
-            'cash_id'       => $request->cash_id,
-            'warehouse_id'  => $request->warehouse_id,
-            'currency_id'   => $request->currency_id,
-            'discount'      => $request->discount  ?? 0,
-            'discount_type' => $request->discount_type ?? 'percent',
-            'date'          => $request->date      ?? now(),
-            'note'          => $request->note      ?? '',
+            'client_id'     => $validatedData['client_id'],
+            'project_id'    => $validatedData['project_id'] ?? null,
+            'type'          => $validatedData['type'],
+            'cash_id'       => $validatedData['cash_id'] ?? null,
+            'warehouse_id'  => $validatedData['warehouse_id'],
+            'currency_id'   => $validatedData['currency_id'] ?? null,
+            'discount'      => $validatedData['discount'] ?? 0,
+            'discount_type' => $validatedData['discount_type'] ?? 'percent',
+            'date'          => $validatedData['date'] ?? now(),
+            'note'          => $validatedData['note'] ?? '',
             'products'      => array_map(fn($p) => [
                 'product_id' => $p['product_id'],
                 'quantity'   => $p['quantity'],
                 'price'      => $p['price'],
-            ], $request->products),
+            ], $validatedData['products']),
         ];
 
         try {
@@ -125,7 +111,6 @@ class SaleController extends Controller
      */
     public function show($id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->itemRepository->getItemById($id);
         if (!$item) {
             return $this->notFoundResponse('Not found');

@@ -27,9 +27,9 @@ class CategoriesRepository extends BaseRepository
                 ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
 
             if ($this->shouldApplyUserFilter('categories')) {
-                $query->whereHas('categoryUsers', function($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                });
+                $query->join('category_users', 'categories.id', '=', 'category_users.category_id')
+                    ->where('category_users.user_id', $userUuid)
+                    ->distinct();
             }
 
             $query = $this->addCompanyFilterDirect($query, 'categories');
@@ -54,9 +54,9 @@ class CategoriesRepository extends BaseRepository
                 ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
 
             if ($this->shouldApplyUserFilter('categories')) {
-                $query->whereHas('categoryUsers', function($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                });
+                $query->join('category_users', 'categories.id', '=', 'category_users.category_id')
+                    ->where('category_users.user_id', $userUuid)
+                    ->distinct();
             }
 
             $query = $this->addCompanyFilterDirect($query, 'categories');
@@ -82,9 +82,9 @@ class CategoriesRepository extends BaseRepository
                 ->whereHas('children');
 
             if ($this->shouldApplyUserFilter('categories')) {
-                $query->whereHas('categoryUsers', function($query) use ($userUuid) {
-                    $query->where('user_id', $userUuid);
-                });
+                $query->join('category_users', 'categories.id', '=', 'category_users.category_id')
+                    ->where('category_users.user_id', $userUuid)
+                    ->distinct();
             }
 
             $query = $this->addCompanyFilterDirect($query, 'categories');
@@ -168,25 +168,16 @@ class CategoriesRepository extends BaseRepository
      */
     private function syncUsers(int $categoryId, array $userIds)
     {
-        if (empty($userIds) || !is_array($userIds)) {
-            throw new \Exception('Категория должна иметь хотя бы одного пользователя');
-        }
-
-        $insertData = [];
-        foreach ($userIds as $userId) {
-            if (!empty($userId)) {
-                $insertData[] = [
-                    'category_id' => $categoryId,
-                    'user_id' => (int) $userId,
-                ];
-            }
-        }
-
-        if (empty($insertData)) {
-            throw new \Exception('Категория должна иметь хотя бы одного пользователя');
-        }
-
-        CategoryUser::where('category_id', $categoryId)->delete();
-        CategoryUser::insert($insertData);
+        $this->syncManyToManyUsers(
+            CategoryUser::class,
+            'category_id',
+            $categoryId,
+            $userIds,
+            [
+                'require_at_least_one' => true,
+                'filter_empty' => true,
+                'error_message' => 'Категория должна иметь хотя бы одного пользователя'
+            ]
+        );
     }
 }

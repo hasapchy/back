@@ -166,4 +166,34 @@ class Product extends Model
     {
         return $this->belongsTo(Company::class, 'company_id');
     }
+
+    /**
+     * Scope для фильтрации по компании
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int|null $companyId ID компании
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeForCompany($query, $companyId = null)
+    {
+        if ($companyId) {
+            return $query->where('company_id', $companyId);
+        }
+        return $query;
+    }
+
+    /**
+     * Scope для фильтрации по типу продукта
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int|null $type Тип продукта (0 - товар, 1 - услуга)
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByType($query, $type = null)
+    {
+        if ($type !== null) {
+            return $query->where('type', $type);
+        }
+        return $query;
+    }
 }
