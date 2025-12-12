@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\ProjectsController;
 use App\Http\Controllers\Api\ProjectStatusController;
 use App\Http\Controllers\Api\RolesController;
 use App\Http\Controllers\Api\SaleController;
+use App\Http\Controllers\Api\TasksController;
 use App\Http\Controllers\Api\TransactionCategoryController;
 use App\Http\Controllers\Api\TransactionsController;
 use App\Http\Controllers\Api\TransfersController;
@@ -280,4 +281,16 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::get('user/current-company', [UserCompanyController::class, 'getCurrentCompany']);
     Route::post('user/set-company', [UserCompanyController::class, 'setCurrentCompany']);
     Route::get('user/companies', [UserCompanyController::class, 'getUserCompanies']);
+
+    // Tasks routes
+    Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks', [TasksController::class, 'index']);
+    Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks/{id}', [TasksController::class, 'show']);
+    Route::middleware('permission:tasks_create')->post('tasks', [TasksController::class, 'store']);
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->put('tasks/{id}', [TasksController::class, 'update']);
+    Route::middleware('permission.scope:tasks_delete_all,tasks_delete')->delete('tasks/{id}', [TasksController::class, 'destroy']);
+
+    // Task actions
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/complete', [TasksController::class, 'complete']);
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/accept', [TasksController::class, 'accept']);
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/return', [TasksController::class, 'return']);
 });
