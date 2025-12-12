@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\TaskRequest;
 use App\Repositories\TaskRepository;
 use App\Http\Resources\TaskResource;
 use App\Models\Task;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
-class TasksController extends Controller
+class TasksController extends BaseController
 {
     protected $taskRepository;
 
@@ -41,7 +43,14 @@ class TasksController extends Controller
      */
     public function store(TaskRequest $request)
     {
-        $task = $this->taskRepository->create($request->validated());
+        $data = $request->validated();
+        $data['company_id'] = $this->getCurrentCompanyId();
+
+        if (!$data['company_id']) {
+            return $this->errorResponse('Company ID is required', 400);
+        }
+
+        $task = $this->taskRepository->create($data);
         $task->load(['creator', 'supervisor', 'executor', 'project']);
 
         return response()->json([
@@ -94,7 +103,7 @@ class TasksController extends Controller
      */
     public function complete($id)
     {
-        $task = $this->taskRepository->changeStatus($id, Task::STATUS_COMPLETED);
+        $task = $this->taskRepository->changeStatus($id, Task::STATUS_PENDING);
         $task->load(['creator', 'supervisor', 'executor', 'project']);
 
         return response()->json([
@@ -129,5 +138,96 @@ class TasksController extends Controller
             'data' => new TaskResource($task),
             'message' => 'Задача возвращена на доработку'
         ]);
+    }
+
+    /**
+     * Загрузить файлы задачи
+     */
+    public function uploadFiles(Request $request, $id)
+    {
+        $request->validate([
+            'files.*' => 'required|file|max:10240|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,gif,bmp,svg,zip,rar,7z,txt,md'
+        ], [
+            'files.*.max' => 'Файл не должен превышать 10MB',
+            'files.*.mimes' => 'Неподдерживаемый тип файла'
+        ]);
+
+        $files = $request->file('files');
+
+        if (is_null($files)) {
+            $files = [];
+        } elseif ($files instanceof \Illuminate\Http\UploadedFile) {
+            $files = [$files];
+        }
+
+        if (count($files) == 0) {
+            return response()->json(['error' => 'No files uploaded'], 400);
+        }
+
+        try {
+            $task = $this->taskRepository->findById($id);
+
+            $storedFiles = $task->files ?? [];
+
+            foreach ($files as $file) {
+                $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('tasks/' . $task->id, $filename, 'public');
+
+                $storedFiles[] = [
+                    'name' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'size' => $file->getSize(),
+                    'mime_type' => $file->getMimeType(),
+                    'uploaded_at' => now()->toDateTimeString(),
+                ];
+            }
+
+            $task->update(['files' => $storedFiles]);
+
+            return response()->json(['files' => $storedFiles, 'message' => 'Files uploaded successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Ошибка при загрузке файлов: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Удалить файл задачи
+     */
+    public function deleteFile(Request $request, $id)
+    {
+        try {
+            $task = $this->taskRepository->findById($id);
+
+            $filePath = $request->input('path');
+            if (!$filePath) {
+                return response()->json(['error' => 'Путь файла не указан'], 400);
+            }
+
+            $files = $task->files ?? [];
+            $updatedFiles = [];
+            $deletedFile = null;
+
+            foreach ($files as $file) {
+                if ($file['path'] === $filePath) {
+                    $deletedFile = $file;
+                    if (Storage::disk('public')->exists($filePath)) {
+                        Storage::disk('public')->delete($filePath);
+                    }
+                    continue;
+                }
+                $updatedFiles[] = $file;
+            }
+
+            if (!$deletedFile) {
+                return response()->json(['error' => 'Файл не найден в задаче'], 404);
+            }
+
+            $task->files = $updatedFiles;
+            $task->save();
+
+            return response()->json(['files' => $updatedFiles, 'message' => 'File deleted successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Ошибка при удалении файла: ' . $e->getMessage()], 500);
+        }
     }
 }

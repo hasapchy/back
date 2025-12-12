@@ -165,6 +165,12 @@ return [
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
+        'tasks' => [
+            'has_user_id' => false,
+            'check_strategy' => 'default',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
     ],
 
     'custom_permissions' => [
@@ -220,6 +226,10 @@ return [
         'users' => [
             'label' => 'users',
             'resources' => ['users', 'roles', 'employee_salaries'],
+        ],
+        'tasks' => [
+            'label' => 'tasks',
+            'resources' => ['tasks'],
         ],
     ],
 
