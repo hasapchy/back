@@ -64,7 +64,7 @@ class LeaveTypeControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonStructure([
             'items' => [
-                '*' => ['id', 'name', 'created_at', 'updated_at']
+                '*' => ['id', 'name', 'color', 'created_at', 'updated_at']
             ],
             'current_page',
             'next_page',
@@ -99,6 +99,7 @@ class LeaveTypeControllerTest extends TestCase
     {
         $leaveTypeData = [
             'name' => 'Ежегодный отпуск',
+            'color' => '#3B82F6',
         ];
 
         $response = $this->actingAsApi($this->adminUser)
@@ -107,6 +108,23 @@ class LeaveTypeControllerTest extends TestCase
         $response->assertStatus(200);
         $this->assertDatabaseHas('leave_types', [
             'name' => 'Ежегодный отпуск',
+            'color' => '#3B82F6',
+        ]);
+    }
+
+    public function test_store_creates_leave_type_without_color(): void
+    {
+        $leaveTypeData = [
+            'name' => 'Ежегодный отпуск',
+        ];
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/leave_types', $leaveTypeData);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('leave_types', [
+            'name' => 'Ежегодный отпуск',
+            'color' => null,
         ]);
     }
 
@@ -125,10 +143,12 @@ class LeaveTypeControllerTest extends TestCase
     {
         $leaveType = LeaveType::factory()->create([
             'name' => 'Старое название',
+            'color' => '#3B82F6',
         ]);
 
         $updateData = [
             'name' => 'Новое название',
+            'color' => '#10B981',
         ];
 
         $response = $this->actingAsApi($this->adminUser)
@@ -138,6 +158,7 @@ class LeaveTypeControllerTest extends TestCase
         $this->assertDatabaseHas('leave_types', [
             'id' => $leaveType->id,
             'name' => 'Новое название',
+            'color' => '#10B981',
         ]);
     }
 
@@ -145,6 +166,7 @@ class LeaveTypeControllerTest extends TestCase
     {
         $updateData = [
             'name' => 'Новое название',
+            'color' => '#3B82F6',
         ];
 
         $response = $this->actingAsApi($this->adminUser)

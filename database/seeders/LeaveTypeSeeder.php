@@ -14,15 +14,18 @@ class LeaveTypeSeeder extends Seeder
     public function run(): void
     {
         $leaveTypes = [
-            ['name' => 'отгул'],
-            ['name' => 'отпуск'],
-            ['name' => 'больничный'],
-            ['name' => 'прогул'],
-            ['name' => 'отпуск без содержания']
+            ['name' => 'отгул', 'color' => '#3B82F6'],
+            ['name' => 'отпуск', 'color' => '#10B981'],
+            ['name' => 'больничный', 'color' => '#F59E0B'],
+            ['name' => 'прогул', 'color' => '#EF4444'],
+            ['name' => 'отпуск без содержания', 'color' => '#8B5CF6']
         ];
 
         foreach ($leaveTypes as $leaveType) {
-            LeaveType::create($leaveType);
+            LeaveType::updateOrCreate(
+                ['name' => $leaveType['name']],
+                ['color' => $leaveType['color']]
+            );
         }
     }
 }

@@ -65,11 +65,13 @@ class LeaveTypeController extends BaseController
         $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
-            'name' => 'required|string'
+            'name' => 'required|string',
+            'color' => 'nullable|string|max:7'
         ]);
 
         $created = $this->leaveTypeRepository->createItem([
-            'name' => $request->name
+            'name' => $request->name,
+            'color' => $request->color
         ]);
         if (!$created) return $this->errorResponse('Ошибка создания типа отпуска', 400);
 
@@ -88,11 +90,13 @@ class LeaveTypeController extends BaseController
         $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
-            'name' => 'required|string'
+            'name' => 'required|string',
+            'color' => 'nullable|string|max:7'
         ]);
 
         $updated = $this->leaveTypeRepository->updateItem($id, [
-            'name' => $request->name
+            'name' => $request->name,
+            'color' => $request->color
         ]);
         if (!$updated) return $this->errorResponse('Ошибка обновления', 400);
 
