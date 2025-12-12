@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
 use App\Repositories\LeaveRepository;
 use App\Models\Leave;
 use Illuminate\Http\Request;
@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с записями отпусков
  */
-class LeaveController extends Controller
+class LeaveController extends BaseController
 {
     protected $leaveRepository;
 
@@ -146,31 +146,38 @@ class LeaveController extends Controller
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $request->validate([
+        $validationRules = [
             'leave_type_id' => 'nullable|integer|exists:leave_types,id',
             'user_id' => 'nullable|integer|exists:users,id',
             'comment' => 'nullable|string',
             'date_from' => 'nullable|date',
-            'date_to' => 'nullable|date|after_or_equal:date_from'
-        ]);
+            'date_to' => 'nullable|date'
+        ];
+
+        // Если оба поля дат присутствуют, проверяем что date_to >= date_from
+        if ($request->has('date_from') && $request->has('date_to')) {
+            $validationRules['date_to'] .= '|after_or_equal:date_from';
+        }
+
+        $request->validate($validationRules);
 
         try {
             $leave = Leave::findOrFail($id);
 
             $data = [];
-            if ($request->has('leave_type_id')) {
+            if ($request->has('leave_type_id') && $request->leave_type_id !== null) {
                 $data['leave_type_id'] = $request->leave_type_id;
             }
-            if ($request->has('user_id')) {
+            if ($request->has('user_id') && $request->user_id !== null) {
                 $data['user_id'] = $request->user_id;
             }
             if ($request->has('comment')) {
                 $data['comment'] = $request->comment;
             }
-            if ($request->has('date_from')) {
+            if ($request->has('date_from') && $request->date_from !== null) {
                 $data['date_from'] = $request->date_from;
             }
-            if ($request->has('date_to')) {
+            if ($request->has('date_to') && $request->date_to !== null) {
                 $data['date_to'] = $request->date_to;
             }
 

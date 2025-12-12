@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\BaseController;
 use App\Repositories\LeaveTypeRepository;
 use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы с типами отпусков
  */
-class LeaveTypeController extends Controller
+class LeaveTypeController extends BaseController
 {
     protected $leaveTypeRepository;
 
@@ -73,7 +73,7 @@ class LeaveTypeController extends Controller
         ]);
         if (!$created) return $this->errorResponse('Ошибка создания типа отпуска', 400);
 
-        return response()->json(['message' => 'Тип отпуска создан']);
+        return response()->json(['item' => $created, 'message' => 'Тип отпуска создан']);
     }
 
     /**
@@ -96,7 +96,7 @@ class LeaveTypeController extends Controller
         ]);
         if (!$updated) return $this->errorResponse('Ошибка обновления', 400);
 
-        return response()->json(['message' => 'Тип отпуска обновлен']);
+        return response()->json(['item' => $updated, 'message' => 'Тип отпуска обновлен']);
     }
 
     /**

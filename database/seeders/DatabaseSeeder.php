@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             CompanySeeder::class,
             LeaveTypeSeeder::class,
             TestUserSeeder::class,
+            AdminExampleSeeder::class,
         ]);
     }
 }

@@ -17,7 +17,8 @@ class LeaveRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $filters = [])
     {
-        $cacheKey = $this->generateCacheKey('leaves_paginated', [$userUuid, $perPage, $filters]);
+        $filtersKey = !empty($filters) ? md5(json_encode($filters)) : 'no_filters';
+        $cacheKey = $this->generateCacheKey('leaves_paginated', [$userUuid, $perPage, $filtersKey]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $filters) {
             $query = Leave::with(['leaveType', 'user']);
@@ -52,7 +53,8 @@ class LeaveRepository extends BaseRepository
      */
     public function getAllItems($userUuid, $filters = [])
     {
-        $cacheKey = $this->generateCacheKey('leaves_all', [$userUuid, $filters]);
+        $filtersKey = !empty($filters) ? md5(json_encode($filters)) : 'no_filters';
+        $cacheKey = $this->generateCacheKey('leaves_all', [$userUuid, $filtersKey]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $filters) {
             $query = Leave::with(['leaveType', 'user']);
