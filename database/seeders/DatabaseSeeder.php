@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use Hamcrest\Core\Set;
 use Illuminate\Database\Seeder;
+use App\Models\User;
+use Spatie\Permission\Models\Permission;
 
 class DatabaseSeeder extends Seeder
 {
@@ -15,6 +17,7 @@ class DatabaseSeeder extends Seeder
             TasksPermissionsSeeder::class,
             RolesSeeder::class,
             AdminSeeder::class,
+            AdminTasksPermissionsSeeder::class,
             BasementWorkerSeeder::class,
             CurrencySeeder::class,
             ProductStatusSeeder::class,

@@ -93,17 +93,17 @@ class CommentsRepository extends BaseRepository
         try {
             /** @var \App\Models\User|null $currentUser */
             $currentUser = auth('api')->user();
-            
+
             $query = Comment::select([
                 'comments.id', 'comments.body', 'comments.commentable_type',
                 'comments.commentable_id', 'comments.user_id'
             ])
             ->where('id', $id);
-            
+
             if (!$currentUser || !$currentUser->is_admin) {
                 $query->where('user_id', $userId);
             }
-            
+
             $comment = $query->first();
 
             if (!$comment) {
@@ -139,16 +139,16 @@ class CommentsRepository extends BaseRepository
         try {
             /** @var \App\Models\User|null $currentUser */
             $currentUser = auth('api')->user();
-            
+
             $query = Comment::select([
                 'comments.id', 'comments.commentable_type', 'comments.commentable_id'
             ])
             ->where('id', $id);
-            
+
             if (!$currentUser || !$currentUser->is_admin) {
                 $query->where('user_id', $userId);
             }
-            
+
             $comment = $query->first();
 
             if (!$comment) {
@@ -187,6 +187,7 @@ class CommentsRepository extends BaseRepository
             'client' => \App\Models\Client::class,
             'product' => \App\Models\Product::class,
             'project' => \App\Models\Project::class,
+            'task' => \App\Models\Task::class,
             default => throw new \InvalidArgumentException("Unknown commentable type: $type"),
         };
     }

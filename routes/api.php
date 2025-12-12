@@ -278,4 +278,8 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/complete', [TasksController::class, 'complete']);
     Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/accept', [TasksController::class, 'accept']);
     Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/return', [TasksController::class, 'return']);
+
+    // Task files
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/files', [TasksController::class, 'uploadFiles']);
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->delete('tasks/{id}/files', [TasksController::class, 'deleteFile']);
 });

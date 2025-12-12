@@ -24,8 +24,8 @@ class TaskRequest extends FormRequest
         $rules = [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'supervisor_id' => 'nullable|exists:users,id',
-            'executor_id' => 'nullable|exists:users,id',
+            'supervisor_id' => 'required|exists:users,id',
+            'executor_id' => 'required|exists:users,id',
             'project_id' => 'nullable|exists:projects,id',
             'status' => 'nullable|in:pending,in_progress,completed,postponed',
             'deadline' => 'nullable|date',

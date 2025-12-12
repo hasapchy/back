@@ -7,10 +7,16 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class TaskRepository
 {
+    protected function getCompanyId()
+    {
+        return request()->header('X-Company-ID') ?? auth()->user()->company_id ?? null;
+    }
+
     public function getFilteredTasks($request): LengthAwarePaginator
     {
+        $companyId = $this->getCompanyId();
         $query = Task::with(['creator', 'supervisor', 'executor', 'project'])
-                    ->where('company_id', auth()->user()->company_id);
+                    ->where('company_id', $companyId);
 
         // Фильтр по статусу
         if ($request->has('status') && $request->status !== 'all') {
@@ -40,13 +46,18 @@ class TaskRepository
 
     public function findById($id): Task
     {
-        return Task::where('company_id', auth()->user()->company_id)->findOrFail($id);
+        $companyId = $this->getCompanyId();
+        return Task::where('company_id', $companyId)->findOrFail($id);
     }
 
     public function create(array $data): Task
     {
         $data['creator_id'] = auth()->id();
-        $data['company_id'] = auth()->user()->company_id;
+        // company_id уже должен быть в $data
+
+        if (!isset($data['company_id']) || !$data['company_id']) {
+            throw new \Exception('Company ID is required');
+        }
 
         return Task::create($data);
     }
