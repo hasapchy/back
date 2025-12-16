@@ -98,32 +98,13 @@ class UsersRepository extends BaseRepository
 
             $paginated = $query->orderBy('users.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
-            $companyId = $this->getCurrentCompanyId();
             $users = $paginated->getCollection();
-            $userIds = $users->pluck('id');
-
-            $salariesMap = [];
-            if ($userIds->isNotEmpty() && $companyId) {
-                $salaries = EmployeeSalary::whereIn('user_id', $userIds)
-                    ->where('company_id', $companyId)
-                    ->with('currency:id,code,symbol,name')
-                    ->orderBy('user_id')
-                    ->orderBy('start_date', 'desc')
-                    ->get()
-                    ->groupBy('user_id');
-
-                foreach ($salaries as $userId => $userSalaries) {
-                    $lastSalary = $userSalaries->first();
-                    $salariesMap[$userId] = [
-                        'id' => $lastSalary->id,
-                        'amount' => $lastSalary->amount,
-                        'start_date' => $lastSalary->start_date,
-                        'end_date' => $lastSalary->end_date,
-                        'currency' => $lastSalary->currency,
-                    ];
-                }
+            if ($users->isEmpty()) {
+                return $paginated;
             }
 
+            $userIds = $users->pluck('id');
+            $salariesMap = $this->getSalariesMap($userIds, $companyId);
             [$permissionsMap, $rolesMap] = $this->getPermissionsAndRolesMaps($users, $userIds, $companyId);
             $companyRolesMap = $this->getCompanyRolesMap($userIds);
             $allPermissionsForAdmins = !$companyId

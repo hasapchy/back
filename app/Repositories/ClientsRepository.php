@@ -180,15 +180,8 @@ class ClientsRepository extends BaseRepository
             return [];
         }
 
-        $allowedTypes = [];
         $clientTypes = ['individual', 'company', 'employee', 'investor'];
-        foreach ($clientTypes as $type) {
-            if (in_array("mutual_settlements_view_{$type}", $permissions)) {
-                $allowedTypes[] = $type;
-            }
-        }
-
-        return $allowedTypes;
+        return array_filter($clientTypes, fn($type) => in_array("mutual_settlements_view_{$type}", $permissions));
     }
 
     /**
@@ -676,20 +669,19 @@ class ClientsRepository extends BaseRepository
      */
     private function syncPhones(int $clientId, array $phones)
     {
-        $existingPhones = ClientsPhone::where('client_id', $clientId)
-            ->pluck('phone')
-            ->toArray();
-
+        $existingPhones = ClientsPhone::where('client_id', $clientId)->pluck('phone')->toArray();
         $phonesToAdd = array_diff($phones, $existingPhones);
         $phonesToRemove = array_diff($existingPhones, $phones);
 
         if (!empty($phonesToAdd)) {
-            foreach ($phonesToAdd as $phone) {
-                ClientsPhone::create([
+            ClientsPhone::insert(
+                collect($phonesToAdd)->map(fn($phone) => [
                     'client_id' => $clientId,
                     'phone' => $phone,
-                ]);
-            }
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])->toArray()
+            );
         }
 
         if (!empty($phonesToRemove)) {
@@ -708,20 +700,19 @@ class ClientsRepository extends BaseRepository
      */
     private function syncEmails(int $clientId, array $emails)
     {
-        $existingEmails = ClientsEmail::where('client_id', $clientId)
-            ->pluck('email')
-            ->toArray();
-
+        $existingEmails = ClientsEmail::where('client_id', $clientId)->pluck('email')->toArray();
         $emailsToAdd = array_diff($emails, $existingEmails);
         $emailsToRemove = array_diff($existingEmails, $emails);
 
         if (!empty($emailsToAdd)) {
-            foreach ($emailsToAdd as $email) {
-                ClientsEmail::create([
+            ClientsEmail::insert(
+                collect($emailsToAdd)->map(fn($email) => [
                     'client_id' => $clientId,
                     'email' => $email,
-                ]);
-            }
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])->toArray()
+            );
         }
 
         if (!empty($emailsToRemove)) {

@@ -342,9 +342,7 @@ class ProjectsRepository extends BaseRepository
                 ->get()
                 ->groupBy('currency_id');
 
-            foreach ($currencyHistories as $currencyId => $histories) {
-                $currencyRates[$currencyId] = $histories->first()?->exchange_rate;
-            }
+            $currencyRates = $currencyHistories->map(fn($histories) => $histories->first()?->exchange_rate)->toArray();
 
             $transactions = Transaction::where('project_id', $projectId)
                 ->where('is_deleted', false)
@@ -367,54 +365,48 @@ class ProjectsRepository extends BaseRepository
                     'cash_id'
                 );
 
-            $transactionsResult = $transactions
-                ->get()
-                ->map(function ($item) use ($projectCurrencyId, $projectExchangeRate, $currencyRates) {
-                    $source = 'transaction';
-                    if ($item->source_type === 'App\\Models\\Sale') {
-                        $source = 'sale';
-                    } elseif ($item->source_type === 'App\\Models\\Order') {
-                        $source = 'order';
-                    } elseif ($item->source_type === 'App\\Models\\WhReceipt') {
-                        $source = 'receipt';
-                    }
+            $sourceMap = [
+                'App\\Models\\Sale' => 'sale',
+                'App\\Models\\Order' => 'order',
+                'App\\Models\\WhReceipt' => 'receipt',
+            ];
 
-                    $amount = $item->orig_amount;
+            $transactionsResult = $transactions->get()->map(function ($item) use ($projectCurrencyId, $projectExchangeRate, $currencyRates, $sourceMap) {
+                $source = $sourceMap[$item->source_type] ?? 'transaction';
+                $amount = $item->orig_amount;
 
-                    if ($item->currency_id != $projectCurrencyId) {
-                        $transactionRate = $currencyRates[$item->currency_id] ?? 1;
-                        $amount = ($item->orig_amount * $transactionRate) * $projectExchangeRate;
-                    }
+                if ($item->currency_id != $projectCurrencyId) {
+                    $transactionRate = $currencyRates[$item->currency_id] ?? 1;
+                    $amount = ($item->orig_amount * $transactionRate) * $projectExchangeRate;
+                }
 
-                    if ($source === 'receipt') {
-                        $amount = -$amount;
-                    } elseif ($source === 'transaction') {
-                        $amount = $item->type == 1 ? +$amount : -$amount;
-                    } elseif ($source === 'sale') {
-                        $amount = +$amount;
-                    } elseif ($source === 'order') {
-                        $amount = -$amount;
-                    }
+                $amount = match($source) {
+                    'receipt' => -$amount,
+                    'transaction' => $item->type == 1 ? +$amount : -$amount,
+                    'sale' => +$amount,
+                    'order' => -$amount,
+                    default => $amount
+                };
 
-                    return [
-                        'source' => $source,
-                        'source_id' => $item->id,
-                        'source_type' => $item->source_type,
-                        'source_source_id' => $item->source_id,
-                        'date' => $item->created_at,
-                        'amount' => $amount,
-                        'orig_amount' => $item->orig_amount,
-                        'is_debt' => $item->is_debt,
-                        'note' => $item->note,
-                        'user_id' => $item->user_id,
-                        'user_name' => $item->user->name,
-                        'cash_currency_symbol' => $item->cashRegister?->currency->symbol ?? $item->currency->symbol,
-                        'debug_transaction_currency' => $item->currency_id,
-                        'debug_transaction_rate' => $currencyRates[$item->currency_id] ?? 1,
-                        'debug_project_currency' => $projectCurrencyId,
-                        'debug_project_rate' => $projectExchangeRate
-                    ];
-                });
+                return [
+                    'source' => $source,
+                    'source_id' => $item->id,
+                    'source_type' => $item->source_type,
+                    'source_source_id' => $item->source_id,
+                    'date' => $item->created_at,
+                    'amount' => $amount,
+                    'orig_amount' => $item->orig_amount,
+                    'is_debt' => $item->is_debt,
+                    'note' => $item->note,
+                    'user_id' => $item->user_id,
+                    'user_name' => $item->user->name,
+                    'cash_currency_symbol' => $item->cashRegister?->currency->symbol ?? $item->currency->symbol,
+                    'debug_transaction_currency' => $item->currency_id,
+                    'debug_transaction_rate' => $currencyRates[$item->currency_id] ?? 1,
+                    'debug_project_currency' => $projectCurrencyId,
+                    'debug_project_rate' => $projectExchangeRate
+                ];
+            });
 
             $result = $transactionsResult
                 ->sortBy('date')
