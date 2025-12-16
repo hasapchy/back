@@ -20,7 +20,7 @@ class Task extends Model
         'executor_id',
         'project_id',
         'company_id',
-        'status',
+        'status_id',
         'deadline',
         'files',
         'comments'
@@ -31,12 +31,6 @@ class Task extends Model
         'files' => 'array',
         'comments' => 'array'
     ];
-
-    // Константы статусов
-    const STATUS_IN_PROGRESS = 'in_progress';
-    const STATUS_PENDING = 'pending';
-    const STATUS_COMPLETED = 'completed';
-    const STATUS_POSTPONED = 'postponed';
 
     // Связи
     public function creator()
@@ -62,6 +56,16 @@ class Task extends Model
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * Связь со статусом задачи
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function status()
+    {
+        return $this->belongsTo(TaskStatus::class, 'status_id');
     }
 
     /**
@@ -92,7 +96,7 @@ class Task extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['title', 'description', 'status', 'deadline', 'supervisor_id', 'executor_id', 'project_id'])
+            ->logOnly(['title', 'description', 'status_id', 'deadline', 'supervisor_id', 'executor_id', 'project_id'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

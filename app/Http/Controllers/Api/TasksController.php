@@ -51,7 +51,7 @@ class TasksController extends BaseController
         }
 
         $task = $this->taskRepository->create($data);
-        $task->load(['creator', 'supervisor', 'executor', 'project']);
+        $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
         return response()->json([
             'data' => new TaskResource($task),
@@ -65,7 +65,7 @@ class TasksController extends BaseController
     public function show($id)
     {
         $task = $this->taskRepository->findById($id);
-        $task->load(['creator', 'supervisor', 'executor', 'project']);
+        $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
         return response()->json([
             'data' => new TaskResource($task)
@@ -78,7 +78,7 @@ class TasksController extends BaseController
     public function update(TaskRequest $request, $id)
     {
         $task = $this->taskRepository->update($id, $request->validated());
-        $task->load(['creator', 'supervisor', 'executor', 'project']);
+        $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
         return response()->json([
             'data' => new TaskResource($task),
@@ -100,11 +100,21 @@ class TasksController extends BaseController
 
     /**
      * Завершить задачу (исполнителем)
+     * @deprecated Используйте update с status_id
      */
     public function complete($id)
     {
-        $task = $this->taskRepository->changeStatus($id, Task::STATUS_PENDING);
-        $task->load(['creator', 'supervisor', 'executor', 'project']);
+        // Находим статус "Завершена" по умолчанию
+        $completedStatus = \App\Models\TaskStatus::where('name', 'like', '%заверш%')
+            ->orWhere('name', 'like', '%completed%')
+            ->first();
+
+        if (!$completedStatus) {
+            return $this->errorResponse('Статус "Завершена" не найден', 404);
+        }
+
+        $task = $this->taskRepository->changeStatus($id, $completedStatus->id);
+        $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
         return response()->json([
             'data' => new TaskResource($task),
@@ -114,11 +124,21 @@ class TasksController extends BaseController
 
     /**
      * Принять задачу (супервайзером)
+     * @deprecated Используйте update с status_id
      */
     public function accept($id)
     {
-        $task = $this->taskRepository->changeStatus($id, Task::STATUS_COMPLETED);
-        $task->load(['creator', 'supervisor', 'executor', 'project']);
+        // Находим статус "Принята" по умолчанию
+        $acceptedStatus = \App\Models\TaskStatus::where('name', 'like', '%принят%')
+            ->orWhere('name', 'like', '%accepted%')
+            ->first();
+
+        if (!$acceptedStatus) {
+            return $this->errorResponse('Статус "Принята" не найден', 404);
+        }
+
+        $task = $this->taskRepository->changeStatus($id, $acceptedStatus->id);
+        $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
         return response()->json([
             'data' => new TaskResource($task),
@@ -128,11 +148,21 @@ class TasksController extends BaseController
 
     /**
      * Вернуть задачу на доработку
+     * @deprecated Используйте update с status_id
      */
     public function return($id)
     {
-        $task = $this->taskRepository->changeStatus($id, Task::STATUS_IN_PROGRESS);
-        $task->load(['creator', 'supervisor', 'executor', 'project']);
+        // Находим статус "В работе" по умолчанию
+        $inProgressStatus = \App\Models\TaskStatus::where('name', 'like', '%работ%')
+            ->orWhere('name', 'like', '%in progress%')
+            ->first();
+
+        if (!$inProgressStatus) {
+            return $this->errorResponse('Статус "В работе" не найден', 404);
+        }
+
+        $task = $this->taskRepository->changeStatus($id, $inProgressStatus->id);
+        $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
         return response()->json([
             'data' => new TaskResource($task),
