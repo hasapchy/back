@@ -33,9 +33,11 @@ class TaskRequest extends FormRequest
             'comments' => 'nullable|array',
         ];
 
-        // При обновлении не требуем title
+        // При обновлении не требуем обязательные поля, если они не переданы
         if ($this->isMethod('PUT') || $this->isMethod('PATCH')) {
             $rules['title'] = 'sometimes|required|string|max:255';
+            $rules['supervisor_id'] = 'sometimes|required|exists:users,id';
+            $rules['executor_id'] = 'sometimes|required|exists:users,id';
         }
 
         return $rules;
