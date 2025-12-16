@@ -303,6 +303,16 @@ class CacheService
     }
 
     /**
+     * Invalidate task statuses cache
+     *
+     * @return void
+     */
+    public static function invalidateTaskStatusesCache(): void
+    {
+        self::invalidateByLike('%task_status%');
+    }
+
+    /**
      * Invalidate transaction categories cache
      *
      * @return void

@@ -27,7 +27,7 @@ class TaskRequest extends FormRequest
             'supervisor_id' => 'required|exists:users,id',
             'executor_id' => 'required|exists:users,id',
             'project_id' => 'nullable|exists:projects,id',
-            'status' => 'nullable|in:pending,in_progress,completed,postponed',
+            'status_id' => 'nullable|exists:task_statuses,id',
             'deadline' => 'nullable|date',
             'files' => 'nullable|array',
             'comments' => 'nullable|array',
@@ -38,6 +38,7 @@ class TaskRequest extends FormRequest
             $rules['title'] = 'sometimes|required|string|max:255';
             $rules['supervisor_id'] = 'sometimes|required|exists:users,id';
             $rules['executor_id'] = 'sometimes|required|exists:users,id';
+            $rules['status_id'] = 'sometimes|nullable|exists:task_statuses,id';
         }
 
         return $rules;

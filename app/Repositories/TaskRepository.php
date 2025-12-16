@@ -15,12 +15,12 @@ class TaskRepository
     public function getFilteredTasks($request): LengthAwarePaginator
     {
         $companyId = $this->getCompanyId();
-        $query = Task::with(['creator', 'supervisor', 'executor', 'project'])
+        $query = Task::with(['creator', 'supervisor', 'executor', 'project', 'status'])
                     ->where('company_id', $companyId);
 
-        // Фильтр по статусу
-        if ($request->has('status') && $request->status !== 'all') {
-            $query->where('status', $request->status);
+        // Фильтр по статусу (status_id)
+        if ($request->has('status') && $request->status !== '' && $request->status !== 'all') {
+            $query->where('status_id', $request->status);
         }
 
         // Фильтр по дате
@@ -47,7 +47,9 @@ class TaskRepository
     public function findById($id): Task
     {
         $companyId = $this->getCompanyId();
-        return Task::where('company_id', $companyId)->findOrFail($id);
+        return Task::with(['creator', 'supervisor', 'executor', 'project', 'status'])
+                    ->where('company_id', $companyId)
+                    ->findOrFail($id);
     }
 
     public function create(array $data): Task
@@ -57,6 +59,16 @@ class TaskRepository
 
         if (!isset($data['company_id']) || !$data['company_id']) {
             throw new \Exception('Company ID is required');
+        }
+
+        // Если status_id не указан, устанавливаем первый доступный статус по умолчанию
+        if (!isset($data['status_id']) || !$data['status_id']) {
+            $defaultStatus = \App\Models\TaskStatus::orderBy('id')->first();
+            if ($defaultStatus) {
+                $data['status_id'] = $defaultStatus->id;
+            } else {
+                throw new \Exception('No task statuses found. Please create at least one task status.');
+            }
         }
 
         return Task::create($data);
@@ -76,10 +88,10 @@ class TaskRepository
         return $task->delete();
     }
 
-    public function changeStatus($id, string $status): Task
+    public function changeStatus($id, int $statusId): Task
     {
         $task = $this->findById($id);
-        $task->update(['status' => $status]);
+        $task->update(['status_id' => $statusId]);
 
         return $task;
     }

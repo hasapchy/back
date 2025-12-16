@@ -21,7 +21,7 @@ class TaskResource extends JsonResource
             'id' => $this->id,
             'title' => $this->title,
             'description' => $this->description,
-            'status' => $this->status,
+            'status_id' => $this->status_id,
             'deadline' => $this->deadline?->toDateTimeString(),
             'files' => $this->files,
             'comments' => $this->comments,
@@ -29,6 +29,13 @@ class TaskResource extends JsonResource
             'updated_at' => $this->updated_at?->toDateTimeString(),
 
             // Связи
+            'status' => $this->whenLoaded('status', function () {
+                return [
+                    'id' => $this->status->id,
+                    'name' => $this->status->name,
+                    'color' => $this->status->color,
+                ];
+            }),
             'creator' => $this->whenLoaded('creator', function () {
                 return [
                     'id' => $this->creator->id,
