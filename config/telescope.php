@@ -93,6 +93,7 @@ return [
     */
 
     'middleware' => [
+        \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         'web',
         Authorize::class,
     ],

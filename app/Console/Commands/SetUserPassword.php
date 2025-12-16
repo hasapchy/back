@@ -31,3 +31,4 @@ class SetUserPassword extends Command
     }
 }
 
+
