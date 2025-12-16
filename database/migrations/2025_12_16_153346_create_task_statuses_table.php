@@ -47,15 +47,9 @@ return new class extends Migration
             'postponed' => DB::table('task_statuses')->where('name', 'Отложена')->value('id'),
         ];
 
-        // УДАЛЯЕМ ИНДЕКСЫ ПЕРЕД удалением колонки status
+        // Удаляем ТОЛЬКО простой индекс на status
+        // Составной индекс ['company_id', 'status'] удалится автоматически при удалении колонки status
         Schema::table('tasks', function (Blueprint $table) {
-            // Удаляем составной индекс ['company_id', 'status']
-            $indexName = 'tasks_company_id_status_index';
-            if (DB::select("SHOW INDEX FROM tasks WHERE Key_name = ?", [$indexName])) {
-                $table->dropIndex($indexName);
-            }
-
-            // Удаляем простой индекс на status
             $indexName = 'tasks_status_index';
             if (DB::select("SHOW INDEX FROM tasks WHERE Key_name = ?", [$indexName])) {
                 $table->dropIndex($indexName);
@@ -77,7 +71,8 @@ return new class extends Migration
             }
         });
 
-        // Удаляем старую колонку status (enum) - индексы уже удалены
+        // Удаляем старую колонку status (enum)
+        // При этом автоматически удалится составной индекс ['company_id', 'status']
         Schema::table('tasks', function (Blueprint $table) {
             $table->dropColumn('status');
         });
@@ -88,7 +83,8 @@ return new class extends Migration
             $table->foreign('status_id')->references('id')->on('task_statuses')->onDelete('restrict');
         });
 
-        // Добавляем новый индекс на status_id
+        // Добавляем новый составной индекс на ['company_id', 'status_id']
+        // Это оптимизирует запросы типа: "найти все задачи компании X со статусом Y"
         Schema::table('tasks', function (Blueprint $table) {
             $table->index(['company_id', 'status_id']);
         });
@@ -99,17 +95,18 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Удаляем новый индекс
+        // ПРАВИЛЬНЫЙ ПОРЯДОК: сначала удаляем foreign key, потом индекс
+        // Удаляем foreign key
+        Schema::table('tasks', function (Blueprint $table) {
+            $table->dropForeign(['status_id']);
+        });
+
+        // Удаляем новый индекс (после удаления foreign key)
         Schema::table('tasks', function (Blueprint $table) {
             $indexName = 'tasks_company_id_status_id_index';
             if (DB::select("SHOW INDEX FROM tasks WHERE Key_name = ?", [$indexName])) {
                 $table->dropIndex($indexName);
             }
-        });
-
-        // Удаляем foreign key
-        Schema::table('tasks', function (Blueprint $table) {
-            $table->dropForeign(['status_id']);
         });
 
         // Восстанавливаем enum колонку status
