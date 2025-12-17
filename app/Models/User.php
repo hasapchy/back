@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Support\Facades\DB;
+use App\Models\Leave;
 
 class User extends Authenticatable
 {
@@ -154,6 +155,10 @@ class User extends Authenticatable
         return $this->belongsToMany(\Spatie\Permission\Models\Role::class, 'company_user_role', 'user_id', 'role_id')
             ->withPivot('company_id')
             ->withTimestamps();
+    }
+    public function leaves()
+    {
+        return $this->hasMany(Leave::class);
     }
 
     /**

@@ -31,6 +31,8 @@ use App\Http\Controllers\Api\WarehouseMovementController;
 use App\Http\Controllers\Api\WarehouseReceiptController;
 use App\Http\Controllers\Api\WarehouseStockController;
 use App\Http\Controllers\Api\WarehouseWriteoffController;
+use App\Http\Controllers\Api\LeaveTypeController;
+use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\CacheController as ApiCacheController;
 use Illuminate\Support\Facades\Route;
 
@@ -245,6 +247,19 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission:order_statuscategories_create')->post('order_status_categories', [OrderStatusCategoryController::class, 'store']);
     Route::middleware('permission:order_statuscategories_update')->put('order_status_categories/{id}', [OrderStatusCategoryController::class, 'update']);
     Route::middleware('permission:order_statuscategories_delete')->delete('order_status_categories/{id}', [OrderStatusCategoryController::class, 'destroy']);
+
+    Route::get('leave_types', [LeaveTypeController::class, 'index']);
+    Route::get('leave_types/all', [LeaveTypeController::class, 'all']);
+    Route::middleware('permission:leave_types_create_all')->post('leave_types', [LeaveTypeController::class, 'store']);
+    Route::middleware('permission:leave_types_update_all')->put('leave_types/{id}', [LeaveTypeController::class, 'update']);
+    Route::middleware('permission:leave_types_delete_all')->delete('leave_types/{id}', [LeaveTypeController::class, 'destroy']);
+
+    Route::middleware('permission:leaves_view_all')->get('leaves', [LeaveController::class, 'index']);
+    Route::middleware('permission:leaves_view_all')->get('leaves/all', [LeaveController::class, 'all']);
+    Route::middleware('permission:leaves_view_all')->get('leaves/{id}', [LeaveController::class, 'show']);
+    Route::middleware('permission:leaves_create_all')->post('leaves', [LeaveController::class, 'store']);
+    Route::middleware('permission:leaves_update_all')->put('leaves/{id}', [LeaveController::class, 'update']);
+    Route::middleware('permission:leaves_delete_all')->delete('leaves/{id}', [LeaveController::class, 'destroy']);
 
     Route::get('transaction_categories', [TransactionCategoryController::class, 'index']);
     Route::middleware('permission:transaction_categories_create')->post('transaction_categories', [TransactionCategoryController::class, 'store']);
