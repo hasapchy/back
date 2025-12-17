@@ -11,6 +11,7 @@ use App\Models\Transaction;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Services\RoundingService;
 
 class TransactionsRepository extends BaseRepository
@@ -61,14 +62,24 @@ class TransactionsRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId()]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeleted, $currentUser) {
-            $searchNormalized = trim((string)$search);
+            $searchTrimmed = is_string($search) ? trim($search) : '';
+            $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
+
+            if ($hasSearch) {
+                Log::info('transactions.search.start', [
+                    'user_id' => $currentUser?->id,
+                    'company_id' => $this->getCurrentCompanyId(),
+                    'search' => $searchTrimmed,
+                    'search_length' => mb_strlen($searchTrimmed),
+                ]);
+            }
             $query = Transaction::with([
                 'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
                 'client.phones:id,client_id,phone',
                 'client.emails:id,client_id,email',
-                'currency:id,name,code,symbol',
+                'currency:id,name,symbol',
                 'cashRegister:id,name,currency_id',
-                'cashRegister.currency:id,name,code,symbol',
+                'cashRegister.currency:id,name,symbol',
                 'category:id,name,type',
                 'project:id,name',
                 'user:id,name',
@@ -108,22 +119,32 @@ class TransactionsRepository extends BaseRepository
                     return $query->where('source_type', 'App\\Models\\Order')
                         ->where('source_id', $order_id);
                 })
-                ->when($searchNormalized !== '', function ($query) use ($searchNormalized) {
-                    return $query->where(function ($q) use ($searchNormalized) {
-                        if (is_numeric($searchNormalized)) {
-                            $q->where('transactions.id', $searchNormalized)
-                                ->orWhere('transactions.note', 'like', "%{$searchNormalized}%");
-                        } else {
-                            $q->where('transactions.note', 'like', "%{$searchNormalized}%");
-                        }
+                ->when($hasSearch, function ($query) use ($searchTrimmed) {
+                    $searchLower = mb_strtolower($searchTrimmed);
+                    return $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                        $q->where('transactions.id', 'like', "%{$searchTrimmed}%")
+                            ->orWhereRaw('LOWER(transactions.note) LIKE ?', ["%{$searchLower}%"]);
 
-                        $this->applyClientSearchFilterThroughRelation($q, 'client', $searchNormalized);
-                        $q->orWhereHas('client.phones', function ($phoneQuery) use ($searchNormalized) {
-                            $phoneQuery->where('phone', 'like', "%{$searchNormalized}%");
+                        $q->orWhereExists(function ($subQuery) use ($searchTrimmed) {
+                            $subQuery->select(DB::raw(1))
+                                ->from('clients')
+                                ->whereColumn('clients.id', 'transactions.client_id')
+                                ->where(function ($clientQuery) use ($searchTrimmed) {
+                                    $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
+                                });
                         })
-                            ->orWhereHas('client.emails', function ($emailQuery) use ($searchNormalized) {
-                                $emailQuery->where('email', 'like', "%{$searchNormalized}%");
-                            });
+                        ->orWhereExists(function ($phoneSubQuery) use ($searchLower) {
+                            $phoneSubQuery->select(DB::raw(1))
+                                ->from('clients_phones')
+                                ->whereColumn('clients_phones.client_id', 'transactions.client_id')
+                                ->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                        })
+                        ->orWhereExists(function ($emailSubQuery) use ($searchLower) {
+                            $emailSubQuery->select(DB::raw(1))
+                                ->from('clients_emails')
+                                ->whereColumn('clients_emails.client_id', 'transactions.client_id')
+                                ->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                        });
                     });
                 })
                 ->when($transaction_type, function ($query, $transaction_type) {
@@ -183,16 +204,40 @@ class TransactionsRepository extends BaseRepository
 
             $query->orderBy('transactions.id', 'desc');
 
+            if ($hasSearch) {
+                Log::info('transactions.search.query', [
+                    'sql' => $query->toSql(),
+                    'bindings' => $query->getBindings(),
+                ]);
+            }
+
             /** @var \Illuminate\Pagination\LengthAwarePaginator $paginatedResults */
             $paginatedResults = $query->paginate($perPage, ['*'], 'page', (int)$page);
+            Log::info('transactions.search.result', [
+                'user_id' => $currentUser?->id,
+                'company_id' => $this->getCurrentCompanyId(),
+                'search' => $searchTrimmed,
+                'has_search' => $hasSearch,
+                'cash_id' => $cash_id,
+                'date_filter_type' => $date_filter_type,
+                'order_id' => $order_id,
+                'transaction_type' => $transaction_type,
+                'source' => $source,
+                'project_id' => $project_id,
+                'start_date' => $start_date,
+                'end_date' => $end_date,
+                'is_debt' => $is_debt,
+                'show_deleted' => $showDeleted,
+                'count' => $paginatedResults->total(),
+            ]);
 
             $paginatedResults->getCollection()->load([
                 'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
                 'client.phones:id,client_id,phone',
                 'client.emails:id,client_id,email',
-                'currency:id,name,code,symbol',
+                'currency:id,name,symbol',
                 'cashRegister:id,name,currency_id',
-                'cashRegister.currency:id,name,code,symbol',
+                'cashRegister.currency:id,name,symbol',
                 'category:id,name,type',
                 'project:id,name',
                 'user:id,name',
@@ -223,12 +268,10 @@ class TransactionsRepository extends BaseRepository
                     'cash_amount' => $transaction->amount,
                     'cash_currency_id' => $transaction->cashRegister?->currency?->id,
                     'cash_currency_name' => $transaction->cashRegister?->currency?->name,
-                    'cash_currency_code' => $transaction->cashRegister?->currency?->code,
                     'cash_currency_symbol' => $transaction->cashRegister?->currency?->symbol,
                     'orig_amount' => $transaction->orig_amount,
                     'orig_currency_id' => $transaction->currency?->id,
                     'orig_currency_name' => $transaction->currency?->name,
-                    'orig_currency_code' => $transaction->currency?->code,
                     'orig_currency_symbol' => $transaction->currency?->symbol,
                     'user_id' => $transaction->user_id,
                     'user_name' => $transaction->user?->name,
@@ -887,12 +930,10 @@ class TransactionsRepository extends BaseRepository
             'transactions.amount as cash_amount',
             'cash_register_currencies.id as cash_currency_id',
             'cash_register_currencies.name as cash_currency_name',
-            'cash_register_currencies.code as cash_currency_code',
             'cash_register_currencies.symbol as cash_currency_symbol',
             'transactions.orig_amount as orig_amount',
             'currencies.id as orig_currency_id',
             'currencies.name as orig_currency_name',
-            'currencies.code as orig_currency_code',
             'currencies.symbol as orig_currency_symbol',
             'transactions.user_id as user_id',
             'users.name as user_name',

@@ -116,7 +116,6 @@ class AuthController extends BaseController
                 'roles' => $roles,
                 'permissions' => $permissions
             ],
-            'permissions' => $permissions,
         ]);
     }
 

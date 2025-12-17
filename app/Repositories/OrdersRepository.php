@@ -53,6 +53,8 @@ class OrdersRepository extends BaseRepository
         $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser, $hasSearch) {
             $transactionsRepository = new \App\Repositories\TransactionsRepository();
 
+            $loadProducts = true;
+
             $withRelations = [
                 'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict',
                 'client.phones:id,client_id,phone',
@@ -61,7 +63,7 @@ class OrdersRepository extends BaseRepository
                 'status.category:id,name,color',
                 'warehouse:id,name',
                 'cash:id,name,currency_id',
-                'cash.currency:id,name,code,symbol',
+                'cash.currency:id,name,symbol',
                 'project:id,name',
                 'category:id,name',
             ];
@@ -105,6 +107,9 @@ class OrdersRepository extends BaseRepository
                         })
                         ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
                             $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                        })
+                        ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
+                            $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
                         });
                 });
             }
@@ -190,7 +195,6 @@ class OrdersRepository extends BaseRepository
                     $order->cash_name = $order->cash->name;
                     if ($order->cash->currency) {
                         $order->currency_name = $order->cash->currency->name;
-                        $order->currency_code = $order->cash->currency->code;
                         $order->currency_symbol = $order->cash->currency->symbol;
                     }
                 }
@@ -214,7 +218,6 @@ class OrdersRepository extends BaseRepository
                             'product_name' => $orderProduct->product->name ?? null,
                             'product_image' => $orderProduct->product->image ?? null,
                             'unit_id' => $orderProduct->product->unit_id ?? null,
-                            'unit_name' => $orderProduct->product->unit->name ?? null,
                             'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
                             'quantity' => $orderProduct->quantity,
                             'price' => $orderProduct->price,
@@ -234,7 +237,6 @@ class OrdersRepository extends BaseRepository
                             'product_name' => $tempProduct->name,
                             'product_image' => null,
                             'unit_id' => $tempProduct->unit_id,
-                            'unit_name' => $tempProduct->unit->name ?? null,
                             'unit_short_name' => $tempProduct->unit->short_name ?? null,
                             'quantity' => $tempProduct->quantity,
                             'price' => $tempProduct->price,
@@ -267,7 +269,26 @@ class OrdersRepository extends BaseRepository
 
             $unpaidOrdersTotal = 0;
 
-            $unpaidQuery = Order::select(['orders.id', 'orders.price', 'orders.discount', 'orders.user_id', 'orders.project_id'])
+            $unpaidQuery = Order::selectRaw('
+                COALESCE(SUM(
+                    CASE
+                        WHEN (orders.price - COALESCE(orders.discount, 0)) > COALESCE(paid_amounts.total_paid, 0)
+                        THEN (orders.price - COALESCE(orders.discount, 0) - COALESCE(paid_amounts.total_paid, 0))
+                        ELSE 0
+                    END
+                ), 0) as unpaid_total
+            ')
+            ->leftJoinSub(
+                Transaction::select('source_id', DB::raw('SUM(orig_amount) as total_paid'))
+                    ->where('source_type', Order::class)
+                    ->where('is_debt', 0)
+                    ->where('is_deleted', 0)
+                    ->groupBy('source_id'),
+                'paid_amounts',
+                function ($join) {
+                    $join->on('orders.id', '=', 'paid_amounts.source_id');
+                }
+            )
             ->whereNull('orders.project_id')
             ->where(function ($q) use ($userUuid) {
                 if ($this->shouldApplyUserFilter('cash_registers')) {
@@ -368,12 +389,19 @@ class OrdersRepository extends BaseRepository
             ->with([
                 'warehouse:id,name',
                 'cash:id,name,currency_id',
-                'cash.currency:id,name,code,symbol',
+                'cash.currency:id,name,symbol',
                 'project:id,name',
                 'user:id,name,photo',
                 'status:id,name,category_id',
                 'status.category:id,name,color',
-                'category:id,name'
+                'category:id,name',
+                'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict',
+                'client.phones:id,client_id,phone',
+                'orderProducts:id,order_id,product_id,quantity,price,width,height',
+                'orderProducts.product:id,name,image,unit_id',
+                'orderProducts.product.unit:id,name,short_name',
+                'tempProducts:id,order_id,name,description,quantity,price,unit_id,width,height',
+                'tempProducts.unit:id,name,short_name'
             ])
             ->get();
 
@@ -408,7 +436,6 @@ class OrdersRepository extends BaseRepository
                 'cash_name' => $order->cash->name ?? null,
                 'currency_id' => $order->cash?->currency->id,
                 'currency_name' => $order->cash?->currency->name,
-                'currency_code' => $order->cash?->currency->code,
                 'currency_symbol' => $order->cash?->currency->symbol,
                 'project_name' => $order->project->name ?? null,
                 'user_name' => $order->user->name,
@@ -459,7 +486,6 @@ class OrdersRepository extends BaseRepository
                     'product_name' => $item->product->name ?? null,
                     'product_image' => $item->product->image ?? null,
                     'unit_id' => $item->product->unit_id ?? null,
-                    'unit_name' => $item->product->unit->name ?? null,
                     'unit_short_name' => $item->product->unit->short_name ?? null,
                     'quantity' => $item->quantity,
                     'price' => $item->price,
@@ -480,7 +506,6 @@ class OrdersRepository extends BaseRepository
                     'product_name' => $item->name,
                     'product_image' => null,
                     'unit_id' => $item->unit_id,
-                    'unit_name' => $item->unit->name ?? null,
                     'unit_short_name' => $item->unit->short_name ?? null,
                     'quantity' => $item->quantity,
                     'price' => $item->price,
@@ -1433,7 +1458,6 @@ class OrdersRepository extends BaseRepository
 
         if ($order->cash && $order->cash->currency) {
             $order->currency_name = $order->cash->currency->name;
-            $order->currency_code = $order->cash->currency->code;
             $order->currency_symbol = $order->cash->currency->symbol;
         }
 
@@ -1451,7 +1475,6 @@ class OrdersRepository extends BaseRepository
                     'product_name' => $orderProduct->product->name ?? null,
                     'product_image' => $orderProduct->product->image ?? null,
                     'unit_id' => $orderProduct->product->unit_id ?? null,
-                    'unit_name' => $orderProduct->product->unit->name ?? null,
                     'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
                     'quantity' => $orderProduct->quantity,
                     'price' => $orderProduct->price,
@@ -1469,7 +1492,6 @@ class OrdersRepository extends BaseRepository
                     'product_name' => $tempProduct->name,
                     'product_image' => null,
                     'unit_id' => $tempProduct->unit_id,
-                    'unit_name' => $tempProduct->unit->name ?? null,
                     'unit_short_name' => $tempProduct->unit->short_name ?? null,
                     'quantity' => $tempProduct->quantity,
                     'price' => $tempProduct->price,

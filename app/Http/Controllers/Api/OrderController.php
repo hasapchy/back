@@ -12,6 +12,8 @@ use App\Models\User;
 use App\Models\Category;
 use App\Models\CategoryUser;
 use Illuminate\Http\Request;
+use App\Http\Resources\OrderCollection;
+use App\Http\Resources\OrderResource;
 
 /**
  * Контроллер для работы с заказами
@@ -54,21 +56,9 @@ class OrderController extends BaseController
 
         $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly);
 
-        $itemsArray = $items->items();
+        $unpaidOrdersTotal = $items->unpaid_orders_total ?? null;
 
-        $response = [
-            'items' => $itemsArray,
-            'current_page' => $items->currentPage(),
-            'next_page' => $items->nextPageUrl(),
-            'last_page' => $items->lastPage(),
-            'total' => $items->total()
-        ];
-
-        if (isset($items->unpaid_orders_total)) {
-            $response['unpaid_orders_total'] = $items->unpaid_orders_total;
-        }
-
-        return response()->json($response);
+        return new OrderCollection($items, $unpaidOrdersTotal);
     }
 
     /**
@@ -153,7 +143,7 @@ class OrderController extends BaseController
         }
 
         try {
-            $this->itemRepository->createItem($data);
+            $order = $this->itemRepository->createItem($data);
 
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
@@ -163,7 +153,8 @@ class OrderController extends BaseController
                 CacheService::invalidateProjectsCache();
             }
 
-            return response()->json(['message' => 'Заказ успешно создан']);
+            $order = $this->itemRepository->getItemById($order->id);
+            return (new OrderResource($order))->additional(['message' => 'Заказ успешно создан']);
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage(), 400);
         }
@@ -273,7 +264,8 @@ class OrderController extends BaseController
                 CacheService::invalidateProjectsCache();
             }
 
-            return response()->json(['message' => 'Заказ сохранён']);
+            $updatedOrder = $this->itemRepository->getItemById($id);
+            return (new OrderResource($updatedOrder))->additional(['message' => 'Заказ сохранён']);
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage(), 400);
         }
@@ -387,7 +379,7 @@ class OrderController extends BaseController
             }
         }
 
-        return response()->json(['item' => $item]);
+        return new OrderResource($item);
     }
 
     /**
