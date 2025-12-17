@@ -169,13 +169,13 @@ return [
             'has_user_id' => false,
             'check_strategy' => 'default',
             'actions' => ['view', 'create', 'update', 'delete'],
-            'scope_actions' => ['create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
         ],
         'leaves' => [
             'has_user_id' => true,
             'check_strategy' => 'user_id',
             'actions' => ['view', 'create', 'update', 'delete'],
-            'scope_actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
         ],
     ],
 
@@ -232,6 +232,10 @@ return [
         'users' => [
             'label' => 'users',
             'resources' => ['users', 'roles', 'employee_salaries'],
+        ],
+        'leaves' => [
+            'label' => 'leaves',
+            'resources' => ['leaves', 'leave_types'],
         ],
     ],
 
