@@ -59,7 +59,7 @@ class SalesRepository extends BaseRepository
                     'client.emails:id,client_id,email',
                     'warehouse:id,name',
                     'cashRegister:id,name,currency_id',
-                    'cashRegister.currency:id,name,code,symbol',
+                    'cashRegister.currency:id,name,symbol',
                     'user:id,name',
                     'project:id,name',
                     'products:id,sale_id,product_id,quantity,price',
@@ -102,7 +102,7 @@ class SalesRepository extends BaseRepository
                 'client.emails:id,client_id,email',
                 'warehouse:id,name',
                 'cashRegister:id,currency_id',
-                'cashRegister.currency:id,name,code,symbol',
+                'cashRegister.currency:id,name,symbol',
                 'user:id,name',
                 'project:id,name',
                 'products:id,sale_id,product_id,quantity,price',
@@ -129,15 +129,19 @@ class SalesRepository extends BaseRepository
             return;
         }
 
-        $query->where(function ($q) use ($searchTrimmed) {
+        $searchLower = mb_strtolower($searchTrimmed);
+        $query->where(function ($q) use ($searchTrimmed, $searchLower) {
             $q->where('sales.id', 'like', "%{$searchTrimmed}%")
-                ->orWhere('sales.note', 'like', "%{$searchTrimmed}%");
-            $this->applyClientSearchFilterThroughRelation($q, 'client', $searchTrimmed);
-            $q->orWhereHas('client.phones', function ($phoneQuery) use ($searchTrimmed) {
-                $phoneQuery->where('phone', 'like', "%{$searchTrimmed}%");
+                ->orWhereRaw('LOWER(sales.note) LIKE ?', ["%{$searchLower}%"]);
+            
+            $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
+                $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
             })
-            ->orWhereHas('client.emails', function ($emailQuery) use ($searchTrimmed) {
-                $emailQuery->where('email', 'like', "%{$searchTrimmed}%");
+            ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
+                $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+            })
+            ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
+                $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
             });
         });
     }

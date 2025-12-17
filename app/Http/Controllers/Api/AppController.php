@@ -86,7 +86,6 @@ class AppController extends BaseController
             'currency_id' => $currencyId,
             'exchange_rate' => $exchangeRate,
             'currency_name' => $currency->name,
-            'currency_code' => $currency->code,
             'currency_symbol' => $currency->symbol
         ]);
     }

@@ -37,6 +37,8 @@ class UpdateInvoiceRequest extends FormRequest
             'products.*.product_name' => 'required_with:products|string|max:255',
             'products.*.quantity' => 'required_with:products|numeric|min:0.01',
             'products.*.price' => 'required_with:products|numeric|min:0',
+            'products.*.total_price' => 'required_with:products|numeric|min:0',
+            'total_amount' => 'nullable|numeric|min:0',
         ];
     }
 

@@ -46,6 +46,19 @@ class CacheService
     }
 
     /**
+     * Invalidate all paginated pages for a base cache key
+     *
+     * @param string $baseKey Base cache key (without paginated_ prefix and page suffix)
+     * @param int|null $companyId Company ID
+     * @return void
+     */
+    public static function invalidatePaginatedData(string $baseKey, ?int $companyId = null): void
+    {
+        $pattern = "paginated_{$baseKey}_page_%";
+        self::invalidateByLike($pattern, $companyId);
+    }
+
+    /**
      * Cache reference data
      *
      * @param string $cacheKey Cache key
@@ -204,11 +217,8 @@ class CacheService
             if ($companyId !== null) {
                 $pattern = str_replace('%', '', $like) . "_{$companyId}";
                 Cache::forget($pattern);
-            } else {
-                Cache::flush();
             }
         } catch (\Exception $e) {
-            // Cache flush failed silently
         }
     }
 
@@ -486,28 +496,6 @@ class CacheService
     }
 
     /**
-     * Smart cache remember with automatic TTL adjustment for large datasets
-     *
-     * @param string $key Cache key
-     * @param callable $callback Callback to generate data if not cached
-     * @param int|null $ttl Time to live in seconds
-     * @return mixed
-     */
-    public static function smartRemember(string $key, callable $callback, ?int $ttl = null)
-    {
-        $ttl = $ttl ?? self::CACHE_TTL['reference_data'];
-        $data = $callback();
-
-        if (is_array($data) && count($data) > 1000) {
-            $ttl = min($ttl, 300);
-        }
-
-        return Cache::remember($key, $ttl, function () use ($data) {
-            return $data;
-        });
-    }
-
-    /**
      * Cache search results
      *
      * @param string $key Cache key
@@ -517,25 +505,6 @@ class CacheService
     public static function rememberSearch(string $key, callable $callback)
     {
         return self::remember($key, $callback, self::CACHE_TTL['search_results']);
-    }
-
-    /**
-     * Preload data for multiple keys
-     *
-     * @param array $keys Array of cache keys
-     * @param callable $callback Callback to generate data for each key
-     * @return array
-     */
-    public static function preloadData(array $keys, callable $callback): array
-    {
-        $results = [];
-        foreach ($keys as $key) {
-            if (!Cache::has($key)) {
-                $results[$key] = $callback($key);
-                Cache::put($key, $results[$key], self::CACHE_TTL['reference_data']);
-            }
-        }
-        return $results;
     }
 
     /**

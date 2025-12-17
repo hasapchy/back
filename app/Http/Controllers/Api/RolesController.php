@@ -74,10 +74,17 @@ class RolesController extends BaseController
     /**
      * Получить все роли
      *
+     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function all()
+    public function all(Request $request)
     {
+        $allCompanies = $request->boolean('all_companies', false);
+        
+        if ($allCompanies) {
+            return response()->json($this->itemsRepository->getAllItemsForAllCompanies());
+        }
+        
         $companyId = $this->getCurrentCompanyId();
         return response()->json($this->itemsRepository->getAllItems($companyId));
     }

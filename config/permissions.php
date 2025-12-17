@@ -43,6 +43,9 @@ return [
             'check_strategy' => 'default',
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
+            'custom_permissions' => [
+                'create_temp' => 'products_create_temp',
+            ],
         ],
         'clients' => [
             'has_user_id' => true,

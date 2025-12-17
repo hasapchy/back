@@ -201,12 +201,44 @@ abstract class BaseRepository
         $companyId = $this->getCurrentCompanyId() ?? 'default';
         $key = $prefix;
         foreach ($params as $param) {
-            if ($param !== null && $param !== '') {
-                $key .= "_{$param}";
+            if ($param === null) {
+                continue;
             }
+            $normalized = $this->normalizeCacheParam($param);
+            if ($normalized === '') {
+                continue;
+            }
+            if (strlen($normalized) > 50) {
+                $normalized = md5($normalized);
+            }
+            $key .= "_{$normalized}";
         }
         $key .= "_{$companyId}";
+        if (strlen($key) > 250) {
+            $hash = md5($key);
+            $key = substr($key, 0, 200) . "_{$hash}";
+        }
         return $key;
+    }
+
+    /**
+     * Нормализовать параметр для ключа кэша
+     *
+     * @param mixed $param Параметр
+     * @return string
+     */
+    protected function normalizeCacheParam($param): string
+    {
+        if (is_bool($param)) {
+            return $param ? '1' : '0';
+        }
+
+        if (is_array($param)) {
+            sort($param);
+            return implode(',', $param);
+        }
+
+        return (string) $param;
     }
 
 

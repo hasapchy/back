@@ -24,7 +24,7 @@ class ProjectsRepository extends BaseRepository
             'client:id,first_name,last_name,contact_person,balance',
             'client.phones:id,client_id,phone',
             'client.emails:id,client_id,email',
-            'currency:id,name,code,symbol',
+            'currency:id,name,symbol',
             'status:id,name,color',
             'creator:id,name,photo',
             'users:id,name',
@@ -80,10 +80,21 @@ class ProjectsRepository extends BaseRepository
             $query = $this->addCompanyFilterDirect($query, 'projects');
 
             if ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('projects.id', 'like', "%{$search}%")
-                        ->orWhere('projects.name', 'like', "%{$search}%");
-                    $this->applyClientSearchFilterThroughRelation($q, 'client', $search);
+                $searchTrimmed = trim((string)$search);
+                $searchLower = mb_strtolower($searchTrimmed);
+                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                    $q->where('projects.id', 'like', "%{$searchTrimmed}%")
+                        ->orWhereRaw('LOWER(projects.name) LIKE ?', ["%{$searchLower}%"]);
+                    
+                    $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
+                        $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
+                    })
+                    ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
+                        $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                    })
+                    ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
+                        $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                    });
                 });
             }
 
@@ -260,7 +271,7 @@ class ProjectsRepository extends BaseRepository
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
                     'creator:id,name,photo',
-                    'currency:id,name,code,symbol',
+                    'currency:id,name,symbol',
                     'users:id,name',
                     'projectUsers:id,project_id,user_id'
                 ])
