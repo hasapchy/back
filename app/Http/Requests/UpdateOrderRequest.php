@@ -36,6 +36,8 @@ class UpdateOrderRequest extends FormRequest
             'warehouse_id'         => ['required', 'integer', new WarehouseAccessRule()],
             'currency_id'          => 'nullable|integer|exists:currencies,id',
             'category_id'          => 'nullable|integer|exists:categories,id',
+            'discount'             => 'nullable|numeric|min:0',
+            'discount_type'        => 'nullable|in:fixed,percent|required_with:discount',
             'date'                 => 'nullable|date',
             'note'                 => 'nullable|string',
             'description'          => 'nullable|string',

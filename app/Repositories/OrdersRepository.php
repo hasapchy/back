@@ -49,8 +49,9 @@ class OrdersRepository extends BaseRepository
 
         $searchTrimmed = is_string($search) ? trim($search) : '';
         $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
+        $loadProducts = $perPage <= 50;
 
-        $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser, $hasSearch) {
+        $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser, $hasSearch, $loadProducts) {
             $transactionsRepository = new \App\Repositories\TransactionsRepository();
 
             $withRelations = [

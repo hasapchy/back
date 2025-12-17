@@ -50,6 +50,20 @@ class RolesRepository extends BaseRepository
     }
 
     /**
+     * Получить все роли для всех компаний (глобальные + для всех компаний)
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getAllItemsForAllCompanies()
+    {
+        return Role::where('guard_name', 'api')
+            ->with('permissions:id,name')
+            ->select(['id', 'name', 'guard_name', 'company_id'])
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
      * Создать роль
      *
      * @param array $data Данные роли
