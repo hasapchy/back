@@ -20,7 +20,7 @@ class CahRegistersRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name']);
+        $query = CashRegister::with(['currency:id,name,symbol', 'users:id,name']);
 
         $this->applyUserFilter($query, $userUuid);
         $query = $this->addCompanyFilterDirect($query, 'cash_registers');
@@ -46,7 +46,7 @@ class CahRegistersRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid, $currentUser?->id, $companyId]);
 
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
-            $query = CashRegister::with(['currency:id,name,code,symbol', 'users:id,name']);
+            $query = CashRegister::with(['currency:id,name,symbol', 'users:id,name']);
 
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'cash_registers');
@@ -76,7 +76,7 @@ class CahRegistersRepository extends BaseRepository
         $transactionType = null,
         $source = null
     ) {
-        $query = CashRegister::with(['currency:id,name,code,symbol']);
+        $query = CashRegister::with(['currency:id,name,symbol']);
 
         $this->applyUserFilter($query, $userUuid);
         $query = $this->addCompanyFilterDirect($query, 'cash_registers');
@@ -239,7 +239,6 @@ class CahRegistersRepository extends BaseRepository
                 'name' => $cashRegister->name,
                 'currency_id' => $cashRegister->currency_id,
                 'currency_symbol' => $cashRegister->currency ? $cashRegister->currency->symbol : null,
-                'currency_code' => $cashRegister->currency ? $cashRegister->currency->code : null,
                 'balance' => $balance,
             ];
         });

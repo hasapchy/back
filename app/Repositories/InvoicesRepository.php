@@ -41,10 +41,21 @@ class InvoicesRepository extends BaseRepository
             $this->applyOwnFilter($query, 'invoices', 'invoices', 'user_id');
 
             if ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('invoice_number', 'like', "%{$search}%")
-                        ->orWhere('note', 'like', "%{$search}%");
-                    $this->applyClientSearchFilterThroughRelation($q, 'client', $search);
+                $searchTrimmed = trim((string)$search);
+                $searchLower = mb_strtolower($searchTrimmed);
+                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                    $q->where('invoice_number', 'like', "%{$searchTrimmed}%")
+                        ->orWhereRaw('LOWER(note) LIKE ?', ["%{$searchLower}%"]);
+                    
+                    $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
+                        $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
+                    })
+                    ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
+                        $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                    })
+                    ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
+                        $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                    });
                 });
             }
 
@@ -121,15 +132,21 @@ class InvoicesRepository extends BaseRepository
             if (isset($data['products']) && is_array($data['products']) && !empty($data['products'])) {
                 $productsData = [];
                 foreach ($data['products'] as $productData) {
+                    $quantity = (float) ($productData['quantity'] ?? 0);
+                    $price = (float) ($productData['price'] ?? 0);
+                    $totalPrice = isset($productData['total_price']) 
+                        ? (float) $productData['total_price'] 
+                        : ($quantity * $price);
+                    
                     $productsData[] = [
                         'invoice_id' => $invoice->id,
                         'order_id' => $productData['order_id'] ?? null,
                         'product_id' => $productData['product_id'] ?? null,
                         'product_name' => $productData['product_name'],
                         'product_description' => $productData['product_description'] ?? null,
-                        'quantity' => $productData['quantity'],
-                        'price' => $productData['price'],
-                        'total_price' => $productData['total_price'],
+                        'quantity' => $quantity,
+                        'price' => $price,
+                        'total_price' => $totalPrice,
                         'unit_id' => $productData['unit_id'] ?? null,
                     ];
                 }
@@ -155,13 +172,27 @@ class InvoicesRepository extends BaseRepository
         return DB::transaction(function () use ($id, $data) {
             $invoice = Invoice::findOrFail($id);
 
-            $invoice->update([
+            $updateData = [
                 'client_id' => $data['client_id'],
-                'invoice_date' => $data['invoice_date'] ?? $invoice->invoice_date,
-                'note' => $data['note'] ?? $invoice->note,
-                'total_amount' => $data['total_amount'] ?? $invoice->total_amount,
-                'status' => $data['status'] ?? $invoice->status,
-            ]);
+            ];
+            
+            if (isset($data['invoice_date'])) {
+                $updateData['invoice_date'] = $data['invoice_date'];
+            }
+            
+            if (isset($data['note'])) {
+                $updateData['note'] = $data['note'];
+            }
+            
+            if (isset($data['total_amount'])) {
+                $updateData['total_amount'] = $data['total_amount'];
+            }
+            
+            if (isset($data['status'])) {
+                $updateData['status'] = $data['status'];
+            }
+            
+            $invoice->update($updateData);
 
             if (isset($data['order_ids'])) {
                 $invoice->orders()->sync($data['order_ids']);
@@ -173,15 +204,21 @@ class InvoicesRepository extends BaseRepository
                 if (!empty($data['products'])) {
                     $productsData = [];
                     foreach ($data['products'] as $productData) {
+                        $quantity = (float) ($productData['quantity'] ?? 0);
+                        $price = (float) ($productData['price'] ?? 0);
+                        $totalPrice = isset($productData['total_price']) 
+                            ? (float) $productData['total_price'] 
+                            : ($quantity * $price);
+                        
                         $productsData[] = [
                             'invoice_id' => $invoice->id,
                             'order_id' => $productData['order_id'] ?? null,
                             'product_id' => $productData['product_id'] ?? null,
                             'product_name' => $productData['product_name'],
                             'product_description' => $productData['product_description'] ?? null,
-                            'quantity' => $productData['quantity'],
-                            'price' => $productData['price'],
-                            'total_price' => $productData['total_price'],
+                            'quantity' => $quantity,
+                            'price' => $price,
+                            'total_price' => $totalPrice,
                             'unit_id' => $productData['unit_id'] ?? null,
                         ];
                     }
@@ -255,7 +292,6 @@ class InvoicesRepository extends BaseRepository
             'cash_registers.name as cash_name',
             'cash_currency.id as currency_id',
             'cash_currency.name as currency_name',
-            'cash_currency.code as currency_code',
             'cash_currency.symbol as currency_symbol',
             'projects.name as project_name',
             'users.name as user_name',
@@ -340,7 +376,6 @@ class InvoicesRepository extends BaseRepository
                 $currency = $order->cash->currency;
                 $order->currency_id = $currency->id;
                 $order->currency_name = $currency->name;
-                $order->currency_code = $currency->code;
                 $order->currency_symbol = $currency->symbol;
             }
         }

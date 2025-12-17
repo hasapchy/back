@@ -73,7 +73,6 @@ class ClientsRepository extends BaseRepository
                     $q->where('clients.id', 'like', $searchTerm)
                       ->orWhere('clients.first_name', 'like', $searchTerm)
                       ->orWhere('clients.last_name', 'like', $searchTerm)
-                      ->orWhere('clients.patronymic', 'like', $searchTerm)
                       ->orWhere('clients.contact_person', 'like', $searchTerm)
                       ->orWhere('clients.position', 'like', $searchTerm)
                       ->orWhere('clients.address', 'like', $searchTerm)
@@ -97,10 +96,9 @@ class ClientsRepository extends BaseRepository
      *
      * @param array $typeFilter
      * @param bool $forMutualSettlements Применять фильтр по правам доступа к взаиморасчетам
-     * @param array $cashRegisterFilter Фильтр по кассам
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getAllItems(array $typeFilter = [], bool $forMutualSettlements = false, array $cashRegisterFilter = [])
+    public function getAllItems(array $typeFilter = [], bool $forMutualSettlements = false)
     {
         $typeFilter = $this->normalizeTypeFilter($typeFilter);
 
@@ -120,10 +118,9 @@ class ClientsRepository extends BaseRepository
             }
         }
 
-        $cashRegisterFilterKey = !empty($cashRegisterFilter) ? implode(',', $cashRegisterFilter) : '';
-        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter), $forMutualSettlements, $cashRegisterFilterKey]);
+        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter), $forMutualSettlements]);
 
-        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter, $cashRegisterFilter) {
+        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter) {
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
@@ -131,8 +128,18 @@ class ClientsRepository extends BaseRepository
                 'employee:id,name,surname,position,photo'
             ])
                 ->select([
-                    'clients.*',
-                    'clients.balance as balance'
+                    'clients.id',
+                    'clients.company_id',
+                    'clients.user_id',
+                    'clients.client_type',
+                    'clients.balance',
+                    'clients.is_supplier',
+                    'clients.first_name',
+                    'clients.last_name',
+                    'clients.patronymic',
+                    'clients.contact_person',
+                    'clients.position',
+                    'clients.employee_id'
                 ])
                 ->where('clients.status', true);
 
@@ -142,13 +149,6 @@ class ClientsRepository extends BaseRepository
 
             if (!empty($typeFilter)) {
                 $query->whereIn('clients.client_type', $typeFilter);
-            }
-
-            if (!empty($cashRegisterFilter)) {
-                $query->whereHas('transactions', function ($transactionQuery) use ($cashRegisterFilter) {
-                    $transactionQuery->whereIn('cash_id', $cashRegisterFilter)
-                        ->where('is_deleted', false);
-                });
             }
 
             $query->orderBy('clients.created_at', 'desc');
@@ -180,8 +180,15 @@ class ClientsRepository extends BaseRepository
             return [];
         }
 
+        $allowedTypes = [];
         $clientTypes = ['individual', 'company', 'employee', 'investor'];
-        return array_filter($clientTypes, fn($type) => in_array("mutual_settlements_view_{$type}", $permissions));
+        foreach ($clientTypes as $type) {
+            if (in_array("mutual_settlements_view_{$type}", $permissions)) {
+                $allowedTypes[] = $type;
+            }
+        }
+
+        return $allowedTypes;
     }
 
     /**
@@ -220,7 +227,6 @@ class ClientsRepository extends BaseRepository
                     $q->orWhere(function ($subQuery) use ($term) {
                         $subQuery->where('clients.first_name', 'like', "%{$term}%")
                             ->orWhere('clients.last_name', 'like', "%{$term}%")
-                            ->orWhere('clients.patronymic', 'like', "%{$term}%")
                             ->orWhere('clients.contact_person', 'like', "%{$term}%")
                             ->orWhere('clients.position', 'like', "%{$term}%")
                             ->orWhereHas('phones', function ($phoneQuery) use ($term) {
@@ -426,7 +432,7 @@ class ClientsRepository extends BaseRepository
 
                 $transactionsQuery->with([
                         'cashRegister:id,name',
-                        'currency:id,symbol,code',
+                        'currency:id,symbol',
                         'user:id,name',
                         'category:id,name'
                     ])
@@ -487,7 +493,6 @@ class ClientsRepository extends BaseRepository
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
-                                'currency_code' => $item->currency->code,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null
                             ];
@@ -519,7 +524,6 @@ class ClientsRepository extends BaseRepository
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
-                                'currency_code' => $item->currency->code,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null
                             ];
@@ -539,7 +543,6 @@ class ClientsRepository extends BaseRepository
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
-                                'currency_code' => $item->currency->code,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null
                             ];
@@ -565,7 +568,6 @@ class ClientsRepository extends BaseRepository
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
-                                'currency_code' => $item->currency->code,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null
                             ];
@@ -585,7 +587,6 @@ class ClientsRepository extends BaseRepository
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
-                                'currency_code' => $item->currency->code,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null
                             ];
@@ -669,19 +670,20 @@ class ClientsRepository extends BaseRepository
      */
     private function syncPhones(int $clientId, array $phones)
     {
-        $existingPhones = ClientsPhone::where('client_id', $clientId)->pluck('phone')->toArray();
+        $existingPhones = ClientsPhone::where('client_id', $clientId)
+            ->pluck('phone')
+            ->toArray();
+
         $phonesToAdd = array_diff($phones, $existingPhones);
         $phonesToRemove = array_diff($existingPhones, $phones);
 
         if (!empty($phonesToAdd)) {
-            ClientsPhone::insert(
-                collect($phonesToAdd)->map(fn($phone) => [
+            foreach ($phonesToAdd as $phone) {
+                ClientsPhone::create([
                     'client_id' => $clientId,
                     'phone' => $phone,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ])->toArray()
-            );
+                ]);
+            }
         }
 
         if (!empty($phonesToRemove)) {
@@ -700,19 +702,20 @@ class ClientsRepository extends BaseRepository
      */
     private function syncEmails(int $clientId, array $emails)
     {
-        $existingEmails = ClientsEmail::where('client_id', $clientId)->pluck('email')->toArray();
+        $existingEmails = ClientsEmail::where('client_id', $clientId)
+            ->pluck('email')
+            ->toArray();
+
         $emailsToAdd = array_diff($emails, $existingEmails);
         $emailsToRemove = array_diff($existingEmails, $emails);
 
         if (!empty($emailsToAdd)) {
-            ClientsEmail::insert(
-                collect($emailsToAdd)->map(fn($email) => [
+            foreach ($emailsToAdd as $email) {
+                ClientsEmail::create([
                     'client_id' => $clientId,
                     'email' => $email,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ])->toArray()
-            );
+                ]);
+            }
         }
 
         if (!empty($emailsToRemove)) {

@@ -292,7 +292,6 @@ class CurrencyHistoryController extends BaseController
                     $currentRate = $currency->getCurrentExchangeRateForCompany($companyId);
                     return [
                         'id' => $currency->id,
-                        'code' => $currency->code,
                         'name' => $currency->name,
                         'symbol' => $currency->symbol,
                         'is_default' => $currency->is_default,

@@ -32,7 +32,6 @@ class ProjectContractsRepository extends BaseRepository
             'project_contracts.created_at',
             'project_contracts.updated_at',
             'currencies.name as currency_name',
-            'currencies.code as currency_code',
             'currencies.symbol as currency_symbol'
         ])
             ->leftJoin('currencies', 'project_contracts.currency_id', '=', 'currencies.id');
@@ -178,7 +177,7 @@ class ProjectContractsRepository extends BaseRepository
         return CacheService::remember($cacheKey, function () use ($id) {
             $query = ProjectContract::with([
                 'project:id,name,company_id',
-                'currency:id,name,code,symbol'
+                'currency:id,name,symbol'
             ])->where('id', $id);
 
             $this->applyCompanyFilter($query);

@@ -220,7 +220,7 @@ class UsersRepository extends BaseRepository
 
         return EmployeeSalary::whereIn('user_id', $userIds)
             ->where('company_id', $companyId)
-            ->with('currency:id,code,symbol,name')
+            ->with('currency:id,symbol,name')
             ->orderBy('user_id')
             ->orderBy('start_date', 'desc')
             ->get()
@@ -669,7 +669,7 @@ class UsersRepository extends BaseRepository
 
         return CacheService::remember($cacheKey, function () use ($userId, $companyId) {
             $query = EmployeeSalary::where('user_id', $userId)
-                ->with(['currency:id,code,symbol,name']);
+                ->with(['currency:id,symbol,name']);
 
             if ($companyId) {
                 $query->where('company_id', $companyId);

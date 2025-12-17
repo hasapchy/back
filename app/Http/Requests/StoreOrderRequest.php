@@ -59,6 +59,26 @@ class StoreOrderRequest extends FormRequest
     }
 
     /**
+     * Подготовить данные для валидации
+     *
+     * @return void
+     */
+    protected function prepareForValidation(): void
+    {
+        $data = $this->all();
+
+        // Нормализация строк с пробелами в null (ConvertEmptyStringsToNull обрабатывает только полностью пустые строки)
+        $nullableFields = ['description', 'note'];
+        foreach ($nullableFields as $field) {
+            if (isset($data[$field]) && is_string($data[$field]) && trim($data[$field]) === '') {
+                $data[$field] = null;
+            }
+        }
+
+        $this->merge($data);
+    }
+
+    /**
      * Обработать неудачную валидацию
      *
      * @param Validator $validator
