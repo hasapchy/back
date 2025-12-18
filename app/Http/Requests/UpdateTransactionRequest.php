@@ -38,6 +38,7 @@ class UpdateTransactionRequest extends FormRequest
             'is_debt' => 'nullable|boolean',
             'source_type' => 'nullable|string',
             'source_id' => 'nullable|integer',
+            'exchange_rate' => 'nullable|numeric|min:0.000001',
         ];
     }
 

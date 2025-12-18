@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\CashRegister;
 use App\Models\CashTransfer;
+use App\Models\Currency;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
@@ -88,6 +89,7 @@ class TransfersRepository extends BaseRepository
                     'currency_to_name' => $toCash?->currency?->name,
                     'currency_to_symbol' => $toCash?->currency?->symbol,
                     'amount' => $transfer->amount,
+                    'exchange_rate' => $transfer->exchange_rate,
                     'user_id' => $transfer->user?->id,
                     'user_name' => $transfer->user?->name,
                     'date' => $transfer->date,
@@ -125,18 +127,33 @@ class TransfersRepository extends BaseRepository
 
         $fromCurrency = $fromCashRegister->currency;
         $toCurrency = $toCashRegister->currency;
+        $defaultCurrency = Currency::where('is_default', true)->first();
+        $companyId = $this->getCurrentCompanyId();
 
         if ($fromCurrency->id !== $toCurrency->id) {
-            if (isset($data['exchange_rate']) && $data['exchange_rate'] > 0) {
-                $amountInTargetCurrency = $amount * $data['exchange_rate'];
+            if (!empty($data['exchange_rate'])) {
+                $exchangeRate = (float) $data['exchange_rate'];
+                $amountInTargetCurrency = $amount * $exchangeRate;
             } else {
-                $amountInTargetCurrency = CurrencyConverter::convert($amount, $fromCurrency, $toCurrency);
+                $fromRate = $fromCurrency->getExchangeRateForCompany($companyId, $date_of_transfer);
+                $toRate = $toCurrency->getExchangeRateForCompany($companyId, $date_of_transfer);
+
+                if ($fromCurrency->id === $defaultCurrency->id) {
+                    $exchangeRate = 1 / $toRate;
+                } elseif ($toCurrency->id === $defaultCurrency->id) {
+                    $exchangeRate = $fromRate;
+                } else {
+                    $exchangeRate = $fromRate / $toRate;
+                }
+
+                $amountInTargetCurrency = CurrencyConverter::convert($amount, $fromCurrency, $toCurrency, $defaultCurrency, $companyId, $date_of_transfer);
             }
         } else {
+            $exchangeRate = 1.0;
             $amountInTargetCurrency = $amount;
         }
 
-        return DB::transaction(function () use ($fromCashRegister, $toCashRegister, $amount, $amountInTargetCurrency, $userUuid, $note, $date_of_transfer) {
+        return DB::transaction(function () use ($fromCashRegister, $toCashRegister, $amount, $amountInTargetCurrency, $userUuid, $note, $date_of_transfer, $exchangeRate) {
             $transferNote = "Трансфер из кассы '{$fromCashRegister->name}' в кассу '{$toCashRegister->name}'.";
 
             $fromTransactionData = [
@@ -149,7 +166,8 @@ class TransfersRepository extends BaseRepository
                 'project_id' => null,
                 'client_id' => null,
                 'note' => $note . ' ' . $transferNote,
-                'date' => $date_of_transfer
+                'date' => $date_of_transfer,
+                'exchange_rate' => $exchangeRate
             ];
 
             $toTransactionData = [
@@ -162,26 +180,29 @@ class TransfersRepository extends BaseRepository
                 'project_id' => null,
                 'client_id' => null,
                 'note' => $note . ' ' . $transferNote,
-                'date' => $date_of_transfer
+                'date' => $date_of_transfer,
+                'exchange_rate' => $exchangeRate != 0 ? 1 / $exchangeRate : 1.0
             ];
 
             $transaction_repository = new TransactionsRepository();
             $fromTransactionId = $transaction_repository->createItem($fromTransactionData, true);
             $toTransactionId = $transaction_repository->createItem($toTransactionData, true);
 
-            CashTransfer::create([
+            $cashTransfer = CashTransfer::create([
                 'cash_id_from' => $fromCashRegister->id,
                 'cash_id_to' => $toCashRegister->id,
                 'tr_id_from' => $fromTransactionId,
                 'tr_id_to' => $toTransactionId,
                 'user_id' => $userUuid,
                 'amount' => $amount,
+                'exchange_rate' => $exchangeRate,
                 'note' => $note,
                 'date' => $date_of_transfer,
             ]);
 
             $transaction_repository->invalidateTransactionsCache();
             CacheService::invalidateCashRegistersCache();
+            CacheService::invalidateTransfersCache();
 
             return true;
         });
@@ -225,6 +246,7 @@ class TransfersRepository extends BaseRepository
 
             app(TransactionsRepository::class)->invalidateTransactionsCache();
             CacheService::invalidateCashRegistersCache();
+            CacheService::invalidateTransfersCache();
 
             return true;
         });

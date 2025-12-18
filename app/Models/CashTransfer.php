@@ -38,12 +38,14 @@ class CashTransfer extends Model
         'tr_id_to',
         'user_id',
         'amount',
+        'exchange_rate',
         'note',
         'date',
     ];
 
     protected $casts = [
         'amount' => 'decimal:5',
+        'exchange_rate' => 'decimal:6',
     ];
 
     /**

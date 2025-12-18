@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Контроллер для работы с транзакциями
@@ -130,7 +131,8 @@ class TransactionsController extends BaseController
             'source_id' => $sourceId,
             'note' => $validatedData['note'] ?? null,
             'date' => $validatedData['date'] ?? now(),
-            'is_debt' => $validatedData['is_debt'] ?? false
+            'is_debt' => $validatedData['is_debt'] ?? false,
+            'exchange_rate' => $validatedData['exchange_rate'] ?? null
         ]);
 
         if (!$item_created) {
@@ -220,6 +222,17 @@ class TransactionsController extends BaseController
         if (isset($validatedData['currency_id'])) {
             $updateData['currency_id'] = $validatedData['currency_id'];
         }
+
+        if (isset($validatedData['exchange_rate'])) {
+            $updateData['exchange_rate'] = $validatedData['exchange_rate'];
+        }
+
+        Log::info('transaction.update.payload', [
+            'transaction_id' => $id,
+            'user_id' => $userUuid,
+            'exchange_rate_from_request' => $validatedData['exchange_rate'] ?? null,
+            'update_data' => $updateData,
+        ]);
 
         if (isset($validatedData['source_type']) || isset($validatedData['source_id']) || $request->has('order_id')) {
             $updateData['source_type'] = $updateSourceType;

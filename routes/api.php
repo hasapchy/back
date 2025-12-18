@@ -46,6 +46,7 @@ Route::get('transaction_categories/all', [TransactionCategoryController::class, 
 Route::middleware(['auth:sanctum', 'user.active', 'basement.worker'])->prefix('basement')->group(function () {
     Route::get('user/me', [AuthController::class, 'me']);
     Route::post('user/logout', [AuthController::class, 'logout']);
+    Route::post('user/profile', [UsersController::class, 'updateProfile']);
 
     Route::get('orders', [OrderController::class, 'index']);
     Route::get('orders/{id}', [OrderController::class, 'show']);
@@ -122,6 +123,8 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission:companies_create')->post('companies', [CompaniesController::class, 'store']);
     Route::middleware('permission:companies_update_all')->post('companies/{id}', [CompaniesController::class, 'update']);
     Route::middleware('permission:companies_delete_all')->delete('companies/{id}', [CompaniesController::class, 'destroy']);
+    Route::middleware('permission:employee_salaries_create')->post('companies/{id}/salaries/accrue', [CompaniesController::class, 'accrueSalaries']);
+    Route::middleware('permission:employee_salaries_create')->get('companies/{id}/salaries/check', [CompaniesController::class, 'checkExistingSalaries']);
 
     Route::middleware('permission.scope:warehouses_view_all,warehouses_view')->get('warehouses', [WarehouseController::class, 'index']);
     Route::get('warehouses/all', [WarehouseController::class, 'all']);

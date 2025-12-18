@@ -431,7 +431,8 @@ class ClientsRepository extends BaseRepository
                 }
 
                 $transactionsQuery->with([
-                        'cashRegister:id,name',
+                        'cashRegister:id,name,currency_id',
+                        'cashRegister.currency:id,symbol',
                         'currency:id,symbol',
                         'user:id,name',
                         'category:id,name'
@@ -492,7 +493,7 @@ class ClientsRepository extends BaseRepository
                                 'description' => $description,
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user->name,
-                                'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null
                             ];
@@ -523,7 +524,7 @@ class ClientsRepository extends BaseRepository
                                 'description' => $description,
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user->name,
-                                'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null
                             ];
@@ -542,7 +543,7 @@ class ClientsRepository extends BaseRepository
                                 'description' => '🛒 Продажа #' . $saleId . ($item->is_debt ? ' (в кредит)' : ''),
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user->name,
-                                'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null
                             ];
@@ -567,7 +568,7 @@ class ClientsRepository extends BaseRepository
                                 'description' => $description,
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user->name,
-                                'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null
                             ];
@@ -586,7 +587,7 @@ class ClientsRepository extends BaseRepository
                                 'description' => $description,
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user->name,
-                                'currency_symbol' => $item->currency->symbol ?? $defaultCurrencySymbol,
+                                'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null
                             ];

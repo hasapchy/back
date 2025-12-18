@@ -37,10 +37,6 @@ class CahRegistersRepository extends BaseRepository
      */
     public function getAllItems($userUuid)
     {
-        if (!\Illuminate\Support\Facades\Schema::hasTable('cash_registers')) {
-            throw new \Exception('Table cash_registers does not exist');
-        }
-
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid, $currentUser?->id, $companyId]);
@@ -254,16 +250,19 @@ class CahRegistersRepository extends BaseRepository
     public function createItem($data)
     {
         return DB::transaction(function () use ($data) {
+            $companyId = $this->getCurrentCompanyId();
+
             $item = new CashRegister();
             $item->name = $data['name'];
             $item->balance = $data['balance'];
             $item->currency_id = $data['currency_id'];
-            $item->company_id = $this->getCurrentCompanyId();
+            $item->company_id = $companyId;
             $item->save();
 
             $this->syncUsers($item->id, $data['users'] ?? []);
 
             CacheService::invalidateCashRegistersCache();
+            CacheService::invalidatePaginatedData('cash_registers_paginated', $companyId);
 
             return true;
         });
@@ -303,6 +302,7 @@ class CahRegistersRepository extends BaseRepository
             }
 
             CacheService::invalidateCashRegistersCache();
+            CacheService::invalidatePaginatedData('cash_registers_paginated', $this->getCurrentCompanyId());
 
             return true;
         });
@@ -320,11 +320,29 @@ class CahRegistersRepository extends BaseRepository
     {
         return DB::transaction(function () use ($id) {
             $item = CashRegister::findOrFail($id);
-            $item->delete();
+
+            $transactionsCount = \App\Models\Transaction::where('cash_id', $id)
+                ->where('is_deleted', false)
+                ->count();
+
+            if ($transactionsCount > 0) {
+                throw new \Exception('Невозможно удалить кассу, так как с ней связаны транзакции');
+            }
+
+            $transfersCount = \App\Models\CashTransfer::where(function($query) use ($id) {
+                $query->where('cash_id_from', $id)
+                      ->orWhere('cash_id_to', $id);
+            })->count();
+
+            if ($transfersCount > 0) {
+                throw new \Exception('Невозможно удалить кассу, так как с ней связаны трансферы');
+            }
 
             CashRegisterUser::where('cash_register_id', $id)->delete();
+            $item->delete();
 
             CacheService::invalidateCashRegistersCache();
+            CacheService::invalidatePaginatedData('cash_registers_paginated', $this->getCurrentCompanyId());
 
             return true;
         });

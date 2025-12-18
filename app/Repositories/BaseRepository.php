@@ -608,11 +608,14 @@ abstract class BaseRepository
 
         // Создаем новые связи, если есть пользователи
         if (!empty($userIds)) {
+            $now = now();
             $insertData = [];
             foreach ($userIds as $userId) {
                 $insertData[] = [
                     $foreignKey => $entityId,
                     'user_id' => (int) $userId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
                 ];
             }
             $modelClass::insert($insertData);
