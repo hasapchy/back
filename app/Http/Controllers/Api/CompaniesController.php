@@ -8,6 +8,9 @@ use App\Repositories\RolesRepository;
 use App\Services\CacheService;
 use App\Http\Requests\StoreCompanyRequest;
 use App\Http\Requests\UpdateCompanyRequest;
+use App\Http\Requests\AccrueSalariesRequest;
+use App\Services\SalaryAccrualService;
+use App\Repositories\TransactionsRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -96,5 +99,85 @@ class CompaniesController extends BaseController
         $company->delete();
 
         return response()->json(['message' => 'Company deleted']);
+    }
+
+    /**
+     * Массовое начисление зарплат для всех сотрудников компании
+     *
+     * @param AccrueSalariesRequest $request
+     * @param int $id ID компании
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function accrueSalaries(AccrueSalariesRequest $request, $id)
+    {
+        try {
+            $company = Company::findOrFail($id);
+
+            if (!$this->hasPermission('employee_salaries_create')) {
+                return $this->forbiddenResponse('Нет прав на начисление зарплат');
+            }
+
+            $validatedData = $request->validated();
+            $date = $validatedData['date'];
+            $cashId = $validatedData['cash_id'];
+            $note = $validatedData['note'] ?? null;
+
+            $transactionsRepository = app(TransactionsRepository::class);
+            $salaryAccrualService = new SalaryAccrualService($transactionsRepository);
+
+            $results = $salaryAccrualService->accrueSalariesForCompany(
+                $company->id,
+                $date,
+                $cashId,
+                $note
+            );
+
+            return response()->json([
+                'message' => 'Начисление зарплат завершено',
+                'results' => $results,
+                'summary' => [
+                    'success' => count($results['success']),
+                    'skipped' => count($results['skipped']),
+                    'errors' => count($results['errors'])
+                ]
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Компания не найдена', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при начислении зарплат: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Проверить существующие начисления зарплат за месяц
+     *
+     * @param Request $request
+     * @param int $id ID компании
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function checkExistingSalaries(Request $request, $id)
+    {
+        try {
+            $company = Company::findOrFail($id);
+
+            $request->validate([
+                'date' => 'required|date',
+            ]);
+
+            $date = $request->input('date');
+
+            $transactionsRepository = app(TransactionsRepository::class);
+            $salaryAccrualService = new SalaryAccrualService($transactionsRepository);
+
+            $checkResult = $salaryAccrualService->checkExistingAccruals($company->id, $date);
+
+            return response()->json($checkResult);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Компания не найдена', 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при проверке начислений: ' . $e->getMessage(), 500);
+        }
     }
 }
