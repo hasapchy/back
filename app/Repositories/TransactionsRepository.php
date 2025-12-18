@@ -64,7 +64,7 @@ class TransactionsRepository extends BaseRepository
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeleted, $currentUser) {
             $searchTrimmed = is_string($search) ? trim($search) : '';
             $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
-            
+
             if ($hasSearch) {
                 Log::info('transactions.search.start', [
                     'user_id' => $currentUser?->id,
@@ -124,7 +124,7 @@ class TransactionsRepository extends BaseRepository
                     return $query->where(function ($q) use ($searchTrimmed, $searchLower) {
                         $q->where('transactions.id', 'like', "%{$searchTrimmed}%")
                             ->orWhereRaw('LOWER(transactions.note) LIKE ?', ["%{$searchLower}%"]);
-                        
+
                         $q->orWhereExists(function ($subQuery) use ($searchTrimmed) {
                             $subQuery->select(DB::raw(1))
                                 ->from('clients')
@@ -273,6 +273,7 @@ class TransactionsRepository extends BaseRepository
                     'orig_currency_id' => $transaction->currency?->id,
                     'orig_currency_name' => $transaction->currency?->name,
                     'orig_currency_symbol' => $transaction->currency?->symbol,
+                    'exchange_rate' => $transaction->exchange_rate,
                     'user_id' => $transaction->user_id,
                     'user_name' => $transaction->user?->name,
                     'category_id' => $transaction->category_id,
@@ -352,10 +353,27 @@ class TransactionsRepository extends BaseRepository
         $companyId = $this->getCurrentCompanyId();
         $transactionDate = $data['date'] ?? now();
 
-        if ($fromCurrency->id === $toCurrency->id) {
-            $convertedAmount = $originalAmount;
+        if (!empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
+            $exchangeRate = (float) $data['exchange_rate'];
+            $convertedAmount = $originalAmount * $exchangeRate;
         } else {
-            $convertedAmount = CurrencyConverter::convert($originalAmount, $fromCurrency, $toCurrency, $defaultCurrency, $companyId, $transactionDate);
+            if ($fromCurrency->id === $toCurrency->id) {
+                $exchangeRate = 1.0;
+                $convertedAmount = $originalAmount;
+            } else {
+                $fromRate = $fromCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+                $toRate = $toCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+
+                if ($fromCurrency->id === $defaultCurrency->id) {
+                    $exchangeRate = 1 / $toRate;
+                } elseif ($toCurrency->id === $defaultCurrency->id) {
+                    $exchangeRate = $fromRate;
+                } else {
+                    $exchangeRate = $fromRate / $toRate;
+                }
+
+                $convertedAmount = CurrencyConverter::convert($originalAmount, $fromCurrency, $toCurrency, $defaultCurrency, $companyId, $transactionDate);
+            }
         }
 
         $convertedAmount = $roundingService->roundForCompany($companyId, (float) $convertedAmount);
@@ -396,6 +414,7 @@ class TransactionsRepository extends BaseRepository
             $transaction->is_debt = $data['is_debt'] ?? false;
             $transaction->source_type = $data['source_type'] ?? null;
             $transaction->source_id = $data['source_id'] ?? null;
+            $transaction->exchange_rate = $exchangeRate;
 
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->setSkipCashBalanceUpdate(true);
@@ -430,8 +449,21 @@ class TransactionsRepository extends BaseRepository
                     $fromCurrency,
                     $defaultCurrency,
                     $companyId,
-                    $transactionDate
+                    $transactionDate,
+                    $data['exchange_rate'] ?? null,
+                    $toCurrency
                 );
+
+                Log::info('transaction.client_balance.on_create', [
+                    'transaction_type' => $data['type'],
+                    'client_id' => $data['client_id'],
+                    'orig_amount' => $originalAmount,
+                    'currency_id' => $fromCurrency->id,
+                    'cash_currency_id' => $toCurrency->id,
+                    'company_id' => $companyId,
+                    'exchange_rate' => $data['exchange_rate'] ?? null,
+                    'amount_for_client' => $amountForClient,
+                ]);
 
                 $this->updateClientBalanceValue(
                     $data['client_id'],
@@ -507,6 +539,9 @@ class TransactionsRepository extends BaseRepository
         if (array_key_exists('source_id', $data)) {
             $transaction->source_id = $data['source_id'];
         }
+        if (!empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
+            $transaction->exchange_rate = (float) $data['exchange_rate'];
+        }
 
         $transaction->save();
 
@@ -554,6 +589,7 @@ class TransactionsRepository extends BaseRepository
             $oldSourceType = $transaction->source_type;
             $oldType = $transaction->type;
             $oldProjectId = $transaction->project_id;
+            $oldExchangeRate = $transaction->exchange_rate;
 
             if (!$oldIsDebt) {
                 if ($oldType == 1) {
@@ -603,18 +639,39 @@ class TransactionsRepository extends BaseRepository
             $currencies = Currency::whereIn('id', $currencyIds)->get()->keyBy('id');
             $fromCurrency = $currencies[$newCurrencyId];
             $toCurrency = $currencies[$cashRegister->currency_id];
-
-            if ($fromCurrency->id === $toCurrency->id) {
-                $newConvertedAmount = $newOrigAmount;
-            } else {
-                $newConvertedAmount = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $toCurrency);
-            }
+            $defaultCurrency = $currencies[$defaultCurrencyId];
 
             $roundingService = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
+            $transactionDate = $transaction->date ?? now();
+
+            if (!empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
+                $exchangeRate = (float) $data['exchange_rate'];
+                $newConvertedAmount = $newOrigAmount * $exchangeRate;
+            } else {
+                if ($fromCurrency->id === $toCurrency->id) {
+                    $exchangeRate = 1.0;
+                    $newConvertedAmount = $newOrigAmount;
+                } else {
+                    $fromRate = $fromCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+                    $toRate = $toCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+
+                    if ($fromCurrency->id === $defaultCurrency->id) {
+                        $exchangeRate = 1 / $toRate;
+                    } elseif ($toCurrency->id === $defaultCurrency->id) {
+                        $exchangeRate = $fromRate;
+                    } else {
+                        $exchangeRate = $fromRate / $toRate;
+                    }
+
+                    $newConvertedAmount = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $toCurrency, $defaultCurrency, $companyId, $transactionDate);
+                }
+            }
+
             $newConvertedAmount = $roundingService->roundForCompany($companyId, (float) $newConvertedAmount);
 
             $transaction->amount = $newConvertedAmount;
+            $transaction->exchange_rate = $exchangeRate;
 
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->setSkipCashBalanceUpdate(true);
@@ -651,8 +708,21 @@ class TransactionsRepository extends BaseRepository
                     $currencies[$oldCurrencyId],
                     $defaultCurrency,
                     $companyId,
-                    $transaction->date
+                    $transaction->date,
+                    $oldExchangeRate ?? null,
+                    $toCurrency
                 );
+
+                Log::info('transaction.client_balance.on_update_old', [
+                    'transaction_id' => $transaction->id,
+                    'client_id' => $oldClientId,
+                    'orig_amount' => $oldOrigAmount,
+                    'currency_id' => $oldCurrencyId,
+                    'cash_currency_id' => $toCurrency->id,
+                    'company_id' => $companyId,
+                    'exchange_rate' => $oldExchangeRate ?? null,
+                    'amount_default' => $oldAmountDefault,
+                ]);
 
                 $this->updateClientBalanceValue(
                     $oldClientId,
@@ -670,8 +740,21 @@ class TransactionsRepository extends BaseRepository
                     $fromCurrency,
                     $defaultCurrency,
                     $companyId,
-                    $transaction->date
+                    $transaction->date,
+                    $data['exchange_rate'] ?? null,
+                    $toCurrency
                 );
+
+                Log::info('transaction.client_balance.on_update_new', [
+                    'transaction_id' => $transaction->id,
+                    'client_id' => $transaction->client_id,
+                    'orig_amount' => $newOrigAmount,
+                    'currency_id' => $fromCurrency->id,
+                    'cash_currency_id' => $toCurrency->id,
+                    'company_id' => $companyId,
+                    'exchange_rate' => $data['exchange_rate'] ?? null,
+                    'amount_default' => $newAmountDefault,
+                ]);
 
                 $this->updateClientBalanceValue(
                     $transaction->client_id,
@@ -935,6 +1018,7 @@ class TransactionsRepository extends BaseRepository
             'currencies.id as orig_currency_id',
             'currencies.name as orig_currency_name',
             'currencies.symbol as orig_currency_symbol',
+            'transactions.exchange_rate as exchange_rate',
             'transactions.user_id as user_id',
             'users.name as user_name',
             'transactions.category_id as category_id',
@@ -1112,9 +1196,22 @@ class TransactionsRepository extends BaseRepository
      * @param string|\DateTime|null $date Дата для конвертации (опционально)
      * @return float Сумма в валюте по умолчанию
      */
-    private function convertAmountToDefaultCurrency(float $amount, \App\Models\Currency $fromCurrency, \App\Models\Currency $defaultCurrency, ?int $companyId, $date = null): float
+    private function convertAmountToDefaultCurrency(float $amount, \App\Models\Currency $fromCurrency, \App\Models\Currency $defaultCurrency, ?int $companyId, $date = null, ?float $exchangeRate = null, ?\App\Models\Currency $cashCurrency = null): float
     {
-        if ($fromCurrency->id !== $defaultCurrency->id) {
+        // Если передан ручной курс и известна валюта кассы, используем его для конвертации
+        if ($exchangeRate !== null && $exchangeRate > 0 && $cashCurrency) {
+            // Сумма в валюте кассы по ручному курсу
+            $amountInCashCurrency = $amount * $exchangeRate;
+
+            if ($cashCurrency->id === $defaultCurrency->id) {
+                // Если валюта кассы = валюта компании, просто возвращаем сумму в валюте кассы
+                $amount = $amountInCashCurrency;
+            } else {
+                // Переводим сумму кассы в валюту компании по курсу кассы из истории
+                $amount = CurrencyConverter::convert($amountInCashCurrency, $cashCurrency, $defaultCurrency, null, $companyId, $date ?? now());
+            }
+        } elseif ($fromCurrency->id !== $defaultCurrency->id) {
+            // Старое поведение: конвертация напрямую из валюты транзакции в валюту компании
             $amount = CurrencyConverter::convert($amount, $fromCurrency, $defaultCurrency, null, $companyId, $date ?? now());
         }
 

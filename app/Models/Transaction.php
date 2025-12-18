@@ -23,6 +23,7 @@ use App\Services\CacheService;
  * @property \Carbon\Carbon $date Дата транзакции
  * @property string|null $note Примечание
  * @property float $orig_amount Исходная сумма в валюте транзакции
+ * @property float|null $exchange_rate Курс обмена от валюты транзакции к валюте кассы
  * @property int|null $project_id ID проекта
  * @property int $type Тип транзакции (0 - расход, 1 - доход)
  * @property int $user_id ID пользователя
@@ -64,6 +65,7 @@ class Transaction extends Model
         'date',
         'note',
         'orig_amount',
+        'exchange_rate',
         'project_id',
         'type',
         'user_id',
@@ -128,6 +130,7 @@ class Transaction extends Model
         'is_deleted' => 'boolean',
         'amount' => 'decimal:5',
         'orig_amount' => 'decimal:5',
+        'exchange_rate' => 'decimal:6',
     ];
 
     protected $hidden = [

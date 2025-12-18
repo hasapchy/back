@@ -42,6 +42,7 @@ Route::get('transaction_categories/all', [TransactionCategoryController::class, 
 Route::middleware(['auth:sanctum', 'user.active', 'basement.worker'])->prefix('basement')->group(function () {
     Route::get('user/me', [AuthController::class, 'me']);
     Route::post('user/logout', [AuthController::class, 'logout']);
+    Route::post('user/profile', [UsersController::class, 'updateProfile']);
 
     Route::get('orders', [OrderController::class, 'index']);
     Route::get('orders/{id}', [OrderController::class, 'show']);

@@ -188,21 +188,27 @@ class CashRegistersController extends BaseController
      */
     public function destroy($id)
     {
-        $cashRegister = \App\Models\CashRegister::find($id);
-        if (!$cashRegister) {
-            return $this->notFoundResponse('Касса не найдена');
+        try {
+            $cashRegister = \App\Models\CashRegister::find($id);
+            if (!$cashRegister) {
+                return $this->notFoundResponse('Касса не найдена');
+            }
+
+            if (!$this->canPerformAction('cash_registers', 'delete', $cashRegister)) {
+                return $this->forbiddenResponse('У вас нет прав на удаление этой кассы');
+            }
+
+            $category_deleted = $this->itemsRepository->deleteItem($id);
+
+            if (!$category_deleted) {
+                return $this->errorResponse('Ошибка удаления кассы', 400);
+            }
+
+            return response()->json(['message' => 'Касса удалена']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Касса не найдена', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
         }
-
-        if (!$this->canPerformAction('cash_registers', 'delete', $cashRegister)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этой кассы');
-        }
-
-        $category_deleted = $this->itemsRepository->deleteItem($id);
-
-        if (!$category_deleted) {
-            return $this->errorResponse('Ошибка удаления кассы', 400);
-        }
-
-        return response()->json(['message' => 'Касса удалена']);
     }
 }

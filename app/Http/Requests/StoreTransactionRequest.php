@@ -43,6 +43,7 @@ class StoreTransactionRequest extends FormRequest
             'date' => 'nullable|sometimes|date',
             'is_debt' => 'nullable|boolean',
             'is_adjustment' => 'nullable|boolean',
+            'exchange_rate' => 'nullable|numeric|min:0.000001',
         ];
     }
 
