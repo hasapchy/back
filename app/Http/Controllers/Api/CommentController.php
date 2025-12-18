@@ -22,8 +22,10 @@ use App\Models\Project;
 use App\Models\CashRegister;
 use App\Models\Category;
 use App\Models\OrderStatus;
+use App\Models\TaskStatus;
 use App\Models\TransactionCategory;
 use App\Models\Sale;
+use App\Models\Task;
 use App\Models\OrderProduct;
 use App\Models\OrderTempProduct;
 use App\Models\Unit;
@@ -200,18 +202,35 @@ class CommentController extends BaseController
     private function buildTimeline(string $modelClass, int $id)
     {
         try {
-            $model = $modelClass::select([
-                'id', 'client_id', 'user_id', 'status_id', 'category_id'
-            ])
-            ->with([
-                'client:id,first_name,last_name,contact_person',
-                'user:id,name',
-                'status:id,name',
-                'category:id,name'
-            ])
-            ->findOrFail($id);
+            // Определяем поля и связи в зависимости от типа модели
+            $selectFields = ['id'];
+            $withRelations = [];
 
-            if ($model->client) {
+            if ($modelClass === Task::class) {
+                $selectFields = array_merge($selectFields, ['creator_id', 'supervisor_id', 'executor_id', 'status_id', 'project_id']);
+                $withRelations = [
+                    'creator:id,name',
+                    'supervisor:id,name',
+                    'executor:id,name',
+                    'status:id,name',
+                    'project:id,name'
+                ];
+            } else {
+                // Для Order, Transaction, Sale и других
+                $selectFields = array_merge($selectFields, ['client_id', 'user_id', 'status_id', 'category_id']);
+                $withRelations = [
+                    'client:id,first_name,last_name,contact_person',
+                    'user:id,name',
+                    'status:id,name',
+                    'category:id,name'
+                ];
+            }
+
+            $model = $modelClass::select($selectFields)
+                ->with($withRelations)
+                ->findOrFail($id);
+
+            if (isset($model->client) && $model->client) {
                 $model->client->name = $model->client->first_name . ' ' . $model->client->last_name;
             }
 
@@ -619,6 +638,9 @@ class CommentController extends BaseController
         $baseFieldToModelMap = [
             'client_id' => Client::class,
             'user_id' => User::class,
+            'creator_id' => User::class,
+            'supervisor_id' => User::class,
+            'executor_id' => User::class,
             'product_id' => Product::class,
             'warehouse_id' => Warehouse::class,
             'project_id' => Project::class,
@@ -637,6 +659,9 @@ class CommentController extends BaseController
             ],
             Sale::class => [
                 'category_id' => Category::class,
+            ],
+            Task::class => [
+                'status_id' => \App\Models\TaskStatus::class,
             ],
         ];
 

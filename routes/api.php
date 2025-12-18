@@ -273,11 +273,11 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::get('invoices/{id}', [InvoiceController::class, 'show']);
     Route::post('invoices/orders', [InvoiceController::class, 'getOrdersForInvoice']);
 
+    Route::get('comments/timeline', [CommentController::class, 'timeline']);
     Route::get('comments', [CommentController::class, 'index']);
     Route::post('comments', [CommentController::class, 'store']);
     Route::put('comments/{id}', [CommentController::class, 'update']);
     Route::delete('comments/{id}', [CommentController::class, 'destroy']);
-    Route::get('comments/timeline', [CommentController::class, 'timeline']);
 
     Route::get('user/current-company', [UserCompanyController::class, 'getCurrentCompany']);
     Route::post('user/set-company', [UserCompanyController::class, 'setCurrentCompany']);
