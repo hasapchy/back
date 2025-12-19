@@ -73,7 +73,7 @@ class OrderController extends BaseController
 
         $validatedData = $request->validated();
 
-        $categoryId = $validatedData['category_id'];
+        $categoryId = $validatedData['category_id'] ?? null;
         $user = auth('api')->user();
         if ($user instanceof User && $user->hasRole(config('basement.worker_role'))) {
             // Получаем категории пользователя с учетом компании
@@ -91,8 +91,21 @@ class OrderController extends BaseController
             }
 
             if (!$categoryId) {
-                // Если категория не указана, берем первую доступную категорию пользователя
-                $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
+                // Сначала проверяем маппинг из конфига
+                $userCategoryMap = config('basement.user_category_map', []);
+                $mappedCategoryId = $userCategoryMap[$userUuid] ?? null;
+                
+                // Если есть маппинг и категория доступна пользователю, используем её
+                if ($mappedCategoryId && in_array($mappedCategoryId, $userCategoryIds)) {
+                    $categoryId = $mappedCategoryId;
+                } else {
+                    // Иначе берем первую доступную категорию пользователя
+                    $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
+                }
+                
+                if (!$categoryId) {
+                    return $this->errorResponse('У вас нет доступных категорий. Обратитесь к администратору для назначения категории.', 400);
+                }
             } elseif (!in_array($categoryId, $userCategoryIds)) {
                 // Если категория указана, проверяем доступ пользователя к ней
                 return $this->forbiddenResponse('У вас нет доступа к указанной категории');
@@ -200,8 +213,21 @@ class OrderController extends BaseController
             }
 
             if (!$categoryId) {
-                // Если категория не указана, берем первую доступную категорию пользователя
-                $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
+                // Сначала проверяем маппинг из конфига
+                $userCategoryMap = config('basement.user_category_map', []);
+                $mappedCategoryId = $userCategoryMap[$userUuid] ?? null;
+                
+                // Если есть маппинг и категория доступна пользователю, используем её
+                if ($mappedCategoryId && in_array($mappedCategoryId, $userCategoryIds)) {
+                    $categoryId = $mappedCategoryId;
+                } else {
+                    // Иначе берем первую доступную категорию пользователя
+                    $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
+                }
+                
+                if (!$categoryId) {
+                    return $this->errorResponse('У вас нет доступных категорий. Обратитесь к администратору для назначения категории.', 400);
+                }
             } elseif (!in_array($categoryId, $userCategoryIds)) {
                 // Если категория указана, проверяем доступ пользователя к ней
                 return $this->forbiddenResponse('У вас нет доступа к указанной категории');

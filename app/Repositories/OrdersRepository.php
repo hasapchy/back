@@ -1066,6 +1066,7 @@ class OrdersRepository extends BaseRepository
             $this->returnProductsToWarehouse($products, $order->warehouse_id);
 
             OrderProduct::where('order_id', $id)->delete();
+            OrderTempProduct::where('order_id', $id)->delete();
 
             $orderData = [
                 'id' => $order->id,
