@@ -63,4 +63,21 @@ return [
     |
     */
     'default_warehouse_id' => env('BASEMENT_DEFAULT_WAREHOUSE_ID', 1),
+
+    /*
+    |--------------------------------------------------------------------------
+    | User to Category Mapping
+    |--------------------------------------------------------------------------
+    |
+    | Maps user IDs to their default category IDs for basement workers.
+    | If a user is not in this map, the first available category from
+    | category_users table will be used.
+    |
+    */
+    'user_category_map' => [
+        6 => 2,
+        7 => 3,
+        8 => 14,
+        12 => 14,
+    ],
 ];
