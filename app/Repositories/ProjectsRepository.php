@@ -225,7 +225,6 @@ class ProjectsRepository extends BaseRepository
             $item->currency_id = $data['currency_id'] ?? $item->currency_id;
             $item->exchange_rate = $data['exchange_rate'] ?? $item->exchange_rate;
             $item->date = $data['date'];
-            // $item->user_id = $data['user_id'];
             $item->client_id = $data['client_id'];
             $item->description = $data['description'] ?? null;
             $item->status_id = $data['status_id'] ?? $item->status_id;
