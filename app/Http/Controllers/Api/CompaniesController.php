@@ -113,8 +113,8 @@ class CompaniesController extends BaseController
         try {
             $company = Company::findOrFail($id);
 
-            if (!$this->hasPermission('employee_salaries_create')) {
-                return $this->forbiddenResponse('Нет прав на начисление зарплат');
+            if (!$this->hasPermission('employee_salaries_accrue')) {
+                return $this->forbiddenResponse('Нет прав на массовое начисление зарплат');
             }
 
             $validatedData = $request->validated();
