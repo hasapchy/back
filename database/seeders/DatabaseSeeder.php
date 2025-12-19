@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use Hamcrest\Core\Set;
 use Illuminate\Database\Seeder;
+use App\Models\User;
+use Spatie\Permission\Models\Permission;
 
 class DatabaseSeeder extends Seeder
 {
@@ -12,8 +14,10 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             PermissionsSeeder::class,
+            TasksPermissionsSeeder::class,
             RolesSeeder::class,
             AdminSeeder::class,
+            AdminTasksPermissionsSeeder::class,
             BasementWorkerSeeder::class,
             CurrencySeeder::class,
             ProductStatusSeeder::class,
@@ -24,7 +28,9 @@ class DatabaseSeeder extends Seeder
             UnitsSeeder::class,
             WarehouseSeeder::class,
             CompanySeeder::class,
+            LeaveTypeSeeder::class,
             TestUserSeeder::class,
+            AdminExampleSeeder::class,
         ]);
     }
 }

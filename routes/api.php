@@ -17,8 +17,10 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProjectContractsController;
 use App\Http\Controllers\Api\ProjectsController;
 use App\Http\Controllers\Api\ProjectStatusController;
+use App\Http\Controllers\Api\TaskStatusController;
 use App\Http\Controllers\Api\RolesController;
 use App\Http\Controllers\Api\SaleController;
+use App\Http\Controllers\Api\TasksController;
 use App\Http\Controllers\Api\TransactionCategoryController;
 use App\Http\Controllers\Api\TransactionsController;
 use App\Http\Controllers\Api\TransfersController;
@@ -29,6 +31,8 @@ use App\Http\Controllers\Api\WarehouseMovementController;
 use App\Http\Controllers\Api\WarehouseReceiptController;
 use App\Http\Controllers\Api\WarehouseStockController;
 use App\Http\Controllers\Api\WarehouseWriteoffController;
+use App\Http\Controllers\Api\LeaveTypeController;
+use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\CacheController as ApiCacheController;
 use Illuminate\Support\Facades\Route;
 
@@ -247,6 +251,19 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission:order_statuscategories_update')->put('order_status_categories/{id}', [OrderStatusCategoryController::class, 'update']);
     Route::middleware('permission:order_statuscategories_delete')->delete('order_status_categories/{id}', [OrderStatusCategoryController::class, 'destroy']);
 
+    Route::get('leave_types', [LeaveTypeController::class, 'index']);
+    Route::get('leave_types/all', [LeaveTypeController::class, 'all']);
+    Route::middleware('permission:leave_types_create_all')->post('leave_types', [LeaveTypeController::class, 'store']);
+    Route::middleware('permission:leave_types_update_all')->put('leave_types/{id}', [LeaveTypeController::class, 'update']);
+    Route::middleware('permission:leave_types_delete_all')->delete('leave_types/{id}', [LeaveTypeController::class, 'destroy']);
+
+    Route::middleware('permission:leaves_view_all')->get('leaves', [LeaveController::class, 'index']);
+    Route::middleware('permission:leaves_view_all')->get('leaves/all', [LeaveController::class, 'all']);
+    Route::middleware('permission:leaves_view_all')->get('leaves/{id}', [LeaveController::class, 'show']);
+    Route::middleware('permission:leaves_create_all')->post('leaves', [LeaveController::class, 'store']);
+    Route::middleware('permission:leaves_update_all')->put('leaves/{id}', [LeaveController::class, 'update']);
+    Route::middleware('permission:leaves_delete_all')->delete('leaves/{id}', [LeaveController::class, 'destroy']);
+
     Route::get('transaction_categories', [TransactionCategoryController::class, 'index']);
     Route::middleware('permission:transaction_categories_create')->post('transaction_categories', [TransactionCategoryController::class, 'store']);
     Route::middleware('permission:transaction_categories_update')->put('transaction_categories/{id}', [TransactionCategoryController::class, 'update']);
@@ -259,13 +276,36 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::get('invoices/{id}', [InvoiceController::class, 'show']);
     Route::post('invoices/orders', [InvoiceController::class, 'getOrdersForInvoice']);
 
+    Route::get('comments/timeline', [CommentController::class, 'timeline']);
     Route::get('comments', [CommentController::class, 'index']);
     Route::post('comments', [CommentController::class, 'store']);
     Route::put('comments/{id}', [CommentController::class, 'update']);
     Route::delete('comments/{id}', [CommentController::class, 'destroy']);
-    Route::get('comments/timeline', [CommentController::class, 'timeline']);
 
     Route::get('user/current-company', [UserCompanyController::class, 'getCurrentCompany']);
     Route::post('user/set-company', [UserCompanyController::class, 'setCurrentCompany']);
     Route::get('user/companies', [UserCompanyController::class, 'getUserCompanies']);
+
+    // Tasks routes
+    Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks', [TasksController::class, 'index']);
+    Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks/{id}', [TasksController::class, 'show']);
+    Route::middleware('permission:tasks_create')->post('tasks', [TasksController::class, 'store']);
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->put('tasks/{id}', [TasksController::class, 'update']);
+    Route::middleware('permission.scope:tasks_delete_all,tasks_delete')->delete('tasks/{id}', [TasksController::class, 'destroy']);
+
+    // Task actions
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/complete', [TasksController::class, 'complete']);
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/accept', [TasksController::class, 'accept']);
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/return', [TasksController::class, 'return']);
+
+    // Task files
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/files', [TasksController::class, 'uploadFiles']);
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->delete('tasks/{id}/files', [TasksController::class, 'deleteFile']);
+
+    // Task statuses
+    Route::middleware('permission.scope:task_statuses_view_all,task_statuses_view')->get('task-statuses', [TaskStatusController::class, 'index']);
+    Route::middleware('permission.scope:task_statuses_view_all,task_statuses_view')->get('task-statuses/all', [TaskStatusController::class, 'all']);
+    Route::middleware('permission:task_statuses_create')->post('task-statuses', [TaskStatusController::class, 'store']);
+    Route::middleware('permission.scope:task_statuses_update_all,task_statuses_update')->put('task-statuses/{id}', [TaskStatusController::class, 'update']);
+    Route::middleware('permission.scope:task_statuses_delete_all,task_statuses_delete')->delete('task-statuses/{id}', [TaskStatusController::class, 'destroy']);
 });

@@ -313,6 +313,16 @@ class CacheService
     }
 
     /**
+     * Invalidate task statuses cache
+     *
+     * @return void
+     */
+    public static function invalidateTaskStatusesCache(): void
+    {
+        self::invalidateByLike('%task_status%');
+    }
+
+    /**
      * Invalidate transaction categories cache
      *
      * @return void
@@ -450,6 +460,27 @@ class CacheService
     public static function invalidateCompaniesCache(): void
     {
         self::invalidateByLike('%compan%');
+    }
+
+    /**
+     * Invalidate leaves cache
+     *
+     * @return void
+     */
+    public static function invalidateLeavesCache(): void
+    {
+        self::invalidateByLike('%leaves%');
+    }
+
+    /**
+     * Invalidate leave types cache
+     *
+     * @return void
+     */
+    public static function invalidateLeaveTypesCache(): void
+    {
+        self::invalidateByLike('%leave_types%');
+        self::invalidateByLike('%leave_type%');
     }
 
     /**
