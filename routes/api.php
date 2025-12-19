@@ -119,8 +119,8 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission:companies_create')->post('companies', [CompaniesController::class, 'store']);
     Route::middleware('permission:companies_update_all')->post('companies/{id}', [CompaniesController::class, 'update']);
     Route::middleware('permission:companies_delete_all')->delete('companies/{id}', [CompaniesController::class, 'destroy']);
-    Route::middleware('permission:employee_salaries_create')->post('companies/{id}/salaries/accrue', [CompaniesController::class, 'accrueSalaries']);
-    Route::middleware('permission:employee_salaries_create')->get('companies/{id}/salaries/check', [CompaniesController::class, 'checkExistingSalaries']);
+    Route::middleware('permission:employee_salaries_accrue')->post('companies/{id}/salaries/accrue', [CompaniesController::class, 'accrueSalaries']);
+    Route::middleware('permission:employee_salaries_accrue')->get('companies/{id}/salaries/check', [CompaniesController::class, 'checkExistingSalaries']);
 
     Route::middleware('permission.scope:warehouses_view_all,warehouses_view')->get('warehouses', [WarehouseController::class, 'index']);
     Route::get('warehouses/all', [WarehouseController::class, 'all']);

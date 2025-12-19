@@ -85,7 +85,7 @@ class ProjectsRepository extends BaseRepository
                 $query->where(function ($q) use ($searchTrimmed, $searchLower) {
                     $q->where('projects.id', 'like', "%{$searchTrimmed}%")
                         ->orWhereRaw('LOWER(projects.name) LIKE ?', ["%{$searchLower}%"]);
-                    
+
                     $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
                         $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
                     })
@@ -225,7 +225,6 @@ class ProjectsRepository extends BaseRepository
             $item->currency_id = $data['currency_id'] ?? $item->currency_id;
             $item->exchange_rate = $data['exchange_rate'] ?? $item->exchange_rate;
             $item->date = $data['date'];
-            $item->user_id = $data['user_id'];
             $item->client_id = $data['client_id'];
             $item->description = $data['description'] ?? null;
             $item->status_id = $data['status_id'] ?? $item->status_id;
