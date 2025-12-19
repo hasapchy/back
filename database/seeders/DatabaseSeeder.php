@@ -14,16 +14,14 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             PermissionsSeeder::class,
-            TasksPermissionsSeeder::class,
             RolesSeeder::class,
             AdminSeeder::class,
-            AdminTasksPermissionsSeeder::class,
             BasementWorkerSeeder::class,
             CurrencySeeder::class,
-            ProductStatusSeeder::class,
             TransactionCategorySeeder::class,
             OrderStatusSeeder::class,
             ProjectStatusSeeder::class,
+            TaskStatusSeeder::class,
             CashRegisterSeeder::class,
             UnitsSeeder::class,
             WarehouseSeeder::class,

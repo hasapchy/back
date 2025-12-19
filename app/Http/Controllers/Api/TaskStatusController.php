@@ -111,6 +111,11 @@ class TaskStatusController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
+        $protectedIds = [1, 2, 3, 4];
+        if (in_array($id, $protectedIds)) {
+            return $this->errorResponse('Системный статус нельзя удалить', 400);
+        }
+
         $status = TaskStatus::findOrFail($id);
         if ($status->tasks()->count() > 0) {
             return $this->errorResponse('Нельзя удалить статус, который используется в задачах', 400);

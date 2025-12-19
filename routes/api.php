@@ -251,8 +251,8 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission:order_statuscategories_update')->put('order_status_categories/{id}', [OrderStatusCategoryController::class, 'update']);
     Route::middleware('permission:order_statuscategories_delete')->delete('order_status_categories/{id}', [OrderStatusCategoryController::class, 'destroy']);
 
-    Route::get('leave_types', [LeaveTypeController::class, 'index']);
-    Route::get('leave_types/all', [LeaveTypeController::class, 'all']);
+    Route::middleware('permission:leave_types_view_all')->get('leave_types', [LeaveTypeController::class, 'index']);
+    Route::middleware('permission:leave_types_view_all')->get('leave_types/all', [LeaveTypeController::class, 'all']);
     Route::middleware('permission:leave_types_create_all')->post('leave_types', [LeaveTypeController::class, 'store']);
     Route::middleware('permission:leave_types_update_all')->put('leave_types/{id}', [LeaveTypeController::class, 'update']);
     Route::middleware('permission:leave_types_delete_all')->delete('leave_types/{id}', [LeaveTypeController::class, 'destroy']);

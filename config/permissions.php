@@ -169,6 +169,12 @@ return [
             'scope_actions' => ['view', 'update', 'delete'],
         ],
         'tasks' => [
+            'has_user_id' => true,
+            'check_strategy' => 'user_id',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
+        'task_statuses' => [
             'has_user_id' => false,
             'check_strategy' => 'default',
             'actions' => ['view', 'create', 'update', 'delete'],
@@ -244,7 +250,7 @@ return [
         ],
         'tasks' => [
             'label' => 'tasks',
-            'resources' => ['tasks'],
+            'resources' => ['tasks', 'task_statuses'],
         ],
         'leaves' => [
             'label' => 'leaves',
