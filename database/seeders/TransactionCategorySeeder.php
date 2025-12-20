@@ -10,12 +10,12 @@ class TransactionCategorySeeder extends Seeder
     public function run()
     {
         TransactionCategory::updateOrCreate(['id' => 1], ['name' => 'Продажа', 'type' => 1, 'user_id' => 1]);
-        TransactionCategory::updateOrCreate(['id' => 2], ['name' => 'Оплата покупателя за услугу, товар', 'type' => 1, 'user_id' => 1]);
+        TransactionCategory::updateOrCreate(['id' => 2], ['name' => 'Оплата покупателя за услугу', 'type' => 1, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 3], ['name' => 'Предоплата', 'type' => 1, 'user_id' => 1]);
         // TransactionCategory::updateOrCreate(['name' => 'Возврат денег от поставщика'], ['type' => 1, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 4], ['name' => 'Прочий приход денег', 'type' => 1, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 5], ['name' => 'Возврат денег покупателю', 'type' => 0, 'user_id' => 1]);
-        TransactionCategory::updateOrCreate(['id' => 6], ['name' => 'Оплата поставщикам товаров, запчастей', 'type' => 0, 'user_id' => 1]);
+        TransactionCategory::updateOrCreate(['id' => 6], ['name' => 'Оплата товаров', 'type' => 0, 'user_id' => 1]);
         // TransactionCategory::updateOrCreate(['name' => 'Выплата'], ['type' => 0, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 7], ['name' => 'Выплата зарплаты', 'type' => 0, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 8], ['name' => 'Выплата налогов', 'type' => 0, 'user_id' => 1]);
@@ -38,5 +38,6 @@ class TransactionCategorySeeder extends Seeder
         TransactionCategory::updateOrCreate(['id' => 26], ['name' => 'Премия', 'type' => 1, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 27], ['name' => 'Штраф', 'type' => 0, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 28], ['name' => 'Оплата нам за аренду', 'type' => 1, 'user_id' => 1]);
+        TransactionCategory::updateOrCreate(['id' => 29], ['name' => 'Оплата покупателя за услугу', 'type' => 1, 'user_id' => 1]);
     }
 }

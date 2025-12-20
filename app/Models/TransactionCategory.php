@@ -32,17 +32,7 @@ class TransactionCategory extends Model
         'type' => 'integer',
     ];
 
-    protected static $protectedCategories = [
-        'Перемещение',
-        'Выплата зарплаты',
-        'Продажа',
-        'Предоплата',
-        'Оплата покупателя за услугу, товар',
-        'Прочий приход денег',
-        'Возврат денег покупателю',
-        'Оплата поставщикам товаров, запчастей',
-        'Прочий расход денег'
-    ];
+    protected static $protectedCategoryIds = [1, 2, 3, 4, 5, 6, 7, 14, 17];
 
     /**
      * Связь с пользователем
@@ -71,7 +61,7 @@ class TransactionCategory extends Model
      */
     public function canBeDeleted()
     {
-        return !in_array($this->name, self::$protectedCategories);
+        return !in_array($this->id, self::$protectedCategoryIds);
     }
 
     /**
@@ -81,7 +71,7 @@ class TransactionCategory extends Model
      */
     public function canBeEdited()
     {
-        return !in_array($this->name, self::$protectedCategories);
+        return !in_array($this->id, self::$protectedCategoryIds);
     }
 
     /**
@@ -93,7 +83,7 @@ class TransactionCategory extends Model
     public function delete()
     {
         if (!$this->canBeDeleted()) {
-            throw new \Exception('Нельзя удалить системную категорию: ' . $this->name);
+            throw new \Exception('Нельзя удалить системную категорию');
         }
 
         return parent::delete();
