@@ -11,6 +11,7 @@ use App\Models\SalaryAccrualItem;
 use App\Repositories\TransactionsRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class SalaryAccrualService
 {
@@ -22,16 +23,21 @@ class SalaryAccrualService
     }
 
     /**
-     * Массовое начисление зарплат для всех сотрудников компании
+     * Массовое начисление зарплат для выбранных пользователей
      *
      * @param int $companyId ID компании
      * @param string $date Дата начисления
      * @param int $cashId ID кассы
      * @param string|null $note Примечание
+     * @param array $userIds Список ID пользователей для начисления
      * @return array Результат начисления
      */
-    public function accrueSalariesForCompany(int $companyId, string $date, int $cashId, ?string $note = null): array
+    public function accrueSalariesForCompany(int $companyId, string $date, int $cashId, ?string $note = null, array $userIds = []): array
     {
+        if (empty($userIds)) {
+            throw new \Exception('Необходимо выбрать хотя бы одного сотрудника для начисления зарплаты');
+        }
+
         $results = [
             'success' => [],
             'skipped' => [],
@@ -42,6 +48,7 @@ class SalaryAccrualService
             ->where('client_type', 'employee')
             ->where('status', true)
             ->whereNotNull('employee_id')
+            ->whereIn('employee_id', $userIds)
             ->with('employee')
             ->get();
 
@@ -180,34 +187,84 @@ class SalaryAccrualService
     }
 
     /**
-     * Проверить, были ли уже начисления зарплат за указанный месяц
+     * Проверить, были ли уже начисления зарплат для выбранных пользователей за указанный месяц
      *
      * @param int $companyId ID компании
      * @param string $date Дата начисления (для определения месяца)
+     * @param array $userIds Список ID пользователей для проверки
      * @return array Информация о существующих начислениях
      */
-    public function checkExistingAccruals(int $companyId, string $date): array
+    public function checkExistingAccruals(int $companyId, string $date, array $userIds): array
     {
-        $startOfMonth = date('Y-m-01', strtotime($date));
-        $endOfMonth = date('Y-m-t', strtotime($date));
-        
-        $existingAccruals = SalaryAccrual::where('company_id', $companyId)
-            ->whereBetween('date', [$startOfMonth, $endOfMonth])
-            ->with(['items.employee', 'user'])
-            ->get();
-        
-        if ($existingAccruals->isEmpty()) {
+        $dateCarbon = Carbon::parse($date);
+        $startOfMonth = $dateCarbon->copy()->startOfMonth();
+        $endOfMonth = $dateCarbon->copy()->endOfMonth()->endOfDay();
+
+        $employeeClients = \App\Models\Client::where('company_id', $companyId)
+            ->where('client_type', 'employee')
+            ->whereIn('employee_id', $userIds)
+            ->pluck('id')
+            ->toArray();
+
+        if (empty($employeeClients)) {
             return [
                 'has_existing' => false,
-                'count' => 0,
-                'accruals' => []
+                'affected_users' => []
             ];
         }
-        
-        $totalEmployees = $existingAccruals->sum(function ($accrual) {
-            return $accrual->items()->where('status', 'success')->count();
-        });
-        
+
+        $existingAccrualItems = \App\Models\SalaryAccrualItem::whereHas('salaryAccrual', function($q) use ($companyId, $startOfMonth, $endOfMonth) {
+                $q->where('company_id', $companyId)
+                  ->whereBetween('date', [$startOfMonth, $endOfMonth]);
+            })
+            ->whereIn('employee_id', $userIds)
+            ->where('status', 'success')
+            ->with(['employee', 'salaryAccrual'])
+            ->get();
+
+        $transactionIdsFromAccruals = $existingAccrualItems->whereNotNull('transaction_id')
+            ->pluck('transaction_id')
+            ->toArray();
+
+        $manualTransactionsQuery = \App\Models\Transaction::whereHas('cashRegister', function($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            })
+            ->where('category_id', 24)
+            ->whereIn('client_id', $employeeClients)
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
+            ->where('is_deleted', false);
+
+        if (!empty($transactionIdsFromAccruals)) {
+            $manualTransactionsQuery->whereNotIn('id', $transactionIdsFromAccruals);
+        }
+
+        $manualTransactions = $manualTransactionsQuery->with('client')->get();
+
+        $affectedUsers = [];
+
+        foreach ($userIds as $userId) {
+            $hasAccrual = $existingAccrualItems->where('employee_id', $userId)->isNotEmpty();
+            $clientId = \App\Models\Client::where('company_id', $companyId)
+                ->where('client_type', 'employee')
+                ->where('employee_id', $userId)
+                ->value('id');
+
+            $hasManual = false;
+            if ($clientId) {
+                $hasManual = $manualTransactions->where('client_id', $clientId)->isNotEmpty();
+            }
+
+            if ($hasAccrual || $hasManual) {
+                $user = \App\Models\User::find($userId);
+                $affectedUsers[] = [
+                    'user_id' => $userId,
+                    'user_name' => $user ? ($user->name . ' ' . ($user->surname ?? '')) : "ID: {$userId}",
+                    'has_batch_accrual' => $hasAccrual,
+                    'has_manual_accrual' => $hasManual
+                ];
+            }
+        }
+
         $monthNames = [
             1 => 'Январь', 2 => 'Февраль', 3 => 'Март', 4 => 'Апрель',
             5 => 'Май', 6 => 'Июнь', 7 => 'Июль', 8 => 'Август',
@@ -215,23 +272,11 @@ class SalaryAccrualService
         ];
         $month = (int)date('n', strtotime($date));
         $year = date('Y', strtotime($date));
-        
+
         return [
-            'has_existing' => true,
-            'count' => $existingAccruals->count(),
-            'employees_count' => $totalEmployees,
-            'month' => ($monthNames[$month] ?? '') . ' ' . $year,
-            'accruals' => $existingAccruals->map(function ($accrual) {
-                return [
-                    'id' => $accrual->id,
-                    'date' => $accrual->date->format('Y-m-d'),
-                    'user_name' => $accrual->user->name ?? '',
-                    'success_count' => $accrual->success_count,
-                    'skipped_count' => $accrual->skipped_count,
-                    'errors_count' => $accrual->errors_count,
-                    'note' => $accrual->note,
-                ];
-            })->toArray()
+            'has_existing' => !empty($affectedUsers),
+            'affected_users' => $affectedUsers,
+            'month' => ($monthNames[$month] ?? '') . ' ' . $year
         ];
     }
 }
