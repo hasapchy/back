@@ -14,7 +14,7 @@ class OrderStatusSeeder extends Seeder
         OrderStatusCategory::updateOrCreate(
             ['id' => 1],
             [
-                'name' => 'Новые',
+                'name' => 'NEW',
                 'user_id' => 1,
                 'color' => '#207ac7',
             ]
@@ -23,7 +23,7 @@ class OrderStatusSeeder extends Seeder
         OrderStatusCategory::updateOrCreate(
             ['id' => 2],
             [
-                'name' => 'В работе',
+                'name' => 'IN_PROGRESS',
                 'user_id' => 1,
                 'color' => '#5cb85c',
             ]
@@ -32,7 +32,7 @@ class OrderStatusSeeder extends Seeder
         OrderStatusCategory::updateOrCreate(
             ['id' => 3],
             [
-                'name' => 'Готово',
+                'name' => 'READY',
                 'user_id' => 1,
                 'color' => '#53585c',
             ]
@@ -42,7 +42,7 @@ class OrderStatusSeeder extends Seeder
          OrderStatusCategory::updateOrCreate(
             ['id' => 4],
             [
-                'name' => 'Завершено',
+                'name' => 'COMPLETED',
                 'user_id' => 1,
                 'color' => '#939699',
             ]
@@ -50,7 +50,7 @@ class OrderStatusSeeder extends Seeder
           OrderStatusCategory::updateOrCreate(
             ['id' => 5],
             [
-                'name' => 'Отменено',
+                'name' => 'CANCELLED',
                 'user_id' => 1,
                 'color' => '#d9534f',
             ]
@@ -59,7 +59,7 @@ class OrderStatusSeeder extends Seeder
         OrderStatus::updateOrCreate(
             ['id' => 1],
             [
-                'name' => 'Новый',
+                'name' => 'NEW',
                 'category_id' => 1,
             ]
         );
@@ -67,7 +67,7 @@ class OrderStatusSeeder extends Seeder
         OrderStatus::updateOrCreate(
             ['id' => 2],
             [
-                'name' => 'В работе',
+                'name' => 'IN_PROGRESS',
                 'category_id' => 2,
             ]
         );
@@ -75,7 +75,7 @@ class OrderStatusSeeder extends Seeder
          OrderStatus::updateOrCreate(
             ['id' => 4],
             [
-                'name' => 'Готово',
+                'name' => 'READY',
                 'category_id' => 3,
             ]
         );
@@ -83,14 +83,14 @@ class OrderStatusSeeder extends Seeder
         OrderStatus::updateOrCreate(
             ['id' => 5],
             [
-                'name' => 'Завершено',
+                'name' => 'COMPLETED',
                 'category_id' => 4,
             ]
         );
          OrderStatus::updateOrCreate(
             ['id' => 6],
             [
-                'name' => 'Отменено',
+                'name' => 'CANCELLED',
                 'category_id' => 5,
             ]
         );

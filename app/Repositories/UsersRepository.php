@@ -903,4 +903,77 @@ class UsersRepository extends BaseRepository
 
         return app(ClientsRepository::class)->getBalanceHistory($balanceInfo['client_id']);
     }
+
+    public function searchUser(string $search_request)
+    {
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('users_search_' . md5($search_request), [$currentUser?->id, $companyId]);
+        
+        return CacheService::rememberSearch($cacheKey, function () use ($search_request, $currentUser, $companyId) {
+            $searchTerms = explode(' ', $search_request);
+
+            $query = User::select([
+                'users.id',
+                'users.name',
+                'users.surname',
+                'users.email',
+                'users.is_active',
+                'users.hire_date',
+                'users.birthday',
+                'users.position',
+                'users.is_admin',
+                'users.photo',
+                'users.created_at',
+                'users.updated_at',
+                'users.last_login_at'
+            ])->with(['companies:id,name']);
+
+            if ($companyId) {
+                $query->join('company_user', 'users.id', '=', 'company_user.user_id')
+                    ->where('company_user.company_id', $companyId)
+                    ->distinct();
+            }
+
+            if ($currentUser && !$currentUser->is_admin) {
+                $permissions = $this->getUserPermissionsForCompany($currentUser);
+                $hasViewAll = in_array('users_view_all', $permissions) || in_array('users_view', $permissions);
+                if (!$hasViewAll && in_array('users_view_own', $permissions)) {
+                    $query->where('users.id', $currentUser->id);
+                }
+            }
+
+            $query->where('users.is_active', true);
+
+            $query->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->orWhere(function ($subQuery) use ($term) {
+                        $subQuery->where('users.name', 'like', "%{$term}%")
+                            ->orWhere('users.surname', 'like', "%{$term}%")
+                            ->orWhere('users.email', 'like', "%{$term}%")
+                            ->orWhere('users.position', 'like', "%{$term}%");
+                    });
+                }
+            });
+
+            $results = $query->limit(50)->get();
+
+            $userIds = $results->pluck('id');
+            if ($userIds->isEmpty()) {
+                return collect();
+            }
+
+            $salariesMap = $this->getSalariesMap($userIds, $companyId);
+            [$permissionsMap, $rolesMap] = $this->getPermissionsAndRolesMaps($results, $userIds, $companyId);
+            $companyRolesMap = $this->getCompanyRolesMap($userIds);
+
+            return $results->map(function ($user) use ($salariesMap, $permissionsMap, $rolesMap, $companyRolesMap) {
+                $user->last_salary = $salariesMap[$user->id] ?? null;
+                $user->setRelation('permissions', $permissionsMap[$user->id] ?? collect());
+                $user->setRelation('roles', $rolesMap[$user->id] ?? collect());
+                $user->company_roles = $companyRolesMap[$user->id] ?? [];
+                return $user;
+            });
+        });
+    }
 }

@@ -359,7 +359,8 @@ class ProjectsRepository extends BaseRepository
                 ->with([
                     'cashRegister.currency:id,symbol',
                     'currency:id,symbol',
-                    'user:id,name'
+                    'user:id,name',
+                    'category:id,name'
                 ])
                 ->select(
                     'id',
@@ -372,7 +373,8 @@ class ProjectsRepository extends BaseRepository
                     'is_debt',
                     'note',
                     'user_id',
-                    'cash_id'
+                    'cash_id',
+                    'category_id'
                 );
 
             $sourceMap = [
@@ -411,6 +413,7 @@ class ProjectsRepository extends BaseRepository
                     'user_id' => $item->user_id,
                     'user_name' => $item->user->name,
                     'cash_currency_symbol' => $item->cashRegister?->currency->symbol ?? $item->currency->symbol,
+                    'category_name' => $item->category->name ?? null,
                     'debug_transaction_currency' => $item->currency_id,
                     'debug_transaction_rate' => $currencyRates[$item->currency_id] ?? 1,
                     'debug_project_currency' => $projectCurrencyId,

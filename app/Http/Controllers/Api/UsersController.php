@@ -77,6 +77,21 @@ class UsersController extends BaseController
      * @param int $id ID пользователя
      * @return \Illuminate\Http\JsonResponse
      */
+    public function show($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return $this->notFoundResponse('User not found');
+        }
+
+        if (!$this->canPerformAction('users', 'view', $user)) {
+            return $this->forbiddenResponse('Нет прав на просмотр этого пользователя');
+        }
+
+        return $this->userResponse($user);
+    }
+
     public function update(UpdateUserRequest $request, $id)
     {
         $targetUser = User::findOrFail($id);
@@ -210,6 +225,19 @@ class UsersController extends BaseController
     public function getAllUsers()
     {
         $items = $this->itemsRepository->getAllItems();
+        return response()->json($items);
+    }
+
+    public function search(Request $request)
+    {
+        $search_request = $request->input('search_request');
+
+        if (!$search_request || empty($search_request)) {
+            return response()->json([]);
+        }
+
+        $items = $this->itemsRepository->searchUser($search_request);
+
         return response()->json($items);
     }
 

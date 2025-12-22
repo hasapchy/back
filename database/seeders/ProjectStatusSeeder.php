@@ -16,31 +16,31 @@ class ProjectStatusSeeder extends Seeder
         $statuses = [
             [
                 'id' => 1,
-                'name' => 'Новый',
+                'name' => 'NEW',
                 'color' => '#007bff',
                 'user_id' => 1
             ],
             [
                 'id' => 2,
-                'name' => 'В работе',
+                'name' => 'IN_PROGRESS',
                 'color' => '#28a745',
                 'user_id' => 1
             ],
             [
                 'id' => 3,
-                'name' => 'Ожидает оплаты',
+                'name' => 'PENDING',
                 'color' => '#f49510',
                 'user_id' => 1
             ],
             [
                 'id' => 4,
-                'name' => 'Завершен',
+                'name' => 'COMPLETED',
                 'color' => '#6c757d',
                 'user_id' => 1
             ],
             [
                 'id' => 5,
-                'name' => 'Отменен',
+                'name' => 'CANCELLED',
                 'color' => '#dc3545',
                 'user_id' => 1
             ]

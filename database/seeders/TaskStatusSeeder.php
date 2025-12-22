@@ -15,25 +15,25 @@ class TaskStatusSeeder extends Seeder
         $statuses = [
             [
                 'id' => 1,
-                'name' => 'Ожидает',
+                'name' => 'PENDING',
                 'color' => '#ffc107',
                 'user_id' => 1
             ],
             [
                 'id' => 2,
-                'name' => 'В работе',
+                'name' => 'IN_PROGRESS',
                 'color' => '#28a745',
                 'user_id' => 1
             ],
             [
                 'id' => 3,
-                'name' => 'Завершен',
+                'name' => 'COMPLETED',
                 'color' => '#6c757d',
                 'user_id' => 1
             ],
             [
                 'id' => 4,
-                'name' => 'Отменен',
+                'name' => 'CANCELLED',
                 'color' => '#dc3545',
                 'user_id' => 1
             ]
