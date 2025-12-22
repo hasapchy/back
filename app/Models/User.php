@@ -105,6 +105,21 @@ class User extends Authenticatable
         return $this->belongsToMany(\App\Models\Warehouse::class, 'wh_users', 'user_id', 'warehouse_id');
     }
 
+    public function departments()
+    {
+        return $this->belongsToMany(Department::class)->withTimestamps();
+    }
+
+    public function headedDepartments()
+    {
+        return $this->hasMany(Department::class, 'head_id');
+    }
+
+    public function deputyDepartments()
+    {
+        return $this->hasMany(Department::class, 'deputy_head_id');
+    }
+
     /**
      * Проекты, к которым принадлежит пользователь
      */

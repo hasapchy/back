@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\WarehouseStockController;
 use App\Http\Controllers\Api\WarehouseWriteoffController;
 use App\Http\Controllers\Api\LeaveTypeController;
 use App\Http\Controllers\Api\LeaveController;
+use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\CacheController as ApiCacheController;
 use Illuminate\Support\Facades\Route;
 
@@ -308,4 +309,11 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission:task_statuses_create')->post('task-statuses', [TaskStatusController::class, 'store']);
     Route::middleware('permission.scope:task_statuses_update_all,task_statuses_update')->put('task-statuses/{id}', [TaskStatusController::class, 'update']);
     Route::middleware('permission.scope:task_statuses_delete_all,task_statuses_delete')->delete('task-statuses/{id}', [TaskStatusController::class, 'destroy']);
+
+    // Departments routes
+    Route::middleware('permission.scope:departments_view_all,departments_view_own')->get('departments', [DepartmentController::class, 'index']);
+    Route::middleware('permission.scope:departments_view_all,departments_view_own')->get('departments/all', [DepartmentController::class, 'all']);
+    Route::middleware('permission:departments_create')->post('departments', [DepartmentController::class, 'store']);
+    Route::middleware('permission.scope:departments_update_all,departments_update')->put('departments/{id}', [DepartmentController::class, 'update']);
+    Route::middleware('permission.scope:departments_delete_all,departments_delete')->delete('departments/{id}', [DepartmentController::class, 'destroy']);
 });

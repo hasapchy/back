@@ -195,6 +195,12 @@ return [
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
+        'departments' => [
+            'has_user_id' => true,
+            'check_strategy' => 'many_to_many',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
     ],
 
     'custom_permissions' => [
@@ -259,6 +265,10 @@ return [
             'label' => 'leaves',
             'resources' => ['leaves', 'leave_types'],
         ],
+        'departments' => [
+            'label' => 'departments',
+            'resources' => ['departments'],
+        ],
     ],
 
     'group_custom_permissions' => [
@@ -275,6 +285,9 @@ return [
         'clients' => [
             'settings_client_balance_view',
             'settings_client_balance_adjustment',
+        ],
+        'departments' => [
+            'departments_assign_users',
         ],
     ],
 ];

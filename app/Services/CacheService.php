@@ -484,6 +484,16 @@ class CacheService
     }
 
     /**
+     * Invalidate departments cache
+     *
+     * @return void
+     */
+    public static function invalidateDepartmentsCache(): void
+    {
+        self::invalidateByLike('%department%');
+    }
+
+    /**
      * Clear user cache
      *
      * @param int $userId User ID
