@@ -27,7 +27,7 @@ return new class extends Migration
             $table->foreignId('company_id')->constrained('companies');
 
             // Статус и сроки
-            $table->foreignId('status_id')->nullable()->constrained('task_statuses');
+            $table->enum('status', ['in_progress', 'pending', 'completed', 'postponed'])->default('in_progress');
             $table->timestamp('deadline');
 
             // Файлы (храним как JSON)
@@ -41,9 +41,9 @@ return new class extends Migration
             $table->softDeletes();
 
             // Индексы для оптимизации
-            $table->index('status_id');
+            $table->index('status');
             $table->index('deadline');
-            $table->index(['company_id', 'status_id']);
+            $table->index(['company_id', 'status']);
         });
     }
 
