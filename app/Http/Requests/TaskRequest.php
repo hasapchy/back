@@ -28,6 +28,8 @@ class TaskRequest extends FormRequest
             'executor_id' => 'required|exists:users,id',
             'project_id' => 'nullable|exists:projects,id',
             'status_id' => 'nullable|exists:task_statuses,id',
+            'priority' => 'nullable|in:low,normal,high',
+            'complexity' => 'nullable|in:simple,normal,complex',
             'deadline' => 'nullable|date',
             'files' => 'nullable|array',
             'comments' => 'nullable|array',

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use App\Enums\TaskPriority;
+use App\Enums\TaskComplexity;
 
 class Task extends Model
 {
@@ -21,6 +23,8 @@ class Task extends Model
         'project_id',
         'company_id',
         'status_id',
+        'priority',
+        'complexity',
         'deadline',
         'files',
         'comments'
@@ -29,7 +33,14 @@ class Task extends Model
     protected $casts = [
         'deadline' => 'datetime',
         'files' => 'array',
-        'comments' => 'array'
+        'comments' => 'array',
+        'priority' => TaskPriority::class,
+        'complexity' => TaskComplexity::class,
+    ];
+
+    protected $attributes = [
+        'priority' => 'low',
+        'complexity' => 'normal',
     ];
 
     // Связи
@@ -96,7 +107,7 @@ class Task extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['title', 'description', 'status_id', 'deadline', 'supervisor_id', 'executor_id', 'project_id'])
+            ->logOnly(['title', 'description', 'status_id', 'priority', 'complexity', 'deadline', 'supervisor_id', 'executor_id', 'project_id'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
