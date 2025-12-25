@@ -23,18 +23,22 @@ class CommentsRepository extends BaseRepository
             $modelClass = $this->resolveType($type);
 
             return Comment::select([
-                'comments.id', 'comments.body', 'comments.commentable_type',
-                'comments.commentable_id', 'comments.user_id', 'comments.created_at',
+                'comments.id',
+                'comments.body',
+                'comments.commentable_type',
+                'comments.commentable_id',
+                'comments.user_id',
+                'comments.created_at',
                 'comments.updated_at'
             ])
-            ->with([
-                'user:id,name,email',
-                'commentable:id,name'
-            ])
-            ->where('commentable_type', $modelClass)
-            ->where('commentable_id', $id)
-            ->orderBy('created_at', 'desc')
-            ->get();
+                ->with([
+                    'user:id,name,email',
+                    'commentable:id,name'
+                ])
+                ->where('commentable_type', $modelClass)
+                ->where('commentable_id', $id)
+                ->orderBy('created_at', 'desc')
+                ->get();
         }, $this->getCacheTTL('reference'));
     }
 
@@ -89,40 +93,27 @@ class CommentsRepository extends BaseRepository
      */
     public function updateItem(int $id, int $userId, string $body)
     {
-        DB::beginTransaction();
-        try {
-            /** @var \App\Models\User|null $currentUser */
-            $currentUser = auth('api')->user();
-
+        return DB::transaction(function () use ($id, $userId, $body) {
             $query = Comment::select([
-                'comments.id', 'comments.body', 'comments.commentable_type',
-                'comments.commentable_id', 'comments.user_id'
+                'comments.id',
+                'comments.body',
+                'comments.commentable_type',
+                'comments.commentable_id',
+                'comments.user_id'
             ])
-            ->where('id', $id);
+                ->where('id', $id);
 
-            if (!$currentUser || !$currentUser->is_admin) {
-                $query->where('user_id', $userId);
-            }
+            $this->applyUserAccessFilter($query, $userId);
 
-            $comment = $query->first();
-
-            if (!$comment) {
-                DB::rollBack();
-                return false;
-            }
+            $comment = $query->firstOrFail();
 
             $comment->body = $body;
             $comment->save();
 
-            DB::commit();
-
             $this->invalidateCommentsCache($comment->commentable_type, $comment->commentable_id);
 
             return $comment->load(['user:id,name,email']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -135,40 +126,28 @@ class CommentsRepository extends BaseRepository
      */
     public function deleteItem(int $id, int $userId)
     {
-        DB::beginTransaction();
-        try {
-            /** @var \App\Models\User|null $currentUser */
-            $currentUser = auth('api')->user();
-
+        return DB::transaction(function () use ($id, $userId) {
             $query = Comment::select([
-                'comments.id', 'comments.commentable_type', 'comments.commentable_id'
+                'comments.id',
+                'comments.commentable_type',
+                'comments.commentable_id'
             ])
-            ->where('id', $id);
+                ->where('id', $id);
 
-            if (!$currentUser || !$currentUser->is_admin) {
-                $query->where('user_id', $userId);
-            }
+            $this->applyUserAccessFilter($query, $userId);
 
-            $comment = $query->first();
-
-            if (!$comment) {
-                DB::rollBack();
-                return false;
-            }
+            $comment = $query->firstOrFail();
+            $commentableType = $comment->commentable_type;
+            $commentableId = $comment->commentable_id;
 
             $deleted = $comment->delete();
 
-            DB::commit();
-
             if ($deleted) {
-                $this->invalidateCommentsCache($comment->commentable_type, $comment->commentable_id);
+                $this->invalidateCommentsCache($commentableType, $commentableId);
             }
 
             return $deleted;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -216,5 +195,23 @@ class CommentsRepository extends BaseRepository
     {
         $companyId = $this->getCurrentCompanyId() ?? 'default';
         CacheService::invalidateByLike("%comments_{$type}_{$companyId}%");
+    }
+
+    /**
+     * Применить фильтр доступа пользователя к запросу комментариев
+     *
+     * Администраторы могут редактировать/удалять любые комментарии,
+     * обычные пользователи - только свои
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param int $userId ID пользователя, от имени которого выполняется действие
+     * @return void
+     */
+    private function applyUserAccessFilter($query, int $userId)
+    {
+        $currentUser = auth('api')->user();
+        if (!optional($currentUser)->is_admin) {
+            $query->where('user_id', $userId);
+        }
     }
 }

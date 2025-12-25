@@ -191,10 +191,9 @@ class TransactionsRepository extends BaseRepository
                     return $q->where('transactions.project_id', $project_id);
                 })
                 ->when($is_debt !== null, function ($q) use ($is_debt) {
-                    if ($is_debt === 'true' || $is_debt === '1' || $is_debt === 1 || $is_debt === true) {
-                        return $q->where('transactions.is_debt', true);
-                    } elseif ($is_debt === 'false' || $is_debt === '0' || $is_debt === 0 || $is_debt === false) {
-                        return $q->where('transactions.is_debt', false);
+                    $isDebtBool = filter_var($is_debt, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                    if ($isDebtBool !== null) {
+                        return $q->where('transactions.is_debt', $isDebtBool);
                     }
                     return $q;
                 });
@@ -409,7 +408,7 @@ class TransactionsRepository extends BaseRepository
 
             $transaction->project_id = $data['project_id'];
             $transaction->client_id = $data['client_id'];
-            $transaction->note = !empty($data['note']) ? $data['note'] : null;
+            $transaction->note = $data['note'] ?? null;
             $transaction->date = $data['date'];
             $transaction->is_debt = $data['is_debt'] ?? false;
             $transaction->source_type = $data['source_type'] ?? null;
@@ -607,7 +606,7 @@ class TransactionsRepository extends BaseRepository
             $transaction->category_id = $data['category_id'];
             $transaction->project_id = $data['project_id'];
             $transaction->date = $data['date'];
-            $transaction->note = !empty($data['note']) ? $data['note'] : null;
+            $transaction->note = $data['note'] ?? null;
 
             if (array_key_exists('source_type', $data)) {
                 $transaction->source_type = $data['source_type'];

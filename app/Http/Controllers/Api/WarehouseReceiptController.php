@@ -81,7 +81,7 @@ class WarehouseReceiptController extends BaseController
             return $cashAccessCheck;
         }
 
-        $data = array(
+        $data = [
             'client_id' => $validatedData['client_id'],
             'warehouse_id' => $validatedData['warehouse_id'],
             'type'        => $validatedData['type'],
@@ -97,7 +97,7 @@ class WarehouseReceiptController extends BaseController
                     'price' => $product['price']
                 ];
             }, $validatedData['products'])
-        );
+        ];
 
         try {
             $warehouse_created = $this->warehouseRepository->createItem($data);

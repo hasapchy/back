@@ -65,11 +65,12 @@ class CashRegistersController extends BaseController
     public function getCashBalance(Request $request)
     {
         $user = $this->requireAuthenticatedUser();
-        $userUuid = $user->id;
 
         if (!$this->hasPermission('settings_cash_balance_view', $user)) {
             return $this->forbiddenResponse('Нет доступа к просмотру баланса кассы');
         }
+
+        $userUuid = $user->id;
 
         $cashRegisterIds = $request->query('cash_register_ids', '');
         $all = empty($cashRegisterIds);
@@ -155,12 +156,9 @@ class CashRegistersController extends BaseController
      */
     public function update(UpdateCashRegisterRequest $request, $id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->getAuthenticatedUserIdOrFail();
 
-        $cashRegister = \App\Models\CashRegister::find($id);
-        if (!$cashRegister) {
-            return $this->notFoundResponse('Касса не найдена');
-        }
+        $cashRegister = \App\Models\CashRegister::findOrFail($id);
 
         if (!$this->canPerformAction('cash_registers', 'update', $cashRegister)) {
             return $this->forbiddenResponse('У вас нет прав на редактирование этой кассы');
@@ -189,10 +187,7 @@ class CashRegistersController extends BaseController
     public function destroy($id)
     {
         try {
-            $cashRegister = \App\Models\CashRegister::find($id);
-            if (!$cashRegister) {
-                return $this->notFoundResponse('Касса не найдена');
-            }
+            $cashRegister = \App\Models\CashRegister::findOrFail($id);
 
             if (!$this->canPerformAction('cash_registers', 'delete', $cashRegister)) {
                 return $this->forbiddenResponse('У вас нет прав на удаление этой кассы');

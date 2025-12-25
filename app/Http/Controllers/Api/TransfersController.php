@@ -56,14 +56,9 @@ class TransfersController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $cashFromAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id_from']);
-        if ($cashFromAccessCheck) {
-            return $cashFromAccessCheck;
-        }
-
-        $cashToAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id_to']);
-        if ($cashToAccessCheck) {
-            return $cashToAccessCheck;
+        $accessCheck = $this->checkCashRegistersAccess($validatedData['cash_id_from'], $validatedData['cash_id_to']);
+        if ($accessCheck) {
+            return $accessCheck;
         }
 
         $item_created = $this->itemsRepository->createItem([
@@ -137,5 +132,22 @@ class TransfersController extends BaseController
         }
 
         return response()->json(['message' => 'Трансфер удалён']);
+    }
+
+    /**
+     * Проверить доступ к двум кассам
+     *
+     * @param int|null $cashIdFrom ID кассы откуда
+     * @param int|null $cashIdTo ID кассы куда
+     * @return \Illuminate\Http\JsonResponse|null
+     */
+    protected function checkCashRegistersAccess(?int $cashIdFrom, ?int $cashIdTo)
+    {
+        $cashFromAccessCheck = $this->checkCashRegisterAccess($cashIdFrom);
+        if ($cashFromAccessCheck) {
+            return $cashFromAccessCheck;
+        }
+
+        return $this->checkCashRegisterAccess($cashIdTo);
     }
 }

@@ -115,11 +115,7 @@ class ProjectsRepository extends BaseRepository
             $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
             $paginated->getCollection()->transform(function ($project) {
-                if ($project->creator) {
-                    $project->user_name = $project->creator->name;
-                    $project->user_photo = $project->creator->photo;
-                }
-                return $project;
+                return $this->transformProject($project);
             });
 
             return $paginated;
@@ -156,11 +152,7 @@ class ProjectsRepository extends BaseRepository
             $items = $query->orderBy('created_at', 'desc')->get();
 
             $items->transform(function ($project) {
-                if ($project->creator) {
-                    $project->user_name = $project->creator->name;
-                    $project->user_photo = $project->creator->photo;
-                }
-                return $project;
+                return $this->transformProject($project);
             });
 
             return $items;
@@ -278,10 +270,7 @@ class ProjectsRepository extends BaseRepository
 
             $result = $query->first();
 
-            if ($result && $result->creator) {
-                $result->user_name = $result->creator->name;
-                $result->user_photo = $result->creator->photo;
-            }
+            $result = $this->transformProject($result);
 
             return $result;
         }, $this->getCacheTTL('reference'));
@@ -521,5 +510,22 @@ class ProjectsRepository extends BaseRepository
         }
 
         return $updatedCount;
+    }
+
+    /**
+     * Трансформировать проект, добавив данные создателя
+     *
+     * Добавляет к проекту поля user_name и user_photo из связанного пользователя-создателя
+     *
+     * @param \App\Models\Project|null $project Проект для трансформации
+     * @return \App\Models\Project|null Трансформированный проект или null
+     */
+    private function transformProject($project)
+    {
+        if (optional($project)->creator) {
+            $project->user_name = $project->creator->name;
+            $project->user_photo = $project->creator->photo;
+        }
+        return $project;
     }
 }

@@ -79,11 +79,7 @@ class UsersController extends BaseController
      */
     public function show($id)
     {
-        $user = User::find($id);
-
-        if (!$user) {
-            return $this->notFoundResponse('User not found');
-        }
+        $user = User::findOrFail($id);
 
         if (!$this->canPerformAction('users', 'view', $user)) {
             return $this->forbiddenResponse('Нет прав на просмотр этого пользователя');

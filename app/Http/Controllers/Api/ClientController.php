@@ -110,18 +110,11 @@ class ClientController extends BaseController
             return $this->forbiddenResponse('Нет доступа к просмотру баланса клиента');
         }
 
-        try {
-            $excludeDebt = $request->input('exclude_debt', null);
-            if ($excludeDebt !== null) {
-                $excludeDebt = filter_var($excludeDebt, FILTER_VALIDATE_BOOLEAN);
-            }
+        $excludeDebt = $request->boolean('exclude_debt');
 
-            $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt);
+        $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt);
 
-            return response()->json(['history' => $history]);
-        } catch (\Throwable $e) {
-            return $this->errorResponse('Ошибка при получении истории баланса: ' . $e->getMessage(), 500);
-        }
+        return response()->json(['history' => $history]);
     }
 
     /**
@@ -224,11 +217,7 @@ class ClientController extends BaseController
     {
         $validatedData = $this->normalizeNullableFields($request->validated());
 
-        try {
-            $existingClient = Client::find($id);
-            if (!$existingClient) {
-                return $this->notFoundResponse('Клиент не найден');
-            }
+        $existingClient = Client::findOrFail($id);
 
             if (!$this->canPerformAction('clients', 'update', $existingClient)) {
                 return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
@@ -244,6 +233,14 @@ class ClientController extends BaseController
                 return $phoneCheck;
             }
 
+            $client = $this->itemsRepository->updateItem($id, $validatedData);
+
+            CacheService::invalidateClientsCache();
+            CacheService::invalidateOrdersCache();
+            CacheService::invalidateSalesCache();
+            CacheService::invalidateTransactionsCache();
+
+        try {
             $client = $this->itemsRepository->updateItem($id, $validatedData);
 
             CacheService::invalidateClientsCache();
@@ -296,10 +293,7 @@ class ClientController extends BaseController
     public function destroy($id)
     {
         try {
-            $client = Client::find($id);
-            if (!$client) {
-                return $this->notFoundResponse('Клиент не найден');
-            }
+            $client = Client::findOrFail($id);
 
             if (!$this->canPerformAction('clients', 'delete', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на удаление этого клиента');

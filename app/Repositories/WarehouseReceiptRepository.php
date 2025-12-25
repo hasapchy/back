@@ -126,7 +126,7 @@ class WarehouseReceiptRepository extends BaseRepository
         $type         = $data['type'];
         $cash_id      = $data['cash_id'] ?? null;
         $date         = $data['date'] ?? now();
-        $note         = !empty($data['note']) ? $data['note'] : null;
+        $note         = $data['note'] ?? null;
         $products     = $data['products'];
 
         return DB::transaction(function () use ($data, $client_id, $warehouse_id, $type, $cash_id, $date, $note, $products) {
@@ -178,29 +178,23 @@ class WarehouseReceiptRepository extends BaseRepository
                 }
             }
 
-            $transactionData = [
-                'type'        => 0,
-                'user_id'     => auth('api')->id(),
-                'amount'      => $total_amount,
-                'orig_amount' => $total_amount,
+            $transactionData = $this->buildReceiptTransactionData([
+                'amount' => $total_amount,
                 'currency_id' => $currency->id,
-                'cash_id'     => $cash_id,
-                'category_id' => 6,
-                'project_id'  => $data['project_id'] ?? null,
-                'client_id'   => $client_id,
-                'note'        => $note,
-                'date'        => $date,
-                'is_debt'     => true,
-            ];
+                'cash_id' => $cash_id,
+                'client_id' => $client_id,
+                'project_id' => $data['project_id'] ?? null,
+                'note' => $note,
+                'date' => $date,
+            ]);
 
-            if ($type === 'balance') {
-                $this->createTransactionForSource($transactionData, \App\Models\WhReceipt::class, $receipt->id, true);
-            } else {
-                $this->createTransactionForSource($transactionData, \App\Models\WhReceipt::class, $receipt->id, true);
+            // Всегда создаем транзакцию с долгом
+            $this->createTransactionForSource($transactionData, \App\Models\WhReceipt::class, $receipt->id, true);
 
-                $paymentTxData = $transactionData;
-                $paymentTxData['is_debt'] = false;
-                $this->createTransactionForSource($paymentTxData, \App\Models\WhReceipt::class, $receipt->id, true);
+            // Если не балансовая операция, создаем также транзакцию оплаты
+            if ($type !== 'balance') {
+                $transactionData['is_debt'] = false;
+                $this->createTransactionForSource($transactionData, \App\Models\WhReceipt::class, $receipt->id, true);
             }
 
             $this->invalidateCaches($data['project_id'] ?? null);
@@ -222,7 +216,7 @@ class WarehouseReceiptRepository extends BaseRepository
         $warehouse_id = $data['warehouse_id'];
         $cash_id      = $data['cash_id'] ?? null;
         $date         = $data['date'];
-        $note         = !empty($data['note']) ? $data['note'] : null;
+        $note         = $data['note'] ?? null;
         $products     = $data['products'];
         $project_id   = $data['project_id'] ?? null;
 
@@ -397,5 +391,36 @@ class WarehouseReceiptRepository extends BaseRepository
         $amount = is_numeric($amount) ? (float)$amount : 0.0;
         \App\Models\Client::where('id', $client_id)->decrement('balance', $amount);
         return true;
+    }
+
+    /**
+     * Построить данные транзакции для оприходования
+     *
+     * @param array<string, mixed> $data Данные для транзакции:
+     *   - amount (float) Сумма транзакции
+     *   - currency_id (int) ID валюты
+     *   - cash_id (int|null) ID кассы
+     *   - client_id (int) ID поставщика
+     *   - project_id (int|null) ID проекта
+     *   - note (string|null) Примечание
+     *   - date (string) Дата транзакции
+     * @return array<string, mixed> Данные транзакции для создания
+     */
+    private function buildReceiptTransactionData(array $data): array
+    {
+        return [
+            'type' => 0,
+            'user_id' => auth('api')->id(),
+            'amount' => $data['amount'],
+            'orig_amount' => $data['amount'],
+            'currency_id' => $data['currency_id'],
+            'cash_id' => $data['cash_id'],
+            'category_id' => 6,
+            'project_id' => $data['project_id'] ?? null,
+            'client_id' => $data['client_id'],
+            'note' => $data['note'],
+            'date' => $data['date'],
+            'is_debt' => true,
+        ];
     }
 }

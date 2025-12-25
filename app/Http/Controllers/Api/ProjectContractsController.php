@@ -39,13 +39,9 @@ class ProjectContractsController extends BaseController
     public function index(Request $request, $projectId): JsonResponse
     {
         try {
-            $project = Project::find($projectId);
-            if (!$project) {
-                return $this->notFoundResponse('Проект не найден');
-            }
-
-            if (!$this->canPerformAction('projects', 'view', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
+            $project = $this->findProjectAndCheckAccess($projectId, 'view');
+            if ($project instanceof \Illuminate\Http\JsonResponse) {
+                return $project;
             }
 
             $perPage = (int) $request->get('per_page', 20);
@@ -70,13 +66,9 @@ class ProjectContractsController extends BaseController
     public function getAll(Request $request, $projectId): JsonResponse
     {
         try {
-            $project = Project::find($projectId);
-            if (!$project) {
-                return $this->notFoundResponse('Проект не найден');
-            }
-
-            if (!$this->canPerformAction('projects', 'view', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
+            $project = $this->findProjectAndCheckAccess($projectId, 'view');
+            if ($project instanceof \Illuminate\Http\JsonResponse) {
+                return $project;
             }
 
             $contracts = $this->repository->getAllItems($projectId);
@@ -137,13 +129,9 @@ class ProjectContractsController extends BaseController
                 return $this->notFoundResponse('Контракт не найден');
             }
 
-            $project = $contract->project;
-            if (!$project) {
-                return $this->notFoundResponse('Проект не найден');
-            }
-
-            if (!$this->canPerformAction('projects', 'view', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
+            $project = $this->findProjectAndCheckAccess($contract->project_id, 'view');
+            if ($project instanceof \Illuminate\Http\JsonResponse) {
+                return $project;
             }
 
             return response()->json(['item' => $contract]);
@@ -162,18 +150,11 @@ class ProjectContractsController extends BaseController
     public function update(UpdateProjectContractRequest $request, $id): JsonResponse
     {
         try {
-            $contract = ProjectContract::find($id);
-            if (!$contract) {
-                return $this->notFoundResponse('Контракт не найден');
-            }
+            $contract = ProjectContract::findOrFail($id);
 
-            $project = $contract->project;
-            if (!$project) {
-                return $this->notFoundResponse('Проект не найден');
-            }
-
-            if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
+            $project = $this->findProjectAndCheckAccess($contract->project_id, 'update');
+            if ($project instanceof \Illuminate\Http\JsonResponse) {
+                return $project;
             }
 
             $validatedData = $request->validated();
@@ -202,18 +183,11 @@ class ProjectContractsController extends BaseController
     public function destroy($id): JsonResponse
     {
         try {
-            $contract = ProjectContract::find($id);
-            if (!$contract) {
-                return $this->notFoundResponse('Контракт не найден');
-            }
+            $contract = ProjectContract::findOrFail($id);
 
-            $project = $contract->project;
-            if (!$project) {
-                return $this->notFoundResponse('Проект не найден');
-            }
-
-            if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
+            $project = $this->findProjectAndCheckAccess($contract->project_id, 'update');
+            if ($project instanceof \Illuminate\Http\JsonResponse) {
+                return $project;
             }
 
             $result = $this->repository->deleteContract($id);
@@ -226,6 +200,33 @@ class ProjectContractsController extends BaseController
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при удалении контракта: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * Найти проект и проверить доступ
+     *
+     * @param int $projectId ID проекта
+     * @param string $action Действие (view, update, delete)
+     * @return \App\Models\Project|\Illuminate\Http\JsonResponse
+     */
+    protected function findProjectAndCheckAccess(int $projectId, string $action)
+    {
+        $project = Project::find($projectId);
+        if (!$project) {
+            return $this->notFoundResponse('Проект не найден');
+        }
+
+        $actionMessages = [
+            'view' => 'У вас нет прав на просмотр этого проекта',
+            'update' => 'У вас нет прав на редактирование этого проекта',
+            'delete' => 'У вас нет прав на удаление этого проекта',
+        ];
+
+        if (!$this->canPerformAction('projects', $action, $project)) {
+            return $this->forbiddenResponse($actionMessages[$action] ?? 'У вас нет прав на это действие');
+        }
+
+        return $project;
     }
 }
 

@@ -53,17 +53,12 @@ class WarehouseMovementController extends BaseController
     {
         $validatedData = $request->validated();
 
-        $warehouseFromAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_from_id']);
-        if ($warehouseFromAccessCheck) {
-            return $warehouseFromAccessCheck;
+        $accessCheck = $this->checkWarehousesAccess($validatedData['warehouse_from_id'], $validatedData['warehouse_to_id']);
+        if ($accessCheck) {
+            return $accessCheck;
         }
 
-        $warehouseToAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_to_id']);
-        if ($warehouseToAccessCheck) {
-            return $warehouseToAccessCheck;
-        }
-
-        $data = array(
+        $data = [
             'warehouse_from_id' => $validatedData['warehouse_from_id'],
             'warehouse_to_id' => $validatedData['warehouse_to_id'],
             'date' => $validatedData['date'] ?? now(),
@@ -74,7 +69,7 @@ class WarehouseMovementController extends BaseController
                     'quantity' => $product['quantity']
                 ];
             }, $validatedData['products'])
-        );
+        ];
 
         try {
             $warehouse_created = $this->warehouseRepository->createItem($data);
@@ -84,7 +79,7 @@ class WarehouseMovementController extends BaseController
 
             return response()->json(['message' => 'Перемещение создано']);
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка перемещения' . $th->getMessage(), 400);
+            return $this->errorResponse('Ошибка перемещения: ' . $th->getMessage(), 400);
         }
     }
 
@@ -99,17 +94,12 @@ class WarehouseMovementController extends BaseController
     {
         $validatedData = $request->validated();
 
-        $warehouseFromAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_from_id']);
-        if ($warehouseFromAccessCheck) {
-            return $warehouseFromAccessCheck;
+        $accessCheck = $this->checkWarehousesAccess($validatedData['warehouse_from_id'], $validatedData['warehouse_to_id']);
+        if ($accessCheck) {
+            return $accessCheck;
         }
 
-        $warehouseToAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_to_id']);
-        if ($warehouseToAccessCheck) {
-            return $warehouseToAccessCheck;
-        }
-
-        $data = array(
+        $data = [
             'warehouse_from_id' => $validatedData['warehouse_from_id'],
             'warehouse_to_id' => $validatedData['warehouse_to_id'],
             'date' => $validatedData['date'] ?? now(),
@@ -120,7 +110,7 @@ class WarehouseMovementController extends BaseController
                     'quantity' => $product['quantity']
                 ];
             }, $validatedData['products'])
-        );
+        ];
 
         try {
             $warehouse_created = $this->warehouseRepository->updateItem($id, $data);
@@ -130,7 +120,7 @@ class WarehouseMovementController extends BaseController
 
             return response()->json(['message' => 'Перемещение обновлено']);
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка обновления перемещения' . $th->getMessage(), 400);
+            return $this->errorResponse('Ошибка обновления перемещения: ' . $th->getMessage(), 400);
         }
     }
 
@@ -165,5 +155,22 @@ class WarehouseMovementController extends BaseController
         }
 
         return response()->json(['message' => 'Перемещение удалено']);
+    }
+
+    /**
+     * Проверить доступ к двум складам
+     *
+     * @param int $warehouseFromId ID склада откуда
+     * @param int $warehouseToId ID склада куда
+     * @return \Illuminate\Http\JsonResponse|null
+     */
+    protected function checkWarehousesAccess(int $warehouseFromId, int $warehouseToId)
+    {
+        $warehouseFromAccessCheck = $this->checkWarehouseAccess($warehouseFromId);
+        if ($warehouseFromAccessCheck) {
+            return $warehouseFromAccessCheck;
+        }
+
+        return $this->checkWarehouseAccess($warehouseToId);
     }
 }

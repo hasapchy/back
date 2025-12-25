@@ -26,12 +26,7 @@ class CategoriesRepository extends BaseRepository
                 ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
                 ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
 
-            if ($this->shouldApplyUserFilter('categories')) {
-                $query->join('category_users', 'categories.id', '=', 'category_users.category_id')
-                    ->where('category_users.user_id', $userUuid)
-                    ->distinct();
-            }
-
+            $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
             return $query->with(['users:id,name,surname,email,position'])->paginate($perPage, ['*'], 'page', (int)$page);
@@ -53,12 +48,7 @@ class CategoriesRepository extends BaseRepository
                 ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
                 ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
 
-            if ($this->shouldApplyUserFilter('categories')) {
-                $query->join('category_users', 'categories.id', '=', 'category_users.category_id')
-                    ->where('category_users.user_id', $userUuid)
-                    ->distinct();
-            }
-
+            $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
             return $query->with(['users:id,name,surname,email,position'])->get();
@@ -81,12 +71,7 @@ class CategoriesRepository extends BaseRepository
                 ->whereNull('categories.parent_id')
                 ->whereHas('children');
 
-            if ($this->shouldApplyUserFilter('categories')) {
-                $query->join('category_users', 'categories.id', '=', 'category_users.category_id')
-                    ->where('category_users.user_id', $userUuid)
-                    ->distinct();
-            }
-
+            $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
             return $query->with(['users:id,name,surname,email,position'])->get();
@@ -105,7 +90,7 @@ class CategoriesRepository extends BaseRepository
 
         $item = new Category();
         $item->name = $data['name'];
-        $item->parent_id = ($data['parent_id'] === '' || $data['parent_id'] === null) ? null : (int) $data['parent_id'];
+        $item->parent_id = empty($data['parent_id']) ? null : (int) $data['parent_id'];
         $item->user_id = $data['user_id'];
         $item->company_id = $companyId;
         $item->save();
@@ -130,7 +115,7 @@ class CategoriesRepository extends BaseRepository
 
         $item = Category::findOrFail($id);
         $item->name = $data['name'];
-        $item->parent_id = ($data['parent_id'] === '' || $data['parent_id'] === null) ? null : (int) $data['parent_id'];
+        $item->parent_id = empty($data['parent_id']) ? null : (int) $data['parent_id'];
         $item->user_id = $data['user_id'];
         $item->company_id = $companyId;
         $item->save();
@@ -156,6 +141,24 @@ class CategoriesRepository extends BaseRepository
         CacheService::invalidateCategoriesCache();
 
         return true;
+    }
+
+    /**
+     * Применить фильтр пользователя к запросу категорий
+     *
+     * Фильтрует категории по правам доступа пользователя через связь category_users
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param int $userUuid ID пользователя для фильтрации
+     * @return void
+     */
+    private function applyUserFilter($query, $userUuid)
+    {
+        if ($this->shouldApplyUserFilter('categories')) {
+            $query->join('category_users', 'categories.id', '=', 'category_users.category_id')
+                ->where('category_users.user_id', $userUuid)
+                ->distinct();
+        }
     }
 
     /**

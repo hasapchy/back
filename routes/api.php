@@ -194,6 +194,7 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission:projects_create')->post('projects', [ProjectsController::class, 'store']);
     Route::middleware('permission.scope:projects_update_all,projects_update')->put('projects/{id}', [ProjectsController::class, 'update']);
     Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);
+    Route::middleware('permission.scope:projects_view_all,projects_view')->post('projects/{id}/download-files', [ProjectsController::class, 'downloadFiles']);
     Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/{id}/delete-file', [ProjectsController::class, 'deleteFile']);
     Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/batch-status', [ProjectsController::class, 'batchUpdateStatus']);
     Route::middleware('permission.scope:projects_delete_all,projects_delete')->delete('projects/{id}', [ProjectsController::class, 'destroy']);
@@ -273,8 +274,8 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
 
     Route::get('invoices', [InvoiceController::class, 'index']);
     Route::middleware('permission:invoices_create')->post('invoices', [InvoiceController::class, 'store']);
-    Route::middleware('permission:invoices_update')->put('invoices/{id}', [InvoiceController::class, 'update']);
-    Route::middleware('permission:invoices_delete')->delete('invoices/{id}', [InvoiceController::class, 'destroy']);
+    Route::middleware('permission.scope:invoices_update_all,invoices_update')->put('invoices/{id}', [InvoiceController::class, 'update']);
+    Route::middleware('permission.scope:invoices_delete_all,invoices_delete')->delete('invoices/{id}', [InvoiceController::class, 'destroy']);
     Route::get('invoices/{id}', [InvoiceController::class, 'show']);
     Route::post('invoices/orders', [InvoiceController::class, 'getOrdersForInvoice']);
 

@@ -95,11 +95,7 @@ class WarehouseMovementRepository extends BaseRepository
                 $movementProduct->quantity = $quantity;
                 $movementProduct->save();
 
-                $stock_updated_from = $this->updateStock($warehouse_from_id, $product_id, -$quantity);
-                $stock_updated_to = $this->updateStock($warehouse_to_id, $product_id, $quantity);
-                if (!$stock_updated_from || !$stock_updated_to) {
-                    throw new \Exception('Ошибка обновления стоков');
-                }
+                $this->updateStocksForMovement($warehouse_from_id, $warehouse_to_id, $product_id, $quantity);
             }
 
             CacheService::invalidateWarehouseMovementsCache();
@@ -148,11 +144,7 @@ class WarehouseMovementRepository extends BaseRepository
 
                 $existingProduct = $existingProducts->firstWhere('product_id', $product_id);
                 $quantityDifference = $quantity - ($existingProduct ? $existingProduct->quantity : 0);
-                $stock_updated_from = $this->updateStock($warehouse_from_id, $product_id, -$quantityDifference);
-                $stock_updated_to = $this->updateStock($warehouse_to_id, $product_id, $quantityDifference);
-                if (!$stock_updated_from || !$stock_updated_to) {
-                    throw new \Exception('Ошибка обновления стоков');
-                }
+                $this->updateStocksForMovement($warehouse_from_id, $warehouse_to_id, $product_id, $quantityDifference);
             }
 
             $deletedProducts = array_diff($existingProductIds, array_column($products, 'product_id'));
@@ -184,8 +176,7 @@ class WarehouseMovementRepository extends BaseRepository
 
             $products = WhMovementProduct::where('movement_id', $movement_id)->get();
             foreach ($products as $product) {
-                $this->updateStock($movement->wh_from, $product->product_id, $product->quantity);
-                $this->updateStock($movement->wh_to, $product->product_id, -$product->quantity);
+                $this->updateStocksForMovement($movement->wh_from, $movement->wh_to, $product->product_id, -$product->quantity);
             }
 
             $movement->delete();
@@ -195,6 +186,23 @@ class WarehouseMovementRepository extends BaseRepository
 
             return true;
         });
+    }
+
+    /**
+     * Обновить остатки на обоих складах при перемещении
+     *
+     * Уменьшает остаток на складе-источнике и увеличивает на складе-получателе
+     *
+     * @param int $warehouseFromId ID склада-источника
+     * @param int $warehouseToId ID склада-получателя
+     * @param int $productId ID товара
+     * @param float $quantity Количество (положительное - перемещение, отрицательное - откат)
+     * @return void
+     */
+    private function updateStocksForMovement($warehouseFromId, $warehouseToId, $productId, $quantity)
+    {
+        $this->updateStock($warehouseFromId, $productId, -$quantity);
+        $this->updateStock($warehouseToId, $productId, $quantity);
     }
 
     /**

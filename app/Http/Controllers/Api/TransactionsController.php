@@ -160,8 +160,7 @@ class TransactionsController extends BaseController
      */
     public function update(UpdateTransactionRequest $request, $id)
     {
-        $user = $this->requireAuthenticatedUser();
-        $userUuid = $user->id;
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $validatedData = $request->validated();
 
@@ -265,8 +264,7 @@ class TransactionsController extends BaseController
      */
     public function destroy($id)
     {
-        $user = $this->requireAuthenticatedUser();
-        $userUuid = $user->id;
+        $this->getAuthenticatedUserIdOrFail();
 
         $transaction_exist = Transaction::findOrFail($id);
 
@@ -324,13 +322,14 @@ class TransactionsController extends BaseController
      */
     public function show($id)
     {
+        $this->getAuthenticatedUserIdOrFail();
+        
         $transaction = Transaction::findOrFail($id);
 
         if (!$this->canPerformAction('transactions', 'view', $transaction)) {
             return $this->forbiddenResponse('У вас нет прав на просмотр этой транзакции');
         }
 
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->itemsRepository->getItemById($id);
         if (!$item) {
             return $this->notFoundResponse('Not found');

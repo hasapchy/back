@@ -41,11 +41,10 @@ class OrderTransactionController extends BaseController
         $order = Order::findOrFail($orderId);
 
         $userId = $this->getAuthenticatedUserIdOrFail();
-        if ($order->cash_id) {
-            $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
-            if ($cashAccessCheck) {
-                return $cashAccessCheck;
-            }
+        
+        $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
         }
 
         $transaction = Transaction::findOrFail($request->transaction_id);
@@ -72,12 +71,11 @@ class OrderTransactionController extends BaseController
     {
         $order = Order::findOrFail($orderId);
 
-        $userId = $this->getAuthenticatedUserIdOrFail();
-        if ($order->cash_id) {
-            $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
-            if ($cashAccessCheck) {
-                return $cashAccessCheck;
-            }
+        $this->getAuthenticatedUserIdOrFail();
+        
+        $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
         }
 
         $trx = Transaction::findOrFail($transactionId);
@@ -100,12 +98,11 @@ class OrderTransactionController extends BaseController
     {
         $order = Order::findOrFail($orderId);
 
-        $userId = $this->getAuthenticatedUserIdOrFail();
-        if ($order->cash_id) {
-            $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
-            if ($cashAccessCheck) {
-                return $cashAccessCheck;
-            }
+        $this->getAuthenticatedUserIdOrFail();
+        
+        $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
         }
 
         $transactions = Transaction::where('source_type', Order::class)

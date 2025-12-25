@@ -67,7 +67,7 @@ class SalesRepository extends BaseRepository
                     'products.product.unit:id,name,short_name'
                 ]);
 
-            if ($search !== null) {
+            if ($search) {
                 $this->applySearchFilter($query, $search);
             }
 
@@ -133,7 +133,7 @@ class SalesRepository extends BaseRepository
         $query->where(function ($q) use ($searchTrimmed, $searchLower) {
             $q->where('sales.id', 'like', "%{$searchTrimmed}%")
                 ->orWhereRaw('LOWER(sales.note) LIKE ?', ["%{$searchLower}%"]);
-            
+
             $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
                 $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
             })
@@ -188,7 +188,7 @@ class SalesRepository extends BaseRepository
             $discount    = $data['discount'] ?? 0;
             $discountType = $data['discount_type'] ?? 'percent';
             $date        = $data['date'] ?? now();
-            $note        = !empty($data['note']) ? $data['note'] : null;
+            $note        = $data['note'] ?? null;
             $products    = $data['products'];
 
             $defaultCurrency = Currency::firstWhere('is_default', true);
@@ -244,54 +244,25 @@ class SalesRepository extends BaseRepository
                 'note'         => $note,
             ]);
 
-            if ($isDebt) {
-                $transactionData = [
-                    'client_id'    => $clientId,
-                    'amount'       => $totalPrice,
-                    'orig_amount'  => $totalPrice,
-                    'type'         => 1,
-                    'is_debt'      => true,
-                    'cash_id'      => $cashId,
-                    'category_id'  => 1,
-                    'date'         => $date,
-                    'note'         => $note,
-                    'user_id'      => $userId,
-                    'project_id'   => $projectId,
-                    'currency_id'  => $defaultCurrency->id,
-                ];
-                $this->createTransactionForSource($transactionData, \App\Models\Sale::class, $sale->id, true);
-            } else {
-                $debtTx = [
-                    'client_id'    => $clientId,
-                    'amount'       => $totalPrice,
-                    'orig_amount'  => $totalPrice,
-                    'type'         => 1,
-                    'is_debt'      => true,
-                    'cash_id'      => $cashId,
-                    'category_id'  => 1,
-                    'date'         => $date,
-                    'note'         => $note,
-                    'user_id'      => $userId,
-                    'project_id'   => $projectId,
-                    'currency_id'  => $defaultCurrency->id,
-                ];
-                $this->createTransactionForSource($debtTx, \App\Models\Sale::class, $sale->id, true);
+            $transactionData = $this->buildSaleTransactionData([
+                'client_id' => $clientId,
+                'amount' => $totalPrice,
+                'cash_id' => $cashId,
+                'category_id' => 1,
+                'date' => $date,
+                'note' => $note,
+                'user_id' => $userId,
+                'project_id' => $projectId,
+                'currency_id' => $defaultCurrency->id,
+            ]);
 
-                $paymentTx = [
-                    'client_id'    => $clientId,
-                    'amount'       => $totalPrice,
-                    'orig_amount'  => $totalPrice,
-                    'type'         => 1,
-                    'is_debt'      => false,
-                    'cash_id'      => $cashId,
-                    'category_id'  => 1,
-                    'date'         => $date,
-                    'note'         => $note,
-                    'user_id'      => $userId,
-                    'project_id'   => $projectId,
-                    'currency_id'  => $defaultCurrency->id,
-                ];
-                $this->createTransactionForSource($paymentTx, \App\Models\Sale::class, $sale->id, true);
+            // Всегда создаем транзакцию с долгом
+            $this->createTransactionForSource($transactionData, \App\Models\Sale::class, $sale->id, true);
+
+            // Если не долг, создаем также транзакцию оплаты
+            if (!$isDebt) {
+                $transactionData['is_debt'] = false;
+                $this->createTransactionForSource($transactionData, \App\Models\Sale::class, $sale->id, true);
             }
 
             foreach ($products as $prod) {
@@ -357,5 +328,38 @@ class SalesRepository extends BaseRepository
 
             return true;
         });
+    }
+
+    /**
+     * Построить данные транзакции для продажи
+     *
+     * @param array<string, mixed> $data Данные для транзакции:
+     *   - client_id (int) ID клиента
+     *   - amount (float) Сумма транзакции
+     *   - cash_id (int) ID кассы
+     *   - category_id (int) ID категории
+     *   - date (string) Дата транзакции
+     *   - note (string|null) Примечание
+     *   - user_id (int) ID пользователя
+     *   - project_id (int|null) ID проекта
+     *   - currency_id (int) ID валюты
+     * @return array<string, mixed> Данные транзакции для создания
+     */
+    private function buildSaleTransactionData(array $data): array
+    {
+        return [
+            'client_id' => $data['client_id'],
+            'amount' => $data['amount'],
+            'orig_amount' => $data['amount'],
+            'type' => 1,
+            'is_debt' => true,
+            'cash_id' => $data['cash_id'],
+            'category_id' => $data['category_id'],
+            'date' => $data['date'],
+            'note' => $data['note'],
+            'user_id' => $data['user_id'],
+            'project_id' => $data['project_id'],
+            'currency_id' => $data['currency_id'],
+        ];
     }
 }

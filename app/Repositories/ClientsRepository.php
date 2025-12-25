@@ -51,16 +51,10 @@ class ClientsRepository extends BaseRepository
 
             $this->applyOwnFilter($query, 'clients', 'clients', 'user_id', $currentUser);
 
-            if (!$includeInactive) {
+            if ($statusFilter) {
+                $query->where('clients.status', $statusFilter === 'active');
+            } elseif (!$includeInactive) {
                 $query->where('clients.status', true);
-            }
-
-            if ($statusFilter !== null && $statusFilter !== '') {
-                if ($statusFilter === 'active') {
-                    $query->where('clients.status', true);
-                } elseif ($statusFilter === 'inactive') {
-                    $query->where('clients.status', false);
-                }
             }
 
             if (!empty($typeFilter)) {
@@ -739,7 +733,7 @@ class ClientsRepository extends BaseRepository
         CacheService::invalidateClientsCache();
 
         $client = Client::find($clientId);
-        if ($client && $client->employee_id) {
+        if (optional($client)->employee_id) {
             CacheService::invalidateByLike("%user_employee_balance_{$client->employee_id}_%");
         }
     }

@@ -90,113 +90,30 @@ class CahRegistersRepository extends BaseRepository
         $cashRegisterIds = $cashRegisters->pluck('id');
 
         $transactionsQuery = Transaction::whereIn('cash_id', $cashRegisterIds)
-            ->where('is_deleted', false)
-            ->when($startDate || $endDate, function ($q) use ($startDate, $endDate) {
-                if ($startDate && $endDate) {
-                    // Парсим даты, поддерживая формат DD.MM.YYYY
-                    try {
-                        $parsedStart = \Carbon\Carbon::createFromFormat('d.m.Y', $startDate)->startOfDay();
-                        $parsedEnd = \Carbon\Carbon::createFromFormat('d.m.Y', $endDate)->endOfDay();
-                        return $q->whereBetween('date', [$parsedStart->toDateTimeString(), $parsedEnd->toDateTimeString()]);
-                    } catch (\Exception $e) {
-                        // Если не получилось распарсить как DD.MM.YYYY, пробуем стандартный parse
-                        $parsedStart = \Carbon\Carbon::parse($startDate)->startOfDay();
-                        $parsedEnd = \Carbon\Carbon::parse($endDate)->endOfDay();
-                        return $q->whereBetween('date', [$parsedStart->toDateTimeString(), $parsedEnd->toDateTimeString()]);
-                    }
-                } elseif ($startDate) {
-                    try {
-                        $parsedStart = \Carbon\Carbon::createFromFormat('d.m.Y', $startDate)->startOfDay();
-                        return $q->where('date', '>=', $parsedStart->toDateTimeString());
-                    } catch (\Exception $e) {
-                        $parsedStart = \Carbon\Carbon::parse($startDate)->startOfDay();
-                        return $q->where('date', '>=', $parsedStart->toDateTimeString());
-                    }
-                } elseif ($endDate) {
-                    try {
-                        $parsedEnd = \Carbon\Carbon::createFromFormat('d.m.Y', $endDate)->endOfDay();
-                        return $q->where('date', '<=', $parsedEnd->toDateTimeString());
-                    } catch (\Exception $e) {
-                        $parsedEnd = \Carbon\Carbon::parse($endDate)->endOfDay();
-                        return $q->where('date', '<=', $parsedEnd->toDateTimeString());
-                    }
-                }
-                return $q;
-            })
-            ->when($transactionType, function ($q) use ($transactionType) {
-                switch ($transactionType) {
-                    case 'income':
-                        return $q->where('type', 1);
-                    case 'outcome':
-                        return $q->where('type', 0);
-                    case 'transfer':
-                        return $q->where(function ($subQ) {
-                            $subQ->whereHas('cashTransfersFrom')
-                                ->orWhereHas('cashTransfersTo');
-                        });
-                    default:
-                        return $q;
-                }
-            })
-            ->when($source, function ($q) use ($source) {
-                if (empty($source)) {
+            ->where('is_deleted', false);
+
+        if ($startDate || $endDate) {
+            $this->applyDateFilter($transactionsQuery, 'custom', $startDate, $endDate, 'date');
+        }
+
+        $transactionsQuery->when($transactionType, function ($q) use ($transactionType) {
+            switch ($transactionType) {
+                case 'income':
+                    return $q->where('type', 1);
+                case 'outcome':
+                    return $q->where('type', 0);
+                case 'transfer':
+                    return $q->where(function ($subQ) {
+                        $subQ->whereHas('cashTransfersFrom')
+                            ->orWhereHas('cashTransfersTo');
+                    });
+                default:
                     return $q;
-                }
-
-                return $q->where(function ($subQ) use ($source) {
-                    $hasConditions = false;
-
-                    if (in_array('sale', $source)) {
-                        $subQ->where('source_type', 'App\\Models\\Sale');
-                        $hasConditions = true;
-                    }
-                    if (in_array('order', $source)) {
-                        if ($hasConditions) {
-                            $subQ->orWhere('source_type', 'App\\Models\\Order');
-                        } else {
-                            $subQ->where('source_type', 'App\\Models\\Order');
-                        }
-                        $hasConditions = true;
-                    }
-                    if (in_array('receipt', $source)) {
-                        if ($hasConditions) {
-                            $subQ->orWhere('source_type', 'App\\Models\\WhReceipt');
-                        } else {
-                            $subQ->where('source_type', 'App\\Models\\WhReceipt');
-                        }
-                        $hasConditions = true;
-                    }
-                    if (in_array('salary', $source)) {
-                        if ($hasConditions) {
-                            $subQ->orWhere('source_type', 'App\\Models\\EmployeeSalary');
-                        } else {
-                            $subQ->where('source_type', 'App\\Models\\EmployeeSalary');
-                        }
-                        $hasConditions = true;
-                    }
-                    if (in_array('other', $source)) {
-                        if ($hasConditions) {
-                            $subQ->orWhere(function ($otherQ) {
-                                $otherQ->whereNull('source_type')
-                                    ->orWhereNotIn('source_type', [
-                                        'App\\Models\\Sale',
-                                        'App\\Models\\Order',
-                                        'App\\Models\\WhReceipt',
-                                        'App\\Models\\EmployeeSalary'
-                                    ]);
-                            });
-                        } else {
-                            $subQ->whereNull('source_type')
-                                ->orWhereNotIn('source_type', [
-                                    'App\\Models\\Sale',
-                                    'App\\Models\\Order',
-                                    'App\\Models\\WhReceipt',
-                                    'App\\Models\\EmployeeSalary'
-                                ]);
-                        }
-                    }
-                });
-            });
+            }
+        })
+        ->when($source, function ($q) use ($source) {
+            return $this->applySourceFilter($q, $source);
+        });
 
         $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
         $transactionsQuery = $transactionsRepository->applySourceTypeFilter($transactionsQuery);
@@ -211,14 +128,52 @@ class CahRegistersRepository extends BaseRepository
             ->get()
             ->keyBy('cash_id');
 
-        return $cashRegisters->map(function ($cashRegister) use ($transactionsStats) {
+        $clientCreditsQuery = Transaction::whereIn('cash_id', $cashRegisterIds)
+            ->where('is_deleted', false)
+            ->whereNotNull('client_id');
+
+        if ($startDate || $endDate) {
+            $this->applyDateFilter($clientCreditsQuery, 'custom', $startDate, $endDate, 'date');
+        }
+
+        $clientCreditsQuery->when($transactionType, function ($q) use ($transactionType) {
+            switch ($transactionType) {
+                case 'income':
+                    return $q->where('type', 1);
+                case 'outcome':
+                    return $q->where('type', 0);
+                case 'transfer':
+                    return $q->where(function ($subQ) {
+                        $subQ->whereHas('cashTransfersFrom')
+                            ->orWhereHas('cashTransfersTo');
+                    });
+                default:
+                    return $q;
+            }
+        })
+        ->when($source, function ($q) use ($source) {
+            return $this->applySourceFilter($q, $source);
+        });
+
+        $clientCreditsQuery = $transactionsRepository->applySourceTypeFilter($clientCreditsQuery);
+
+        $clientCreditsStats = $clientCreditsQuery
+            ->select('cash_id')
+            ->selectRaw('SUM(CASE WHEN type = 1 THEN amount ELSE -amount END) as client_balance')
+            ->groupBy('cash_id')
+            ->get()
+            ->keyBy('cash_id');
+
+        return $cashRegisters->map(function ($cashRegister) use ($transactionsStats, $clientCreditsStats) {
             $stats = $transactionsStats->get($cashRegister->id);
+            $clientCredits = $clientCreditsStats->get($cashRegister->id);
 
             $income = (float) ($stats->income_total ?? 0);
             $outcome = (float) ($stats->outcome_total ?? 0);
             $debtIncome = (float) ($stats->debt_income_total ?? 0);
             $debtOutcome = (float) ($stats->debt_outcome_total ?? 0);
             $debtTotal = $debtIncome - $debtOutcome;
+            $clientBalance = (float) ($clientCredits->client_balance ?? 0);
 
             $balance = [
                 ['value' => $income, 'title' => 'Приход', 'type' => 'income'],
@@ -228,6 +183,14 @@ class CahRegistersRepository extends BaseRepository
 
             if ($debtTotal != 0) {
                 $balance[] = ['value' => $debtTotal, 'title' => 'Долг', 'type' => 'debt'];
+            }
+
+            if ($clientBalance != 0) {
+                if ($clientBalance > 0) {
+                    $balance[] = ['value' => $clientBalance, 'title' => 'Дебет', 'type' => 'debit'];
+                } else {
+                    $balance[] = ['value' => abs($clientBalance), 'title' => 'Кредит', 'type' => 'credit'];
+                }
             }
 
             return [
@@ -285,15 +248,11 @@ class CahRegistersRepository extends BaseRepository
         return DB::transaction(function () use ($id, $data) {
             $item = CashRegister::findOrFail($id);
 
-            if (isset($data['name'])) {
-                $item->name = $data['name'];
-            }
-            if (isset($data['balance'])) {
-                $item->balance = $data['balance'];
-            }
-            if (isset($data['currency_id'])) {
-                $item->currency_id = $data['currency_id'];
-            }
+            $item->fill(array_filter([
+                'name' => $data['name'] ?? null,
+                'balance' => $data['balance'] ?? null,
+                'currency_id' => $data['currency_id'] ?? null,
+            ], fn($value) => $value !== null));
 
             $item->save();
 
@@ -388,6 +347,56 @@ class CahRegistersRepository extends BaseRepository
             ->where('cash_register_users.user_id', $filterUserId)
             ->select('cash_registers.*')
             ->distinct();
+    }
+
+    /**
+     * Применить фильтр по источникам транзакций
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param array|null $source Массив источников
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    private function applySourceFilter($query, $source)
+    {
+        if (empty($source)) {
+            return $query;
+        }
+
+        return $query->where(function ($subQ) use ($source) {
+            $sourceMap = [
+                'sale' => 'App\\Models\\Sale',
+                'order' => 'App\\Models\\Order',
+                'receipt' => 'App\\Models\\WhReceipt',
+                'salary' => 'App\\Models\\EmployeeSalary',
+            ];
+
+            $hasConditions = false;
+
+            foreach ($sourceMap as $key => $modelClass) {
+                if (in_array($key, $source)) {
+                    if ($hasConditions) {
+                        $subQ->orWhere('source_type', $modelClass);
+                    } else {
+                        $subQ->where('source_type', $modelClass);
+                        $hasConditions = true;
+                    }
+                }
+            }
+
+            if (in_array('other', $source)) {
+                if ($hasConditions) {
+                    $subQ->orWhere(function ($otherQ) use ($sourceMap) {
+                        $otherQ->whereNull('source_type')
+                            ->orWhereNotIn('source_type', array_values($sourceMap));
+                    });
+                } else {
+                    $subQ->where(function ($otherQ) use ($sourceMap) {
+                        $otherQ->whereNull('source_type')
+                            ->orWhereNotIn('source_type', array_values($sourceMap));
+                    });
+                }
+            }
+        });
     }
 
 }
