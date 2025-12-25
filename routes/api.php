@@ -303,7 +303,7 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
 
     // Task files
     Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/files', [TasksController::class, 'uploadFiles']);
-    Route::middleware('permission.scope:tasks_update_all,tasks_update')->delete('tasks/{id}/files', [TasksController::class, 'deleteFile']);
+    Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/delete-file', [TasksController::class, 'deleteFile']);
 
     // Task statuses
     Route::middleware('permission.scope:task_statuses_view_all,task_statuses_view')->get('task-statuses', [TaskStatusController::class, 'index']);

@@ -15,8 +15,8 @@ class TaskStatusSeeder extends Seeder
         $statuses = [
             [
                 'id' => 1,
-                'name' => 'PENDING',
-                'color' => '#ffc107',
+                'name' => 'NEW',
+                'color' => '#20c5e6',
                 'user_id' => 1
             ],
             [
@@ -27,16 +27,22 @@ class TaskStatusSeeder extends Seeder
             ],
             [
                 'id' => 3,
+                'name' => 'PENDING',
+                'color' => '#ffc107',
+                'user_id' => 1
+            ],
+            [
+                'id' => 4,
                 'name' => 'COMPLETED',
                 'color' => '#6c757d',
                 'user_id' => 1
             ],
             [
-                'id' => 4,
+                'id' => 5,
                 'name' => 'CANCELLED',
                 'color' => '#dc3545',
                 'user_id' => 1
-            ]
+            ],
         ];
 
         foreach ($statuses as $status) {
