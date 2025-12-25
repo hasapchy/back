@@ -181,18 +181,6 @@ class CahRegistersRepository extends BaseRepository
                 ['value' => $cashRegister->balance, 'title' => 'Итого', 'type' => 'default'],
             ];
 
-            if ($debtTotal != 0) {
-                $balance[] = ['value' => $debtTotal, 'title' => 'Долг', 'type' => 'debt'];
-            }
-
-            if ($clientBalance != 0) {
-                if ($clientBalance > 0) {
-                    $balance[] = ['value' => $clientBalance, 'title' => 'Дебет', 'type' => 'debit'];
-                } else {
-                    $balance[] = ['value' => abs($clientBalance), 'title' => 'Кредит', 'type' => 'credit'];
-                }
-            }
-
             return [
                 'id' => $cashRegister->id,
                 'name' => $cashRegister->name,
