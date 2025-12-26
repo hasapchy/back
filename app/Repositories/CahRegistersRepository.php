@@ -122,58 +122,15 @@ class CahRegistersRepository extends BaseRepository
             ->select('cash_id')
             ->selectRaw('SUM(CASE WHEN type = 1 AND is_debt = 0 THEN amount ELSE 0 END) as income_total')
             ->selectRaw('SUM(CASE WHEN type = 0 AND is_debt = 0 THEN amount ELSE 0 END) as outcome_total')
-            ->selectRaw('SUM(CASE WHEN type = 1 AND is_debt = 1 THEN amount ELSE 0 END) as debt_income_total')
-            ->selectRaw('SUM(CASE WHEN type = 0 AND is_debt = 1 THEN amount ELSE 0 END) as debt_outcome_total')
             ->groupBy('cash_id')
             ->get()
             ->keyBy('cash_id');
 
-        $clientCreditsQuery = Transaction::whereIn('cash_id', $cashRegisterIds)
-            ->where('is_deleted', false)
-            ->whereNotNull('client_id');
-
-        if ($startDate || $endDate) {
-            $this->applyDateFilter($clientCreditsQuery, 'custom', $startDate, $endDate, 'date');
-        }
-
-        $clientCreditsQuery->when($transactionType, function ($q) use ($transactionType) {
-            switch ($transactionType) {
-                case 'income':
-                    return $q->where('type', 1);
-                case 'outcome':
-                    return $q->where('type', 0);
-                case 'transfer':
-                    return $q->where(function ($subQ) {
-                        $subQ->whereHas('cashTransfersFrom')
-                            ->orWhereHas('cashTransfersTo');
-                    });
-                default:
-                    return $q;
-            }
-        })
-        ->when($source, function ($q) use ($source) {
-            return $this->applySourceFilter($q, $source);
-        });
-
-        $clientCreditsQuery = $transactionsRepository->applySourceTypeFilter($clientCreditsQuery);
-
-        $clientCreditsStats = $clientCreditsQuery
-            ->select('cash_id')
-            ->selectRaw('SUM(CASE WHEN type = 1 THEN amount ELSE -amount END) as client_balance')
-            ->groupBy('cash_id')
-            ->get()
-            ->keyBy('cash_id');
-
-        return $cashRegisters->map(function ($cashRegister) use ($transactionsStats, $clientCreditsStats) {
+        return $cashRegisters->map(function ($cashRegister) use ($transactionsStats) {
             $stats = $transactionsStats->get($cashRegister->id);
-            $clientCredits = $clientCreditsStats->get($cashRegister->id);
 
             $income = (float) ($stats->income_total ?? 0);
             $outcome = (float) ($stats->outcome_total ?? 0);
-            $debtIncome = (float) ($stats->debt_income_total ?? 0);
-            $debtOutcome = (float) ($stats->debt_outcome_total ?? 0);
-            $debtTotal = $debtIncome - $debtOutcome;
-            $clientBalance = (float) ($clientCredits->client_balance ?? 0);
 
             $balance = [
                 ['value' => $income, 'title' => 'Приход', 'type' => 'income'],
