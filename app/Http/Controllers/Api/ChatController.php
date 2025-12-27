@@ -67,6 +67,16 @@ class ChatController extends BaseController
             ->get()
             ->groupBy('chat_id');
 
+        // Проставляем direct_key, если он пустой (старые чаты)
+        $directChatsWithoutKey = $chats->where('type', 'direct')->whereNull('direct_key');
+        foreach ($directChatsWithoutKey as $directChat) {
+            $parts = $participantsByChatId->get($directChat->id, collect())->pluck('user_id')->unique()->values();
+            if ($parts->count() === 2) {
+                $directChat->direct_key = $this->directKey((int) $parts[0], (int) $parts[1]);
+                $directChat->save();
+            }
+        }
+
         $lastMessageIds = DB::table('chat_messages')
             ->selectRaw('chat_id, MAX(id) as last_id')
             ->whereIn('chat_id', $chatIds)
@@ -116,6 +126,40 @@ class ChatController extends BaseController
         })->values();
 
         return response()->json(['data' => $chatsPayload]);
+    }
+
+    public function general(): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = (int) $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            return response()->json(['message' => 'X-Company-ID header is required'], 422);
+        }
+
+        $chat = Chat::query()
+            ->where('company_id', $companyId)
+            ->where('type', 'general')
+            ->first();
+
+        if (! $chat) {
+            $chat = Chat::query()->create([
+                'company_id' => $companyId,
+                'type' => 'general',
+                'title' => 'Общий чат',
+                'created_by' => $user->id,
+            ]);
+        }
+
+        ChatParticipant::query()->firstOrCreate([
+            'chat_id' => $chat->id,
+            'user_id' => $user->id,
+        ], [
+            'role' => 'member',
+            'joined_at' => now(),
+        ]);
+
+        return response()->json(['data' => $chat]);
     }
 
     public function startDirect(StartDirectChatRequest $request): JsonResponse
