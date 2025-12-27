@@ -21,7 +21,7 @@ class UpdateDepartmentRequest extends FormRequest
             'parent_id' => 'nullable|exists:departments,id',
             'head_id' => 'nullable|exists:users,id',
             'deputy_head_id' => 'nullable|exists:users,id',
-            'users' => 'required|array|min:1',
+            'users' => 'nullable|array',
             'users.*' => 'exists:users,id',
         ];
     }

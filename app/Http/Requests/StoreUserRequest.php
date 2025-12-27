@@ -43,6 +43,8 @@ class StoreUserRequest extends FormRequest
             'company_roles.*.company_id' => 'required_with:company_roles|integer|exists:companies,id',
             'company_roles.*.role_ids' => 'required_with:company_roles|array',
             'company_roles.*.role_ids.*' => 'string|exists:roles,name,guard_name,api',
+            'departments' => 'nullable|array',
+            'departments.*' => 'integer|exists:departments,id',
         ];
     }
 
@@ -92,6 +94,17 @@ class StoreUserRequest extends FormRequest
                 $data['company_roles'] = json_decode($data['company_roles'], true);
             } catch (\Exception $e) {
                 $data['company_roles'] = [];
+            }
+        }
+
+        if (isset($data['departments'])) {
+            if (is_string($data['departments'])) {
+                $data['departments'] = array_filter(explode(',', $data['departments']), function ($d) {
+                    return trim($d) !== '';
+                });
+            }
+            if (is_array($data['departments'])) {
+                $data['departments'] = array_values(array_map('intval', $data['departments']));
             }
         }
 
