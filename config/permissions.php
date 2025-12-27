@@ -195,6 +195,17 @@ return [
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
+        'chats' => [
+            'has_user_id' => false,
+            'check_strategy' => 'default',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view'],
+            'custom_permissions' => [
+                'write' => 'chats_write',
+                'write_general' => 'chats_write_general',
+                'group_create' => 'chats_group_create',
+            ],
+        ],
     ],
 
     'custom_permissions' => [
@@ -258,6 +269,10 @@ return [
         'leaves' => [
             'label' => 'leaves',
             'resources' => ['leaves', 'leave_types'],
+        ],
+        'chats' => [
+            'label' => 'chats',
+            'resources' => ['chats'],
         ],
     ],
 

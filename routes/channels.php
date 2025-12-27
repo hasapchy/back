@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\DB;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,4 +16,35 @@ use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
+});
+
+Broadcast::channel('company.{companyId}.chat.{chatId}', function ($user, $companyId, $chatId) {
+    $companyId = (int) $companyId;
+    $chatId = (int) $chatId;
+
+    // 1) Пользователь должен состоять в компании
+    $isCompanyMember = DB::table('company_user')
+        ->where('company_id', $companyId)
+        ->where('user_id', $user->id)
+        ->exists();
+
+    if (! $isCompanyMember) {
+        return false;
+    }
+
+    // 2) Должен иметь право видеть чаты (с учетом company_user_role)
+    $canViewChats = $user->is_admin
+        || $user->getAllPermissionsForCompany($companyId)->contains('name', 'chats_view');
+
+    if (! $canViewChats) {
+        return false;
+    }
+
+    // 3) Чат должен принадлежать компании, и пользователь должен быть участником
+    return DB::table('chat_participants')
+        ->join('chats', 'chat_participants.chat_id', '=', 'chats.id')
+        ->where('chats.company_id', $companyId)
+        ->where('chat_participants.chat_id', $chatId)
+        ->where('chat_participants.user_id', $user->id)
+        ->exists();
 });
