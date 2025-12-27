@@ -14,11 +14,11 @@ class LeaveTypeSeeder extends Seeder
     public function run(): void
     {
         $leaveTypes = [
-            ['name' => 'отгул', 'color' => '#3B82F6'],
-            ['name' => 'отпуск', 'color' => '#10B981'],
-            ['name' => 'больничный', 'color' => '#F59E0B'],
-            ['name' => 'прогул', 'color' => '#EF4444'],
-            ['name' => 'отпуск без содержания', 'color' => '#8B5CF6']
+            ['name' => 'TIME_OFF', 'color' => '#3B82F6'],
+            ['name' => 'VACATION', 'color' => '#10B981'],
+            ['name' => 'SICK_LEAVE', 'color' => '#F59E0B'],
+            ['name' => 'ABSENCE', 'color' => '#EF4444'],
+            ['name' => 'UNPAID_LEAVE', 'color' => '#8B5CF6']
         ];
 
         foreach ($leaveTypes as $leaveType) {

@@ -14,14 +14,17 @@ class TaskResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        // Получаем базовый URL frontend из конфигурации или env
-        $frontendUrl = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
-
         return [
             'id' => $this->id,
             'title' => $this->title,
             'description' => $this->description,
             'status_id' => $this->status_id,
+            'priority' => $this->priority?->value,
+            'priority_label' => $this->priority?->label(),
+            'priority_icons' => $this->priority?->icons(),
+            'complexity' => $this->complexity?->value,
+            'complexity_label' => $this->complexity?->label(),
+            'complexity_icons' => $this->complexity?->icons(),
             'deadline' => $this->deadline?->toDateTimeString(),
             'files' => $this->files,
             'comments' => $this->comments,
@@ -63,10 +66,6 @@ class TaskResource extends JsonResource
                     'name' => $this->project->name,
                 ];
             }),
-
-            // Ссылка на frontend для отображения задачи
-            'frontend_url' => $frontendUrl . '/tasks/' . $this->id,
-            'frontend_link' => '/tasks/' . $this->id, // Относительная ссылка
         ];
     }
 }

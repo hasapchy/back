@@ -30,7 +30,7 @@ class CurrencySeeder extends Seeder
             ],
             [
                 'code' => 'RUB',
-                'name' => 'Российский рубль',
+                'name' => 'RUSSIAN_RUBLE',
                 'symbol' => '₽',
                 'is_default' => false,
                 'status' => true,

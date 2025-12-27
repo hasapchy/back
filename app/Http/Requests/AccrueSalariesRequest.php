@@ -27,6 +27,8 @@ class AccrueSalariesRequest extends FormRequest
             'date' => 'required|date',
             'cash_id' => 'required|integer|exists:cash_registers,id',
             'note' => 'nullable|string|max:255',
+            'user_ids' => 'required|array|min:1',
+            'user_ids.*' => 'integer|exists:users,id',
         ];
     }
 }

@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Контроллер для работы с компаниями
@@ -121,6 +122,7 @@ class CompaniesController extends BaseController
             $date = $validatedData['date'];
             $cashId = $validatedData['cash_id'];
             $note = $validatedData['note'] ?? null;
+            $userIds = $validatedData['user_ids'];
 
             $transactionsRepository = app(TransactionsRepository::class);
             $salaryAccrualService = new SalaryAccrualService($transactionsRepository);
@@ -129,7 +131,8 @@ class CompaniesController extends BaseController
                 $company->id,
                 $date,
                 $cashId,
-                $note
+                $note,
+                $userIds
             );
 
             return response()->json([
@@ -162,14 +165,21 @@ class CompaniesController extends BaseController
 
             $request->validate([
                 'date' => 'required|date',
+                'user_ids' => 'required|array|min:1',
+                'user_ids.*' => 'integer|exists:users,id',
             ]);
 
             $date = $request->input('date');
+            $userIds = $request->input('user_ids');
+            
+            if (empty($userIds) || !is_array($userIds)) {
+                return $this->errorResponse('Необходимо указать хотя бы одного сотрудника', 400);
+            }
 
             $transactionsRepository = app(TransactionsRepository::class);
             $salaryAccrualService = new SalaryAccrualService($transactionsRepository);
 
-            $checkResult = $salaryAccrualService->checkExistingAccruals($company->id, $date);
+            $checkResult = $salaryAccrualService->checkExistingAccruals($company->id, $date, $userIds);
 
             return response()->json($checkResult);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -177,6 +187,10 @@ class CompaniesController extends BaseController
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
+            Log::error('Error in checkExistingSalaries', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return $this->errorResponse('Ошибка при проверке начислений: ' . $e->getMessage(), 500);
         }
     }
