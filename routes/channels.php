@@ -48,3 +48,33 @@ Broadcast::channel('company.{companyId}.chat.{chatId}', function ($user, $compan
         ->where('chat_participants.user_id', $user->id)
         ->exists();
 });
+
+// Presence канал для онлайна пользователей компании
+Broadcast::channel('company.{companyId}.presence', function ($user, $companyId) {
+    $companyId = (int) $companyId;
+
+    $isCompanyMember = DB::table('company_user')
+        ->where('company_id', $companyId)
+        ->where('user_id', $user->id)
+        ->exists();
+
+    if (! $isCompanyMember) {
+        return false;
+    }
+
+    $canViewChats = $user->is_admin
+        || $user->getAllPermissionsForCompany($companyId)->contains('name', 'chats_view');
+
+    if (! $canViewChats) {
+        return false;
+    }
+
+    // Данные, которые фронт увидит в presence-канале
+    return [
+        'id' => $user->id,
+        'name' => $user->name,
+        'surname' => $user->surname,
+        'email' => $user->email,
+        'photo' => $user->photo,
+    ];
+});
