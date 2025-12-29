@@ -16,3 +16,4 @@ class IndexChatsRequest extends FormRequest
         return [];
     }
 }
+

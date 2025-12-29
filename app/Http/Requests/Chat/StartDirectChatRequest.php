@@ -18,3 +18,4 @@ class StartDirectChatRequest extends FormRequest
         ];
     }
 }
+
