@@ -81,3 +81,5 @@ class BroadcastChatChannelTest extends TestCase
         $response->assertForbidden();
     }
 }
+
+

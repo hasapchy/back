@@ -72,7 +72,22 @@ class ChatController extends BaseController
         foreach ($directChatsWithoutKey as $directChat) {
             $parts = $participantsByChatId->get($directChat->id, collect())->pluck('user_id')->unique()->values();
             if ($parts->count() === 2) {
-                $directChat->direct_key = $this->directKey((int) $parts[0], (int) $parts[1]);
+                $newDirectKey = $this->directKey((int) $parts[0], (int) $parts[1]);
+                
+                // Проверяем, не существует ли уже чат с таким direct_key в этой компании
+                $existingChat = Chat::query()
+                    ->where('company_id', $companyId)
+                    ->where('type', 'direct')
+                    ->where('direct_key', $newDirectKey)
+                    ->where('id', '!=', $directChat->id)
+                    ->first();
+                
+                // Если чат с таким ключом уже существует, пропускаем обновление
+                if ($existingChat) {
+                    continue;
+                }
+                
+                $directChat->direct_key = $newDirectKey;
                 $directChat->save();
             }
         }

@@ -20,3 +20,5 @@ class CreateGroupChatRequest extends FormRequest
         ];
     }
 }
+
+
