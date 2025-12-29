@@ -21,3 +21,4 @@ class StoreChatMessageRequest extends FormRequest
     }
 }
 
+
