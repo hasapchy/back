@@ -195,6 +195,12 @@ return [
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
+        'contracts' => [
+            'has_user_id' => true,
+            'check_strategy' => 'user_id',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
     ],
 
     'custom_permissions' => [

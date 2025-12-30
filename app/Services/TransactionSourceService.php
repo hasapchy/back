@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Transaction;
 use App\Models\Client;
 use App\Models\EmployeeSalary;
+use App\Models\CashRegister;
 
 class TransactionSourceService
 {
@@ -24,7 +25,7 @@ class TransactionSourceService
             return;
         }
 
-        if (!$transaction->client_id || !$transaction->company_id) {
+        if (!$transaction->client_id || !$transaction->cash_id) {
             return;
         }
 
@@ -33,15 +34,20 @@ class TransactionSourceService
             return;
         }
 
+        $cashRegister = $transaction->cashRegister ?? CashRegister::find($transaction->cash_id);
+        if (!$cashRegister || !$cashRegister->company_id) {
+            return;
+        }
+
         $activeSalary = EmployeeSalary::where('user_id', $client->employee_id)
-            ->where('company_id', $transaction->company_id)
+            ->where('company_id', $cashRegister->company_id)
             ->whereNull('end_date')
             ->orderBy('start_date', 'desc')
             ->first();
 
         if (!$activeSalary) {
             $activeSalary = EmployeeSalary::where('user_id', $client->employee_id)
-                ->where('company_id', $transaction->company_id)
+                ->where('company_id', $cashRegister->company_id)
                 ->orderBy('start_date', 'desc')
                 ->first();
         }
