@@ -51,7 +51,17 @@ class TransactionsController extends BaseController
         $start_date = $request->query('start_date');
         $end_date = $request->query('end_date');
         $is_debt = $request->query('is_debt');
+        $category_ids = $request->query('category_ids');
 
+        if ($category_ids) {
+            if (is_string($category_ids)) {
+                $category_ids = explode(',', $category_ids);
+            }
+            $category_ids = array_filter(array_map('intval', (array)$category_ids));
+            $category_ids = !empty($category_ids) ? $category_ids : null;
+        } else {
+            $category_ids = null;
+        }
 
         $items = $this->itemsRepository->getItemsWithPagination(
             $userUuid,
@@ -66,7 +76,8 @@ class TransactionsController extends BaseController
             $project_id,
             $start_date,
             $end_date,
-            $is_debt
+            $is_debt,
+            $category_ids
         );
 
         $response = [

@@ -111,8 +111,11 @@ class ClientController extends BaseController
         }
 
         $excludeDebt = $request->boolean('exclude_debt');
+        $cashRegisterId = $request->input('cash_register_id') ? intval($request->input('cash_register_id')) : null;
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
 
-        $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt);
+        $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo);
 
         return response()->json(['history' => $history]);
     }
@@ -136,6 +139,12 @@ class ClientController extends BaseController
             }
 
             $forMutualSettlements = $request->input('for_mutual_settlements', false);
+            $cashRegisterIdInput = $request->input('cash_register_id');
+            $cashRegisterId = null;
+
+            if ($forMutualSettlements && !empty($cashRegisterIdInput)) {
+                $cashRegisterId = intval($cashRegisterIdInput);
+            }
 
             if ($forMutualSettlements) {
                 $user = $this->requireAuthenticatedUser();
@@ -153,6 +162,11 @@ class ClientController extends BaseController
             }
 
             $items = $this->itemsRepository->getAllItems($typeFilter, $forMutualSettlements);
+
+            if ($forMutualSettlements && $cashRegisterId) {
+                $items = $this->itemsRepository->calculateBalancesByCashRegister($items, $cashRegisterId);
+            }
+
             return ClientResource::collection($items);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении всех клиентов: ' . $e->getMessage(), 500);

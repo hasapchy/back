@@ -42,9 +42,10 @@ class TransactionsRepository extends BaseRepository
      * @param string|null $start_date Начальная дата
      * @param string|null $end_date Конечная дата
      * @param bool|null $is_debt Фильтр по долгу (true - долги, false - платежи)
+     * @param array|null $category_ids Массив ID категорий транзакций
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null)
+    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null)
     {
         $companyId = $this->getCurrentCompanyId() ?? 'default';
 
@@ -59,9 +60,10 @@ class TransactionsRepository extends BaseRepository
         $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';
         $showDeletedKey = $showDeleted ? '1' : '0';
         $sourcePermissionsKey = $this->getSourcePermissionsKey($currentUser);
-        $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId()]);
+        $categoryIdsKey = $category_ids ? md5(implode(',', $category_ids)) : 'null';
+        $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $categoryIdsKey, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId()]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeleted, $currentUser) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $showDeleted, $currentUser) {
             $searchTrimmed = is_string($search) ? trim($search) : '';
             $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
 
@@ -196,6 +198,9 @@ class TransactionsRepository extends BaseRepository
                         return $q->where('transactions.is_debt', $isDebtBool);
                     }
                     return $q;
+                })
+                ->when($category_ids && is_array($category_ids) && count($category_ids) > 0, function ($q) use ($category_ids) {
+                    return $q->whereIn('transactions.category_id', $category_ids);
                 });
 
             $this->applyOwnFilter($query, 'transactions', 'transactions', 'user_id', $currentUser);
@@ -226,6 +231,7 @@ class TransactionsRepository extends BaseRepository
                 'start_date' => $start_date,
                 'end_date' => $end_date,
                 'is_debt' => $is_debt,
+                'category_ids' => $category_ids,
                 'show_deleted' => $showDeleted,
                 'count' => $paginatedResults->total(),
             ]);
