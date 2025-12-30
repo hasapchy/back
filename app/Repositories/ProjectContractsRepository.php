@@ -27,6 +27,7 @@ class ProjectContractsRepository extends BaseRepository
             'project_contracts.currency_id',
             'project_contracts.date',
             'project_contracts.returned',
+            'project_contracts.is_paid',
             'project_contracts.files',
             'project_contracts.note',
             'project_contracts.created_at',
@@ -104,6 +105,116 @@ class ProjectContractsRepository extends BaseRepository
     }
 
     /**
+     * Получить все контракты с пагинацией (без фильтра по проекту)
+     *
+     * @param int $perPage Количество записей на страницу
+     * @param int $page Номер страницы
+     * @param string|null $search Поисковый запрос
+     * @param int|null $projectId Фильтр по проекту (опционально)
+     * @param bool|null $isPaid Фильтр по статусу оплаты (опционально)
+     * @param bool|null $returned Фильтр по статусу возврата (опционально)
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
+    public function getAllContractsWithPagination($perPage = 20, $page = 1, $search = null, $projectId = null, $isPaid = null, $returned = null)
+    {
+        // Формируем ключ кэша с явными префиксами для фильтров, чтобы избежать коллизий
+        $isPaidKey = $isPaid === true ? 'paid1' : ($isPaid === false ? 'paid0' : 'paidn');
+        $returnedKey = $returned === true ? 'ret1' : ($returned === false ? 'ret0' : 'retn');
+        $cacheKey = $this->generateCacheKey('all_contracts_paginated', [$perPage, $page, $search, $projectId, $isPaidKey, $returnedKey]);
+
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $isPaid, $returned) {
+            $query = $this->getBaseQuery()
+                ->leftJoin('projects', 'project_contracts.project_id', '=', 'projects.id')
+                ->addSelect('projects.name as project_name', 'projects.id as project_id');
+
+            $companyId = $this->getCurrentCompanyId();
+            if ($companyId) {
+                $query->where('projects.company_id', $companyId);
+            }
+
+            if ($projectId) {
+                $query->where('project_contracts.project_id', $projectId);
+            }
+
+            if ($isPaid !== null) {
+                $query->where('project_contracts.is_paid', $isPaid ? 1 : 0);
+            }
+
+            if ($returned !== null) {
+                $query->where('project_contracts.returned', $returned ? 1 : 0);
+            }
+
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('project_contracts.number', 'like', "%{$search}%")
+                        ->orWhere('project_contracts.amount', 'like', "%{$search}%")
+                        ->orWhere('projects.name', 'like', "%{$search}%");
+                });
+            }
+
+            return $query->orderBy('project_contracts.date', 'desc')
+                ->orderBy('project_contracts.created_at', 'desc')
+                ->paginate($perPage, ['*'], 'page', (int)$page);
+        }, (int)$page);
+    }
+
+    /**
+     * Получить все контракты с пагинацией для конкретного пользователя (own)
+     *
+     * @param int $perPage Количество записей на страницу
+     * @param int $page Номер страницы
+     * @param string|null $search Поисковый запрос
+     * @param int|null $projectId Фильтр по проекту (опционально)
+     * @param int $userId ID пользователя
+     * @param bool|null $isPaid Фильтр по статусу оплаты (опционально)
+     * @param bool|null $returned Фильтр по статусу возврата (опционально)
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
+    public function getAllContractsWithPaginationForUser($perPage = 20, $page = 1, $search = null, $projectId = null, $userId, $isPaid = null, $returned = null)
+    {
+        // Формируем ключ кэша с явными префиксами для фильтров, чтобы избежать коллизий
+        $isPaidKey = $isPaid === true ? 'paid1' : ($isPaid === false ? 'paid0' : 'paidn');
+        $returnedKey = $returned === true ? 'ret1' : ($returned === false ? 'ret0' : 'retn');
+        $cacheKey = $this->generateCacheKey('all_contracts_paginated_user', [$perPage, $page, $search, $projectId, $userId, $isPaidKey, $returnedKey]);
+
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $userId, $isPaid, $returned) {
+            $query = $this->getBaseQuery()
+                ->leftJoin('projects', 'project_contracts.project_id', '=', 'projects.id')
+                ->addSelect('projects.name as project_name', 'projects.id as project_id')
+                ->where('projects.user_id', $userId);
+
+            $companyId = $this->getCurrentCompanyId();
+            if ($companyId) {
+                $query->where('projects.company_id', $companyId);
+            }
+
+            if ($projectId) {
+                $query->where('project_contracts.project_id', $projectId);
+            }
+
+            if ($isPaid !== null) {
+                $query->where('project_contracts.is_paid', $isPaid ? 1 : 0);
+            }
+
+            if ($returned !== null) {
+                $query->where('project_contracts.returned', $returned ? 1 : 0);
+            }
+
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('project_contracts.number', 'like', "%{$search}%")
+                        ->orWhere('project_contracts.amount', 'like', "%{$search}%")
+                        ->orWhere('projects.name', 'like', "%{$search}%");
+                });
+            }
+
+            return $query->orderBy('project_contracts.date', 'desc')
+                ->orderBy('project_contracts.created_at', 'desc')
+                ->paginate($perPage, ['*'], 'page', (int)$page);
+        }, (int)$page);
+    }
+
+    /**
      * Создать контракт проекта
      *
      * @param array $data Данные контракта
@@ -122,6 +233,7 @@ class ProjectContractsRepository extends BaseRepository
             $contract->currency_id = $data['currency_id'] ?? null;
             $contract->date = $data['date'];
             $contract->returned = $data['returned'] ?? false;
+            $contract->is_paid = $data['is_paid'] ?? false;
             $contract->files = $data['files'] ?? [];
             $contract->note = $data['note'] ?? null;
             $contract->save();
@@ -150,6 +262,7 @@ class ProjectContractsRepository extends BaseRepository
             $contract->currency_id = $data['currency_id'] ?? null;
             $contract->date = $data['date'];
             $contract->returned = $data['returned'] ?? false;
+            $contract->is_paid = $data['is_paid'] ?? false;
             $contract->note = $data['note'] ?? null;
 
             if (isset($data['files']) && is_array($data['files'])) {
@@ -220,6 +333,10 @@ class ProjectContractsRepository extends BaseRepository
             CacheService::forget($this->generateCacheKey('project_contract_item', [$contractId]));
         }
 
+        CacheService::invalidateByLike('%all_contracts_paginated%');
+        CacheService::invalidateByLike('%all_contracts_paginated_user%');
+        CacheService::invalidateByLike('%project_contract%');
+        
         CacheService::invalidateProjectsCache();
     }
 
