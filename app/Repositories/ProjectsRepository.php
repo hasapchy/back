@@ -4,7 +4,11 @@ namespace App\Repositories;
 
 use App\Models\Project;
 use App\Models\ProjectUser;
+use App\Models\ProjectTransaction;
+use App\Models\ProjectStatus;
+use App\Models\Currency;
 use App\Services\CacheService;
+use App\Services\CurrencyConverter;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 
@@ -25,7 +29,7 @@ class ProjectsRepository extends BaseRepository
             'client.phones:id,client_id,phone',
             'client.emails:id,client_id,email',
             'currency:id,name,symbol',
-            'status:id,name,color',
+            'status:id,name,color,is_tr_visible',
             'creator:id,name,photo',
             'users:id,name',
         ];
@@ -144,7 +148,8 @@ class ProjectsRepository extends BaseRepository
             $query = $this->addCompanyFilterDirect($query, 'projects');
 
             if ($activeOnly) {
-                $query->whereNotIn('projects.status_id', [4, 5]);
+                $query->join('project_statuses', 'projects.status_id', '=', 'project_statuses.id')
+                    ->where('project_statuses.is_tr_visible', true);
             }
 
             $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
@@ -175,7 +180,6 @@ class ProjectsRepository extends BaseRepository
             $item->name = $data['name'];
             $item->budget = $data['budget'] ?? 0;
             $item->currency_id = $data['currency_id'] ?? null;
-            $item->exchange_rate = $data['exchange_rate'] ?? null;
             $item->date = $data['date'];
             $item->user_id = $data['user_id'];
             $item->client_id = $data['client_id'];
@@ -215,7 +219,6 @@ class ProjectsRepository extends BaseRepository
             $item->name = $data['name'];
             $item->budget = $data['budget'] ?? $item->budget;
             $item->currency_id = $data['currency_id'] ?? $item->currency_id;
-            $item->exchange_rate = $data['exchange_rate'] ?? $item->exchange_rate;
             $item->date = $data['date'];
             $item->client_id = $data['client_id'];
             $item->description = $data['description'] ?? null;
@@ -249,7 +252,6 @@ class ProjectsRepository extends BaseRepository
                 'projects.name',
                 'projects.budget',
                 'projects.currency_id',
-                'projects.exchange_rate',
                 'projects.date',
                 'projects.user_id',
                 'projects.client_id',
@@ -288,7 +290,7 @@ class ProjectsRepository extends BaseRepository
         return DB::transaction(function () use ($id) {
             $item = Project::findOrFail($id);
 
-            $transactionsCount = \App\Models\Transaction::where('project_id', $id)
+            $transactionsCount = Transaction::where('project_id', $id)
                 ->where('is_deleted', false)
                 ->count();
             if ($transactionsCount > 0) {
@@ -316,11 +318,23 @@ class ProjectsRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('project_balance_history', [$projectId]);
 
         return CacheService::remember($cacheKey, function () use ($projectId) {
-            $project = \App\Models\Project::find($projectId);
+            $project = Project::find($projectId);
             $projectCurrencyId = $project ? $project->currency_id : null;
-            $projectCurrency = $project && $project->currency_id ? \App\Models\Currency::find($project->currency_id) : null;
+            $projectCurrency = $project && $project->currency_id ? Currency::find($project->currency_id) : null;
             $companyId = $project ? $project->company_id : null;
-            $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
+            $defaultCurrency = Currency::where('is_default', true)
+                ->where(function($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->first();
+            $reportCurrency = Currency::where('is_report', true)
+                ->where(function($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->first();
+
+            $isProjectReportCurrency = $projectCurrency && $reportCurrency && $projectCurrency->id === $reportCurrency->id;
+            $isProjectDefaultCurrency = $projectCurrency && $defaultCurrency && $projectCurrency->id === $defaultCurrency->id;
 
             $transactions = Transaction::where('project_id', $projectId)
                 ->where('is_deleted', false)
@@ -335,6 +349,8 @@ class ProjectsRepository extends BaseRepository
                     'created_at',
                     'currency_id',
                     'orig_amount',
+                    'rep_amount',
+                    'def_amount',
                     'type',
                     'source_type',
                     'source_id',
@@ -351,23 +367,15 @@ class ProjectsRepository extends BaseRepository
                 'App\\Models\\WhReceipt' => 'receipt',
             ];
 
-            $transactionsResult = $transactions->get()->map(function ($item) use ($projectCurrencyId, $projectCurrency, $defaultCurrency, $companyId, $sourceMap) {
+            $transactionsResult = $transactions->get()->map(function ($item) use ($isProjectReportCurrency, $isProjectDefaultCurrency, $sourceMap) {
                 $source = $sourceMap[$item->source_type] ?? 'transaction';
-                $amount = $item->orig_amount;
 
-                $targetCurrency = $projectCurrency ?? $defaultCurrency;
-
-                if ($item->currency_id != $projectCurrencyId && $item->currency && $targetCurrency) {
-                    $transactionDate = $item->created_at ? $item->created_at->toDateString() : null;
-                    $amount = \App\Services\CurrencyConverter::convert(
-                        $item->orig_amount,
-                        $item->currency,
-                        $targetCurrency,
-                        $defaultCurrency,
-                        $companyId,
-                        $transactionDate
-                    );
-                    $amount = $this->roundAmount($amount);
+                if ($isProjectReportCurrency) {
+                    $amount = $item->rep_amount ?? $item->orig_amount;
+                } elseif ($isProjectDefaultCurrency) {
+                    $amount = $item->def_amount ?? $item->orig_amount;
+                } else {
+                    $amount = $item->orig_amount;
                 }
 
                 $amount = match($source) {
@@ -395,7 +403,7 @@ class ProjectsRepository extends BaseRepository
                 ];
             });
 
-            $projectTransactions = \App\Models\ProjectTransaction::where('project_id', $projectId)
+            $projectTransactions = ProjectTransaction::where('project_id', $projectId)
                 ->with([
                     'user:id,name',
                     'currency:id,symbol',
@@ -408,7 +416,7 @@ class ProjectsRepository extends BaseRepository
 
                     if ($item->currency_id != $projectCurrencyId && $item->currency && $targetCurrency) {
                         $transactionDate = $item->date ? $item->date->toDateString() : null;
-                        $amount = \App\Services\CurrencyConverter::convert(
+                        $amount = CurrencyConverter::convert(
                             $item->amount,
                             $item->currency,
                             $targetCurrency,
@@ -511,7 +519,7 @@ class ProjectsRepository extends BaseRepository
      */
     public function updateStatusByIds(array $ids, int $statusId, string $userId): int
     {
-        $targetStatus = \App\Models\ProjectStatus::findOrFail($statusId);
+        $targetStatus = ProjectStatus::findOrFail($statusId);
 
         $projects = Project::whereIn('id', $ids)->get()->keyBy('id');
 

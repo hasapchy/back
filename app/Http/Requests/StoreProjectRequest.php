@@ -35,10 +35,9 @@ class StoreProjectRequest extends FormRequest
             'description' => 'nullable|string',
         ];
 
-        if ($this->has('budget') || $this->has('currency_id') || $this->has('exchange_rate')) {
+        if ($this->has('budget') || $this->has('currency_id')) {
             $rules['budget'] = 'required|numeric';
             $rules['currency_id'] = 'nullable|exists:currencies,id';
-            $rules['exchange_rate'] = 'nullable|numeric|min:0.000001';
         }
 
         return $rules;

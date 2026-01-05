@@ -340,7 +340,13 @@ class TransactionsRepository extends BaseRepository
     {
         $cashRegister = CashRegister::findOrFail($data['cash_id']);
         $originalAmount = $data['orig_amount'];
-        $defaultCurrencyId = Currency::where('is_default', true)->value('id');
+        $companyId = $this->getCurrentCompanyId();
+        $defaultCurrency = Currency::where('is_default', true)
+            ->where(function($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->first();
+        $defaultCurrencyId = $defaultCurrency->id;
 
         $currencyIds = array_unique([
             $data['currency_id'],
@@ -355,8 +361,13 @@ class TransactionsRepository extends BaseRepository
         $defaultCurrency = $currencies[$defaultCurrencyId];
 
         $roundingService = new RoundingService();
-        $companyId = $this->getCurrentCompanyId();
         $transactionDate = $data['date'] ?? now();
+
+        $reportCurrency = Currency::where('is_report', true)
+            ->where(function($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->first();
 
         if (!empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
             $exchangeRate = (float) $data['exchange_rate'];
@@ -389,8 +400,36 @@ class TransactionsRepository extends BaseRepository
             $convertedAmountDefault = $originalAmount;
         }
 
-        // Round default-currency amount according to company rules for client balance updates
         $roundedConvertedAmountDefault = $roundingService->roundForCompany($companyId, (float) $convertedAmountDefault);
+
+        if (!$reportCurrency) {
+            throw new \Exception('Валюта отчетов не найдена для компании');
+        }
+
+        $repAmount = CurrencyConverter::convert($originalAmount, $fromCurrency, $reportCurrency, $defaultCurrency, $companyId, $transactionDate);
+        $repAmount = $roundingService->roundForCompany($companyId, $repAmount);
+
+        if ($fromCurrency->id === $reportCurrency->id) {
+            $repRate = 1.0;
+        } else {
+            $fromRate = $fromCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+            $reportRate = $reportCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+            if ($fromCurrency->id === $defaultCurrency->id) {
+                $repRate = 1 / $reportRate;
+            } elseif ($reportCurrency->id === $defaultCurrency->id) {
+                $repRate = $fromRate;
+            } else {
+                $repRate = $fromRate / $reportRate;
+            }
+        }
+
+        if ($fromCurrency->id === $defaultCurrency->id) {
+            $defRate = 1.0;
+            $defAmount = $originalAmount;
+        } else {
+            $defRate = $fromCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+            $defAmount = $roundedConvertedAmountDefault;
+        }
 
         DB::beginTransaction();
 
@@ -420,6 +459,10 @@ class TransactionsRepository extends BaseRepository
             $transaction->source_type = $data['source_type'] ?? null;
             $transaction->source_id = $data['source_id'] ?? null;
             $transaction->exchange_rate = $exchangeRate;
+            $transaction->rep_rate = $repRate;
+            $transaction->rep_amount = $repAmount;
+            $transaction->def_rate = $defRate;
+            $transaction->def_amount = $defAmount;
 
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->setSkipCashBalanceUpdate(true);
@@ -634,7 +677,16 @@ class TransactionsRepository extends BaseRepository
             $newOrigAmount = $transaction->orig_amount;
             $newCurrencyId = $transaction->currency_id;
 
-            $defaultCurrencyId = Currency::where('is_default', true)->value('id');
+            $roundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
+            $transactionDate = $transaction->date ?? now();
+
+            $defaultCurrency = Currency::where('is_default', true)
+                ->where(function($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->first();
+            $defaultCurrencyId = $defaultCurrency->id;
             $currencyIds = array_unique([
                 $newCurrencyId,
                 $cashRegister->currency_id,
@@ -646,9 +698,11 @@ class TransactionsRepository extends BaseRepository
             $toCurrency = $currencies[$cashRegister->currency_id];
             $defaultCurrency = $currencies[$defaultCurrencyId];
 
-            $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
-            $transactionDate = $transaction->date ?? now();
+            $reportCurrency = Currency::where('is_report', true)
+                ->where(function($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->first();
 
             if (!empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
                 $exchangeRate = (float) $data['exchange_rate'];
@@ -675,8 +729,49 @@ class TransactionsRepository extends BaseRepository
 
             $newConvertedAmount = $roundingService->roundForCompany($companyId, (float) $newConvertedAmount);
 
+            if ($fromCurrency->id !== $defaultCurrency->id) {
+                $newConvertedAmountDefault = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $defaultCurrency, null, $companyId, $transactionDate);
+            } else {
+                $newConvertedAmountDefault = $newOrigAmount;
+            }
+
+            $roundedNewConvertedAmountDefault = $roundingService->roundForCompany($companyId, (float) $newConvertedAmountDefault);
+
+            if (!$reportCurrency) {
+                throw new \Exception('Валюта отчетов не найдена для компании');
+            }
+
+            $repAmount = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $reportCurrency, $defaultCurrency, $companyId, $transactionDate);
+            $repAmount = $roundingService->roundForCompany($companyId, $repAmount);
+
+            if ($fromCurrency->id === $reportCurrency->id) {
+                $repRate = 1.0;
+            } else {
+                $fromRate = $fromCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+                $reportRate = $reportCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+                if ($fromCurrency->id === $defaultCurrency->id) {
+                    $repRate = 1 / $reportRate;
+                } elseif ($reportCurrency->id === $defaultCurrency->id) {
+                    $repRate = $fromRate;
+                } else {
+                    $repRate = $fromRate / $reportRate;
+                }
+            }
+
+            if ($fromCurrency->id === $defaultCurrency->id) {
+                $defRate = 1.0;
+                $defAmount = $newOrigAmount;
+            } else {
+                $defRate = $fromCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+                $defAmount = $roundedNewConvertedAmountDefault;
+            }
+
             $transaction->amount = $newConvertedAmount;
             $transaction->exchange_rate = $exchangeRate;
+            $transaction->rep_rate = $repRate;
+            $transaction->rep_amount = $repAmount;
+            $transaction->def_rate = $defRate;
+            $transaction->def_amount = $defAmount;
 
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->setSkipCashBalanceUpdate(true);

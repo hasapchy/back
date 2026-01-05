@@ -16,7 +16,6 @@ use App\Models\Traits\HasManyToManyUsers;
  * @property array|null $files Массив файлов проекта
  * @property float $budget Бюджет проекта
  * @property int|null $currency_id ID валюты
- * @property float|null $exchange_rate Курс обмена валюты
  * @property \Carbon\Carbon|null $date Дата проекта
  * @property string|null $description Описание
  * @property int $status_id ID статуса проекта
@@ -38,13 +37,12 @@ class Project extends Model
 {
     use HasFactory, HasManyToManyUsers;
 
-    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'exchange_rate', 'date', 'description', 'status_id', 'company_id'];
+    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'date', 'description', 'status_id', 'company_id'];
 
     protected $casts = [
         'files' => 'array',
         'date' => 'datetime',
         'budget' => 'decimal:5',
-        'exchange_rate' => 'decimal:5',
     ];
 
     /**

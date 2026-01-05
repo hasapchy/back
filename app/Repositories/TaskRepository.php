@@ -41,7 +41,8 @@ class TaskRepository
             });
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate(20);
+        $perPage = $request->input('per_page', 20);
+        return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $request->input('page', 1));
     }
 
     public function findById($id): Task
