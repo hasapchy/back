@@ -2,13 +2,17 @@
 
 use App\Http\Controllers\Api\AppController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CacheController as ApiCacheController;
 use App\Http\Controllers\Api\CashRegistersController;
 use App\Http\Controllers\Api\CategoriesController;
+use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\CompaniesController;
 use App\Http\Controllers\Api\CurrencyHistoryController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\LeaveController;
+use App\Http\Controllers\Api\LeaveTypeController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderStatusCategoryController;
 use App\Http\Controllers\Api\OrderStatusController;
@@ -17,10 +21,10 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProjectContractsController;
 use App\Http\Controllers\Api\ProjectsController;
 use App\Http\Controllers\Api\ProjectStatusController;
-use App\Http\Controllers\Api\TaskStatusController;
 use App\Http\Controllers\Api\RolesController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\TasksController;
+use App\Http\Controllers\Api\TaskStatusController;
 use App\Http\Controllers\Api\TransactionCategoryController;
 use App\Http\Controllers\Api\TransactionsController;
 use App\Http\Controllers\Api\TransfersController;
@@ -31,9 +35,6 @@ use App\Http\Controllers\Api\WarehouseMovementController;
 use App\Http\Controllers\Api\WarehouseReceiptController;
 use App\Http\Controllers\Api\WarehouseStockController;
 use App\Http\Controllers\Api\WarehouseWriteoffController;
-use App\Http\Controllers\Api\LeaveTypeController;
-use App\Http\Controllers\Api\LeaveController;
-use App\Http\Controllers\Api\CacheController as ApiCacheController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['throttle:auth'])->group(function () {
@@ -319,4 +320,12 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission:task_statuses_create')->post('task-statuses', [TaskStatusController::class, 'store']);
     Route::middleware('permission.scope:task_statuses_update_all,task_statuses_update')->put('task-statuses/{id}', [TaskStatusController::class, 'update']);
     Route::middleware('permission.scope:task_statuses_delete_all,task_statuses_delete')->delete('task-statuses/{id}', [TaskStatusController::class, 'destroy']);
+
+    // Chats
+    Route::middleware('permission:chats_view')->get('chats', [ChatController::class, 'index']);
+    Route::middleware('permission:chats_view')->post('chats/general', [ChatController::class, 'general']);
+    Route::middleware('permission:chats_view')->post('chats/direct', [ChatController::class, 'startDirect']);
+    Route::middleware('permission:chats_group_create')->post('chats/groups', [ChatController::class, 'createGroup']);
+    Route::middleware('permission:chats_view')->get('chats/{chat}/messages', [ChatController::class, 'messages']);
+    Route::middleware('permission:chats_write')->post('chats/{chat}/messages', [ChatController::class, 'storeMessage']);
 });

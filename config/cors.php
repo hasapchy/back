@@ -15,27 +15,17 @@ return [
     |
     */
 
-    'paths' => ['api/*'],
+    'paths' => ['api/*', 'broadcasting/auth', 'sanctum/csrf-cookie'],
 
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
         env('API_ALLOWED_ORIGINS', 'https://hassap.online'),
         'http://localhost:5173',
-        'http://localhost:5174',
-        'http://localhost:3000',
         'http://localhost:8080',
         'http://localhost',
-        'http://localhost:5173',
         'http://192.168.50.70',
-        'http://192.168.0.119',
-        'http://192.168.0.119:5173',
-        'http://192.168.0.108',
-        'http://192.168.0.108:5173',
-        'http://192.168.0.1119:80',
-        'http://192.168.0.108:8080',
         'http://127.0.0.1:5173',
-        'http://127.0.0.1:3000',
         'http://127.0.0.1:8080',
         'http://127.0.0.1',
         '*'

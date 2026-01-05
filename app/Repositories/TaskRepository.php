@@ -58,6 +58,10 @@ class TaskRepository
         $data['creator_id'] = auth()->id();
         // company_id уже должен быть в $data
 
+        $data['priority'] = $data['priority'] ?? 'low';
+        $data['complexity'] = $data['complexity'] ?? 'normal';
+
+
         if (!isset($data['company_id']) || !$data['company_id']) {
             throw new \Exception('Company ID is required');
         }
