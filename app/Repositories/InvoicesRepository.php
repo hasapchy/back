@@ -34,6 +34,8 @@ class InvoicesRepository extends BaseRepository
                 'client.emails',
                 'user',
                 'orders.cash.currency',
+                'orders.orderProducts.product.unit',
+                'orders.tempProducts.unit',
                 'products.unit',
                 'products.order'
             ]);
@@ -46,7 +48,7 @@ class InvoicesRepository extends BaseRepository
                 $query->where(function ($q) use ($searchTrimmed, $searchLower) {
                     $q->where('invoice_number', 'like', "%{$searchTrimmed}%")
                         ->orWhereRaw('LOWER(note) LIKE ?', ["%{$searchLower}%"]);
-                    
+
                     $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
                         $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
                     })
@@ -95,6 +97,8 @@ class InvoicesRepository extends BaseRepository
             'client.emails',
             'user',
             'orders.cash.currency',
+            'orders.orderProducts.product.unit',
+            'orders.tempProducts.unit',
             'products.unit',
             'products.order'
         ])
@@ -130,26 +134,7 @@ class InvoicesRepository extends BaseRepository
             }
 
             if (isset($data['products']) && is_array($data['products']) && !empty($data['products'])) {
-                $productsData = [];
-                foreach ($data['products'] as $productData) {
-                    $quantity = (float) ($productData['quantity'] ?? 0);
-                    $price = (float) ($productData['price'] ?? 0);
-                    $totalPrice = isset($productData['total_price']) 
-                        ? (float) $productData['total_price'] 
-                        : ($quantity * $price);
-                    
-                    $productsData[] = [
-                        'invoice_id' => $invoice->id,
-                        'order_id' => $productData['order_id'] ?? null,
-                        'product_id' => $productData['product_id'] ?? null,
-                        'product_name' => $productData['product_name'],
-                        'product_description' => $productData['product_description'] ?? null,
-                        'quantity' => $quantity,
-                        'price' => $price,
-                        'total_price' => $totalPrice,
-                        'unit_id' => $productData['unit_id'] ?? null,
-                    ];
-                }
+                $productsData = $this->prepareProductsData($data['products'], $invoice->id);
                 InvoiceProduct::insert($productsData);
             }
 
@@ -172,26 +157,14 @@ class InvoicesRepository extends BaseRepository
         return DB::transaction(function () use ($id, $data) {
             $invoice = Invoice::findOrFail($id);
 
-            $updateData = [
+            $updateData = array_filter([
                 'client_id' => $data['client_id'],
-            ];
-            
-            if (isset($data['invoice_date'])) {
-                $updateData['invoice_date'] = $data['invoice_date'];
-            }
-            
-            if (isset($data['note'])) {
-                $updateData['note'] = $data['note'];
-            }
-            
-            if (isset($data['total_amount'])) {
-                $updateData['total_amount'] = $data['total_amount'];
-            }
-            
-            if (isset($data['status'])) {
-                $updateData['status'] = $data['status'];
-            }
-            
+                'invoice_date' => $data['invoice_date'] ?? null,
+                'note' => $data['note'] ?? null,
+                'total_amount' => $data['total_amount'] ?? null,
+                'status' => $data['status'] ?? null,
+            ], fn($value) => $value !== null);
+
             $invoice->update($updateData);
 
             if (isset($data['order_ids'])) {
@@ -202,26 +175,7 @@ class InvoicesRepository extends BaseRepository
                 $invoice->products()->delete();
 
                 if (!empty($data['products'])) {
-                    $productsData = [];
-                    foreach ($data['products'] as $productData) {
-                        $quantity = (float) ($productData['quantity'] ?? 0);
-                        $price = (float) ($productData['price'] ?? 0);
-                        $totalPrice = isset($productData['total_price']) 
-                            ? (float) $productData['total_price'] 
-                            : ($quantity * $price);
-                        
-                        $productsData[] = [
-                            'invoice_id' => $invoice->id,
-                            'order_id' => $productData['order_id'] ?? null,
-                            'product_id' => $productData['product_id'] ?? null,
-                            'product_name' => $productData['product_name'],
-                            'product_description' => $productData['product_description'] ?? null,
-                            'quantity' => $quantity,
-                            'price' => $price,
-                            'total_price' => $totalPrice,
-                            'unit_id' => $productData['unit_id'] ?? null,
-                        ];
-                    }
+                    $productsData = $this->prepareProductsData($data['products'], $invoice->id);
                     InvoiceProduct::insert($productsData);
                 }
             }
@@ -365,6 +319,46 @@ class InvoicesRepository extends BaseRepository
      * @param \Illuminate\Database\Eloquent\Collection|null $orders Коллекция заказов
      * @return void
      */
+    /**
+     * Подготовить данные продуктов для вставки в БД
+     *
+     * @param array<int, array<string, mixed>> $products Массив данных продуктов:
+     *   - order_id (int|null) ID заказа
+     *   - product_id (int|null) ID товара
+     *   - product_name (string) Название товара
+     *   - product_description (string|null) Описание товара
+     *   - quantity (float) Количество
+     *   - price (float) Цена
+     *   - total_price (float|null) Общая цена (если не указана, вычисляется)
+     *   - unit_id (int|null) ID единицы измерения
+     * @param int $invoiceId ID счета
+     * @return array<int, array<string, mixed>> Массив подготовленных данных для вставки
+     */
+    private function prepareProductsData(array $products, int $invoiceId): array
+    {
+        $productsData = [];
+        foreach ($products as $productData) {
+            $quantity = (float) ($productData['quantity'] ?? 0);
+            $price = (float) ($productData['price'] ?? 0);
+            $totalPrice = isset($productData['total_price'])
+                ? (float) $productData['total_price']
+                : ($quantity * $price);
+
+            $productsData[] = [
+                'invoice_id' => $invoiceId,
+                'order_id' => $productData['order_id'] ?? null,
+                'product_id' => $productData['product_id'] ?? null,
+                'product_name' => $productData['product_name'],
+                'product_description' => $productData['product_description'] ?? null,
+                'quantity' => $quantity,
+                'price' => $price,
+                'total_price' => $totalPrice,
+                'unit_id' => $productData['unit_id'] ?? null,
+            ];
+        }
+        return $productsData;
+    }
+
     protected function attachCurrencyToOrders($orders)
     {
         if (!$orders) {
@@ -372,8 +366,8 @@ class InvoicesRepository extends BaseRepository
         }
 
         foreach ($orders as $order) {
-            if ($order->cash && $order->cash->currency) {
-                $currency = $order->cash->currency;
+            $currency = optional($order->cash)->currency;
+            if ($currency) {
                 $order->currency_id = $currency->id;
                 $order->currency_name = $currency->name;
                 $order->currency_symbol = $currency->symbol;

@@ -136,9 +136,9 @@ class CommentController extends BaseController
      */
     public function destroy($id)
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthenticatedUser();
         if (!$user) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+            return $this->unauthorizedResponse();
         }
 
         $comment = Comment::where('id', $id)

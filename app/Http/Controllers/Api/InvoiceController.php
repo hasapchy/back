@@ -115,33 +115,17 @@ class InvoiceController extends BaseController
         $validatedData = $request->validated();
 
         try {
-            $data = [
-                'client_id' => $validatedData['client_id'],
-            ];
-            
-            if (isset($validatedData['invoice_date'])) {
-                $data['invoice_date'] = $validatedData['invoice_date'];
-            }
-            
-            if (isset($validatedData['note'])) {
-                $data['note'] = $validatedData['note'];
-            }
-            
-            if (isset($validatedData['status'])) {
-                $data['status'] = $validatedData['status'];
-            }
-            
-            if (isset($validatedData['order_ids'])) {
-                $data['order_ids'] = $validatedData['order_ids'];
-            }
-            
-            if (isset($validatedData['products'])) {
-                $data['products'] = $validatedData['products'];
-            }
-            
-            if (isset($validatedData['total_amount'])) {
-                $data['total_amount'] = $validatedData['total_amount'];
-            }
+            $data = array_merge(
+                ['client_id' => $validatedData['client_id']],
+                array_filter([
+                    'invoice_date' => $validatedData['invoice_date'] ?? null,
+                    'note' => $validatedData['note'] ?? null,
+                    'status' => $validatedData['status'] ?? null,
+                    'order_ids' => $validatedData['order_ids'] ?? null,
+                    'products' => $validatedData['products'] ?? null,
+                    'total_amount' => $validatedData['total_amount'] ?? null,
+                ], fn($value) => $value !== null)
+            );
 
             $updated = $this->itemRepository->updateItem($id, $data);
             if (!$updated) {

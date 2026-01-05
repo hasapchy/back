@@ -171,10 +171,6 @@ class CompaniesController extends BaseController
 
             $date = $request->input('date');
             $userIds = $request->input('user_ids');
-            
-            if (empty($userIds) || !is_array($userIds)) {
-                return $this->errorResponse('Необходимо указать хотя бы одного сотрудника', 400);
-            }
 
             $transactionsRepository = app(TransactionsRepository::class);
             $salaryAccrualService = new SalaryAccrualService($transactionsRepository);

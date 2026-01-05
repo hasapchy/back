@@ -74,55 +74,18 @@ class ProductsRepository extends BaseRepository
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'LIKE', "%{$search}%")
-                      ->orWhere('sku', 'LIKE', "%{$search}%")
-                      ->orWhere('barcode', 'LIKE', "%{$search}%");
+                        ->orWhere('sku', 'LIKE', "%{$search}%")
+                        ->orWhere('barcode', 'LIKE', "%{$search}%");
                 });
             }
 
             $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
             $productIds = $products->getCollection()->pluck('id');
-            $warehouseIds = [];
-            if (!$warehouseId && $this->shouldApplyUserFilter('warehouses')) {
-                $warehouseIds = WhUser::where('user_id', $userUuid)
-                    ->pluck('warehouse_id')
-                    ->toArray();
-            }
-
-            $stocksMap = [];
-            if ($productIds->isNotEmpty()) {
-                if ($warehouseId) {
-                    $stocksMap = WarehouseStock::where('warehouse_id', $warehouseId)
-                        ->whereIn('product_id', $productIds)
-                        ->pluck('quantity', 'product_id')
-                        ->toArray();
-                } elseif (empty($warehouseIds)) {
-                    $stocks = WarehouseStock::whereIn('product_id', $productIds)
-                        ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total'))
-                        ->groupBy('product_id')
-                        ->pluck('total', 'product_id')
-                        ->toArray();
-                    $stocksMap = $stocks;
-                } else {
-                    $stocks = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
-                        ->whereIn('product_id', $productIds)
-                        ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total'))
-                        ->groupBy('product_id')
-                        ->pluck('total', 'product_id')
-                        ->toArray();
-                    $stocksMap = $stocks;
-                }
-            }
+            $stocksMap = $this->getStocksMap($productIds, $warehouseId, $userUuid);
 
             $products->getCollection()->each(function ($product) use ($stocksMap) {
-                $product->category_name = $product->categories->first()?->name;
-                $product->unit_name = $product->unit?->name;
-                $product->unit_short_name = $product->unit?->short_name;
-                $price = $product->prices->first();
-                $product->retail_price = $price?->retail_price;
-                $product->wholesale_price = $price?->wholesale_price;
-                $product->purchase_price = $price?->purchase_price;
-                $product->stock_quantity = (float) ($stocksMap[$product->id] ?? 0);
+                $this->enrichProduct($product, $stocksMap);
             });
 
             return $products;
@@ -213,14 +176,7 @@ class ProductsRepository extends BaseRepository
             }
 
             $products->each(function ($product) use ($stocksMap) {
-                $product->category_name = $product->categories->first()?->name;
-                $product->unit_name = $product->unit?->name;
-                $product->unit_short_name = $product->unit?->short_name;
-                $price = $product->prices->first();
-                $product->retail_price = $price?->retail_price;
-                $product->wholesale_price = $price?->wholesale_price;
-                $product->purchase_price = $price?->purchase_price;
-                $product->stock_quantity = (float) ($stocksMap[$product->id] ?? 0);
+                $this->enrichProduct($product, $stocksMap);
             });
 
             return $products;
@@ -237,7 +193,7 @@ class ProductsRepository extends BaseRepository
     {
         $product = new Product();
         $product->type = $data['type'];
-        $product->image = isset($data['image']) ? $data['image'] : null;
+        $product->image = $data['image'] ?? null;
         $product->name = $data['name'];
         $product->description = $data['description'];
         $product->sku = $data['sku'];
@@ -318,7 +274,7 @@ class ProductsRepository extends BaseRepository
         if (isset($data['type'])) {
             $product->type = $data['type'];
         }
-        if (isset($data['image'])) {
+        if (array_key_exists('image', $data)) {
             $product->image = $data['image'];
         }
         if (isset($data['name'])) {
@@ -366,7 +322,7 @@ class ProductsRepository extends BaseRepository
             CacheService::invalidateWarehouseStocksCache();
         }
 
-        $prices_data = array();
+        $prices_data = [];
         if (isset($data['retail_price']) && $data['retail_price'] !== null) {
             $prices_data['retail_price'] = $data['retail_price'];
         }
@@ -462,10 +418,7 @@ class ProductsRepository extends BaseRepository
 
         $usedInSales = $product->salesProducts()->exists();
 
-
-        $usedInOrders = false;
-
-        if ($usedInSales || $usedInOrders) {
+        if ($usedInSales) {
             return [
                 'success' => false,
                 'message' => 'Товар/услуга используется в продажах или заказах и не может быть удалён(а).'
@@ -494,5 +447,70 @@ class ProductsRepository extends BaseRepository
     private function isProductTypeValue($value): bool
     {
         return in_array($value, [1, '1', true, 'product'], true);
+    }
+
+    /**
+     * Получить карту остатков товаров
+     *
+     * @param \Illuminate\Support\Collection<int> $productIds Коллекция ID товаров
+     * @param int|null $warehouseId ID склада (если null, используется фильтр по пользователю)
+     * @param int $userUuid ID пользователя для фильтрации складов
+     * @return array<int, float> Массив [product_id => quantity]
+     */
+    private function getStocksMap($productIds, $warehouseId, $userUuid): array
+    {
+        if ($productIds->isEmpty()) {
+            return [];
+        }
+
+        $warehouseIds = [];
+        if (!$warehouseId && $this->shouldApplyUserFilter('warehouses')) {
+            $warehouseIds = WhUser::where('user_id', $userUuid)
+                ->pluck('warehouse_id')
+                ->toArray();
+        }
+
+        if ($warehouseId) {
+            return WarehouseStock::where('warehouse_id', $warehouseId)
+                ->whereIn('product_id', $productIds)
+                ->pluck('quantity', 'product_id')
+                ->toArray();
+        }
+
+        if (empty($warehouseIds)) {
+            return WarehouseStock::whereIn('product_id', $productIds)
+                ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total'))
+                ->groupBy('product_id')
+                ->pluck('total', 'product_id')
+                ->toArray();
+        }
+
+        return WarehouseStock::whereIn('warehouse_id', $warehouseIds)
+            ->whereIn('product_id', $productIds)
+            ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total'))
+            ->groupBy('product_id')
+            ->pluck('total', 'product_id')
+            ->toArray();
+    }
+
+    /**
+     * Обогатить продукт дополнительными данными
+     *
+     * Добавляет к продукту: название категории, единицы измерения, цены и остаток на складе
+     *
+     * @param \App\Models\Product $product Продукт для обогащения
+     * @param array<int, float> $stocksMap Карта остатков [product_id => quantity]
+     * @return void
+     */
+    private function enrichProduct($product, array $stocksMap)
+    {
+        $product->category_name = $product->categories->first()?->name;
+        $product->unit_name = $product->unit?->name;
+        $product->unit_short_name = $product->unit?->short_name;
+        $price = $product->prices->first();
+        $product->retail_price = $price?->retail_price;
+        $product->wholesale_price = $price?->wholesale_price;
+        $product->purchase_price = $price?->purchase_price;
+        $product->stock_quantity = (float) ($stocksMap[$product->id] ?? 0);
     }
 }

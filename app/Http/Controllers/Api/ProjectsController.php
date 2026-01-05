@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use App\Models\Project;
+use ZipArchive;
 
 /**
  * Контроллер для управления проектами
@@ -206,24 +207,21 @@ class ProjectsController extends BaseController
      */
     public function show($id)
     {
-        try {
-            $project = Project::findOrFail($id);
-
-            if (!$this->canPerformAction('projects', 'view', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
-            }
-
         $this->getAuthenticatedUserIdOrFail();
+        
+        $project = Project::findOrFail($id);
+
+        if (!$this->canPerformAction('projects', 'view', $project)) {
+            return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
+        }
+
         $project = $this->itemsRepository->findItemWithRelations($id);
 
-            if (!$project) {
-                return $this->notFoundResponse('Проект не найден или доступ запрещен');
-            }
-
-            return response()->json(['item' => $project]);
-        } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении проекта: ' . $e->getMessage(), 500);
+        if (!$project) {
+            return $this->notFoundResponse('Проект не найден или доступ запрещен');
         }
+
+        return response()->json(['item' => $project]);
     }
 
     /**
@@ -285,6 +283,45 @@ class ProjectsController extends BaseController
     }
 
     /**
+     * Скачать выбранные файлы проекта в архиве
+     *
+     * @param Request $request
+     * @param int $id ID проекта
+     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
+     */
+    public function downloadFiles(Request $request, $id)
+    {
+        $project = Project::findOrFail($id);
+
+        if (!$this->canPerformAction('projects', 'view', $project)) {
+            return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
+        }
+
+        $files = collect($project->files ?? [])
+            ->whereIn('path', $request->input('paths', []))
+            ->filter(fn($file) => Storage::disk('public')->exists($file['path']));
+
+        if ($files->isEmpty()) {
+            return $this->errorResponse('Файлы не найдены', 404);
+        }
+
+        $zipPath = storage_path('app/temp/project_' . $project->id . '_' . time() . '.zip');
+        $zip = new ZipArchive();
+
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            return $this->errorResponse('Не удалось создать архив', 500);
+        }
+
+        foreach ($files as $file) {
+            $zip->addFile(storage_path('app/public/' . $file['path']), $file['name']);
+        }
+
+        $zip->close();
+
+        return response()->download($zipPath)->deleteFileAfterSend(true);
+    }
+
+    /**
      * Удалить файл проекта
      *
      * @param Request $request
@@ -294,7 +331,7 @@ class ProjectsController extends BaseController
     public function deleteFile(Request $request, $id)
     {
         try {
-            $userId = $this->getAuthenticatedUserIdOrFail();
+            $this->getAuthenticatedUserIdOrFail();
 
             $project = Project::findOrFail($id);
 

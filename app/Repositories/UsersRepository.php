@@ -4,7 +4,6 @@ namespace App\Repositories;
 
 use App\Models\User;
 use App\Services\CacheService;
-use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -83,7 +82,7 @@ class UsersRepository extends BaseRepository
                     ->distinct();
             }
 
-            if ($currentUser && !$currentUser->is_admin) {
+            if (!optional($currentUser)->is_admin) {
                 $permissions = $this->getUserPermissionsForCompany($currentUser);
                 $hasViewAll = in_array('users_view_all', $permissions) || in_array('users_view', $permissions);
                 if (!$hasViewAll && in_array('users_view_own', $permissions)) {
@@ -210,7 +209,7 @@ class UsersRepository extends BaseRepository
                 ->distinct();
         }
 
-        if ($currentUser && !$currentUser->is_admin) {
+        if (!optional($currentUser)->is_admin) {
             $permissions = $this->getUserPermissionsForCompany($currentUser);
             $hasViewAll = in_array('users_view_all', $permissions) || in_array('users_view', $permissions);
             if (!$hasViewAll && in_array('users_view_own', $permissions)) {
@@ -416,7 +415,7 @@ class UsersRepository extends BaseRepository
             $user->email    = $data['email'];
             $user->password = $data['password'];
             $user->hire_date = $data['hire_date'] ?? null;
-            $user->birthday = isset($data['birthday']) && $data['birthday'] ? Carbon::parse($data['birthday'])->format('Y-m-d') : null;
+            $user->birthday = !empty($data['birthday']) ? Carbon::parse($data['birthday'])->format('Y-m-d') : null;
             $user->is_active = $data['is_active'] ?? true;
             $user->position = $data['position'] ?? null;
             $user->is_admin = $data['is_admin'] ?? false;
@@ -935,7 +934,7 @@ class UsersRepository extends BaseRepository
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('users_search_' . md5($search_request), [$currentUser?->id, $companyId]);
-        
+
         return CacheService::rememberSearch($cacheKey, function () use ($search_request, $currentUser, $companyId) {
             $searchTerms = explode(' ', $search_request);
 
@@ -961,7 +960,7 @@ class UsersRepository extends BaseRepository
                     ->distinct();
             }
 
-            if ($currentUser && !$currentUser->is_admin) {
+            if (!optional($currentUser)->is_admin) {
                 $permissions = $this->getUserPermissionsForCompany($currentUser);
                 $hasViewAll = in_array('users_view_all', $permissions) || in_array('users_view', $permissions);
                 if (!$hasViewAll && in_array('users_view_own', $permissions)) {

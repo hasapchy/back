@@ -110,18 +110,14 @@ class ClientController extends BaseController
             return $this->forbiddenResponse('Нет доступа к просмотру баланса клиента');
         }
 
-        try {
-            $excludeDebt = $request->input('exclude_debt', null);
-            if ($excludeDebt !== null) {
-                $excludeDebt = filter_var($excludeDebt, FILTER_VALIDATE_BOOLEAN);
-            }
+        $excludeDebt = $request->boolean('exclude_debt');
+        $cashRegisterId = $request->input('cash_register_id') ? intval($request->input('cash_register_id')) : null;
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
 
-            $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt);
+        $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo);
 
-            return response()->json(['history' => $history]);
-        } catch (\Throwable $e) {
-            return $this->errorResponse('Ошибка при получении истории баланса: ' . $e->getMessage(), 500);
-        }
+        return response()->json(['history' => $history]);
     }
 
     /**
@@ -143,6 +139,12 @@ class ClientController extends BaseController
             }
 
             $forMutualSettlements = $request->input('for_mutual_settlements', false);
+            $cashRegisterIdInput = $request->input('cash_register_id');
+            $cashRegisterId = null;
+
+            if ($forMutualSettlements && !empty($cashRegisterIdInput)) {
+                $cashRegisterId = intval($cashRegisterIdInput);
+            }
 
             if ($forMutualSettlements) {
                 $user = $this->requireAuthenticatedUser();
@@ -160,6 +162,11 @@ class ClientController extends BaseController
             }
 
             $items = $this->itemsRepository->getAllItems($typeFilter, $forMutualSettlements);
+
+            if ($forMutualSettlements && $cashRegisterId) {
+                $items = $this->itemsRepository->calculateBalancesByCashRegister($items, $cashRegisterId);
+            }
+
             return ClientResource::collection($items);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении всех клиентов: ' . $e->getMessage(), 500);
@@ -224,11 +231,7 @@ class ClientController extends BaseController
     {
         $validatedData = $this->normalizeNullableFields($request->validated());
 
-        try {
-            $existingClient = Client::find($id);
-            if (!$existingClient) {
-                return $this->notFoundResponse('Клиент не найден');
-            }
+        $existingClient = Client::findOrFail($id);
 
             if (!$this->canPerformAction('clients', 'update', $existingClient)) {
                 return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
@@ -244,6 +247,14 @@ class ClientController extends BaseController
                 return $phoneCheck;
             }
 
+            $client = $this->itemsRepository->updateItem($id, $validatedData);
+
+            CacheService::invalidateClientsCache();
+            CacheService::invalidateOrdersCache();
+            CacheService::invalidateSalesCache();
+            CacheService::invalidateTransactionsCache();
+
+        try {
             $client = $this->itemsRepository->updateItem($id, $validatedData);
 
             CacheService::invalidateClientsCache();
@@ -296,10 +307,7 @@ class ClientController extends BaseController
     public function destroy($id)
     {
         try {
-            $client = Client::find($id);
-            if (!$client) {
-                return $this->notFoundResponse('Клиент не найден');
-            }
+            $client = Client::findOrFail($id);
 
             if (!$this->canPerformAction('clients', 'delete', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на удаление этого клиента');

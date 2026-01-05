@@ -46,6 +46,7 @@ class ClientResource extends JsonResource
                 'id' => $phone->id,
                 'phone' => $phone->phone,
             ])->all(),
+            'currency_symbol' => $this->currency_symbol ?? null,
         ];
     }
 }

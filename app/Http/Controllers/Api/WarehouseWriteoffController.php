@@ -58,7 +58,7 @@ class WarehouseWriteoffController extends BaseController
             return $warehouseAccessCheck;
         }
 
-        $data = array(
+        $data = [
             'warehouse_id' => $validatedData['warehouse_id'],
             'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
@@ -67,7 +67,7 @@ class WarehouseWriteoffController extends BaseController
                     'quantity' => $product['quantity']
                 ];
             }, $validatedData['products'])
-        );
+        ];
 
         try {
             $warehouse_created = $this->warehouseRepository->createItem($data);
@@ -77,7 +77,7 @@ class WarehouseWriteoffController extends BaseController
 
             return response()->json(['message' => 'Списание создано']);
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка списания' . $th->getMessage(), 400);
+            return $this->errorResponse('Ошибка списания: ' . $th->getMessage(), 400);
         }
     }
 
@@ -97,7 +97,7 @@ class WarehouseWriteoffController extends BaseController
             return $warehouseAccessCheck;
         }
 
-        $data = array(
+        $data = [
             'warehouse_id' => $validatedData['warehouse_id'],
             'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
@@ -106,7 +106,7 @@ class WarehouseWriteoffController extends BaseController
                     'quantity' => $product['quantity']
                 ];
             }, $validatedData['products'])
-        );
+        ];
 
         try {
             $warehouse_created = $this->warehouseRepository->updateItem($id, $data);
@@ -116,7 +116,7 @@ class WarehouseWriteoffController extends BaseController
 
             return response()->json(['message' => 'Списание обновлено']);
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка списания' . $th->getMessage(), 400);
+            return $this->errorResponse('Ошибка списания: ' . $th->getMessage(), 400);
         }
     }
 

@@ -23,21 +23,7 @@ class LeaveRepository extends BaseRepository
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $filters) {
             $query = Leave::with(['leaveType', 'user']);
 
-            if (isset($filters['user_id'])) {
-                $query->where('user_id', $filters['user_id']);
-            }
-
-            if (isset($filters['leave_type_id'])) {
-                $query->where('leave_type_id', $filters['leave_type_id']);
-            }
-
-            if (isset($filters['date_from'])) {
-                $query->where('date_from', '>=', $filters['date_from']);
-            }
-
-            if (isset($filters['date_to'])) {
-                $query->where('date_to', '<=', $filters['date_to']);
-            }
+            $this->applyFilters($query, $filters);
 
             return $query->orderBy('date_from', 'desc')
                 ->paginate($perPage);
@@ -59,21 +45,7 @@ class LeaveRepository extends BaseRepository
         return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $filters) {
             $query = Leave::with(['leaveType', 'user']);
 
-            if (isset($filters['user_id'])) {
-                $query->where('user_id', $filters['user_id']);
-            }
-
-            if (isset($filters['leave_type_id'])) {
-                $query->where('leave_type_id', $filters['leave_type_id']);
-            }
-
-            if (isset($filters['date_from'])) {
-                $query->where('date_from', '>=', $filters['date_from']);
-            }
-
-            if (isset($filters['date_to'])) {
-                $query->where('date_to', '<=', $filters['date_to']);
-            }
+            $this->applyFilters($query, $filters);
 
             return $query->orderBy('date_from', 'desc')->get();
         });
@@ -130,6 +102,25 @@ class LeaveRepository extends BaseRepository
         $item->delete();
         CacheService::invalidateLeavesCache();
         return true;
+    }
+
+    /**
+     * Применить фильтры к запросу отпусков
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param array<string, mixed> $filters Массив фильтров:
+     *   - user_id (int|null) ID пользователя
+     *   - leave_type_id (int|null) ID типа отпуска
+     *   - date_from (string|null) Дата начала периода
+     *   - date_to (string|null) Дата окончания периода
+     * @return void
+     */
+    private function applyFilters($query, array $filters)
+    {
+        $query->when(isset($filters['user_id']), fn($q) => $q->where('user_id', $filters['user_id']))
+            ->when(isset($filters['leave_type_id']), fn($q) => $q->where('leave_type_id', $filters['leave_type_id']))
+            ->when(isset($filters['date_from']), fn($q) => $q->where('date_from', '>=', $filters['date_from']))
+            ->when(isset($filters['date_to']), fn($q) => $q->where('date_to', '<=', $filters['date_to']));
     }
 }
 

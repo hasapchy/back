@@ -27,24 +27,16 @@ class CurrencyHistoryController extends BaseController
     public function index(Request $request, $currencyId)
     {
         try {
-            $user = $this->getAuthenticatedUser();
-
-            if (!$user) {
-                return $this->unauthorizedResponse();
-            }
-
+            $user = $this->requireAuthenticatedUser();
             $currency = Currency::findOrFail($currencyId);
 
-            $userPermissions = $this->getUserPermissions($user);
-            $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
-            $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
+            $accessCheck = $this->checkCurrencyAccess($user, $currency);
+            if ($accessCheck) {
+                return $accessCheck;
+            }
 
             $page = max((int)$request->get('page', 1), 1);
             $perPage = max((int)$request->get('per_page', 20), 1);
-
-            if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
-                return $this->forbiddenResponse('Нет доступа к этой валюте');
-            }
 
             $companyId = $this->getCurrentCompanyId();
 
@@ -91,20 +83,12 @@ class CurrencyHistoryController extends BaseController
     public function store(StoreCurrencyHistoryRequest $request, $currencyId)
     {
         try {
-            $user = $this->getAuthenticatedUser();
-
-            if (!$user) {
-                return $this->unauthorizedResponse();
-            }
-
+            $user = $this->requireAuthenticatedUser();
             $currency = Currency::findOrFail($currencyId);
 
-            $userPermissions = $this->getUserPermissions($user);
-            $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
-            $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
-
-            if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
-                return $this->forbiddenResponse('Нет доступа к этой валюте');
+            $accessCheck = $this->checkCurrencyAccess($user, $currency);
+            if ($accessCheck) {
+                return $accessCheck;
             }
 
             $validatedData = $request->validated();
@@ -148,20 +132,12 @@ class CurrencyHistoryController extends BaseController
     public function update(UpdateCurrencyHistoryRequest $request, $currencyId, $historyId)
     {
         try {
-            $user = $this->getAuthenticatedUser();
-
-            if (!$user) {
-                return $this->unauthorizedResponse();
-            }
-
+            $user = $this->requireAuthenticatedUser();
             $currency = Currency::findOrFail($currencyId);
 
-            $userPermissions = $this->getUserPermissions($user);
-            $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
-            $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
-
-            if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
-                return $this->forbiddenResponse('Нет доступа к этой валюте');
+            $accessCheck = $this->checkCurrencyAccess($user, $currency);
+            if ($accessCheck) {
+                return $accessCheck;
             }
 
             $companyId = $this->getCurrentCompanyId();
@@ -215,20 +191,12 @@ class CurrencyHistoryController extends BaseController
     public function destroy(Request $request, $currencyId, $historyId)
     {
         try {
-            $user = $this->getAuthenticatedUser();
-
-            if (!$user) {
-                return $this->unauthorizedResponse();
-            }
-
+            $user = $this->requireAuthenticatedUser();
             $currency = Currency::findOrFail($currencyId);
 
-            $userPermissions = $this->getUserPermissions($user);
-            $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
-            $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
-
-            if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
-                return $this->forbiddenResponse('Нет доступа к этой валюте');
+            $accessCheck = $this->checkCurrencyAccess($user, $currency);
+            if ($accessCheck) {
+                return $accessCheck;
             }
 
             $companyId = $this->getCurrentCompanyId();
@@ -265,12 +233,7 @@ class CurrencyHistoryController extends BaseController
     public function getCurrenciesWithRates()
     {
         try {
-            $user = $this->getAuthenticatedUser();
-
-            if (!$user) {
-                return $this->unauthorizedResponse();
-            }
-
+            $user = $this->requireAuthenticatedUser();
             $companyId = $this->getCurrentCompanyId();
 
             $userPermissions = $this->getUserPermissions($user);
@@ -306,5 +269,25 @@ class CurrencyHistoryController extends BaseController
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении валют с курсами: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * Проверить доступ пользователя к валюте
+     *
+     * @param \App\Models\User $user
+     * @param \App\Models\Currency $currency
+     * @return \Illuminate\Http\JsonResponse|null
+     */
+    protected function checkCurrencyAccess($user, $currency)
+    {
+        $userPermissions = $this->getUserPermissions($user);
+        $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
+        $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
+
+        if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
+            return $this->forbiddenResponse('Нет доступа к этой валюте');
+        }
+
+        return null;
     }
 }
