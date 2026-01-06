@@ -419,6 +419,7 @@ class UsersController extends BaseController
                 'end_date' => 'nullable|date|after:start_date',
                 'amount' => 'required|numeric|min:0',
                 'currency_id' => 'required|exists:currencies,id',
+                'payment_type' => 'required|boolean',
                 'note' => 'nullable|string|max:120',
             ]);
 
@@ -460,6 +461,7 @@ class UsersController extends BaseController
                 'end_date' => 'nullable|date|after:start_date',
                 'amount' => 'nullable|numeric|min:0',
                 'currency_id' => 'nullable|exists:currencies,id',
+                'payment_type' => 'nullable|boolean',
                 'note' => 'nullable|string|max:120',
             ]);
 
