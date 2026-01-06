@@ -382,10 +382,8 @@ class UsersController extends BaseController
             $user = User::findOrFail($id);
             $currentUser = $this->getAuthenticatedUser();
 
-            if (!$this->hasPermission('employee_salaries_view_all')) {
-                if (!$this->hasPermission('employee_salaries_view_own') || $user->id !== $currentUser->id) {
-                    return $this->forbiddenResponse('Нет прав на просмотр зарплат');
-                }
+            if (!$this->hasPermission('employee_salaries_view_all') && $user->id !== $currentUser->id) {
+                return $this->forbiddenResponse('Нет прав на просмотр зарплат');
             }
 
             $salaries = $this->itemsRepository->getSalaries($id);
@@ -545,12 +543,6 @@ class UsersController extends BaseController
      */
     public function getEmployeeBalanceHistory($id)
     {
-        $user = $this->requireAuthenticatedUser();
-
-        if (!$this->hasPermission('settings_client_balance_view', $user)) {
-            return $this->forbiddenResponse('Нет доступа к просмотру баланса сотрудника');
-        }
-
         try {
             $targetUser = User::findOrFail($id);
 
