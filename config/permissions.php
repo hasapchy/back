@@ -163,7 +163,7 @@ return [
             'scope_actions' => ['view', 'update', 'delete'],
         ],
         'employee_salaries' => [
-            'has_user_id' => false,
+            'has_user_id' => true,
             'check_strategy' => 'user_id',
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
