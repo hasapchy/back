@@ -100,9 +100,9 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::post('user/profile', [UsersController::class, 'updateProfile']);
 
     Route::middleware('permission.scope:users_view_all,users_view')->get('users', [UsersController::class, 'index']);
-    Route::middleware('permission.scope:users_view_all,users_view')->get('users/all', [UsersController::class, 'getAllUsers']);
+    Route::get('users/all', [UsersController::class, 'getAllUsers']);
     Route::middleware('permission.scope:users_view_all,users_view')->get('users/search', [UsersController::class, 'search']);
-    Route::middleware('permission.scope:users_view_all,users_view')->get('users/{id}', [UsersController::class, 'show']);
+    Route::get('users/{id}', [UsersController::class, 'show']);
     Route::middleware('permission:users_create')->post('users', [UsersController::class, 'store']);
     Route::middleware('permission.scope:users_update_all,users_update')->put('users/{id}', [UsersController::class, 'update']);
     Route::middleware('permission.scope:users_delete_all,users_delete')->delete('users/{id}', [UsersController::class, 'destroy']);
