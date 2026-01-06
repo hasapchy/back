@@ -518,6 +518,12 @@ class UsersController extends BaseController
      */
     public function getEmployeeBalance($id)
     {
+        $currentUser = $this->requireAuthenticatedUser();
+
+        if (!$this->hasPermission('settings_client_balance_view', $currentUser)) {
+            return $this->forbiddenResponse('Нет доступа к просмотру баланса');
+        }
+
         try {
             $user = User::findOrFail($id);
 
@@ -543,6 +549,12 @@ class UsersController extends BaseController
      */
     public function getEmployeeBalanceHistory($id)
     {
+        $currentUser = $this->requireAuthenticatedUser();
+
+        if (!$this->hasPermission('settings_client_balance_view', $currentUser)) {
+            return $this->forbiddenResponse('Нет доступа к просмотру баланса');
+        }
+
         try {
             $targetUser = User::findOrFail($id);
 
