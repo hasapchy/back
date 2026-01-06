@@ -7,6 +7,7 @@ use App\Http\Resources\Chat\ChatMessageResource;
 use App\Http\Resources\Chat\ChatResource;
 use App\Http\Requests\Chat\CreateGroupChatRequest;
 use App\Http\Requests\Chat\IndexChatsRequest;
+use App\Http\Requests\Chat\MarkChatReadRequest;
 use App\Http\Requests\Chat\StartDirectChatRequest;
 use App\Http\Requests\Chat\StoreChatMessageRequest;
 use App\Models\Chat;
@@ -138,10 +139,51 @@ class ChatController extends BaseController
         $limit = max(1, min(200, $limit));
         $afterId = $request->query('after_id');
         $afterId = $afterId !== null ? (int) $afterId : null;
+        $beforeId = $request->query('before_id');
+        $beforeId = $beforeId !== null ? (int) $beforeId : null;
+        $tail = $request->boolean('tail', false);
 
-        $messages = $this->chatService->getMessagesAndMarkRead($companyId, $user, $chat, $limit, $afterId);
+        $messages = $this->chatService->getMessages(
+            companyId: $companyId,
+            user: $user,
+            chat: $chat,
+            limit: $limit,
+            afterId: $afterId,
+            beforeId: $beforeId,
+            tail: $tail
+        );
 
         return ChatMessageResource::collection($messages)->response();
+    }
+
+    public function markAsRead(MarkChatReadRequest $request, Chat $chat): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = (int) $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            return response()->json(['message' => 'X-Company-ID header is required'], 422);
+        }
+
+        if ((int) $chat->company_id !== $companyId) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $isParticipant = ChatParticipant::query()
+            ->where('chat_id', $chat->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (! $isParticipant) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $data = $request->validated();
+        $lastMessageId = isset($data['last_message_id']) ? (int) $data['last_message_id'] : null;
+
+        $this->chatService->markAsRead($companyId, $user, $chat, $lastMessageId);
+
+        return response()->json(['data' => ['ok' => true]]);
     }
 
     public function storeMessage(StoreChatMessageRequest $request, Chat $chat): JsonResponse

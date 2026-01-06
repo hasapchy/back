@@ -8,6 +8,12 @@ use Illuminate\Support\Facades\DB;
 
 class ChatMessageRepository
 {
+    public function getMaxMessageId(int $chatId): ?int
+    {
+        $id = DB::table('chat_messages')->where('chat_id', $chatId)->max('id');
+        return $id !== null ? (int) $id : null;
+    }
+
     /**
      * @return \Illuminate\Support\Collection<int, int> map chat_id => last_message_id
      */
@@ -47,6 +53,38 @@ class ChatMessageRepository
         }
 
         return $query->limit($limit)->get();
+    }
+
+    public function getLatestMessages(int $chatId, int $limit): Collection
+    {
+        // Get newest first, then reverse to chronological asc for UI
+        $items = ChatMessage::query()
+            ->where('chat_id', $chatId)
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+
+        return $items->reverse()->values();
+    }
+
+    public function getMessagesBeforeId(int $chatId, int $beforeId, int $limit): Collection
+    {
+        $items = ChatMessage::query()
+            ->where('chat_id', $chatId)
+            ->where('id', '<', $beforeId)
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+
+        return $items->reverse()->values();
+    }
+
+    public function messageExistsInChat(int $chatId, int $messageId): bool
+    {
+        return DB::table('chat_messages')
+            ->where('chat_id', $chatId)
+            ->where('id', $messageId)
+            ->exists();
     }
 
     /**

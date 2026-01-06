@@ -327,5 +327,6 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission:chats_view')->post('chats/direct', [ChatController::class, 'startDirect']);
     Route::middleware('permission:chats_group_create')->post('chats/groups', [ChatController::class, 'createGroup']);
     Route::middleware('permission:chats_view')->get('chats/{chat}/messages', [ChatController::class, 'messages']);
+    Route::middleware('permission:chats_view')->post('chats/{chat}/read', [ChatController::class, 'markAsRead']);
     Route::middleware('permission:chats_write')->post('chats/{chat}/messages', [ChatController::class, 'storeMessage']);
 });

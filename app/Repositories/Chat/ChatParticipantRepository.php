@@ -60,6 +60,16 @@ class ChatParticipantRepository
             ->where('user_id', $userId)
             ->update(['last_read_message_id' => $messageId]);
     }
+
+    public function getLastReadMessageId(int $chatId, int $userId): int
+    {
+        $id = ChatParticipant::query()
+            ->where('chat_id', $chatId)
+            ->where('user_id', $userId)
+            ->value('last_read_message_id');
+
+        return $id ? (int) $id : 0;
+    }
 }
 
 

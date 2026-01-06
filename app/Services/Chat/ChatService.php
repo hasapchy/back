@@ -2,6 +2,7 @@
 
 namespace App\Services\Chat;
 
+use App\Events\ChatReadUpdated;
 use App\Events\MessageSent;
 use App\Models\Chat;
 use App\Models\ChatMessage;
@@ -51,9 +52,22 @@ class ChatService
 
         $unreadCounts = $this->messages->getUnreadCountsByChatIds($chatIds, (int) $user->id);
 
-        return $chats->map(function (Chat $chat) use ($lastMessages, $unreadCounts) {
+        $userId = (int) $user->id;
+
+        return $chats->map(function (Chat $chat) use ($lastMessages, $unreadCounts, $participantsByChatId, $userId) {
             $lastMessage = $lastMessages->get($chat->id);
             $unreadCount = (int) ($unreadCounts[(int) $chat->id] ?? 0);
+
+            $myLastReadId = null;
+            $peerLastReadId = null;
+            if ($chat->type === 'direct') {
+                $parts = $participantsByChatId->get($chat->id, collect());
+                $my = $parts->firstWhere('user_id', $userId);
+                $peer = $parts->firstWhere('user_id', '!=', $userId);
+
+                $myLastReadId = $my?->last_read_message_id ? (int) $my->last_read_message_id : 0;
+                $peerLastReadId = $peer?->last_read_message_id ? (int) $peer->last_read_message_id : 0;
+            }
 
             return [
                 'id' => (int) $chat->id,
@@ -76,6 +90,9 @@ class ChatService
                     'created_at' => $lastMessage->created_at?->toDateTimeString(),
                 ] : null,
                 'unread_count' => $unreadCount,
+                // For direct chats: read receipts
+                'my_last_read_message_id' => $myLastReadId,
+                'peer_last_read_message_id' => $peerLastReadId,
             ];
         })->values()->toArray();
     }
@@ -140,7 +157,46 @@ class ChatService
 
     public function getMessagesAndMarkRead(int $companyId, User $user, Chat $chat, int $limit, ?int $afterId)
     {
-        $messages = $this->messages->getMessages((int) $chat->id, $afterId, $limit);
+        return $this->getMessages(
+            companyId: $companyId,
+            user: $user,
+            chat: $chat,
+            limit: $limit,
+            afterId: $afterId,
+            beforeId: null,
+            tail: false
+        );
+    }
+
+    public function getMessages(
+        int $companyId,
+        User $user,
+        Chat $chat,
+        int $limit,
+        ?int $afterId,
+        ?int $beforeId,
+        bool $tail
+    ) {
+        if ($beforeId) {
+            // Infinite-scroll: load older messages, do NOT affect read state.
+            return $this->messages->getMessagesBeforeId((int) $chat->id, $beforeId, $limit);
+        }
+
+        if ($afterId) {
+            // Polling: load newer messages after a given id (chronological asc)
+            $messages = $this->messages->getMessages((int) $chat->id, $afterId, $limit);
+            // For "after" mode we can advance read state when user is actively consuming the stream.
+            if ($messages->isNotEmpty()) {
+                $lastId = (int) $messages->last()->id;
+                $this->participants->updateLastReadMessageId((int) $chat->id, (int) $user->id, $lastId);
+            }
+            return $messages;
+        }
+
+        // Default open-chat load: fetch last N messages if tail=true, otherwise keep legacy behavior.
+        $messages = $tail
+            ? $this->messages->getLatestMessages((int) $chat->id, $limit)
+            : $this->messages->getMessages((int) $chat->id, null, $limit);
 
         if ($messages->isNotEmpty()) {
             $lastId = (int) $messages->last()->id;
@@ -148,6 +204,39 @@ class ChatService
         }
 
         return $messages;
+    }
+
+    public function markAsRead(int $companyId, User $user, Chat $chat, ?int $lastMessageId = null): void
+    {
+        $messageId = $lastMessageId ?: $this->messages->getMaxMessageId((int) $chat->id);
+        if (! $messageId) {
+            return;
+        }
+
+        if ($lastMessageId) {
+            $exists = $this->messages->messageExistsInChat((int) $chat->id, (int) $lastMessageId);
+            if (! $exists) {
+                return;
+            }
+        }
+
+        $chatId = (int) $chat->id;
+        $userId = (int) $user->id;
+        $newId = (int) $messageId;
+
+        $oldId = $this->participants->getLastReadMessageId($chatId, $userId);
+        if ($newId <= $oldId) {
+            return;
+        }
+
+        $this->participants->updateLastReadMessageId($chatId, $userId, $newId);
+
+        event(new ChatReadUpdated(
+            companyId: (int) $chat->company_id,
+            chatId: $chatId,
+            userId: $userId,
+            lastReadMessageId: $newId
+        ));
     }
 
     /**
