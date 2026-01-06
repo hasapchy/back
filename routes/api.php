@@ -315,8 +315,8 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/delete-file', [TasksController::class, 'deleteFile']);
 
     // Task statuses
-    Route::middleware('permission.scope:task_statuses_view_all,task_statuses_view')->get('task-statuses', [TaskStatusController::class, 'index']);
-    Route::middleware('permission.scope:task_statuses_view_all,task_statuses_view')->get('task-statuses/all', [TaskStatusController::class, 'all']);
+    Route::get('task-statuses', [TaskStatusController::class, 'index']);
+    Route::get('task-statuses/all', [TaskStatusController::class, 'all']);
     Route::middleware('permission:task_statuses_create')->post('task-statuses', [TaskStatusController::class, 'store']);
     Route::middleware('permission.scope:task_statuses_update_all,task_statuses_update')->put('task-statuses/{id}', [TaskStatusController::class, 'update']);
     Route::middleware('permission.scope:task_statuses_delete_all,task_statuses_delete')->delete('task-statuses/{id}', [TaskStatusController::class, 'destroy']);
