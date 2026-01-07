@@ -116,11 +116,10 @@ class LeaveRepository extends BaseRepository
     {
         $companyId = $this->getCurrentCompanyId();
         if ($companyId) {
-            $query->whereHas('user', function ($q) use ($companyId) {
-                $q->whereHas('companies', function ($companyQuery) use ($companyId) {
-                    $companyQuery->where('companies.id', $companyId);
-                });
-            });
+            $query->join('company_user', 'leaves.user_id', '=', 'company_user.user_id')
+                ->where('company_user.company_id', $companyId)
+                ->select('leaves.*')
+                ->distinct();
         }
     }
 
