@@ -430,7 +430,19 @@ class ClientsRepository extends BaseRepository
                     $transactionsQuery->where('is_debt', false);
                 }
 
-                if ($this->shouldApplyUserFilter('cash_registers')) {
+                $permissions = $this->getUserPermissionsForCompany($currentUser);
+                $hasBalanceViewAll = in_array('settings_client_balance_view', $permissions);
+                $hasBalanceViewOwn = in_array('settings_client_balance_view_own', $permissions);
+
+                $isOwnBalance = false;
+                if ($currentUser && $hasBalanceViewOwn && !$hasBalanceViewAll) {
+                    $client = Client::find($clientId);
+                    if ($client && $client->employee_id === $currentUser->id) {
+                        $isOwnBalance = true;
+                    }
+                }
+
+                if (!$isOwnBalance && $this->shouldApplyUserFilter('cash_registers')) {
                     $filterUserId = $this->getFilterUserIdForPermission('cash_registers');
                     $transactionsQuery->where(function ($q) use ($filterUserId, $cashRegisterId) {
                         $q->whereNull('cash_id');

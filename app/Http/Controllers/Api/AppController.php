@@ -27,13 +27,23 @@ class AppController extends BaseController
 
         $userPermissions = $this->getUserPermissions($user);
         $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
+        $companyId = $this->getCurrentCompanyId();
         $cacheKey = $hasAccessToNonDefaultCurrencies ? 'currencies_all' : 'currencies_default_only';
+        $cacheKey .= '_' . ($companyId ?? 'default');
 
-        $items = CacheService::getReferenceData($cacheKey, function() use ($hasAccessToNonDefaultCurrencies) {
+        $items = CacheService::getReferenceData($cacheKey, function() use ($hasAccessToNonDefaultCurrencies, $companyId) {
             $query = Currency::where('status', 1);
+            
+            if ($companyId) {
+                $query->where('company_id', $companyId);
+            } else {
+                $query->whereNull('company_id');
+            }
+            
             if (!$hasAccessToNonDefaultCurrencies) {
                 $query->where('is_default', true);
             }
+            
             return $query->get();
         });
 

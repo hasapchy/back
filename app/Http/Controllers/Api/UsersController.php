@@ -520,12 +520,13 @@ class UsersController extends BaseController
     {
         $currentUser = $this->requireAuthenticatedUser();
 
-        if (!$this->hasPermission('settings_client_balance_view', $currentUser)) {
-            return $this->forbiddenResponse('Нет доступа к просмотру баланса');
-        }
-
         try {
             $user = User::findOrFail($id);
+
+            if (!$this->hasPermission('settings_client_balance_view', $currentUser) &&
+                (!$this->hasPermission('settings_client_balance_view_own', $currentUser) || $user->id !== $currentUser->id)) {
+                return $this->forbiddenResponse('Нет доступа к просмотру баланса');
+            }
 
             if (!$this->canPerformAction('users', 'view', $user)) {
                 return $this->forbiddenResponse('Нет прав на просмотр баланса этого пользователя');
@@ -551,12 +552,13 @@ class UsersController extends BaseController
     {
         $currentUser = $this->requireAuthenticatedUser();
 
-        if (!$this->hasPermission('settings_client_balance_view', $currentUser)) {
-            return $this->forbiddenResponse('Нет доступа к просмотру баланса');
-        }
-
         try {
             $targetUser = User::findOrFail($id);
+
+            if (!$this->hasPermission('settings_client_balance_view', $currentUser) &&
+                (!$this->hasPermission('settings_client_balance_view_own', $currentUser) || $targetUser->id !== $currentUser->id)) {
+                return $this->forbiddenResponse('Нет доступа к просмотру баланса');
+            }
 
             if (!$this->canPerformAction('users', 'view', $targetUser)) {
                 return $this->forbiddenResponse('Нет прав на просмотр баланса этого пользователя');
