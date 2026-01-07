@@ -231,4 +231,31 @@ class ChatController extends BaseController
 
         return (new ChatMessageResource($message))->response()->setStatusCode(201);
     }
+
+    public function destroy(Chat $chat): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = (int) $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            return response()->json(['message' => 'X-Company-ID header is required'], 422);
+        }
+
+        if ((int) $chat->company_id !== $companyId) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $isParticipant = ChatParticipant::query()
+            ->where('chat_id', $chat->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (! $isParticipant) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $this->chatService->deleteChat($companyId, $user, $chat);
+
+        return response()->json(['data' => ['ok' => true]]);
+    }
 }

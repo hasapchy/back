@@ -66,6 +66,11 @@ class ChatRepository extends BaseRepository
             'created_by' => $createdByUserId,
         ]);
     }
+
+    public function delete(int $chatId): bool
+    {
+        return Chat::query()->where('id', $chatId)->delete();
+    }
 }
 
 

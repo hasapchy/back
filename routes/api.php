@@ -329,4 +329,5 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission:chats_view')->get('chats/{chat}/messages', [ChatController::class, 'messages']);
     Route::middleware('permission:chats_view')->post('chats/{chat}/read', [ChatController::class, 'markAsRead']);
     Route::middleware('permission:chats_write')->post('chats/{chat}/messages', [ChatController::class, 'storeMessage']);
+    Route::middleware('permission:chats_view')->delete('chats/{chat}', [ChatController::class, 'destroy']);
 });

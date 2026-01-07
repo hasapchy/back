@@ -42,6 +42,12 @@ class ChatService
         $chats = $this->chats->getChatsForUser($companyId, (int) $user->id);
         $chatIds = $chats->pluck('id')->map(fn ($id) => (int) $id)->toArray();
 
+        // Load creators for group chats
+        $groupChats = $chats->where('type', 'group');
+        if ($groupChats->isNotEmpty()) {
+            $groupChats->load('creator:id,name,surname,email');
+        }
+
         $participantsByChatId = $this->participants->getParticipantsByChatIds($chatIds);
         $this->backfillMissingDirectKeys($companyId, $chats, $participantsByChatId);
 
@@ -69,6 +75,20 @@ class ChatService
                 $peerLastReadId = $peer?->last_read_message_id ? (int) $peer->last_read_message_id : 0;
             }
 
+            // Creator info for group chats
+            $creator = null;
+            if ($chat->type === 'group' && $chat->created_by && $chat->relationLoaded('creator')) {
+                $creatorUser = $chat->creator;
+                if ($creatorUser) {
+                    $creator = [
+                        'id' => (int) $creatorUser->id,
+                        'name' => $creatorUser->name,
+                        'surname' => $creatorUser->surname,
+                        'email' => $creatorUser->email,
+                    ];
+                }
+            }
+
             return [
                 'id' => (int) $chat->id,
                 'company_id' => (int) $chat->company_id,
@@ -76,6 +96,7 @@ class ChatService
                 'direct_key' => $chat->direct_key,
                 'title' => $chat->title,
                 'created_by' => $chat->created_by,
+                'creator' => $creator,
                 'last_message_at' => $chat->last_message_at?->toDateTimeString(),
                 'is_archived' => (bool) $chat->is_archived,
                 'avatar' => $chat->avatar,
@@ -105,6 +126,11 @@ class ChatService
         }
 
         $this->participants->firstOrCreate((int) $chat->id, (int) $user->id, 'member');
+
+        // Load creator for group chats
+        if ($chat->type === 'group' && $chat->created_by) {
+            $chat->load('creator:id,name,surname,email');
+        }
 
         return $chat;
     }
@@ -150,6 +176,9 @@ class ChatService
                     ((int) $id === (int) $user->id) ? 'owner' : 'member'
                 );
             }
+
+            // Load creator
+            $chat->load('creator:id,name,surname,email');
 
             return $chat;
         });
@@ -320,6 +349,34 @@ class ChatService
             $directChat->direct_key = $newDirectKey;
             $directChat->save();
         }
+    }
+
+    public function deleteChat(int $companyId, User $user, Chat $chat): void
+    {
+        if ((int) $chat->company_id !== $companyId) {
+            abort(403, 'Forbidden');
+        }
+
+        // Only creator can delete group chat
+        if ($chat->type === 'group' && (int) $chat->created_by !== (int) $user->id) {
+            abort(403, 'Only chat creator can delete the chat');
+        }
+
+        // Cannot delete general or direct chats
+        if ($chat->type === 'general' || $chat->type === 'direct') {
+            abort(422, 'Cannot delete general or direct chats');
+        }
+
+        DB::transaction(function () use ($chat) {
+            // Delete all messages
+            $this->messages->deleteByChatId((int) $chat->id);
+
+            // Delete all participants
+            $this->participants->deleteByChatId((int) $chat->id);
+
+            // Delete chat
+            $this->chats->delete((int) $chat->id);
+        });
     }
 }
 

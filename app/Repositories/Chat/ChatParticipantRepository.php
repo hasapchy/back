@@ -70,6 +70,11 @@ class ChatParticipantRepository
 
         return $id ? (int) $id : 0;
     }
+
+    public function deleteByChatId(int $chatId): int
+    {
+        return ChatParticipant::query()->where('chat_id', $chatId)->delete();
+    }
 }
 
 
