@@ -124,6 +124,11 @@ class ChatMessageRepository
             'files' => $files,
         ]);
     }
+
+    public function deleteByChatId(int $chatId): int
+    {
+        return ChatMessage::query()->where('chat_id', $chatId)->delete();
+    }
 }
 
 
