@@ -23,6 +23,7 @@ class LeaveRepository extends BaseRepository
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $filters) {
             $query = Leave::with(['leaveType', 'user']);
 
+            $this->applyCompanyFilter($query);
             $this->applyFilters($query, $filters);
 
             return $query->orderBy('date_from', 'desc')
@@ -45,6 +46,7 @@ class LeaveRepository extends BaseRepository
         return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $filters) {
             $query = Leave::with(['leaveType', 'user']);
 
+            $this->applyCompanyFilter($query);
             $this->applyFilters($query, $filters);
 
             return $query->orderBy('date_from', 'desc')->get();
@@ -102,6 +104,24 @@ class LeaveRepository extends BaseRepository
         $item->delete();
         CacheService::invalidateLeavesCache();
         return true;
+    }
+
+    /**
+     * Применить фильтр по компании к запросу отпусков
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @return void
+     */
+    private function applyCompanyFilter($query)
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->whereHas('user', function ($q) use ($companyId) {
+                $q->whereHas('companies', function ($companyQuery) use ($companyId) {
+                    $companyQuery->where('companies.id', $companyId);
+                });
+            });
+        }
     }
 
     /**
