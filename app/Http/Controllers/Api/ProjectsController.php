@@ -49,10 +49,9 @@ class ProjectsController extends BaseController
             'description' => 'nullable|string',
         ];
 
-        if ($request->has('budget') || $request->has('currency_id') || $request->has('exchange_rate')) {
+        if ($request->has('budget') || $request->has('currency_id')) {
             $rules['budget'] = 'required|numeric';
             $rules['currency_id'] = 'nullable|exists:currencies,id';
-            $rules['exchange_rate'] = 'nullable|numeric|min:0.000001';
         }
 
         return $rules;
@@ -81,9 +80,6 @@ class ProjectsController extends BaseController
         }
         if (isset($validatedData['currency_id'])) {
             $data['currency_id'] = $validatedData['currency_id'];
-        }
-        if (isset($validatedData['exchange_rate'])) {
-            $data['exchange_rate'] = $validatedData['exchange_rate'];
         }
 
         return $data;

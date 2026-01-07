@@ -382,10 +382,8 @@ class UsersController extends BaseController
             $user = User::findOrFail($id);
             $currentUser = $this->getAuthenticatedUser();
 
-            if (!$this->hasPermission('employee_salaries_view_all')) {
-                if (!$this->hasPermission('employee_salaries_view_own') || $user->id !== $currentUser->id) {
-                    return $this->forbiddenResponse('Нет прав на просмотр зарплат');
-                }
+            if (!$this->hasPermission('employee_salaries_view_all') && $user->id !== $currentUser->id) {
+                return $this->forbiddenResponse('Нет прав на просмотр зарплат');
             }
 
             $salaries = $this->itemsRepository->getSalaries($id);
@@ -419,6 +417,7 @@ class UsersController extends BaseController
                 'end_date' => 'nullable|date|after:start_date',
                 'amount' => 'required|numeric|min:0',
                 'currency_id' => 'required|exists:currencies,id',
+                'payment_type' => 'required|boolean',
                 'note' => 'nullable|string|max:120',
             ]);
 
@@ -460,6 +459,7 @@ class UsersController extends BaseController
                 'end_date' => 'nullable|date|after:start_date',
                 'amount' => 'nullable|numeric|min:0',
                 'currency_id' => 'nullable|exists:currencies,id',
+                'payment_type' => 'nullable|boolean',
                 'note' => 'nullable|string|max:120',
             ]);
 
@@ -518,6 +518,12 @@ class UsersController extends BaseController
      */
     public function getEmployeeBalance($id)
     {
+        $currentUser = $this->requireAuthenticatedUser();
+
+        if (!$this->hasPermission('settings_client_balance_view', $currentUser)) {
+            return $this->forbiddenResponse('Нет доступа к просмотру баланса');
+        }
+
         try {
             $user = User::findOrFail($id);
 
@@ -543,10 +549,10 @@ class UsersController extends BaseController
      */
     public function getEmployeeBalanceHistory($id)
     {
-        $user = $this->requireAuthenticatedUser();
+        $currentUser = $this->requireAuthenticatedUser();
 
-        if (!$this->hasPermission('settings_client_balance_view', $user)) {
-            return $this->forbiddenResponse('Нет доступа к просмотру баланса сотрудника');
+        if (!$this->hasPermission('settings_client_balance_view', $currentUser)) {
+            return $this->forbiddenResponse('Нет доступа к просмотру баланса');
         }
 
         try {

@@ -73,9 +73,12 @@ class ProjectStatusController extends BaseController
         $created = $this->projectStatusRepository->createItem([
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
+            'is_tr_visible' => $validatedData['is_tr_visible'] ?? true,
             'user_id' => $userUuid,
         ]);
         if (!$created) return $this->errorResponse('Ошибка создания статуса', 400);
+
+        CacheService::invalidateProjectsCache();
 
         return response()->json(['message' => 'Статус создан']);
     }
@@ -95,8 +98,11 @@ class ProjectStatusController extends BaseController
         $updated = $this->projectStatusRepository->updateItem($id, [
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
+            'is_tr_visible' => $validatedData['is_tr_visible'] ?? true,
         ]);
         if (!$updated) return $this->errorResponse('Ошибка обновления статуса', 400);
+
+        CacheService::invalidateProjectsCache();
 
         return response()->json(['message' => 'Статус обновлен']);
     }

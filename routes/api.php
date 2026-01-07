@@ -101,9 +101,9 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::post('user/profile', [UsersController::class, 'updateProfile']);
 
     Route::middleware('permission.scope:users_view_all,users_view')->get('users', [UsersController::class, 'index']);
-    Route::middleware('permission.scope:users_view_all,users_view')->get('users/all', [UsersController::class, 'getAllUsers']);
+    Route::get('users/all', [UsersController::class, 'getAllUsers']);
     Route::middleware('permission.scope:users_view_all,users_view')->get('users/search', [UsersController::class, 'search']);
-    Route::middleware('permission.scope:users_view_all,users_view')->get('users/{id}', [UsersController::class, 'show']);
+    Route::get('users/{id}', [UsersController::class, 'show']);
     Route::middleware('permission:users_create')->post('users', [UsersController::class, 'store']);
     Route::middleware('permission.scope:users_update_all,users_update')->put('users/{id}', [UsersController::class, 'update']);
     Route::middleware('permission.scope:users_delete_all,users_delete')->delete('users/{id}', [UsersController::class, 'destroy']);
@@ -166,7 +166,7 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission.scope:products_view_all,products_view')->get('products/search', [ProductController::class, 'search']);
     Route::middleware('permission.scope:products_view_all,products_view')->get('products/{id}', [ProductController::class, 'show']);
     Route::middleware('permission:products_create')->post('products', [ProductController::class, 'store']);
-    Route::middleware('permission.scope:products_update_all,products_update')->post('products/{id}', [ProductController::class, 'update']);
+    Route::middleware('permission.scope:products_update_all,products_update')->put('products/{id}', [ProductController::class, 'update']);
     Route::middleware('permission.scope:products_delete_all,products_delete')->delete('products/{id}', [ProductController::class, 'destroy']);
 
     Route::middleware('permission.scope:products_view_all,products_view')->get('products/{id}/categories', [ProductController::class, 'getProductCategories']);
@@ -316,8 +316,8 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/delete-file', [TasksController::class, 'deleteFile']);
 
     // Task statuses
-    Route::middleware('permission.scope:task_statuses_view_all,task_statuses_view')->get('task-statuses', [TaskStatusController::class, 'index']);
-    Route::middleware('permission.scope:task_statuses_view_all,task_statuses_view')->get('task-statuses/all', [TaskStatusController::class, 'all']);
+    Route::get('task-statuses', [TaskStatusController::class, 'index']);
+    Route::get('task-statuses/all', [TaskStatusController::class, 'all']);
     Route::middleware('permission:task_statuses_create')->post('task-statuses', [TaskStatusController::class, 'store']);
     Route::middleware('permission.scope:task_statuses_update_all,task_statuses_update')->put('task-statuses/{id}', [TaskStatusController::class, 'update']);
     Route::middleware('permission.scope:task_statuses_delete_all,task_statuses_delete')->delete('task-statuses/{id}', [TaskStatusController::class, 'destroy']);

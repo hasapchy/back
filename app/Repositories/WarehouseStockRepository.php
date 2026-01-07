@@ -44,7 +44,7 @@ class WarehouseStockRepository extends BaseRepository
             $categoryAccessHash
         ]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id, $page, $searchNormalized, $availability, $shouldApplyCategoryFilter, $userCategoryIds) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $warehouse_id, $category_id, $page, $searchNormalized, $availability, $shouldApplyCategoryFilter, $userCategoryIds, $companyId) {
             $userWarehouseIds = [];
             if ($this->shouldApplyUserFilter('warehouses')) {
                 $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
@@ -139,17 +139,24 @@ class WarehouseStockRepository extends BaseRepository
                 });
             }
 
-            $stockQuery = WarehouseStock::select('product_id', DB::raw('SUM(quantity) as quantity'));
+            $stockQuery = WarehouseStock::select('warehouse_stocks.product_id', DB::raw('SUM(warehouse_stocks.quantity) as quantity'))
+                ->join('warehouses', 'warehouse_stocks.warehouse_id', '=', 'warehouses.id');
+
+            if ($companyId) {
+                $stockQuery->where('warehouses.company_id', $companyId);
+            } else {
+                $stockQuery->whereNull('warehouses.company_id');
+            }
 
             if (!empty($userWarehouseIds)) {
-                $stockQuery->whereIn('warehouse_id', $userWarehouseIds);
+                $stockQuery->whereIn('warehouse_stocks.warehouse_id', $userWarehouseIds);
             }
 
             if ($warehouse_id) {
-                $stockQuery->where('warehouse_id', $warehouse_id);
+                $stockQuery->where('warehouse_stocks.warehouse_id', $warehouse_id);
             }
 
-            $stockQuery->groupBy('product_id');
+            $stockQuery->groupBy('warehouse_stocks.product_id');
 
             $productsQuery->leftJoinSub($stockQuery, 'stock_totals', function ($join) {
                 $join->on('products.id', '=', 'stock_totals.product_id');

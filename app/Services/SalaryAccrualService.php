@@ -30,9 +30,10 @@ class SalaryAccrualService
      * @param int $cashId ID кассы
      * @param string|null $note Примечание
      * @param array $userIds Список ID пользователей для начисления
+     * @param bool $paymentType Тип оплаты (0 - безналичный, 1 - наличный)
      * @return array Результат начисления
      */
-    public function accrueSalariesForCompany(int $companyId, string $date, int $cashId, ?string $note = null, array $userIds = []): array
+    public function accrueSalariesForCompany(int $companyId, string $date, int $cashId, ?string $note = null, array $userIds = [], bool $paymentType = false): array
     {
         if (empty($userIds)) {
             throw new \Exception('Необходимо выбрать хотя бы одного сотрудника для начисления зарплаты');
@@ -81,15 +82,19 @@ class SalaryAccrualService
 
             foreach ($employees as $employeeClient) {
                 try {
+                    $paymentTypeValue = $paymentType ? 1 : 0;
+                    
                     $activeSalary = EmployeeSalary::where('user_id', $employeeClient->employee_id)
                         ->where('company_id', $companyId)
                         ->whereNull('end_date')
+                        ->where('payment_type', $paymentTypeValue)
                         ->orderBy('start_date', 'desc')
                         ->first();
 
                     if (!$activeSalary) {
                         $activeSalary = EmployeeSalary::where('user_id', $employeeClient->employee_id)
                             ->where('company_id', $companyId)
+                            ->where('payment_type', $paymentTypeValue)
                             ->orderBy('start_date', 'desc')
                             ->first();
                     }

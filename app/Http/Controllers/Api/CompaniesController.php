@@ -123,6 +123,7 @@ class CompaniesController extends BaseController
             $cashId = $validatedData['cash_id'];
             $note = $validatedData['note'] ?? null;
             $userIds = $validatedData['user_ids'];
+            $paymentType = (bool)$validatedData['payment_type'];
 
             $transactionsRepository = app(TransactionsRepository::class);
             $salaryAccrualService = new SalaryAccrualService($transactionsRepository);
@@ -132,7 +133,8 @@ class CompaniesController extends BaseController
                 $date,
                 $cashId,
                 $note,
-                $userIds
+                $userIds,
+                $paymentType
             );
 
             return response()->json([

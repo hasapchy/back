@@ -5,18 +5,28 @@ namespace App\Repositories;
 use App\Models\Task;
 use Illuminate\Pagination\LengthAwarePaginator;
 
-class TaskRepository
+class TaskRepository extends BaseRepository
 {
-    protected function getCompanyId()
-    {
-        return request()->header('X-Company-ID') ?? auth()->user()->company_id ?? null;
-    }
-
     public function getFilteredTasks($request): LengthAwarePaginator
     {
-        $companyId = $this->getCompanyId();
+        $companyId = $this->getCurrentCompanyId();
         $query = Task::with(['creator', 'supervisor', 'executor', 'project', 'status'])
                     ->where('company_id', $companyId);
+
+        $user = auth('api')->user();
+        if ($user && !$user->is_admin) {
+            $permissions = $this->getUserPermissionsForCompany($user);
+            $hasViewAll = in_array('tasks_view_all', $permissions);
+            $hasViewOwn = in_array('tasks_view_own', $permissions);
+
+            if (!$hasViewAll && $hasViewOwn) {
+                $query->where(function($q) use ($user) {
+                    $q->where('creator_id', $user->id)
+                      ->orWhere('supervisor_id', $user->id)
+                      ->orWhere('executor_id', $user->id);
+                });
+            }
+        }
 
         // Фильтр по статусу (status_id)
         if ($request->has('status') && $request->status !== '' && $request->status !== 'all') {
@@ -41,15 +51,35 @@ class TaskRepository
             });
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate(20);
+        $perPage = $request->input('per_page', 20);
+        return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $request->input('page', 1));
     }
 
     public function findById($id): Task
     {
-        $companyId = $this->getCompanyId();
-        return Task::with(['creator', 'supervisor', 'executor', 'project', 'status'])
+        $companyId = $this->getCurrentCompanyId();
+        $task = Task::with(['creator', 'supervisor', 'executor', 'project', 'status'])
                     ->where('company_id', $companyId)
                     ->findOrFail($id);
+
+        $user = auth('api')->user();
+        if ($user && !$user->is_admin) {
+            $permissions = $this->getUserPermissionsForCompany($user);
+            $hasViewAll = in_array('tasks_view_all', $permissions);
+            $hasViewOwn = in_array('tasks_view_own', $permissions);
+
+            if (!$hasViewAll && $hasViewOwn) {
+                $isOwnTask = $task->creator_id === $user->id 
+                          || $task->supervisor_id === $user->id 
+                          || $task->executor_id === $user->id;
+                
+                if (!$isOwnTask) {
+                    abort(403, 'You do not have permission to view this task');
+                }
+            }
+        }
+
+        return $task;
     }
 
     public function create(array $data): Task

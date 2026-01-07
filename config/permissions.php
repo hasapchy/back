@@ -163,7 +163,7 @@ return [
             'scope_actions' => ['view', 'update', 'delete'],
         ],
         'employee_salaries' => [
-            'has_user_id' => false,
+            'has_user_id' => true,
             'check_strategy' => 'user_id',
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
@@ -195,7 +195,7 @@ return [
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
-        'departments' => [
+        'contracts' => [
             'has_user_id' => true,
             'check_strategy' => 'many_to_many',
             'actions' => ['view', 'create', 'update', 'delete'],
@@ -211,12 +211,6 @@ return [
                 'write_general' => 'chats_write_general',
                 'group_create' => 'chats_group_create',
             ],
-        ],
-        'contracts' => [
-            'has_user_id' => true,
-            'check_strategy' => 'user_id',
-            'actions' => ['view', 'create', 'update', 'delete'],
-            'scope_actions' => ['view', 'update', 'delete'],
         ],
     ],
 
