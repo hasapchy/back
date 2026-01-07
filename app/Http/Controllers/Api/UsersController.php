@@ -528,10 +528,6 @@ class UsersController extends BaseController
                 return $this->forbiddenResponse('Нет доступа к просмотру баланса');
             }
 
-            if (!$this->canPerformAction('users', 'view', $user)) {
-                return $this->forbiddenResponse('Нет прав на просмотр баланса этого пользователя');
-            }
-
             $balance = $this->itemsRepository->getEmployeeBalance($id);
 
             return response()->json(['balance' => $balance]);
@@ -558,10 +554,6 @@ class UsersController extends BaseController
             if (!$this->hasPermission('settings_client_balance_view', $currentUser) &&
                 (!$this->hasPermission('settings_client_balance_view_own', $currentUser) || $targetUser->id !== $currentUser->id)) {
                 return $this->forbiddenResponse('Нет доступа к просмотру баланса');
-            }
-
-            if (!$this->canPerformAction('users', 'view', $targetUser)) {
-                return $this->forbiddenResponse('Нет прав на просмотр баланса этого пользователя');
             }
 
             $history = $this->itemsRepository->getEmployeeBalanceHistory($id);
