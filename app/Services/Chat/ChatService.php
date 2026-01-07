@@ -317,7 +317,18 @@ class ChatService
 
         $chat->forceFill(['last_message_at' => now()])->save();
 
-        event(new MessageSent($message));
+        // Отправляем событие через broadcasting (неблокирующе)
+        try {
+            event(new MessageSent($message));
+        } catch (\Exception $e) {
+            // Логируем ошибку, но не прерываем выполнение
+            \Log::error('Failed to broadcast MessageSent event', [
+                'message_id' => $message->id,
+                'chat_id' => $chat->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
 
         return $message;
     }
