@@ -415,9 +415,10 @@ class ClientsRepository extends BaseRepository
      */
     public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null)
     {
-        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo]);
+        $currentUser = auth('api')->user();
+        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $currentUser?->id]);
 
-        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo) {
+        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $currentUser) {
             try {
                 $defaultCurrency = Currency::where('is_default', true)->first();
                 $defaultCurrencySymbol = $defaultCurrency?->symbol;
@@ -429,8 +430,45 @@ class ClientsRepository extends BaseRepository
                     $transactionsQuery->where('is_debt', false);
                 }
 
-                if ($cashRegisterId) {
-                    $transactionsQuery->where('cash_id', $cashRegisterId);
+                $permissions = $this->getUserPermissionsForCompany($currentUser);
+                $hasBalanceViewAll = in_array('settings_client_balance_view', $permissions);
+                $hasBalanceViewOwn = in_array('settings_client_balance_view_own', $permissions);
+
+                $isOwnBalance = false;
+                if ($currentUser && $hasBalanceViewOwn && !$hasBalanceViewAll) {
+                    $client = Client::find($clientId);
+                    if ($client && $client->employee_id === $currentUser->id) {
+                        $isOwnBalance = true;
+                    }
+                }
+
+                if (!$isOwnBalance && $this->shouldApplyUserFilter('cash_registers')) {
+                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers');
+                    $transactionsQuery->where(function ($q) use ($filterUserId, $cashRegisterId) {
+                        $q->whereNull('cash_id');
+                        if ($cashRegisterId) {
+                            $q->orWhere(function ($subQ) use ($filterUserId, $cashRegisterId) {
+                                $subQ->where('cash_id', $cashRegisterId)
+                                    ->whereExists(function ($existsQuery) use ($filterUserId, $cashRegisterId) {
+                                        $existsQuery->select(DB::raw(1))
+                                            ->from('cash_register_users')
+                                            ->where('cash_register_users.cash_register_id', $cashRegisterId)
+                                            ->where('cash_register_users.user_id', $filterUserId);
+                                    });
+                            });
+                        } else {
+                            $q->orWhereExists(function ($subQuery) use ($filterUserId) {
+                                $subQuery->select(DB::raw(1))
+                                    ->from('cash_register_users')
+                                    ->whereColumn('cash_register_users.cash_register_id', 'transactions.cash_id')
+                                    ->where('cash_register_users.user_id', $filterUserId);
+                            });
+                        }
+                    });
+                } else {
+                    if ($cashRegisterId) {
+                        $transactionsQuery->where('cash_id', $cashRegisterId);
+                    }
                 }
 
                 if ($dateFrom) {

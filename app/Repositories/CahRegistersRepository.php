@@ -287,11 +287,22 @@ class CahRegistersRepository extends BaseRepository
             return;
         }
 
-        $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
-        $query->join('cash_register_users', 'cash_registers.id', '=', 'cash_register_users.cash_register_id')
-            ->where('cash_register_users.user_id', $filterUserId)
-            ->select('cash_registers.*')
-            ->distinct();
+        $currentUser = auth('api')->user();
+        if (!$currentUser) {
+            return;
+        }
+
+        $filterUserId = $currentUser->id;
+        $cashRegisterIds = CashRegisterUser::where('user_id', $filterUserId)
+            ->pluck('cash_register_id')
+            ->toArray();
+
+        if (empty($cashRegisterIds)) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
+
+        $query->whereIn('cash_registers.id', $cashRegisterIds);
     }
 
     /**

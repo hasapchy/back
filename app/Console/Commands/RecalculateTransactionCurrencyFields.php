@@ -106,7 +106,7 @@ class RecalculateTransactionCurrencyFields extends Command
             return 0;
         }
 
-        $bar = $this->output->createProgressBar($total);
+        $bar = $this->getOutput()->createProgressBar($total);
         $bar->start();
 
         $updated = 0;

@@ -245,6 +245,12 @@ class CurrencyHistoryController extends BaseController
             $result = CacheService::getReferenceData($cacheKey, function () use ($hasAccessToCurrencyHistory, $hasAccessToNonDefaultCurrencies, $companyId) {
                 $query = Currency::where('status', 1);
 
+                if ($companyId) {
+                    $query->where('company_id', $companyId);
+                } else {
+                    $query->whereNull('company_id');
+                }
+
                 if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies) {
                     $query->where('is_default', true);
                 }

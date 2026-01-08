@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             CompanySeeder::class,
             LeaveTypeSeeder::class,
             TestUserSeeder::class,
+            DepartmentSeeder::class,
             // AdminExampleSeeder::class,
         ]);
     }

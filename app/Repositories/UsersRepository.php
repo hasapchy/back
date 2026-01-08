@@ -50,6 +50,8 @@ class UsersRepository extends BaseRepository
         $ttl = (!$search && !$statusFilter) ? 1800 : 600;
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $statusFilter, $page, $currentUser) {
+            $companyId = $this->getCurrentCompanyId();
+            
             $query = User::select([
                 'users.id',
                 'users.name',
@@ -65,9 +67,15 @@ class UsersRepository extends BaseRepository
                 'users.updated_at',
                 'users.last_login_at'
             ])
-                ->with(['companies:id,name']);
-
-            $companyId = $this->getCurrentCompanyId();
+                ->with([
+                    'companies:id,name',
+                    'departments' => function ($q) use ($companyId) {
+                        if ($companyId) {
+                            $q->where('company_id', $companyId);
+                        }
+                        $q->select('departments.id', 'departments.title', 'departments.company_id');
+                    },
+                ]);
             if ($companyId) {
                 $query->join('company_user', 'users.id', '=', 'company_user.user_id')
                     ->where('company_user.company_id', $companyId)
@@ -185,7 +193,15 @@ class UsersRepository extends BaseRepository
             'users.photo',
             'users.created_at',
             'users.last_login_at'
-        ])->with(['companies:id,name']);
+        ])->with([
+            'companies:id,name',
+            'departments' => function ($q) use ($companyId) {
+                if ($companyId) {
+                    $q->where('company_id', $companyId);
+                }
+                $q->select('departments.id', 'departments.title', 'departments.company_id');
+            },
+        ]);
 
         if ($companyId) {
             $query->join('company_user', 'users.id', '=', 'company_user.user_id')
@@ -416,6 +432,10 @@ class UsersRepository extends BaseRepository
 
             $this->syncUserRoles($user, $data);
 
+            if (array_key_exists('departments', $data)) {
+                $user->departments()->sync($data['departments'] ?? []);
+            }
+
             if ($user->companies()->count() === 0) {
                 throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
             }
@@ -424,6 +444,7 @@ class UsersRepository extends BaseRepository
 
             CacheService::invalidateByLike('%users_paginated%');
             CacheService::invalidateByLike('%users_all%');
+            CacheService::invalidateDepartmentsCache();
 
             return $user;
         });
@@ -469,6 +490,10 @@ class UsersRepository extends BaseRepository
 
             $this->syncUserRoles($user, $data);
 
+            if (array_key_exists('departments', $data)) {
+                $user->departments()->sync($data['departments'] ?? []);
+            }
+
             if ($user->companies()->count() === 0) {
                 throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
             }
@@ -477,6 +502,7 @@ class UsersRepository extends BaseRepository
 
             CacheService::invalidateByLike('%users_paginated%');
             CacheService::invalidateByLike('%users_all%');
+            CacheService::invalidateDepartmentsCache();
 
             return $user;
         });
@@ -549,7 +575,7 @@ class UsersRepository extends BaseRepository
         } else {
             $user->load(['roles']);
         }
-        $user->load(['companies']);
+        $user->load(['companies', 'departments:id,title,company_id']);
         $user->company_roles = $user->getAllCompanyRoles();
     }
 
@@ -692,20 +718,23 @@ class UsersRepository extends BaseRepository
         return DB::transaction(function () use ($userId, $data, $companyId) {
             $startDate = $data['start_date'];
             $endDate = $data['end_date'] ?? null;
+            $paymentType = $data['payment_type'] ?? false;
 
             if ($endDate === null) {
                 $activeSalary = EmployeeSalary::where('user_id', $userId)
                     ->where('company_id', $companyId)
                     ->whereNull('end_date')
+                    ->where('payment_type', $paymentType)
                     ->first();
 
                 if ($activeSalary) {
-                    throw new \Exception('У сотрудника уже есть активная зарплата. Сначала закройте текущую зарплату.');
+                    throw new \Exception('У сотрудника уже есть активная зарплата данного типа. Сначала закройте текущую зарплату.');
                 }
             }
 
             $conflictingSalary = EmployeeSalary::where('user_id', $userId)
                 ->where('company_id', $companyId)
+                ->where('payment_type', $paymentType)
                 ->where(function ($query) use ($startDate, $endDate) {
                     $query->where(function ($q) use ($startDate, $endDate) {
                         $q->where(function ($subQ) use ($startDate, $endDate) {
@@ -720,7 +749,7 @@ class UsersRepository extends BaseRepository
                 ->first();
 
             if ($conflictingSalary) {
-                throw new \Exception('Зарплата пересекается по датам с существующей зарплатой. Проверьте даты начала и окончания.');
+                throw new \Exception('Зарплата пересекается по датам с существующей зарплатой данного типа. Проверьте даты начала и окончания.');
             }
 
             $salary = EmployeeSalary::create([
@@ -730,6 +759,7 @@ class UsersRepository extends BaseRepository
                 'end_date' => $endDate,
                 'amount' => $data['amount'],
                 'currency_id' => $data['currency_id'],
+                'payment_type' => $paymentType,
                 'note' => $data['note'] ?? null,
             ]);
 
@@ -753,46 +783,25 @@ class UsersRepository extends BaseRepository
 
             $newStartDate = $data['start_date'] ?? $salary->start_date;
             $newEndDate = array_key_exists('end_date', $data) ? $data['end_date'] : $salary->end_date;
+            $newPaymentType = array_key_exists('payment_type', $data) ? $data['payment_type'] : $salary->payment_type;
 
-            if (array_key_exists('end_date', $data)) {
-                if ($newEndDate === null) {
-                    $newerActiveSalary = EmployeeSalary::where('user_id', $salary->user_id)
-                        ->where('company_id', $salary->company_id)
-                        ->whereNull('end_date')
-                        ->where('start_date', '>', $newStartDate)
-                        ->where('id', '!=', $salaryId)
-                        ->first();
+            if (array_key_exists('end_date', $data) && $newEndDate === null) {
+                $activeSalary = EmployeeSalary::where('user_id', $salary->user_id)
+                    ->where('company_id', $salary->company_id)
+                    ->whereNull('end_date')
+                    ->where('payment_type', $newPaymentType)
+                    ->where('id', '!=', $salaryId)
+                    ->first();
 
-                    if ($newerActiveSalary) {
-                        throw new \Exception('Нельзя разблокировать эту зарплату, так как есть более новая активная зарплата. Сначала закройте более новую зарплату.');
-                    }
-
-                    $activeSalary = EmployeeSalary::where('user_id', $salary->user_id)
-                        ->where('company_id', $salary->company_id)
-                        ->whereNull('end_date')
-                        ->where('id', '!=', $salaryId)
-                        ->first();
-
-                    if ($activeSalary) {
-                        throw new \Exception('У сотрудника уже есть активная зарплата. Сначала закройте текущую зарплату.');
-                    }
-                } else {
-                    $newerActiveSalary = EmployeeSalary::where('user_id', $salary->user_id)
-                        ->where('company_id', $salary->company_id)
-                        ->whereNull('end_date')
-                        ->where('start_date', '>', $newStartDate)
-                        ->where('id', '!=', $salaryId)
-                        ->first();
-
-                    if ($newerActiveSalary) {
-                        throw new \Exception('Нельзя закрыть эту зарплату, так как есть более новая активная зарплата. Сначала закройте более новую зарплату.');
-                    }
+                if ($activeSalary) {
+                    throw new \Exception('У сотрудника уже есть активная зарплата данного типа. Сначала закройте текущую зарплату.');
                 }
             }
 
-            if (isset($data['start_date']) || array_key_exists('end_date', $data)) {
+            if (isset($data['start_date']) || array_key_exists('end_date', $data) || array_key_exists('payment_type', $data)) {
                 $conflictingSalary = EmployeeSalary::where('user_id', $salary->user_id)
                     ->where('company_id', $salary->company_id)
+                    ->where('payment_type', $newPaymentType)
                     ->where('id', '!=', $salaryId)
                     ->where(function ($query) use ($newStartDate, $newEndDate) {
                         $query->where(function ($q) use ($newStartDate, $newEndDate) {
@@ -806,7 +815,7 @@ class UsersRepository extends BaseRepository
                     ->first();
 
                 if ($conflictingSalary) {
-                    throw new \Exception('Зарплата пересекается по датам с существующей зарплатой. Проверьте даты начала и окончания.');
+                    throw new \Exception('Зарплата пересекается по датам с существующей зарплатой данного типа. Проверьте даты начала и окончания.');
                 }
             }
 
@@ -823,6 +832,9 @@ class UsersRepository extends BaseRepository
             }
             if (isset($data['currency_id'])) {
                 $updateData['currency_id'] = $data['currency_id'];
+            }
+            if (array_key_exists('payment_type', $data)) {
+                $updateData['payment_type'] = $data['payment_type'];
             }
             if (array_key_exists('note', $data)) {
                 $updateData['note'] = $data['note'];

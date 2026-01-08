@@ -81,6 +81,7 @@ class AuthController extends BaseController
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
+                'surname' => $user->surname,
                 'email' => $user->email,
                 'photo' => $user->photo,
                 'is_admin' => $user->is_admin,
@@ -110,6 +111,7 @@ class AuthController extends BaseController
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
+                'surname' => $user->surname,
                 'email' => $user->email,
                 'photo' => $user->photo,
                 'is_admin' => $user->is_admin,
@@ -192,6 +194,7 @@ class AuthController extends BaseController
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
+                'surname' => $user->surname,
                 'email' => $user->email,
                 'is_admin' => $user->is_admin,
                 'roles' => $resolvedRoles,

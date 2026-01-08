@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $end_date Дата окончания действия зарплаты
  * @property float $amount Сумма зарплаты
  * @property int $currency_id ID валюты
+ * @property bool $payment_type Тип оплаты (0 - безналичный, 1 - наличный)
  * @property string|null $note Примечание
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -34,6 +35,7 @@ class EmployeeSalary extends Model
         'end_date',
         'amount',
         'currency_id',
+        'payment_type',
         'note',
     ];
 
@@ -41,6 +43,7 @@ class EmployeeSalary extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'amount' => 'decimal:2',
+        'payment_type' => 'boolean',
     ];
 
     /**

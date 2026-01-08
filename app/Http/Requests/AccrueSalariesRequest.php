@@ -29,6 +29,7 @@ class AccrueSalariesRequest extends FormRequest
             'note' => 'nullable|string|max:255',
             'user_ids' => 'required|array|min:1',
             'user_ids.*' => 'integer|exists:users,id',
+            'payment_type' => 'required|boolean',
         ];
     }
 }

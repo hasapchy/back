@@ -101,7 +101,7 @@ class Currency extends Model
         $date = $date ?? now()->toDateString();
 
         $baseQuery = $this->exchangeRateHistories();
-        
+
         if ($companyId) {
             $query = (clone $baseQuery)->where(function($q) use ($companyId) {
                 $q->where('company_id', $companyId)->orWhereNull('company_id');

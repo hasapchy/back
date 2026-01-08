@@ -86,3 +86,20 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+
+# Остановка
+sudo systemctl stop reverb
+
+# Перезапуск
+sudo systemctl restart reverb
+
+# Проверка статуса
+sudo systemctl status reverb
+
+# Просмотр логов ошибок
+sudo tail -f /var/log/reverb-error.log
+
+# Если нужно запустить в режиме отладки (временно, не через systemd)
+cd /var/www/testHasap/back
+sudo -u www-data php artisan reverb:start --host=127.0.0.1 --port=6001 --debug

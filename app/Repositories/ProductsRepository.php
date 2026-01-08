@@ -391,13 +391,18 @@ class ProductsRepository extends BaseRepository
         $productArray = $product->toArray();
         $productArray['category_name'] = $product->categories->first()?->name;
         $productArray['category_id'] = $product->categories->first()?->id;
-        $productArray['categories'] = $product->categories->pluck('id')->toArray();
+        $productArray['categories'] = $product->categories->map(function ($category) {
+            return [
+                'id' => $category->id,
+                'name' => $category->name,
+            ];
+        })->toArray();
         $productArray['unit_name'] = $product->unit?->name;
         $productArray['unit_short_name'] = $product->unit?->short_name;
         $price = $product->prices->first();
-        $productArray['retail_price'] = $price?->retail_price;
-        $productArray['wholesale_price'] = $price?->wholesale_price;
-        $productArray['purchase_price'] = $price?->purchase_price;
+        $productArray['retail_price'] = $price?->retail_price ?? 0;
+        $productArray['wholesale_price'] = $price?->wholesale_price ?? 0;
+        $productArray['purchase_price'] = $price?->purchase_price ?? 0;
         $productArray['stock_quantity'] = 0;
 
         return $productArray;
