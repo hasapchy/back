@@ -103,3 +103,7 @@ sudo tail -f /var/log/reverb-error.log
 # Если нужно запустить в режиме отладки (временно, не через systemd)
 cd /var/www/testHasap/back
 sudo -u www-data php artisan reverb:start --host=127.0.0.1 --port=6001 --debug
+
+
+
+php artisan reverb:start --host=0.0.0.0 --port=6001

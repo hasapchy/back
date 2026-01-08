@@ -25,7 +25,7 @@ class BroadcastChatChannelTest extends TestCase
         $company->users()->attach($user->id);
 
         // В проекте роли/права привязаны к company_user_role, поэтому для теста просто делаем админом,
-        // либо назначаем роль с chats_view. Здесь проще: даём is_admin=true на время.
+        // либо назначаем роль с chats_view_all. Здесь проще: даём is_admin=true на время.
         $user->forceFill(['is_admin' => true])->save();
 
         $chat = Chat::query()->create([

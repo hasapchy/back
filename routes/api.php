@@ -330,12 +330,12 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission.scope:departments_delete_all,departments_delete')->delete('departments/{id}', [DepartmentController::class, 'destroy']);
 
     // Chats
-    Route::middleware('permission:chats_view')->get('chats', [ChatController::class, 'index']);
-    Route::middleware('permission:chats_view')->post('chats/general', [ChatController::class, 'general']);
-    Route::middleware('permission:chats_view')->post('chats/direct', [ChatController::class, 'startDirect']);
-    Route::middleware('permission:chats_group_create')->post('chats/groups', [ChatController::class, 'createGroup']);
-    Route::middleware('permission:chats_view')->get('chats/{chat}/messages', [ChatController::class, 'messages']);
-    Route::middleware('permission:chats_view')->post('chats/{chat}/read', [ChatController::class, 'markAsRead']);
-    Route::middleware('permission:chats_write')->post('chats/{chat}/messages', [ChatController::class, 'storeMessage']);
-    Route::middleware('permission:chats_view')->delete('chats/{chat}', [ChatController::class, 'destroy']);
+    Route::middleware('permission.scope:chats_view_all,chats_view')->get('chats', [ChatController::class, 'index']);
+    Route::middleware('permission.scope:chats_view_all,chats_view')->post('chats/general', [ChatController::class, 'general']);
+    Route::middleware('permission.scope:chats_view_all,chats_view')->post('chats/direct', [ChatController::class, 'startDirect']);
+    Route::middleware('permission.scope:chats_group_create,chats_group_create')->post('chats/groups', [ChatController::class, 'createGroup']);
+    Route::middleware('permission.scope:chats_view_all,chats_view')->get('chats/{chat}/messages', [ChatController::class, 'messages']);
+    Route::middleware('permission.scope:chats_view_all,chats_view')->post('chats/{chat}/read', [ChatController::class, 'markAsRead']);
+    Route::middleware('permission.scope:chats_write_all,chats_write')->post('chats/{chat}/messages', [ChatController::class, 'storeMessage']);
+    Route::middleware('permission.scope:chats_view_all,chats_view')->delete('chats/{chat}', [ChatController::class, 'destroy']);
 });
