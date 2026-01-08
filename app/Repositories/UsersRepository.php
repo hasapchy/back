@@ -50,6 +50,8 @@ class UsersRepository extends BaseRepository
         $ttl = (!$search && !$statusFilter) ? 1800 : 600;
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $statusFilter, $page, $currentUser) {
+            $companyId = $this->getCurrentCompanyId();
+            
             $query = User::select([
                 'users.id',
                 'users.name',
@@ -65,9 +67,15 @@ class UsersRepository extends BaseRepository
                 'users.updated_at',
                 'users.last_login_at'
             ])
-                ->with(['companies:id,name']);
-
-            $companyId = $this->getCurrentCompanyId();
+                ->with([
+                    'companies:id,name',
+                    'departments' => function ($q) use ($companyId) {
+                        if ($companyId) {
+                            $q->where('company_id', $companyId);
+                        }
+                        $q->select('departments.id', 'departments.title', 'departments.company_id');
+                    },
+                ]);
             if ($companyId) {
                 $query->join('company_user', 'users.id', '=', 'company_user.user_id')
                     ->where('company_user.company_id', $companyId)
@@ -185,7 +193,15 @@ class UsersRepository extends BaseRepository
             'users.photo',
             'users.created_at',
             'users.last_login_at'
-        ])->with(['companies:id,name']);
+        ])->with([
+            'companies:id,name',
+            'departments' => function ($q) use ($companyId) {
+                if ($companyId) {
+                    $q->where('company_id', $companyId);
+                }
+                $q->select('departments.id', 'departments.title', 'departments.company_id');
+            },
+        ]);
 
         if ($companyId) {
             $query->join('company_user', 'users.id', '=', 'company_user.user_id')
@@ -416,6 +432,10 @@ class UsersRepository extends BaseRepository
 
             $this->syncUserRoles($user, $data);
 
+            if (array_key_exists('departments', $data)) {
+                $user->departments()->sync($data['departments'] ?? []);
+            }
+
             if ($user->companies()->count() === 0) {
                 throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
             }
@@ -424,6 +444,7 @@ class UsersRepository extends BaseRepository
 
             CacheService::invalidateByLike('%users_paginated%');
             CacheService::invalidateByLike('%users_all%');
+            CacheService::invalidateDepartmentsCache();
 
             return $user;
         });
@@ -469,6 +490,10 @@ class UsersRepository extends BaseRepository
 
             $this->syncUserRoles($user, $data);
 
+            if (array_key_exists('departments', $data)) {
+                $user->departments()->sync($data['departments'] ?? []);
+            }
+
             if ($user->companies()->count() === 0) {
                 throw new \InvalidArgumentException('Пользователь должен быть привязан хотя бы к одной компании');
             }
@@ -477,6 +502,7 @@ class UsersRepository extends BaseRepository
 
             CacheService::invalidateByLike('%users_paginated%');
             CacheService::invalidateByLike('%users_all%');
+            CacheService::invalidateDepartmentsCache();
 
             return $user;
         });
@@ -549,7 +575,7 @@ class UsersRepository extends BaseRepository
         } else {
             $user->load(['roles']);
         }
-        $user->load(['companies']);
+        $user->load(['companies', 'departments:id,title,company_id']);
         $user->company_roles = $user->getAllCompanyRoles();
     }
 

@@ -197,7 +197,7 @@ return [
         ],
         'contracts' => [
             'has_user_id' => true,
-            'check_strategy' => 'user_id',
+            'check_strategy' => 'many_to_many',
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
@@ -277,6 +277,10 @@ return [
             'label' => 'leaves',
             'resources' => ['leaves', 'leave_types'],
         ],
+        'departments' => [
+            'label' => 'departments',
+            'resources' => ['departments'],
+        ],
         'chats' => [
             'label' => 'chats',
             'resources' => ['chats'],
@@ -298,6 +302,9 @@ return [
             'settings_client_balance_view',
             'settings_client_balance_view_own',
             'settings_client_balance_adjustment',
+        ],
+        'departments' => [
+            'departments_assign_users',
         ],
     ],
 ];
