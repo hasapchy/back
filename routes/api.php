@@ -10,9 +10,11 @@ use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\CompaniesController;
 use App\Http\Controllers\Api\CurrencyHistoryController;
+use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\LeaveTypeController;
+use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderStatusCategoryController;
 use App\Http\Controllers\Api\OrderStatusController;
@@ -35,7 +37,6 @@ use App\Http\Controllers\Api\WarehouseMovementController;
 use App\Http\Controllers\Api\WarehouseReceiptController;
 use App\Http\Controllers\Api\WarehouseStockController;
 use App\Http\Controllers\Api\WarehouseWriteoffController;
-use App\Http\Controllers\Api\DepartmentController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['throttle:auth'])->group(function () {
@@ -327,4 +328,12 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission:chats_group_create')->post('chats/groups', [ChatController::class, 'createGroup']);
     Route::middleware('permission:chats_view')->get('chats/{chat}/messages', [ChatController::class, 'messages']);
     Route::middleware('permission:chats_write')->post('chats/{chat}/messages', [ChatController::class, 'storeMessage']);
+
+    // News routes
+    Route::middleware('permission.scope:news_view_all,news_view')->get('news', [NewsController::class, 'index']);
+    Route::middleware('permission.scope:news_view_all,news_view')->get('news/all', [NewsController::class, 'all']);
+    Route::middleware('permission.scope:news_view_all,news_view')->get('news/{id}', [NewsController::class, 'show']);
+    Route::middleware('permission:news_create')->post('news', [NewsController::class, 'store']);
+    Route::middleware('permission.scope:news_update_all,news_update')->put('news/{id}', [NewsController::class, 'update']);
+    Route::middleware('permission.scope:news_delete_all,news_delete')->delete('news/{id}', [NewsController::class, 'destroy']);
 });
