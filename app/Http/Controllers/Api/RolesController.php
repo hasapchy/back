@@ -120,10 +120,6 @@ class RolesController extends BaseController
             $validatedData = $request->validated();
             $companyId = $this->getCurrentCompanyId();
 
-            if (empty($validatedData['name'])) {
-                return $this->errorResponse('Название роли не может быть пустым', 422);
-            }
-
             $role = $this->itemsRepository->createItem($validatedData, $companyId);
 
             return response()->json([
@@ -149,10 +145,6 @@ class RolesController extends BaseController
         try {
             $validatedData = $request->validated();
             $companyId = $this->getCurrentCompanyId();
-
-            if (isset($validatedData['name']) && empty($validatedData['name'])) {
-                return $this->errorResponse('Название роли не может быть пустым', 422);
-            }
 
             $role = $this->itemsRepository->updateItem($id, $validatedData, $companyId);
 

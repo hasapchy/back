@@ -131,8 +131,7 @@ class SaleController extends BaseController
      */
     public function destroy($id)
     {
-        $user = $this->requireAuthenticatedUser();
-        $userUuid = $user->id;
+        $this->getAuthenticatedUserIdOrFail();
 
         $sale = $this->itemRepository->getItemById($id);
         if (!$sale) {

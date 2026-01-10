@@ -4,7 +4,11 @@ namespace App\Repositories;
 
 use App\Models\Project;
 use App\Models\ProjectUser;
+use App\Models\ProjectTransaction;
+use App\Models\ProjectStatus;
+use App\Models\Currency;
 use App\Services\CacheService;
+use App\Services\CurrencyConverter;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 
@@ -25,7 +29,7 @@ class ProjectsRepository extends BaseRepository
             'client.phones:id,client_id,phone',
             'client.emails:id,client_id,email',
             'currency:id,name,symbol',
-            'status:id,name,color',
+            'status:id,name,color,is_tr_visible',
             'creator:id,name,photo',
             'users:id,name',
         ];
@@ -115,11 +119,7 @@ class ProjectsRepository extends BaseRepository
             $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
             $paginated->getCollection()->transform(function ($project) {
-                if ($project->creator) {
-                    $project->user_name = $project->creator->name;
-                    $project->user_photo = $project->creator->photo;
-                }
-                return $project;
+                return $this->transformProject($project);
             });
 
             return $paginated;
@@ -148,7 +148,8 @@ class ProjectsRepository extends BaseRepository
             $query = $this->addCompanyFilterDirect($query, 'projects');
 
             if ($activeOnly) {
-                $query->whereNotIn('projects.status_id', [4, 5]);
+                $query->join('project_statuses', 'projects.status_id', '=', 'project_statuses.id')
+                    ->where('project_statuses.is_tr_visible', true);
             }
 
             $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
@@ -156,11 +157,7 @@ class ProjectsRepository extends BaseRepository
             $items = $query->orderBy('created_at', 'desc')->get();
 
             $items->transform(function ($project) {
-                if ($project->creator) {
-                    $project->user_name = $project->creator->name;
-                    $project->user_photo = $project->creator->photo;
-                }
-                return $project;
+                return $this->transformProject($project);
             });
 
             return $items;
@@ -183,7 +180,6 @@ class ProjectsRepository extends BaseRepository
             $item->name = $data['name'];
             $item->budget = $data['budget'] ?? 0;
             $item->currency_id = $data['currency_id'] ?? null;
-            $item->exchange_rate = $data['exchange_rate'] ?? null;
             $item->date = $data['date'];
             $item->user_id = $data['user_id'];
             $item->client_id = $data['client_id'];
@@ -223,7 +219,6 @@ class ProjectsRepository extends BaseRepository
             $item->name = $data['name'];
             $item->budget = $data['budget'] ?? $item->budget;
             $item->currency_id = $data['currency_id'] ?? $item->currency_id;
-            $item->exchange_rate = $data['exchange_rate'] ?? $item->exchange_rate;
             $item->date = $data['date'];
             $item->client_id = $data['client_id'];
             $item->description = $data['description'] ?? null;
@@ -257,7 +252,6 @@ class ProjectsRepository extends BaseRepository
                 'projects.name',
                 'projects.budget',
                 'projects.currency_id',
-                'projects.exchange_rate',
                 'projects.date',
                 'projects.user_id',
                 'projects.client_id',
@@ -278,10 +272,7 @@ class ProjectsRepository extends BaseRepository
 
             $result = $query->first();
 
-            if ($result && $result->creator) {
-                $result->user_name = $result->creator->name;
-                $result->user_photo = $result->creator->photo;
-            }
+            $result = $this->transformProject($result);
 
             return $result;
         }, $this->getCacheTTL('reference'));
@@ -299,7 +290,7 @@ class ProjectsRepository extends BaseRepository
         return DB::transaction(function () use ($id) {
             $item = Project::findOrFail($id);
 
-            $transactionsCount = \App\Models\Transaction::where('project_id', $id)
+            $transactionsCount = Transaction::where('project_id', $id)
                 ->where('is_deleted', false)
                 ->count();
             if ($transactionsCount > 0) {
@@ -327,38 +318,29 @@ class ProjectsRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('project_balance_history', [$projectId]);
 
         return CacheService::remember($cacheKey, function () use ($projectId) {
-            $project = \App\Models\Project::find($projectId);
+            $project = Project::find($projectId);
             $projectCurrencyId = $project ? $project->currency_id : null;
-            $projectExchangeRate = $project ? $project->exchange_rate : 1;
-
+            $projectCurrency = $project && $project->currency_id ? Currency::find($project->currency_id) : null;
             $companyId = $project ? $project->company_id : null;
-            $currencyRates = [];
+            $defaultCurrency = Currency::where('is_default', true)
+                ->where(function($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->first();
+            $reportCurrency = Currency::where('is_report', true)
+                ->where(function($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->first();
 
-            $currencyHistoriesQuery = \App\Models\CurrencyHistory::where('start_date', '<=', now()->toDateString())
-                ->where(function ($query) {
-                    $query->whereNull('end_date')
-                        ->orWhere('end_date', '>=', now()->toDateString());
-                });
-
-            if ($companyId) {
-                $currencyHistoriesQuery->where('company_id', $companyId);
-            } else {
-                $currencyHistoriesQuery->whereNull('company_id');
-            }
-
-            $currencyHistories = $currencyHistoriesQuery
-                ->orderBy('currency_id')
-                ->orderBy('start_date', 'desc')
-                ->get()
-                ->groupBy('currency_id');
-
-            $currencyRates = $currencyHistories->map(fn($histories) => $histories->first()?->exchange_rate)->toArray();
+            $isProjectReportCurrency = $projectCurrency && $reportCurrency && $projectCurrency->id === $reportCurrency->id;
+            $isProjectDefaultCurrency = $projectCurrency && $defaultCurrency && $projectCurrency->id === $defaultCurrency->id;
 
             $transactions = Transaction::where('project_id', $projectId)
                 ->where('is_deleted', false)
                 ->with([
                     'cashRegister.currency:id,symbol',
-                    'currency:id,symbol',
+                    'currency:id,symbol,name,is_default',
                     'user:id,name',
                     'category:id,name'
                 ])
@@ -367,6 +349,8 @@ class ProjectsRepository extends BaseRepository
                     'created_at',
                     'currency_id',
                     'orig_amount',
+                    'rep_amount',
+                    'def_amount',
                     'type',
                     'source_type',
                     'source_id',
@@ -383,13 +367,15 @@ class ProjectsRepository extends BaseRepository
                 'App\\Models\\WhReceipt' => 'receipt',
             ];
 
-            $transactionsResult = $transactions->get()->map(function ($item) use ($projectCurrencyId, $projectExchangeRate, $currencyRates, $sourceMap) {
+            $transactionsResult = $transactions->get()->map(function ($item) use ($isProjectReportCurrency, $isProjectDefaultCurrency, $sourceMap) {
                 $source = $sourceMap[$item->source_type] ?? 'transaction';
-                $amount = $item->orig_amount;
 
-                if ($item->currency_id != $projectCurrencyId) {
-                    $transactionRate = $currencyRates[$item->currency_id] ?? 1;
-                    $amount = ($item->orig_amount * $transactionRate) * $projectExchangeRate;
+                if ($isProjectReportCurrency) {
+                    $amount = $item->rep_amount ?? $item->orig_amount;
+                } elseif ($isProjectDefaultCurrency) {
+                    $amount = $item->def_amount ?? $item->orig_amount;
+                } else {
+                    $amount = $item->orig_amount;
                 }
 
                 $amount = match($source) {
@@ -413,15 +399,55 @@ class ProjectsRepository extends BaseRepository
                     'user_id' => $item->user_id,
                     'user_name' => $item->user->name,
                     'cash_currency_symbol' => $item->cashRegister?->currency->symbol ?? $item->currency->symbol,
-                    'category_name' => $item->category->name ?? null,
-                    'debug_transaction_currency' => $item->currency_id,
-                    'debug_transaction_rate' => $currencyRates[$item->currency_id] ?? 1,
-                    'debug_project_currency' => $projectCurrencyId,
-                    'debug_project_rate' => $projectExchangeRate
+                    'category_name' => $item->category->name ?? null
                 ];
             });
 
+            $projectTransactions = ProjectTransaction::where('project_id', $projectId)
+                ->with([
+                    'user:id,name',
+                    'currency:id,symbol',
+                    'category:id,name'
+                ])
+                ->get()
+                ->map(function ($item) use ($projectCurrencyId, $projectCurrency, $defaultCurrency, $companyId) {
+                    $amount = $item->amount;
+                    $targetCurrency = $projectCurrency ?? $defaultCurrency;
+
+                    if ($item->currency_id != $projectCurrencyId && $item->currency && $targetCurrency) {
+                        $transactionDate = $item->date ? $item->date->toDateString() : null;
+                        $amount = CurrencyConverter::convert(
+                            $item->amount,
+                            $item->currency,
+                            $targetCurrency,
+                            $defaultCurrency,
+                            $companyId,
+                            $transactionDate
+                        );
+                        $amount = $this->roundAmount($amount);
+                    }
+
+                    $amount = $item->type == 1 ? +$amount : -$amount;
+
+                    return [
+                        'source' => 'project_transaction',
+                        'source_id' => $item->id,
+                        'source_type' => 'App\\Models\\ProjectTransaction',
+                        'source_source_id' => $item->id,
+                        'date' => $item->date,
+                        'amount' => $amount,
+                        'orig_amount' => $item->amount,
+                        'is_debt' => false,
+                        'note' => $item->note,
+                        'user_id' => $item->user_id,
+                        'user_name' => $item->user->name,
+                        'cash_currency_symbol' => $item->currency->symbol,
+                        'category_name' => $item->category->name ?? null
+                    ];
+                });
+
             $result = $transactionsResult
+                ->concat($projectTransactions)
                 ->sortBy('date')
                 ->values()
                 ->all();
@@ -493,7 +519,7 @@ class ProjectsRepository extends BaseRepository
      */
     public function updateStatusByIds(array $ids, int $statusId, string $userId): int
     {
-        $targetStatus = \App\Models\ProjectStatus::findOrFail($statusId);
+        $targetStatus = ProjectStatus::findOrFail($statusId);
 
         $projects = Project::whereIn('id', $ids)->get()->keyBy('id');
 
@@ -521,5 +547,22 @@ class ProjectsRepository extends BaseRepository
         }
 
         return $updatedCount;
+    }
+
+    /**
+     * Трансформировать проект, добавив данные создателя
+     *
+     * Добавляет к проекту поля user_name и user_photo из связанного пользователя-создателя
+     *
+     * @param \App\Models\Project|null $project Проект для трансформации
+     * @return \App\Models\Project|null Трансформированный проект или null
+     */
+    private function transformProject($project)
+    {
+        if (optional($project)->creator) {
+            $project->user_name = $project->creator->name;
+            $project->user_photo = $project->creator->photo;
+        }
+        return $project;
     }
 }

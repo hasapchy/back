@@ -42,9 +42,10 @@ class TransactionsRepository extends BaseRepository
      * @param string|null $start_date Начальная дата
      * @param string|null $end_date Конечная дата
      * @param bool|null $is_debt Фильтр по долгу (true - долги, false - платежи)
+     * @param array|null $category_ids Массив ID категорий транзакций
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null)
+    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null)
     {
         $companyId = $this->getCurrentCompanyId() ?? 'default';
 
@@ -59,9 +60,10 @@ class TransactionsRepository extends BaseRepository
         $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';
         $showDeletedKey = $showDeleted ? '1' : '0';
         $sourcePermissionsKey = $this->getSourcePermissionsKey($currentUser);
-        $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId()]);
+        $categoryIdsKey = $category_ids ? md5(implode(',', $category_ids)) : 'null';
+        $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $categoryIdsKey, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId()]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $showDeleted, $currentUser) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $showDeleted, $currentUser) {
             $searchTrimmed = is_string($search) ? trim($search) : '';
             $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
 
@@ -191,12 +193,14 @@ class TransactionsRepository extends BaseRepository
                     return $q->where('transactions.project_id', $project_id);
                 })
                 ->when($is_debt !== null, function ($q) use ($is_debt) {
-                    if ($is_debt === 'true' || $is_debt === '1' || $is_debt === 1 || $is_debt === true) {
-                        return $q->where('transactions.is_debt', true);
-                    } elseif ($is_debt === 'false' || $is_debt === '0' || $is_debt === 0 || $is_debt === false) {
-                        return $q->where('transactions.is_debt', false);
+                    $isDebtBool = filter_var($is_debt, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                    if ($isDebtBool !== null) {
+                        return $q->where('transactions.is_debt', $isDebtBool);
                     }
                     return $q;
+                })
+                ->when($category_ids && is_array($category_ids) && count($category_ids) > 0, function ($q) use ($category_ids) {
+                    return $q->whereIn('transactions.category_id', $category_ids);
                 });
 
             $this->applyOwnFilter($query, 'transactions', 'transactions', 'user_id', $currentUser);
@@ -227,6 +231,7 @@ class TransactionsRepository extends BaseRepository
                 'start_date' => $start_date,
                 'end_date' => $end_date,
                 'is_debt' => $is_debt,
+                'category_ids' => $category_ids,
                 'show_deleted' => $showDeleted,
                 'count' => $paginatedResults->total(),
             ]);
@@ -335,7 +340,13 @@ class TransactionsRepository extends BaseRepository
     {
         $cashRegister = CashRegister::findOrFail($data['cash_id']);
         $originalAmount = $data['orig_amount'];
-        $defaultCurrencyId = Currency::where('is_default', true)->value('id');
+        $companyId = $this->getCurrentCompanyId();
+        $defaultCurrency = Currency::where('is_default', true)
+            ->where(function($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->first();
+        $defaultCurrencyId = $defaultCurrency->id;
 
         $currencyIds = array_unique([
             $data['currency_id'],
@@ -350,8 +361,13 @@ class TransactionsRepository extends BaseRepository
         $defaultCurrency = $currencies[$defaultCurrencyId];
 
         $roundingService = new RoundingService();
-        $companyId = $this->getCurrentCompanyId();
         $transactionDate = $data['date'] ?? now();
+
+        $reportCurrency = Currency::where('is_report', true)
+            ->where(function($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->first();
 
         if (!empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
             $exchangeRate = (float) $data['exchange_rate'];
@@ -384,8 +400,36 @@ class TransactionsRepository extends BaseRepository
             $convertedAmountDefault = $originalAmount;
         }
 
-        // Round default-currency amount according to company rules for client balance updates
         $roundedConvertedAmountDefault = $roundingService->roundForCompany($companyId, (float) $convertedAmountDefault);
+
+        if (!$reportCurrency) {
+            throw new \Exception('Валюта отчетов не найдена для компании');
+        }
+
+        $repAmount = CurrencyConverter::convert($originalAmount, $fromCurrency, $reportCurrency, $defaultCurrency, $companyId, $transactionDate);
+        $repAmount = $roundingService->roundForCompany($companyId, $repAmount);
+
+        if ($fromCurrency->id === $reportCurrency->id) {
+            $repRate = 1.0;
+        } else {
+            $fromRate = $fromCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+            $reportRate = $reportCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+            if ($fromCurrency->id === $defaultCurrency->id) {
+                $repRate = 1 / $reportRate;
+            } elseif ($reportCurrency->id === $defaultCurrency->id) {
+                $repRate = $fromRate;
+            } else {
+                $repRate = $fromRate / $reportRate;
+            }
+        }
+
+        if ($fromCurrency->id === $defaultCurrency->id) {
+            $defRate = 1.0;
+            $defAmount = $originalAmount;
+        } else {
+            $defRate = $fromCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+            $defAmount = $roundedConvertedAmountDefault;
+        }
 
         DB::beginTransaction();
 
@@ -409,12 +453,16 @@ class TransactionsRepository extends BaseRepository
 
             $transaction->project_id = $data['project_id'];
             $transaction->client_id = $data['client_id'];
-            $transaction->note = !empty($data['note']) ? $data['note'] : null;
+            $transaction->note = $data['note'] ?? null;
             $transaction->date = $data['date'];
             $transaction->is_debt = $data['is_debt'] ?? false;
             $transaction->source_type = $data['source_type'] ?? null;
             $transaction->source_id = $data['source_id'] ?? null;
             $transaction->exchange_rate = $exchangeRate;
+            $transaction->rep_rate = $repRate;
+            $transaction->rep_amount = $repAmount;
+            $transaction->def_rate = $defRate;
+            $transaction->def_amount = $defAmount;
 
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->setSkipCashBalanceUpdate(true);
@@ -607,7 +655,7 @@ class TransactionsRepository extends BaseRepository
             $transaction->category_id = $data['category_id'];
             $transaction->project_id = $data['project_id'];
             $transaction->date = $data['date'];
-            $transaction->note = !empty($data['note']) ? $data['note'] : null;
+            $transaction->note = $data['note'] ?? null;
 
             if (array_key_exists('source_type', $data)) {
                 $transaction->source_type = $data['source_type'];
@@ -629,7 +677,16 @@ class TransactionsRepository extends BaseRepository
             $newOrigAmount = $transaction->orig_amount;
             $newCurrencyId = $transaction->currency_id;
 
-            $defaultCurrencyId = Currency::where('is_default', true)->value('id');
+            $roundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
+            $transactionDate = $transaction->date ?? now();
+
+            $defaultCurrency = Currency::where('is_default', true)
+                ->where(function($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->first();
+            $defaultCurrencyId = $defaultCurrency->id;
             $currencyIds = array_unique([
                 $newCurrencyId,
                 $cashRegister->currency_id,
@@ -641,9 +698,11 @@ class TransactionsRepository extends BaseRepository
             $toCurrency = $currencies[$cashRegister->currency_id];
             $defaultCurrency = $currencies[$defaultCurrencyId];
 
-            $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
-            $transactionDate = $transaction->date ?? now();
+            $reportCurrency = Currency::where('is_report', true)
+                ->where(function($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->first();
 
             if (!empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
                 $exchangeRate = (float) $data['exchange_rate'];
@@ -670,8 +729,49 @@ class TransactionsRepository extends BaseRepository
 
             $newConvertedAmount = $roundingService->roundForCompany($companyId, (float) $newConvertedAmount);
 
+            if ($fromCurrency->id !== $defaultCurrency->id) {
+                $newConvertedAmountDefault = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $defaultCurrency, null, $companyId, $transactionDate);
+            } else {
+                $newConvertedAmountDefault = $newOrigAmount;
+            }
+
+            $roundedNewConvertedAmountDefault = $roundingService->roundForCompany($companyId, (float) $newConvertedAmountDefault);
+
+            if (!$reportCurrency) {
+                throw new \Exception('Валюта отчетов не найдена для компании');
+            }
+
+            $repAmount = CurrencyConverter::convert($newOrigAmount, $fromCurrency, $reportCurrency, $defaultCurrency, $companyId, $transactionDate);
+            $repAmount = $roundingService->roundForCompany($companyId, $repAmount);
+
+            if ($fromCurrency->id === $reportCurrency->id) {
+                $repRate = 1.0;
+            } else {
+                $fromRate = $fromCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+                $reportRate = $reportCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+                if ($fromCurrency->id === $defaultCurrency->id) {
+                    $repRate = 1 / $reportRate;
+                } elseif ($reportCurrency->id === $defaultCurrency->id) {
+                    $repRate = $fromRate;
+                } else {
+                    $repRate = $fromRate / $reportRate;
+                }
+            }
+
+            if ($fromCurrency->id === $defaultCurrency->id) {
+                $defRate = 1.0;
+                $defAmount = $newOrigAmount;
+            } else {
+                $defRate = $fromCurrency->getExchangeRateForCompany($companyId, $transactionDate);
+                $defAmount = $roundedNewConvertedAmountDefault;
+            }
+
             $transaction->amount = $newConvertedAmount;
             $transaction->exchange_rate = $exchangeRate;
+            $transaction->rep_rate = $repRate;
+            $transaction->rep_amount = $repAmount;
+            $transaction->def_rate = $defRate;
+            $transaction->def_amount = $defAmount;
 
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->setSkipCashBalanceUpdate(true);

@@ -78,30 +78,22 @@ class RolesRepository extends BaseRepository
         return DB::transaction(function () use ($data, $companyId) {
             $name = trim($data['name'] ?? '');
             $guardName = 'api';
-            
+
             // Проверяем уникальность с учетом company_id
             $existingRole = Role::where('name', $name)
                 ->where('guard_name', $guardName)
                 ->where('company_id', $companyId ? (int)$companyId : null)
                 ->first();
-            
+
             if ($existingRole) {
                 throw new \Exception("Роль с именем '{$name}' уже существует в этой компании");
             }
-            
-            // Используем firstOrCreate для обхода валидации Spatie
-            $role = Role::firstOrCreate(
-                [
-                    'name' => $name,
-                    'guard_name' => $guardName,
-                    'company_id' => $companyId ? (int)$companyId : null,
-                ],
-                [
-                    'name' => $name,
-                    'guard_name' => $guardName,
-                    'company_id' => $companyId ? (int)$companyId : null,
-                ]
-            );
+
+            $role = new Role();
+            $role->name = $name;
+            $role->guard_name = $guardName;
+            $role->company_id = $companyId ? (int)$companyId : null;
+            $role->save();
 
             $this->syncRolePermissions($role, $data['permissions'] ?? []);
 

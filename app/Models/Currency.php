@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
  * Модель валюты
  *
  * @property int $id
+ * @property int|null $company_id ID компании
  * @property string $code Код валюты
  * @property string $name Название валюты
  * @property string $symbol Символ валюты
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $is_report Используется ли в отчетах
  *
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\CurrencyHistory[] $exchangeRateHistories
+ * @property-read \App\Models\Company|null $company
  */
 class Currency extends Model
 {
@@ -30,7 +32,8 @@ class Currency extends Model
         'exchange_rate',
         'is_default',
         'status',
-        'is_report'
+        'is_report',
+        'company_id'
     ];
 
     protected $casts = [
@@ -97,22 +100,72 @@ class Currency extends Model
     {
         $date = $date ?? now()->toDateString();
 
-        $query = $this->exchangeRateHistories()
+        $baseQuery = $this->exchangeRateHistories();
+
+        if ($companyId) {
+            $query = (clone $baseQuery)->where(function($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            });
+        } else {
+            $query = (clone $baseQuery)->whereNull('company_id');
+        }
+
+        $activeHistory = (clone $query)
             ->where('start_date', '<=', $date)
             ->where(function ($q) use ($date) {
                 $q->whereNull('end_date')
                   ->orWhere('end_date', '>=', $date);
-            });
+            })
+            ->orderBy('start_date', 'desc')
+            ->first();
 
-        if ($companyId) {
-            $query->where('company_id', $companyId);
-        } else {
-            $query->whereNull('company_id');
+        if ($activeHistory) {
+            return $activeHistory->exchange_rate;
         }
 
-        $history = $query->orderBy('start_date', 'desc')->first();
+        $earliestHistory = (clone $query)
+            ->where('start_date', '>', $date)
+            ->orderBy('start_date', 'asc')
+            ->first();
 
-        return $history ? $history->exchange_rate : 1;
+        if ($earliestHistory) {
+            return $earliestHistory->exchange_rate;
+        }
+
+        $firstHistory = (clone $query)
+            ->orderBy('start_date', 'asc')
+            ->first();
+
+        return $firstHistory ? $firstHistory->exchange_rate : 1;
+    }
+
+    protected static function booted()
+    {
+        static::saving(function ($currency) {
+            if ($currency->is_default) {
+                Currency::where('company_id', $currency->company_id)
+                    ->where('id', '!=', $currency->id)
+                    ->where('is_default', true)
+                    ->update(['is_default' => false]);
+            }
+
+            if ($currency->is_report) {
+                Currency::where('company_id', $currency->company_id)
+                    ->where('id', '!=', $currency->id)
+                    ->where('is_report', true)
+                    ->update(['is_report' => false]);
+            }
+        });
+    }
+
+    /**
+     * Связь с компанией
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 
 }

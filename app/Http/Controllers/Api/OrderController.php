@@ -73,43 +73,9 @@ class OrderController extends BaseController
 
         $validatedData = $request->validated();
 
-        $categoryId = $validatedData['category_id'] ?? null;
-        $user = auth('api')->user();
-        if ($user instanceof User && $user->hasRole(config('basement.worker_role'))) {
-            // Получаем категории пользователя с учетом компании
-            $companyId = $this->getCurrentCompanyId();
-            $userCategoryIds = CategoryUser::where('user_id', $userUuid)
-                ->pluck('category_id')
-                ->toArray();
-
-            // Фильтруем по компании, если указана
-            if ($companyId) {
-                $companyCategoryIds = Category::where('company_id', $companyId)
-                    ->pluck('id')
-                    ->toArray();
-                $userCategoryIds = array_intersect($userCategoryIds, $companyCategoryIds);
-            }
-
-            if (!$categoryId) {
-                // Сначала проверяем маппинг из конфига
-                $userCategoryMap = config('basement.user_category_map', []);
-                $mappedCategoryId = $userCategoryMap[$userUuid] ?? null;
-                
-                // Если есть маппинг и категория доступна пользователю, используем её
-                if ($mappedCategoryId && in_array($mappedCategoryId, $userCategoryIds)) {
-                    $categoryId = $mappedCategoryId;
-                } else {
-                    // Иначе берем первую доступную категорию пользователя
-                    $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
-                }
-                
-                if (!$categoryId) {
-                    return $this->errorResponse('У вас нет доступных категорий. Обратитесь к администратору для назначения категории.', 400);
-                }
-            } elseif (!in_array($categoryId, $userCategoryIds)) {
-                // Если категория указана, проверяем доступ пользователя к ней
-                return $this->forbiddenResponse('У вас нет доступа к указанной категории');
-            }
+        $categoryId = $this->resolveCategoryForBasementWorker($validatedData['category_id'] ?? null, $userUuid);
+        if ($categoryId instanceof \Illuminate\Http\JsonResponse) {
+            return $categoryId;
         }
 
         $data = [
@@ -195,43 +161,9 @@ class OrderController extends BaseController
 
         $validatedData = $request->validated();
 
-        $categoryId = $validatedData['category_id'] ?? null;
-        $user = auth('api')->user();
-        if ($user instanceof User && $user->hasRole(config('basement.worker_role'))) {
-            // Получаем категории пользователя с учетом компании
-            $companyId = $this->getCurrentCompanyId();
-            $userCategoryIds = CategoryUser::where('user_id', $userUuid)
-                ->pluck('category_id')
-                ->toArray();
-
-            // Фильтруем по компании, если указана
-            if ($companyId) {
-                $companyCategoryIds = Category::where('company_id', $companyId)
-                    ->pluck('id')
-                    ->toArray();
-                $userCategoryIds = array_intersect($userCategoryIds, $companyCategoryIds);
-            }
-
-            if (!$categoryId) {
-                // Сначала проверяем маппинг из конфига
-                $userCategoryMap = config('basement.user_category_map', []);
-                $mappedCategoryId = $userCategoryMap[$userUuid] ?? null;
-                
-                // Если есть маппинг и категория доступна пользователю, используем её
-                if ($mappedCategoryId && in_array($mappedCategoryId, $userCategoryIds)) {
-                    $categoryId = $mappedCategoryId;
-                } else {
-                    // Иначе берем первую доступную категорию пользователя
-                    $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
-                }
-                
-                if (!$categoryId) {
-                    return $this->errorResponse('У вас нет доступных категорий. Обратитесь к администратору для назначения категории.', 400);
-                }
-            } elseif (!in_array($categoryId, $userCategoryIds)) {
-                // Если категория указана, проверяем доступ пользователя к ней
-                return $this->forbiddenResponse('У вас нет доступа к указанной категории');
-            }
+        $categoryId = $this->resolveCategoryForBasementWorker($validatedData['category_id'] ?? null, $userUuid);
+        if ($categoryId instanceof \Illuminate\Http\JsonResponse) {
+            return $categoryId;
         }
 
         $data = [
@@ -314,11 +246,9 @@ class OrderController extends BaseController
             return $this->forbiddenResponse('У вас нет прав на удаление этого заказа');
         }
 
-        if ($order->cash_id) {
-            $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
-            if ($cashAccessCheck) {
-                return $cashAccessCheck;
-            }
+        $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
         }
 
         try {
@@ -398,11 +328,9 @@ class OrderController extends BaseController
             return $this->forbiddenResponse('У вас нет прав на просмотр этого заказа');
         }
 
-        if ($item->cash_id) {
-            $cashAccessCheck = $this->checkCashRegisterAccess($item->cash_id);
-            if ($cashAccessCheck) {
-                return $cashAccessCheck;
-            }
+        $cashAccessCheck = $this->checkCashRegisterAccess($item->cash_id);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
         }
 
         return new OrderResource($item);
@@ -420,5 +348,51 @@ class OrderController extends BaseController
             'server_time' => now()->toISOString(),
             'timestamp' => now()->timestamp
         ]);
+    }
+
+    /**
+     * Разрешить категорию для basement worker
+     *
+     * @param int|null $categoryId ID категории
+     * @param int $userUuid ID пользователя
+     * @return int|\Illuminate\Http\JsonResponse
+     */
+    protected function resolveCategoryForBasementWorker(?int $categoryId, int $userUuid)
+    {
+        $user = auth('api')->user();
+        if (!($user instanceof User && $user->hasRole(config('basement.worker_role')))) {
+            return $categoryId;
+        }
+
+        $companyId = $this->getCurrentCompanyId();
+        $userCategoryIds = CategoryUser::where('user_id', $userUuid)
+            ->pluck('category_id')
+            ->toArray();
+
+        if ($companyId) {
+            $companyCategoryIds = Category::where('company_id', $companyId)
+                ->pluck('id')
+                ->toArray();
+            $userCategoryIds = array_intersect($userCategoryIds, $companyCategoryIds);
+        }
+
+        if (!$categoryId) {
+            $userCategoryMap = config('basement.user_category_map', []);
+            $mappedCategoryId = $userCategoryMap[$userUuid] ?? null;
+
+            if ($mappedCategoryId && in_array($mappedCategoryId, $userCategoryIds)) {
+                $categoryId = $mappedCategoryId;
+            } else {
+                $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
+            }
+
+            if (!$categoryId) {
+                return $this->errorResponse('У вас нет доступных категорий. Обратитесь к администратору для назначения категории.', 400);
+            }
+        } elseif (!in_array($categoryId, $userCategoryIds)) {
+            return $this->forbiddenResponse('У вас нет доступа к указанной категории');
+        }
+
+        return $categoryId;
     }
 }

@@ -33,6 +33,7 @@ class StoreProjectContractRequest extends FormRequest
             'currency_id' => 'nullable|exists:currencies,id',
             'date' => 'required|date',
             'returned' => 'nullable|boolean',
+            'is_paid' => 'nullable|boolean',
             'files' => 'nullable|array',
             'note' => 'nullable|string',
         ];
@@ -49,6 +50,10 @@ class StoreProjectContractRequest extends FormRequest
 
         if (isset($data['returned'])) {
             $data['returned'] = filter_var($data['returned'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if (isset($data['is_paid'])) {
+            $data['is_paid'] = filter_var($data['is_paid'], FILTER_VALIDATE_BOOLEAN);
         }
 
         $this->merge($data);

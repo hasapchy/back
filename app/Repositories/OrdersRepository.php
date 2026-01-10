@@ -541,7 +541,7 @@ class OrdersRepository extends BaseRepository
         $discount = $data['discount'] ?? 0;
         $discount_type = $data['discount_type'] ?? 'fixed';
         $date = $data['date'] ?? now();
-        $note = !empty($data['note']) ? $data['note'] : null;
+        $note = $data['note'] ?? null;
         $description = $data['description'] ?? '';
 
         $defaultCurrency = Currency::firstWhere('is_default', true);
@@ -715,7 +715,7 @@ class OrdersRepository extends BaseRepository
             $temp_products = $data['temp_products'] ?? [];
             $discount = $data['discount'] ?? 0;
             $discount_type = $data['discount_type'] ?? 'fixed';
-            $note = !empty($data['note']) ? $data['note'] : null;
+            $note = $data['note'] ?? null;
             $description = $data['description'] ?? '';
             $date = $data['date'] ?? now();
 

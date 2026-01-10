@@ -163,7 +163,7 @@ return [
             'scope_actions' => ['view', 'update', 'delete'],
         ],
         'employee_salaries' => [
-            'has_user_id' => false,
+            'has_user_id' => true,
             'check_strategy' => 'user_id',
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
@@ -195,7 +195,7 @@ return [
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
-        'departments' => [
+        'contracts' => [
             'has_user_id' => true,
             'check_strategy' => 'many_to_many',
             'actions' => ['view', 'create', 'update', 'delete'],
@@ -229,6 +229,7 @@ return [
         'settings_currencies_view',
         'settings_cash_balance_view',
         'settings_client_balance_view',
+        'settings_client_balance_view_own',
         'settings_client_balance_adjustment',
         'products_create_temp',
     ],
@@ -309,6 +310,7 @@ return [
         ],
         'clients' => [
             'settings_client_balance_view',
+            'settings_client_balance_view_own',
             'settings_client_balance_adjustment',
         ],
         'departments' => [

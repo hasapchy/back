@@ -24,6 +24,10 @@ use App\Services\CacheService;
  * @property string|null $note Примечание
  * @property float $orig_amount Исходная сумма в валюте транзакции
  * @property float|null $exchange_rate Курс обмена от валюты транзакции к валюте кассы
+ * @property float|null $rep_rate Курс для конвертации в валюту отчетов на дату транзакции
+ * @property float|null $rep_amount Сумма в валюте отчетов (доллар)
+ * @property float|null $def_rate Курс для конвертации в дефолтную валюту на дату транзакции
+ * @property float|null $def_amount Сумма в дефолтной валюте (манат)
  * @property int|null $project_id ID проекта
  * @property int $type Тип транзакции (0 - расход, 1 - доход)
  * @property int $user_id ID пользователя
@@ -66,6 +70,10 @@ class Transaction extends Model
         'note',
         'orig_amount',
         'exchange_rate',
+        'rep_rate',
+        'rep_amount',
+        'def_rate',
+        'def_amount',
         'project_id',
         'type',
         'user_id',
@@ -131,6 +139,10 @@ class Transaction extends Model
         'amount' => 'decimal:5',
         'orig_amount' => 'decimal:5',
         'exchange_rate' => 'decimal:6',
+        'rep_rate' => 'decimal:6',
+        'rep_amount' => 'decimal:5',
+        'def_rate' => 'decimal:6',
+        'def_amount' => 'decimal:5',
     ];
 
     protected $hidden = [

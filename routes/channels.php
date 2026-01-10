@@ -34,7 +34,7 @@ Broadcast::channel('company.{companyId}.chat.{chatId}', function ($user, $compan
 
     // 2) Должен иметь право видеть чаты (с учетом company_user_role)
     $canViewChats = $user->is_admin
-        || $user->getAllPermissionsForCompany($companyId)->contains('name', 'chats_view');
+        || $user->getAllPermissionsForCompany($companyId)->contains('name', 'chats_view_all');
 
     if (! $canViewChats) {
         return false;
@@ -63,7 +63,7 @@ Broadcast::channel('company.{companyId}.presence', function ($user, $companyId) 
     }
 
     $canViewChats = $user->is_admin
-        || $user->getAllPermissionsForCompany($companyId)->contains('name', 'chats_view');
+        || $user->getAllPermissionsForCompany($companyId)->contains('name', 'chats_view_all');
 
     if (! $canViewChats) {
         return false;

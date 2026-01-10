@@ -36,19 +36,7 @@ class LeaveController extends BaseController
 
         $perPage = $request->input('per_page', 20);
         
-        $filters = [];
-        if ($request->has('user_id')) {
-            $filters['user_id'] = $request->input('user_id');
-        }
-        if ($request->has('leave_type_id')) {
-            $filters['leave_type_id'] = $request->input('leave_type_id');
-        }
-        if ($request->has('date_from')) {
-            $filters['date_from'] = $request->input('date_from');
-        }
-        if ($request->has('date_to')) {
-            $filters['date_to'] = $request->input('date_to');
-        }
+        $filters = $this->buildLeaveFilters($request);
 
         $items = $this->leaveRepository->getItemsWithPagination($userUuid, $perPage, $filters);
 
@@ -65,19 +53,7 @@ class LeaveController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $filters = [];
-        if ($request->has('user_id')) {
-            $filters['user_id'] = $request->input('user_id');
-        }
-        if ($request->has('leave_type_id')) {
-            $filters['leave_type_id'] = $request->input('leave_type_id');
-        }
-        if ($request->has('date_from')) {
-            $filters['date_from'] = $request->input('date_from');
-        }
-        if ($request->has('date_to')) {
-            $filters['date_to'] = $request->input('date_to');
-        }
+        $filters = $this->buildLeaveFilters($request);
 
         $items = $this->leaveRepository->getAllItems($userUuid, $filters);
 
@@ -164,22 +140,13 @@ class LeaveController extends BaseController
         try {
             $leave = Leave::findOrFail($id);
 
-            $data = [];
-            if ($request->has('leave_type_id') && $request->leave_type_id !== null) {
-                $data['leave_type_id'] = $request->leave_type_id;
-            }
-            if ($request->has('user_id') && $request->user_id !== null) {
-                $data['user_id'] = $request->user_id;
-            }
-            if ($request->has('comment')) {
-                $data['comment'] = $request->comment;
-            }
-            if ($request->has('date_from') && $request->date_from !== null) {
-                $data['date_from'] = $request->date_from;
-            }
-            if ($request->has('date_to') && $request->date_to !== null) {
-                $data['date_to'] = $request->date_to;
-            }
+            $data = array_filter([
+                'leave_type_id' => $request->input('leave_type_id'),
+                'user_id' => $request->input('user_id'),
+                'comment' => $request->input('comment'),
+                'date_from' => $request->input('date_from'),
+                'date_to' => $request->input('date_to'),
+            ], fn($value) => $value !== null);
 
             $updated = $this->leaveRepository->updateItem($id, $data);
             if (!$updated) return $this->errorResponse('Ошибка обновления', 400);
@@ -210,6 +177,26 @@ class LeaveController extends BaseController
         } catch (\Exception $e) {
             return $this->notFoundResponse('Запись отпуска не найдена');
         }
+    }
+
+    protected function buildLeaveFilters(Request $request): array
+    {
+        $filters = [];
+        
+        if ($request->has('user_id')) {
+            $filters['user_id'] = $request->input('user_id');
+        }
+        if ($request->has('leave_type_id')) {
+            $filters['leave_type_id'] = $request->input('leave_type_id');
+        }
+        if ($request->has('date_from')) {
+            $filters['date_from'] = $request->input('date_from');
+        }
+        if ($request->has('date_to')) {
+            $filters['date_to'] = $request->input('date_to');
+        }
+
+        return $filters;
     }
 }
 

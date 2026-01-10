@@ -167,8 +167,7 @@ class TransfersRepository extends BaseRepository
                 'project_id' => null,
                 'client_id' => null,
                 'note' => $note . ' ' . $transferNote,
-                'date' => $date_of_transfer,
-                'exchange_rate' => $exchangeRate
+                'date' => $date_of_transfer
             ];
 
             $toTransactionData = [
@@ -181,8 +180,7 @@ class TransfersRepository extends BaseRepository
                 'project_id' => null,
                 'client_id' => null,
                 'note' => $note . ' ' . $transferNote,
-                'date' => $date_of_transfer,
-                'exchange_rate' => $exchangeRate != 0 ? 1 / $exchangeRate : 1.0
+                'date' => $date_of_transfer
             ];
 
             $transaction_repository = new TransactionsRepository();
@@ -192,8 +190,8 @@ class TransfersRepository extends BaseRepository
             $cashTransfer = CashTransfer::create([
                 'cash_id_from' => $fromCashRegister->id,
                 'cash_id_to' => $toCashRegister->id,
-                'tr_id_from' => $fromTransactionId,
-                'tr_id_to' => $toTransactionId,
+                'tr_id_from' => $toTransactionId,
+                'tr_id_to' => $fromTransactionId,
                 'user_id' => $userUuid,
                 'amount' => $amount,
                 'exchange_rate' => $exchangeRate,

@@ -36,6 +36,7 @@ class ProjectContract extends Model
         'currency_id',
         'date',
         'returned',
+        'is_paid',
         'files',
         'note'
     ];
@@ -43,6 +44,7 @@ class ProjectContract extends Model
     protected $casts = [
         'date' => 'date',
         'returned' => 'boolean',
+        'is_paid' => 'boolean',
         'files' => 'array',
         'amount' => 'decimal:2'
     ];

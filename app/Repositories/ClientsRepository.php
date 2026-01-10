@@ -7,8 +7,10 @@ use App\Models\ClientsEmail;
 use App\Models\ClientsPhone;
 use App\Models\Currency;
 use App\Models\Transaction;
+use App\Models\CashRegister;
 use App\Models\User;
 use App\Services\CacheService;
+use App\Services\RoundingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -51,16 +53,10 @@ class ClientsRepository extends BaseRepository
 
             $this->applyOwnFilter($query, 'clients', 'clients', 'user_id', $currentUser);
 
-            if (!$includeInactive) {
+            if ($statusFilter) {
+                $query->where('clients.status', $statusFilter === 'active');
+            } elseif (!$includeInactive) {
                 $query->where('clients.status', true);
-            }
-
-            if ($statusFilter !== null && $statusFilter !== '') {
-                if ($statusFilter === 'active') {
-                    $query->where('clients.status', true);
-                } elseif ($statusFilter === 'inactive') {
-                    $query->where('clients.status', false);
-                }
             }
 
             if (!empty($typeFilter)) {
@@ -412,13 +408,17 @@ class ClientsRepository extends BaseRepository
      *
      * @param int $clientId ID клиента
      * @param bool|null $excludeDebt Исключить кредитные транзакции (true - только платежи, false/null - все)
+     * @param int|null $cashRegisterId ID кассы для фильтрации
+     * @param string|null $dateFrom Дата начала периода (формат: Y-m-d)
+     * @param string|null $dateTo Дата окончания периода (формат: Y-m-d)
      * @return array Массив транзакций с описаниями
      */
-    public function getBalanceHistory($clientId, $excludeDebt = null)
+    public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null)
     {
-        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt]);
+        $currentUser = auth('api')->user();
+        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $currentUser?->id]);
 
-        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt) {
+        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $currentUser) {
             try {
                 $defaultCurrency = Currency::where('is_default', true)->first();
                 $defaultCurrencySymbol = $defaultCurrency?->symbol;
@@ -428,6 +428,55 @@ class ClientsRepository extends BaseRepository
 
                 if ($excludeDebt === true) {
                     $transactionsQuery->where('is_debt', false);
+                }
+
+                $permissions = $this->getUserPermissionsForCompany($currentUser);
+                $hasBalanceViewAll = in_array('settings_client_balance_view', $permissions);
+                $hasBalanceViewOwn = in_array('settings_client_balance_view_own', $permissions);
+
+                $isOwnBalance = false;
+                if ($currentUser && $hasBalanceViewOwn && !$hasBalanceViewAll) {
+                    $client = Client::find($clientId);
+                    if ($client && $client->employee_id === $currentUser->id) {
+                        $isOwnBalance = true;
+                    }
+                }
+
+                if (!$isOwnBalance && $this->shouldApplyUserFilter('cash_registers')) {
+                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers');
+                    $transactionsQuery->where(function ($q) use ($filterUserId, $cashRegisterId) {
+                        $q->whereNull('cash_id');
+                        if ($cashRegisterId) {
+                            $q->orWhere(function ($subQ) use ($filterUserId, $cashRegisterId) {
+                                $subQ->where('cash_id', $cashRegisterId)
+                                    ->whereExists(function ($existsQuery) use ($filterUserId, $cashRegisterId) {
+                                        $existsQuery->select(DB::raw(1))
+                                            ->from('cash_register_users')
+                                            ->where('cash_register_users.cash_register_id', $cashRegisterId)
+                                            ->where('cash_register_users.user_id', $filterUserId);
+                                    });
+                            });
+                        } else {
+                            $q->orWhereExists(function ($subQuery) use ($filterUserId) {
+                                $subQuery->select(DB::raw(1))
+                                    ->from('cash_register_users')
+                                    ->whereColumn('cash_register_users.cash_register_id', 'transactions.cash_id')
+                                    ->where('cash_register_users.user_id', $filterUserId);
+                            });
+                        }
+                    });
+                } else {
+                    if ($cashRegisterId) {
+                        $transactionsQuery->where('cash_id', $cashRegisterId);
+                    }
+                }
+
+                if ($dateFrom) {
+                    $transactionsQuery->whereDate('created_at', '>=', $dateFrom);
+                }
+
+                if ($dateTo) {
+                    $transactionsQuery->whereDate('created_at', '<=', $dateTo);
                 }
 
                 $transactionsQuery->with([
@@ -450,7 +499,8 @@ class ClientsRepository extends BaseRepository
                         'user_id',
                         'currency_id',
                         'cash_id',
-                        'category_id'
+                        'category_id',
+                        'client_id'
                     );
 
                 $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
@@ -468,6 +518,8 @@ class ClientsRepository extends BaseRepository
                         }
                         $amount = $item->amount;
                         $results = [];
+
+                        $balanceDelta = $this->calculateBalanceDelta($item->type, $item->is_debt, $amount);
 
                         if ($source === 'receipt') {
                             $receiptId = $item->source_id;
@@ -487,6 +539,7 @@ class ClientsRepository extends BaseRepository
                                 'source_source_id' => $item->source_id,
                                 'date' => $item->created_at,
                                 'amount' => $amount,
+                                'balance_delta' => $balanceDelta,
                                 'orig_amount' => $item->orig_amount,
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
@@ -517,7 +570,8 @@ class ClientsRepository extends BaseRepository
                                 'source_type' => $item->source_type,
                                 'source_source_id' => $item->source_id,
                                 'date' => $item->created_at,
-                                'amount' => $amount, // type=1 → плюс, type=0 → минус
+                                'amount' => $amount,
+                                'balance_delta' => $balanceDelta,
                                 'orig_amount' => $item->orig_amount,
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
@@ -537,6 +591,7 @@ class ClientsRepository extends BaseRepository
                                 'source_source_id' => $item->source_id,
                                 'date' => $item->created_at,
                                 'amount' => +$amount,
+                                'balance_delta' => $balanceDelta,
                                 'orig_amount' => $item->orig_amount,
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
@@ -562,6 +617,7 @@ class ClientsRepository extends BaseRepository
                                 'source_source_id' => $item->source_id,
                                 'date' => $item->created_at,
                                 'amount' => $amount,
+                                'balance_delta' => $balanceDelta,
                                 'orig_amount' => $item->orig_amount,
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
@@ -581,6 +637,7 @@ class ClientsRepository extends BaseRepository
                                 'source_source_id' => $item->source_id,
                                 'date' => $item->created_at,
                                 'amount' => $amount,
+                                'balance_delta' => $balanceDelta,
                                 'orig_amount' => $item->orig_amount,
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
@@ -739,8 +796,90 @@ class ClientsRepository extends BaseRepository
         CacheService::invalidateClientsCache();
 
         $client = Client::find($clientId);
-        if ($client && $client->employee_id) {
+        if (optional($client)->employee_id) {
             CacheService::invalidateByLike("%user_employee_balance_{$client->employee_id}_%");
         }
     }
+
+    /**
+     * Рассчитать балансы клиентов по выбранной кассе для взаимозачетов
+     *
+     * @param \Illuminate\Database\Eloquent\Collection $clients Коллекция клиентов
+     * @param int $cashRegisterId ID кассы
+     * @return \Illuminate\Database\Eloquent\Collection Коллекция клиентов с пересчитанными балансами и информацией о валюте
+     */
+    public function calculateBalancesByCashRegister($clients, int $cashRegisterId)
+    {
+        if (empty($cashRegisterId) || $clients->isEmpty()) {
+            return $clients;
+        }
+
+        $cashRegister = CashRegister::with('currency:id,symbol')
+            ->find($cashRegisterId);
+
+        if (!$cashRegister || !$cashRegister->currency) {
+            return $clients;
+        }
+
+        $clientIds = $clients->pluck('id')->toArray();
+
+        $transactions = Transaction::whereIn('client_id', $clientIds)
+            ->where('cash_id', $cashRegisterId)
+            ->where('is_deleted', false)
+            ->select('client_id', 'amount', 'type', 'is_debt')
+            ->get();
+
+        $roundingService = new RoundingService();
+        $companyId = $this->getCurrentCompanyId();
+        $balances = [];
+
+        foreach ($transactions as $transaction) {
+            $clientId = $transaction->client_id;
+            if (!isset($balances[$clientId])) {
+                $balances[$clientId] = 0;
+            }
+
+            $amount = $roundingService->roundForCompany($companyId, (float) $transaction->amount);
+
+            $sign = $transaction->is_debt
+                ? ($transaction->type === 1 ? 1 : -1)
+                : ($transaction->type === 1 ? -1 : 1);
+
+            $balances[$clientId] += $sign * $amount;
+        }
+
+        $currencySymbol = $cashRegister->currency->symbol;
+
+        return $clients->map(function ($client) use ($balances, $currencySymbol) {
+            if (isset($balances[$client->id])) {
+                $client->balance = $balances[$client->id];
+            } else {
+                $client->balance = 0;
+            }
+            $client->currency_symbol = $currencySymbol;
+            return $client;
+        });
+    }
+
+    /**
+     * Рассчитать дельту баланса клиента для транзакции
+     *
+     * @param int $type Тип транзакции (0 - расход, 1 - приход)
+     * @param bool $isDebt Является ли транзакция кредитной
+     * @param float $amount Сумма транзакции
+     * @return float Дельта баланса
+     */
+    private function calculateBalanceDelta(int $type, bool $isDebt, float $amount): float
+    {
+        if ($amount == 0.0) {
+            return 0;
+        }
+
+        $sign = $isDebt
+            ? ($type === 1 ? 1 : -1)
+            : ($type === 1 ? -1 : 1);
+
+        return $sign * $amount;
+    }
+
 }

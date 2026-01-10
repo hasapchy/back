@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\BaseController;
 use App\Models\Company;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -77,6 +78,7 @@ class UserCompanyController extends BaseController
             }
         }
 
+        CacheService::invalidateCurrenciesCache();
 
         return response()->json(['company' => $company, 'message' => 'Company selected successfully']);
     }

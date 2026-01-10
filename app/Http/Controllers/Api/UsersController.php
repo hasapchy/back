@@ -79,11 +79,7 @@ class UsersController extends BaseController
      */
     public function show($id)
     {
-        $user = User::find($id);
-
-        if (!$user) {
-            return $this->notFoundResponse('User not found');
-        }
+        $user = User::findOrFail($id);
 
         if (!$this->canPerformAction('users', 'view', $user)) {
             return $this->forbiddenResponse('Нет прав на просмотр этого пользователя');
@@ -386,10 +382,8 @@ class UsersController extends BaseController
             $user = User::findOrFail($id);
             $currentUser = $this->getAuthenticatedUser();
 
-            if (!$this->hasPermission('employee_salaries_view_all')) {
-                if (!$this->hasPermission('employee_salaries_view_own') || $user->id !== $currentUser->id) {
-                    return $this->forbiddenResponse('Нет прав на просмотр зарплат');
-                }
+            if (!$this->hasPermission('employee_salaries_view_all') && $user->id !== $currentUser->id) {
+                return $this->forbiddenResponse('Нет прав на просмотр зарплат');
             }
 
             $salaries = $this->itemsRepository->getSalaries($id);
@@ -423,6 +417,7 @@ class UsersController extends BaseController
                 'end_date' => 'nullable|date|after:start_date',
                 'amount' => 'required|numeric|min:0',
                 'currency_id' => 'required|exists:currencies,id',
+                'payment_type' => 'required|boolean',
                 'note' => 'nullable|string|max:120',
             ]);
 
@@ -464,6 +459,7 @@ class UsersController extends BaseController
                 'end_date' => 'nullable|date|after:start_date',
                 'amount' => 'nullable|numeric|min:0',
                 'currency_id' => 'nullable|exists:currencies,id',
+                'payment_type' => 'nullable|boolean',
                 'note' => 'nullable|string|max:120',
             ]);
 
@@ -522,11 +518,14 @@ class UsersController extends BaseController
      */
     public function getEmployeeBalance($id)
     {
+        $currentUser = $this->requireAuthenticatedUser();
+
         try {
             $user = User::findOrFail($id);
 
-            if (!$this->canPerformAction('users', 'view', $user)) {
-                return $this->forbiddenResponse('Нет прав на просмотр баланса этого пользователя');
+            if (!$this->hasPermission('settings_client_balance_view', $currentUser) &&
+                (!$this->hasPermission('settings_client_balance_view_own', $currentUser) || $user->id !== $currentUser->id)) {
+                return $this->forbiddenResponse('Нет доступа к просмотру баланса');
             }
 
             $balance = $this->itemsRepository->getEmployeeBalance($id);
@@ -547,17 +546,14 @@ class UsersController extends BaseController
      */
     public function getEmployeeBalanceHistory($id)
     {
-        $user = $this->requireAuthenticatedUser();
-
-        if (!$this->hasPermission('settings_client_balance_view', $user)) {
-            return $this->forbiddenResponse('Нет доступа к просмотру баланса сотрудника');
-        }
+        $currentUser = $this->requireAuthenticatedUser();
 
         try {
             $targetUser = User::findOrFail($id);
 
-            if (!$this->canPerformAction('users', 'view', $targetUser)) {
-                return $this->forbiddenResponse('Нет прав на просмотр баланса этого пользователя');
+            if (!$this->hasPermission('settings_client_balance_view', $currentUser) &&
+                (!$this->hasPermission('settings_client_balance_view_own', $currentUser) || $targetUser->id !== $currentUser->id)) {
+                return $this->forbiddenResponse('Нет доступа к просмотру баланса');
             }
 
             $history = $this->itemsRepository->getEmployeeBalanceHistory($id);

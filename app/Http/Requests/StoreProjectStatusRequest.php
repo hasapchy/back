@@ -28,6 +28,7 @@ class StoreProjectStatusRequest extends FormRequest
         return [
             'name' => 'required|string',
             'color' => 'nullable|string|max:7',
+            'is_tr_visible' => 'nullable|boolean',
         ];
     }
 
