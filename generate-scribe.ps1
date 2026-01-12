@@ -33,25 +33,25 @@ if ($exitCode -ne 0 -or (Test-Path $docsPath)) {
     Write-Host ""
     Write-Host "Generation completed with issues. Running fix script..." -ForegroundColor Yellow
     Write-Host ""
-    
+
     if (Test-Path $docsPath) {
         # Remove target directory if it exists
         if (Test-Path $scribePath) {
             Remove-Item -Path $scribePath -Recurse -Force -ErrorAction SilentlyContinue
         }
-        
+
         # Create target directory
         New-Item -ItemType Directory -Path $scribePath -Force | Out-Null
-        
+
         # Copy all files and subdirectories
         Copy-Item -Path "$docsPath\*" -Destination $scribePath -Recurse -Force
-        
+
         # Wait a moment for file handles to close
         Start-Sleep -Seconds 1
-        
+
         # Remove source directory
         Remove-Item -Path $docsPath -Recurse -Force -ErrorAction SilentlyContinue
-        
+
         Write-Host "Assets have been moved to public/vendor/scribe" -ForegroundColor Green
     }
 }
@@ -60,11 +60,11 @@ if ($exitCode -ne 0 -or (Test-Path $docsPath)) {
 $scribeTemplate = Join-Path $backPath "resources\views\scribe\index.blade.php"
 if (Test-Path $scribeTemplate) {
     $templateContent = Get-Content $scribeTemplate -Raw -Encoding UTF8
-    
+
     if (-not ($templateContent -match "Access token сохранен автоматически")) {
         Write-Host ""
         Write-Host "Adding auto-auth JavaScript to template..." -ForegroundColor Yellow
-        
+
         $autoAuthScript = @"
 
 <script>
@@ -76,7 +76,7 @@ if (Test-Path $scribeTemplate) {
         return originalFetch.apply(this, args).then(response => {
             // Клонируем ответ для чтения без нарушения оригинального потока
             const clonedResponse = response.clone();
-            
+
             // Проверяем, является ли это запросом к эндпоинту логина
             const url = args[0];
             if (typeof url === 'string' && url.includes('/api/user/login')) {
@@ -84,21 +84,21 @@ if (Test-Path $scribeTemplate) {
                     if (data && data.access_token) {
                         // Сохраняем токен в localStorage
                         localStorage.setItem('scribe_access_token', data.access_token);
-                        
+
                         // Обновляем все поля Authorization в форме
                         updateAuthFields(data.access_token);
-                        
+
                         console.log('✅ Access token автоматически сохранен из ответа логина');
                     }
                 }).catch(() => {
                     // Игнорируем ошибки парсинга
                 });
             }
-            
+
             return response;
         });
     };
-    
+
     // Функция для обновления всех полей Authorization
     function updateAuthFields(token) {
         // Ищем все скрытые поля Authorization
@@ -108,7 +108,7 @@ if (Test-Path $scribeTemplate) {
             // Триггерим событие change для обновления UI
             input.dispatchEvent(new Event('change', { bubbles: true }));
         });
-        
+
         // Также обновляем видимые поля, если они есть
         const visibleAuthInputs = document.querySelectorAll('input[data-component="header"][name="Authorization"]');
         visibleAuthInputs.forEach(input => {
@@ -116,7 +116,7 @@ if (Test-Path $scribeTemplate) {
             input.dispatchEvent(new Event('change', { bubbles: true }));
         });
     }
-    
+
     // При загрузке страницы проверяем, есть ли сохраненный токен
     document.addEventListener('DOMContentLoaded', function() {
         const savedToken = localStorage.getItem('scribe_access_token');
@@ -125,16 +125,16 @@ if (Test-Path $scribeTemplate) {
             console.log('✅ Сохраненный access token восстановлен');
         }
     });
-    
+
     // Также перехватываем XMLHttpRequest для совместимости
     const originalXHROpen = XMLHttpRequest.prototype.open;
     const originalXHRSend = XMLHttpRequest.prototype.send;
-    
+
     XMLHttpRequest.prototype.open = function(method, url, ...args) {
         this._url = url;
         return originalXHROpen.apply(this, [method, url, ...args]);
     };
-    
+
     XMLHttpRequest.prototype.send = function(...args) {
         this.addEventListener('load', function() {
             if (this._url && this._url.includes('/api/user/login') && this.status === 200) {
@@ -156,7 +156,7 @@ if (Test-Path $scribeTemplate) {
 </script>
 
 "@
-        
+
         # Заменяем </body> на скрипт + </body>
         if ($templateContent -match "</body>") {
             $templateContent = $templateContent -replace "</body>", ($autoAuthScript + "`n</body>")
