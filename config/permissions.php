@@ -212,6 +212,12 @@ return [
                 'group_create' => 'chats_group_create',
             ],
         ],
+        'news' => [
+            'has_user_id' => true,
+            'check_strategy' => 'user_id',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
     ],
 
     'custom_permissions' => [
@@ -267,7 +273,7 @@ return [
         ],
         'users' => [
             'label' => 'users',
-            'resources' => ['users', 'roles', 'employee_salaries'],
+            'resources' => ['users', 'roles', 'employee_salaries', 'departments'],
         ],
         'tasks' => [
             'label' => 'tasks',
@@ -284,6 +290,10 @@ return [
         'chats' => [
             'label' => 'chats',
             'resources' => ['chats'],
+        ],
+        'news' => [
+            'label' => 'news',
+            'resources' => ['news'],
         ],
     ],
 
