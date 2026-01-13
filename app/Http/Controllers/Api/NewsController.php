@@ -150,10 +150,6 @@ class NewsController extends BaseController
                 return $this->notFoundResponse('Новость не найдена или доступ запрещен');
             }
 
-            if (! $this->canPerformAction('news', 'view', $news)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этой новости');
-            }
-
             return response()->json(['item' => $news]);
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении новости: '.$e->getMessage(), 500);

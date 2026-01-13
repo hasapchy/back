@@ -341,9 +341,9 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission.scope:chats_view_all,chats_view')->delete('chats/{chat}', [ChatController::class, 'destroy']);
 
     // News routes
-    Route::middleware('permission.scope:news_view_all,news_view')->get('news', [NewsController::class, 'index']);
-    Route::middleware('permission.scope:news_view_all,news_view')->get('news/all', [NewsController::class, 'all']);
-    Route::middleware('permission.scope:news_view_all,news_view')->get('news/{id}', [NewsController::class, 'show']);
+    Route::get('news', [NewsController::class, 'index']);
+    Route::get('news/all', [NewsController::class, 'all']);
+    Route::get('news/{id}', [NewsController::class, 'show']);
     Route::middleware('permission:news_create')->post('news', [NewsController::class, 'store']);
     Route::middleware('permission.scope:news_update_all,news_update')->put('news/{id}', [NewsController::class, 'update']);
     Route::middleware('permission.scope:news_delete_all,news_delete')->delete('news/{id}', [NewsController::class, 'destroy']);

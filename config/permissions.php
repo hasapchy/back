@@ -215,8 +215,8 @@ return [
         'news' => [
             'has_user_id' => true,
             'check_strategy' => 'user_id',
-            'actions' => ['view', 'create', 'update', 'delete'],
-            'scope_actions' => ['view', 'update', 'delete'],
+            'actions' => ['create', 'update', 'delete'],
+            'scope_actions' => ['update', 'delete'],
         ],
     ],
 

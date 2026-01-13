@@ -36,12 +36,6 @@ class NewsRepository extends BaseRepository
 
             $query = $this->addCompanyFilterDirect($query, 'news');
 
-            // Применяем фильтр по правам доступа (view_own vs view_all)
-            if ($this->shouldApplyUserFilter('news')) {
-                $filterUserId = $this->getFilterUserIdForPermission('news');
-                $query->where('news.author_id', $filterUserId);
-            }
-
             if ($search) {
                 $searchTrimmed = trim((string) $search);
                 $searchLower = mb_strtolower($searchTrimmed);
@@ -82,12 +76,6 @@ class NewsRepository extends BaseRepository
                 ->with($this->getBaseRelations());
 
             $query = $this->addCompanyFilterDirect($query, 'news');
-
-            // Применяем фильтр по правам доступа (view_own vs view_all)
-            if ($this->shouldApplyUserFilter('news')) {
-                $filterUserId = $this->getFilterUserIdForPermission('news');
-                $query->where('news.author_id', $filterUserId);
-            }
 
             if ($authorId !== null) {
                 $query->where('news.author_id', $authorId);
