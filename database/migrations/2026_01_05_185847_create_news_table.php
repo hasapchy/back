@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('title');
             $table->text('content'); // HTML контент из редактора
             $table->foreignId('company_id')->constrained('companies');
-            $table->foreignId('author_id')->constrained('users');
+            $table->foreignId('user_id')->constrained('users');
             $table->timestamps();
             $table->softDeletes();
 
