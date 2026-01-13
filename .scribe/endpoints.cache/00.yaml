@@ -22,6 +22,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -139,6 +140,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -182,15 +184,14 @@ endpoints:
       subgroup: ''
       subgroupDescription: ''
       title: 'Аутентификация пользователя'
-      description: |-
-        Аутентифицирует пользователя и возвращает access token и refresh token.
-        Используйте access_token из ответа в заголовке Authorization как Bearer токен для всех последующих запросов.
+      description: ''
       authenticated: true
       deprecated: false
     headers:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -199,132 +200,31 @@ endpoints:
       email:
         custom: []
         name: email
-        description: 'Email пользователя.'
+        description: 'Поле value должно быть действительным электронным адресом.'
         required: true
-        example: user@example.com
+        example: qkunze@example.com
         type: string
         enumValues: []
-        exampleWasSpecified: true
+        exampleWasSpecified: false
         nullable: false
         deprecated: false
       password:
         custom: []
         name: password
-        description: 'Пароль пользователя.'
+        description: ''
         required: true
-        example: password123
+        example: consequatur
         type: string
         enumValues: []
-        exampleWasSpecified: true
-        nullable: false
-        deprecated: false
-      remember:
-        custom: []
-        name: remember
-        description: 'Запомнить пользователя (увеличивает время жизни токена).'
-        required: false
-        example: false
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: true
+        exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      email: user@example.com
-      password: password123
-      remember: false
+      email: qkunze@example.com
+      password: consequatur
     fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 200
-        content: |-
-          {
-            "access_token": "1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-            "refresh_token": "2|yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
-            "token_type": "bearer",
-            "expires_in": 86400,
-            "refresh_expires_in": 2592000,
-            "user": {
-              "id": 1,
-              "name": "John",
-              "surname": "Doe",
-              "email": "user@example.com",
-              "photo": null,
-              "is_admin": false,
-              "roles": ["user"],
-              "permissions": ["users_view"]
-            }
-          }
-        headers: []
-        description: ''
-    responseFields:
-      access_token:
-        custom: []
-        name: access_token
-        description: 'Access token для использования в заголовке Authorization'
-        required: false
-        example: null
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      refresh_token:
-        custom: []
-        name: refresh_token
-        description: 'Refresh token для обновления access token'
-        required: false
-        example: null
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      token_type:
-        custom: []
-        name: token_type
-        description: 'Тип токена (всегда "bearer")'
-        required: false
-        example: null
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      expires_in:
-        custom: []
-        name: expires_in
-        description: 'Время жизни access token в секундах'
-        required: false
-        example: null
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      refresh_expires_in:
-        custom: []
-        name: refresh_expires_in
-        description: 'Время жизни refresh token в секундах'
-        required: false
-        example: null
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      user:
-        custom: []
-        name: user
-        description: 'Данные пользователя'
-        required: false
-        example: null
-        type: object
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
+    responses: []
+    responseFields: []
     auth:
       - headers
       - Authorization
@@ -351,6 +251,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -386,6 +287,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -432,6 +334,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -476,6 +379,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -511,6 +415,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -546,6 +451,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -590,6 +496,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -646,6 +553,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -757,7 +665,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -938,7 +846,7 @@ endpoints:
       discount: 45
       discount_type: fixed
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:34'
       note: consequatur
       products:
         -
@@ -984,6 +892,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -1096,7 +1005,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -1332,7 +1241,7 @@ endpoints:
       category_id: 17
       discount: 45
       discount_type: fixed
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:34'
       note: consequatur
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
       status_id: 17
@@ -1384,6 +1293,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -1431,6 +1341,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -1475,6 +1386,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -1519,6 +1431,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -1563,6 +1476,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -1607,6 +1521,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -1651,6 +1566,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -1707,6 +1623,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -1943,6 +1860,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -1987,6 +1905,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2031,6 +1950,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2075,6 +1995,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2119,6 +2040,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2163,6 +2085,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -2219,6 +2142,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2263,6 +2187,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2307,6 +2232,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2351,6 +2277,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2395,6 +2322,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2439,6 +2367,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2483,6 +2412,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2527,6 +2457,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -2583,6 +2514,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2627,6 +2559,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2662,6 +2595,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -2706,6 +2640,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       currencyId:
         custom: []
@@ -2762,6 +2697,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       currencyId:
         custom: []
@@ -2795,7 +2731,7 @@ endpoints:
         name: start_date
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -2806,7 +2742,7 @@ endpoints:
         name: end_date
         description: 'Поле value не является датой. Поле value должно быть датой после <code>start_date</code>.'
         required: false
-        example: '2107-02-08'
+        example: '2107-02-12'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -2814,8 +2750,8 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       exchange_rate: 73
-      start_date: '2026-01-09T18:40:13'
-      end_date: '2107-02-08'
+      start_date: '2026-01-13T13:25:35'
+      end_date: '2107-02-12'
     fileParameters: []
     responses: []
     responseFields: []
@@ -2845,6 +2781,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       currencyId:
         custom: []
@@ -2890,7 +2827,7 @@ endpoints:
         name: start_date
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -2901,7 +2838,7 @@ endpoints:
         name: end_date
         description: 'Поле value не является датой. Поле value должно быть датой после <code>start_date</code>.'
         required: false
-        example: '2107-02-08'
+        example: '2107-02-12'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -2909,8 +2846,8 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       exchange_rate: 73
-      start_date: '2026-01-09T18:40:13'
-      end_date: '2107-02-08'
+      start_date: '2026-01-13T13:25:35'
+      end_date: '2107-02-12'
     fileParameters: []
     responses: []
     responseFields: []
@@ -2940,6 +2877,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       currencyId:
         custom: []
@@ -2999,6 +2937,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -3034,6 +2973,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -3078,6 +3018,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -3122,6 +3063,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -3157,6 +3099,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -3201,6 +3144,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -3245,6 +3189,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -3289,6 +3234,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -3345,6 +3291,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: multipart/form-data
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -3399,7 +3346,7 @@ endpoints:
         name: hire_date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3410,7 +3357,7 @@ endpoints:
         name: birthday
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3535,8 +3482,8 @@ endpoints:
       surname: amniihfqcoynlazghdtqt
       email: andreanne00@example.org
       password: "'YAKYLk4>SJIrIV#lz."
-      hire_date: '2026-01-09T18:40:13'
-      birthday: '2026-01-09T18:40:13'
+      hire_date: '2026-01-13T13:25:35'
+      birthday: '2026-01-13T13:25:35'
       position: lsmsjuryvojcybzvrbyic
       is_active: true
       is_admin: true
@@ -3581,6 +3528,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: multipart/form-data
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -3647,7 +3595,7 @@ endpoints:
         name: hire_date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3658,7 +3606,7 @@ endpoints:
         name: birthday
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3783,8 +3731,8 @@ endpoints:
       surname: amniihfqcoynlazghdtqt
       email: andreanne00@example.org
       password: "'YAKYLk4>SJIrIV#lz."
-      hire_date: '2026-01-09T18:40:13'
-      birthday: '2026-01-09T18:40:13'
+      hire_date: '2026-01-13T13:25:35'
+      birthday: '2026-01-13T13:25:35'
       position: lsmsjuryvojcybzvrbyic
       is_active: true
       is_admin: true
@@ -3829,6 +3777,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -3876,6 +3825,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -3920,6 +3870,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -3976,6 +3927,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -4032,6 +3984,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -4079,6 +4032,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       userId:
         custom: []
@@ -4138,6 +4092,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       userId:
         custom: []
@@ -4197,6 +4152,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -4253,6 +4209,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -4309,6 +4266,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -4353,6 +4311,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -4397,6 +4356,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -4453,6 +4413,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -4514,6 +4475,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -4575,6 +4537,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -4622,6 +4585,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -4666,6 +4630,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: multipart/form-data
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -4853,6 +4818,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: multipart/form-data
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -5052,6 +5018,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -5099,6 +5066,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -5121,7 +5089,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -5173,7 +5141,7 @@ endpoints:
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       cash_id: 17
       note: mqeopfuudtdsufvyvddqa
       user_ids:
@@ -5208,6 +5176,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -5264,6 +5233,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -5308,6 +5278,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -5352,6 +5323,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -5410,6 +5382,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -5480,6 +5453,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -5527,6 +5501,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -5571,6 +5546,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -5615,6 +5591,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -5671,6 +5648,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -5727,7 +5705,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -5805,7 +5783,7 @@ endpoints:
       warehouse_id: 17
       type: balance
       cash_id: 17
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       note: consequatur
       project_id: 17
       products:
@@ -5842,6 +5820,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -5864,7 +5843,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -5882,7 +5861,7 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       note: consequatur
     fileParameters: []
     responses: []
@@ -5913,6 +5892,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -5960,6 +5940,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -6004,6 +5985,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -6101,6 +6083,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -6210,6 +6193,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -6257,6 +6241,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -6301,6 +6286,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -6333,7 +6319,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -6387,7 +6373,7 @@ endpoints:
     cleanBodyParameters:
       warehouse_from_id: 17
       warehouse_to_id: 17
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       note: consequatur
       products:
         -
@@ -6422,6 +6408,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -6466,7 +6453,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -6520,7 +6507,7 @@ endpoints:
     cleanBodyParameters:
       warehouse_from_id: 17
       warehouse_to_id: 17
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       note: consequatur
       products:
         -
@@ -6555,6 +6542,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -6602,6 +6590,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -6646,6 +6635,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -6690,6 +6680,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -6734,6 +6725,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -6803,6 +6795,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -6884,6 +6877,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -6931,6 +6925,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -6975,6 +6970,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -7019,6 +7015,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -7063,6 +7060,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -7119,6 +7117,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: multipart/form-data
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -7261,7 +7260,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -7287,7 +7286,7 @@ endpoints:
       retail_price: 45
       wholesale_price: 56
       purchase_price: 16
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
     fileParameters:
       image: null
     responses: []
@@ -7318,6 +7317,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: multipart/form-data
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -7472,7 +7472,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -7498,7 +7498,7 @@ endpoints:
       retail_price: 45
       wholesale_price: 56
       purchase_price: 16
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
     fileParameters:
       image: null
     responses: []
@@ -7529,6 +7529,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -7576,6 +7577,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -7620,6 +7622,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -7664,6 +7667,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -7708,6 +7712,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -7764,6 +7769,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -8000,6 +8006,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -8248,6 +8255,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -8304,6 +8312,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -8351,6 +8360,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -8395,6 +8405,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -8439,6 +8450,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -8483,6 +8495,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -8564,6 +8577,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -8634,6 +8648,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -8681,6 +8696,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -8725,6 +8741,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -8769,6 +8786,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -8825,6 +8843,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -8846,7 +8865,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -8887,7 +8906,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       name: consequatur
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       client_id: consequatur
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
     fileParameters: []
@@ -8919,6 +8938,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -8952,7 +8972,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -8993,7 +9013,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       name: consequatur
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       client_id: consequatur
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
     fileParameters: []
@@ -9025,6 +9045,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: multipart/form-data
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -9086,6 +9107,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -9133,6 +9155,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -9180,6 +9203,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -9241,6 +9265,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -9288,6 +9313,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -9344,6 +9370,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -9400,6 +9427,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       projectId:
         custom: []
@@ -9456,6 +9484,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       projectId:
         custom: []
@@ -9512,6 +9541,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       projectId:
         custom: []
@@ -9578,7 +9608,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9632,7 +9662,7 @@ endpoints:
       project_id: consequatur
       number: mqeopfuudtdsufvyvddqa
       amount: 45
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       returned: true
       is_paid: false
       note: consequatur
@@ -9665,6 +9695,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -9709,6 +9740,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -9765,6 +9797,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -9820,7 +9853,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9873,7 +9906,7 @@ endpoints:
     cleanBodyParameters:
       number: vmqeopfuudtdsufvyvddq
       amount: 1
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       returned: true
       is_paid: true
       note: consequatur
@@ -9906,6 +9939,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -9953,6 +9987,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       projectId:
         custom: []
@@ -10009,6 +10044,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       projectId:
         custom: []
@@ -10065,6 +10101,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       projectId:
         custom: []
@@ -10142,7 +10179,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10154,7 +10191,7 @@ endpoints:
       amount: 56
       currency_id: consequatur
       note: consequatur
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
     fileParameters: []
     responses: []
     responseFields: []
@@ -10184,6 +10221,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -10240,6 +10278,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -10306,7 +10345,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10317,7 +10356,7 @@ endpoints:
       amount: 45
       currency_id: consequatur
       note: consequatur
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
     fileParameters: []
     responses: []
     responseFields: []
@@ -10347,6 +10386,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -10394,6 +10434,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -10438,6 +10479,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -10482,6 +10524,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -10553,6 +10596,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -10636,6 +10680,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -10683,6 +10728,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -10727,6 +10773,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -10860,7 +10907,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10909,7 +10956,7 @@ endpoints:
       source_type: consequatur
       source_id: 17
       note: consequatur
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       is_debt: false
       is_adjustment: true
       exchange_rate: 16
@@ -10942,6 +10989,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -11008,7 +11056,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11083,7 +11131,7 @@ endpoints:
     cleanBodyParameters:
       category_id: consequatur
       note: consequatur
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       orig_amount: 45
       is_debt: true
       source_type: consequatur
@@ -11118,6 +11166,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -11165,6 +11214,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -11209,6 +11259,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -11265,6 +11316,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -11309,6 +11361,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -11404,6 +11457,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -11511,6 +11565,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -11558,6 +11613,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -11602,6 +11658,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -11704,7 +11761,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11775,7 +11832,7 @@ endpoints:
       currency_id: 17
       discount: 45
       discount_type: fixed
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       note: consequatur
       products:
         -
@@ -11811,6 +11868,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -11858,6 +11916,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -11914,6 +11973,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -11958,6 +12018,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -12069,7 +12130,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -12250,7 +12311,7 @@ endpoints:
       discount: 45
       discount_type: fixed
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       note: consequatur
       products:
         -
@@ -12296,6 +12357,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -12408,7 +12470,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:13'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -12644,7 +12706,7 @@ endpoints:
       category_id: 17
       discount: 45
       discount_type: fixed
-      date: '2026-01-09T18:40:13'
+      date: '2026-01-13T13:25:35'
       note: consequatur
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
       status_id: 17
@@ -12696,6 +12758,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -12743,6 +12806,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -12804,6 +12868,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -12860,6 +12925,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       orderId:
         custom: []
@@ -12919,6 +12985,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       orderId:
         custom: []
@@ -12978,6 +13045,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       orderId:
         custom: []
@@ -13034,6 +13102,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -13078,6 +13147,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -13122,6 +13192,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -13193,6 +13264,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -13276,6 +13348,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -13323,6 +13396,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -13367,6 +13441,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -13411,6 +13486,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -13470,6 +13546,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -13541,6 +13618,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -13588,6 +13666,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -13632,6 +13711,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -13676,6 +13756,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -13735,6 +13816,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -13806,6 +13888,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -13853,6 +13936,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -13897,6 +13981,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -13941,6 +14026,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -13997,6 +14083,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -14040,7 +14127,7 @@ endpoints:
         name: date_from
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-09T18:40:14'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14051,7 +14138,7 @@ endpoints:
         name: date_to
         description: 'Поле value не является датой. Поле value должно быть датой после или равной <code>date_from</code>.'
         required: true
-        example: '2107-02-08'
+        example: '2107-02-12'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14061,8 +14148,8 @@ endpoints:
       leave_type_id: 17
       user_id: 17
       comment: consequatur
-      date_from: '2026-01-09T18:40:14'
-      date_to: '2107-02-08'
+      date_from: '2026-01-13T13:25:35'
+      date_to: '2107-02-12'
     fileParameters: []
     responses: []
     responseFields: []
@@ -14092,6 +14179,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -14147,7 +14235,7 @@ endpoints:
         name: date_from
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:14'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14158,7 +14246,7 @@ endpoints:
         name: date_to
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:14'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14168,8 +14256,8 @@ endpoints:
       leave_type_id: 17
       user_id: 17
       comment: consequatur
-      date_from: '2026-01-09T18:40:14'
-      date_to: '2026-01-09T18:40:14'
+      date_from: '2026-01-13T13:25:35'
+      date_to: '2026-01-13T13:25:35'
     fileParameters: []
     responses: []
     responseFields: []
@@ -14199,6 +14287,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -14246,6 +14335,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -14290,6 +14380,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -14349,6 +14440,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -14420,6 +14512,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -14467,6 +14560,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -14511,6 +14605,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -14532,7 +14627,7 @@ endpoints:
         name: invoice_date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:14'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14563,7 +14658,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       client_id: 17
-      invoice_date: '2026-01-09T18:40:14'
+      invoice_date: '2026-01-13T13:25:35'
       note: consequatur
       order_ids:
         - 17
@@ -14596,6 +14691,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -14629,7 +14725,7 @@ endpoints:
         name: invoice_date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:14'
+        example: '2026-01-13T13:25:35'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14741,7 +14837,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       client_id: 17
-      invoice_date: '2026-01-09T18:40:14'
+      invoice_date: '2026-01-13T13:25:35'
       note: consequatur
       status: cancelled
       order_ids:
@@ -14782,6 +14878,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -14829,6 +14926,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -14885,6 +14983,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -14934,6 +15033,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -15002,6 +15102,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -15070,6 +15171,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -15141,6 +15243,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -15200,6 +15303,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -15247,6 +15351,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -15291,6 +15396,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -15326,6 +15432,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -15370,6 +15477,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -15414,6 +15522,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -15470,6 +15579,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -15574,7 +15684,7 @@ endpoints:
         name: deadline
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:14'
+        example: '2026-01-13T13:25:36'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15609,7 +15719,7 @@ endpoints:
       executor_id: consequatur
       priority: low
       complexity: simple
-      deadline: '2026-01-09T18:40:14'
+      deadline: '2026-01-13T13:25:36'
     fileParameters: []
     responses: []
     responseFields: []
@@ -15639,6 +15749,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -15755,7 +15866,7 @@ endpoints:
         name: deadline
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-09T18:40:14'
+        example: '2026-01-13T13:25:36'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15788,7 +15899,7 @@ endpoints:
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
       priority: normal
       complexity: complex
-      deadline: '2026-01-09T18:40:14'
+      deadline: '2026-01-13T13:25:36'
     fileParameters: []
     responses: []
     responseFields: []
@@ -15818,6 +15929,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -15865,6 +15977,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -15912,6 +16025,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -15959,6 +16073,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -16006,6 +16121,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: multipart/form-data
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -16067,6 +16183,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -16114,6 +16231,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -16158,6 +16276,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -16202,6 +16321,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -16261,6 +16381,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -16332,6 +16453,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -16379,6 +16501,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -16423,6 +16546,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -16467,6 +16591,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -16570,6 +16695,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -16685,6 +16811,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       id:
         custom: []
@@ -16732,6 +16859,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -16776,6 +16904,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -16811,6 +16940,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -16858,6 +16988,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
@@ -16919,6 +17050,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       chat_id:
         custom: []
@@ -16975,6 +17107,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       chat_id:
         custom: []
@@ -17034,6 +17167,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: multipart/form-data
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       chat_id:
         custom: []
@@ -17107,6 +17241,7 @@ endpoints:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
       Content-Type: application/json
       Accept: application/json
+      X-Company-ID: '1'
     urlParameters:
       chat_id:
         custom: []
@@ -17121,6 +17256,333 @@ endpoints:
         deprecated: false
     cleanUrlParameters:
       chat_id: 1
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/news
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Получить список новостей с пагинацией'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/news/all
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Получить все новости'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/news/{id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Получить новость по ID'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the news.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/news
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Создать новость'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      title:
+        custom: []
+        name: title
+        description: 'Количество символов в поле value не может превышать 255.'
+        required: true
+        example: vmqeopfuudtdsufvyvddq
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      content:
+        custom: []
+        name: content
+        description: 'Количество символов в поле value не может превышать 50000.'
+        required: true
+        example: amniihfqcoynlazghdtqt
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      title: vmqeopfuudtdsufvyvddq
+      content: amniihfqcoynlazghdtqt
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/news/{id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Обновить новость'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the news.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      title:
+        custom: []
+        name: title
+        description: 'Количество символов в поле value не может превышать 255.'
+        required: false
+        example: vmqeopfuudtdsufvyvddq
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      content:
+        custom: []
+        name: content
+        description: 'Количество символов в поле value не может превышать 50000.'
+        required: false
+        example: amniihfqcoynlazghdtqt
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      title: vmqeopfuudtdsufvyvddq
+      content: amniihfqcoynlazghdtqt
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/news/{id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Удалить новость'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the news.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []

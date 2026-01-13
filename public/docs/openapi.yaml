@@ -15,7 +15,7 @@ components:
     default:
       type: http
       scheme: bearer
-      description: 'To authenticate, first call the <code>POST /api/user/login</code> endpoint to get your access token. Then use the <code>access_token</code> from the response in the Authorization header as a Bearer token for all subsequent requests.'
+      description: 'To authenticate, first call the <code>POST /api/user/login</code> endpoint to get your access token. Then use the <code>access_token</code> from the response in the Authorization header as a Bearer token for all subsequent requests.<br><br><strong>Important:</strong> All API requests must include the <code>X-Company-ID</code> header with the company ID. This header is required for multi-tenant functionality.'
 security:
   -
     default: []
@@ -25,7 +25,14 @@ paths:
       summary: 'Display Swagger API page.'
       operationId: displaySwaggerAPIPage
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         200:
           description: ''
@@ -41,7 +48,14 @@ paths:
       summary: 'Display Oauth2 callback pages.'
       operationId: displayOauth2CallbackPages
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         200:
           description: ''
@@ -56,92 +70,16 @@ paths:
     post:
       summary: 'Аутентификация пользователя'
       operationId: ''
-      description: "Аутентифицирует пользователя и возвращает access token и refresh token.\nИспользуйте access_token из ответа в заголовке Authorization как Bearer токен для всех последующих запросов."
-      parameters: []
-      responses:
-        200:
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
           description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  access_token: 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-                  refresh_token: 2|yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
-                  token_type: bearer
-                  expires_in: 86400
-                  refresh_expires_in: 2592000
-                  user:
-                    id: 1
-                    name: John
-                    surname: Doe
-                    email: user@example.com
-                    photo: null
-                    is_admin: false
-                    roles:
-                      - user
-                    permissions:
-                      - users_view
-                properties:
-                  access_token:
-                    type: string
-                    example: 1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-                    description: 'Access token для использования в заголовке Authorization'
-                    enum: []
-                  refresh_token:
-                    type: string
-                    example: 2|yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
-                    description: 'Refresh token для обновления access token'
-                    enum: []
-                  token_type:
-                    type: string
-                    example: bearer
-                    description: 'Тип токена (всегда "bearer")'
-                    enum: []
-                  expires_in:
-                    type: integer
-                    example: 86400
-                    description: 'Время жизни access token в секундах'
-                    enum: []
-                  refresh_expires_in:
-                    type: integer
-                    example: 2592000
-                    description: 'Время жизни refresh token в секундах'
-                    enum: []
-                  user:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-                        example: 1
-                      name:
-                        type: string
-                        example: John
-                      surname:
-                        type: string
-                        example: Doe
-                      email:
-                        type: string
-                        example: user@example.com
-                      photo:
-                        type: string
-                        example: null
-                      is_admin:
-                        type: boolean
-                        example: false
-                      roles:
-                        type: array
-                        example:
-                          - user
-                        items:
-                          type: string
-                      permissions:
-                        type: array
-                        example:
-                          - users_view
-                        items:
-                          type: string
-                    description: 'Данные пользователя'
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
       tags:
         - Endpoints
       requestBody:
@@ -153,16 +91,12 @@ paths:
               properties:
                 email:
                   type: string
-                  description: 'Email пользователя.'
-                  example: user@example.com
+                  description: 'Поле value должно быть действительным электронным адресом.'
+                  example: qkunze@example.com
                 password:
                   type: string
-                  description: 'Пароль пользователя.'
-                  example: password123
-                remember:
-                  type: boolean
-                  description: 'Запомнить пользователя (увеличивает время жизни токена).'
-                  example: false
+                  description: ''
+                  example: consequatur
               required:
                 - email
                 - password
@@ -171,7 +105,14 @@ paths:
       summary: 'Обновить access token используя refresh token'
       operationId: AccessTokenRefreshToken
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -180,7 +121,14 @@ paths:
       summary: 'Получить все категории транзакций'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         200:
           description: ''
@@ -452,7 +400,14 @@ paths:
       summary: 'Получить данные текущего аутентифицированного пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -473,7 +428,14 @@ paths:
       summary: 'Выход пользователя из системы'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -482,7 +444,14 @@ paths:
       summary: 'Обновить профиль текущего пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -491,7 +460,14 @@ paths:
       summary: 'Получить список заказов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -511,7 +487,14 @@ paths:
       summary: 'Создать новый заказ'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -570,7 +553,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:34'
                   nullable: true
                 note:
                   type: string
@@ -654,7 +637,14 @@ paths:
       summary: 'Получить заказ по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -674,7 +664,14 @@ paths:
       summary: 'Обновить заказ'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -729,7 +726,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:34'
                   nullable: true
                 note:
                   type: string
@@ -840,7 +837,14 @@ paths:
       summary: 'Удалить заказ'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -858,7 +862,14 @@ paths:
       summary: 'Получить список статусов заказов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -879,7 +890,14 @@ paths:
       summary: 'Получить все статусы заказов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -900,7 +918,14 @@ paths:
       summary: 'Получить список клиентов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -920,7 +945,14 @@ paths:
       summary: 'Создать нового клиента'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -1030,7 +1062,14 @@ paths:
       summary: 'Получить всех клиентов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1051,7 +1090,14 @@ paths:
       summary: 'Поиск клиентов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1072,7 +1118,14 @@ paths:
       summary: 'Получить клиента по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1102,7 +1155,14 @@ paths:
       summary: 'Получить список товаров с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1123,7 +1183,14 @@ paths:
       summary: 'Получить список услуг с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1144,7 +1211,14 @@ paths:
       summary: 'Поиск товаров и услуг'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1165,7 +1239,14 @@ paths:
       summary: 'Получить список проектов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1186,7 +1267,14 @@ paths:
       summary: 'Получить все проекты'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1207,7 +1295,14 @@ paths:
       summary: 'Получить проект по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1237,7 +1332,14 @@ paths:
       summary: 'Получить список складов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1258,7 +1360,14 @@ paths:
       summary: 'Получить все склады'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1279,7 +1388,14 @@ paths:
       summary: 'Получить список касс с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1300,7 +1416,14 @@ paths:
       summary: 'Получить все кассы пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1321,7 +1444,14 @@ paths:
       summary: 'Получить список валют'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1342,7 +1472,14 @@ paths:
       summary: 'Получить список единиц измерения'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1363,7 +1500,14 @@ paths:
       summary: 'Получить список валют'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1384,7 +1528,14 @@ paths:
       summary: 'Получить курс обмена валюты'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1414,7 +1565,14 @@ paths:
       summary: 'Получить список единиц измерения'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1435,7 +1593,14 @@ paths:
       summary: 'Clear backend cache storage.'
       operationId: clearBackendCacheStorage
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -1444,7 +1609,14 @@ paths:
       summary: 'Получить валюты с текущими курсами'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1465,7 +1637,14 @@ paths:
       summary: 'Получить историю курсов валюты с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1485,7 +1664,14 @@ paths:
       summary: 'Создать новую запись в истории курсов валюты'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -1503,11 +1689,11 @@ paths:
                 start_date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                 end_date:
                   type: string
                   description: 'Поле value не является датой. Поле value должно быть датой после <code>start_date</code>.'
-                  example: '2107-02-08'
+                  example: '2107-02-12'
                   nullable: true
               required:
                 - exchange_rate
@@ -1526,7 +1712,14 @@ paths:
       summary: 'Обновить запись в истории курсов валюты'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -1544,11 +1737,11 @@ paths:
                 start_date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                 end_date:
                   type: string
                   description: 'Поле value не является датой. Поле value должно быть датой после <code>start_date</code>.'
-                  example: '2107-02-08'
+                  example: '2107-02-12'
                   nullable: true
               required:
                 - exchange_rate
@@ -1557,7 +1750,14 @@ paths:
       summary: 'Удалить запись из истории курсов валюты'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -1583,7 +1783,14 @@ paths:
       summary: 'Выход пользователя из системы'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -1592,7 +1799,14 @@ paths:
       summary: 'Получить данные текущего аутентифицированного пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1613,7 +1827,14 @@ paths:
       summary: 'Получить текущего пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1634,7 +1855,14 @@ paths:
       summary: 'Обновить профиль текущего пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -1643,7 +1871,14 @@ paths:
       summary: 'Получить список пользователей с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1663,7 +1898,14 @@ paths:
       summary: 'Создать нового пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -1694,12 +1936,12 @@ paths:
                 hire_date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 birthday:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 position:
                   type: string
@@ -1770,7 +2012,14 @@ paths:
       summary: 'Получить всех пользователей'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1791,7 +2040,14 @@ paths:
       summary: ''
       operationId: getApiUsersSearch
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1812,7 +2068,14 @@ paths:
       summary: 'Обновить пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1832,7 +2095,14 @@ paths:
       summary: ''
       operationId: putApiUsersId
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -1866,12 +2136,12 @@ paths:
                 hire_date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 birthday:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 position:
                   type: string
@@ -1937,7 +2207,14 @@ paths:
       summary: 'Удалить пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -1955,7 +2232,14 @@ paths:
       summary: 'Получить все разрешения'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -1976,7 +2260,14 @@ paths:
       summary: 'Проверить права пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2006,7 +2297,14 @@ paths:
       summary: 'Получить зарплаты сотрудника'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2026,7 +2324,14 @@ paths:
       summary: 'Создать зарплату сотрудника'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2044,7 +2349,14 @@ paths:
       summary: 'Обновить зарплату сотрудника'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2052,7 +2364,14 @@ paths:
       summary: 'Удалить зарплату сотрудника'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2078,7 +2397,14 @@ paths:
       summary: 'Получить баланс сотрудника'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2108,7 +2434,14 @@ paths:
       summary: 'Получить историю баланса сотрудника'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2138,7 +2471,14 @@ paths:
       summary: 'Получить список ролей с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2158,7 +2498,14 @@ paths:
       summary: 'Создать новую роль'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2187,7 +2534,14 @@ paths:
       summary: 'Получить все роли'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2208,7 +2562,14 @@ paths:
       summary: 'Получить роль по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2228,7 +2589,14 @@ paths:
       summary: 'Обновить роль'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2250,7 +2618,14 @@ paths:
       summary: 'Удалить роль'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2268,7 +2643,14 @@ paths:
       summary: 'Получить список компаний с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2288,7 +2670,14 @@ paths:
       summary: 'Создать новую компанию'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2375,7 +2764,14 @@ paths:
       summary: 'Обновить компанию'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2461,7 +2857,14 @@ paths:
       summary: 'Удалить компанию'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2479,7 +2882,14 @@ paths:
       summary: 'Массовое начисление зарплат для всех сотрудников компании'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2493,7 +2903,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                 cash_id:
                   type: integer
                   description: 'The <code>id</code> of an existing record in the cash_registers table.'
@@ -2532,7 +2942,14 @@ paths:
       summary: 'Проверить существующие начисления зарплат за месяц'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2562,7 +2979,14 @@ paths:
       summary: 'Получить список складов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2582,7 +3006,14 @@ paths:
       summary: 'Создать новый склад'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2610,7 +3041,14 @@ paths:
       summary: 'Получить все склады'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2631,7 +3069,14 @@ paths:
       summary: 'Обновить склад'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2658,7 +3103,14 @@ paths:
       summary: 'Удалить склад'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2676,7 +3128,14 @@ paths:
       summary: 'Получить список остатков на складах с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2697,7 +3156,14 @@ paths:
       summary: 'Получить список оприходований с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2717,7 +3183,14 @@ paths:
       summary: 'Создать оприходование на склад'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2751,7 +3224,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 note:
                   type: string
@@ -2797,7 +3270,14 @@ paths:
       summary: 'Получить оприходование по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2817,7 +3297,14 @@ paths:
       summary: 'Обновить оприходование на склад'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2831,7 +3318,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 note:
                   type: string
@@ -2842,7 +3329,14 @@ paths:
       summary: 'Удалить оприходование со склада'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2860,7 +3354,14 @@ paths:
       summary: 'Получить список списаний с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -2880,7 +3381,14 @@ paths:
       summary: 'Создать списание со склада'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2927,7 +3435,14 @@ paths:
       summary: 'Обновить списание со склада'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2973,7 +3488,14 @@ paths:
       summary: 'Удалить списание со склада'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -2991,7 +3513,14 @@ paths:
       summary: 'Получить список перемещений с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3011,7 +3540,14 @@ paths:
       summary: 'Создать перемещение между складами'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3033,7 +3569,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 note:
                   type: string
@@ -3068,7 +3604,14 @@ paths:
       summary: 'Обновить перемещение между складами'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3090,7 +3633,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 note:
                   type: string
@@ -3124,7 +3667,14 @@ paths:
       summary: 'Удалить перемещение между складами'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3142,7 +3692,14 @@ paths:
       summary: 'Получить категории с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3162,7 +3719,14 @@ paths:
       summary: 'Создать категорию'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3195,7 +3759,14 @@ paths:
       summary: 'Получить все категории'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3216,7 +3787,14 @@ paths:
       summary: 'Получить родительские категории'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3237,7 +3815,14 @@ paths:
       summary: 'Обновить категорию'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3269,7 +3854,14 @@ paths:
       summary: 'Удалить категорию'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3287,7 +3879,14 @@ paths:
       summary: 'Получить список товаров с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3307,7 +3906,14 @@ paths:
       summary: 'Создать новый товар/услугу'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3379,7 +3985,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 user_id:
                   type: string
@@ -3395,7 +4001,14 @@ paths:
       summary: 'Получить список услуг с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3416,7 +4029,14 @@ paths:
       summary: 'Поиск товаров и услуг'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3437,7 +4057,14 @@ paths:
       summary: 'Получить товар/услугу по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3457,7 +4084,14 @@ paths:
       summary: 'Обновить товар/услугу'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3532,7 +4166,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 user_id:
                   type: string
@@ -3543,7 +4177,14 @@ paths:
       summary: 'Удалить товар/услугу'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3561,7 +4202,14 @@ paths:
       summary: 'Получить список клиентов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3581,7 +4229,14 @@ paths:
       summary: 'Создать нового клиента'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3691,7 +4346,14 @@ paths:
       summary: 'Получить всех клиентов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3712,7 +4374,14 @@ paths:
       summary: 'Поиск клиентов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3733,7 +4402,14 @@ paths:
       summary: 'Получить клиента по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3753,7 +4429,14 @@ paths:
       summary: 'Обновить клиента'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3862,7 +4545,14 @@ paths:
       summary: 'Удалить клиента'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3880,7 +4570,14 @@ paths:
       summary: 'Получить историю баланса клиента'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3910,7 +4607,14 @@ paths:
       summary: 'Получить список касс с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3930,7 +4634,14 @@ paths:
       summary: 'Создать новую кассу'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -3968,7 +4679,14 @@ paths:
       summary: 'Получить все кассы пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -3989,7 +4707,14 @@ paths:
       summary: 'Получить баланс касс'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4010,7 +4735,14 @@ paths:
       summary: 'Обновить кассу'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4037,7 +4769,14 @@ paths:
       summary: 'Удалить кассу'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4055,7 +4794,14 @@ paths:
       summary: 'Получить список проектов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4075,7 +4821,14 @@ paths:
       summary: 'Создать новый проект'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4093,7 +4846,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 client_id:
                   type: string
@@ -4118,7 +4871,14 @@ paths:
       summary: 'Получить все проекты'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4139,7 +4899,14 @@ paths:
       summary: 'Получить проект по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4159,7 +4926,14 @@ paths:
       summary: 'Обновить проект'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4177,7 +4951,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 client_id:
                   type: string
@@ -4201,7 +4975,14 @@ paths:
       summary: 'Удалить проект'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4219,7 +5000,14 @@ paths:
       summary: 'Загрузить файлы проекта'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4252,7 +5040,14 @@ paths:
       summary: 'Скачать выбранные файлы проекта в архиве'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4270,7 +5065,14 @@ paths:
       summary: 'Удалить файл проекта'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4288,7 +5090,14 @@ paths:
       summary: 'Массовое обновление статуса проектов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4317,7 +5126,14 @@ paths:
       summary: 'Получить историю баланса проекта'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4347,7 +5163,14 @@ paths:
       summary: 'Получить детальный баланс проекта'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4377,7 +5200,14 @@ paths:
       summary: 'Получение контрактов проекта с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4397,7 +5227,14 @@ paths:
       summary: 'Создание нового контракта'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4428,7 +5265,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                 returned:
                   type: boolean
                   description: ''
@@ -4469,7 +5306,14 @@ paths:
       summary: 'Получение всех контрактов проекта'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4499,7 +5343,14 @@ paths:
       summary: 'Получение всех контрактов с пагинацией (без фильтра по проекту)'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4520,7 +5371,14 @@ paths:
       summary: 'Получение контракта по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4540,7 +5398,14 @@ paths:
       summary: 'Обновление контракта'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4567,7 +5432,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                 returned:
                   type: boolean
                   description: ''
@@ -4597,7 +5462,14 @@ paths:
       summary: 'Удаление контракта'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4615,7 +5487,14 @@ paths:
       summary: ''
       operationId: getApiProjectsProjectIdTransactions
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4635,7 +5514,14 @@ paths:
       summary: ''
       operationId: postApiProjectsProjectIdTransactions
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4670,7 +5556,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
               required:
                 - project_id
                 - type
@@ -4691,7 +5577,14 @@ paths:
       summary: ''
       operationId: getApiProjectsProjectIdTransactionsAll
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4721,7 +5614,14 @@ paths:
       summary: ''
       operationId: getApiProjectTransactionsId
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4741,7 +5641,14 @@ paths:
       summary: ''
       operationId: putApiProjectTransactionsId
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4772,7 +5679,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
               required:
                 - type
                 - amount
@@ -4782,7 +5689,14 @@ paths:
       summary: ''
       operationId: deleteApiProjectTransactionsId
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4800,7 +5714,14 @@ paths:
       summary: 'Получить список статусов проектов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4820,7 +5741,14 @@ paths:
       summary: 'Создать новый статус проекта'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4852,7 +5780,14 @@ paths:
       summary: 'Получить все статусы проектов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4873,7 +5808,14 @@ paths:
       summary: 'Обновить статус проекта'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4904,7 +5846,14 @@ paths:
       summary: 'Удалить статус проекта'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -4922,7 +5871,14 @@ paths:
       summary: 'Получить список транзакций с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -4942,7 +5898,14 @@ paths:
       summary: 'Создать новую транзакцию'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5009,7 +5972,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 is_debt:
                   type: boolean
@@ -5037,7 +6000,14 @@ paths:
       summary: 'Обновить транзакцию'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5070,7 +6040,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 orig_amount:
                   type: number
@@ -5108,7 +6078,14 @@ paths:
       summary: 'Удалить транзакцию'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5116,7 +6093,14 @@ paths:
       summary: 'Получить транзакцию по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -5146,7 +6130,14 @@ paths:
       summary: 'Получить сумму транзакций по заказу'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -5167,7 +6158,14 @@ paths:
       summary: 'Получить список перемещений с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -5187,7 +6185,14 @@ paths:
       summary: 'Создать перемещение между кассами'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5229,7 +6234,14 @@ paths:
       summary: 'Обновить перемещение между кассами'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5270,7 +6282,14 @@ paths:
       summary: 'Удалить перемещение между кассами'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5288,7 +6307,14 @@ paths:
       summary: 'Получить список продаж с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -5308,7 +6334,14 @@ paths:
       summary: 'Создать новую продажу'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5365,7 +6398,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 note:
                   type: string
@@ -5406,7 +6439,14 @@ paths:
       summary: 'Удалить продажу'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5414,7 +6454,14 @@ paths:
       summary: 'Получить продажу по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -5444,7 +6491,14 @@ paths:
       summary: 'Получить список заказов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -5464,7 +6518,14 @@ paths:
       summary: 'Создать новый заказ'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5523,7 +6584,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 note:
                   type: string
@@ -5607,7 +6668,14 @@ paths:
       summary: 'Обновить заказ'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5662,7 +6730,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:13'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 note:
                   type: string
@@ -5773,7 +6841,14 @@ paths:
       summary: 'Удалить заказ'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5781,7 +6856,14 @@ paths:
       summary: 'Получить заказ по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -5811,7 +6893,14 @@ paths:
       summary: 'Массовое обновление статуса заказов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5840,7 +6929,14 @@ paths:
       summary: 'Связать транзакцию с заказом'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5861,7 +6957,14 @@ paths:
       summary: 'Получить транзакции заказа'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -5891,7 +6994,14 @@ paths:
       summary: 'Отвязать транзакцию от заказа'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5917,7 +7027,14 @@ paths:
       summary: 'Получить список статусов заказов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -5937,7 +7054,14 @@ paths:
       summary: 'Создать новый статус заказа'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -5968,7 +7092,14 @@ paths:
       summary: 'Получить все статусы заказов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -5989,7 +7120,14 @@ paths:
       summary: 'Обновить статус заказа'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6019,7 +7157,14 @@ paths:
       summary: 'Удалить статус заказа'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6037,7 +7182,14 @@ paths:
       summary: 'Получить список категорий статусов заказов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6057,7 +7209,14 @@ paths:
       summary: 'Создать новую категорию статусов заказов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6084,7 +7243,14 @@ paths:
       summary: 'Получить все категории статусов заказов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6105,7 +7271,14 @@ paths:
       summary: 'Обновить категорию статусов заказов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6131,7 +7304,14 @@ paths:
       summary: 'Удалить категорию статусов заказов'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6149,7 +7329,14 @@ paths:
       summary: 'Получить список типов отпусков с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6169,7 +7356,14 @@ paths:
       summary: 'Создать новый тип отпуска'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6196,7 +7390,14 @@ paths:
       summary: 'Получить все типы отпусков'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6217,7 +7418,14 @@ paths:
       summary: 'Обновить тип отпуска'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6243,7 +7451,14 @@ paths:
       summary: 'Удалить тип отпуска'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6261,7 +7476,14 @@ paths:
       summary: 'Получить список записей отпусков с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6281,7 +7503,14 @@ paths:
       summary: 'Создать новую запись отпуска'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6309,11 +7538,11 @@ paths:
                 date_from:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:14'
+                  example: '2026-01-13T13:25:35'
                 date_to:
                   type: string
                   description: 'Поле value не является датой. Поле value должно быть датой после или равной <code>date_from</code>.'
-                  example: '2107-02-08'
+                  example: '2107-02-12'
               required:
                 - leave_type_id
                 - date_from
@@ -6323,7 +7552,14 @@ paths:
       summary: 'Получить все записи отпусков'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6344,7 +7580,14 @@ paths:
       summary: 'Получить запись отпуска по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6364,7 +7607,14 @@ paths:
       summary: 'Обновить запись отпуска'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6393,18 +7643,25 @@ paths:
                 date_from:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:14'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 date_to:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:14'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
     delete:
       summary: 'Удалить запись отпуска'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6422,7 +7679,14 @@ paths:
       summary: 'Получить список категорий транзакций с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6442,7 +7706,14 @@ paths:
       summary: 'Создать новую категорию транзакций'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6469,7 +7740,14 @@ paths:
       summary: 'Обновить категорию транзакций'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6495,7 +7773,14 @@ paths:
       summary: 'Удалить категорию транзакций'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6513,7 +7798,14 @@ paths:
       summary: 'Получить список счетов с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6533,7 +7825,14 @@ paths:
       summary: 'Создать новый счет'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6551,7 +7850,7 @@ paths:
                 invoice_date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:14'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 note:
                   type: string
@@ -6572,7 +7871,14 @@ paths:
       summary: 'Обновить счет'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6590,7 +7896,7 @@ paths:
                 invoice_date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:14'
+                  example: '2026-01-13T13:25:35'
                   nullable: true
                 note:
                   type: string
@@ -6649,7 +7955,14 @@ paths:
       summary: 'Удалить счет'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6657,7 +7970,14 @@ paths:
       summary: 'Получить счет по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6687,7 +8007,14 @@ paths:
       summary: 'Получить заказы для счета'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6710,7 +8037,14 @@ paths:
       summary: 'Получить таймлайн для сущности'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6749,7 +8083,14 @@ paths:
       summary: 'Получить список комментариев для сущности'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6787,7 +8128,14 @@ paths:
       summary: 'Создать новый комментарий'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6819,7 +8167,14 @@ paths:
       summary: 'Обновить комментарий'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6840,7 +8195,14 @@ paths:
       summary: 'Удалить комментарий'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6858,7 +8220,14 @@ paths:
       summary: 'Получить текущую компанию пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6879,7 +8248,14 @@ paths:
       summary: 'Установить текущую компанию пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6888,7 +8264,14 @@ paths:
       summary: 'Получить список компаний пользователя'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6909,7 +8292,14 @@ paths:
       summary: 'Получить список задач с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -6929,7 +8319,14 @@ paths:
       summary: 'Создать новую задачу'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -6988,7 +8385,7 @@ paths:
                 deadline:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:14'
+                  example: '2026-01-13T13:25:36'
                   nullable: true
                 files:
                   type: object
@@ -7011,7 +8408,14 @@ paths:
       summary: 'Получить задачу по ID'
       operationId: ID
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -7031,7 +8435,14 @@ paths:
       summary: 'Обновить задачу'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7090,7 +8501,7 @@ paths:
                 deadline:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-09T18:40:14'
+                  example: '2026-01-13T13:25:36'
                   nullable: true
                 files:
                   type: object
@@ -7108,7 +8519,14 @@ paths:
       summary: 'Удалить задачу'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7126,7 +8544,14 @@ paths:
       summary: 'Завершить задачу (исполнителем)'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7145,7 +8570,14 @@ paths:
       summary: 'Принять задачу (супервайзером)'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7164,7 +8596,14 @@ paths:
       summary: 'Вернуть задачу на доработку'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7183,7 +8622,14 @@ paths:
       summary: 'Загрузить файлы задачи'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7216,7 +8662,14 @@ paths:
       summary: 'Удалить файл задачи'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7234,7 +8687,14 @@ paths:
       summary: 'Получить список статусов задач с пагинацией'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -7254,7 +8714,14 @@ paths:
       summary: 'Создать новый статус задачи'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7281,7 +8748,14 @@ paths:
       summary: 'Получить все статусы задач'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -7302,7 +8776,14 @@ paths:
       summary: 'Обновить статус задачи'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7328,7 +8809,14 @@ paths:
       summary: 'Удалить статус задачи'
       operationId: ''
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7346,7 +8834,14 @@ paths:
       summary: ''
       operationId: getApiDepartments
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -7366,7 +8861,14 @@ paths:
       summary: ''
       operationId: postApiDepartments
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7414,7 +8916,14 @@ paths:
       summary: ''
       operationId: getApiDepartmentsAll
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -7435,7 +8944,14 @@ paths:
       summary: ''
       operationId: putApiDepartmentsId
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7482,7 +8998,14 @@ paths:
       summary: ''
       operationId: deleteApiDepartmentsId
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7500,7 +9023,14 @@ paths:
       summary: ''
       operationId: getApiChats
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -7521,7 +9051,14 @@ paths:
       summary: ''
       operationId: postApiChatsGeneral
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7530,7 +9067,14 @@ paths:
       summary: ''
       operationId: postApiChatsDirect
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7552,7 +9096,14 @@ paths:
       summary: ''
       operationId: postApiChatsGroups
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7581,7 +9132,14 @@ paths:
       summary: ''
       operationId: getApiChatsChat_idMessages
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses:
         401:
           description: ''
@@ -7601,7 +9159,14 @@ paths:
       summary: ''
       operationId: postApiChatsChat_idMessages
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7637,7 +9202,14 @@ paths:
       summary: ''
       operationId: postApiChatsChat_idRead
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7667,7 +9239,14 @@ paths:
       summary: ''
       operationId: deleteApiChatsChat_id
       description: ''
-      parameters: []
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
       responses: {  }
       tags:
         - Endpoints
@@ -7680,3 +9259,174 @@ paths:
         required: true
         schema:
           type: integer
+  /api/news:
+    get:
+      summary: 'Получить список новостей с пагинацией'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
+    post:
+      summary: 'Создать новость'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 255.'
+                  example: vmqeopfuudtdsufvyvddq
+                content:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 50000.'
+                  example: amniihfqcoynlazghdtqt
+              required:
+                - title
+                - content
+  /api/news/all:
+    get:
+      summary: 'Получить все новости'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
+  '/api/news/{id}':
+    get:
+      summary: 'Получить новость по ID'
+      operationId: ID
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
+    put:
+      summary: 'Обновить новость'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 255.'
+                  example: vmqeopfuudtdsufvyvddq
+                content:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 50000.'
+                  example: amniihfqcoynlazghdtqt
+    delete:
+      summary: 'Удалить новость'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+    parameters:
+      -
+        in: path
+        name: id
+        description: 'The ID of the news.'
+        example: consequatur
+        required: true
+        schema:
+          type: string
