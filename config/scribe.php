@@ -126,7 +126,7 @@ return [
         'placeholder' => '{YOUR_ACCESS_TOKEN}',
 
         // Any extra authentication-related info for your users. Markdown and HTML are supported.
-        'extra_info' => 'To authenticate, first call the <code>POST /api/user/login</code> endpoint to get your access token. Then use the <code>access_token</code> from the response in the Authorization header as a Bearer token for all subsequent requests.',
+        'extra_info' => 'To authenticate, first call the <code>POST /api/user/login</code> endpoint to get your access token. Then use the <code>access_token</code> from the response in the Authorization header as a Bearer token for all subsequent requests.<br><br><strong>Important:</strong> All API requests must include the <code>X-Company-ID</code> header with the company ID. This header is required for multi-tenant functionality.',
     ],
 
     // Example requests for each endpoint will be shown in each of these languages.
@@ -221,6 +221,7 @@ return [
             Strategies\StaticData::withSettings(data: [
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
+                'X-Company-ID' => env('SCRIBE_COMPANY_ID', '1'),
             ]),
         ],
         'urlParameters' => [
