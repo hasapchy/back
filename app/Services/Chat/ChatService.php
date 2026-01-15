@@ -4,6 +4,8 @@ namespace App\Services\Chat;
 
 use App\Events\ChatReadUpdated;
 use App\Events\MessageSent;
+use App\Events\MessageUpdated;
+use App\Events\MessageDeleted;
 use App\Models\Chat;
 use App\Models\ChatMessage;
 use App\Models\User;
@@ -12,6 +14,7 @@ use App\Repositories\Chat\ChatParticipantRepository;
 use App\Repositories\Chat\ChatRepository;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
@@ -278,6 +281,7 @@ class ChatService
         ?string $body,
         array $files,
         bool $canWriteGeneral = true,
+        ?int $parentId = null,
     ): ChatMessage {
         $body = $body !== null ? trim((string) $body) : '';
 
@@ -289,6 +293,14 @@ class ChatService
             throw new HttpResponseException(
                 response()->json(['message' => 'Message body or files are required'], 422)
             );
+        }
+
+        // Validate parent message exists and belongs to the same chat
+        if ($parentId) {
+            $parentMessage = $this->messages->getMessage((int) $parentId);
+            if (! $parentMessage || (int) $parentMessage->chat_id !== (int) $chat->id) {
+                abort(422, 'Parent message not found or belongs to different chat');
+            }
         }
 
         $storedFiles = [];
@@ -309,8 +321,12 @@ class ChatService
             (int) $chat->id,
             (int) $user->id,
             $body === '' ? null : $body,
-            empty($storedFiles) ? null : $storedFiles
+            empty($storedFiles) ? null : $storedFiles,
+            $parentId
         );
+
+        // Load relations for broadcasting
+        $message->load(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo']);
 
         // Sender has "read" their own message
         $this->participants->updateLastReadMessageId((int) $chat->id, (int) $user->id, (int) $message->id);
@@ -322,7 +338,7 @@ class ChatService
             event(new MessageSent($message));
         } catch (\Exception $e) {
             // Логируем ошибку, но не прерываем выполнение
-            \Log::error('Failed to broadcast MessageSent event', [
+            Log::error('Failed to broadcast MessageSent event', [
                 'message_id' => $message->id,
                 'chat_id' => $chat->id,
                 'error' => $e->getMessage(),
@@ -331,6 +347,117 @@ class ChatService
         }
 
         return $message;
+    }
+
+    public function updateMessage(
+        int $companyId,
+        User $user,
+        Chat $chat,
+        ChatMessage $message,
+        string $body
+    ): ChatMessage {
+        if ((int) $chat->company_id !== $companyId) {
+            abort(403, 'Forbidden');
+        }
+
+        if ((int) $message->chat_id !== (int) $chat->id) {
+            abort(422, 'Message does not belong to this chat');
+        }
+
+        $updatedMessage = $this->messages->updateMessage((int) $message->id, (int) $user->id, $body);
+        $updatedMessage->load(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo']);
+
+        // Отправляем событие через broadcasting
+        try {
+            event(new MessageUpdated($updatedMessage));
+        } catch (\Exception $e) {
+            Log::error('Failed to broadcast MessageUpdated event', [
+                'message_id' => $updatedMessage->id,
+                'chat_id' => $chat->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $updatedMessage;
+    }
+
+    public function deleteMessage(
+        int $companyId,
+        User $user,
+        Chat $chat,
+        ChatMessage $message
+    ): void {
+        if ((int) $chat->company_id !== $companyId) {
+            abort(403, 'Forbidden');
+        }
+
+        if ((int) $message->chat_id !== (int) $chat->id) {
+            abort(422, 'Message does not belong to this chat');
+        }
+
+        $this->messages->deleteMessage((int) $message->id, (int) $user->id);
+
+        // Отправляем событие через broadcasting
+        try {
+            event(new MessageDeleted($message, (int) $chat->company_id, (int) $chat->id));
+        } catch (\Exception $e) {
+            Log::error('Failed to broadcast MessageDeleted event', [
+                'message_id' => $message->id,
+                'chat_id' => $chat->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function forwardMessage(
+        int $companyId,
+        User $user,
+        Chat $sourceChat,
+        ChatMessage $message,
+        Chat $targetChat
+    ): ChatMessage {
+        if ((int) $sourceChat->company_id !== $companyId || (int) $targetChat->company_id !== $companyId) {
+            abort(403, 'Forbidden');
+        }
+
+        if ((int) $message->chat_id !== (int) $sourceChat->id) {
+            abort(422, 'Message does not belong to source chat');
+        }
+
+        // Check if user is participant of target chat
+        if (! $this->participants->isParticipant((int) $targetChat->id, (int) $user->id)) {
+            abort(403, 'You are not a participant of the target chat');
+        }
+
+        // Create forwarded message
+        $forwardedMessage = $this->messages->createMessage(
+            (int) $targetChat->id,
+            (int) $user->id,
+            $message->body,
+            $message->files,
+            null,
+            (int) $message->id
+        );
+
+        $forwardedMessage->load(['user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo']);
+
+        // Sender has "read" their own message
+        $this->participants->updateLastReadMessageId((int) $targetChat->id, (int) $user->id, (int) $forwardedMessage->id);
+
+        $targetChat->forceFill(['last_message_at' => now()])->save();
+
+        // Отправляем событие через broadcasting
+        try {
+            event(new MessageSent($forwardedMessage));
+        } catch (\Exception $e) {
+            Log::error('Failed to broadcast forwarded MessageSent event', [
+                'message_id' => $forwardedMessage->id,
+                'chat_id' => $targetChat->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $forwardedMessage;
     }
 
     protected function directKey(int $userIdA, int $userIdB): string
