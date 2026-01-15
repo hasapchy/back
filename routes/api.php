@@ -338,6 +338,9 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission.scope:chats_view_all,chats_view')->get('chats/{chat}/messages', [ChatController::class, 'messages']);
     Route::middleware('permission.scope:chats_view_all,chats_view')->post('chats/{chat}/read', [ChatController::class, 'markAsRead']);
     Route::middleware('permission.scope:chats_write_all,chats_write')->post('chats/{chat}/messages', [ChatController::class, 'storeMessage']);
+    Route::middleware('permission.scope:chats_write_all,chats_write')->put('chats/{chat}/messages/{message}', [ChatController::class, 'updateMessage']);
+    Route::middleware('permission.scope:chats_write_all,chats_write')->delete('chats/{chat}/messages/{message}', [ChatController::class, 'deleteMessage']);
+    Route::middleware('permission.scope:chats_write_all,chats_write')->post('chats/{chat}/messages/{message}/forward', [ChatController::class, 'forwardMessage']);
     Route::middleware('permission.scope:chats_view_all,chats_view')->delete('chats/{chat}', [ChatController::class, 'destroy']);
 
     // News routes

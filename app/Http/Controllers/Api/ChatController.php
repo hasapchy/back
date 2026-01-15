@@ -10,7 +10,10 @@ use App\Http\Requests\Chat\IndexChatsRequest;
 use App\Http\Requests\Chat\MarkChatReadRequest;
 use App\Http\Requests\Chat\StartDirectChatRequest;
 use App\Http\Requests\Chat\StoreChatMessageRequest;
+use App\Http\Requests\Chat\UpdateChatMessageRequest;
+use App\Http\Requests\Chat\ForwardChatMessageRequest;
 use App\Models\Chat;
+use App\Models\ChatMessage;
 use App\Models\ChatParticipant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -215,6 +218,7 @@ class ChatController extends BaseController
         $data = $request->validated();
         $body = isset($data['body']) ? trim((string) $data['body']) : '';
         $files = $request->file('files', []);
+        $parentId = isset($data['parent_id']) ? (int) $data['parent_id'] : null;
 
         if ($body === '' && empty($files)) {
             return response()->json(['message' => 'Message body or files are required'], 422);
@@ -227,9 +231,114 @@ class ChatController extends BaseController
             $body,
             is_array($files) ? $files : [],
             $this->hasPermission('chats_write_general', $user),
+            $parentId
         );
 
-        return (new ChatMessageResource($message))->response()->setStatusCode(201);
+        return (new ChatMessageResource($message->load(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])))->response()->setStatusCode(201);
+    }
+
+    public function updateMessage(UpdateChatMessageRequest $request, Chat $chat, ChatMessage $message): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = (int) $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            return response()->json(['message' => 'X-Company-ID header is required'], 422);
+        }
+
+        if ((int) $chat->company_id !== $companyId) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $isParticipant = ChatParticipant::query()
+            ->where('chat_id', $chat->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (! $isParticipant) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $data = $request->validated();
+        $body = trim((string) $data['body']);
+
+        $updatedMessage = $this->chatService->updateMessage(
+            $companyId,
+            $user,
+            $chat,
+            $message,
+            $body
+        );
+
+        return (new ChatMessageResource($updatedMessage->load(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo'])))->response();
+    }
+
+    public function deleteMessage(Chat $chat, ChatMessage $message): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = (int) $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            return response()->json(['message' => 'X-Company-ID header is required'], 422);
+        }
+
+        if ((int) $chat->company_id !== $companyId) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $isParticipant = ChatParticipant::query()
+            ->where('chat_id', $chat->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (! $isParticipant) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $this->chatService->deleteMessage($companyId, $user, $chat, $message);
+
+        return response()->json(['data' => ['ok' => true]]);
+    }
+
+    public function forwardMessage(ForwardChatMessageRequest $request, Chat $chat, ChatMessage $message): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = (int) $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            return response()->json(['message' => 'X-Company-ID header is required'], 422);
+        }
+
+        if ((int) $chat->company_id !== $companyId) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $isParticipant = ChatParticipant::query()
+            ->where('chat_id', $chat->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (! $isParticipant) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $data = $request->validated();
+        $targetChatId = (int) $data['target_chat_id'];
+        $targetChat = Chat::query()->findOrFail($targetChatId);
+
+        if ((int) $targetChat->company_id !== $companyId) {
+            return response()->json(['message' => 'Target chat does not belong to this company'], 403);
+        }
+
+        $forwardedMessage = $this->chatService->forwardMessage(
+            $companyId,
+            $user,
+            $chat,
+            $message,
+            $targetChat
+        );
+
+        return (new ChatMessageResource($forwardedMessage->load(['user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])))->response()->setStatusCode(201);
     }
 
     public function destroy(Chat $chat): JsonResponse

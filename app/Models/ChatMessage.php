@@ -11,7 +11,7 @@ class ChatMessage extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['chat_id', 'user_id', 'body', 'files'];
+    protected $fillable = ['chat_id', 'user_id', 'body', 'files', 'parent_id', 'forwarded_from_message_id'];
 
     protected $casts = [
         'files' => 'array',
@@ -38,6 +38,11 @@ class ChatMessage extends Model
     public function replies(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id');
+    }
+
+    public function forwardedFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'forwarded_from_message_id');
     }
 
     public function deletedBy(): BelongsTo

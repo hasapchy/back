@@ -16,7 +16,8 @@ class StoreChatMessageRequest extends FormRequest
         return [
             'body' => ['nullable', 'string', 'max:10000'],
             'files' => ['nullable', 'array', 'max:10'],
-            'files.*' => ['file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,gif,bmp,svg,zip,rar,7z,txt,md'],
+            'files.*' => ['file', 'max:51200', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,gif,bmp,svg,zip,rar,7z,txt,md,mp3,wav,ogg,m4a,webm,mp4,avi,mov'],
+            'parent_id' => ['nullable', 'integer', 'exists:chat_messages,id'],
         ];
     }
 }

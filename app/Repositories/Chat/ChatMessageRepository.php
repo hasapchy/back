@@ -38,6 +38,7 @@ class ChatMessageRepository
         }
 
         return ChatMessage::query()
+            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])
             ->whereIn('id', $ids)
             ->get();
     }
@@ -45,6 +46,7 @@ class ChatMessageRepository
     public function getMessages(int $chatId, ?int $afterId, int $limit): Collection
     {
         $query = ChatMessage::query()
+            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])
             ->where('chat_id', $chatId)
             ->orderBy('id');
 
@@ -59,6 +61,7 @@ class ChatMessageRepository
     {
         // Get newest first, then reverse to chronological asc for UI
         $items = ChatMessage::query()
+            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])
             ->where('chat_id', $chatId)
             ->orderByDesc('id')
             ->limit($limit)
@@ -70,6 +73,7 @@ class ChatMessageRepository
     public function getMessagesBeforeId(int $chatId, int $beforeId, int $limit): Collection
     {
         $items = ChatMessage::query()
+            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])
             ->where('chat_id', $chatId)
             ->where('id', '<', $beforeId)
             ->orderByDesc('id')
@@ -115,14 +119,58 @@ class ChatMessageRepository
             ->toArray();
     }
 
-    public function createMessage(int $chatId, int $userId, ?string $body, ?array $files): ChatMessage
+    public function createMessage(int $chatId, int $userId, ?string $body, ?array $files, ?int $parentId = null, ?int $forwardedFromMessageId = null): ChatMessage
     {
         return ChatMessage::query()->create([
             'chat_id' => $chatId,
             'user_id' => $userId,
             'body' => $body,
             'files' => $files,
+            'parent_id' => $parentId,
+            'forwarded_from_message_id' => $forwardedFromMessageId,
         ]);
+    }
+
+    public function updateMessage(int $messageId, int $userId, string $body): ChatMessage
+    {
+        $message = ChatMessage::query()->findOrFail($messageId);
+        
+        if ((int) $message->user_id !== $userId) {
+            abort(403, 'You can only edit your own messages');
+        }
+
+        $message->update([
+            'body' => $body,
+            'is_edited' => true,
+            'edited_at' => now(),
+        ]);
+
+        return $message->fresh();
+    }
+
+    public function deleteMessage(int $messageId, int $userId): bool
+    {
+        $message = ChatMessage::query()->findOrFail($messageId);
+        
+        if ((int) $message->user_id !== $userId) {
+            abort(403, 'You can only delete your own messages');
+        }
+
+        return $message->update([
+            'deleted_by' => $userId,
+        ]) && $message->delete();
+    }
+
+    public function getMessageWithRelations(int $messageId): ?ChatMessage
+    {
+        return ChatMessage::query()
+            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])
+            ->find($messageId);
+    }
+
+    public function getMessage(int $messageId): ?ChatMessage
+    {
+        return ChatMessage::query()->find($messageId);
     }
 
     public function deleteByChatId(int $chatId): int
