@@ -30,6 +30,10 @@ class DatabaseSeeder extends Seeder
             TestUserSeeder::class,
             DepartmentSeeder::class,
             // AdminExampleSeeder::class,
+            ProjectSeeder::class,
+            OrderSeeder::class,
+            SaleSeeder::class,
+            TransactionSeeder::class,
         ]);
     }
 }
