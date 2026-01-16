@@ -218,6 +218,12 @@ return [
             'actions' => ['create', 'update', 'delete'],
             'scope_actions' => ['update', 'delete'],
         ],
+        'departments' => [
+            'has_user_id' => false,
+            'check_strategy' => 'many_to_many',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
     ],
 
     'custom_permissions' => [
