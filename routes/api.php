@@ -324,11 +324,11 @@ Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(fu
     Route::middleware('permission.scope:task_statuses_delete_all,task_statuses_delete')->delete('task-statuses/{id}', [TaskStatusController::class, 'destroy']);
 
     // Departments routes
-    Route::middleware('permission.scope:departments_view_all,departments_view_own')->get('departments', [DepartmentController::class, 'index']);
-    Route::middleware('permission.scope:departments_view_all,departments_view_own')->get('departments/all', [DepartmentController::class, 'all']);
+    Route::middleware('permission:departments_view_all')->get('departments', [DepartmentController::class, 'index']);
+    Route::middleware('permission:departments_view_all')->get('departments/all', [DepartmentController::class, 'all']);
     Route::middleware('permission:departments_create')->post('departments', [DepartmentController::class, 'store']);
-    Route::middleware('permission.scope:departments_update_all,departments_update')->put('departments/{id}', [DepartmentController::class, 'update']);
-    Route::middleware('permission.scope:departments_delete_all,departments_delete')->delete('departments/{id}', [DepartmentController::class, 'destroy']);
+    Route::middleware('permission:departments_update_all')->put('departments/{id}', [DepartmentController::class, 'update']);
+    Route::middleware('permission:departments_delete_all')->delete('departments/{id}', [DepartmentController::class, 'destroy']);
 
     // Chats
     Route::middleware('permission.scope:chats_view_all,chats_view')->get('chats', [ChatController::class, 'index']);
