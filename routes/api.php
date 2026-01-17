@@ -81,12 +81,14 @@ Route::middleware(['auth:sanctum', 'user.active', 'basement.worker'])->prefix('b
 
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
     Route::get('app/units', [AppController::class, 'getUnitsList']);
+    Route::get('app/versions', [AppController::class, 'getVersions']);
 });
 
 Route::middleware(['auth:sanctum', 'user.active', 'prevent.basement'])->group(function () {
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
     Route::get('app/currency/{id}/exchange-rate', [AppController::class, 'getCurrencyExchangeRate']);
     Route::get('app/units', [AppController::class, 'getUnitsList']);
+    Route::get('app/versions', [AppController::class, 'getVersions']);
     Route::post('cache/clear', [ApiCacheController::class, 'clear']);
 
     Route::get('currency-history/currencies', [CurrencyHistoryController::class, 'getCurrenciesWithRates']);
