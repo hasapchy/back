@@ -35,18 +35,6 @@ class AdminSeeder extends Seeder
 
         $this->assignRolesToUserForAllCompanies($admin, ['admin', 'basement_worker']);
 
-        $user1 = User::find(1);
-        if ($user1 && $user1->id !== $admin->id) {
-            $this->assignRolesToUserForAllCompanies($user1, ['admin']);
-            echo "Role 'admin' assigned to user ID 1\n";
-        }
-
-        $user2 = User::find(2);
-        if ($user2 && $user2->id !== $admin->id) {
-            $this->assignRolesToUserForAllCompanies($user2, ['admin']);
-            echo "Role 'admin' assigned to user ID 2\n";
-        }
-
         $adminRole = Role::where('name', 'admin')
             ->where('guard_name', 'api')
             ->first();
@@ -58,7 +46,6 @@ class AdminSeeder extends Seeder
         }
 
         echo "Admin user created/updated with role 'admin' (containing " . $permissionsCount . " permissions) and 'basement_worker'\n";
-        echo "Users with ID 1 and 2 have been assigned 'admin' role\n";
     }
 
     private function assignRolesToUserForAllCompanies(User $user, array $roleNames): void
