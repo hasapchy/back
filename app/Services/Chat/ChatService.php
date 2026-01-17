@@ -36,14 +36,14 @@ class ChatService
     {
         // Ensure general chat exists and the user is a participant
         $generalChat = $this->chats->findGeneralChat($companyId);
-        if (! $generalChat) {
+        if (!$generalChat) {
             $generalChat = $this->chats->createGeneralChat($companyId, (int) $user->id, 'Общий чат');
         }
 
         $this->participants->firstOrCreate((int) $generalChat->id, (int) $user->id, 'member');
 
         $chats = $this->chats->getChatsForUser($companyId, (int) $user->id);
-        $chatIds = $chats->pluck('id')->map(fn ($id) => (int) $id)->toArray();
+        $chatIds = $chats->pluck('id')->map(fn($id) => (int) $id)->toArray();
 
         // Load creators for group chats
         $groupChats = $chats->where('type', 'group');
@@ -124,7 +124,7 @@ class ChatService
     public function ensureGeneralChat(int $companyId, User $user): Chat
     {
         $chat = $this->chats->findGeneralChat($companyId);
-        if (! $chat) {
+        if (!$chat) {
             $chat = $this->chats->createGeneralChat($companyId, (int) $user->id, 'Общий чат');
         }
 
@@ -165,7 +165,7 @@ class ChatService
         $title = trim($title);
         $userIds = array_values(array_unique(array_map('intval', $userIds)));
 
-        if (! in_array((int) $user->id, $userIds, true)) {
+        if (!in_array((int) $user->id, $userIds, true)) {
             $userIds[] = (int) $user->id;
         }
 
@@ -241,13 +241,13 @@ class ChatService
     public function markAsRead(int $companyId, User $user, Chat $chat, ?int $lastMessageId = null): void
     {
         $messageId = $lastMessageId ?: $this->messages->getMaxMessageId((int) $chat->id);
-        if (! $messageId) {
+        if (!$messageId) {
             return;
         }
 
         if ($lastMessageId) {
             $exists = $this->messages->messageExistsInChat((int) $chat->id, (int) $lastMessageId);
-            if (! $exists) {
+            if (!$exists) {
                 return;
             }
         }
@@ -285,7 +285,7 @@ class ChatService
     ): ChatMessage {
         $body = $body !== null ? trim((string) $body) : '';
 
-        if ($chat->type === 'general' && ! $canWriteGeneral) {
+        if ($chat->type === 'general' && !$canWriteGeneral) {
             abort(403, 'Forbidden');
         }
 
@@ -298,15 +298,15 @@ class ChatService
         // Validate parent message exists and belongs to the same chat
         if ($parentId) {
             $parentMessage = $this->messages->getMessage((int) $parentId);
-            if (! $parentMessage || (int) $parentMessage->chat_id !== (int) $chat->id) {
+            if (!$parentMessage || (int) $parentMessage->chat_id !== (int) $chat->id) {
                 abort(422, 'Parent message not found or belongs to different chat');
             }
         }
 
         $storedFiles = [];
         foreach ($files as $file) {
-            $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
-            $path = $file->storeAs('chats/'.$chat->id, $filename, 'public');
+            $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('chats/' . $chat->id, $filename, 'public');
 
             $storedFiles[] = [
                 'name' => $file->getClientOriginalName(),
@@ -395,18 +395,37 @@ class ChatService
             abort(422, 'Message does not belong to this chat');
         }
 
+        // Delete the message record
         $this->messages->deleteMessage((int) $message->id, (int) $user->id);
+
+        // If the message had attached files, delete them from storage
+        if (!empty($message->files) && is_array($message->files)) {
+            foreach ($message->files as $file) {
+                if (isset($file['path'])) {
+                    try {
+                        \Illuminate\Support\Facades\Storage::delete($file['path']);
+                    } catch (\Exception $e) {
+                        \Log::error('Failed to delete attached file on message delete', [
+                            'message_id' => $message->id,
+                            'file_path' => $file['path'],
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+        }
 
         // Отправляем событие через broadcasting
         try {
             event(new MessageDeleted($message, (int) $chat->company_id, (int) $chat->id));
         } catch (\Exception $e) {
-            Log::error('Failed to broadcast MessageDeleted event', [
+            \Log::error('Failed to broadcast MessageDeleted event', [
                 'message_id' => $message->id,
                 'chat_id' => $chat->id,
                 'error' => $e->getMessage(),
             ]);
         }
+
     }
 
     public function forwardMessage(
@@ -425,7 +444,7 @@ class ChatService
         }
 
         // Check if user is participant of target chat
-        if (! $this->participants->isParticipant((int) $targetChat->id, (int) $user->id)) {
+        if (!$this->participants->isParticipant((int) $targetChat->id, (int) $user->id)) {
             abort(403, 'You are not a participant of the target chat');
         }
 
@@ -465,7 +484,7 @@ class ChatService
         $min = min($userIdA, $userIdB);
         $max = max($userIdA, $userIdB);
 
-        return $min.':'.$max;
+        return $min . ':' . $max;
     }
 
     protected function backfillMissingDirectKeys(int $companyId, $chats, $participantsByChatId): void
