@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreWarehouseMovementRequest;
 use App\Http\Requests\UpdateWarehouseMovementRequest;
 use App\Repositories\WarehouseMovementRepository;
-use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 /**
@@ -18,8 +16,6 @@ class WarehouseMovementController extends BaseController
 
     /**
      * Конструктор контроллера
-     *
-     * @param WarehouseMovementRepository $warehouseRepository
      */
     public function __construct(WarehouseMovementRepository $warehouseRepository)
     {
@@ -29,7 +25,6 @@ class WarehouseMovementController extends BaseController
     /**
      * Получить список перемещений с пагинацией
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
@@ -37,8 +32,9 @@ class WarehouseMovementController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
+        $page = $request->input('page', 1);
 
-        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage);
+        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
         return $this->paginatedResponse($warehouses);
     }
@@ -46,7 +42,7 @@ class WarehouseMovementController extends BaseController
     /**
      * Создать перемещение между складами
      *
-     * @param Request $request
+     * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreWarehouseMovementRequest $request)
@@ -66,28 +62,28 @@ class WarehouseMovementController extends BaseController
             'products' => array_map(function ($product) {
                 return [
                     'product_id' => $product['product_id'],
-                    'quantity' => $product['quantity']
+                    'quantity' => $product['quantity'],
                 ];
-            }, $validatedData['products'])
+            }, $validatedData['products']),
         ];
 
         try {
             $warehouse_created = $this->warehouseRepository->createItem($data);
-            if (!$warehouse_created) {
+            if (! $warehouse_created) {
                 return $this->errorResponse('Ошибка перемещения', 400);
             }
 
             return response()->json(['message' => 'Перемещение создано']);
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка перемещения: ' . $th->getMessage(), 400);
+            return $this->errorResponse('Ошибка перемещения: '.$th->getMessage(), 400);
         }
     }
 
     /**
      * Обновить перемещение между складами
      *
-     * @param Request $request
-     * @param int $id ID перемещения
+     * @param  Request  $request
+     * @param  int  $id  ID перемещения
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateWarehouseMovementRequest $request, $id)
@@ -107,27 +103,27 @@ class WarehouseMovementController extends BaseController
             'products' => array_map(function ($product) {
                 return [
                     'product_id' => $product['product_id'],
-                    'quantity' => $product['quantity']
+                    'quantity' => $product['quantity'],
                 ];
-            }, $validatedData['products'])
+            }, $validatedData['products']),
         ];
 
         try {
             $warehouse_created = $this->warehouseRepository->updateItem($id, $data);
-            if (!$warehouse_created) {
+            if (! $warehouse_created) {
                 return $this->errorResponse('Ошибка обновления перемещения', 400);
             }
 
             return response()->json(['message' => 'Перемещение обновлено']);
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка обновления перемещения: ' . $th->getMessage(), 400);
+            return $this->errorResponse('Ошибка обновления перемещения: '.$th->getMessage(), 400);
         }
     }
 
     /**
      * Удалить перемещение между складами
      *
-     * @param int $id ID перемещения
+     * @param  int  $id  ID перемещения
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
@@ -150,7 +146,7 @@ class WarehouseMovementController extends BaseController
 
         $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 
-        if (!$warehouse_deleted) {
+        if (! $warehouse_deleted) {
             return $this->errorResponse('Ошибка удаления перемещения', 400);
         }
 
@@ -160,8 +156,8 @@ class WarehouseMovementController extends BaseController
     /**
      * Проверить доступ к двум складам
      *
-     * @param int $warehouseFromId ID склада откуда
-     * @param int $warehouseToId ID склада куда
+     * @param  int  $warehouseFromId  ID склада откуда
+     * @param  int  $warehouseToId  ID склада куда
      * @return \Illuminate\Http\JsonResponse|null
      */
     protected function checkWarehousesAccess(int $warehouseFromId, int $warehouseToId)

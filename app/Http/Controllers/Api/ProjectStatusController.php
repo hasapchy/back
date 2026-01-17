@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreProjectStatusRequest;
 use App\Http\Requests\UpdateProjectStatusRequest;
 use App\Models\ProjectStatus;
@@ -19,8 +18,6 @@ class ProjectStatusController extends BaseController
 
     /**
      * Конструктор контроллера
-     *
-     * @param ProjectStatusRepository $projectStatusRepository
      */
     public function __construct(ProjectStatusRepository $projectStatusRepository)
     {
@@ -30,7 +27,6 @@ class ProjectStatusController extends BaseController
     /**
      * Получить список статусов проектов с пагинацией
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
@@ -38,8 +34,9 @@ class ProjectStatusController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
+        $page = $request->input('page', 1);
 
-        $items = $this->projectStatusRepository->getItemsWithPagination($userUuid, $perPage);
+        $items = $this->projectStatusRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
         return $this->paginatedResponse($items);
     }
@@ -47,7 +44,6 @@ class ProjectStatusController extends BaseController
     /**
      * Получить все статусы проектов
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function all(Request $request)
@@ -62,7 +58,7 @@ class ProjectStatusController extends BaseController
     /**
      * Создать новый статус проекта
      *
-     * @param Request $request
+     * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreProjectStatusRequest $request)
@@ -76,7 +72,9 @@ class ProjectStatusController extends BaseController
             'is_tr_visible' => $validatedData['is_tr_visible'] ?? true,
             'user_id' => $userUuid,
         ]);
-        if (!$created) return $this->errorResponse('Ошибка создания статуса', 400);
+        if (! $created) {
+            return $this->errorResponse('Ошибка создания статуса', 400);
+        }
 
         CacheService::invalidateProjectsCache();
 
@@ -86,8 +84,8 @@ class ProjectStatusController extends BaseController
     /**
      * Обновить статус проекта
      *
-     * @param Request $request
-     * @param int $id ID статуса
+     * @param  Request  $request
+     * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateProjectStatusRequest $request, $id)
@@ -100,7 +98,9 @@ class ProjectStatusController extends BaseController
             'color' => $validatedData['color'] ?? '#6c757d',
             'is_tr_visible' => $validatedData['is_tr_visible'] ?? true,
         ]);
-        if (!$updated) return $this->errorResponse('Ошибка обновления статуса', 400);
+        if (! $updated) {
+            return $this->errorResponse('Ошибка обновления статуса', 400);
+        }
 
         CacheService::invalidateProjectsCache();
 
@@ -110,7 +110,7 @@ class ProjectStatusController extends BaseController
     /**
      * Удалить статус проекта
      *
-     * @param int $id ID статуса
+     * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
@@ -123,7 +123,7 @@ class ProjectStatusController extends BaseController
         }
 
         $deleted = $this->projectStatusRepository->deleteItem($id);
-        if (!$deleted) {
+        if (! $deleted) {
             return $this->errorResponse('Ошибка удаления статуса', 400);
         }
 

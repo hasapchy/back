@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
-use App\Repositories\LeaveRepository;
 use App\Models\Leave;
+use App\Repositories\LeaveRepository;
 use Illuminate\Http\Request;
 
 /**
@@ -16,8 +15,6 @@ class LeaveController extends BaseController
 
     /**
      * Конструктор контроллера
-     *
-     * @param LeaveRepository $leaveRepository
      */
     public function __construct(LeaveRepository $leaveRepository)
     {
@@ -27,7 +24,6 @@ class LeaveController extends BaseController
     /**
      * Получить список записей отпусков с пагинацией
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
@@ -35,10 +31,11 @@ class LeaveController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
-        
+        $page = $request->input('page', 1);
+
         $filters = $this->buildLeaveFilters($request);
 
-        $items = $this->leaveRepository->getItemsWithPagination($userUuid, $perPage, $filters);
+        $items = $this->leaveRepository->getItemsWithPagination($userUuid, $perPage, $filters, $page);
 
         return $this->paginatedResponse($items);
     }
@@ -46,7 +43,6 @@ class LeaveController extends BaseController
     /**
      * Получить все записи отпусков
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function all(Request $request)
@@ -63,7 +59,7 @@ class LeaveController extends BaseController
     /**
      * Получить запись отпуска по ID
      *
-     * @param int $id ID записи
+     * @param  int  $id  ID записи
      * @return \Illuminate\Http\JsonResponse
      */
     public function show($id)
@@ -72,6 +68,7 @@ class LeaveController extends BaseController
 
         try {
             $leave = $this->leaveRepository->getItemById($id);
+
             return response()->json(['item' => $leave]);
         } catch (\Exception $e) {
             return $this->notFoundResponse('Запись отпуска не найдена');
@@ -81,7 +78,6 @@ class LeaveController extends BaseController
     /**
      * Создать новую запись отпуска
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(Request $request)
@@ -93,7 +89,7 @@ class LeaveController extends BaseController
             'user_id' => 'nullable|integer|exists:users,id',
             'comment' => 'nullable|string',
             'date_from' => 'required|date',
-            'date_to' => 'required|date|after_or_equal:date_from'
+            'date_to' => 'required|date|after_or_equal:date_from',
         ]);
 
         $data = [
@@ -101,12 +97,13 @@ class LeaveController extends BaseController
             'user_id' => $request->user_id ?? $userUuid,
             'comment' => $request->comment ?? null,
             'date_from' => $request->date_from,
-            'date_to' => $request->date_to
+            'date_to' => $request->date_to,
         ];
 
-
         $created = $this->leaveRepository->createItem($data);
-        if (!$created) return $this->errorResponse('Ошибка создания записи отпуска', 400);
+        if (! $created) {
+            return $this->errorResponse('Ошибка создания записи отпуска', 400);
+        }
 
         return response()->json(['item' => $created, 'message' => 'Запись отпуска создана']);
     }
@@ -114,8 +111,7 @@ class LeaveController extends BaseController
     /**
      * Обновить запись отпуска
      *
-     * @param Request $request
-     * @param int $id ID записи
+     * @param  int  $id  ID записи
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(Request $request, $id)
@@ -127,7 +123,7 @@ class LeaveController extends BaseController
             'user_id' => 'nullable|integer|exists:users,id',
             'comment' => 'nullable|string',
             'date_from' => 'nullable|date',
-            'date_to' => 'nullable|date'
+            'date_to' => 'nullable|date',
         ];
 
         // Если оба поля дат присутствуют, проверяем что date_to >= date_from
@@ -146,10 +142,12 @@ class LeaveController extends BaseController
                 'comment' => $request->input('comment'),
                 'date_from' => $request->input('date_from'),
                 'date_to' => $request->input('date_to'),
-            ], fn($value) => $value !== null);
+            ], fn ($value) => $value !== null);
 
             $updated = $this->leaveRepository->updateItem($id, $data);
-            if (!$updated) return $this->errorResponse('Ошибка обновления', 400);
+            if (! $updated) {
+                return $this->errorResponse('Ошибка обновления', 400);
+            }
 
             return response()->json(['item' => $updated, 'message' => 'Запись отпуска обновлена']);
         } catch (\Exception $e) {
@@ -160,7 +158,7 @@ class LeaveController extends BaseController
     /**
      * Удалить запись отпуска
      *
-     * @param int $id ID записи
+     * @param  int  $id  ID записи
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
@@ -171,7 +169,9 @@ class LeaveController extends BaseController
             $leave = Leave::findOrFail($id);
 
             $deleted = $this->leaveRepository->deleteItem($id);
-            if (!$deleted) return $this->errorResponse('Ошибка удаления', 400);
+            if (! $deleted) {
+                return $this->errorResponse('Ошибка удаления', 400);
+            }
 
             return response()->json(['message' => 'Запись отпуска удалена']);
         } catch (\Exception $e) {
@@ -182,7 +182,7 @@ class LeaveController extends BaseController
     protected function buildLeaveFilters(Request $request): array
     {
         $filters = [];
-        
+
         if ($request->has('user_id')) {
             $filters['user_id'] = $request->input('user_id');
         }
@@ -199,4 +199,3 @@ class LeaveController extends BaseController
         return $filters;
     }
 }
-

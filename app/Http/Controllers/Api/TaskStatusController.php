@@ -2,12 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreTaskStatusRequest;
 use App\Http\Requests\UpdateTaskStatusRequest;
 use App\Models\TaskStatus;
 use App\Repositories\TaskStatusRepository;
-use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 /**
@@ -19,8 +17,6 @@ class TaskStatusController extends BaseController
 
     /**
      * Конструктор контроллера
-     *
-     * @param TaskStatusRepository $taskStatusRepository
      */
     public function __construct(TaskStatusRepository $taskStatusRepository)
     {
@@ -30,7 +26,6 @@ class TaskStatusController extends BaseController
     /**
      * Получить список статусов задач с пагинацией
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
@@ -38,8 +33,9 @@ class TaskStatusController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
+        $page = $request->input('page', 1);
 
-        $items = $this->taskStatusRepository->getItemsWithPagination($userUuid, $perPage);
+        $items = $this->taskStatusRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
         return $this->paginatedResponse($items);
     }
@@ -47,7 +43,6 @@ class TaskStatusController extends BaseController
     /**
      * Получить все статусы задач
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function all(Request $request)
@@ -62,7 +57,7 @@ class TaskStatusController extends BaseController
     /**
      * Создать новый статус задачи
      *
-     * @param Request $request
+     * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreTaskStatusRequest $request)
@@ -75,7 +70,9 @@ class TaskStatusController extends BaseController
             'color' => $validatedData['color'] ?? '#6c757d',
             'user_id' => $userUuid,
         ]);
-        if (!$created) return $this->errorResponse('Ошибка создания статуса', 400);
+        if (! $created) {
+            return $this->errorResponse('Ошибка создания статуса', 400);
+        }
 
         return response()->json(['message' => 'Статус создан']);
     }
@@ -83,8 +80,8 @@ class TaskStatusController extends BaseController
     /**
      * Обновить статус задачи
      *
-     * @param Request $request
-     * @param int $id ID статуса
+     * @param  Request  $request
+     * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateTaskStatusRequest $request, $id)
@@ -96,7 +93,9 @@ class TaskStatusController extends BaseController
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
         ]);
-        if (!$updated) return $this->errorResponse('Ошибка обновления статуса', 400);
+        if (! $updated) {
+            return $this->errorResponse('Ошибка обновления статуса', 400);
+        }
 
         return response()->json(['message' => 'Статус обновлен']);
     }
@@ -104,7 +103,7 @@ class TaskStatusController extends BaseController
     /**
      * Удалить статус задачи
      *
-     * @param int $id ID статуса
+     * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
@@ -122,11 +121,10 @@ class TaskStatusController extends BaseController
         }
 
         $deleted = $this->taskStatusRepository->deleteItem($id);
-        if (!$deleted) {
+        if (! $deleted) {
             return $this->errorResponse('Ошибка удаления статуса', 400);
         }
 
         return response()->json(['message' => 'Статус удален']);
     }
 }
-

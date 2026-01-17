@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
 use App\Http\Resources\ClientCollection;
-use Illuminate\Http\Request;
-use App\Repositories\ClientsRepository;
-use App\Models\Client;
-use Illuminate\Support\Facades\DB;
 use App\Http\Resources\ClientResource;
+use App\Models\Client;
+use App\Repositories\ClientsRepository;
 use App\Services\CacheService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Контроллер для работы с клиентами
@@ -23,7 +22,7 @@ class ClientController extends BaseController
     /**
      * Конструктор контроллера
      *
-     * @param ClientsRepository $itemsRepository Репозиторий клиентов
+     * @param  ClientsRepository  $itemsRepository  Репозиторий клиентов
      */
     public function __construct(ClientsRepository $itemsRepository)
     {
@@ -33,7 +32,6 @@ class ClientController extends BaseController
     /**
      * Получить список клиентов с пагинацией
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
@@ -52,18 +50,25 @@ class ClientController extends BaseController
     /**
      * Поиск клиентов
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function search(Request $request)
     {
         $search_request = $request->input('search_request');
 
-        if (!$search_request || empty($search_request)) {
+        if (! $search_request || empty($search_request)) {
             return response()->json([]);
         }
 
-        $items = $this->itemsRepository->searchClient($search_request);
+        $typeFilterInput = $request->input('type_filter');
+        $typeFilter = [];
+        if (is_array($typeFilterInput)) {
+            $typeFilter = $typeFilterInput;
+        } elseif (! is_null($typeFilterInput)) {
+            $typeFilter = [$typeFilterInput];
+        }
+
+        $items = $this->itemsRepository->searchClient($search_request, $typeFilter);
 
         $resource = \App\Http\Resources\ClientSearchResource::collection($items);
 
@@ -73,7 +78,7 @@ class ClientController extends BaseController
     /**
      * Получить клиента по ID
      *
-     * @param int $id ID клиента
+     * @param  int  $id  ID клиента
      * @return \Illuminate\Http\JsonResponse
      */
     public function show($id)
@@ -81,32 +86,31 @@ class ClientController extends BaseController
         try {
             $client = $this->itemsRepository->getItemById($id);
 
-            if (!$client) {
+            if (! $client) {
                 return $this->notFoundResponse('Client not found');
             }
 
-            if (!$this->canPerformAction('clients', 'view', $client)) {
+            if (! $this->canPerformAction('clients', 'view', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на просмотр этого клиента');
             }
 
             return new ClientResource($client);
         } catch (\Throwable $e) {
-            return $this->errorResponse('Ошибка при получении клиента: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при получении клиента: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Получить историю баланса клиента
      *
-     * @param Request $request
-     * @param int $id ID клиента
+     * @param  int  $id  ID клиента
      * @return \Illuminate\Http\JsonResponse
      */
     public function getBalanceHistory(Request $request, $id)
     {
         $user = $this->requireAuthenticatedUser();
 
-        if (!$this->hasPermission('settings_client_balance_view', $user)) {
+        if (! $this->hasPermission('settings_client_balance_view', $user)) {
             return $this->forbiddenResponse('Нет доступа к просмотру баланса клиента');
         }
 
@@ -123,7 +127,6 @@ class ClientController extends BaseController
     /**
      * Получить всех клиентов
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function all(Request $request)
@@ -134,17 +137,11 @@ class ClientController extends BaseController
 
             if (is_array($typeFilterInput)) {
                 $typeFilter = $typeFilterInput;
-            } elseif (!is_null($typeFilterInput)) {
+            } elseif (! is_null($typeFilterInput)) {
                 $typeFilter = [$typeFilterInput];
             }
 
             $forMutualSettlements = $request->input('for_mutual_settlements', false);
-            $cashRegisterIdInput = $request->input('cash_register_id');
-            $cashRegisterId = null;
-
-            if ($forMutualSettlements && !empty($cashRegisterIdInput)) {
-                $cashRegisterId = intval($cashRegisterIdInput);
-            }
 
             if ($forMutualSettlements) {
                 $user = $this->requireAuthenticatedUser();
@@ -163,20 +160,16 @@ class ClientController extends BaseController
 
             $items = $this->itemsRepository->getAllItems($typeFilter, $forMutualSettlements);
 
-            if ($forMutualSettlements && $cashRegisterId) {
-                $items = $this->itemsRepository->calculateBalancesByCashRegister($items, $cashRegisterId);
-            }
-
             return ClientResource::collection($items);
         } catch (\Throwable $e) {
-            return $this->errorResponse('Ошибка при получении всех клиентов: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при получении всех клиентов: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Создать нового клиента
      *
-     * @param Request $request
+     * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreClientRequest $request)
@@ -206,8 +199,9 @@ class ClientController extends BaseController
             CacheService::invalidateTransactionsCache();
 
             $client->load('phones', 'emails', 'employee');
+
             return (new ClientResource($client))->additional([
-                'message' => 'Client created successfully'
+                'message' => 'Client created successfully',
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -216,15 +210,15 @@ class ClientController extends BaseController
                 return $this->errorResponse('Email уже используется другим клиентом', 422);
             }
 
-            return $this->errorResponse('Ошибка при создании клиента: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при создании клиента: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Обновить клиента
      *
-     * @param Request $request
-     * @param int $id ID клиента
+     * @param  Request  $request
+     * @param  int  $id  ID клиента
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateClientRequest $request, $id)
@@ -233,26 +227,26 @@ class ClientController extends BaseController
 
         $existingClient = Client::findOrFail($id);
 
-            if (!$this->canPerformAction('clients', 'update', $existingClient)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
-            }
+        if (! $this->canPerformAction('clients', 'update', $existingClient)) {
+            return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
+        }
 
-            $employeeCheck = $this->checkEmployeeIdDuplicate($validatedData['employee_id'] ?? null, $id);
-            if ($employeeCheck) {
-                return $employeeCheck;
-            }
+        $employeeCheck = $this->checkEmployeeIdDuplicate($validatedData['employee_id'] ?? null, $id);
+        if ($employeeCheck) {
+            return $employeeCheck;
+        }
 
-            $phoneCheck = $this->checkPhoneDuplicates($validatedData['phones'] ?? [], $id);
-            if ($phoneCheck) {
-                return $phoneCheck;
-            }
+        $phoneCheck = $this->checkPhoneDuplicates($validatedData['phones'] ?? [], $id);
+        if ($phoneCheck) {
+            return $phoneCheck;
+        }
 
-            $client = $this->itemsRepository->updateItem($id, $validatedData);
+        $client = $this->itemsRepository->updateItem($id, $validatedData);
 
-            CacheService::invalidateClientsCache();
-            CacheService::invalidateOrdersCache();
-            CacheService::invalidateSalesCache();
-            CacheService::invalidateTransactionsCache();
+        CacheService::invalidateClientsCache();
+        CacheService::invalidateOrdersCache();
+        CacheService::invalidateSalesCache();
+        CacheService::invalidateTransactionsCache();
 
         try {
             $client = $this->itemsRepository->updateItem($id, $validatedData);
@@ -263,21 +257,17 @@ class ClientController extends BaseController
             CacheService::invalidateTransactionsCache();
 
             return (new ClientResource($client))->additional([
-                'message' => 'Client updated successfully'
+                'message' => 'Client updated successfully',
             ]);
         } catch (\Throwable $e) {
             if (str_contains($e->getMessage(), 'clients_emails_email_unique')) {
                 return $this->errorResponse('Email уже используется другим клиентом', 422);
             }
 
-            return $this->errorResponse('Ошибка при обновлении клиента: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при обновлении клиента: '.$e->getMessage(), 500);
         }
     }
 
-    /**
-     * @param array $data
-     * @return array
-     */
     protected function normalizeNullableFields(array $data): array
     {
         $fields = [
@@ -301,15 +291,19 @@ class ClientController extends BaseController
     /**
      * Удалить клиента
      *
-     * @param int $id ID клиента
+     * @param  int  $id  ID клиента
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
     {
         try {
-            $client = Client::findOrFail($id);
+            $client = Client::find($id);
 
-            if (!$this->canPerformAction('clients', 'delete', $client)) {
+            if (! $client) {
+                return $this->notFoundResponse('Клиент не найден');
+            }
+
+            if (! $this->canPerformAction('clients', 'delete', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на удаление этого клиента');
             }
 
@@ -344,15 +338,15 @@ class ClientController extends BaseController
                 return $this->notFoundResponse('Клиент не найден');
             }
         } catch (\Throwable $e) {
-            return $this->errorResponse('Ошибка при удалении клиента: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при удалении клиента: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Проверить дублирование employee_id
      *
-     * @param int|null $employeeId ID сотрудника
-     * @param int|null $excludeId ID клиента для исключения из проверки
+     * @param  int|null  $employeeId  ID сотрудника
+     * @param  int|null  $excludeId  ID клиента для исключения из проверки
      * @return \Illuminate\Http\JsonResponse|null
      */
     protected function checkEmployeeIdDuplicate(?int $employeeId, ?int $excludeId = null)
@@ -384,8 +378,8 @@ class ClientController extends BaseController
     /**
      * Проверить дублирование телефонов
      *
-     * @param array $phones Массив телефонов
-     * @param int|null $excludeClientId ID клиента для исключения из проверки
+     * @param  array  $phones  Массив телефонов
+     * @param  int|null  $excludeClientId  ID клиента для исключения из проверки
      * @return \Illuminate\Http\JsonResponse|null
      */
     protected function checkPhoneDuplicates(array $phones, ?int $excludeClientId = null)

@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreWarehouseReceiptRequest;
 use App\Http\Requests\UpdateWarehouseReceiptRequest;
 use App\Repositories\WarehouseReceiptRepository;
-use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 /**
@@ -18,8 +16,6 @@ class WarehouseReceiptController extends BaseController
 
     /**
      * Конструктор контроллера
-     *
-     * @param WarehouseReceiptRepository $warehouseRepository
      */
     public function __construct(WarehouseReceiptRepository $warehouseRepository)
     {
@@ -29,7 +25,6 @@ class WarehouseReceiptController extends BaseController
     /**
      * Получить список оприходований с пагинацией
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
@@ -37,8 +32,9 @@ class WarehouseReceiptController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
+        $page = $request->input('page', 1);
 
-        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage);
+        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
         return $this->paginatedResponse($warehouses);
     }
@@ -46,14 +42,14 @@ class WarehouseReceiptController extends BaseController
     /**
      * Получить оприходование по ID
      *
-     * @param int $id ID оприходования
+     * @param  int  $id  ID оприходования
      * @return \Illuminate\Http\JsonResponse
      */
     public function show($id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->warehouseRepository->getItemById($id, $userUuid);
-        if (!$item) {
+        if (! $item) {
             return $this->notFoundResponse('Оприходование не найдено');
         }
 
@@ -63,7 +59,7 @@ class WarehouseReceiptController extends BaseController
     /**
      * Создать оприходование на склад
      *
-     * @param Request $request
+     * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreWarehouseReceiptRequest $request)
@@ -84,8 +80,8 @@ class WarehouseReceiptController extends BaseController
         $data = [
             'client_id' => $validatedData['client_id'],
             'warehouse_id' => $validatedData['warehouse_id'],
-            'type'        => $validatedData['type'],
-            'cash_id'     => $validatedData['cash_id'] ?? null,
+            'type' => $validatedData['type'],
+            'cash_id' => $validatedData['cash_id'] ?? null,
             'user_id' => $userUuid,
             'date' => $validatedData['date'] ?? now(),
             'note' => $validatedData['note'] ?? '',
@@ -94,28 +90,28 @@ class WarehouseReceiptController extends BaseController
                 return [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity'],
-                    'price' => $product['price']
+                    'price' => $product['price'],
                 ];
-            }, $validatedData['products'])
+            }, $validatedData['products']),
         ];
 
         try {
             $warehouse_created = $this->warehouseRepository->createItem($data);
-            if (!$warehouse_created) {
+            if (! $warehouse_created) {
                 return $this->errorResponse('Ошибка оприходования', 400);
             }
 
             return response()->json(['message' => 'Оприходование создано']);
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка оприходования: ' . $th->getMessage(), 400);
+            return $this->errorResponse('Ошибка оприходования: '.$th->getMessage(), 400);
         }
     }
 
     /**
      * Обновить оприходование на склад
      *
-     * @param Request $request
-     * @param int $id ID оприходования
+     * @param  Request  $request
+     * @param  int  $id  ID оприходования
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateWarehouseReceiptRequest $request, $id)
@@ -124,7 +120,7 @@ class WarehouseReceiptController extends BaseController
         $validatedData = $request->validated();
 
         $receipt = $this->warehouseRepository->getItemById($id, $userUuid);
-        if (!$receipt) {
+        if (! $receipt) {
             return $this->notFoundResponse('Оприходование не найдено');
         }
 
@@ -140,20 +136,20 @@ class WarehouseReceiptController extends BaseController
 
         try {
             $updated = $this->warehouseRepository->updateReceipt($id, $data);
-            if (!$updated) {
+            if (! $updated) {
                 return $this->errorResponse('Ошибка обновления приходования', 400);
             }
 
             return response()->json(['message' => 'Приходование обновлено']);
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка обновления приходования: ' . $th->getMessage(), 400);
+            return $this->errorResponse('Ошибка обновления приходования: '.$th->getMessage(), 400);
         }
     }
 
     /**
      * Удалить оприходование со склада
      *
-     * @param int $id ID оприходования
+     * @param  int  $id  ID оприходования
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
@@ -161,7 +157,7 @@ class WarehouseReceiptController extends BaseController
         try {
             $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 
-            if (!$warehouse_deleted) {
+            if (! $warehouse_deleted) {
                 return $this->errorResponse('Ошибка удаления оприходования', 400);
             }
 
@@ -169,7 +165,7 @@ class WarehouseReceiptController extends BaseController
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->notFoundResponse('Оприходование не найдено');
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка удаления оприходования: ' . $th->getMessage(), 400);
+            return $this->errorResponse('Ошибка удаления оприходования: '.$th->getMessage(), 400);
         }
     }
 }

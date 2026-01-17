@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreOrderStatusCategoryRequest;
 use App\Http\Requests\UpdateOrderStatusCategoryRequest;
 use App\Repositories\OrderStatusCategoryRepository;
-use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 /**
@@ -18,8 +16,6 @@ class OrderStatusCategoryController extends BaseController
 
     /**
      * Конструктор контроллера
-     *
-     * @param OrderStatusCategoryRepository $orderStatusCategoryRepository
      */
     public function __construct(OrderStatusCategoryRepository $orderStatusCategoryRepository)
     {
@@ -29,7 +25,6 @@ class OrderStatusCategoryController extends BaseController
     /**
      * Получить список категорий статусов заказов с пагинацией
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
@@ -37,7 +32,8 @@ class OrderStatusCategoryController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
-        $items = $this->orderStatusCategoryRepository->getItemsWithPagination($userUuid, $perPage);
+        $page = $request->input('page', 1);
+        $items = $this->orderStatusCategoryRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
         return $this->paginatedResponse($items);
     }
@@ -45,7 +41,6 @@ class OrderStatusCategoryController extends BaseController
     /**
      * Получить все категории статусов заказов
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function all(Request $request)
@@ -60,7 +55,6 @@ class OrderStatusCategoryController extends BaseController
     /**
      * Создать новую категорию статусов заказов
      *
-     * @param StoreOrderStatusCategoryRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreOrderStatusCategoryRequest $request)
@@ -71,9 +65,11 @@ class OrderStatusCategoryController extends BaseController
         $created = $this->orderStatusCategoryRepository->createItem([
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
-            'user_id' => $userUuid
+            'user_id' => $userUuid,
         ]);
-        if (!$created) return $this->errorResponse('Ошибка создания категории статусов', 400);
+        if (! $created) {
+            return $this->errorResponse('Ошибка создания категории статусов', 400);
+        }
 
         return response()->json(['message' => 'Категория статусов создана']);
     }
@@ -81,8 +77,7 @@ class OrderStatusCategoryController extends BaseController
     /**
      * Обновить категорию статусов заказов
      *
-     * @param UpdateOrderStatusCategoryRequest $request
-     * @param int $id ID категории
+     * @param  int  $id  ID категории
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateOrderStatusCategoryRequest $request, $id)
@@ -103,7 +98,7 @@ class OrderStatusCategoryController extends BaseController
     /**
      * Удалить категорию статусов заказов
      *
-     * @param int $id ID категории
+     * @param  int  $id  ID категории
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
@@ -111,7 +106,9 @@ class OrderStatusCategoryController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $deleted = $this->orderStatusCategoryRepository->deleteItem($id);
-        if (!$deleted) return $this->errorResponse('Ошибка удаления', 400);
+        if (! $deleted) {
+            return $this->errorResponse('Ошибка удаления', 400);
+        }
 
         return response()->json(['message' => 'Категория статусов удалена']);
     }

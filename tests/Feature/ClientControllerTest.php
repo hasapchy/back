@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
-use App\Models\Company;
+use App\Models\CashRegister;
 use App\Models\Client;
+use App\Models\Company;
+use App\Models\Currency;
+use App\Models\Transaction;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -14,13 +17,14 @@ class ClientControllerTest extends TestCase
     use DatabaseTransactions;
 
     protected User $adminUser;
+
     protected Company $company;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        if (!Schema::hasTable('companies')) {
+        if (! Schema::hasTable('companies')) {
             $this->markTestSkipped('Таблица companies не существует. Выполните миграции перед запуском тестов.');
         }
 
@@ -36,7 +40,8 @@ class ClientControllerTest extends TestCase
     protected function actingAsApi(User $user)
     {
         $token = $user->createToken('test-token')->plainTextToken;
-        return $this->withHeader('Authorization', 'Bearer ' . $token);
+
+        return $this->withHeader('Authorization', 'Bearer '.$token);
     }
 
     public function test_store_client_requires_validation(): void
@@ -45,7 +50,7 @@ class ClientControllerTest extends TestCase
             ->postJson('/api/clients', []);
 
         if ($response->status() === 500) {
-            $this->fail('Server error: ' . $response->getContent());
+            $this->fail('Server error: '.$response->getContent());
         }
 
         $response->assertStatus(422);
@@ -64,7 +69,7 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string)$this->company->id)
+            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->postJson('/api/clients', $clientData);
 
         if ($response->status() === 500) {
@@ -74,7 +79,7 @@ class ClientControllerTest extends TestCase
             $this->fail("Server error (500): {$message}\nFull response: {$content}");
         }
 
-        $response->assertStatus(200);
+        $response->assertCreated();
         $this->assertDatabaseHas('clients', [
             'first_name' => 'Test Client',
             'client_type' => 'company',
@@ -93,18 +98,18 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string)$this->company->id)
+            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->postJson('/api/clients', $clientData);
 
         if ($response->status() === 500) {
-            $this->fail('Server error: ' . $response->getContent());
+            $this->fail('Server error: '.$response->getContent());
         }
 
-        $response->assertStatus(200);
+        $response->assertCreated();
         $client = Client::where('first_name', 'Test Client')->first();
-        $this->assertTrue((bool)$client->is_supplier);
-        $this->assertFalse((bool)$client->is_conflict);
-        $this->assertTrue((bool)$client->status);
+        $this->assertTrue((bool) $client->is_supplier);
+        $this->assertFalse((bool) $client->is_conflict);
+        $this->assertTrue((bool) $client->status);
     }
 
     public function test_store_client_normalizes_empty_strings_to_null(): void
@@ -122,14 +127,14 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string)$this->company->id)
+            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->postJson('/api/clients', $clientData);
 
         if ($response->status() === 500) {
-            $this->fail('Server error: ' . $response->getContent());
+            $this->fail('Server error: '.$response->getContent());
         }
 
-        $response->assertStatus(200);
+        $response->assertCreated();
         $client = Client::where('first_name', 'Test Client')->first();
         $this->assertNull($client->last_name);
         $this->assertNull($client->patronymic);
@@ -148,14 +153,14 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string)$this->company->id)
+            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->postJson('/api/clients', $clientData);
 
         if ($response->status() === 500) {
-            $this->fail('Server error: ' . $response->getContent());
+            $this->fail('Server error: '.$response->getContent());
         }
 
-        $response->assertStatus(200);
+        $response->assertCreated();
     }
 
     public function test_update_client_requires_validation(): void
@@ -190,7 +195,7 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string)$this->company->id)
+            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->putJson("/api/clients/{$client->id}", $updateData);
 
         $response->assertStatus(200);
@@ -219,14 +224,14 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string)$this->company->id)
+            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->putJson("/api/clients/{$client->id}", $updateData);
 
         $response->assertStatus(200);
         $client->refresh();
-        $this->assertTrue((bool)$client->is_supplier);
-        $this->assertFalse((bool)$client->is_conflict);
-        $this->assertTrue((bool)$client->status);
+        $this->assertTrue((bool) $client->is_supplier);
+        $this->assertFalse((bool) $client->is_conflict);
+        $this->assertTrue((bool) $client->status);
     }
 
     public function test_update_client_normalizes_empty_strings_to_null(): void
@@ -250,7 +255,7 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string)$this->company->id)
+            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->putJson("/api/clients/{$client->id}", $updateData);
 
         $response->assertStatus(200);
@@ -309,15 +314,15 @@ class ClientControllerTest extends TestCase
         ]);
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string)$this->company->id)
+            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->getJson("/api/clients/{$client->id}");
 
         if ($response->status() === 500) {
-            $this->fail('Server error: ' . $response->getContent());
+            $this->fail('Server error: '.$response->getContent());
         }
 
         $response->assertStatus(200);
-        $response->assertJsonStructure(['item']);
+        $response->assertJsonStructure(['data' => ['id']]);
     }
 
     public function test_show_client_returns_404_when_not_found(): void
@@ -337,15 +342,61 @@ class ClientControllerTest extends TestCase
         ]);
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string)$this->company->id)
+            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->getJson('/api/clients?per_page=2&page=1');
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
-            'items',
-            'current_page',
-            'total',
+            'data',
+            'meta' => [
+                'current_page',
+                'total',
+            ],
         ]);
     }
-}
 
+    public function test_all_clients_for_mutual_settlements_ignores_cash_register_id(): void
+    {
+        $currency = Currency::factory()->create([
+            'symbol' => 'TST',
+            'is_default' => true,
+            'status' => true,
+        ]);
+
+        $cashRegister = CashRegister::factory()->create([
+            'currency_id' => $currency->id,
+        ]);
+
+        $client = Client::factory()->create([
+            'client_type' => 'individual',
+            'status' => true,
+            'company_id' => $this->company->id,
+        ]);
+
+        Transaction::factory()->create([
+            'client_id' => $client->id,
+            'cash_id' => $cashRegister->id,
+            'currency_id' => $currency->id,
+            'def_amount' => 100,
+            'amount' => 100,
+            'orig_amount' => 100,
+            'is_deleted' => false,
+            'type' => 1,
+            'is_debt' => false,
+            'date' => now(),
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->withHeader('X-Company-ID', (string) $this->company->id)
+            ->getJson("/api/clients/all?for_mutual_settlements=1&cash_register_id={$cashRegister->id}");
+
+        if ($response->status() === 500) {
+            $this->fail('Server error: '.$response->getContent());
+        }
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $client->id);
+        $response->assertJsonPath('data.0.currency_symbol', null);
+    }
+}

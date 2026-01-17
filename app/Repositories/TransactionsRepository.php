@@ -4,15 +4,15 @@ namespace App\Repositories;
 
 use App\Models\CashRegister;
 use App\Models\Client;
-use App\Models\Currency;
-use App\Models\Project;
 use App\Models\Company;
+use App\Models\Currency;
 use App\Models\Transaction;
-use App\Services\CurrencyConverter;
 use App\Services\CacheService;
+use App\Services\CurrencyConverter;
+use App\Services\RoundingService;
+use App\Services\TransactionSourceService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Services\RoundingService;
 
 class TransactionsRepository extends BaseRepository
 {
@@ -29,20 +29,20 @@ class TransactionsRepository extends BaseRepository
     /**
      * Получить транзакции с пагинацией
      *
-     * @param int $userUuid ID пользователя
-     * @param int $perPage Количество записей на страницу
-     * @param int $page Номер страницы
-     * @param int|null $cash_id ID кассы
-     * @param string|null $date_filter_type Тип фильтра по дате
-     * @param int|null $order_id ID заказа
-     * @param string|null $search Поисковый запрос
-     * @param int|null $transaction_type Тип транзакции (0 - расход, 1 - доход)
-     * @param string|null $source Источник транзакции
-     * @param int|null $project_id ID проекта
-     * @param string|null $start_date Начальная дата
-     * @param string|null $end_date Конечная дата
-     * @param bool|null $is_debt Фильтр по долгу (true - долги, false - платежи)
-     * @param array|null $category_ids Массив ID категорий транзакций
+     * @param  int  $userUuid  ID пользователя
+     * @param  int  $perPage  Количество записей на страницу
+     * @param  int  $page  Номер страницы
+     * @param  int|null  $cash_id  ID кассы
+     * @param  string|null  $date_filter_type  Тип фильтра по дате
+     * @param  int|null  $order_id  ID заказа
+     * @param  string|null  $search  Поисковый запрос
+     * @param  int|null  $transaction_type  Тип транзакции (0 - расход, 1 - доход)
+     * @param  string|null  $source  Источник транзакции
+     * @param  int|null  $project_id  ID проекта
+     * @param  string|null  $start_date  Начальная дата
+     * @param  string|null  $end_date  Конечная дата
+     * @param  bool|null  $is_debt  Фильтр по долгу (true - долги, false - платежи)
+     * @param  array|null  $category_ids  Массив ID категорий транзакций
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
     public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null)
@@ -57,13 +57,13 @@ class TransactionsRepository extends BaseRepository
 
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
-        $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';
+        $searchKey = $search !== null ? md5(trim((string) $search)) : 'null';
         $showDeletedKey = $showDeleted ? '1' : '0';
         $sourcePermissionsKey = $this->getSourcePermissionsKey($currentUser);
         $categoryIdsKey = $category_ids ? md5(implode(',', $category_ids)) : 'null';
         $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $categoryIdsKey, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId()]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $showDeleted, $currentUser) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $showDeleted, $currentUser) {
             $searchTrimmed = is_string($search) ? trim($search) : '';
             $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
 
@@ -86,18 +86,18 @@ class TransactionsRepository extends BaseRepository
                 'project:id,name',
                 'user:id,name',
                 'cashTransfersFrom:id,tr_id_from',
-                'cashTransfersTo:id,tr_id_to'
+                'cashTransfersTo:id,tr_id_to',
             ])
                 ->addSelect([
                     'client_balance' => DB::table('clients')
                         ->select('balance')
                         ->whereColumn('clients.id', 'transactions.client_id')
-                        ->limit(1)
+                        ->limit(1),
                 ]);
 
             $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
 
-            if (!$showDeleted) {
+            if (! $showDeleted) {
                 $query->where('transactions.is_deleted', false);
             }
 
@@ -113,8 +113,10 @@ class TransactionsRepository extends BaseRepository
                         } elseif ($end_date) {
                             return $query->where('transactions.date', '<=', \Carbon\Carbon::parse($end_date)->endOfDay()->toDateTimeString());
                         }
+
                         return $query;
                     }
+
                     return $this->applyDateFilter($query, $date_filter_type, $start_date, $end_date, 'transactions.date');
                 })
                 ->when($order_id, function ($query, $order_id) {
@@ -123,6 +125,7 @@ class TransactionsRepository extends BaseRepository
                 })
                 ->when($hasSearch, function ($query) use ($searchTrimmed) {
                     $searchLower = mb_strtolower($searchTrimmed);
+
                     return $query->where(function ($q) use ($searchTrimmed, $searchLower) {
                         $q->where('transactions.id', 'like', "%{$searchTrimmed}%")
                             ->orWhereRaw('LOWER(transactions.note) LIKE ?', ["%{$searchLower}%"]);
@@ -135,18 +138,18 @@ class TransactionsRepository extends BaseRepository
                                     $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
                                 });
                         })
-                        ->orWhereExists(function ($phoneSubQuery) use ($searchLower) {
-                            $phoneSubQuery->select(DB::raw(1))
-                                ->from('clients_phones')
-                                ->whereColumn('clients_phones.client_id', 'transactions.client_id')
-                                ->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
-                        })
-                        ->orWhereExists(function ($emailSubQuery) use ($searchLower) {
-                            $emailSubQuery->select(DB::raw(1))
-                                ->from('clients_emails')
-                                ->whereColumn('clients_emails.client_id', 'transactions.client_id')
-                                ->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
-                        });
+                            ->orWhereExists(function ($phoneSubQuery) use ($searchLower) {
+                                $phoneSubQuery->select(DB::raw(1))
+                                    ->from('clients_phones')
+                                    ->whereColumn('clients_phones.client_id', 'transactions.client_id')
+                                    ->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                            })
+                            ->orWhereExists(function ($emailSubQuery) use ($searchLower) {
+                                $emailSubQuery->select(DB::raw(1))
+                                    ->from('clients_emails')
+                                    ->whereColumn('clients_emails.client_id', 'transactions.client_id')
+                                    ->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                            });
                     });
                 })
                 ->when($transaction_type, function ($query, $transaction_type) {
@@ -172,7 +175,9 @@ class TransactionsRepository extends BaseRepository
                     }
                 })
                 ->when($source, function ($q, $source) {
-                    if (empty($source)) return $q;
+                    if (empty($source)) {
+                        return $q;
+                    }
 
                     return $q->where(function ($subQ) use ($source) {
                         if ($source === 'sale') {
@@ -197,6 +202,7 @@ class TransactionsRepository extends BaseRepository
                     if ($isDebtBool !== null) {
                         return $q->where('transactions.is_debt', $isDebtBool);
                     }
+
                     return $q;
                 })
                 ->when($category_ids && is_array($category_ids) && count($category_ids) > 0, function ($q) use ($category_ids) {
@@ -216,7 +222,7 @@ class TransactionsRepository extends BaseRepository
             }
 
             /** @var \Illuminate\Pagination\LengthAwarePaginator $paginatedResults */
-            $paginatedResults = $query->paginate($perPage, ['*'], 'page', (int)$page);
+            $paginatedResults = $query->paginate($perPage, ['*'], 'page', (int) $page);
             Log::info('transactions.search.result', [
                 'user_id' => $currentUser?->id,
                 'company_id' => $this->getCurrentCompanyId(),
@@ -247,7 +253,7 @@ class TransactionsRepository extends BaseRepository
                 'project:id,name',
                 'user:id,name',
                 'cashTransfersFrom:id,tr_id_from',
-                'cashTransfersTo:id,tr_id_to'
+                'cashTransfersTo:id,tr_id_to',
             ]);
 
             $debtStats = DB::table('clients')
@@ -322,18 +328,17 @@ class TransactionsRepository extends BaseRepository
             $paginatedResults->total_debt_balance = $totalDebtPositive - $totalDebtNegative;
 
             return $paginatedResults;
-        }, (int)$page);
+        }, (int) $page);
     }
-
-
 
     /**
      * Создать транзакцию
      *
-     * @param array $data Данные транзакции
-     * @param bool $return_id Вернуть ID транзакции вместо true
-     * @param bool $skipClientUpdate Пропустить обновление баланса клиента
+     * @param  array  $data  Данные транзакции
+     * @param  bool  $return_id  Вернуть ID транзакции вместо true
+     * @param  bool  $skipClientUpdate  Пропустить обновление баланса клиента
      * @return int|bool ID транзакции или true
+     *
      * @throws \Exception
      */
     public function createItem($data, $return_id = false, bool $skipClientUpdate = false)
@@ -342,7 +347,7 @@ class TransactionsRepository extends BaseRepository
         $originalAmount = $data['orig_amount'];
         $companyId = $this->getCurrentCompanyId();
         $defaultCurrency = Currency::where('is_default', true)
-            ->where(function($q) use ($companyId) {
+            ->where(function ($q) use ($companyId) {
                 $q->where('company_id', $companyId)->orWhereNull('company_id');
             })
             ->first();
@@ -360,16 +365,16 @@ class TransactionsRepository extends BaseRepository
         $toCurrency = $currencies[$cashRegister->currency_id];
         $defaultCurrency = $currencies[$defaultCurrencyId];
 
-        $roundingService = new RoundingService();
+        $roundingService = new RoundingService;
         $transactionDate = $data['date'] ?? now();
 
         $reportCurrency = Currency::where('is_report', true)
-            ->where(function($q) use ($companyId) {
+            ->where(function ($q) use ($companyId) {
                 $q->where('company_id', $companyId)->orWhereNull('company_id');
             })
             ->first();
 
-        if (!empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
+        if (! empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
             $exchangeRate = (float) $data['exchange_rate'];
             $convertedAmount = $originalAmount * $exchangeRate;
         } else {
@@ -402,7 +407,7 @@ class TransactionsRepository extends BaseRepository
 
         $roundedConvertedAmountDefault = $roundingService->roundForCompany($companyId, (float) $convertedAmountDefault);
 
-        if (!$reportCurrency) {
+        if (! $reportCurrency) {
             throw new \Exception('Валюта отчетов не найдена для компании');
         }
 
@@ -434,7 +439,7 @@ class TransactionsRepository extends BaseRepository
         DB::beginTransaction();
 
         try {
-            $transaction = new Transaction();
+            $transaction = new Transaction;
             $transaction->type = $data['type'];
             $transaction->user_id = $data['user_id'];
             $transaction->orig_amount = $originalAmount;
@@ -468,30 +473,37 @@ class TransactionsRepository extends BaseRepository
             $transaction->setSkipCashBalanceUpdate(true);
             $transaction->save();
 
-            if (!($data['is_debt'] ?? false) && $cashRegister) {
-                if ((int)$data['type'] === 1) {
+            if (! $transaction->source_type && ! $transaction->source_id) {
+                TransactionSourceService::setSalarySource($transaction);
+                if ($transaction->source_type || $transaction->source_id) {
+                    $transaction->save();
+                }
+            }
+
+            if (! ($data['is_debt'] ?? false) && $cashRegister) {
+                if ((int) $data['type'] === 1) {
                     DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance + ' . ($convertedAmount + 0))
+                        'balance' => DB::raw('balance + '.($convertedAmount + 0)),
                     ]);
                 } else {
                     DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance - ' . ($convertedAmount + 0))
+                        'balance' => DB::raw('balance - '.($convertedAmount + 0)),
                     ]);
                 }
             }
 
-            $skipForOrderProject = (($data['source_type'] ?? null) === \App\Models\Order::class) && !empty($data['project_id']);
+            $skipForOrderProject = (($data['source_type'] ?? null) === \App\Models\Order::class) && ! empty($data['project_id']);
 
             if ($skipForOrderProject) {
                 $companyId = $this->getCurrentCompanyId();
                 $company = $companyId ? Company::find($companyId) : null;
 
                 if ($company) {
-                    $skipForOrderProject = (bool)$company->skip_project_order_balance;
+                    $skipForOrderProject = (bool) $company->skip_project_order_balance;
                 }
             }
 
-            if (! $skipClientUpdate && ! empty($data['client_id']) && !$skipForOrderProject) {
+            if (! $skipClientUpdate && ! empty($data['client_id']) && ! $skipForOrderProject) {
                 $amountForClient = $this->convertAmountToDefaultCurrency(
                     $originalAmount,
                     $fromCurrency,
@@ -517,7 +529,7 @@ class TransactionsRepository extends BaseRepository
                     $data['client_id'],
                     $amountForClient,
                     $data['type'],
-                    (bool)($data['is_debt'] ?? false)
+                    (bool) ($data['is_debt'] ?? false)
                 );
 
                 CacheService::invalidateClientsCache();
@@ -528,18 +540,18 @@ class TransactionsRepository extends BaseRepository
             DB::commit();
 
             $this->invalidateTransactionsCache();
-            if (!empty($data['client_id'])) {
+            if (! empty($data['client_id'])) {
                 $this->invalidateClientBalanceCache($data['client_id']);
             }
 
             CacheService::invalidateCashRegistersCache();
 
-            if (!empty($data['project_id'])) {
-                $projectsRepository = new \App\Repositories\ProjectsRepository();
+            if (! empty($data['project_id'])) {
+                $projectsRepository = new \App\Repositories\ProjectsRepository;
                 $projectsRepository->invalidateProjectCache($data['project_id']);
             }
 
-            if (($data['source_type'] ?? null) === 'App\Models\Order' && !empty($data['source_id'])) {
+            if (($data['source_type'] ?? null) === 'App\Models\Order' && ! empty($data['source_id'])) {
                 CacheService::invalidateOrdersCache();
             }
         } catch (\Exception $e) {
@@ -553,9 +565,10 @@ class TransactionsRepository extends BaseRepository
     /**
      * Обновить транзакцию
      *
-     * @param int $id ID транзакции
-     * @param array $data Данные для обновления
+     * @param  int  $id  ID транзакции
+     * @param  array  $data  Данные для обновления
      * @return bool
+     *
      * @throws \Exception
      */
     public function updateItem($id, $data)
@@ -575,7 +588,7 @@ class TransactionsRepository extends BaseRepository
         $transaction->category_id = $data['category_id'];
         $transaction->project_id = $data['project_id'];
         $transaction->date = $data['date'];
-        $transaction->note = !empty($data['note']) ? $data['note'] : null;
+        $transaction->note = ! empty($data['note']) ? $data['note'] : null;
 
         if (isset($data['is_debt'])) {
             $transaction->is_debt = $data['is_debt'];
@@ -587,11 +600,18 @@ class TransactionsRepository extends BaseRepository
         if (array_key_exists('source_id', $data)) {
             $transaction->source_id = $data['source_id'];
         }
-        if (!empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
+        if (! empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
             $transaction->exchange_rate = (float) $data['exchange_rate'];
         }
 
         $transaction->save();
+
+        if (! $transaction->source_type && ! $transaction->source_id) {
+            TransactionSourceService::setSalarySource($transaction);
+            if ($transaction->source_type || $transaction->source_id) {
+                $transaction->save();
+            }
+        }
 
         $this->invalidateTransactionsCache();
         if ($transaction->client_id) {
@@ -601,7 +621,7 @@ class TransactionsRepository extends BaseRepository
         CacheService::invalidateCashRegistersCache();
 
         if ($transaction->project_id) {
-            $projectsRepository = new ProjectsRepository();
+            $projectsRepository = new ProjectsRepository;
             $projectsRepository->invalidateProjectCache($transaction->project_id);
         }
 
@@ -615,9 +635,10 @@ class TransactionsRepository extends BaseRepository
     /**
      * Обновить транзакцию с пересчетом баланса
      *
-     * @param int $id ID транзакции
-     * @param array $data Данные для обновления
+     * @param  int  $id  ID транзакции
+     * @param  array  $data  Данные для обновления
      * @return bool
+     *
      * @throws \Exception
      */
     private function updateItemWithBalanceRecalculation($id, $data)
@@ -639,14 +660,14 @@ class TransactionsRepository extends BaseRepository
             $oldProjectId = $transaction->project_id;
             $oldExchangeRate = $transaction->exchange_rate;
 
-            if (!$oldIsDebt) {
+            if (! $oldIsDebt) {
                 if ($oldType == 1) {
                     DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance - ' . ($oldAmount + 0))
+                        'balance' => DB::raw('balance - '.($oldAmount + 0)),
                     ]);
                 } else {
                     DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance + ' . ($oldAmount + 0))
+                        'balance' => DB::raw('balance + '.($oldAmount + 0)),
                     ]);
                 }
             }
@@ -677,12 +698,12 @@ class TransactionsRepository extends BaseRepository
             $newOrigAmount = $transaction->orig_amount;
             $newCurrencyId = $transaction->currency_id;
 
-            $roundingService = new RoundingService();
+            $roundingService = new RoundingService;
             $companyId = $this->getCurrentCompanyId();
             $transactionDate = $transaction->date ?? now();
 
             $defaultCurrency = Currency::where('is_default', true)
-                ->where(function($q) use ($companyId) {
+                ->where(function ($q) use ($companyId) {
                     $q->where('company_id', $companyId)->orWhereNull('company_id');
                 })
                 ->first();
@@ -699,12 +720,12 @@ class TransactionsRepository extends BaseRepository
             $defaultCurrency = $currencies[$defaultCurrencyId];
 
             $reportCurrency = Currency::where('is_report', true)
-                ->where(function($q) use ($companyId) {
+                ->where(function ($q) use ($companyId) {
                     $q->where('company_id', $companyId)->orWhereNull('company_id');
                 })
                 ->first();
 
-            if (!empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
+            if (! empty($data['exchange_rate']) && $data['exchange_rate'] > 0) {
                 $exchangeRate = (float) $data['exchange_rate'];
                 $newConvertedAmount = $newOrigAmount * $exchangeRate;
             } else {
@@ -737,7 +758,7 @@ class TransactionsRepository extends BaseRepository
 
             $roundedNewConvertedAmountDefault = $roundingService->roundForCompany($companyId, (float) $newConvertedAmountDefault);
 
-            if (!$reportCurrency) {
+            if (! $reportCurrency) {
                 throw new \Exception('Валюта отчетов не найдена для компании');
             }
 
@@ -778,30 +799,37 @@ class TransactionsRepository extends BaseRepository
 
             $transaction->save();
 
-            if (!$transaction->is_debt) {
+            if (! $transaction->source_type && ! $transaction->source_id) {
+                TransactionSourceService::setSalarySource($transaction);
+                if ($transaction->source_type || $transaction->source_id) {
+                    $transaction->save();
+                }
+            }
+
+            if (! $transaction->is_debt) {
                 if ($transaction->type == 1) {
                     DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance + ' . ($newConvertedAmount + 0))
+                        'balance' => DB::raw('balance + '.($newConvertedAmount + 0)),
                     ]);
                 } else {
                     DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance - ' . ($newConvertedAmount + 0))
+                        'balance' => DB::raw('balance - '.($newConvertedAmount + 0)),
                     ]);
                 }
             }
 
             $companyId = $this->getCurrentCompanyId();
             $company = $companyId ? Company::find($companyId) : null;
-            $skipProjectOrderBalance = $company ? (bool)$company->skip_project_order_balance : true;
+            $skipProjectOrderBalance = $company ? (bool) $company->skip_project_order_balance : true;
 
             $isOrder = ($transaction->source_type === \App\Models\Order::class);
-            $hadProject = !empty($oldProjectId);
-            $hasProject = !empty($transaction->project_id);
+            $hadProject = ! empty($oldProjectId);
+            $hasProject = ! empty($transaction->project_id);
 
             $shouldSkipOld = $isOrder && $hadProject && $skipProjectOrderBalance;
             $shouldSkipNew = $isOrder && $hasProject && $skipProjectOrderBalance;
 
-            if (!$shouldSkipOld && $oldClientId) {
+            if (! $shouldSkipOld && $oldClientId) {
                 $defaultCurrency = $currencies[$defaultCurrencyId];
                 $oldAmountDefault = $this->convertAmountToDefaultCurrency(
                     $oldOrigAmount,
@@ -833,7 +861,7 @@ class TransactionsRepository extends BaseRepository
                 );
             }
 
-            if (!$shouldSkipNew && $transaction->client_id) {
+            if (! $shouldSkipNew && $transaction->client_id) {
                 $defaultCurrency = $currencies[$defaultCurrencyId];
                 $newAmountDefault = $this->convertAmountToDefaultCurrency(
                     $newOrigAmount,
@@ -860,7 +888,7 @@ class TransactionsRepository extends BaseRepository
                     $transaction->client_id,
                     $newAmountDefault,
                     $transaction->type,
-                    (bool)$transaction->is_debt
+                    (bool) $transaction->is_debt
                 );
             }
 
@@ -885,7 +913,7 @@ class TransactionsRepository extends BaseRepository
             CacheService::invalidateCashRegistersCache();
 
             if ($transaction->project_id) {
-                $projectsRepository = new ProjectsRepository();
+                $projectsRepository = new ProjectsRepository;
                 $projectsRepository->invalidateProjectCache($transaction->project_id);
             }
 
@@ -903,9 +931,9 @@ class TransactionsRepository extends BaseRepository
     /**
      * Удалить транзакцию
      *
-     * @param int $id ID транзакции
-     * @param bool $skipClientUpdate Пропустить обновление баланса клиента
-     * @return bool
+     * @param  int  $id  ID транзакции
+     * @param  bool  $skipClientUpdate  Пропустить обновление баланса клиента
+     *
      * @throws \Exception
      */
     public function deleteItem(int $id, bool $skipClientUpdate = false): bool
@@ -927,20 +955,20 @@ class TransactionsRepository extends BaseRepository
             $fromCurrency = $currencies[$transaction->currency_id];
             $defaultCurrency = $currencies[$defaultCurrencyId];
 
-            $roundingService = new RoundingService();
+            $roundingService = new RoundingService;
             $companyId = $this->getCurrentCompanyId();
             $transactionDate = $transaction->date ?? now();
 
             $convertedAmount = $transaction->amount;
 
-            if (!$transaction->is_debt) {
+            if (! $transaction->is_debt) {
                 if ($transaction->type == 1) {
                     DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance - ' . ($convertedAmount + 0))
+                        'balance' => DB::raw('balance - '.($convertedAmount + 0)),
                     ]);
                 } else {
                     DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance + ' . ($convertedAmount + 0))
+                        'balance' => DB::raw('balance + '.($convertedAmount + 0)),
                     ]);
                 }
             }
@@ -950,12 +978,12 @@ class TransactionsRepository extends BaseRepository
 
             DB::table('transactions')->where('id', $transaction->id)->update(['is_deleted' => true]);
 
-            $skipForOrderProject = ($transaction->source_type === \App\Models\Order::class) && !empty($transaction->project_id);
+            $skipForOrderProject = ($transaction->source_type === \App\Models\Order::class) && ! empty($transaction->project_id);
             if ($skipForOrderProject) {
                 $company = $companyId ? Company::findOrFail($companyId) : null;
-                $skipForOrderProject = $company ? (bool)$company->skip_project_order_balance : $skipForOrderProject;
+                $skipForOrderProject = $company ? (bool) $company->skip_project_order_balance : $skipForOrderProject;
             }
-            if (! $skipClientUpdate && $transaction->client_id && !$skipForOrderProject) {
+            if (! $skipClientUpdate && $transaction->client_id && ! $skipForOrderProject) {
                 $amountForClient = $this->convertAmountToDefaultCurrency(
                     $transaction->orig_amount,
                     $fromCurrency,
@@ -968,7 +996,7 @@ class TransactionsRepository extends BaseRepository
                     $transaction->client_id,
                     $amountForClient,
                     $transaction->type,
-                    (bool)$transaction->is_debt,
+                    (bool) $transaction->is_debt,
                     true
                 );
 
@@ -987,7 +1015,7 @@ class TransactionsRepository extends BaseRepository
             CacheService::invalidateCashRegistersCache();
 
             if ($transaction->project_id) {
-                $projectsRepository = new ProjectsRepository();
+                $projectsRepository = new ProjectsRepository;
                 $projectsRepository->invalidateProjectCache($transaction->project_id);
             }
 
@@ -1005,8 +1033,8 @@ class TransactionsRepository extends BaseRepository
     /**
      * Получить общую сумму транзакций по заказу
      *
-     * @param int $userId ID пользователя
-     * @param int $orderId ID заказа
+     * @param  int  $userId  ID пользователя
+     * @param  int  $orderId  ID заказа
      * @return float
      */
     public function getTotalByOrderId($userId, $orderId)
@@ -1023,7 +1051,7 @@ class TransactionsRepository extends BaseRepository
     /**
      * Проверить, является ли транзакция перемещением между кассами
      *
-     * @param Transaction $transaction Транзакция
+     * @param  Transaction  $transaction  Транзакция
      * @return bool
      */
     private function isTransfer($transaction)
@@ -1038,7 +1066,7 @@ class TransactionsRepository extends BaseRepository
     /**
      * Проверить, является ли транзакция продажей
      *
-     * @param Transaction $transaction Транзакция
+     * @param  Transaction  $transaction  Транзакция
      * @return bool
      */
     private function isSale($transaction)
@@ -1049,7 +1077,7 @@ class TransactionsRepository extends BaseRepository
     /**
      * Проверить, является ли транзакция оприходованием
      *
-     * @param Transaction $transaction Транзакция
+     * @param  Transaction  $transaction  Транзакция
      * @return bool
      */
     private function isReceipt($transaction)
@@ -1070,19 +1098,20 @@ class TransactionsRepository extends BaseRepository
     /**
      * Получить транзакцию по ID
      *
-     * @param int $id ID транзакции
+     * @param  int  $id  ID транзакции
      * @return \Illuminate\Support\Collection|null
      */
     public function getItemById($id)
     {
         $items = $this->getItems([$id]);
+
         return $items->first();
     }
 
     /**
      * Получить транзакции по массиву ID
      *
-     * @param array $ids Массив ID транзакций
+     * @param  array  $ids  Массив ID транзакций
      * @return \Illuminate\Support\Collection
      */
     private function getItems(array $ids = [])
@@ -1140,7 +1169,7 @@ class TransactionsRepository extends BaseRepository
         $clientIds = $items->pluck('client_id')->filter()->unique()->toArray();
         $clients = collect();
 
-        if (!empty($clientIds)) {
+        if (! empty($clientIds)) {
             $clients = Client::whereIn('id', $clientIds)
                 ->with(['phones', 'emails'])
                 ->select([
@@ -1158,7 +1187,7 @@ class TransactionsRepository extends BaseRepository
                     'discount',
                     'created_at',
                     'updated_at',
-                    'clients.balance as balance'
+                    'clients.balance as balance',
                 ])
                 ->get()
                 ->keyBy('id');
@@ -1168,21 +1197,22 @@ class TransactionsRepository extends BaseRepository
             $item = (object) $item->toArray();
             $item->client = $clients->get($item->client_id);
         }
+
         return $items;
     }
 
     /**
      * Применить фильтр по источникам транзакций на основе пермишенов пользователя
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
-     * @param \App\Models\User|null $user Пользователь
+     * @param  \Illuminate\Database\Eloquent\Builder  $query  Query builder
+     * @param  \App\Models\User|null  $user  Пользователь
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function applySourceTypeFilter($query, $user = null)
     {
         /** @var \App\Models\User|null $user */
         $user = $user ?? auth('api')->user();
-        if (!$user) {
+        if (! $user) {
             return $query;
         }
 
@@ -1205,7 +1235,7 @@ class TransactionsRepository extends BaseRepository
         // Если есть права по источникам, применяем фильтр
         // Если нет прав по источникам, но есть базовое право transactions_view, показываем все
         // Если нет никаких прав, фильтр не применяется (для обратной совместимости)
-        if (!$hasAnySourcePermission) {
+        if (! $hasAnySourcePermission) {
             return $query;
         }
 
@@ -1229,7 +1259,7 @@ class TransactionsRepository extends BaseRepository
                             'App\\Models\\Sale',
                             'App\\Models\\Order',
                             'App\\Models\\WhReceipt',
-                            'App\\Models\\EmployeeSalary'
+                            'App\\Models\\EmployeeSalary',
                         ]);
                 });
             }
@@ -1241,14 +1271,14 @@ class TransactionsRepository extends BaseRepository
     /**
      * Получить ключ для кэша на основе пермишенов пользователя по источникам
      *
-     * @param \App\Models\User|null $user Пользователь
+     * @param  \App\Models\User|null  $user  Пользователь
      * @return string
      */
     private function getSourcePermissionsKey($user = null)
     {
         /** @var \App\Models\User|null $user */
         $user = $user ?? auth('api')->user();
-        if (!$user) {
+        if (! $user) {
             return 'no_user';
         }
 
@@ -1283,17 +1313,18 @@ class TransactionsRepository extends BaseRepository
             return 'all';
         }
         sort($sources);
+
         return implode('_', $sources);
     }
 
     /**
      * Конвертировать сумму в валюту по умолчанию
      *
-     * @param float $amount Сумма для конвертации
-     * @param \App\Models\Currency $fromCurrency Исходная валюта
-     * @param \App\Models\Currency $defaultCurrency Валюта по умолчанию
-     * @param int|null $companyId ID компании
-     * @param string|\DateTime|null $date Дата для конвертации (опционально)
+     * @param  float  $amount  Сумма для конвертации
+     * @param  \App\Models\Currency  $fromCurrency  Исходная валюта
+     * @param  \App\Models\Currency  $defaultCurrency  Валюта по умолчанию
+     * @param  int|null  $companyId  ID компании
+     * @param  string|\DateTime|null  $date  Дата для конвертации (опционально)
      * @return float Сумма в валюте по умолчанию
      */
     private function convertAmountToDefaultCurrency(float $amount, \App\Models\Currency $fromCurrency, \App\Models\Currency $defaultCurrency, ?int $companyId, $date = null, ?float $exchangeRate = null, ?\App\Models\Currency $cashCurrency = null): float
@@ -1315,19 +1346,19 @@ class TransactionsRepository extends BaseRepository
             $amount = CurrencyConverter::convert($amount, $fromCurrency, $defaultCurrency, null, $companyId, $date ?? now());
         }
 
-        $roundingService = new RoundingService();
+        $roundingService = new RoundingService;
+
         return $roundingService->roundForCompany($companyId, (float) $amount);
     }
 
     /**
      * Обновить значение баланса клиента
      *
-     * @param int $clientId ID клиента
-     * @param float $amount Сумма
-     * @param int $type Тип транзакции (0 - расход, 1 - приход)
-     * @param bool $isDebt Является ли транзакция кредитной
-     * @param bool $reverse Обратить операцию (для отката)
-     * @return void
+     * @param  int  $clientId  ID клиента
+     * @param  float  $amount  Сумма
+     * @param  int  $type  Тип транзакции (0 - расход, 1 - приход)
+     * @param  bool  $isDebt  Является ли транзакция кредитной
+     * @param  bool  $reverse  Обратить операцию (для отката)
      */
     private function updateClientBalanceValue(int $clientId, float $amount, int $type, bool $isDebt, bool $reverse = false): void
     {
@@ -1346,7 +1377,7 @@ class TransactionsRepository extends BaseRepository
         $delta = $sign * $amount;
 
         DB::table('clients')->where('id', $clientId)->update([
-            'balance' => DB::raw('balance + ' . ($delta + 0))
+            'balance' => DB::raw('balance + '.($delta + 0)),
         ]);
     }
 }
