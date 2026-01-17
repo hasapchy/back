@@ -19,7 +19,7 @@ class DepartmentRepository extends BaseRepository
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userId, $perPage, $page) {
             $query = Department::with([
-                'users:id,name,surname,email,position',
+                'users:id,name,surname,email,position,photo',
                 'head:id,name,surname,email,position,photo',
                 'deputyHead:id,name,surname,email,position,photo',
                 'company:id,name',
@@ -57,7 +57,7 @@ class DepartmentRepository extends BaseRepository
 
         return CacheService::getReferenceData($cacheKey, function () use ($userId) {
             $query = Department::with([
-                'users:id,name,surname,email,position',
+                'users:id,name,surname,email,position,photo',
                 'head:id,name,surname,email,position,photo',
                 'deputyHead:id,name,surname,email,position,photo',
                 'company:id,name',
@@ -104,7 +104,7 @@ class DepartmentRepository extends BaseRepository
         CacheService::invalidateDepartmentsCache();
 
         return $department->load([
-            'users:id,name,surname,email,position',
+            'users:id,name,surname,email,position,photo',
             'head:id,name,surname,email,position,photo',
             'deputyHead:id,name,surname,email,position,photo',
             'company:id,name',
@@ -133,7 +133,7 @@ class DepartmentRepository extends BaseRepository
         CacheService::invalidateDepartmentsCache();
 
         return $department->load([
-            'users:id,name,surname,email,position',
+            'users:id,name,surname,email,position,photo',
             'head:id,name,surname,email,position,photo',
             'deputyHead:id,name,surname,email,position,photo',
             'company:id,name',
