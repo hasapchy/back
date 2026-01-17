@@ -377,14 +377,8 @@ class OrderController extends BaseController
         }
 
         if (!$categoryId) {
-            $userCategoryMap = config('basement.user_category_map', []);
-            $mappedCategoryId = $userCategoryMap[$userUuid] ?? null;
-
-            if ($mappedCategoryId && in_array($mappedCategoryId, $userCategoryIds)) {
-                $categoryId = $mappedCategoryId;
-            } else {
-                $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
-            }
+            // Выбираем первую доступную категорию из назначенных пользователю
+            $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
 
             if (!$categoryId) {
                 return $this->errorResponse('У вас нет доступных категорий. Обратитесь к администратору для назначения категории.', 400);
