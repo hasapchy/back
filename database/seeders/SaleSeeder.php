@@ -21,3 +21,4 @@ class SaleSeeder extends Seeder
 }
 
 
+
