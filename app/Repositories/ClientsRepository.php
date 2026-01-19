@@ -7,10 +7,8 @@ use App\Models\ClientsEmail;
 use App\Models\ClientsPhone;
 use App\Models\Currency;
 use App\Models\Transaction;
-use App\Models\CashRegister;
 use App\Models\User;
 use App\Services\CacheService;
-use App\Services\RoundingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -19,12 +17,12 @@ class ClientsRepository extends BaseRepository
     /**
      * Получить клиентов с пагинацией и фильтрацией
      *
-     * @param int $perPage Количество записей на страницу
-     * @param string|null $search Поисковый запрос
-     * @param bool $includeInactive Включать неактивных клиентов
-     * @param int $page Номер страницы
-     * @param string|null $statusFilter Фильтр по статусу ('active' или 'inactive')
-     * @param array $typeFilter Фильтр по типу клиента
+     * @param  int  $perPage  Количество записей на страницу
+     * @param  string|null  $search  Поисковый запрос
+     * @param  bool  $includeInactive  Включать неактивных клиентов
+     * @param  int  $page  Номер страницы
+     * @param  string|null  $statusFilter  Фильтр по статусу ('active' или 'inactive')
+     * @param  array  $typeFilter  Фильтр по типу клиента
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
     public function getItemsWithPagination($perPage = 10, $search = null, $includeInactive = false, $page = 1, $statusFilter = null, $typeFilter = [])
@@ -42,11 +40,11 @@ class ClientsRepository extends BaseRepository
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
                 'user:id,name,photo',
-                'employee:id,name,surname,position,photo'
+                'employee:id,name,surname,position,photo',
             ])
                 ->select([
                     'clients.*',
-                    'clients.balance as balance'
+                    'clients.balance as balance',
                 ]);
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
@@ -55,11 +53,11 @@ class ClientsRepository extends BaseRepository
 
             if ($statusFilter) {
                 $query->where('clients.status', $statusFilter === 'active');
-            } elseif (!$includeInactive) {
+            } elseif (! $includeInactive) {
                 $query->where('clients.status', true);
             }
 
-            if (!empty($typeFilter)) {
+            if (! empty($typeFilter)) {
                 $query->whereIn('clients.client_type', $typeFilter);
             }
 
@@ -67,31 +65,30 @@ class ClientsRepository extends BaseRepository
                 $searchTerm = "%{$search}%";
                 $query->where(function ($q) use ($searchTerm) {
                     $q->where('clients.id', 'like', $searchTerm)
-                      ->orWhere('clients.first_name', 'like', $searchTerm)
-                      ->orWhere('clients.last_name', 'like', $searchTerm)
-                      ->orWhere('clients.contact_person', 'like', $searchTerm)
-                      ->orWhere('clients.position', 'like', $searchTerm)
-                      ->orWhere('clients.address', 'like', $searchTerm)
-                      ->orWhereHas('phones', function ($phoneQuery) use ($searchTerm) {
-                          $phoneQuery->where('phone', 'like', $searchTerm);
-                      })
-                      ->orWhereHas('emails', function ($emailQuery) use ($searchTerm) {
-                          $emailQuery->where('email', 'like', $searchTerm);
-                      });
+                        ->orWhere('clients.first_name', 'like', $searchTerm)
+                        ->orWhere('clients.last_name', 'like', $searchTerm)
+                        ->orWhere('clients.contact_person', 'like', $searchTerm)
+                        ->orWhere('clients.position', 'like', $searchTerm)
+                        ->orWhere('clients.address', 'like', $searchTerm)
+                        ->orWhereHas('phones', function ($phoneQuery) use ($searchTerm) {
+                            $phoneQuery->where('phone', 'like', $searchTerm);
+                        })
+                        ->orWhereHas('emails', function ($emailQuery) use ($searchTerm) {
+                            $emailQuery->where('email', 'like', $searchTerm);
+                        });
                 });
             }
 
             $query->orderBy('clients.created_at', 'desc');
 
-            return $query->paginate($perPage, ['*'], 'page', (int)$page);
-        }, (int)$page);
+            return $query->paginate($perPage, ['*'], 'page', (int) $page);
+        }, (int) $page);
     }
 
     /**
      * Получить всех активных клиентов
      *
-     * @param array $typeFilter
-     * @param bool $forMutualSettlements Применять фильтр по правам доступа к взаиморасчетам
+     * @param  bool  $forMutualSettlements  Применять фильтр по правам доступа к взаиморасчетам
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getAllItems(array $typeFilter = [], bool $forMutualSettlements = false)
@@ -121,7 +118,7 @@ class ClientsRepository extends BaseRepository
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
                 'user:id,name,photo',
-                'employee:id,name,surname,position,photo'
+                'employee:id,name,surname,position,photo',
             ])
                 ->select([
                     'clients.id',
@@ -135,7 +132,7 @@ class ClientsRepository extends BaseRepository
                     'clients.patronymic',
                     'clients.contact_person',
                     'clients.position',
-                    'clients.employee_id'
+                    'clients.employee_id',
                 ])
                 ->where('clients.status', true);
 
@@ -143,7 +140,7 @@ class ClientsRepository extends BaseRepository
 
             $this->applyOwnFilter($query, 'clients', 'clients', 'user_id', $currentUser);
 
-            if (!empty($typeFilter)) {
+            if (! empty($typeFilter)) {
                 $query->whereIn('clients.client_type', $typeFilter);
             }
 
@@ -156,12 +153,12 @@ class ClientsRepository extends BaseRepository
     /**
      * Получить доступные типы клиентов для просмотра взаиморасчетов
      *
-     * @param \App\Models\User|null $user Пользователь
+     * @param  \App\Models\User|null  $user  Пользователь
      * @return array Массив типов клиентов, к которым есть доступ
      */
     protected function getAllowedMutualSettlementsClientTypes($user = null)
     {
-        if (!$user) {
+        if (! $user) {
             return [];
         }
 
@@ -172,7 +169,7 @@ class ClientsRepository extends BaseRepository
         $permissions = $this->getUserPermissionsForCompany($user);
         $hasViewAll = in_array('mutual_settlements_view_all', $permissions);
 
-        if (!$hasViewAll) {
+        if (! $hasViewAll) {
             return [];
         }
 
@@ -190,33 +187,40 @@ class ClientsRepository extends BaseRepository
     /**
      * Поиск клиентов по запросу
      *
-     * @param string $search_request Поисковый запрос (может содержать несколько слов)
+     * @param  string  $search_request  Поисковый запрос (может содержать несколько слов)
+     * @param  array  $typeFilter  Фильтр по типу клиента
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function searchClient(string $search_request)
+    public function searchClient(string $search_request, array $typeFilter = [])
     {
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('clients_search_' . md5($search_request), [$currentUser?->id, $companyId]);
-        return CacheService::rememberSearch($cacheKey, function () use ($search_request, $currentUser) {
+        $typeFilterKey = implode(',', $typeFilter);
+        $cacheKey = $this->generateCacheKey('clients_search_'.md5($search_request), [$currentUser?->id, $companyId, $typeFilterKey]);
+
+        return CacheService::rememberSearch($cacheKey, function () use ($search_request, $currentUser, $typeFilter) {
             $searchTerms = explode(' ', $search_request);
 
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
                 'user:id,name,photo',
-                'employee:id,name,surname,position,photo'
+                'employee:id,name,surname,position,photo',
             ])
                 ->select([
                     'clients.*',
-                    'clients.balance as balance'
+                    'clients.balance as balance',
                 ])
                 ->where('clients.status', true);
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
 
             $this->applyOwnFilter($query, 'clients', 'clients', 'user_id', $currentUser);
+
+            if (! empty($typeFilter)) {
+                $query->whereIn('clients.client_type', $typeFilter);
+            }
 
             $query->where(function ($q) use ($searchTerms) {
                 foreach ($searchTerms as $term) {
@@ -244,7 +248,7 @@ class ClientsRepository extends BaseRepository
     /**
      * Получить клиента по ID
      *
-     * @param int $id ID клиента
+     * @param  int  $id  ID клиента
      * @return Client|null
      */
     public function getItemById($id)
@@ -256,11 +260,11 @@ class ClientsRepository extends BaseRepository
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
                 'user:id,name,photo',
-                'employee:id,name,surname,position,photo'
+                'employee:id,name,surname,position,photo',
             ])
                 ->select([
                     'clients.*',
-                    'clients.balance as balance'
+                    'clients.balance as balance',
                 ])
                 ->where('clients.id', $id);
 
@@ -273,7 +277,7 @@ class ClientsRepository extends BaseRepository
     /**
      * Создать клиента
      *
-     * @param array $data Данные клиента
+     * @param  array  $data  Данные клиента
      * @return Client
      */
     public function createItem(array $data)
@@ -282,22 +286,22 @@ class ClientsRepository extends BaseRepository
             $companyId = $this->getCurrentCompanyId();
 
             $client = Client::create([
-                'user_id'        => $data['user_id'] ?? null,
-                'company_id'     => $companyId,
-                'employee_id'    => $data['employee_id'] ?? null,
-                'first_name'     => $data['first_name'],
-                'is_conflict'    => $data['is_conflict'] ?? false,
-                'is_supplier'    => $data['is_supplier'] ?? false,
-                'last_name'      => $data['last_name'] ?? null,
-                'patronymic'     => $data['patronymic'] ?? null,
+                'user_id' => $data['user_id'] ?? null,
+                'company_id' => $companyId,
+                'employee_id' => $data['employee_id'] ?? null,
+                'first_name' => $data['first_name'],
+                'is_conflict' => $data['is_conflict'] ?? false,
+                'is_supplier' => $data['is_supplier'] ?? false,
+                'last_name' => $data['last_name'] ?? null,
+                'patronymic' => $data['patronymic'] ?? null,
                 'contact_person' => $data['contact_person'] ?? null,
-                'position'       => $data['position'] ?? null,
-                'client_type'    => $data['client_type'],
-                'address'        => $data['address'] ?? null,
-                'note'           => $data['note'] ?? null,
-                'status'         => $data['status'] ?? true,
+                'position' => $data['position'] ?? null,
+                'client_type' => $data['client_type'],
+                'address' => $data['address'] ?? null,
+                'note' => $data['note'] ?? null,
+                'status' => $data['status'] ?? true,
                 'discount' => $data['discount'] ?? 0,
-                'discount_type'  => $data['discount_type'] ?? null,
+                'discount_type' => $data['discount_type'] ?? null,
             ]);
 
             $this->syncPhones($client->id, $data['phones'] ?? []);
@@ -315,8 +319,8 @@ class ClientsRepository extends BaseRepository
     /**
      * Обновить клиента
      *
-     * @param int $id ID клиента
-     * @param array $data Данные для обновления
+     * @param  int  $id  ID клиента
+     * @param  array  $data  Данные для обновления
      * @return Client
      */
     public function updateItem($id, array $data)
@@ -324,13 +328,13 @@ class ClientsRepository extends BaseRepository
         $client = DB::transaction(function () use ($id, $data) {
             $client = Client::findOrFail($id);
             $updateData = [
-                'user_id'        => $data['user_id'] ?? $client->user_id,
-                'employee_id'    => $data['employee_id'] ?? $client->employee_id,
-                'first_name'     => $data['first_name'],
-                'is_conflict'    => $data['is_conflict'] ?? false,
-                'is_supplier'    => $data['is_supplier'] ?? false,
-                'client_type'    => $data['client_type'],
-                'status'         => $data['status'] ?? true,
+                'user_id' => $data['user_id'] ?? $client->user_id,
+                'employee_id' => $data['employee_id'] ?? $client->employee_id,
+                'first_name' => $data['first_name'],
+                'is_conflict' => $data['is_conflict'] ?? false,
+                'is_supplier' => $data['is_supplier'] ?? false,
+                'client_type' => $data['client_type'],
+                'status' => $data['status'] ?? true,
                 'discount' => $data['discount'] ?? 0,
             ];
 
@@ -360,10 +364,10 @@ class ClientsRepository extends BaseRepository
     /**
      * Получить клиентов по массиву ID
      *
-     * @param array $ids Массив ID клиентов
+     * @param  array  $ids  Массив ID клиентов
      * @return \Illuminate\Support\Collection
      */
-    function getItemsByIds(array $ids)
+    public function getItemsByIds(array $ids)
     {
 
         $query = Client::whereIn('id', $ids)
@@ -406,11 +410,11 @@ class ClientsRepository extends BaseRepository
     /**
      * Получить историю баланса клиента
      *
-     * @param int $clientId ID клиента
-     * @param bool|null $excludeDebt Исключить кредитные транзакции (true - только платежи, false/null - все)
-     * @param int|null $cashRegisterId ID кассы для фильтрации
-     * @param string|null $dateFrom Дата начала периода (формат: Y-m-d)
-     * @param string|null $dateTo Дата окончания периода (формат: Y-m-d)
+     * @param  int  $clientId  ID клиента
+     * @param  bool|null  $excludeDebt  Исключить кредитные транзакции (true - только платежи, false/null - все)
+     * @param  int|null  $cashRegisterId  ID кассы для фильтрации
+     * @param  string|null  $dateFrom  Дата начала периода (формат: Y-m-d)
+     * @param  string|null  $dateTo  Дата окончания периода (формат: Y-m-d)
      * @return array Массив транзакций с описаниями
      */
     public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null)
@@ -435,14 +439,14 @@ class ClientsRepository extends BaseRepository
                 $hasBalanceViewOwn = in_array('settings_client_balance_view_own', $permissions);
 
                 $isOwnBalance = false;
-                if ($currentUser && $hasBalanceViewOwn && !$hasBalanceViewAll) {
+                if ($currentUser && $hasBalanceViewOwn && ! $hasBalanceViewAll) {
                     $client = Client::find($clientId);
                     if ($client && $client->employee_id === $currentUser->id) {
                         $isOwnBalance = true;
                     }
                 }
 
-                if (!$isOwnBalance && $this->shouldApplyUserFilter('cash_registers')) {
+                if (! $isOwnBalance && $this->shouldApplyUserFilter('cash_registers')) {
                     $filterUserId = $this->getFilterUserIdForPermission('cash_registers');
                     $transactionsQuery->where(function ($q) use ($filterUserId, $cashRegisterId) {
                         $q->whereNull('cash_id');
@@ -480,12 +484,12 @@ class ClientsRepository extends BaseRepository
                 }
 
                 $transactionsQuery->with([
-                        'cashRegister:id,name,currency_id',
-                        'cashRegister.currency:id,symbol',
-                        'currency:id,symbol',
-                        'user:id,name',
-                        'category:id,name'
-                    ])
+                    'cashRegister:id,name,currency_id',
+                    'cashRegister.currency:id,symbol',
+                    'currency:id,symbol',
+                    'user:id,name',
+                    'category:id,name',
+                ])
                     ->select(
                         'id',
                         'created_at',
@@ -525,10 +529,10 @@ class ClientsRepository extends BaseRepository
                             $receiptId = $item->source_id;
 
                             if ($item->is_debt) {
-                                $description = '📦 Оприходование #' . $receiptId . ' (в кредит)';
+                                $description = '📦 Оприходование #'.$receiptId.' (в кредит)';
                                 $amount = +$amount;
                             } else {
-                                $description = '💰 Оплата поставщику #' . $receiptId;
+                                $description = '💰 Оплата поставщику #'.$receiptId;
                                 $amount = -$amount;
                             }
 
@@ -548,7 +552,7 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
-                                'category_name' => $item->category->name ?? null
+                                'category_name' => $item->category->name ?? null,
                             ];
                         } elseif ($source === 'transaction') {
                             $transactionId = $item->id;
@@ -556,12 +560,12 @@ class ClientsRepository extends BaseRepository
 
                             if ($item->is_debt) {
                                 $description = $item->type == 1
-                                    ? '💸 Кредит клиента #' . $transactionId
-                                    : '💸 Наш кредит #' . $transactionId;
+                                    ? '💸 Кредит клиента #'.$transactionId
+                                    : '💸 Наш кредит #'.$transactionId;
                             } else {
                                 $description = $item->type == 1
-                                    ? '✅ Приход #' . $transactionId
-                                    : '🔺 Расход #' . $transactionId;
+                                    ? '✅ Приход #'.$transactionId
+                                    : '🔺 Расход #'.$transactionId;
                             }
 
                             $results[] = [
@@ -580,7 +584,7 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
-                                'category_name' => $item->category->name ?? null
+                                'category_name' => $item->category->name ?? null,
                             ];
                         } elseif ($source === 'sale') {
                             $saleId = $item->source_id;
@@ -595,20 +599,20 @@ class ClientsRepository extends BaseRepository
                                 'orig_amount' => $item->orig_amount,
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
-                                'description' => '🛒 Продажа #' . $saleId . ($item->is_debt ? ' (в кредит)' : ''),
+                                'description' => '🛒 Продажа #'.$saleId.($item->is_debt ? ' (в кредит)' : ''),
                                 'user_id' => $item->user_id,
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
-                                'category_name' => $item->category->name ?? null
+                                'category_name' => $item->category->name ?? null,
                             ];
                         } elseif ($source === 'order') {
                             $orderId = $item->source_id;
                             $amount = $item->type == 1 ? +$amount : -$amount;
 
                             $description = $item->type == 1
-                                ? '📋 Заказ #' . $orderId
-                                : '💰 Оплата заказа #' . $orderId;
+                                ? '📋 Заказ #'.$orderId
+                                : '💰 Оплата заказа #'.$orderId;
 
                             $results[] = [
                                 'source' => $source,
@@ -626,7 +630,7 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
-                                'category_name' => $item->category->name ?? null
+                                'category_name' => $item->category->name ?? null,
                             ];
                         } else {
                             $description = $item->note ?? 'Транзакция';
@@ -646,7 +650,7 @@ class ClientsRepository extends BaseRepository
                                 'user_name' => $item->user->name,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
-                                'category_name' => $item->category->name ?? null
+                                'category_name' => $item->category->name ?? null,
                             ];
                         }
 
@@ -663,10 +667,10 @@ class ClientsRepository extends BaseRepository
 
                 return $result;
             } catch (\Exception $e) {
-                Log::error('Error in getBalanceHistory: ' . $e->getMessage(), [
+                Log::error('Error in getBalanceHistory: '.$e->getMessage(), [
                     'client_id' => $clientId,
                     'exclude_debt' => $excludeDebt,
-                    'exception' => $e
+                    'exception' => $e,
                 ]);
                 throw $e;
             }
@@ -674,8 +678,7 @@ class ClientsRepository extends BaseRepository
     }
 
     /**
-     * @param mixed $value
-     * @return array
+     * @param  mixed  $value
      */
     private function normalizeTypeFilter($value): array
     {
@@ -698,11 +701,10 @@ class ClientsRepository extends BaseRepository
         return array_values(array_unique($filtered));
     }
 
-
     /**
      * Удалить клиента
      *
-     * @param int $id ID клиента
+     * @param  int  $id  ID клиента
      * @return int Количество удаленных записей
      */
     public function deleteItem($id)
@@ -710,6 +712,7 @@ class ClientsRepository extends BaseRepository
         $result = DB::transaction(function () use ($id) {
             ClientsEmail::where('client_id', $id)->delete();
             ClientsPhone::where('client_id', $id)->delete();
+
             return Client::where('id', $id)->delete();
         });
 
@@ -722,8 +725,8 @@ class ClientsRepository extends BaseRepository
     /**
      * Синхронизировать телефоны клиента
      *
-     * @param int $clientId ID клиента
-     * @param array $phones Массив телефонов
+     * @param  int  $clientId  ID клиента
+     * @param  array  $phones  Массив телефонов
      * @return void
      */
     private function syncPhones(int $clientId, array $phones)
@@ -735,7 +738,7 @@ class ClientsRepository extends BaseRepository
         $phonesToAdd = array_diff($phones, $existingPhones);
         $phonesToRemove = array_diff($existingPhones, $phones);
 
-        if (!empty($phonesToAdd)) {
+        if (! empty($phonesToAdd)) {
             foreach ($phonesToAdd as $phone) {
                 ClientsPhone::create([
                     'client_id' => $clientId,
@@ -744,7 +747,7 @@ class ClientsRepository extends BaseRepository
             }
         }
 
-        if (!empty($phonesToRemove)) {
+        if (! empty($phonesToRemove)) {
             ClientsPhone::where('client_id', $clientId)
                 ->whereIn('phone', $phonesToRemove)
                 ->delete();
@@ -754,8 +757,8 @@ class ClientsRepository extends BaseRepository
     /**
      * Синхронизировать email клиента
      *
-     * @param int $clientId ID клиента
-     * @param array $emails Массив email
+     * @param  int  $clientId  ID клиента
+     * @param  array  $emails  Массив email
      * @return void
      */
     private function syncEmails(int $clientId, array $emails)
@@ -767,7 +770,7 @@ class ClientsRepository extends BaseRepository
         $emailsToAdd = array_diff($emails, $existingEmails);
         $emailsToRemove = array_diff($existingEmails, $emails);
 
-        if (!empty($emailsToAdd)) {
+        if (! empty($emailsToAdd)) {
             foreach ($emailsToAdd as $email) {
                 ClientsEmail::create([
                     'client_id' => $clientId,
@@ -776,7 +779,7 @@ class ClientsRepository extends BaseRepository
             }
         }
 
-        if (!empty($emailsToRemove)) {
+        if (! empty($emailsToRemove)) {
             ClientsEmail::where('client_id', $clientId)
                 ->whereIn('email', $emailsToRemove)
                 ->delete();
@@ -786,7 +789,7 @@ class ClientsRepository extends BaseRepository
     /**
      * Инвалидировать кэш баланса клиента
      *
-     * @param int $clientId ID клиента
+     * @param  int  $clientId  ID клиента
      * @return void
      */
     public function invalidateClientBalanceCache($clientId)
@@ -802,71 +805,11 @@ class ClientsRepository extends BaseRepository
     }
 
     /**
-     * Рассчитать балансы клиентов по выбранной кассе для взаимозачетов
-     *
-     * @param \Illuminate\Database\Eloquent\Collection $clients Коллекция клиентов
-     * @param int $cashRegisterId ID кассы
-     * @return \Illuminate\Database\Eloquent\Collection Коллекция клиентов с пересчитанными балансами и информацией о валюте
-     */
-    public function calculateBalancesByCashRegister($clients, int $cashRegisterId)
-    {
-        if (empty($cashRegisterId) || $clients->isEmpty()) {
-            return $clients;
-        }
-
-        $cashRegister = CashRegister::with('currency:id,symbol')
-            ->find($cashRegisterId);
-
-        if (!$cashRegister || !$cashRegister->currency) {
-            return $clients;
-        }
-
-        $clientIds = $clients->pluck('id')->toArray();
-
-        $transactions = Transaction::whereIn('client_id', $clientIds)
-            ->where('cash_id', $cashRegisterId)
-            ->where('is_deleted', false)
-            ->select('client_id', 'amount', 'type', 'is_debt')
-            ->get();
-
-        $roundingService = new RoundingService();
-        $companyId = $this->getCurrentCompanyId();
-        $balances = [];
-
-        foreach ($transactions as $transaction) {
-            $clientId = $transaction->client_id;
-            if (!isset($balances[$clientId])) {
-                $balances[$clientId] = 0;
-            }
-
-            $amount = $roundingService->roundForCompany($companyId, (float) $transaction->amount);
-
-            $sign = $transaction->is_debt
-                ? ($transaction->type === 1 ? 1 : -1)
-                : ($transaction->type === 1 ? -1 : 1);
-
-            $balances[$clientId] += $sign * $amount;
-        }
-
-        $currencySymbol = $cashRegister->currency->symbol;
-
-        return $clients->map(function ($client) use ($balances, $currencySymbol) {
-            if (isset($balances[$client->id])) {
-                $client->balance = $balances[$client->id];
-            } else {
-                $client->balance = 0;
-            }
-            $client->currency_symbol = $currencySymbol;
-            return $client;
-        });
-    }
-
-    /**
      * Рассчитать дельту баланса клиента для транзакции
      *
-     * @param int $type Тип транзакции (0 - расход, 1 - приход)
-     * @param bool $isDebt Является ли транзакция кредитной
-     * @param float $amount Сумма транзакции
+     * @param  int  $type  Тип транзакции (0 - расход, 1 - приход)
+     * @param  bool  $isDebt  Является ли транзакция кредитной
+     * @param  float  $amount  Сумма транзакции
      * @return float Дельта баланса
      */
     private function calculateBalanceDelta(int $type, bool $isDebt, float $amount): float
@@ -881,5 +824,4 @@ class ClientsRepository extends BaseRepository
 
         return $sign * $amount;
     }
-
 }

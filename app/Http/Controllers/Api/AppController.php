@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\BaseController;
 use App\Models\Currency;
 use App\Models\Unit;
 use App\Services\CacheService;
+use Illuminate\Http\JsonResponse;
 use Spatie\Permission\Traits\HasRoles;
 
 class AppController extends BaseController
@@ -59,6 +60,20 @@ class AppController extends BaseController
     {
         $items = CacheService::getReferenceData('units_all', function() {
             return Unit::all();
+        });
+
+        return response()->json($items);
+    }
+
+    /**
+     * Получить список версий приложения
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getVersions(): JsonResponse
+    {
+        $items = CacheService::getReferenceData('app_versions', function () {
+            return (array) config('app_versions.versions', []);
         });
 
         return response()->json($items);

@@ -2,12 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreOrderStatusRequest;
 use App\Http\Requests\UpdateOrderStatusRequest;
-use App\Repositories\OrderStatusRepository;
-use App\Services\CacheService;
 use App\Models\Order;
+use App\Repositories\OrderStatusRepository;
 use Illuminate\Http\Request;
 
 /**
@@ -19,8 +17,6 @@ class OrderStatusController extends BaseController
 
     /**
      * Конструктор контроллера
-     *
-     * @param OrderStatusRepository $orderStatusRepository
      */
     public function __construct(OrderStatusRepository $orderStatusRepository)
     {
@@ -30,7 +26,6 @@ class OrderStatusController extends BaseController
     /**
      * Получить список статусов заказов с пагинацией
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
@@ -38,8 +33,9 @@ class OrderStatusController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
+        $page = $request->input('page', 1);
 
-        $items = $this->orderStatusRepository->getItemsWithPagination($userUuid, $perPage);
+        $items = $this->orderStatusRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
         return $this->paginatedResponse($items);
     }
@@ -47,7 +43,6 @@ class OrderStatusController extends BaseController
     /**
      * Получить все статусы заказов
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function all(Request $request)
@@ -62,7 +57,7 @@ class OrderStatusController extends BaseController
     /**
      * Создать новый статус заказа
      *
-     * @param Request $request
+     * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreOrderStatusRequest $request)
@@ -75,7 +70,9 @@ class OrderStatusController extends BaseController
             'category_id' => $validatedData['category_id'],
             'is_active' => $validatedData['is_active'] ?? true,
         ]);
-        if (!$created) return $this->errorResponse('Ошибка создания статуса', 400);
+        if (! $created) {
+            return $this->errorResponse('Ошибка создания статуса', 400);
+        }
 
         return response()->json(['message' => 'Статус создан']);
     }
@@ -83,8 +80,8 @@ class OrderStatusController extends BaseController
     /**
      * Обновить статус заказа
      *
-     * @param Request $request
-     * @param int $id ID статуса
+     * @param  Request  $request
+     * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateOrderStatusRequest $request, $id)
@@ -93,11 +90,11 @@ class OrderStatusController extends BaseController
         $validatedData = $request->validated();
 
         $protectedIds = [1, 5, 6];
-        if (in_array($id, $protectedIds) && isset($validatedData['is_active']) && !$validatedData['is_active']) {
+        if (in_array($id, $protectedIds) && isset($validatedData['is_active']) && ! $validatedData['is_active']) {
             return $this->errorResponse('Этот статус нельзя отключить', 400);
         }
 
-        if (isset($validatedData['is_active']) && !$validatedData['is_active']) {
+        if (isset($validatedData['is_active']) && ! $validatedData['is_active']) {
             $ordersCount = Order::where('status_id', $id)->count();
             if ($ordersCount > 0) {
                 return $this->errorResponse("Нельзя отключить статус, на котором есть заказы ({$ordersCount} шт.)", 400);
@@ -114,7 +111,9 @@ class OrderStatusController extends BaseController
         }
 
         $updated = $this->orderStatusRepository->updateItem($id, $updateData);
-        if (!$updated) return $this->errorResponse('Ошибка обновления статуса', 400);
+        if (! $updated) {
+            return $this->errorResponse('Ошибка обновления статуса', 400);
+        }
 
         return response()->json(['message' => 'Статус обновлен']);
     }
@@ -122,7 +121,7 @@ class OrderStatusController extends BaseController
     /**
      * Удалить статус заказа
      *
-     * @param int $id ID статуса
+     * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
@@ -135,7 +134,7 @@ class OrderStatusController extends BaseController
         }
 
         $deleted = $this->orderStatusRepository->deleteItem($id);
-        if (!$deleted) {
+        if (! $deleted) {
             return $this->errorResponse('Ошибка удаления статуса', 400);
         }
 

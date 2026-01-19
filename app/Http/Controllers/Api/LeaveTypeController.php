@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Repositories\LeaveTypeRepository;
 use Illuminate\Http\Request;
 
@@ -15,8 +14,6 @@ class LeaveTypeController extends BaseController
 
     /**
      * Конструктор контроллера
-     *
-     * @param LeaveTypeRepository $leaveTypeRepository
      */
     public function __construct(LeaveTypeRepository $leaveTypeRepository)
     {
@@ -26,15 +23,15 @@ class LeaveTypeController extends BaseController
     /**
      * Получить список типов отпусков с пагинацией
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
-    {  
+    {
         $this->getAuthenticatedUserIdOrFail();
 
         $perPage = $request->input('per_page', 20);
-        $items = $this->leaveTypeRepository->getItemsWithPagination($perPage);
+        $page = $request->input('page', 1);
+        $items = $this->leaveTypeRepository->getItemsWithPagination($perPage, $page);
 
         return $this->paginatedResponse($items);
     }
@@ -42,7 +39,6 @@ class LeaveTypeController extends BaseController
     /**
      * Получить все типы отпусков
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function all(Request $request)
@@ -57,7 +53,6 @@ class LeaveTypeController extends BaseController
     /**
      * Создать новый тип отпуска
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(Request $request)
@@ -66,14 +61,16 @@ class LeaveTypeController extends BaseController
 
         $request->validate([
             'name' => 'required|string',
-            'color' => 'nullable|string|max:7'
+            'color' => 'nullable|string|max:7',
         ]);
 
         $created = $this->leaveTypeRepository->createItem([
             'name' => $request->name,
-            'color' => $request->color
+            'color' => $request->color,
         ]);
-        if (!$created) return $this->errorResponse('Ошибка создания типа отпуска', 400);
+        if (! $created) {
+            return $this->errorResponse('Ошибка создания типа отпуска', 400);
+        }
 
         return response()->json(['item' => $created, 'message' => 'Тип отпуска создан']);
     }
@@ -81,8 +78,7 @@ class LeaveTypeController extends BaseController
     /**
      * Обновить тип отпуска
      *
-     * @param Request $request
-     * @param int $id ID типа отпуска
+     * @param  int  $id  ID типа отпуска
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(Request $request, $id)
@@ -91,14 +87,16 @@ class LeaveTypeController extends BaseController
 
         $request->validate([
             'name' => 'required|string',
-            'color' => 'nullable|string|max:7'
+            'color' => 'nullable|string|max:7',
         ]);
 
         $updated = $this->leaveTypeRepository->updateItem($id, [
             'name' => $request->name,
-            'color' => $request->color
+            'color' => $request->color,
         ]);
-        if (!$updated) return $this->errorResponse('Ошибка обновления', 400);
+        if (! $updated) {
+            return $this->errorResponse('Ошибка обновления', 400);
+        }
 
         return response()->json(['item' => $updated, 'message' => 'Тип отпуска обновлен']);
     }
@@ -106,7 +104,7 @@ class LeaveTypeController extends BaseController
     /**
      * Удалить тип отпуска
      *
-     * @param int $id ID типа отпуска
+     * @param  int  $id  ID типа отпуска
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
@@ -115,7 +113,9 @@ class LeaveTypeController extends BaseController
 
         try {
             $deleted = $this->leaveTypeRepository->deleteItem($id);
-            if (!$deleted) return $this->errorResponse('Ошибка удаления', 400);
+            if (! $deleted) {
+                return $this->errorResponse('Ошибка удаления', 400);
+            }
 
             return response()->json(['message' => 'Тип отпуска удален']);
         } catch (\Exception $e) {

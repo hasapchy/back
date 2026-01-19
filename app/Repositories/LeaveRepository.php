@@ -27,31 +27,19 @@ class LeaveRepository extends BaseRepository
      * @param  array  $filters  Фильтры (user_id, leave_type_id, date_from, date_to)
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $filters = [])
+    public function getItemsWithPagination($userUuid, $perPage = 20, $filters = [], $page = 1)
     {
-        $currentUser = auth('api')->user();
-        $companyId = $this->getCurrentCompanyId();
-        $filtersKey = ! empty($filters) ? md5(json_encode($filters)) : 'no_filters';
-        $cacheKey = $this->generateCacheKey('leaves_paginated', [$userUuid, $perPage, $filtersKey, $currentUser?->id, $companyId]);
+        $filtersKey = !empty($filters) ? md5(json_encode($filters)) : 'no_filters';
+        $cacheKey = $this->generateCacheKey('leaves_paginated', [$userUuid, $perPage, $filtersKey, $page]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $filters) {
-            $query = Leave::select(['leaves.*'])
-                ->with($this->getBaseRelations());
-
-            // Фильтрация по компании
-            $query = $this->addCompanyFilterDirect($query, 'leaves');
-
-            // Применяем фильтр по правам доступа (view_own vs view_all)
-            if ($this->shouldApplyUserFilter('leaves')) {
-                $filterUserId = $this->getFilterUserIdForPermission('leaves');
-                $query->where('leaves.user_id', $filterUserId);
-            }
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $filters, $page) {
+            $query = Leave::with(['leaveType', 'user']);
 
             $this->applyFilters($query, $filters);
 
-            return $query->orderBy('leaves.date_from', 'desc')
-                ->paginate($perPage);
-        }, 1);
+            return $query->orderBy('date_from', 'desc')
+                ->paginate($perPage, ['*'], 'page', $page);
+        }, $page);
     }
 
     /**
@@ -63,23 +51,11 @@ class LeaveRepository extends BaseRepository
      */
     public function getAllItems($userUuid, $filters = [])
     {
-        $currentUser = auth('api')->user();
-        $companyId = $this->getCurrentCompanyId();
-        $filtersKey = ! empty($filters) ? md5(json_encode($filters)) : 'no_filters';
-        $cacheKey = $this->generateCacheKey('leaves_all', [$userUuid, $filtersKey, $currentUser?->id, $companyId]);
+        $filtersKey = !empty($filters) ? md5(json_encode($filters)) : 'no_filters';
+        $cacheKey = $this->generateCacheKey('leaves_all', [$userUuid, $filtersKey]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($filters) {
-            $query = Leave::select(['leaves.*'])
-                ->with($this->getBaseRelations());
-
-            // Фильтрация по компании
-            $query = $this->addCompanyFilterDirect($query, 'leaves');
-
-            // Применяем фильтр по правам доступа (view_own vs view_all)
-            if ($this->shouldApplyUserFilter('leaves')) {
-                $filterUserId = $this->getFilterUserIdForPermission('leaves');
-                $query->where('leaves.user_id', $filterUserId);
-            }
+            $query = Leave::with(['leaveType', 'user']);
 
             $this->applyFilters($query, $filters);
 
@@ -115,7 +91,7 @@ class LeaveRepository extends BaseRepository
         $item = Leave::create($itemData);
         CacheService::invalidateLeavesCache();
 
-        return $item->load($this->getBaseRelations());
+        return $item->load(['leaveType', 'user']);
     }
 
     /**
@@ -131,7 +107,7 @@ class LeaveRepository extends BaseRepository
         $item->update($data);
         CacheService::invalidateLeavesCache();
 
-        return $item->load($this->getBaseRelations());
+        return $item->load(['leaveType', 'user']);
     }
 
     /**
@@ -152,7 +128,7 @@ class LeaveRepository extends BaseRepository
     /**
      * Применить фильтр по компании к запросу отпусков через связь user->companies
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
+     * @param  \Illuminate\Database\Eloquent\Builder  $query  Query builder
      * @return void
      */
     private function applyLeaveCompanyFilter($query)
@@ -169,12 +145,12 @@ class LeaveRepository extends BaseRepository
     /**
      * Применить фильтры к запросу отпусков
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
-     * @param array<string, mixed> $filters Массив фильтров:
-     *   - user_id (int|null) ID пользователя
-     *   - leave_type_id (int|null) ID типа отпуска
-     *   - date_from (string|null) Дата начала периода
-     *   - date_to (string|null) Дата окончания периода
+     * @param  \Illuminate\Database\Eloquent\Builder  $query  Query builder
+     * @param  array<string, mixed>  $filters  Массив фильтров:
+     *                                         - user_id (int|null) ID пользователя
+     *                                         - leave_type_id (int|null) ID типа отпуска
+     *                                         - date_from (string|null) Дата начала периода
+     *                                         - date_to (string|null) Дата окончания периода
      * @return void
      */
     private function applyFilters($query, array $filters)

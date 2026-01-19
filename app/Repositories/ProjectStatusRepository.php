@@ -13,30 +13,30 @@ class ProjectStatusRepository extends BaseRepository
     /**
      * Получить статусы проектов с пагинацией
      *
-     * @param int $userUuid ID пользователя
-     * @param int $perPage Количество записей на страницу
+     * @param  int  $userUuid  ID пользователя
+     * @param  int  $perPage  Количество записей на страницу
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $cacheKey = $this->generateCacheKey('project_statuses_paginated', [$userUuid, $perPage]);
+        $cacheKey = $this->generateCacheKey('project_statuses_paginated', [$userUuid, $perPage, $page]);
 
-        return CacheService::getPaginatedData($cacheKey, function() use ($perPage) {
-            return ProjectStatus::with('user')->paginate($perPage);
-        }, 1);
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $page) {
+            return ProjectStatus::with('user')->paginate($perPage, ['*'], 'page', $page);
+        }, $page);
     }
 
     /**
      * Получить все статусы проектов
      *
-     * @param int $userUuid ID пользователя
+     * @param  int  $userUuid  ID пользователя
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getAllItems($userUuid)
     {
         $cacheKey = $this->generateCacheKey('project_statuses_all', [$userUuid]);
 
-        return CacheService::getReferenceData($cacheKey, function() {
+        return CacheService::getReferenceData($cacheKey, function () {
             return ProjectStatus::with('user')->get();
         });
     }
@@ -44,43 +44,42 @@ class ProjectStatusRepository extends BaseRepository
     /**
      * Создать статус проекта
      *
-     * @param array $data Данные статуса
-     * @return ProjectStatus
+     * @param  array  $data  Данные статуса
      */
     public function createItem(array $data): ProjectStatus
     {
         $item = ProjectStatus::create($data);
         CacheService::invalidateProjectStatusesCache();
+
         return $item;
     }
 
     /**
      * Обновить статус проекта
      *
-     * @param int $id ID статуса
-     * @param array $data Данные для обновления
-     * @return ProjectStatus
+     * @param  int  $id  ID статуса
+     * @param  array  $data  Данные для обновления
      */
     public function updateItem(int $id, array $data): ProjectStatus
     {
         $item = ProjectStatus::findOrFail($id);
         $item->update($data);
         CacheService::invalidateProjectStatusesCache();
+
         return $item;
     }
 
     /**
      * Удалить статус проекта
      *
-     * @param int $id ID статуса
-     * @return bool
+     * @param  int  $id  ID статуса
      */
     public function deleteItem(int $id): bool
     {
         $item = ProjectStatus::findOrFail($id);
         $item->delete();
         CacheService::invalidateProjectStatusesCache();
+
         return true;
     }
 }
-
