@@ -2,15 +2,25 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\ValidationException;
 
 class StoreCompanyHolidayRequest extends FormRequest
 {
+    /**
+     * Определить, авторизован ли пользователь для выполнения этого запроса
+     */
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * Получить правила валидации
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\Rule|array|string>
+     */
     public function rules(): array
     {
         return [
@@ -21,26 +31,30 @@ class StoreCompanyHolidayRequest extends FormRequest
         ];
     }
 
-    public function messages(): array
+    /**
+     * Подготовить данные для валидации
+     */
+    protected function prepareForValidation(): void
     {
-        return [
-            'name.required' => 'Название праздника обязательно',
-            'date.required' => 'Дата праздника обязательна',
-            'date.date' => 'Некорректный формат даты',
-        ];
+        // Проверяем наличие X-Company-ID заголовка
+        $companyId = $this->header('X-Company-ID');
+
+        if (! $companyId) {
+            throw ValidationException::withMessages([
+                'company_id' => ['Заголовок X-Company-ID обязателен для создания праздника компании'],
+            ]);
+        }
     }
 
-    public function validated($key = null, $default = null)
+    /**
+     * Обработать неудачную валидацию
+     *
+     * @return void
+     */
+    protected function failedValidation(Validator $validator)
     {
-        $validated = parent::validated();
-
-        // Добавляем company_id из заголовка
-        $validated['company_id'] = request()->header('X-Company-ID');
-
-        // Устанавливаем значения по умолчанию
-        $validated['is_recurring'] = $validated['is_recurring'] ?? true;
-        $validated['color'] = $validated['color'] ?? '#FF5733';
-
-        return $validated;
+        throw (new ValidationException($validator))
+            ->errorBag($this->errorBag)
+            ->redirectTo($this->getRedirectUrl());
     }
 }

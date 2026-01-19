@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreCompanyHolidayRequest;
 use App\Http\Requests\UpdateCompanyHolidayRequest;
+use App\Models\CompanyHoliday;
 use App\Repositories\CompanyHolidayRepository;
 use Illuminate\Http\Request;
 
@@ -21,130 +22,175 @@ class CompanyHolidayController extends BaseController
 
     /**
      * Получить список праздников компании с пагинацией
+     *
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
-        $userId = $this->getAuthenticatedUserIdOrFail();
-        $page = $request->input('page', 1);
-        $perPage = $request->input('per_page', 50);
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+
+        $perPage = $request->input('per_page', 20);
+
         $filters = $this->buildFilters($request);
 
-        $items = $this->repository->getItemsWithPagination($userId, $perPage, $page, $filters);
+        $items = $this->repository->getItemsWithPagination($userUuid, $perPage, $filters);
 
         return $this->paginatedResponse($items);
     }
 
     /**
      * Получить все праздники компании
+     *
+     * @return \Illuminate\Http\JsonResponse
      */
     public function all(Request $request)
     {
-        $userId = $this->getAuthenticatedUserIdOrFail();
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+
         $filters = $this->buildFilters($request);
 
-        $items = $this->repository->getAllItems($userId, $filters);
+        $items = $this->repository->getAllItems($userUuid, $filters);
 
         return response()->json($items);
     }
 
     /**
      * Получить праздник по ID
+     *
+     * @param  int  $id  ID праздника
+     * @return \Illuminate\Http\JsonResponse
      */
     public function show($id)
     {
-        $holiday = \App\Models\CompanyHoliday::findOrFail($id);
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        if (! $this->canPerformAction('company_holidays', 'view', $holiday)) {
-            return $this->forbiddenResponse('Нет доступа к этому празднику');
+        try {
+            $holiday = $this->repository->getItemById($id);
+
+            return response()->json(['item' => $holiday]);
+        } catch (\Exception $e) {
+            return $this->notFoundResponse('Праздник не найден');
         }
-
-        return response()->json(['item' => $holiday]);
     }
 
     /**
-     * Создать праздник
+     * Создать новый праздник
+     *
+     * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreCompanyHolidayRequest $request)
     {
-        if (! $this->hasPermission('company_holidays_create')) {
-            return $this->forbiddenResponse('У вас нет прав на создание праздника');
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $validatedData = $request->validated();
-        $holiday = $this->repository->createItem($validatedData);
 
-        return response()->json([
-            'item' => $holiday,
-            'message' => 'Праздник создан',
-        ], 201);
+        $data = [
+            'name' => $validatedData['name'],
+            'date' => $validatedData['date'],
+            'is_recurring' => $validatedData['is_recurring'] ?? true,
+            'color' => $validatedData['color'] ?? '#FF5733',
+        ];
+
+        $created = $this->repository->createItem($data);
+        if (! $created) {
+            return $this->errorResponse('Ошибка создания праздника', 400);
+        }
+
+        return response()->json(['item' => $created, 'message' => 'Праздник создан']);
     }
 
     /**
      * Обновить праздник
+     *
+     * @param  int  $id  ID праздника
+     * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateCompanyHolidayRequest $request, $id)
     {
-        $holiday = \App\Models\CompanyHoliday::findOrFail($id);
-
-        if (! $this->canPerformAction('company_holidays', 'update', $holiday)) {
-            return $this->forbiddenResponse('Нет доступа к этому празднику');
-        }
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $validatedData = $request->validated();
-        $holiday = $this->repository->updateItem($id, $validatedData);
 
-        return response()->json([
-            'item' => $holiday,
-            'message' => 'Праздник обновлён',
-        ]);
+        try {
+            $holiday = CompanyHoliday::findOrFail($id);
+
+            $data = array_filter([
+                'name' => $request->input('name'),
+                'date' => $request->input('date'),
+                'is_recurring' => $request->has('is_recurring') ? $request->input('is_recurring') : null,
+                'color' => $request->input('color'),
+            ], fn ($value) => $value !== null);
+
+            $updated = $this->repository->updateItem($id, $data);
+            if (! $updated) {
+                return $this->errorResponse('Ошибка обновления', 400);
+            }
+
+            return response()->json(['item' => $updated, 'message' => 'Праздник обновлен']);
+        } catch (\Exception $e) {
+            return $this->notFoundResponse('Праздник не найден');
+        }
     }
 
     /**
      * Удалить праздник
+     *
+     * @param  int  $id  ID праздника
+     * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
     {
-        $holiday = \App\Models\CompanyHoliday::findOrFail($id);
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        if (! $this->canPerformAction('company_holidays', 'delete', $holiday)) {
-            return $this->forbiddenResponse('Нет доступа к этому празднику');
+        try {
+            $holiday = CompanyHoliday::findOrFail($id);
+
+            $deleted = $this->repository->deleteItem($id);
+            if (! $deleted) {
+                return $this->errorResponse('Ошибка удаления', 400);
+            }
+
+            return response()->json(['message' => 'Праздник удален']);
+        } catch (\Exception $e) {
+            return $this->notFoundResponse('Праздник не найден');
         }
-
-        $this->repository->deleteItem($id);
-
-        return response()->json(['message' => 'Праздник удалён']);
     }
 
     /**
      * Пакетное удаление праздников
+     *
+     * @return \Illuminate\Http\JsonResponse
      */
     public function batchDelete(Request $request)
     {
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+
         $request->validate([
             'ids' => 'required|array',
             'ids.*' => 'integer',
         ]);
 
         $ids = $request->input('ids');
-        $deleted = 0;
 
-        foreach ($ids as $id) {
-            try {
-                $holiday = \App\Models\CompanyHoliday::find($id);
-
-                if ($holiday && $this->canPerformAction('company_holidays', 'delete', $holiday)) {
+        try {
+            $deleted = 0;
+            foreach ($ids as $id) {
+                try {
                     $this->repository->deleteItem($id);
                     $deleted++;
+                } catch (\Exception $e) {
+                    // Пропускаем записи, которые не найдены
+                    continue;
                 }
-            } catch (\Exception $e) {
-                continue;
             }
-        }
 
-        return response()->json([
-            'message' => "Удалено праздников: $deleted",
-            'deleted' => $deleted,
-        ]);
+            return response()->json([
+                'message' => "Удалено праздников: $deleted",
+                'deleted' => $deleted,
+            ]);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при пакетном удалении', 400);
+        }
     }
 
     /**
@@ -157,11 +203,9 @@ class CompanyHolidayController extends BaseController
         if ($request->has('year')) {
             $filters['year'] = $request->input('year');
         }
-
         if ($request->has('date_from')) {
             $filters['date_from'] = $request->input('date_from');
         }
-
         if ($request->has('date_to')) {
             $filters['date_to'] = $request->input('date_to');
         }
