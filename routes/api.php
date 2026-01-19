@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\CompaniesController;
+use App\Http\Controllers\Api\CompanyHolidayController;
 use App\Http\Controllers\Api\CurrencyHistoryController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\InvoiceController;
@@ -239,6 +240,14 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission:leaves_create_all')->post('leaves', [LeaveController::class, 'store']);
     Route::middleware('permission:leaves_update_all')->put('leaves/{id}', [LeaveController::class, 'update']);
     Route::middleware('permission:leaves_delete_all')->delete('leaves/{id}', [LeaveController::class, 'destroy']);
+
+    Route::middleware('permission:company_holidays_view_all')->get('company-holidays', [CompanyHolidayController::class, 'index']);
+    Route::middleware('permission:company_holidays_view_all')->get('company-holidays/all', [CompanyHolidayController::class, 'all']);
+    Route::middleware('permission:company_holidays_view_all')->get('company-holidays/{id}', [CompanyHolidayController::class, 'show']);
+    Route::middleware('permission:company_holidays_create')->post('company-holidays', [CompanyHolidayController::class, 'store']);
+    Route::middleware('permission:company_holidays_update_all')->put('company-holidays/{id}', [CompanyHolidayController::class, 'update']);
+    Route::middleware('permission:company_holidays_delete_all')->delete('company-holidays/{id}', [CompanyHolidayController::class, 'destroy']);
+    Route::middleware('permission:company_holidays_delete_all')->post('company-holidays/batch-delete', [CompanyHolidayController::class, 'batchDelete']);
 
     Route::get('transaction_categories', [TransactionCategoryController::class, 'index']);
     Route::middleware('permission:transaction_categories_create')->post('transaction_categories', [TransactionCategoryController::class, 'store']);
