@@ -76,4 +76,9 @@ class Company extends Model
     {
         return $this->hasMany(Department::class);
     }
+
+    public function holidays()
+    {
+        return $this->hasMany(CompanyHoliday::class);
+    }
 }
