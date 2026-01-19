@@ -17,9 +17,9 @@ class CacheService
     /**
      * Get data from cache or create new
      *
-     * @param string $key Cache key
-     * @param callable $callback Callback to generate data if not cached
-     * @param int|null $ttl Time to live in seconds
+     * @param  string  $key  Cache key
+     * @param  callable  $callback  Callback to generate data if not cached
+     * @param  int|null  $ttl  Time to live in seconds
      * @return mixed
      */
     public static function remember(string $key, callable $callback, ?int $ttl = null)
@@ -32,9 +32,9 @@ class CacheService
     /**
      * Cache paginated lists
      *
-     * @param string $cacheKey Cache key
-     * @param callable $callback Callback to generate data if not cached
-     * @param int $page Page number
+     * @param  string  $cacheKey  Cache key
+     * @param  callable  $callback  Callback to generate data if not cached
+     * @param  int  $page  Page number
      * @return mixed
      */
     public static function getPaginatedData(string $cacheKey, callable $callback, int $page = 1)
@@ -48,9 +48,8 @@ class CacheService
     /**
      * Invalidate all paginated pages for a base cache key
      *
-     * @param string $baseKey Base cache key (without paginated_ prefix and page suffix)
-     * @param int|null $companyId Company ID
-     * @return void
+     * @param  string  $baseKey  Base cache key (without paginated_ prefix and page suffix)
+     * @param  int|null  $companyId  Company ID
      */
     public static function invalidatePaginatedData(string $baseKey, ?int $companyId = null): void
     {
@@ -61,8 +60,8 @@ class CacheService
     /**
      * Cache reference data
      *
-     * @param string $cacheKey Cache key
-     * @param callable $callback Callback to generate data if not cached
+     * @param  string  $cacheKey  Cache key
+     * @param  callable  $callback  Callback to generate data if not cached
      * @return mixed
      */
     public static function getReferenceData(string $cacheKey, callable $callback)
@@ -76,8 +75,6 @@ class CacheService
 
     /**
      * Invalidate sales cache
-     *
-     * @return void
      */
     public static function invalidateSalesCache(): void
     {
@@ -86,8 +83,6 @@ class CacheService
 
     /**
      * Invalidate clients cache
-     *
-     * @return void
      */
     public static function invalidateClientsCache(): void
     {
@@ -97,8 +92,7 @@ class CacheService
     /**
      * Invalidate client balance cache
      *
-     * @param int $clientId Client ID
-     * @return void
+     * @param  int  $clientId  Client ID
      */
     public static function invalidateClientBalanceCache(int $clientId): void
     {
@@ -107,9 +101,6 @@ class CacheService
 
     /**
      * Invalidate cached client balance history
-     *
-     * @param int $clientId
-     * @return void
      */
     public static function invalidateClientBalanceHistoryCache(int $clientId): void
     {
@@ -118,8 +109,6 @@ class CacheService
 
     /**
      * Invalidate client categories cache
-     *
-     * @return void
      */
     public static function invalidateClientCategoriesCache(): void
     {
@@ -128,8 +117,6 @@ class CacheService
 
     /**
      * Invalidate products cache
-     *
-     * @return void
      */
     public static function invalidateProductsCache(): void
     {
@@ -139,9 +126,8 @@ class CacheService
     /**
      * Invalidate cache by pattern
      *
-     * @param string $like Pattern to match cache keys
-     * @param int|null $companyId Company ID
-     * @return void
+     * @param  string  $like  Pattern to match cache keys
+     * @param  int|null  $companyId  Company ID
      */
     public static function invalidateByLike(string $like, ?int $companyId = null): void
     {
@@ -158,8 +144,7 @@ class CacheService
     /**
      * Get company ID from parameter or request
      *
-     * @param int|null $companyId Company ID from parameter
-     * @return int|null
+     * @param  int|null  $companyId  Company ID from parameter
      */
     protected static function getCompanyId(?int $companyId): ?int
     {
@@ -169,6 +154,7 @@ class CacheService
 
         if (request()->hasHeader('X-Company-ID')) {
             $headerCompanyId = request()->header('X-Company-ID');
+
             return $headerCompanyId ? (int) $headerCompanyId : null;
         }
 
@@ -178,9 +164,8 @@ class CacheService
     /**
      * Invalidate database cache
      *
-     * @param string $like Pattern
-     * @param int|null $companyId Company ID
-     * @return void
+     * @param  string  $like  Pattern
+     * @param  int|null  $companyId  Company ID
      */
     protected static function invalidateDatabaseCache(string $like, ?int $companyId): void
     {
@@ -191,11 +176,11 @@ class CacheService
 
             if ($prefix && strpos($like, '%') === 0) {
                 $cleanPattern = trim($like, '%');
-                $like = $prefix . '%' . $cleanPattern . '%';
+                $like = $prefix.'%'.$cleanPattern.'%';
             }
 
             if ($companyId !== null) {
-                $like = rtrim($like, '%') . "%_{$companyId}%";
+                $like = rtrim($like, '%')."%_{$companyId}%";
             }
 
             DB::table($cacheTable)->where('key', 'like', $like)->delete();
@@ -206,16 +191,15 @@ class CacheService
     /**
      * Invalidate other cache drivers
      *
-     * @param string $like Pattern
-     * @param int|null $companyId Company ID
-     * @param string $driver Cache driver
-     * @return void
+     * @param  string  $like  Pattern
+     * @param  int|null  $companyId  Company ID
+     * @param  string  $driver  Cache driver
      */
     protected static function invalidateOtherCache(string $like, ?int $companyId, string $driver): void
     {
         try {
             if ($companyId !== null) {
-                $pattern = str_replace('%', '', $like) . "_{$companyId}";
+                $pattern = str_replace('%', '', $like)."_{$companyId}";
                 Cache::forget($pattern);
             }
         } catch (\Exception $e) {
@@ -224,8 +208,6 @@ class CacheService
 
     /**
      * Invalidate categories cache
-     *
-     * @return void
      */
     public static function invalidateCategoriesCache(): void
     {
@@ -234,8 +216,6 @@ class CacheService
 
     /**
      * Invalidate warehouses cache
-     *
-     * @return void
      */
     public static function invalidateWarehousesCache(): void
     {
@@ -244,8 +224,6 @@ class CacheService
 
     /**
      * Invalidate cash registers cache
-     *
-     * @return void
      */
     public static function invalidateCashRegistersCache(): void
     {
@@ -254,8 +232,6 @@ class CacheService
 
     /**
      * Invalidate projects cache
-     *
-     * @return void
      */
     public static function invalidateProjectsCache(): void
     {
@@ -265,8 +241,7 @@ class CacheService
     /**
      * Invalidate specific project cache
      *
-     * @param int $projectId ID проекта
-     * @return void
+     * @param  int  $projectId  ID проекта
      */
     public static function invalidateProjectCache(int $projectId): void
     {
@@ -282,8 +257,6 @@ class CacheService
 
     /**
      * Invalidate order statuses cache
-     *
-     * @return void
      */
     public static function invalidateOrderStatusesCache(): void
     {
@@ -293,8 +266,6 @@ class CacheService
 
     /**
      * Invalidate order status categories cache
-     *
-     * @return void
      */
     public static function invalidateOrderStatusCategoriesCache(): void
     {
@@ -304,8 +275,6 @@ class CacheService
 
     /**
      * Invalidate project statuses cache
-     *
-     * @return void
      */
     public static function invalidateProjectStatusesCache(): void
     {
@@ -314,8 +283,6 @@ class CacheService
 
     /**
      * Invalidate task statuses cache
-     *
-     * @return void
      */
     public static function invalidateTaskStatusesCache(): void
     {
@@ -324,8 +291,6 @@ class CacheService
 
     /**
      * Invalidate transaction categories cache
-     *
-     * @return void
      */
     public static function invalidateTransactionCategoriesCache(): void
     {
@@ -334,8 +299,6 @@ class CacheService
 
     /**
      * Invalidate product statuses cache
-     *
-     * @return void
      */
     public static function invalidateProductStatusesCache(): void
     {
@@ -344,8 +307,6 @@ class CacheService
 
     /**
      * Invalidate units cache
-     *
-     * @return void
      */
     public static function invalidateUnitsCache(): void
     {
@@ -354,8 +315,6 @@ class CacheService
 
     /**
      * Invalidate currencies cache
-     *
-     * @return void
      */
     public static function invalidateCurrenciesCache(): void
     {
@@ -364,8 +323,6 @@ class CacheService
 
     /**
      * Invalidate orders cache
-     *
-     * @return void
      */
     public static function invalidateOrdersCache(): void
     {
@@ -374,8 +331,6 @@ class CacheService
 
     /**
      * Invalidate transactions cache
-     *
-     * @return void
      */
     public static function invalidateTransactionsCache(): void
     {
@@ -384,8 +339,6 @@ class CacheService
 
     /**
      * Invalidate warehouse receipts cache
-     *
-     * @return void
      */
     public static function invalidateWarehouseReceiptsCache(): void
     {
@@ -394,8 +347,6 @@ class CacheService
 
     /**
      * Invalidate warehouse writeoffs cache
-     *
-     * @return void
      */
     public static function invalidateWarehouseWriteoffsCache(): void
     {
@@ -404,8 +355,6 @@ class CacheService
 
     /**
      * Invalidate warehouse movements cache
-     *
-     * @return void
      */
     public static function invalidateWarehouseMovementsCache(): void
     {
@@ -414,8 +363,6 @@ class CacheService
 
     /**
      * Invalidate warehouse stocks cache
-     *
-     * @return void
      */
     public static function invalidateWarehouseStocksCache(): void
     {
@@ -424,8 +371,6 @@ class CacheService
 
     /**
      * Invalidate invoices cache
-     *
-     * @return void
      */
     public static function invalidateInvoicesCache(): void
     {
@@ -434,8 +379,6 @@ class CacheService
 
     /**
      * Invalidate transfers cache
-     *
-     * @return void
      */
     public static function invalidateTransfersCache(): void
     {
@@ -444,8 +387,6 @@ class CacheService
 
     /**
      * Invalidate users cache
-     *
-     * @return void
      */
     public static function invalidateUsersCache(): void
     {
@@ -454,8 +395,6 @@ class CacheService
 
     /**
      * Invalidate companies cache
-     *
-     * @return void
      */
     public static function invalidateCompaniesCache(): void
     {
@@ -464,8 +403,6 @@ class CacheService
 
     /**
      * Invalidate company holidays cache
-     *
-     * @return void
      */
     public static function invalidateCompanyHolidaysCache(): void
     {
@@ -474,8 +411,6 @@ class CacheService
 
     /**
      * Invalidate leaves cache
-     *
-     * @return void
      */
     public static function invalidateLeavesCache(): void
     {
@@ -484,8 +419,6 @@ class CacheService
 
     /**
      * Invalidate leave types cache
-     *
-     * @return void
      */
     public static function invalidateLeaveTypesCache(): void
     {
@@ -495,8 +428,6 @@ class CacheService
 
     /**
      * Invalidate departments cache
-     *
-     * @return void
      */
     public static function invalidateDepartmentsCache(): void
     {
@@ -506,9 +437,8 @@ class CacheService
     /**
      * Clear user cache
      *
-     * @param int $userId User ID
-     * @param string $dataType Data type
-     * @return void
+     * @param  int  $userId  User ID
+     * @param  string  $dataType  Data type
      */
     public static function clearUserCache(int $userId, string $dataType): void
     {
@@ -518,8 +448,8 @@ class CacheService
     /**
      * Cache search results
      *
-     * @param string $key Cache key
-     * @param callable $callback Callback to generate data if not cached
+     * @param  string  $key  Cache key
+     * @param  callable  $callback  Callback to generate data if not cached
      * @return mixed
      */
     public static function rememberSearch(string $key, callable $callback)
@@ -530,9 +460,8 @@ class CacheService
     /**
      * Forget specific cache key
      *
-     * @param string $key Cache key
-     * @param int|null $companyId Company ID
-     * @return void
+     * @param  string  $key  Cache key
+     * @param  int|null  $companyId  Company ID
      */
     public static function forget(string $key, ?int $companyId = null): void
     {
@@ -550,10 +479,9 @@ class CacheService
     /**
      * Build cache key with company ID suffix
      *
-     * @param string $key Base cache key
-     * @param int|null $companyId Company ID
-     * @param bool $isDatabase Whether using database cache
-     * @return string
+     * @param  string  $key  Base cache key
+     * @param  int|null  $companyId  Company ID
+     * @param  bool  $isDatabase  Whether using database cache
      */
     protected static function buildCacheKey(string $key, ?int $companyId, bool $isDatabase): string
     {
@@ -561,7 +489,7 @@ class CacheService
 
         if ($isDatabase) {
             $prefix = config('cache.prefix');
-            $fullKey = $prefix ? $prefix . $key : $key;
+            $fullKey = $prefix ? $prefix.$key : $key;
         }
 
         $defaultCompanyId = 'default';
@@ -571,9 +499,9 @@ class CacheService
             $keyEndsWithCompanyId = true;
         }
 
-        if (!$keyEndsWithCompanyId && $companyId) {
+        if (! $keyEndsWithCompanyId && $companyId) {
             $fullKey .= "_{$companyId}";
-        } elseif (!$keyEndsWithCompanyId && !$companyId) {
+        } elseif (! $keyEndsWithCompanyId && ! $companyId) {
             $fullKey .= "_{$defaultCompanyId}";
         }
 
@@ -583,8 +511,7 @@ class CacheService
     /**
      * Forget database cache
      *
-     * @param string $fullKey Full cache key
-     * @return void
+     * @param  string  $fullKey  Full cache key
      */
     protected static function forgetDatabaseCache(string $fullKey): void
     {
@@ -599,8 +526,7 @@ class CacheService
     /**
      * Forget other cache drivers
      *
-     * @param string $fullKey Full cache key
-     * @return void
+     * @param  string  $fullKey  Full cache key
      */
     protected static function forgetOtherCache(string $fullKey): void
     {
@@ -613,8 +539,6 @@ class CacheService
 
     /**
      * Flush entire cache store.
-     *
-     * @return void
      */
     public static function flushAll(): void
     {
