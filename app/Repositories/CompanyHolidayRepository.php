@@ -3,54 +3,68 @@
 namespace App\Repositories;
 
 use App\Models\CompanyHoliday;
+use App\Services\CacheService;
 use Carbon\Carbon;
 
-class CompanyHolidayRepository
+class CompanyHolidayRepository extends BaseRepository
 {
     /**
      * Получить праздники компании с пагинацией
      */
-    public function getItemsWithPagination(int $companyId, int $perPage = 20, array $filters = [])
+    public function getItemsWithPagination($userId, int $perPage = 20, int $page = 1, array $filters = [])
     {
-        $query = CompanyHoliday::where('company_id', $companyId)
-            ->orderBy('date', 'desc');
-            
-        if (isset($filters['year'])) {
-            $query->whereYear('date', $filters['year']);
-        }
-        
-        if (isset($filters['date_from'])) {
-            $query->where('date', '>=', $filters['date_from']);
-        }
-        
-        if (isset($filters['date_to'])) {
-            $query->where('date', '<=', $filters['date_to']);
-        }
-        
-        return $query->paginate($perPage);
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('company_holidays_paginated', [$userId, $perPage, $companyId, $filters]);
+
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $page, $filters) {
+            $query = CompanyHoliday::query();
+
+            $query = $this->addCompanyFilterDirect($query, 'company_holidays');
+
+            if (isset($filters['year'])) {
+                $query->whereYear('date', $filters['year']);
+            }
+
+            if (isset($filters['date_from'])) {
+                $query->where('date', '>=', $filters['date_from']);
+            }
+
+            if (isset($filters['date_to'])) {
+                $query->where('date', '<=', $filters['date_to']);
+            }
+
+            return $query->orderBy('date', 'desc')
+                ->paginate($perPage, ['*'], 'page', (int) $page);
+        }, (int) $page);
     }
 
     /**
      * Получить все праздники компании
      */
-    public function getAllItems(int $companyId, array $filters = [])
+    public function getAllItems($userId, array $filters = [])
     {
-        $query = CompanyHoliday::where('company_id', $companyId)
-            ->orderBy('date', 'asc');
-            
-        if (isset($filters['year'])) {
-            $query->whereYear('date', $filters['year']);
-        }
-        
-        if (isset($filters['date_from'])) {
-            $query->where('date', '>=', $filters['date_from']);
-        }
-        
-        if (isset($filters['date_to'])) {
-            $query->where('date', '<=', $filters['date_to']);
-        }
-        
-        return $query->get();
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('company_holidays_all', [$userId, $companyId, $filters]);
+
+        return CacheService::getReferenceData($cacheKey, function () use ($filters) {
+            $query = CompanyHoliday::query();
+
+            $query = $this->addCompanyFilterDirect($query, 'company_holidays');
+
+            if (isset($filters['year'])) {
+                $query->whereYear('date', $filters['year']);
+            }
+
+            if (isset($filters['date_from'])) {
+                $query->where('date', '>=', $filters['date_from']);
+            }
+
+            if (isset($filters['date_to'])) {
+                $query->where('date', '<=', $filters['date_to']);
+            }
+
+            return $query->orderBy('date', 'asc')->get();
+        });
     }
 
     /**
@@ -76,6 +90,7 @@ class CompanyHolidayRepository
     {
         $holiday = CompanyHoliday::findOrFail($id);
         $holiday->update($data);
+
         return $holiday->fresh();
     }
 
@@ -85,9 +100,10 @@ class CompanyHolidayRepository
     public function deleteItem(int $id)
     {
         $holiday = CompanyHoliday::findOrFail($id);
+
         return $holiday->delete();
     }
-    
+
     /**
      * Получить праздники для диапазона дат
      */
@@ -99,5 +115,3 @@ class CompanyHolidayRepository
             ->get();
     }
 }
-
-
