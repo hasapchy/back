@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Repositories\CompanyHolidayRepository;
 use Illuminate\Http\Request;
 
@@ -15,8 +14,6 @@ class CompanyHolidayController extends BaseController
 
     /**
      * Конструктор контроллера
-     *
-     * @param CompanyHolidayRepository $repository
      */
     public function __construct(CompanyHolidayRepository $repository)
     {
@@ -26,19 +23,18 @@ class CompanyHolidayController extends BaseController
     /**
      * Получить список праздников компании с пагинацией
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
         $user = $this->getAuthenticatedUser();
-        if (!$user) {
+        if (! $user) {
             return $this->unauthorizedResponse();
         }
 
-        $companyId = $user->company_id;
+        $companyId = $this->getCurrentCompanyId();
         $perPage = $request->input('per_page', 50);
-        
+
         $filters = $this->buildFilters($request);
 
         $items = $this->repository->getItemsWithPagination($companyId, $perPage, $filters);
@@ -49,18 +45,17 @@ class CompanyHolidayController extends BaseController
     /**
      * Получить все праздники компании
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function all(Request $request)
     {
         $user = $this->getAuthenticatedUser();
-        if (!$user) {
+        if (! $user) {
             return $this->unauthorizedResponse();
         }
 
-        $companyId = $user->company_id;
-        
+        $companyId = $this->getCurrentCompanyId();
+
         $filters = $this->buildFilters($request);
 
         $items = $this->repository->getAllItems($companyId, $filters);
@@ -71,23 +66,23 @@ class CompanyHolidayController extends BaseController
     /**
      * Получить праздник по ID
      *
-     * @param int $id
+     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function show($id)
     {
         $user = $this->getAuthenticatedUser();
-        if (!$user) {
+        if (! $user) {
             return $this->unauthorizedResponse();
         }
 
         try {
             $holiday = $this->repository->getItemById($id);
-            
-            if ($holiday->company_id !== $user->company_id) {
+
+            if ($holiday->company_id !== $this->getCurrentCompanyId()) {
                 return $this->forbiddenResponse('Нет доступа к этому празднику');
             }
-            
+
             return response()->json(['item' => $holiday]);
         } catch (\Exception $e) {
             return $this->notFoundResponse('Праздник не найден');
@@ -97,13 +92,12 @@ class CompanyHolidayController extends BaseController
     /**
      * Создать праздник
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(Request $request)
     {
         $user = $this->getAuthenticatedUser();
-        if (!$user) {
+        if (! $user) {
             return $this->unauthorizedResponse();
         }
 
@@ -115,7 +109,7 @@ class CompanyHolidayController extends BaseController
         ]);
 
         $data = [
-            'company_id' => $user->company_id,
+            'company_id' => $this->getCurrentCompanyId(),
             'name' => $request->name,
             'date' => $request->date,
             'is_recurring' => $request->input('is_recurring', true),
@@ -126,21 +120,20 @@ class CompanyHolidayController extends BaseController
 
         return response()->json([
             'item' => $created,
-            'message' => 'Праздник создан'
+            'message' => 'Праздник создан',
         ], 201);
     }
 
     /**
      * Обновить праздник
      *
-     * @param Request $request
-     * @param int $id
+     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(Request $request, $id)
     {
         $user = $this->getAuthenticatedUser();
-        if (!$user) {
+        if (! $user) {
             return $this->unauthorizedResponse();
         }
 
@@ -153,8 +146,8 @@ class CompanyHolidayController extends BaseController
 
         try {
             $holiday = $this->repository->getItemById($id);
-            
-            if ($holiday->company_id !== $user->company_id) {
+
+            if ($holiday->company_id !== $this->getCurrentCompanyId()) {
                 return $this->forbiddenResponse('Нет доступа к этому празднику');
             }
 
@@ -163,13 +156,13 @@ class CompanyHolidayController extends BaseController
                 'date' => $request->input('date'),
                 'is_recurring' => $request->has('is_recurring') ? $request->input('is_recurring') : null,
                 'color' => $request->input('color'),
-            ], fn($value) => $value !== null);
+            ], fn ($value) => $value !== null);
 
             $updated = $this->repository->updateItem($id, $data);
 
             return response()->json([
                 'item' => $updated,
-                'message' => 'Праздник обновлен'
+                'message' => 'Праздник обновлен',
             ]);
         } catch (\Exception $e) {
             return $this->notFoundResponse('Праздник не найден');
@@ -179,20 +172,20 @@ class CompanyHolidayController extends BaseController
     /**
      * Удалить праздник
      *
-     * @param int $id
+     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
     {
         $user = $this->getAuthenticatedUser();
-        if (!$user) {
+        if (! $user) {
             return $this->unauthorizedResponse();
         }
 
         try {
             $holiday = $this->repository->getItemById($id);
-            
-            if ($holiday->company_id !== $user->company_id) {
+
+            if ($holiday->company_id !== $this->getCurrentCompanyId()) {
                 return $this->forbiddenResponse('Нет доступа к этому празднику');
             }
 
@@ -207,29 +200,28 @@ class CompanyHolidayController extends BaseController
     /**
      * Пакетное удаление праздников
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function batchDelete(Request $request)
     {
         $user = $this->getAuthenticatedUser();
-        if (!$user) {
+        if (! $user) {
             return $this->unauthorizedResponse();
         }
 
         $request->validate([
             'ids' => 'required|array',
-            'ids.*' => 'integer'
+            'ids.*' => 'integer',
         ]);
 
         $ids = $request->input('ids');
-        $companyId = $user->company_id;
+        $companyId = $this->getCurrentCompanyId();
 
         try {
             $deleted = 0;
             foreach ($ids as $id) {
                 $holiday = $this->repository->getItemById($id);
-                
+
                 if ($holiday->company_id === $companyId) {
                     $this->repository->deleteItem($id);
                     $deleted++;
@@ -238,31 +230,28 @@ class CompanyHolidayController extends BaseController
 
             return response()->json([
                 'message' => "Удалено праздников: $deleted",
-                'deleted' => $deleted
+                'deleted' => $deleted,
             ]);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при удалении праздников: ' . $e->getMessage());
+            return $this->errorResponse('Ошибка при удалении праздников: '.$e->getMessage());
         }
     }
 
     /**
      * Построить фильтры из запроса
-     *
-     * @param Request $request
-     * @return array
      */
     protected function buildFilters(Request $request): array
     {
         $filters = [];
-        
+
         if ($request->has('year')) {
             $filters['year'] = $request->input('year');
         }
-        
+
         if ($request->has('date_from')) {
             $filters['date_from'] = $request->input('date_from');
         }
-        
+
         if ($request->has('date_to')) {
             $filters['date_to'] = $request->input('date_to');
         }
