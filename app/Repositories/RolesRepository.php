@@ -311,7 +311,9 @@ class RolesRepository extends BaseRepository
             'categories_view',
             'order_statuses_view',
             'cash_registers_view',
+            'cash_registers_view_all',  // Доступ ко всем кассам
             'warehouses_view',
+            'warehouses_view_all',      // Доступ ко всем складам
         ];
 
         $basementPermissionModels = Permission::whereIn('name', $basementPermissions)

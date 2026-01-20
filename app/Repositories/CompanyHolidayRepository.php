@@ -23,22 +23,24 @@ class CompanyHolidayRepository extends BaseRepository
      *
      * @param  int  $userUuid  ID пользователя
      * @param  int  $perPage  Количество записей на страницу
-     * @param  array  $filters  Фильтры (year, date_from, date_to)
+     * @param  array  $filters  Фильтры (year, date_from, date_to, company_id)
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $filters = [])
     {
         $currentUser = auth('api')->user();
-        $companyId = $this->getCurrentCompanyId();
+        $companyId = array_key_exists('company_id', $filters) ? $filters['company_id'] : $this->getCurrentCompanyId();
         $filtersKey = ! empty($filters) ? md5(json_encode($filters)) : 'no_filters';
         $cacheKey = $this->generateCacheKey('company_holidays_paginated', [$userUuid, $perPage, $filtersKey, $currentUser?->id, $companyId]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $filters) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $filters, $companyId) {
             $query = CompanyHoliday::select(['company_holidays.*'])
                 ->with($this->getBaseRelations());
 
-            // Фильтрация по компании
-            $query = $this->addCompanyFilterDirect($query, 'company_holidays');
+            // Фильтрация по компании (используем переданный company_id или из заголовка)
+            if ($companyId) {
+                $query->where('company_holidays.company_id', $companyId);
+            }
 
             $this->applyFilters($query, $filters);
 
@@ -51,22 +53,24 @@ class CompanyHolidayRepository extends BaseRepository
      * Получить все праздники компании
      *
      * @param  int  $userUuid  ID пользователя
-     * @param  array  $filters  Фильтры
+     * @param  array  $filters  Фильтры (включая company_id)
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getAllItems($userUuid, $filters = [])
     {
         $currentUser = auth('api')->user();
-        $companyId = $this->getCurrentCompanyId();
+        $companyId = array_key_exists('company_id', $filters) ? $filters['company_id'] : $this->getCurrentCompanyId();
         $filtersKey = ! empty($filters) ? md5(json_encode($filters)) : 'no_filters';
         $cacheKey = $this->generateCacheKey('company_holidays_all', [$userUuid, $filtersKey, $currentUser?->id, $companyId]);
 
-        return CacheService::getReferenceData($cacheKey, function () use ($filters) {
+        return CacheService::getReferenceData($cacheKey, function () use ($filters, $companyId) {
             $query = CompanyHoliday::select(['company_holidays.*'])
                 ->with($this->getBaseRelations());
 
-            // Фильтрация по компании
-            $query = $this->addCompanyFilterDirect($query, 'company_holidays');
+            // Фильтрация по компании (используем переданный company_id или из заголовка)
+            if ($companyId) {
+                $query->where('company_holidays.company_id', $companyId);
+            }
 
             $this->applyFilters($query, $filters);
 
@@ -88,12 +92,13 @@ class CompanyHolidayRepository extends BaseRepository
     /**
      * Создать праздник
      *
-     * @param  array  $data  Данные праздника
+     * @param  array  $data  Данные праздника (включая company_id)
      * @return CompanyHoliday
      */
     public function createItem($data)
     {
-        $companyId = $this->getCurrentCompanyId();
+        // Используем company_id из данных или из заголовка
+        $companyId = array_key_exists('company_id', $data) ? $data['company_id'] : $this->getCurrentCompanyId();
 
         $itemData = array_merge($data, [
             'company_id' => $companyId,
