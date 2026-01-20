@@ -36,6 +36,11 @@ class CompanyHolidayController extends BaseController
         $perPage = $request->input('per_page', 20);
         
         $filters = $this->buildFilters($request);
+        
+        // Добавляем company_id в фильтры, если передан
+        if ($request->has('company_id')) {
+            $filters['company_id'] = $request->input('company_id');
+        }
 
         $items = $this->repository->getItemsWithPagination($userUuid, $perPage, $filters);
 
@@ -53,6 +58,11 @@ class CompanyHolidayController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $filters = $this->buildFilters($request);
+        
+        // Добавляем company_id в фильтры, если передан
+        if ($request->has('company_id')) {
+            $filters['company_id'] = $request->input('company_id');
+        }
 
         $items = $this->repository->getAllItems($userUuid, $filters);
 
@@ -94,6 +104,7 @@ class CompanyHolidayController extends BaseController
             'date' => $validatedData['date'],
             'is_recurring' => $validatedData['is_recurring'] ?? true,
             'color' => $validatedData['color'] ?? '#FF5733',
+            'company_id' => $validatedData['company_id'],
         ];
 
         $created = $this->repository->createItem($data);

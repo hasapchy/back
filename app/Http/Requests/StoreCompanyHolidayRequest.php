@@ -26,6 +26,7 @@ class StoreCompanyHolidayRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'company_id' => 'required|integer|exists:companies,id',
             'name' => 'required|string|max:255',
             'date' => 'required|date',
             'is_recurring' => 'nullable|boolean',
@@ -40,14 +41,7 @@ class StoreCompanyHolidayRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        // Проверяем наличие X-Company-ID заголовка
-        $companyId = $this->header('X-Company-ID');
-        
-        if (!$companyId) {
-            throw ValidationException::withMessages([
-                'company_id' => ['Заголовок X-Company-ID обязателен для создания праздника компании'],
-            ]);
-        }
+        // company_id теперь приходит в body запроса, не нужна проверка заголовка
     }
 
     /**
