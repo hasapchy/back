@@ -3,13 +3,14 @@
 namespace App\Events;
 
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Bus\Queueable;
 
-class ChatReadUpdated implements ShouldBroadcastNow
+class ChatReadUpdated implements ShouldBroadcast
 {
-    use Dispatchable, SerializesModels;
+    use Dispatchable, SerializesModels, Queueable;
 
     public function __construct(
         public int $companyId,

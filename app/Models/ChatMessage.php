@@ -11,7 +11,7 @@ class ChatMessage extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['chat_id', 'user_id', 'body', 'files', 'parent_id', 'forwarded_from_message_id'];
+    protected $fillable = ['chat_id', 'user_id', 'body', 'files', 'parent_id', 'forwarded_from_message_id', 'is_edited', 'edited_at'];
 
     protected $casts = [
         'files' => 'array',

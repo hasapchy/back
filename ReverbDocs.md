@@ -137,11 +137,11 @@ On a Unix based operating system, you may determine the allowed number of open f
 
 ulimit -n
 
-This command will display the open file limits allowed for different users. You may update these values by editing the /etc/security/limits.conf file. For example, updating the maximum number of open files to 10,000 for the forge user would look like the following:
+This command will display the open file limits allowed for different users. You may update these values by editing the /etc/security/limits.conf file. For example, updating the maximum number of open files to 10,000 for the rootuser would look like the following:
 
 # /etc/security/limits.conf
-forge        soft  nofile  10000
-forge        hard  nofile  10000
+root       soft  nofile  10000
+root       hard  nofile  10000
 
 Event Loop
 Under the hood, Reverb uses a ReactPHP event loop to manage WebSocket connections on the server. By default, this event loop is powered by stream_select, which doesn't require any additional extensions. However, stream_select is typically limited to 1,024 open files. As such, if you plan to handle more than 1,000 concurrent connections, you will need to use an alternative event loop not bound to the same restrictions.
@@ -172,7 +172,7 @@ server {
     ...
 }
 
-Reverb listens for WebSocket connections at /app and handles API requests at /apps. You should ensure the web server handling Reverb requests can serve both of these URIs. If you are using Laravel Forge to manage your servers, your Reverb server will be correctly configured by default.
+Reverb listens for WebSocket connections at /app and handles API requests at /apps. You should ensure the web server handling Reverb requests can serve both of these URIs. If you are using Laravel rootto manage your servers, your Reverb server will be correctly configured by default.
 
 Typically, web servers are configured to limit the number of allowed connections in order to prevent overloading the server. To increase the number of allowed connections on an Nginx web server to 10,000, the worker_rlimit_nofile and worker_connections values of the nginx.conf file should be updated:
 
