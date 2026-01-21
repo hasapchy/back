@@ -30,7 +30,6 @@ class OrderFactory extends Factory
         $discount = fake()->randomFloat(2, 0, $price * 0.15);
 
         return [
-            'name' => fake()->words(2, true) . ' Order',
             'user_id' => User::factory(),
             'client_id' => Client::factory(),
             'category_id' => Category::factory(),
@@ -43,7 +42,6 @@ class OrderFactory extends Factory
             'cash_id' => fake()->optional(0.4)->passthrough(CashRegister::factory()),
             'warehouse_id' => fake()->optional(0.4)->passthrough(Warehouse::factory()),
             'project_id' => fake()->optional(0.3)->passthrough(Project::factory()),
-            'order_id' => null, // Parent order, can be set manually if needed
         ];
     }
 }

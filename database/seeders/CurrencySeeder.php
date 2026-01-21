@@ -11,6 +11,7 @@ class CurrencySeeder extends Seeder
     {
         $currencies = [
             [
+                'company_id' => null,
                 'code' => 'TMT',
                 'name' => 'Turkmen Manat',
                 'symbol' => 'TMT',
@@ -20,6 +21,7 @@ class CurrencySeeder extends Seeder
                 'updated_at' => now()
             ],
             [
+                'company_id' => null,
                 'code' => 'USD',
                 'name' => 'US Dollar',
                 'symbol' => '$',
@@ -29,6 +31,7 @@ class CurrencySeeder extends Seeder
                 'updated_at' => now()
             ],
             [
+                'company_id' => null,
                 'code' => 'RUB',
                 'name' => 'RUSSIAN_RUBLE',
                 'symbol' => '₽',
@@ -39,68 +42,64 @@ class CurrencySeeder extends Seeder
             ],
         ];
 
+        // 1. Вставляем/обновляем глобальные валюты (company_id = NULL)
+        // Для NULL company_id нельзя использовать upsert с ключом ['company_id', 'code']
+        // потому что MySQL разрешает несколько NULL в UNIQUE индексе
+        foreach ($currencies as $currency) {
+            $existing = DB::table('currencies')
+                ->whereNull('company_id')
+                ->where('code', $currency['code'])
+                ->first();
 
-        DB::table('currencies')->upsert(
-            $currencies,
-            ['code'],
-            ['name', 'symbol', 'is_default',  'status', 'updated_at']
-        );
+            if ($existing) {
+                // Обновляем существующую
+                DB::table('currencies')
+                    ->where('id', $existing->id)
+                    ->update([
+                        'name' => $currency['name'],
+                        'symbol' => $currency['symbol'],
+                        'is_default' => $currency['is_default'],
+                        'status' => $currency['status'],
+                        'updated_at' => now(),
+                    ]);
+            } else {
+                // Создаем новую
+                DB::table('currencies')->insert($currency);
+            }
+        }
 
-
+        // 2. Получаем актуальные ID
         $currencyIds = DB::table('currencies')->pluck('id', 'code');
 
-        // Подготовка истории валют
+        // 3. Подготовка истории валют
         $currencyHistories = [];
 
-        // Курсы валют относительно маната (базовая валюта в системе)
-        // Здесь записывайте курсы так, как они есть в реальности:
-        // 1 доллар = X манат (как обычно говорят в банках)
+        // Реальные курсы
         $realRates = [
-            'TMT' => 1.00,        // 1 манат = 1 манат
-            'USD' => 19.65,       // 1 доллар = 19.65 манат
-            'RUB' => 0.234,       // 1 рубль = 0.234 маната (100 руб = 23.4 манат по курсу USD=83, TMT=19.5)
+            'TMT' => 1.00,
+            'USD' => 19.65,
+            'RUB' => 0.234,
         ];
 
+        $today = now()->toDateString();
+
         foreach ($currencies as $currency) {
-            // Exchange rate показывает, сколько манат за 1 единицу валюты
             $exchangeRate = $realRates[$currency['code']] ?? 1.00;
 
             $currencyHistories[] = [
                 'currency_id' => $currencyIds[$currency['code']],
                 'exchange_rate' => $exchangeRate,
-                'start_date' => now()->toDateString(),
+                'start_date' => $today, // Фиксированная дата
                 'created_at' => now(),
                 'updated_at' => now()
             ];
         }
 
-        // Вставка истории валют только если записи не существует
-        foreach ($currencyHistories as $history) {
-            // Проверяем, существует ли уже активная запись для этой валюты
-            $existingActiveHistory = DB::table('currency_histories')
-                ->where('currency_id', $history['currency_id'])
-                ->where('start_date', '<=', $history['start_date'])
-                ->where(function ($query) use ($history) {
-                    $query->whereNull('end_date')
-                        ->orWhere('end_date', '>=', $history['start_date']);
-                })
-                ->exists();
-
-            // Если активная запись уже существует, пропускаем
-            if ($existingActiveHistory) {
-                continue;
-            }
-
-            // Проверяем, существует ли запись с такой же датой начала
-            $existingHistory = DB::table('currency_histories')
-                ->where('currency_id', $history['currency_id'])
-                ->where('start_date', $history['start_date'])
-                ->exists();
-
-            // Если записи нет, создаем новую
-            if (!$existingHistory) {
-                DB::table('currency_histories')->insert($history);
-            }
-        }
+        // 4. Вставка истории с использованием upsert
+        DB::table('currency_histories')->upsert(
+            $currencyHistories,
+            ['currency_id', 'start_date'], // Уникальность: валюта + дата
+            ['exchange_rate', 'updated_at'] // Обновляем только курс
+        );
     }
 }
