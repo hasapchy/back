@@ -28,6 +28,7 @@ class TaskResource extends JsonResource
             'deadline' => $this->deadline?->toDateTimeString(),
             'files' => $this->files,
             'comments' => $this->comments,
+            'checklist' => $this->checklist,
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
 
