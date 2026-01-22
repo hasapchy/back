@@ -16,6 +16,7 @@ class CurrencySeeder extends Seeder
                 'name' => 'Turkmen Manat',
                 'symbol' => 'TMT',
                 'is_default' => true,
+                'is_report' => true,
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
@@ -26,6 +27,7 @@ class CurrencySeeder extends Seeder
                 'name' => 'US Dollar',
                 'symbol' => '$',
                 'is_default' => false,
+                'is_report' => false,
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
@@ -36,6 +38,7 @@ class CurrencySeeder extends Seeder
                 'name' => 'RUSSIAN_RUBLE',
                 'symbol' => '₽',
                 'is_default' => false,
+                'is_report' => false,
                 'status' => true,
                 'created_at' => now(),
                 'updated_at' => now()
@@ -59,6 +62,7 @@ class CurrencySeeder extends Seeder
                         'name' => $currency['name'],
                         'symbol' => $currency['symbol'],
                         'is_default' => $currency['is_default'],
+                        'is_report' => $currency['is_report'],
                         'status' => $currency['status'],
                         'updated_at' => now(),
                     ]);

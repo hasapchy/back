@@ -7,6 +7,7 @@ use App\Models\Currency;
 use App\Models\Unit;
 use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Traits\HasRoles;
 
 class AppController extends BaseController
@@ -34,17 +35,21 @@ class AppController extends BaseController
 
         $items = CacheService::getReferenceData($cacheKey, function() use ($hasAccessToNonDefaultCurrencies, $companyId) {
             $query = Currency::where('status', 1);
-            
+
             if ($companyId) {
-                $query->where('company_id', $companyId);
+                // Ищем валюты для компании ИЛИ глобальные (NULL)
+                $query->where(function($q) use ($companyId) {
+                    $q->where('company_id', $companyId)
+                      ->orWhereNull('company_id');
+                });
             } else {
                 $query->whereNull('company_id');
             }
-            
+
             if (!$hasAccessToNonDefaultCurrencies) {
                 $query->where('is_default', true);
             }
-            
+
             return $query->get();
         });
 
