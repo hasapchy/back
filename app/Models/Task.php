@@ -27,13 +27,15 @@ class Task extends Model
         'complexity',
         'deadline',
         'files',
-        'comments'
+        'comments',
+        'checklist'
     ];
 
     protected $casts = [
         'deadline' => 'datetime',
         'files' => 'array',
         'comments' => 'array',
+        'checklist' => 'array',
         'priority' => TaskPriority::class,
         'complexity' => TaskComplexity::class,
     ];
