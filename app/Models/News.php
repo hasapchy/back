@@ -15,6 +15,11 @@ class News extends Model
         'content',
         'company_id',
         'user_id',
+        'meta',
+    ];
+
+    protected $casts = [
+        'meta' => 'array',
     ];
 
     public function company()
@@ -29,6 +34,7 @@ class News extends Model
 
     /**
      * Алиас для обратной совместимости
+     *
      * @deprecated Используйте user() вместо author()
      */
     public function author()

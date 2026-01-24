@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\LeaveTypeController;
+use App\Http\Controllers\Api\MessageTemplateController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderStatusCategoryController;
@@ -325,4 +326,14 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission:news_create')->post('news', [NewsController::class, 'store']);
     Route::middleware('permission.scope:news_update_all,news_update')->put('news/{id}', [NewsController::class, 'update']);
     Route::middleware('permission.scope:news_delete_all,news_delete')->delete('news/{id}', [NewsController::class, 'destroy']);
+
+    // Message Templates routes
+    Route::middleware('permission.scope:templates_view_all,templates_view')->get('message-templates', [MessageTemplateController::class, 'index']);
+    Route::middleware('permission.scope:templates_view_all,templates_view')->get('message-templates/all', [MessageTemplateController::class, 'all']);
+    Route::middleware('permission.scope:templates_view_all,templates_view')->get('message-templates/types', [MessageTemplateController::class, 'getTypes']);
+    Route::middleware('permission.scope:templates_view_all,templates_view')->get('message-templates/{id}', [MessageTemplateController::class, 'show']);
+    Route::middleware('permission:templates_create')->post('message-templates', [MessageTemplateController::class, 'store']);
+    Route::middleware('permission.scope:templates_update_all,templates_update')->put('message-templates/{id}', [MessageTemplateController::class, 'update']);
+    Route::middleware('permission.scope:templates_delete_all,templates_delete')->delete('message-templates/{id}', [MessageTemplateController::class, 'destroy']);
+    Route::middleware('permission:templates_delete_all')->post('message-templates/batch-delete', [MessageTemplateController::class, 'batchDelete']);
 });

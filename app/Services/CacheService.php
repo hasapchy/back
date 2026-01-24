@@ -427,6 +427,14 @@ class CacheService
     }
 
     /**
+     * Инвалидировать кеш шаблонов сообщений
+     */
+    public static function invalidateMessageTemplatesCache(): void
+    {
+        self::invalidateByLike('%message_template%');
+    }
+
+    /**
      * Invalidate departments cache
      */
     public static function invalidateDepartmentsCache(): void
