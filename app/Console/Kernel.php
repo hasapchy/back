@@ -13,7 +13,8 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('templates:publish-all')
-            ->dailyAt('00:00');
+            ->dailyAt('00:00')
+            ->timezone('Asia/Ashgabat');
     }
 
     /**
