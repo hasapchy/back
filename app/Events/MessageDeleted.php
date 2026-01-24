@@ -4,13 +4,14 @@ namespace App\Events;
 
 use App\Models\ChatMessage;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Bus\Queueable;
 
-class MessageDeleted implements ShouldBroadcastNow
+class MessageDeleted implements ShouldBroadcast
 {
-    use Dispatchable, SerializesModels;
+    use Dispatchable, SerializesModels, Queueable;
 
     /**
      * Create a new event instance.

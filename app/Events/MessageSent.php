@@ -4,13 +4,14 @@ namespace App\Events;
 
 use App\Models\ChatMessage;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Bus\Queueable;
 
-class MessageSent implements ShouldBroadcastNow
+class MessageSent implements ShouldBroadcast
 {
-    use Dispatchable, SerializesModels;
+    use Dispatchable, SerializesModels, Queueable;
 
     /**
      * Create a new event instance.
@@ -23,6 +24,13 @@ class MessageSent implements ShouldBroadcastNow
             'parent.user:id,name,surname,photo',
             'forwardedFrom.user:id,name,surname,photo',
         ]);
+        
+        \Log::info("[MessageSent Event] Создано событие для сообщения", [
+            'message_id' => $this->message->id,
+            'chat_id' => $this->message->chat_id,
+            'user_id' => $this->message->user_id,
+            'body' => substr($this->message->body ?? '', 0, 50),
+        ]);
     }
 
     /**
@@ -32,8 +40,11 @@ class MessageSent implements ShouldBroadcastNow
      */
     public function broadcastOn(): array
     {
+        $channel = "company.{$this->message->chat->company_id}.chat.{$this->message->chat_id}";
+        \Log::info("[MessageSent Event] Broadcasting на канал: {$channel}");
+        
         return [
-            new PrivateChannel("company.{$this->message->chat->company_id}.chat.{$this->message->chat_id}"),
+            new PrivateChannel($channel),
         ];
     }
 

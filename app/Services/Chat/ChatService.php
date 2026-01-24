@@ -16,6 +16,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
 class ChatService
@@ -34,15 +35,23 @@ class ChatService
      */
     public function listChats(int $companyId, User $user): array
     {
+        $startTime = microtime(true);
+        $userId = (int) $user->id;
+
         // Ensure general chat exists and the user is a participant
         $generalChat = $this->chats->findGeneralChat($companyId);
         if (!$generalChat) {
-            $generalChat = $this->chats->createGeneralChat($companyId, (int) $user->id, 'Общий чат');
+            $generalChat = $this->chats->createGeneralChat($companyId, $userId, 'Общий чат');
         }
 
-        $this->participants->firstOrCreate((int) $generalChat->id, (int) $user->id, 'member');
+        $this->participants->firstOrCreate((int) $generalChat->id, $userId, 'member');
 
-        $chats = $this->chats->getChatsForUser($companyId, (int) $user->id);
+        // Кэшируем базовый список чатов на 60 секунд
+        $cacheKey = "chats:company:{$companyId}:user:{$userId}";
+        $chats = Cache::remember($cacheKey, 60, function () use ($companyId, $userId) {
+            return $this->chats->getChatsForUser($companyId, $userId);
+        });
+
         $chatIds = $chats->pluck('id')->map(fn($id) => (int) $id)->toArray();
 
         // Load creators for group chats
@@ -63,7 +72,7 @@ class ChatService
 
         $userId = (int) $user->id;
 
-        return $chats->map(function (Chat $chat) use ($lastMessages, $unreadCounts, $participantsByChatId, $userId) {
+        $result = $chats->map(function (Chat $chat) use ($lastMessages, $unreadCounts, $participantsByChatId, $userId) {
             $lastMessage = $lastMessages->get($chat->id);
             $unreadCount = (int) ($unreadCounts[(int) $chat->id] ?? 0);
 
@@ -119,6 +128,18 @@ class ChatService
                 'peer_last_read_message_id' => $peerLastReadId,
             ];
         })->values()->toArray();
+
+        $elapsed = round((microtime(true) - $startTime) * 1000, 2);
+        if ($elapsed > 100) {
+            Log::channel('chat')->warning('Slow chats list', [
+                'time_ms' => $elapsed,
+                'company_id' => $companyId,
+                'user_id' => $user->id,
+                'chats_count' => $chats->count(),
+            ]);
+        }
+
+        return $result;
     }
 
     public function ensureGeneralChat(int $companyId, User $user): Chat
@@ -147,7 +168,7 @@ class ChatService
             return $chat;
         }
 
-        return DB::transaction(function () use ($companyId, $user, $otherUserId, $directKey) {
+        $chat = DB::transaction(function () use ($companyId, $user, $otherUserId, $directKey) {
             $chat = $this->chats->createDirectChat($companyId, (int) $user->id, $directKey);
 
             $this->participants->create((int) $chat->id, (int) $user->id, 'member');
@@ -155,6 +176,11 @@ class ChatService
 
             return $chat;
         });
+
+        // Инвалидируем кэш для обоих участников
+        $this->invalidateChatListCache($companyId, (int) $chat->id);
+
+        return $chat;
     }
 
     /**
@@ -169,7 +195,7 @@ class ChatService
             $userIds[] = (int) $user->id;
         }
 
-        return DB::transaction(function () use ($companyId, $user, $title, $userIds) {
+        $chat = DB::transaction(function () use ($companyId, $user, $title, $userIds) {
             $chat = $this->chats->createGroupChat($companyId, (int) $user->id, $title);
 
             foreach ($userIds as $id) {
@@ -185,6 +211,11 @@ class ChatService
 
             return $chat;
         });
+
+        // Инвалидируем кэш для всех участников группового чата
+        $this->invalidateChatListCache($companyId, (int) $chat->id);
+
+        return $chat;
     }
 
     public function getMessagesAndMarkRead(int $companyId, User $user, Chat $chat, int $limit, ?int $afterId)
@@ -283,6 +314,7 @@ class ChatService
         bool $canWriteGeneral = true,
         ?int $parentId = null,
     ): ChatMessage {
+        $startTime = microtime(true);
         $body = $body !== null ? trim((string) $body) : '';
 
         if ($chat->type === 'general' && !$canWriteGeneral) {
@@ -333,6 +365,9 @@ class ChatService
 
         $chat->forceFill(['last_message_at' => now()])->save();
 
+        // Инвалидируем кэш списка чатов для всех участников
+        $this->invalidateChatListCache($companyId, (int) $chat->id);
+
         // Отправляем событие через broadcasting (неблокирующе)
         try {
             event(new MessageSent($message));
@@ -343,6 +378,17 @@ class ChatService
                 'chat_id' => $chat->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
+            ]);
+        }
+
+        $elapsed = round((microtime(true) - $startTime) * 1000, 2);
+        if ($elapsed > 100) {
+            Log::channel('chat')->warning('Slow message send', [
+                'time_ms' => $elapsed,
+                'chat_id' => $chat->id,
+                'user_id' => $user->id,
+                'has_files' => !empty($storedFiles),
+                'files_count' => count($storedFiles),
             ]);
         }
 
@@ -524,6 +570,9 @@ class ChatService
             abort(422, 'Cannot delete general or direct chats');
         }
 
+        // Инвалидируем кэш перед удалением
+        $this->invalidateChatListCache($companyId, (int) $chat->id);
+
         DB::transaction(function () use ($chat) {
             // Delete all messages
             $this->messages->deleteByChatId((int) $chat->id);
@@ -534,6 +583,34 @@ class ChatService
             // Delete chat
             $this->chats->delete((int) $chat->id);
         });
+    }
+
+    /**
+     * Инвалидация кэша списка чатов для всех участников
+     */
+    protected function invalidateChatListCache(int $companyId, int $chatId): void
+    {
+        try {
+            // Получаем всех участников чата
+            $participantUserIds = $this->participants->getParticipantsByChatIds([$chatId])
+                ->get($chatId, collect())
+                ->pluck('user_id')
+                ->unique()
+                ->toArray();
+
+            // Очищаем кэш для каждого участника
+            foreach ($participantUserIds as $userId) {
+                $cacheKey = "chats:company:{$companyId}:user:{$userId}";
+                Cache::forget($cacheKey);
+            }
+        } catch (\Exception $e) {
+            // Не прерываем выполнение если кэш недоступен
+            Log::warning('Failed to invalidate chat list cache', [
+                'chat_id' => $chatId,
+                'company_id' => $companyId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
 

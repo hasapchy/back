@@ -49,14 +49,12 @@ class Order extends Model
     use HasFactory, LogsActivity;
 
     protected $fillable = [
-        'name',
         'client_id',
         'user_id',
         'status_id',
         'description',
         'note',
         'date',
-        'order_id',
         'price',
         'discount',
         'cash_id',
@@ -67,7 +65,6 @@ class Order extends Model
 
 
     protected static $logAttributes = [
-        'name',
         'client_id',
         'user_id',
         'status_id',
