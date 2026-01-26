@@ -96,7 +96,8 @@ class OrdersRepository extends BaseRepository
                     }
                 });
 
-            $this->applyOwnFilter($query, 'orders', 'orders', 'user_id', $currentUser);
+            $orderResource = $this->getOrderResourceForUser($currentUser);
+            $this->applyOwnFilter($query, $orderResource, 'orders', 'user_id', $currentUser);
 
             if ($hasSearch) {
                 $searchLower = mb_strtolower($searchTrimmed);
@@ -305,7 +306,8 @@ class OrdersRepository extends BaseRepository
                 }
             });
 
-            $this->applyOwnFilter($unpaidQuery, 'orders', 'orders', 'user_id', $currentUser);
+            $orderResource = $this->getOrderResourceForUser($currentUser);
+            $this->applyOwnFilter($unpaidQuery, $orderResource, 'orders', 'user_id', $currentUser);
             $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cash');
 
             if ($isBasementWorker && !$currentUser->is_admin) {
@@ -1516,5 +1518,19 @@ class OrdersRepository extends BaseRepository
             $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid')
         );
         $order->makeVisible(['paid_amount', 'payment_status']);
+    }
+
+    /**
+     * Получить ресурс для проверки permissions в зависимости от роли пользователя
+     *
+     * @param User|null $user Пользователь
+     * @return string Название ресурса ('orders' или 'orders_basement')
+     */
+    protected function getOrderResourceForUser(?User $user): string
+    {
+        if ($user && $user->hasRole(config('basement.worker_role'))) {
+            return 'orders_basement';
+        }
+        return 'orders';
     }
 }

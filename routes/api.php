@@ -208,12 +208,12 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware(['permission.scope:sales_delete_all,sales_delete', 'time.restriction:Sale'])->delete('sales/{id}', [SaleController::class, 'destroy']);
     Route::middleware('permission.scope:sales_view_all,sales_view')->get('sales/{id}', [SaleController::class, 'show']);
 
-    Route::middleware('permission.scope:orders_view_all,orders_view')->get('orders', [OrderController::class, 'index']);
-    Route::middleware('permission:orders_create')->post('orders', [OrderController::class, 'store']);
-    Route::middleware('permission.scope:orders_update_all,orders_update')->put('orders/{id}', [OrderController::class, 'update']);
-    Route::middleware('permission.scope:orders_delete_all,orders_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
-    Route::middleware('permission.scope:orders_update_all,orders_update')->post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
-    Route::middleware('permission.scope:orders_view_all,orders_view')->get('orders/{id}', [OrderController::class, 'show']);
+    Route::middleware('permission.scope:orders_view_all,orders_view,orders_basement_view_all,orders_basement_view')->get('orders', [OrderController::class, 'index']);
+    Route::middleware('permission:orders_create,orders_basement_create')->post('orders', [OrderController::class, 'store']);
+    Route::middleware('permission.scope:orders_update_all,orders_update,orders_basement_update_all,orders_basement_update')->put('orders/{id}', [OrderController::class, 'update']);
+    Route::middleware('permission.scope:orders_delete_all,orders_delete,orders_basement_delete_all,orders_basement_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
+    Route::middleware('permission.scope:orders_update_all,orders_update,orders_basement_update_all,orders_basement_update')->post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
+    Route::middleware('permission.scope:orders_view_all,orders_view,orders_basement_view_all,orders_basement_view')->get('orders/{id}', [OrderController::class, 'show']);
 
     Route::middleware('permission:orders_update')->post('orders/{orderId}/transactions', [OrderTransactionController::class, 'linkTransaction']);
     Route::middleware('permission:orders_update')->delete('orders/{orderId}/transactions/{transactionId}', [OrderTransactionController::class, 'unlinkTransaction']);
