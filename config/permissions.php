@@ -224,6 +224,12 @@ return [
             'actions' => ['create', 'update', 'delete'],
             'scope_actions' => ['update', 'delete'],
         ],
+        'templates' => [
+            'has_user_id' => false,
+            'check_strategy' => 'default',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
         'departments' => [
             'has_user_id' => false,
             'check_strategy' => 'many_to_many',
@@ -305,7 +311,7 @@ return [
         ],
         'news' => [
             'label' => 'news',
-            'resources' => ['news'],
+            'resources' => ['news', 'templates'],
         ],
     ],
 
