@@ -805,7 +805,6 @@ class OrdersRepository extends BaseRepository
 
             $existingProducts = OrderProduct::where('order_id', $id)->get();
             $existingProductsMap = $existingProducts->keyBy('id');
-            $existingProductsByProductId = $existingProducts->groupBy('product_id');
             $processedProductIds = [];
             $productsChanged = false;
 
@@ -842,33 +841,33 @@ class OrdersRepository extends BaseRepository
 
                     $processedProductIds[] = $orderProductId;
                 } else {
-                    $existingByProductId = $existingProductsByProductId->get($cachedProduct['product_id']);
+                    $cachedWidth = $cachedProduct['width'] !== null ? (float)$cachedProduct['width'] : null;
+                    $cachedHeight = $cachedProduct['height'] !== null ? (float)$cachedProduct['height'] : null;
 
-                    if ($existingByProductId && $existingByProductId->isNotEmpty()) {
-                        $existingProduct = $existingByProductId->first();
-
-                        if (!in_array($existingProduct->id, $processedProductIds)) {
-                            $existingWidth = $existingProduct->width !== null ? (float)$existingProduct->width : null;
-                            $existingHeight = $existingProduct->height !== null ? (float)$existingProduct->height : null;
-                            $cachedWidth = $cachedProduct['width'] !== null ? (float)$cachedProduct['width'] : null;
-                            $cachedHeight = $cachedProduct['height'] !== null ? (float)$cachedProduct['height'] : null;
-
-                            $needsUpdate = abs((float)$existingProduct->quantity - (float)$cachedProduct['quantity']) > 0.0001
-                                || abs((float)$existingProduct->price - (float)$cachedProduct['price']) > 0.0001
-                                || $existingWidth !== $cachedWidth
-                                || $existingHeight !== $cachedHeight;
-
-                            if ($needsUpdate) {
-                                $existingProduct->quantity = $cachedProduct['quantity'];
-                                $existingProduct->price = $cachedProduct['price'];
-                                $existingProduct->width = $cachedProduct['width'] ?? null;
-                                $existingProduct->height = $cachedProduct['height'] ?? null;
-                                $existingProduct->save();
-                                $productsChanged = true;
-                            }
-
-                            $processedProductIds[] = $existingProduct->id;
+                    $existingProduct = $existingProducts->first(function ($product) use ($cachedProduct, $cachedWidth, $cachedHeight, $processedProductIds) {
+                        if ($product->product_id != $cachedProduct['product_id']) {
+                            return false;
                         }
+                        if (in_array($product->id, $processedProductIds)) {
+                            return false;
+                        }
+                        $productWidth = $product->width !== null ? (float)$product->width : null;
+                        $productHeight = $product->height !== null ? (float)$product->height : null;
+                        return $productWidth === $cachedWidth && $productHeight === $cachedHeight;
+                    });
+
+                    if ($existingProduct) {
+                        $needsUpdate = abs((float)$existingProduct->quantity - (float)$cachedProduct['quantity']) > 0.0001
+                            || abs((float)$existingProduct->price - (float)$cachedProduct['price']) > 0.0001;
+
+                        if ($needsUpdate) {
+                            $existingProduct->quantity = $cachedProduct['quantity'];
+                            $existingProduct->price = $cachedProduct['price'];
+                            $existingProduct->save();
+                            $productsChanged = true;
+                        }
+
+                        $processedProductIds[] = $existingProduct->id;
                     } else {
                         $newProduct = OrderProduct::create([
                             'order_id' => $id,
