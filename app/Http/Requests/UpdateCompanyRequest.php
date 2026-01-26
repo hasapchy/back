@@ -38,7 +38,8 @@ class UpdateCompanyRequest extends FormRequest
             'rounding_quantity_enabled' => 'nullable|boolean',
             'rounding_quantity_direction' => 'nullable|in:standard,up,down,custom',
             'rounding_quantity_custom_threshold' => 'nullable|numeric|min:0|max:1',
-            'skip_project_order_balance' => 'nullable|boolean'
+            'skip_project_order_balance' => 'nullable|boolean',
+            'work_schedule' => 'nullable|array',
         ];
     }
 
@@ -85,6 +86,23 @@ class UpdateCompanyRequest extends FormRequest
                 $data['rounding_quantity_direction'] = null;
                 $data['rounding_quantity_custom_threshold'] = null;
             }
+        }
+
+        // Обработка work_schedule: если пришла JSON строка, преобразуем в массив
+        // Если пришел массив - оставляем как есть
+        if (isset($data['work_schedule'])) {
+            if (is_string($data['work_schedule'])) {
+                // Если это JSON строка, декодируем
+                $decoded = json_decode($data['work_schedule'], true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $data['work_schedule'] = $decoded;
+                } else {
+                    // Если не удалось декодировать, устанавливаем null
+                    $data['work_schedule'] = null;
+                }
+            }
+            // Если это уже массив - оставляем как есть
+            // Laravel автоматически преобразует массив в JSON через cast 'array' в модели
         }
 
         $this->merge($data);

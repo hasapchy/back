@@ -43,6 +43,7 @@ class Company extends Model
         'rounding_quantity_direction',
         'rounding_quantity_custom_threshold',
         'skip_project_order_balance',
+        'work_schedule',
     ];
 
     protected $attributes = [
@@ -60,6 +61,7 @@ class Company extends Model
         'rounding_enabled' => 'boolean',
         'rounding_quantity_enabled' => 'boolean',
         'skip_project_order_balance' => 'boolean',
+        'work_schedule' => 'array',
     ];
 
     /**
@@ -80,5 +82,48 @@ class Company extends Model
     public function holidays()
     {
         return $this->hasMany(CompanyHoliday::class);
+    }
+
+     /**
+     * Получить рабочий график с дефолтными значениями
+     * Работает с raw значением из БД, так как cast 'array' применяется после accessor
+     */
+    public function getWorkScheduleAttribute($value)
+    {
+        // Получаем raw значение из БД (до применения cast)
+        $rawValue = $this->getAttributes()['work_schedule'] ?? null;
+
+        if ($rawValue) {
+            // Если это уже массив (после cast), возвращаем как есть
+            if (is_array($rawValue)) {
+                return $rawValue;
+            }
+            // Если это JSON строка, декодируем
+            if (is_string($rawValue)) {
+                $decoded = json_decode($rawValue, true);
+                if ($decoded) {
+                    return $decoded;
+                }
+            }
+        }
+
+        // Дефолтный график, если не установлен
+        return $this->getDefaultWorkSchedule();
+    }
+
+    /**
+     * Получить дефолтный рабочий график
+     */
+    protected function getDefaultWorkSchedule()
+    {
+        return [
+            1 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'], // Monday
+            2 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'], // Tuesday
+            3 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'], // Wednesday
+            4 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'], // Thursday
+            5 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'], // Friday
+            6 => ['enabled' => false, 'start' => '10:00', 'end' => '14:00'], // Saturday
+            7 => ['enabled' => false, 'start' => '00:00', 'end' => '00:00']  // Sunday
+        ];
     }
 }

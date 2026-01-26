@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             LeaveTypeSeeder::class,
             TestUserSeeder::class,
             DepartmentSeeder::class,
+            WorkscheduleSeeder::class,
         ]);
     }
 }

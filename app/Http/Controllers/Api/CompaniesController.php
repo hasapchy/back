@@ -32,7 +32,7 @@ class CompaniesController extends BaseController
     {
         $perPage = $request->get('per_page', 10);
 
-        $companies = Company::select(['id', 'name', 'logo', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold', 'rounding_quantity_decimals', 'rounding_quantity_enabled', 'rounding_quantity_direction', 'rounding_quantity_custom_threshold', 'skip_project_order_balance', 'created_at', 'updated_at'])
+        $companies = Company::select(['id', 'name', 'logo', 'show_deleted_transactions', 'rounding_decimals', 'rounding_enabled', 'rounding_direction', 'rounding_custom_threshold', 'rounding_quantity_decimals', 'rounding_quantity_enabled', 'rounding_quantity_direction', 'rounding_quantity_custom_threshold', 'skip_project_order_balance', 'work_schedule', 'created_at', 'updated_at'])
             ->orderBy('name')
             ->paginate($perPage);
 
@@ -81,6 +81,7 @@ class CompaniesController extends BaseController
             $data['logo'] = $request->file('logo')->store('companies', 'public');
         }
 
+        Log::info('UpdateCompanyRequest', $data);
         $company->update($data);
 
         $company = $company->fresh();
