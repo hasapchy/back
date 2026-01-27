@@ -66,6 +66,7 @@ class Transaction extends Model
         'cash_id',
         'category_id',
         'client_id',
+        'client_balance_id',
         'currency_id',
         'date',
         'note',
@@ -300,6 +301,16 @@ class Transaction extends Model
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');
+    }
+
+    /**
+     * Связь с балансом клиента
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function clientBalance()
+    {
+        return $this->belongsTo(ClientBalance::class, 'client_balance_id');
     }
 
     /**

@@ -57,7 +57,7 @@ class OrderResource extends JsonResource
         $discount = (float)(data_get($resource, 'discount', 0));
         $totalPrice = $price - $discount;
         $paidAmount = (float)(data_get($resource, 'paid_amount', 0));
-        
+
         $paymentStatusText = $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $totalPrice ? 'Частично оплачено' : 'Оплачено');
 
         $status = data_get($resource, 'status');

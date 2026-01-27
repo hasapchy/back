@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CashRegistersController;
 use App\Http\Controllers\Api\CategoriesController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ClientController;
+use App\Http\Controllers\Api\ClientBalanceController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\CompaniesController;
 use App\Http\Controllers\Api\CompanyHolidayController;
@@ -149,6 +150,11 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:clients_update_all,clients_update')->put('clients/{id}', [ClientController::class, 'update']);
     Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/{id}/balance-history', [ClientController::class, 'getBalanceHistory']);
     Route::middleware('permission.scope:clients_delete_all,clients_delete')->delete('clients/{id}', [ClientController::class, 'destroy']);
+    
+    Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/{clientId}/balances', [ClientBalanceController::class, 'index']);
+    Route::middleware('permission.scope:clients_update_all,clients_update')->post('clients/{clientId}/balances', [ClientBalanceController::class, 'store']);
+    Route::middleware('permission.scope:clients_update_all,clients_update')->put('clients/{clientId}/balances/{id}', [ClientBalanceController::class, 'update']);
+    Route::middleware('permission.scope:clients_delete_all,clients_delete')->delete('clients/{clientId}/balances/{id}', [ClientBalanceController::class, 'destroy']);
 
     Route::middleware('permission.scope:cash_registers_view_all,cash_registers_view')->get('cash_registers', [CashRegistersController::class, 'index']);
     Route::get('cash_registers/all', [CashRegistersController::class, 'all']);

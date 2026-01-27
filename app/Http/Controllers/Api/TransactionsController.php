@@ -129,6 +129,14 @@ class TransactionsController extends BaseController
             $sourceId = $validatedData['order_id'];
         }
 
+        \Illuminate\Support\Facades\Log::info('Creating transaction', [
+            'client_id' => $validatedData['client_id'] ?? null,
+            'client_balance_id' => $validatedData['client_balance_id'] ?? null,
+            'has_client_balance_id' => !empty($validatedData['client_balance_id']),
+            'type' => $validatedData['type'],
+            'orig_amount' => $validatedData['orig_amount'],
+        ]);
+        
         $item_created = $this->itemsRepository->createItem([
             'type' => $validatedData['type'],
             'user_id' => $userUuid,
@@ -138,6 +146,7 @@ class TransactionsController extends BaseController
             'category_id' => $validatedData['category_id'],
             'project_id' => $validatedData['project_id'] ?? null,
             'client_id' => $validatedData['client_id'] ?? null,
+            'client_balance_id' => $validatedData['client_balance_id'] ?? null,
             'source_type' => $sourceType,
             'source_id' => $sourceId,
             'note' => $validatedData['note'] ?? null,

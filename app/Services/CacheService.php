@@ -4,7 +4,6 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class CacheService
 {
@@ -28,18 +27,11 @@ class CacheService
         $ttl = $ttl ?? self::CACHE_TTL['reference_data'];
         
         $hasCache = Cache::has($key);
-        Log::info('CacheService::remember', [
-            'key' => $key,
-            'hasCache' => $hasCache,
-            'ttl' => $ttl,
-        ]);
 
         if ($hasCache) {
-            Log::info('CacheService::remember - Returning from cache', ['key' => $key]);
             return Cache::get($key);
         }
 
-        Log::info('CacheService::remember - Executing callback (cache miss)', ['key' => $key]);
         $result = $callback();
         Cache::put($key, $result, $ttl);
         return $result;
@@ -57,12 +49,6 @@ class CacheService
     {
         $fullKey = "paginated_{$cacheKey}_page_{$page}";
         $ttl = self::CACHE_TTL['sales_list'];
-        
-        Log::info('CacheService::getPaginatedData', [
-            'fullKey' => $fullKey,
-            'page' => $page,
-            'hasCache' => Cache::has($fullKey),
-        ]);
 
         return self::remember($fullKey, $callback, $ttl);
     }

@@ -44,22 +44,9 @@ class OrderController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $user = $this->requireAuthenticatedUser();
 
-        \Log::info('OrderController::index called', [
-            'user_id' => $userUuid,
-            'user_name' => $user->name,
-            'is_admin' => $user->is_admin,
-            'has_role' => $user->hasRole(config('simple.worker_role')),
-        ]);
-
-        // Проверка прав на просмотр заказов
         $resource = $this->getOrderResourceForUser($user);
-        \Log::info('Order resource determined', ['resource' => $resource]);
         
         if (!$this->canPerformAction($resource, 'view')) {
-            \Log::warning('User does not have permission to view orders', [
-                'user_id' => $userUuid,
-                'resource' => $resource,
-            ]);
             return $this->forbiddenResponse('У вас нет прав на просмотр заказов');
         }
 
@@ -74,18 +61,7 @@ class OrderController extends BaseController
         $clientFilter = $request->input('client_id');
         $unpaidOnly = $request->boolean('unpaid_only', false);
 
-        \Log::info('Calling getItemsWithPagination', [
-            'user_uuid' => $userUuid,
-            'per_page' => $per_page,
-            'page' => $page,
-        ]);
-
         $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly);
-
-        \Log::info('getItemsWithPagination returned', [
-            'total' => $items->total(),
-            'count' => $items->count(),
-        ]);
 
         $unpaidOrdersTotal = $items->unpaid_orders_total ?? null;
 
