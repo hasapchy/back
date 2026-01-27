@@ -109,6 +109,7 @@ class UserCompanyController extends BaseController
             'companies.rounding_quantity_direction',
             'companies.rounding_quantity_custom_threshold',
             'companies.skip_project_order_balance',
+            'companies.work_schedule',
             'companies.created_at',
             'companies.updated_at'
         )->get();

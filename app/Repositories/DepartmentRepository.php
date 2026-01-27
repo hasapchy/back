@@ -3,7 +3,6 @@
 namespace App\Repositories;
 
 use App\Models\Department;
-use App\Models\User;
 use App\Models\DepartmentUser;
 use App\Services\CacheService;
 
@@ -20,10 +19,10 @@ class DepartmentRepository extends BaseRepository
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userId, $perPage, $page) {
             $query = Department::with([
-                'users:id,name,surname,email,position',
+                'users:id,name,surname,email,position,photo',
                 'head:id,name,surname,email,position,photo',
                 'deputyHead:id,name,surname,email,position,photo',
-                'company:id,name'
+                'company:id,name',
             ]);
 
             if ($this->shouldApplyUserFilter('departments')) {
@@ -58,10 +57,10 @@ class DepartmentRepository extends BaseRepository
 
         return CacheService::getReferenceData($cacheKey, function () use ($userId) {
             $query = Department::with([
-                'users:id,name,surname,email,position',
+                'users:id,name,surname,email,position,photo',
                 'head:id,name,surname,email,position,photo',
                 'deputyHead:id,name,surname,email,position,photo',
-                'company:id,name'
+                'company:id,name',
             ]);
 
             if ($this->shouldApplyUserFilter('departments')) {
@@ -98,13 +97,17 @@ class DepartmentRepository extends BaseRepository
             'company_id' => $this->getCurrentCompanyId(),
         ]);
 
+        if (array_key_exists('users', $data)) {
+            $this->syncUsers($department->id, $data['users'] ?? []);
+        }
+
         CacheService::invalidateDepartmentsCache();
 
         return $department->load([
-            'users:id,name,surname,email,position',
+            'users:id,name,surname,email,position,photo',
             'head:id,name,surname,email,position,photo',
             'deputyHead:id,name,surname,email,position,photo',
-            'company:id,name'
+            'company:id,name',
         ]);
     }
 
@@ -123,16 +126,19 @@ class DepartmentRepository extends BaseRepository
             'deputy_head_id' => $data['deputy_head_id'] ?? null,
         ]);
 
+        if (array_key_exists('users', $data)) {
+            $this->syncUsers($department->id, $data['users'] ?? []);
+        }
+
         CacheService::invalidateDepartmentsCache();
 
         return $department->load([
-            'users:id,name,surname,email,position',
+            'users:id,name,surname,email,position,photo',
             'head:id,name,surname,email,position,photo',
             'deputyHead:id,name,surname,email,position,photo',
-            'company:id,name'
+            'company:id,name',
         ]);
     }
-
 
     /**
      * Удалить департамент

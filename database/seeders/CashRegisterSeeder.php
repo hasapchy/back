@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use App\Models\CashRegister;
 use App\Models\CashRegisterUser;
 
@@ -10,6 +11,18 @@ class CashRegisterSeeder extends Seeder
 {
     public function run()
     {
+        // Динамически получаем ID валюты TMT (не хардкод!)
+        $tmtCurrency = DB::table('currencies')
+            ->whereNull('company_id')
+            ->where('code', 'TMT')
+            ->first();
+
+        if (!$tmtCurrency) {
+            $this->command->error('Валюта TMT не найдена! Запустите CurrencySeeder сначала.');
+            return;
+        }
+
+        $tmtCurrencyId = $tmtCurrency->id;
 
         $existingCashRegister = CashRegister::find(1);
 

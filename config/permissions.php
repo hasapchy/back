@@ -114,6 +114,12 @@ return [
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
+        'orders_basement' => [
+            'has_user_id' => true,
+            'check_strategy' => 'user_id',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
         'order_statuses' => [
             'has_user_id' => false,
             'check_strategy' => 'default',
@@ -151,6 +157,12 @@ return [
             'scope_actions' => ['view', 'update', 'delete'],
         ],
         'companies' => [
+            'has_user_id' => false,
+            'check_strategy' => 'default',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
+        'company_holidays' => [
             'has_user_id' => false,
             'check_strategy' => 'default',
             'actions' => ['view', 'create', 'update', 'delete'],
@@ -212,6 +224,24 @@ return [
                 'group_create' => 'chats_group_create',
             ],
         ],
+        'news' => [
+            'has_user_id' => true,
+            'check_strategy' => 'user_id',
+            'actions' => ['create', 'update', 'delete'],
+            'scope_actions' => ['update', 'delete'],
+        ],
+        'templates' => [
+            'has_user_id' => false,
+            'check_strategy' => 'default',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
+        'departments' => [
+            'has_user_id' => false,
+            'check_strategy' => 'many_to_many',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
     ],
 
     'custom_permissions' => [
@@ -241,6 +271,10 @@ return [
             'label' => 'orders',
             'resources' => ['orders', 'order_statuses', 'order_statuscategories'],
         ],
+        'orders_basement' => [
+            'label' => 'orders_basement',
+            'resources' => ['orders_basement'],
+        ],
         'products' => [
             'label' => 'products',
             'resources' => ['products', 'categories'],
@@ -259,7 +293,7 @@ return [
         ],
         'companies' => [
             'label' => 'companies',
-            'resources' => ['companies'],
+            'resources' => ['companies', 'company_holidays'],
         ],
         'currency_history' => [
             'label' => 'currency_history',
@@ -267,7 +301,7 @@ return [
         ],
         'users' => [
             'label' => 'users',
-            'resources' => ['users', 'roles', 'employee_salaries'],
+            'resources' => ['users', 'roles', 'employee_salaries', 'departments'],
         ],
         'tasks' => [
             'label' => 'tasks',
@@ -284,6 +318,10 @@ return [
         'chats' => [
             'label' => 'chats',
             'resources' => ['chats'],
+        ],
+        'news' => [
+            'label' => 'news',
+            'resources' => ['news', 'templates'],
         ],
     ],
 

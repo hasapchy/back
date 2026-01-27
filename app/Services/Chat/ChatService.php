@@ -4,6 +4,8 @@ namespace App\Services\Chat;
 
 use App\Events\ChatReadUpdated;
 use App\Events\MessageSent;
+use App\Events\MessageUpdated;
+use App\Events\MessageDeleted;
 use App\Models\Chat;
 use App\Models\ChatMessage;
 use App\Models\User;
@@ -12,7 +14,9 @@ use App\Repositories\Chat\ChatParticipantRepository;
 use App\Repositories\Chat\ChatRepository;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
 class ChatService
@@ -31,16 +35,24 @@ class ChatService
      */
     public function listChats(int $companyId, User $user): array
     {
+        $startTime = microtime(true);
+        $userId = (int) $user->id;
+
         // Ensure general chat exists and the user is a participant
         $generalChat = $this->chats->findGeneralChat($companyId);
-        if (! $generalChat) {
-            $generalChat = $this->chats->createGeneralChat($companyId, (int) $user->id, 'Общий чат');
+        if (!$generalChat) {
+            $generalChat = $this->chats->createGeneralChat($companyId, $userId, 'Общий чат');
         }
 
-        $this->participants->firstOrCreate((int) $generalChat->id, (int) $user->id, 'member');
+        $this->participants->firstOrCreate((int) $generalChat->id, $userId, 'member');
 
-        $chats = $this->chats->getChatsForUser($companyId, (int) $user->id);
-        $chatIds = $chats->pluck('id')->map(fn ($id) => (int) $id)->toArray();
+        // Кэшируем базовый список чатов на 60 секунд
+        $cacheKey = "chats:company:{$companyId}:user:{$userId}";
+        $chats = Cache::remember($cacheKey, 60, function () use ($companyId, $userId) {
+            return $this->chats->getChatsForUser($companyId, $userId);
+        });
+
+        $chatIds = $chats->pluck('id')->map(fn($id) => (int) $id)->toArray();
 
         // Load creators for group chats
         $groupChats = $chats->where('type', 'group');
@@ -60,7 +72,7 @@ class ChatService
 
         $userId = (int) $user->id;
 
-        return $chats->map(function (Chat $chat) use ($lastMessages, $unreadCounts, $participantsByChatId, $userId) {
+        $result = $chats->map(function (Chat $chat) use ($lastMessages, $unreadCounts, $participantsByChatId, $userId) {
             $lastMessage = $lastMessages->get($chat->id);
             $unreadCount = (int) ($unreadCounts[(int) $chat->id] ?? 0);
 
@@ -116,12 +128,24 @@ class ChatService
                 'peer_last_read_message_id' => $peerLastReadId,
             ];
         })->values()->toArray();
+
+        $elapsed = round((microtime(true) - $startTime) * 1000, 2);
+        if ($elapsed > 100) {
+            Log::channel('chat')->warning('Slow chats list', [
+                'time_ms' => $elapsed,
+                'company_id' => $companyId,
+                'user_id' => $user->id,
+                'chats_count' => $chats->count(),
+            ]);
+        }
+
+        return $result;
     }
 
     public function ensureGeneralChat(int $companyId, User $user): Chat
     {
         $chat = $this->chats->findGeneralChat($companyId);
-        if (! $chat) {
+        if (!$chat) {
             $chat = $this->chats->createGeneralChat($companyId, (int) $user->id, 'Общий чат');
         }
 
@@ -144,7 +168,7 @@ class ChatService
             return $chat;
         }
 
-        return DB::transaction(function () use ($companyId, $user, $otherUserId, $directKey) {
+        $chat = DB::transaction(function () use ($companyId, $user, $otherUserId, $directKey) {
             $chat = $this->chats->createDirectChat($companyId, (int) $user->id, $directKey);
 
             $this->participants->create((int) $chat->id, (int) $user->id, 'member');
@@ -152,6 +176,11 @@ class ChatService
 
             return $chat;
         });
+
+        // Инвалидируем кэш для обоих участников
+        $this->invalidateChatListCache($companyId, (int) $chat->id);
+
+        return $chat;
     }
 
     /**
@@ -162,11 +191,11 @@ class ChatService
         $title = trim($title);
         $userIds = array_values(array_unique(array_map('intval', $userIds)));
 
-        if (! in_array((int) $user->id, $userIds, true)) {
+        if (!in_array((int) $user->id, $userIds, true)) {
             $userIds[] = (int) $user->id;
         }
 
-        return DB::transaction(function () use ($companyId, $user, $title, $userIds) {
+        $chat = DB::transaction(function () use ($companyId, $user, $title, $userIds) {
             $chat = $this->chats->createGroupChat($companyId, (int) $user->id, $title);
 
             foreach ($userIds as $id) {
@@ -182,6 +211,11 @@ class ChatService
 
             return $chat;
         });
+
+        // Инвалидируем кэш для всех участников группового чата
+        $this->invalidateChatListCache($companyId, (int) $chat->id);
+
+        return $chat;
     }
 
     public function getMessagesAndMarkRead(int $companyId, User $user, Chat $chat, int $limit, ?int $afterId)
@@ -238,13 +272,13 @@ class ChatService
     public function markAsRead(int $companyId, User $user, Chat $chat, ?int $lastMessageId = null): void
     {
         $messageId = $lastMessageId ?: $this->messages->getMaxMessageId((int) $chat->id);
-        if (! $messageId) {
+        if (!$messageId) {
             return;
         }
 
         if ($lastMessageId) {
             $exists = $this->messages->messageExistsInChat((int) $chat->id, (int) $lastMessageId);
-            if (! $exists) {
+            if (!$exists) {
                 return;
             }
         }
@@ -278,10 +312,12 @@ class ChatService
         ?string $body,
         array $files,
         bool $canWriteGeneral = true,
+        ?int $parentId = null,
     ): ChatMessage {
+        $startTime = microtime(true);
         $body = $body !== null ? trim((string) $body) : '';
 
-        if ($chat->type === 'general' && ! $canWriteGeneral) {
+        if ($chat->type === 'general' && !$canWriteGeneral) {
             abort(403, 'Forbidden');
         }
 
@@ -291,10 +327,18 @@ class ChatService
             );
         }
 
+        // Validate parent message exists and belongs to the same chat
+        if ($parentId) {
+            $parentMessage = $this->messages->getMessage((int) $parentId);
+            if (!$parentMessage || (int) $parentMessage->chat_id !== (int) $chat->id) {
+                abort(422, 'Parent message not found or belongs to different chat');
+            }
+        }
+
         $storedFiles = [];
         foreach ($files as $file) {
-            $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
-            $path = $file->storeAs('chats/'.$chat->id, $filename, 'public');
+            $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('chats/' . $chat->id, $filename, 'public');
 
             $storedFiles[] = [
                 'name' => $file->getClientOriginalName(),
@@ -309,20 +353,27 @@ class ChatService
             (int) $chat->id,
             (int) $user->id,
             $body === '' ? null : $body,
-            empty($storedFiles) ? null : $storedFiles
+            empty($storedFiles) ? null : $storedFiles,
+            $parentId
         );
+
+        // Load relations for broadcasting
+        $message->load(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo']);
 
         // Sender has "read" their own message
         $this->participants->updateLastReadMessageId((int) $chat->id, (int) $user->id, (int) $message->id);
 
         $chat->forceFill(['last_message_at' => now()])->save();
 
+        // Инвалидируем кэш списка чатов для всех участников
+        $this->invalidateChatListCache($companyId, (int) $chat->id);
+
         // Отправляем событие через broadcasting (неблокирующе)
         try {
             event(new MessageSent($message));
         } catch (\Exception $e) {
             // Логируем ошибку, но не прерываем выполнение
-            \Log::error('Failed to broadcast MessageSent event', [
+            Log::error('Failed to broadcast MessageSent event', [
                 'message_id' => $message->id,
                 'chat_id' => $chat->id,
                 'error' => $e->getMessage(),
@@ -330,7 +381,148 @@ class ChatService
             ]);
         }
 
+        $elapsed = round((microtime(true) - $startTime) * 1000, 2);
+        if ($elapsed > 100) {
+            Log::channel('chat')->warning('Slow message send', [
+                'time_ms' => $elapsed,
+                'chat_id' => $chat->id,
+                'user_id' => $user->id,
+                'has_files' => !empty($storedFiles),
+                'files_count' => count($storedFiles),
+            ]);
+        }
+
         return $message;
+    }
+
+    public function updateMessage(
+        int $companyId,
+        User $user,
+        Chat $chat,
+        ChatMessage $message,
+        string $body
+    ): ChatMessage {
+        if ((int) $chat->company_id !== $companyId) {
+            abort(403, 'Forbidden');
+        }
+
+        if ((int) $message->chat_id !== (int) $chat->id) {
+            abort(422, 'Message does not belong to this chat');
+        }
+
+        $updatedMessage = $this->messages->updateMessage((int) $message->id, (int) $user->id, $body);
+        $updatedMessage->load(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo']);
+
+        // Отправляем событие через broadcasting
+        try {
+            event(new MessageUpdated($updatedMessage));
+        } catch (\Exception $e) {
+            Log::error('Failed to broadcast MessageUpdated event', [
+                'message_id' => $updatedMessage->id,
+                'chat_id' => $chat->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $updatedMessage;
+    }
+
+    public function deleteMessage(
+        int $companyId,
+        User $user,
+        Chat $chat,
+        ChatMessage $message
+    ): void {
+        if ((int) $chat->company_id !== $companyId) {
+            abort(403, 'Forbidden');
+        }
+
+        if ((int) $message->chat_id !== (int) $chat->id) {
+            abort(422, 'Message does not belong to this chat');
+        }
+
+        // Delete the message record
+        $this->messages->deleteMessage((int) $message->id, (int) $user->id);
+
+        // If the message had attached files, delete them from storage
+        if (!empty($message->files) && is_array($message->files)) {
+            foreach ($message->files as $file) {
+                if (isset($file['path'])) {
+                    try {
+                        \Illuminate\Support\Facades\Storage::delete($file['path']);
+                    } catch (\Exception $e) {
+                        \Log::error('Failed to delete attached file on message delete', [
+                            'message_id' => $message->id,
+                            'file_path' => $file['path'],
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+        }
+
+        // Отправляем событие через broadcasting
+        try {
+            event(new MessageDeleted($message, (int) $chat->company_id, (int) $chat->id));
+        } catch (\Exception $e) {
+            \Log::error('Failed to broadcast MessageDeleted event', [
+                'message_id' => $message->id,
+                'chat_id' => $chat->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+    }
+
+    public function forwardMessage(
+        int $companyId,
+        User $user,
+        Chat $sourceChat,
+        ChatMessage $message,
+        Chat $targetChat
+    ): ChatMessage {
+        if ((int) $sourceChat->company_id !== $companyId || (int) $targetChat->company_id !== $companyId) {
+            abort(403, 'Forbidden');
+        }
+
+        if ((int) $message->chat_id !== (int) $sourceChat->id) {
+            abort(422, 'Message does not belong to source chat');
+        }
+
+        // Check if user is participant of target chat
+        if (!$this->participants->isParticipant((int) $targetChat->id, (int) $user->id)) {
+            abort(403, 'You are not a participant of the target chat');
+        }
+
+        // Create forwarded message
+        $forwardedMessage = $this->messages->createMessage(
+            (int) $targetChat->id,
+            (int) $user->id,
+            $message->body,
+            $message->files,
+            null,
+            (int) $message->id
+        );
+
+        $forwardedMessage->load(['user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo']);
+
+        // Sender has "read" their own message
+        $this->participants->updateLastReadMessageId((int) $targetChat->id, (int) $user->id, (int) $forwardedMessage->id);
+
+        $targetChat->forceFill(['last_message_at' => now()])->save();
+
+        // Отправляем событие через broadcasting
+        try {
+            event(new MessageSent($forwardedMessage));
+        } catch (\Exception $e) {
+            Log::error('Failed to broadcast forwarded MessageSent event', [
+                'message_id' => $forwardedMessage->id,
+                'chat_id' => $targetChat->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $forwardedMessage;
     }
 
     protected function directKey(int $userIdA, int $userIdB): string
@@ -338,7 +530,7 @@ class ChatService
         $min = min($userIdA, $userIdB);
         $max = max($userIdA, $userIdB);
 
-        return $min.':'.$max;
+        return $min . ':' . $max;
     }
 
     protected function backfillMissingDirectKeys(int $companyId, $chats, $participantsByChatId): void
@@ -378,6 +570,9 @@ class ChatService
             abort(422, 'Cannot delete general or direct chats');
         }
 
+        // Инвалидируем кэш перед удалением
+        $this->invalidateChatListCache($companyId, (int) $chat->id);
+
         DB::transaction(function () use ($chat) {
             // Delete all messages
             $this->messages->deleteByChatId((int) $chat->id);
@@ -388,6 +583,34 @@ class ChatService
             // Delete chat
             $this->chats->delete((int) $chat->id);
         });
+    }
+
+    /**
+     * Инвалидация кэша списка чатов для всех участников
+     */
+    protected function invalidateChatListCache(int $companyId, int $chatId): void
+    {
+        try {
+            // Получаем всех участников чата
+            $participantUserIds = $this->participants->getParticipantsByChatIds([$chatId])
+                ->get($chatId, collect())
+                ->pluck('user_id')
+                ->unique()
+                ->toArray();
+
+            // Очищаем кэш для каждого участника
+            foreach ($participantUserIds as $userId) {
+                $cacheKey = "chats:company:{$companyId}:user:{$userId}";
+                Cache::forget($cacheKey);
+            }
+        } catch (\Exception $e) {
+            // Не прерываем выполнение если кэш недоступен
+            Log::warning('Failed to invalidate chat list cache', [
+                'chat_id' => $chatId,
+                'company_id' => $companyId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
 

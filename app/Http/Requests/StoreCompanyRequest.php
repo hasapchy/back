@@ -36,7 +36,8 @@ class StoreCompanyRequest extends FormRequest
             'rounding_quantity_enabled' => 'nullable|boolean',
             'rounding_quantity_direction' => 'nullable|in:standard,up,down,custom',
             'rounding_quantity_custom_threshold' => 'nullable|numeric|min:0|max:1',
-            'skip_project_order_balance' => 'nullable|boolean'
+            'skip_project_order_balance' => 'nullable|boolean',
+            'work_schedule' => 'nullable|array',
         ];
     }
 

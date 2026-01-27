@@ -8,6 +8,18 @@ use App\Services\CacheService;
 class LeaveRepository extends BaseRepository
 {
     /**
+     * Получить базовые связи для отпусков
+     */
+    private function getBaseRelations(): array
+    {
+        return [
+            'leaveType:id,name,color',
+            'user:id,name,surname,email',
+            'company:id,name',
+        ];
+    }
+
+    /**
      * Получить записи отпусков с пагинацией
      *
      * @param  int  $userUuid  ID пользователя
@@ -17,13 +29,12 @@ class LeaveRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $filters = [], $page = 1)
     {
-        $filtersKey = ! empty($filters) ? md5(json_encode($filters)) : 'no_filters';
+        $filtersKey = !empty($filters) ? md5(json_encode($filters)) : 'no_filters';
         $cacheKey = $this->generateCacheKey('leaves_paginated', [$userUuid, $perPage, $filtersKey, $page]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $filters, $page) {
             $query = Leave::with(['leaveType', 'user']);
 
-            $this->applyLeaveCompanyFilter($query);
             $this->applyFilters($query, $filters);
 
             return $query->orderBy('date_from', 'desc')
@@ -40,16 +51,15 @@ class LeaveRepository extends BaseRepository
      */
     public function getAllItems($userUuid, $filters = [])
     {
-        $filtersKey = ! empty($filters) ? md5(json_encode($filters)) : 'no_filters';
+        $filtersKey = !empty($filters) ? md5(json_encode($filters)) : 'no_filters';
         $cacheKey = $this->generateCacheKey('leaves_all', [$userUuid, $filtersKey]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($filters) {
             $query = Leave::with(['leaveType', 'user']);
 
-            $this->applyLeaveCompanyFilter($query);
             $this->applyFilters($query, $filters);
 
-            return $query->orderBy('date_from', 'desc')->get();
+            return $query->orderBy('leaves.date_from', 'desc')->get();
         });
     }
 
@@ -61,7 +71,7 @@ class LeaveRepository extends BaseRepository
      */
     public function getItemById($id)
     {
-        return Leave::with(['leaveType', 'user'])->findOrFail($id);
+        return Leave::with($this->getBaseRelations())->findOrFail($id);
     }
 
     /**
@@ -72,7 +82,13 @@ class LeaveRepository extends BaseRepository
      */
     public function createItem($data)
     {
-        $item = Leave::create($data);
+        $companyId = $this->getCurrentCompanyId();
+
+        $itemData = array_merge($data, [
+            'company_id' => $companyId,
+        ]);
+
+        $item = Leave::create($itemData);
         CacheService::invalidateLeavesCache();
 
         return $item->load(['leaveType', 'user']);
@@ -139,9 +155,9 @@ class LeaveRepository extends BaseRepository
      */
     private function applyFilters($query, array $filters)
     {
-        $query->when(isset($filters['user_id']), fn ($q) => $q->where('user_id', $filters['user_id']))
-            ->when(isset($filters['leave_type_id']), fn ($q) => $q->where('leave_type_id', $filters['leave_type_id']))
-            ->when(isset($filters['date_from']), fn ($q) => $q->where('date_from', '>=', $filters['date_from']))
-            ->when(isset($filters['date_to']), fn ($q) => $q->where('date_to', '<=', $filters['date_to']));
+        $query->when(isset($filters['user_id']), fn($q) => $q->where('user_id', $filters['user_id']))
+            ->when(isset($filters['leave_type_id']), fn($q) => $q->where('leave_type_id', $filters['leave_type_id']))
+            ->when(isset($filters['date_from']), fn($q) => $q->where('date_from', '>=', $filters['date_from']))
+            ->when(isset($filters['date_to']), fn($q) => $q->where('date_to', '<=', $filters['date_to']));
     }
 }

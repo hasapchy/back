@@ -42,6 +42,13 @@ class OrderController extends BaseController
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $user = $this->requireAuthenticatedUser();
+
+        // Проверка прав на просмотр заказов
+        $resource = $this->getOrderResourceForUser($user);
+        if (!$this->canPerformAction($resource, 'view')) {
+            return $this->forbiddenResponse('У вас нет прав на просмотр заказов');
+        }
 
         $page = $request->input('page', 1);
         $per_page = $request->input('per_page', 20);
@@ -70,6 +77,13 @@ class OrderController extends BaseController
     public function store(StoreOrderRequest $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $user = $this->requireAuthenticatedUser();
+
+        // Проверка прав на создание заказов
+        $resource = $this->getOrderResourceForUser($user);
+        if (!$this->canPerformAction($resource, 'create')) {
+            return $this->forbiddenResponse('У вас нет прав на создание заказов');
+        }
 
         $validatedData = $request->validated();
 
@@ -155,7 +169,9 @@ class OrderController extends BaseController
             return $this->notFoundResponse('Заказ не найден');
         }
 
-        if (!$this->canPerformAction('orders', 'update', $order)) {
+        $user = $this->requireAuthenticatedUser();
+        $resource = $this->getOrderResourceForUser($user);
+        if (!$this->canPerformAction($resource, 'update', $order)) {
             return $this->forbiddenResponse('У вас нет прав на редактирование этого заказа');
         }
 
@@ -242,7 +258,9 @@ class OrderController extends BaseController
             return $this->notFoundResponse('Заказ не найден');
         }
 
-        if (!$this->canPerformAction('orders', 'delete', $order)) {
+        $user = $this->requireAuthenticatedUser();
+        $resource = $this->getOrderResourceForUser($user);
+        if (!$this->canPerformAction($resource, 'delete', $order)) {
             return $this->forbiddenResponse('У вас нет прав на удаление этого заказа');
         }
 
@@ -284,9 +302,11 @@ class OrderController extends BaseController
             'status_id' => 'required|integer|exists:order_statuses,id',
         ]);
 
+        $user = $this->requireAuthenticatedUser();
+        $resource = $this->getOrderResourceForUser($user);
         $orders = Order::whereIn('id', $request->ids)->get();
         foreach ($orders as $order) {
-            if (!$this->canPerformAction('orders', 'update', $order)) {
+            if (!$this->canPerformAction($resource, 'update', $order)) {
                 return $this->forbiddenResponse('У вас нет прав на редактирование одного или нескольких заказов');
             }
         }
@@ -324,7 +344,9 @@ class OrderController extends BaseController
             return $this->notFoundResponse('Not found');
         }
 
-        if (!$this->canPerformAction('orders', 'view', $item)) {
+        $user = $this->requireAuthenticatedUser();
+        $resource = $this->getOrderResourceForUser($user);
+        if (!$this->canPerformAction($resource, 'view', $item)) {
             return $this->forbiddenResponse('У вас нет прав на просмотр этого заказа');
         }
 
@@ -377,14 +399,8 @@ class OrderController extends BaseController
         }
 
         if (!$categoryId) {
-            $userCategoryMap = config('basement.user_category_map', []);
-            $mappedCategoryId = $userCategoryMap[$userUuid] ?? null;
-
-            if ($mappedCategoryId && in_array($mappedCategoryId, $userCategoryIds)) {
-                $categoryId = $mappedCategoryId;
-            } else {
-                $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
-            }
+            // Выбираем первую доступную категорию из назначенных пользователю
+            $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
 
             if (!$categoryId) {
                 return $this->errorResponse('У вас нет доступных категорий. Обратитесь к администратору для назначения категории.', 400);
@@ -394,5 +410,19 @@ class OrderController extends BaseController
         }
 
         return $categoryId;
+    }
+
+    /**
+     * Получить ресурс для проверки permissions в зависимости от роли пользователя
+     *
+     * @param User $user Пользователь
+     * @return string Название ресурса ('orders' или 'orders_basement')
+     */
+    protected function getOrderResourceForUser(User $user): string
+    {
+        if ($user->hasRole(config('basement.worker_role'))) {
+            return 'orders_basement';
+        }
+        return 'orders';
     }
 }
