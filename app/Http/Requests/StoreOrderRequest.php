@@ -34,9 +34,13 @@ class StoreOrderRequest extends FormRequest
         $isSimpleWorker = $user instanceof User && $user->hasRole(config('simple.worker_role'));
 
         return [
-            'client_id'            => ['required', 'integer', new ClientAccessRule()],
+            'client_id'            => $isSimpleWorker
+                ? ['required', 'integer', 'exists:clients,id']
+                : ['required', 'integer', new ClientAccessRule()],
             'project_id'           => ['nullable', 'integer', new ProjectAccessRule()],
-            'cash_id'              => ['nullable', 'integer', new CashRegisterAccessRule()],
+            'cash_id'              => $isSimpleWorker
+                ? ['nullable', 'integer', 'exists:cash_registers,id']
+                : ['nullable', 'integer', new CashRegisterAccessRule()],
             'warehouse_id'         => ['required', 'integer', new WarehouseAccessRule()],
             'currency_id'          => 'nullable|integer|exists:currencies,id',
             'category_id'          => $isSimpleWorker

@@ -434,6 +434,15 @@ class OrderController extends BaseController
         if ($user->hasRole(config('simple.worker_role'))) {
             return 'orders_simple';
         }
+
+        $permissions = $this->getUserPermissions($user);
+
+        foreach ($permissions as $permission) {
+            if (str_starts_with($permission, 'orders_simple_')) {
+                return 'orders_simple';
+            }
+        }
+
         return 'orders';
     }
 }

@@ -6,6 +6,7 @@ use App\Rules\CashRegisterAccessRule;
 use App\Rules\WarehouseAccessRule;
 use App\Rules\ProjectAccessRule;
 use App\Rules\ClientAccessRule;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -29,10 +30,17 @@ class UpdateOrderRequest extends FormRequest
      */
     public function rules(): array
     {
+        $user = auth('api')->user();
+        $isSimpleWorker = $user instanceof User && $user->hasRole(config('simple.worker_role'));
+
         return [
-            'client_id'            => ['required', 'integer', new ClientAccessRule()],
+            'client_id'            => $isSimpleWorker
+                ? ['required', 'integer', 'exists:clients,id']
+                : ['required', 'integer', new ClientAccessRule()],
             'project_id'           => ['nullable', 'sometimes', 'integer', new ProjectAccessRule()],
-            'cash_id'              => ['nullable', 'integer', new CashRegisterAccessRule()],
+            'cash_id'              => $isSimpleWorker
+                ? ['nullable', 'integer', 'exists:cash_registers,id']
+                : ['nullable', 'integer', new CashRegisterAccessRule()],
             'warehouse_id'         => ['required', 'integer', new WarehouseAccessRule()],
             'currency_id'          => 'nullable|integer|exists:currencies,id',
             'category_id'          => 'nullable|integer|exists:categories,id',

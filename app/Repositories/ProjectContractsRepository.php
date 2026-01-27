@@ -253,9 +253,9 @@ class ProjectContractsRepository extends BaseRepository
             $contract->note = $data['note'] ?? null;
             $contract->save();
 
-            if ($contract->is_paid && $contract->cash_id && $project->client_id) {
-                $this->createContractTransaction($contract, $project);
-            }
+//            if ($contract->is_paid && $contract->cash_id && $project->client_id) {
+//                $this->createContractTransaction($contract, $project);
+//            }
 
             $this->invalidateProjectContractsCache($data['project_id']);
 
@@ -315,34 +315,34 @@ class ProjectContractsRepository extends BaseRepository
                 ->where('is_deleted', false)
                 ->first();
 
-            if ($contract->is_paid && $contract->cash_id && $project->client_id) {
-                if ($contractTransaction) {
-                    $transactionNeedsUpdate = $contractTransaction->amount != $contract->amount
-                        || (int) $contractTransaction->client_id !== (int) $project->client_id
-                        || (int) $contractTransaction->project_id !== (int) $contract->project_id
-                        || (int) $contractTransaction->cash_id !== (int) $contract->cash_id
-                        || $contractTransaction->date != $contract->date
-                        || $contractTransaction->note !== $contract->note;
-
-                    if ($transactionNeedsUpdate) {
-                        $txRepo = new TransactionsRepository();
-                        $txRepo->updateItem($contractTransaction->id, [
-                            'amount' => $contract->amount,
-                            'orig_amount' => $contract->amount,
-                            'client_id' => $project->client_id,
-                            'project_id' => $contract->project_id,
-                            'cash_id' => $contract->cash_id,
-                            'category_id' => 1,
-                            'date' => $contract->date,
-                            'note' => $contract->note,
-                        ]);
-                    }
-                } else if (!$wasPaid) {
-                    $this->createContractTransaction($contract, $project);
-                }
-            } else if ($contractTransaction) {
-                $contractTransaction->delete();
-            }
+//            if ($contract->is_paid && $contract->cash_id && $project->client_id) {
+//                if ($contractTransaction) {
+//                    $transactionNeedsUpdate = $contractTransaction->amount != $contract->amount
+//                        || (int) $contractTransaction->client_id !== (int) $project->client_id
+//                        || (int) $contractTransaction->project_id !== (int) $contract->project_id
+//                        || (int) $contractTransaction->cash_id !== (int) $contract->cash_id
+//                        || $contractTransaction->date != $contract->date
+//                        || $contractTransaction->note !== $contract->note;
+//
+//                    if ($transactionNeedsUpdate) {
+//                        $txRepo = new TransactionsRepository();
+//                        $txRepo->updateItem($contractTransaction->id, [
+//                            'amount' => $contract->amount,
+//                            'orig_amount' => $contract->amount,
+//                            'client_id' => $project->client_id,
+//                            'project_id' => $contract->project_id,
+//                            'cash_id' => $contract->cash_id,
+//                            'category_id' => 1,
+//                            'date' => $contract->date,
+//                            'note' => $contract->note,
+//                        ]);
+//                    }
+//                } else if (!$wasPaid) {
+//                    $this->createContractTransaction($contract, $project);
+//                }
+//            } else if ($contractTransaction) {
+//                $contractTransaction->delete();
+//            }
 
             $this->invalidateProjectContractsCache($contract->project_id, $id);
 
