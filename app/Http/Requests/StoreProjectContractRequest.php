@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Rules\ProjectAccessRule;
+use App\Rules\CashRegisterTypeMatchRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -29,9 +30,10 @@ class StoreProjectContractRequest extends FormRequest
         return [
             'project_id' => ['required', new ProjectAccessRule()],
             'number' => 'required|string|max:255',
+            'type' => 'required|integer|in:0,1',
             'amount' => 'required|numeric|min:0',
             'currency_id' => 'nullable|exists:currencies,id',
-            'cash_id' => 'nullable|exists:cash_registers,id',
+            'cash_id' => ['required', 'exists:cash_registers,id', new CashRegisterTypeMatchRule()],
             'date' => 'required|date',
             'returned' => 'nullable|boolean',
             'is_paid' => 'nullable|boolean',

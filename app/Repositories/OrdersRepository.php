@@ -46,12 +46,6 @@ class OrdersRepository extends BaseRepository
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
         
-        \Log::info('OrdersRepository::getItemsWithPagination START', [
-            'user_uuid' => $userUuid,
-            'current_user_id' => $currentUser?->id,
-            'company_id' => $companyId,
-        ]);
-        
         $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, 'single', $currentUser?->id, $companyId]);
 
         $searchTrimmed = is_string($search) ? trim($search) : '';
@@ -59,13 +53,6 @@ class OrdersRepository extends BaseRepository
         $loadProducts = $perPage <= 50;
 
         $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser, $hasSearch, $loadProducts) {
-            \Log::info('OrdersRepository::getItemsWithPagination started', [
-                'user_uuid' => $userUuid,
-                'current_user_id' => $currentUser?->id,
-                'current_user_is_admin' => $currentUser?->is_admin ?? false,
-                'company_id' => $this->getCurrentCompanyId(),
-            ]);
-            
             $transactionsRepository = new \App\Repositories\TransactionsRepository();
 
             $loadProducts = true;
@@ -175,40 +162,19 @@ class OrdersRepository extends BaseRepository
             if ($isSimpleWorker && !$currentUser->is_admin) {
                 $userCategoryIds = $this->getUserCategoryIds($userUuid);
                 
-                \Log::info('Simple worker filter', [
-                    'user_id' => $userUuid,
-                    'is_simple_worker' => $isSimpleWorker,
-                    'order_resource' => $orderResource,
-                    'user_category_ids' => $userCategoryIds,
-                    'has_role' => $currentUser->hasRole(config('simple.worker_role')),
-                ]);
-                
                 if (empty($userCategoryIds)) {
                     $query->whereNull('orders.category_id');
-                    \Log::info('Filtering orders: only NULL category');
                 } else {
                     $query->where(function ($q) use ($userCategoryIds) {
                         $q->whereIn('orders.category_id', $userCategoryIds)
                             ->orWhereNull('orders.category_id');
                     });
-                    \Log::info('Filtering orders by categories', ['category_ids' => $userCategoryIds]);
                 }
             }
 
             $query = $this->addCompanyFilterThroughRelation($query, 'cash');
 
-            \Log::info('Before pagination', [
-                'sql' => $query->toSql(),
-                'bindings' => $query->getBindings(),
-            ]);
-
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
-
-            \Log::info('Orders pagination result', [
-                'total' => $orders->total(),
-                'count' => $orders->count(),
-                'current_page' => $orders->currentPage(),
-            ]);
 
             $transactionsRepository = new \App\Repositories\TransactionsRepository();
 
@@ -307,7 +273,7 @@ class OrdersRepository extends BaseRepository
                     $order->setAttribute('payment_status', 'paid');
                 }
 
-                $order->makeVisible(['paid_amount', 'payment_status']);
+                $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
 
                 return $order;
             });
@@ -378,15 +344,11 @@ class OrdersRepository extends BaseRepository
 
         // Не кешируем поисковые запросы, чтобы сразу получать актуальные результаты
         if ($hasSearch) {
-            \Log::info('Has search, skipping cache');
             $result = $buildResult();
-            \Log::info('Build result returned', ['total' => $result->total()]);
             return $result;
         }
 
-        \Log::info('Using cache', ['cache_key' => $cacheKey]);
         $result = CacheService::getPaginatedData($cacheKey, $buildResult, (int)$page);
-        \Log::info('Cache result returned', ['total' => $result->total()]);
         return $result;
     }
 
@@ -514,6 +476,7 @@ class OrdersRepository extends BaseRepository
             $totalPrice = (float) ($item->total_price ?? 0);
             $item->paid_amount = $paidAmount;
             $item->payment_status = $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid');
+            $item->payment_status_text = $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $totalPrice ? 'Частично оплачено' : 'Оплачено');
 
             return $item;
         });
@@ -1569,7 +1532,7 @@ class OrdersRepository extends BaseRepository
         $order->setAttribute('payment_status',
             $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid')
         );
-        $order->makeVisible(['paid_amount', 'payment_status']);
+        $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
     }
 
     /**
@@ -1596,5 +1559,26 @@ class OrdersRepository extends BaseRepository
         }
 
         return 'orders';
+    }
+
+    /**
+     * Обновить оплаченную сумму заказа на основе транзакций
+     *
+     * @param int $orderId ID заказа
+     * @return void
+     */
+    public function updateOrderPaidAmount($orderId): void
+    {
+        $paidAmount = Transaction::where('source_type', 'App\Models\Order')
+            ->where('source_id', $orderId)
+            ->where('is_debt', 0)
+            ->where('is_deleted', false)
+            ->sum('orig_amount');
+
+        Order::where('id', $orderId)->update([
+            'paid_amount' => (float) $paidAmount
+        ]);
+
+        CacheService::invalidateOrdersCache();
     }
 }

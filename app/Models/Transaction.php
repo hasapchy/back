@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Services\CurrencyConverter;
 use App\Services\TransactionSourceService;
 use App\Services\BalanceService;
+use App\Repositories\OrdersRepository;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Services\CacheService;
@@ -213,6 +214,10 @@ class Transaction extends Model
             CacheService::invalidateTransactionsCache();
             if ($transaction->source_type === 'App\\Models\\Order' && $transaction->source_id) {
                 CacheService::invalidateOrdersCache();
+                if (!$transaction->is_debt) {
+                    $ordersRepository = new OrdersRepository();
+                    $ordersRepository->updateOrderPaidAmount($transaction->source_id);
+                }
             }
             if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
                 CacheService::invalidateByLike('%project_contract%');
@@ -226,6 +231,10 @@ class Transaction extends Model
             CacheService::invalidateTransactionsCache();
             if ($transaction->source_type === 'App\\Models\\Order' && $transaction->source_id) {
                 CacheService::invalidateOrdersCache();
+                if (!$transaction->is_debt) {
+                    $ordersRepository = new OrdersRepository();
+                    $ordersRepository->updateOrderPaidAmount($transaction->source_id);
+                }
             }
             if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
                 CacheService::invalidateByLike('%project_contract%');
@@ -249,6 +258,13 @@ class Transaction extends Model
             }
 
             CacheService::invalidateTransactionsCache();
+            if ($transaction->source_type === 'App\\Models\\Order' && $transaction->source_id) {
+                CacheService::invalidateOrdersCache();
+                if (!$transaction->is_debt) {
+                    $ordersRepository = new OrdersRepository();
+                    $ordersRepository->updateOrderPaidAmount($transaction->source_id);
+                }
+            }
             if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
                 CacheService::invalidateByLike('%project_contract%');
                 CacheService::invalidateProjectsCache();

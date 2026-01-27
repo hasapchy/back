@@ -13,6 +13,7 @@ use App\Models\User;
  * @property int $project_id ID проекта
  * @property int|null $creator_id ID пользователя, создавшего контракт
  * @property string $number Номер контракта
+ * @property int $type Тип контракта (0 - безналичный, 1 - наличный)
  * @property float $amount Сумма контракта
  * @property int $currency_id ID валюты
  * @property int|null $cash_id ID кассы
@@ -39,6 +40,7 @@ class ProjectContract extends Model
         'project_id',
         'creator_id',
         'number',
+        'type',
         'amount',
         'currency_id',
         'cash_id',
@@ -51,6 +53,7 @@ class ProjectContract extends Model
 
     protected $casts = [
         'date' => 'date',
+        'type' => 'integer',
         'returned' => 'boolean',
         'is_paid' => 'boolean',
         'files' => 'array',
