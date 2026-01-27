@@ -45,6 +45,13 @@ class OrdersRepository extends BaseRepository
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
+        
+        \Log::info('OrdersRepository::getItemsWithPagination START', [
+            'user_uuid' => $userUuid,
+            'current_user_id' => $currentUser?->id,
+            'company_id' => $companyId,
+        ]);
+        
         $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, 'single', $currentUser?->id, $companyId]);
 
         $searchTrimmed = is_string($search) ? trim($search) : '';
@@ -52,6 +59,13 @@ class OrdersRepository extends BaseRepository
         $loadProducts = $perPage <= 50;
 
         $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser, $hasSearch, $loadProducts) {
+            \Log::info('OrdersRepository::getItemsWithPagination started', [
+                'user_uuid' => $userUuid,
+                'current_user_id' => $currentUser?->id,
+                'current_user_is_admin' => $currentUser?->is_admin ?? false,
+                'company_id' => $this->getCurrentCompanyId(),
+            ]);
+            
             $transactionsRepository = new \App\Repositories\TransactionsRepository();
 
             $loadProducts = true;
@@ -79,11 +93,17 @@ class OrdersRepository extends BaseRepository
                 ]);
             }
 
+            $orderResource = $this->getOrderResourceForUser($currentUser);
+            $isSimpleWorker = $currentUser instanceof User && 
+                ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
+            
             $query = Order::select([
                 'orders.*',
                 DB::raw('(orders.price - orders.discount) as total_price')
-            ])->with($withRelations)
-                ->where(function ($q) use ($userUuid) {
+            ])->with($withRelations);
+            
+            if (!$isSimpleWorker || $currentUser->is_admin) {
+                $query->where(function ($q) use ($userUuid) {
                     if ($this->shouldApplyUserFilter('cash_registers')) {
                         $q->whereNull('orders.cash_id');
                         $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
@@ -95,8 +115,8 @@ class OrdersRepository extends BaseRepository
                         });
                     }
                 });
+            }
 
-            $orderResource = $this->getOrderResourceForUser($currentUser);
             $this->applyOwnFilter($query, $orderResource, 'orders', 'user_id', $currentUser);
 
             if ($hasSearch) {
@@ -149,23 +169,46 @@ class OrdersRepository extends BaseRepository
                     ->select('orders.*', DB::raw('(orders.price - orders.discount) as total_price'));
             }
 
-            $isSimpleWorker = $currentUser instanceof User && $currentUser->hasRole(config('simple.worker_role'));
+            $isSimpleWorker = $currentUser instanceof User && 
+                ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
 
             if ($isSimpleWorker && !$currentUser->is_admin) {
-                $query->where(function ($q) use ($userUuid) {
-                    $q->whereExists(function ($subQuery) use ($userUuid) {
-                        $subQuery->select(DB::raw(1))
-                            ->from('category_users')
-                            ->whereColumn('category_users.category_id', 'orders.category_id')
-                            ->where('category_users.user_id', $userUuid);
-                    })
-                        ->orWhereNull('orders.category_id');
-                });
+                $userCategoryIds = $this->getUserCategoryIds($userUuid);
+                
+                \Log::info('Simple worker filter', [
+                    'user_id' => $userUuid,
+                    'is_simple_worker' => $isSimpleWorker,
+                    'order_resource' => $orderResource,
+                    'user_category_ids' => $userCategoryIds,
+                    'has_role' => $currentUser->hasRole(config('simple.worker_role')),
+                ]);
+                
+                if (empty($userCategoryIds)) {
+                    $query->whereNull('orders.category_id');
+                    \Log::info('Filtering orders: only NULL category');
+                } else {
+                    $query->where(function ($q) use ($userCategoryIds) {
+                        $q->whereIn('orders.category_id', $userCategoryIds)
+                            ->orWhereNull('orders.category_id');
+                    });
+                    \Log::info('Filtering orders by categories', ['category_ids' => $userCategoryIds]);
+                }
             }
 
             $query = $this->addCompanyFilterThroughRelation($query, 'cash');
 
+            \Log::info('Before pagination', [
+                'sql' => $query->toSql(),
+                'bindings' => $query->getBindings(),
+            ]);
+
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+
+            \Log::info('Orders pagination result', [
+                'total' => $orders->total(),
+                'count' => $orders->count(),
+                'current_page' => $orders->currentPage(),
+            ]);
 
             $transactionsRepository = new \App\Repositories\TransactionsRepository();
 
@@ -291,35 +334,38 @@ class OrdersRepository extends BaseRepository
                     $join->on('orders.id', '=', 'paid_amounts.source_id');
                 }
             )
-            ->whereNull('orders.project_id')
-            ->where(function ($q) use ($userUuid) {
-                if ($this->shouldApplyUserFilter('cash_registers')) {
-                    $q->whereNull('orders.cash_id');
-                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
-                    $q->orWhereExists(function ($subQuery) use ($filterUserId) {
-                        $subQuery->select(DB::raw(1))
-                            ->from('cash_register_users')
-                            ->join('cash_registers', 'cash_register_users.cash_register_id', '=', 'cash_registers.id')
-                            ->whereColumn('cash_registers.id', 'orders.cash_id')
-                            ->where('cash_register_users.user_id', $filterUserId);
-                    });
-                }
-            });
+            ->whereNull('orders.project_id');
+            
+            if (!$isSimpleWorker || $currentUser->is_admin) {
+                $unpaidQuery->where(function ($q) use ($userUuid) {
+                    if ($this->shouldApplyUserFilter('cash_registers')) {
+                        $q->whereNull('orders.cash_id');
+                        $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                        $q->orWhereExists(function ($subQuery) use ($filterUserId) {
+                            $subQuery->select(DB::raw(1))
+                                ->from('cash_register_users')
+                                ->join('cash_registers', 'cash_register_users.cash_register_id', '=', 'cash_registers.id')
+                                ->whereColumn('cash_registers.id', 'orders.cash_id')
+                                ->where('cash_register_users.user_id', $filterUserId);
+                        });
+                    }
+                });
+            }
 
-            $orderResource = $this->getOrderResourceForUser($currentUser);
             $this->applyOwnFilter($unpaidQuery, $orderResource, 'orders', 'user_id', $currentUser);
             $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cash');
 
             if ($isSimpleWorker && !$currentUser->is_admin) {
-                $unpaidQuery->where(function ($q) use ($userUuid) {
-                    $q->whereExists(function ($subQuery) use ($userUuid) {
-                        $subQuery->select(DB::raw(1))
-                            ->from('category_users')
-                            ->whereColumn('category_users.category_id', 'orders.category_id')
-                            ->where('category_users.user_id', $userUuid);
-                    })
-                        ->orWhereNull('orders.category_id');
-                });
+                $userCategoryIds = $this->getUserCategoryIds($userUuid);
+                
+                if (empty($userCategoryIds)) {
+                    $unpaidQuery->whereNull('orders.category_id');
+                } else {
+                    $unpaidQuery->where(function ($q) use ($userCategoryIds) {
+                        $q->whereIn('orders.category_id', $userCategoryIds)
+                            ->orWhereNull('orders.category_id');
+                    });
+                }
             }
 
             $unpaidResult = $unpaidQuery->first();
@@ -332,10 +378,16 @@ class OrdersRepository extends BaseRepository
 
         // Не кешируем поисковые запросы, чтобы сразу получать актуальные результаты
         if ($hasSearch) {
-            return $buildResult();
+            \Log::info('Has search, skipping cache');
+            $result = $buildResult();
+            \Log::info('Build result returned', ['total' => $result->total()]);
+            return $result;
         }
 
-        return CacheService::getPaginatedData($cacheKey, $buildResult, (int)$page);
+        \Log::info('Using cache', ['cache_key' => $cacheKey]);
+        $result = CacheService::getPaginatedData($cacheKey, $buildResult, (int)$page);
+        \Log::info('Cache result returned', ['total' => $result->total()]);
+        return $result;
     }
 
     /**
@@ -1528,9 +1580,21 @@ class OrdersRepository extends BaseRepository
      */
     protected function getOrderResourceForUser(?User $user): string
     {
-        if ($user && $user->hasRole(config('simple.worker_role'))) {
+        if (!$user) {
+            return 'orders';
+        }
+
+        if ($user->hasRole(config('simple.worker_role'))) {
             return 'orders_simple';
         }
+
+        $permissions = $this->getUserPermissionsForCompany($user);
+        foreach ($permissions as $permission) {
+            if (str_starts_with($permission, 'orders_simple_')) {
+                return 'orders_simple';
+            }
+        }
+
         return 'orders';
     }
 }

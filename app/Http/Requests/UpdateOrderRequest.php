@@ -37,7 +37,9 @@ class UpdateOrderRequest extends FormRequest
             'client_id'            => $isSimpleWorker
                 ? ['required', 'integer', 'exists:clients,id']
                 : ['required', 'integer', new ClientAccessRule()],
-            'project_id'           => ['nullable', 'sometimes', 'integer', new ProjectAccessRule()],
+            'project_id'           => $isSimpleWorker
+                ? ['nullable', 'sometimes', 'integer', 'exists:projects,id']
+                : ['nullable', 'sometimes', 'integer', new ProjectAccessRule()],
             'cash_id'              => $isSimpleWorker
                 ? ['nullable', 'integer', 'exists:cash_registers,id']
                 : ['nullable', 'integer', new CashRegisterAccessRule()],

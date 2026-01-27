@@ -419,6 +419,19 @@ class BaseController extends BaseRoutingController
                     if ($hasAccessByAssignment) {
                         return null;
                     }
+
+                    $permissions = $this->getUserPermissions($user);
+                    $hasSimpleOrderPermission = false;
+                    foreach ($permissions as $permission) {
+                        if (str_starts_with($permission, 'orders_simple_')) {
+                            $hasSimpleOrderPermission = true;
+                            break;
+                        }
+                    }
+
+                    if ($hasSimpleOrderPermission) {
+                        return null;
+                    }
                 }
 
                 if (!$this->canPerformAction('cash_registers', 'view', $cashRegister)) {

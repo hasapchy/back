@@ -37,7 +37,9 @@ class StoreOrderRequest extends FormRequest
             'client_id'            => $isSimpleWorker
                 ? ['required', 'integer', 'exists:clients,id']
                 : ['required', 'integer', new ClientAccessRule()],
-            'project_id'           => ['nullable', 'integer', new ProjectAccessRule()],
+            'project_id'           => $isSimpleWorker
+                ? ['nullable', 'integer', 'exists:projects,id']
+                : ['nullable', 'integer', new ProjectAccessRule()],
             'cash_id'              => $isSimpleWorker
                 ? ['nullable', 'integer', 'exists:cash_registers,id']
                 : ['nullable', 'integer', new CashRegisterAccessRule()],
