@@ -29,6 +29,7 @@ class UpdateProjectContractRequest extends FormRequest
             'number' => 'required|string|max:255',
             'amount' => 'required|numeric|min:0',
             'currency_id' => 'nullable|exists:currencies,id',
+            'cash_id' => 'nullable|exists:cash_registers,id',
             'date' => 'required|date',
             'returned' => 'nullable|boolean',
             'is_paid' => 'nullable|boolean',

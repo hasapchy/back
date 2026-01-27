@@ -4,11 +4,9 @@ namespace App\Repositories;
 
 use App\Models\Project;
 use App\Models\ProjectUser;
-use App\Models\ProjectTransaction;
 use App\Models\ProjectStatus;
 use App\Models\Currency;
 use App\Services\CacheService;
-use App\Services\CurrencyConverter;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 
@@ -319,7 +317,6 @@ class ProjectsRepository extends BaseRepository
 
         return CacheService::remember($cacheKey, function () use ($projectId) {
             $project = Project::find($projectId);
-            $projectCurrencyId = $project ? $project->currency_id : null;
             $projectCurrency = $project && $project->currency_id ? Currency::find($project->currency_id) : null;
             $companyId = $project ? $project->company_id : null;
             $defaultCurrency = Currency::where('is_default', true)
@@ -403,56 +400,10 @@ class ProjectsRepository extends BaseRepository
                 ];
             });
 
-            $projectTransactions = ProjectTransaction::where('project_id', $projectId)
-                ->with([
-                    'user:id,name',
-                    'currency:id,symbol',
-                    'category:id,name'
-                ])
-                ->get()
-                ->map(function ($item) use ($projectCurrencyId, $projectCurrency, $defaultCurrency, $companyId) {
-                    $amount = $item->amount;
-                    $targetCurrency = $projectCurrency ?? $defaultCurrency;
-
-                    if ($item->currency_id != $projectCurrencyId && $item->currency && $targetCurrency) {
-                        $transactionDate = $item->date ? $item->date->toDateString() : null;
-                        $amount = CurrencyConverter::convert(
-                            $item->amount,
-                            $item->currency,
-                            $targetCurrency,
-                            $defaultCurrency,
-                            $companyId,
-                            $transactionDate
-                        );
-                        $amount = $this->roundAmount($amount);
-                    }
-
-                    $amount = $item->type == 1 ? +$amount : -$amount;
-
-                    return [
-                        'source' => 'project_transaction',
-                        'source_id' => $item->id,
-                        'source_type' => 'App\\Models\\ProjectTransaction',
-                        'source_source_id' => $item->id,
-                        'date' => $item->date,
-                        'amount' => $amount,
-                        'orig_amount' => $item->amount,
-                        'is_debt' => false,
-                        'note' => $item->note,
-                        'user_id' => $item->user_id,
-                        'user_name' => $item->user->name,
-                        'cash_currency_symbol' => $item->currency->symbol,
-                        'category_name' => $item->category->name ?? null
-                    ];
-                });
-
-            $result = $transactionsResult
-                ->concat($projectTransactions)
+            return $transactionsResult
                 ->sortBy('date')
                 ->values()
                 ->all();
-
-            return $result;
         }, 900);
     }
 

@@ -214,6 +214,10 @@ class Transaction extends Model
             if ($transaction->source_type === 'App\\Models\\Order' && $transaction->source_id) {
                 CacheService::invalidateOrdersCache();
             }
+            if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
+                CacheService::invalidateByLike('%project_contract%');
+                CacheService::invalidateProjectsCache();
+            }
         });
 
         static::updated(function ($transaction) {
@@ -222,6 +226,10 @@ class Transaction extends Model
             CacheService::invalidateTransactionsCache();
             if ($transaction->source_type === 'App\\Models\\Order' && $transaction->source_id) {
                 CacheService::invalidateOrdersCache();
+            }
+            if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
+                CacheService::invalidateByLike('%project_contract%');
+                CacheService::invalidateProjectsCache();
             }
         });
 
@@ -241,6 +249,10 @@ class Transaction extends Model
             }
 
             CacheService::invalidateTransactionsCache();
+            if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
+                CacheService::invalidateByLike('%project_contract%');
+                CacheService::invalidateProjectsCache();
+            }
         });
     }
 

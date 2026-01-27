@@ -137,7 +137,9 @@ class CashRegistersController extends BaseController
             'name' => $validatedData['name'],
             'balance' => $validatedData['balance'],
             'currency_id' => $validatedData['currency_id'] ?? null,
-            'users' => $validatedData['users']
+            'users' => $validatedData['users'],
+            'is_cash' => $validatedData['is_cash'] ?? true,
+            'icon' => $validatedData['icon'] ?? null,
         ]);
 
         if (!$item_created) {
@@ -166,10 +168,20 @@ class CashRegistersController extends BaseController
 
         $validatedData = $request->validated();
 
-        $category_updated = $this->itemsRepository->updateItem($id, [
+        $payload = [
             'name' => $validatedData['name'],
-            'users' => $validatedData['users']
-        ]);
+            'users' => $validatedData['users'],
+        ];
+
+        if (array_key_exists('is_cash', $validatedData)) {
+            $payload['is_cash'] = $validatedData['is_cash'];
+        }
+
+        if (array_key_exists('icon', $validatedData)) {
+            $payload['icon'] = $validatedData['icon'];
+        }
+
+        $category_updated = $this->itemsRepository->updateItem($id, $payload);
 
         if (!$category_updated) {
             return $this->errorResponse('Ошибка обновления кассы', 400);
