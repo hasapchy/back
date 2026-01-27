@@ -4,15 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 
 /**
  * Модель контракта проекта
  *
  * @property int $id
  * @property int $project_id ID проекта
+ * @property int|null $creator_id ID пользователя, создавшего контракт
  * @property string $number Номер контракта
  * @property float $amount Сумма контракта
  * @property int $currency_id ID валюты
+ * @property int|null $cash_id ID кассы
  * @property \Carbon\Carbon $date Дата контракта
  * @property bool $returned Возвращен ли контракт
  * @property array|null $files Массив файлов
@@ -21,7 +24,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\Carbon $updated_at
  *
  * @property-read \App\Models\Project $project
+ * @property-read \App\Models\User|null $creator
  * @property-read \App\Models\Currency $currency
+ * @property-read \App\Models\CashRegister|null $cashRegister
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
  * @property-read string $formatted_amount Отформатированная сумма с валютой
  * @property-read string $returned_status Статус возврата контракта
  */
@@ -31,9 +37,11 @@ class ProjectContract extends Model
 
     protected $fillable = [
         'project_id',
+        'creator_id',
         'number',
         'amount',
         'currency_id',
+        'cash_id',
         'date',
         'returned',
         'is_paid',
@@ -60,6 +68,16 @@ class ProjectContract extends Model
     }
 
     /**
+     * Связь с создателем контракта
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'creator_id');
+    }
+
+    /**
      * Связь с валютой
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -67,6 +85,26 @@ class ProjectContract extends Model
     public function currency()
     {
         return $this->belongsTo(Currency::class);
+    }
+
+    /**
+     * Связь с кассой
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function cashRegister()
+    {
+        return $this->belongsTo(CashRegister::class, 'cash_id');
+    }
+
+    /**
+     * Morphable связь с транзакциями
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
+    public function transactions()
+    {
+        return $this->morphMany(Transaction::class, 'source');
     }
 
     /**

@@ -15,6 +15,8 @@ use App\Models\Traits\HasManyToManyUsers;
  * @property float $balance Баланс кассы
  * @property int $currency_id ID валюты
  * @property int|null $company_id ID компании
+ * @property bool $is_cash Наличная касса
+ * @property string|null $icon CSS класс иконки кассы
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -34,12 +36,15 @@ class CashRegister extends Model
         'balance',
         'currency_id',
         'company_id',
+        'is_cash',
+        'icon',
     ];
 
     protected const PROTECTED_CASH_REGISTER_ID = 1;
 
     protected $casts = [
         'balance' => 'decimal:5',
+        'is_cash' => 'boolean',
     ];
 
     protected static function booted()

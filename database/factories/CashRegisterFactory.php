@@ -26,6 +26,8 @@ class CashRegisterFactory extends Factory
             'balance' => fake()->randomFloat(2, 0, 10000),
             'currency_id' => Currency::factory(),
             'company_id' => null,
+            'is_cash' => true,
+            'icon' => 'fa-solid fa-cash-register',
         ];
     }
 }

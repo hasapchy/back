@@ -143,6 +143,8 @@ class CahRegistersRepository extends BaseRepository
                 'name' => $cashRegister->name,
                 'currency_id' => $cashRegister->currency_id,
                 'currency_symbol' => $cashRegister->currency ? $cashRegister->currency->symbol : null,
+                'is_cash' => (bool) $cashRegister->is_cash,
+                'icon' => $cashRegister->icon,
                 'balance' => $balance,
             ];
         });
@@ -165,6 +167,8 @@ class CahRegistersRepository extends BaseRepository
             $item->balance = $data['balance'];
             $item->currency_id = $data['currency_id'];
             $item->company_id = $companyId;
+            $item->is_cash = (bool) ($data['is_cash'] ?? true);
+            $item->icon = $data['icon'] ?? null;
             $item->save();
 
             $this->syncUsers($item->id, $data['users'] ?? []);
@@ -198,6 +202,14 @@ class CahRegistersRepository extends BaseRepository
                 'balance' => $data['balance'] ?? null,
                 'currency_id' => $data['currency_id'] ?? null,
             ], fn($value) => $value !== null));
+
+            if (array_key_exists('is_cash', $data)) {
+                $item->is_cash = (bool) $data['is_cash'];
+            }
+
+            if (array_key_exists('icon', $data)) {
+                $item->icon = $data['icon'];
+            }
 
             $item->save();
 

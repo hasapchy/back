@@ -2051,7 +2051,6 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/Laravel-Lang/attributes/zipball/8c1b5dcdb5700e7d774ed1da7e882934f1bdcc5f",
                 "reference": "8c1b5dcdb5700e7d774ed1da7e882934f1bdcc5f",
-                "shasum": ""
             },
             "require": {
                 "ext-json": "*",
@@ -2104,6 +2103,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Laravel-Lang/attributes/issues",
+<<<<<<< HEAD
                 "source": "https://github.com/Laravel-Lang/attributes/tree/2.14.2"
             },
             "funding": [
@@ -2117,6 +2117,11 @@
                 }
             ],
             "time": "2026-01-20T10:42:22+00:00"
+=======
+                "source": "https://github.com/Laravel-Lang/attributes/tree/2.14.0"
+            },
+            "time": "2025-11-18T08:44:22+00:00"
+>>>>>>> 19893f2e18fe4ead9297fbad217a143153b33859
         },
         {
             "name": "laravel-lang/common",
@@ -2785,6 +2790,7 @@
         },
         {
             "name": "laravel-lang/native-country-names",
+<<<<<<< HEAD
             "version": "1.7.0",
             "source": {
                 "type": "git",
@@ -2795,6 +2801,18 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/Laravel-Lang/native-country-names/zipball/66a82c28c5c820239671035aa019012414d5894f",
                 "reference": "66a82c28c5c820239671035aa019012414d5894f",
+=======
+            "version": "1.6.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Laravel-Lang/native-country-names.git",
+                "reference": "22a9d18d9094fdf0b3384f37feefd3c7d91f1db9"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Laravel-Lang/native-country-names/zipball/22a9d18d9094fdf0b3384f37feefd3c7d91f1db9",
+                "reference": "22a9d18d9094fdf0b3384f37feefd3c7d91f1db9",
+>>>>>>> 19893f2e18fe4ead9297fbad217a143153b33859
                 "shasum": ""
             },
             "require": {
@@ -2853,6 +2871,7 @@
                 "issues": "https://github.com/Laravel-Lang/native-country-names/issues",
                 "source": "https://github.com/Laravel-Lang/native-country-names"
             },
+<<<<<<< HEAD
             "funding": [
                 {
                     "url": "https://boosty.to/dragon-code",
@@ -2877,6 +2896,22 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/Laravel-Lang/native-currency-names/zipball/564f05c2034d76166431704f5d965067dd8c80f0",
                 "reference": "564f05c2034d76166431704f5d965067dd8c80f0",
+=======
+            "time": "2025-11-18T07:59:31+00:00"
+        },
+        {
+            "name": "laravel-lang/native-currency-names",
+            "version": "1.7.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Laravel-Lang/native-currency-names.git",
+                "reference": "cc871b6d2574b4397728b78e4522e6cfd53cdb79"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Laravel-Lang/native-currency-names/zipball/cc871b6d2574b4397728b78e4522e6cfd53cdb79",
+                "reference": "cc871b6d2574b4397728b78e4522e6cfd53cdb79",
+>>>>>>> 19893f2e18fe4ead9297fbad217a143153b33859
                 "shasum": ""
             },
             "require": {
@@ -2932,6 +2967,7 @@
                 "issues": "https://github.com/Laravel-Lang/native-currency-names/issues",
                 "source": "https://github.com/Laravel-Lang/native-currency-names"
             },
+<<<<<<< HEAD
             "funding": [
                 {
                     "url": "https://boosty.to/dragon-code",
@@ -2956,6 +2992,22 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/Laravel-Lang/native-locale-names/zipball/e1e510e9d2699ed7c41453582e5f9efc74d858b3",
                 "reference": "e1e510e9d2699ed7c41453582e5f9efc74d858b3",
+=======
+            "time": "2025-11-18T07:53:26+00:00"
+        },
+        {
+            "name": "laravel-lang/native-locale-names",
+            "version": "2.6.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Laravel-Lang/native-locale-names.git",
+                "reference": "a5fe634a4db570160dbf3ac68882d281fc88436e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Laravel-Lang/native-locale-names/zipball/a5fe634a4db570160dbf3ac68882d281fc88436e",
+                "reference": "a5fe634a4db570160dbf3ac68882d281fc88436e",
+>>>>>>> 19893f2e18fe4ead9297fbad217a143153b33859
                 "shasum": ""
             },
             "require": {
@@ -3008,6 +3060,7 @@
                 "issues": "https://github.com/Laravel-Lang/native-locale-names/issues",
                 "source": "https://github.com/Laravel-Lang/native-locale-names"
             },
+<<<<<<< HEAD
             "funding": [
                 {
                     "url": "https://boosty.to/dragon-code",
@@ -3019,6 +3072,9 @@
                 }
             ],
             "time": "2026-01-21T17:15:48+00:00"
+=======
+            "time": "2025-11-18T08:10:42+00:00"
+>>>>>>> 19893f2e18fe4ead9297fbad217a143153b33859
         },
         {
             "name": "laravel-lang/publisher",
@@ -9519,7 +9575,11 @@
         },
         {
             "name": "illuminate/json-schema",
+<<<<<<< HEAD
             "version": "v12.48.1",
+=======
+            "version": "v12.44.0",
+>>>>>>> 19893f2e18fe4ead9297fbad217a143153b33859
             "source": {
                 "type": "git",
                 "url": "https://github.com/illuminate/json-schema.git",
@@ -12405,7 +12465,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": [],
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
