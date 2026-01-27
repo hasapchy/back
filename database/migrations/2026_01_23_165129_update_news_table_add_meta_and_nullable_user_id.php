@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('news', function (Blueprint $table) {
-            $table->json('meta')->nullable()->after('user_id');
+            $table->foreignId('user_id')->nullable()->change();
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('news', function (Blueprint $table) {
-            $table->dropColumn('meta');
+            $table->foreignId('user_id')->nullable(false)->change();
         });
     }
 };
