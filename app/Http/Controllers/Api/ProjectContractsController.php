@@ -88,8 +88,6 @@ class ProjectContractsController extends BaseController
     public function getAllContracts(Request $request): JsonResponse
     {
         try {
-            \Log::info('ProjectContractsController::getAllContracts - Request params:', $request->all());
-            
             if (!$this->hasAnyPermission(['contracts_view', 'contracts_view_all', 'contracts_view_own'])) {
                 return $this->forbiddenResponse('У вас нет прав на просмотр контрактов');
             }
@@ -98,32 +96,20 @@ class ProjectContractsController extends BaseController
             $page = (int) $request->get('page', 1);
             $search = $request->get('search');
             $projectId = $request->get('project_id');
-            
+
             $isPaid = $request->has('is_paid') ? $request->boolean('is_paid') : null;
             $returned = $request->has('returned') ? $request->boolean('returned') : null;
             $cashId = $request->get('cash_id') ? (int) $request->get('cash_id') : null;
             $type = $request->has('type') ? (int) $request->get('type') : null;
 
-            \Log::info('ProjectContractsController::getAllContracts - Parsed params:', [
-                'cash_id' => $cashId,
-                'type' => $type,
-                'is_paid' => $isPaid,
-                'returned' => $returned,
-                'project_id' => $projectId,
-            ]);
-
             $user = $this->getAuthenticatedUser();
             $hasViewAll = $user && ($user->is_admin || $this->hasPermission('contracts_view_all', $user));
-            
+
             if (!$hasViewAll && $this->hasPermission('contracts_view_own', $user)) {
-                \Log::info('ProjectContractsController::getAllContracts - Using getAllContractsWithPaginationForUser');
                 $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $user->id, $isPaid, $returned, $cashId, $type);
             } else {
-                \Log::info('ProjectContractsController::getAllContracts - Using getAllContractsWithPagination');
                 $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $isPaid, $returned, $cashId, $type);
             }
-            
-            \Log::info('ProjectContractsController::getAllContracts - Result count:', ['count' => $result->total()]);
 
             return $this->paginatedResponse($result);
         } catch (\Exception $e) {
