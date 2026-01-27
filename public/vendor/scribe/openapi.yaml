@@ -447,7 +447,7 @@ paths:
                     updated_at: '2025-12-22T13:50:37.000000Z'
       tags:
         - Endpoints
-  /api/basement/user/me:
+  /api/simple/user/me:
     get:
       summary: 'Получить данные текущего аутентифицированного пользователя'
       operationId: ''
@@ -468,7 +468,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/user/logout:
+  /api/simple/user/logout:
     post:
       summary: 'Выход пользователя из системы'
       operationId: ''
@@ -477,7 +477,7 @@ paths:
       responses: {  }
       tags:
         - Endpoints
-  /api/basement/user/profile:
+  /api/simple/user/profile:
     post:
       summary: 'Обновить профиль текущего пользователя'
       operationId: ''
@@ -486,7 +486,7 @@ paths:
       responses: {  }
       tags:
         - Endpoints
-  /api/basement/orders:
+  /api/simple/orders:
     get:
       summary: 'Получить список заказов с пагинацией'
       operationId: ''
@@ -649,7 +649,7 @@ paths:
                 - client_id
                 - warehouse_id
                 - category_id
-  '/api/basement/orders/{id}':
+  '/api/simple/orders/{id}':
     get:
       summary: 'Получить заказ по ID'
       operationId: ID
@@ -853,7 +853,7 @@ paths:
         required: true
         schema:
           type: string
-  /api/basement/order_statuses:
+  /api/simple/order_statuses:
     get:
       summary: 'Получить список статусов заказов с пагинацией'
       operationId: ''
@@ -874,7 +874,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/order_statuses/all:
+  /api/simple/order_statuses/all:
     get:
       summary: 'Получить все статусы заказов'
       operationId: ''
@@ -895,7 +895,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/clients:
+  /api/simple/clients:
     get:
       summary: 'Получить список клиентов с пагинацией'
       operationId: ''
@@ -1025,7 +1025,7 @@ paths:
               required:
                 - first_name
                 - client_type
-  /api/basement/clients/all:
+  /api/simple/clients/all:
     get:
       summary: 'Получить всех клиентов'
       operationId: ''
@@ -1046,7 +1046,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/clients/search:
+  /api/simple/clients/search:
     get:
       summary: 'Поиск клиентов'
       operationId: ''
@@ -1067,7 +1067,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  '/api/basement/clients/{id}':
+  '/api/simple/clients/{id}':
     get:
       summary: 'Получить клиента по ID'
       operationId: ID
@@ -1097,7 +1097,7 @@ paths:
         required: true
         schema:
           type: string
-  /api/basement/products:
+  /api/simple/products:
     get:
       summary: 'Получить список товаров с пагинацией'
       operationId: ''
@@ -1118,7 +1118,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/services:
+  /api/simple/services:
     get:
       summary: 'Получить список услуг с пагинацией'
       operationId: ''
@@ -1139,7 +1139,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/products/search:
+  /api/simple/products/search:
     get:
       summary: 'Поиск товаров и услуг'
       operationId: ''
@@ -1160,7 +1160,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/projects:
+  /api/simple/projects:
     get:
       summary: 'Получить список проектов с пагинацией'
       operationId: ''
@@ -1181,7 +1181,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/projects/all:
+  /api/simple/projects/all:
     get:
       summary: 'Получить все проекты'
       operationId: ''
@@ -1202,7 +1202,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  '/api/basement/projects/{id}':
+  '/api/simple/projects/{id}':
     get:
       summary: 'Получить проект по ID'
       operationId: ID
@@ -1232,7 +1232,7 @@ paths:
         required: true
         schema:
           type: string
-  /api/basement/warehouses:
+  /api/simple/warehouses:
     get:
       summary: 'Получить список складов с пагинацией'
       operationId: ''
@@ -1253,7 +1253,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/warehouses/all:
+  /api/simple/warehouses/all:
     get:
       summary: 'Получить все склады'
       operationId: ''
@@ -1274,7 +1274,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/cash_registers:
+  /api/simple/cash_registers:
     get:
       summary: 'Получить список касс с пагинацией'
       operationId: ''
@@ -1295,7 +1295,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/cash_registers/all:
+  /api/simple/cash_registers/all:
     get:
       summary: 'Получить все кассы пользователя'
       operationId: ''
@@ -1316,7 +1316,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/app/currency:
+  /api/simple/app/currency:
     get:
       summary: 'Получить список валют'
       operationId: ''
@@ -1337,7 +1337,7 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/basement/app/units:
+  /api/simple/app/units:
     get:
       summary: 'Получить список единиц измерения'
       operationId: ''

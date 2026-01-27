@@ -34,9 +34,9 @@
   - Добавить проверку `is_admin`
 - [x] Обновить `CheckPermission` middleware:
   - Добавить проверку `is_admin`
-- [x] Обновить `EnsureBasementWorker` middleware:
+- [x] Обновить `EnsureSimpleWorker` middleware:
   - Добавить проверку `is_admin`
-- [x] Обновить `PreventBasementAccess` middleware:
+- [x] Обновить `PreventSimpleAccess` middleware:
   - Добавить проверку `is_admin`
 - [x] Обновить `AuthServiceProvider`:
   - Добавить проверку `is_admin` в Gate::before
@@ -57,7 +57,7 @@
 ### 5. Обновление роутера (router/index.js)
 - [x] Обновить проверку `isAdmin`:
   - Использовать `user.isAdmin` вместо проверки роли "admin"
-  - Обновить логику для basement маршрутов
+  - Обновить логику для simple маршрутов
 
 ### 6. Обновление компонентов фронтенда
 - [ ] Найти все места, где проверяется роль "admin" через роли
