@@ -6,6 +6,7 @@ use App\Models\CashRegister;
 use App\Models\Category;
 use App\Models\CategoryUser;
 use App\Models\Currency;
+use App\Models\User;
 use App\Services\CurrencyConverter;
 use App\Services\RoundingService;
 
@@ -29,9 +30,25 @@ abstract class BaseRepository
      */
     protected function getUserCategoryIds(int $userId): array
     {
-        $categoryIds = CategoryUser::where('user_id', $userId)
-            ->pluck('category_id')
-            ->toArray();
+        $currentUser = auth('api')->user();
+        $isSimpleWorker = $currentUser instanceof User && $currentUser->hasRole(config('simple.worker_role'));
+
+        if ($isSimpleWorker) {
+            $mapping = config('simple.user_category_mapping', []);
+            $mappedCategoryId = $mapping[$userId] ?? null;
+
+            if ($mappedCategoryId) {
+                $categoryIds = $this->getCategoryWithChildrenIds($mappedCategoryId);
+            } else {
+                $categoryIds = CategoryUser::where('user_id', $userId)
+                    ->pluck('category_id')
+                    ->toArray();
+            }
+        } else {
+            $categoryIds = CategoryUser::where('user_id', $userId)
+                ->pluck('category_id')
+                ->toArray();
+        }
 
         if (empty($categoryIds)) {
             return [];
@@ -48,6 +65,24 @@ abstract class BaseRepository
 
         $categoryIds = array_values(array_unique($categoryIds));
         sort($categoryIds);
+
+        return $categoryIds;
+    }
+
+    /**
+     * Получить ID категории и всех её подкатегорий рекурсивно
+     *
+     * @param int $categoryId ID категории
+     * @return array
+     */
+    protected function getCategoryWithChildrenIds(int $categoryId): array
+    {
+        $categoryIds = [$categoryId];
+        $children = Category::where('parent_id', $categoryId)->pluck('id')->toArray();
+
+        foreach ($children as $childId) {
+            $categoryIds = array_merge($categoryIds, $this->getCategoryWithChildrenIds($childId));
+        }
 
         return $categoryIds;
     }

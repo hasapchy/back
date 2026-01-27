@@ -42,4 +42,21 @@ return [
     |
     */
     'default_warehouse_id' => env('BASEMENT_DEFAULT_WAREHOUSE_ID'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | User to Category Mapping
+    |--------------------------------------------------------------------------
+    |
+    | Static mapping of user IDs to category IDs for simple workers.
+    | Format: 'user_id' => 'category_id'
+    | Multiple users can map to the same category.
+    |
+    */
+    'user_category_mapping' => [
+        12 => 14,
+        8 => 14,
+        6 => 2,
+        7 => 3,
+    ],
 ];

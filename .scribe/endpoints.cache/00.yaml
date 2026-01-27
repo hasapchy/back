@@ -319,7 +319,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/user/me
+    uri: api/simple/user/me
     metadata:
       custom: []
       groupName: Endpoints
@@ -364,7 +364,7 @@ endpoints:
     custom: []
     httpMethods:
       - POST
-    uri: api/basement/user/logout
+    uri: api/simple/user/logout
     metadata:
       custom: []
       groupName: Endpoints
@@ -400,7 +400,7 @@ endpoints:
     custom: []
     httpMethods:
       - POST
-    uri: api/basement/user/profile
+    uri: api/simple/user/profile
     metadata:
       custom: []
       groupName: Endpoints
@@ -436,7 +436,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/orders
+    uri: api/simple/orders
     metadata:
       custom: []
       groupName: Endpoints
@@ -481,7 +481,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: 'api/basement/orders/{id}'
+    uri: 'api/simple/orders/{id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -538,7 +538,7 @@ endpoints:
     custom: []
     httpMethods:
       - POST
-    uri: api/basement/orders
+    uri: api/simple/orders
     metadata:
       custom: []
       groupName: Endpoints
@@ -877,7 +877,7 @@ endpoints:
     custom: []
     httpMethods:
       - PUT
-    uri: 'api/basement/orders/{id}'
+    uri: 'api/simple/orders/{id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -1278,7 +1278,7 @@ endpoints:
     custom: []
     httpMethods:
       - DELETE
-    uri: 'api/basement/orders/{id}'
+    uri: 'api/simple/orders/{id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -1326,7 +1326,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/order_statuses
+    uri: api/simple/order_statuses
     metadata:
       custom: []
       groupName: Endpoints
@@ -1371,7 +1371,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/order_statuses/all
+    uri: api/simple/order_statuses/all
     metadata:
       custom: []
       groupName: Endpoints
@@ -1416,7 +1416,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/clients
+    uri: api/simple/clients
     metadata:
       custom: []
       groupName: Endpoints
@@ -1461,7 +1461,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/clients/all
+    uri: api/simple/clients/all
     metadata:
       custom: []
       groupName: Endpoints
@@ -1506,7 +1506,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/clients/search
+    uri: api/simple/clients/search
     metadata:
       custom: []
       groupName: Endpoints
@@ -1551,7 +1551,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: 'api/basement/clients/{id}'
+    uri: 'api/simple/clients/{id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -1608,7 +1608,7 @@ endpoints:
     custom: []
     httpMethods:
       - POST
-    uri: api/basement/clients
+    uri: api/simple/clients
     metadata:
       custom: []
       groupName: Endpoints
@@ -1845,7 +1845,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/products
+    uri: api/simple/products
     metadata:
       custom: []
       groupName: Endpoints
@@ -1890,7 +1890,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/services
+    uri: api/simple/services
     metadata:
       custom: []
       groupName: Endpoints
@@ -1935,7 +1935,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/products/search
+    uri: api/simple/products/search
     metadata:
       custom: []
       groupName: Endpoints
@@ -1980,7 +1980,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/projects
+    uri: api/simple/projects
     metadata:
       custom: []
       groupName: Endpoints
@@ -2025,7 +2025,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/projects/all
+    uri: api/simple/projects/all
     metadata:
       custom: []
       groupName: Endpoints
@@ -2070,7 +2070,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: 'api/basement/projects/{id}'
+    uri: 'api/simple/projects/{id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -2127,7 +2127,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/warehouses
+    uri: api/simple/warehouses
     metadata:
       custom: []
       groupName: Endpoints
@@ -2172,7 +2172,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/warehouses/all
+    uri: api/simple/warehouses/all
     metadata:
       custom: []
       groupName: Endpoints
@@ -2217,7 +2217,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/cash_registers
+    uri: api/simple/cash_registers
     metadata:
       custom: []
       groupName: Endpoints
@@ -2262,7 +2262,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/cash_registers/all
+    uri: api/simple/cash_registers/all
     metadata:
       custom: []
       groupName: Endpoints
@@ -2307,7 +2307,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/app/currency
+    uri: api/simple/app/currency
     metadata:
       custom: []
       groupName: Endpoints
@@ -2352,7 +2352,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/basement/app/units
+    uri: api/simple/app/units
     metadata:
       custom: []
       groupName: Endpoints

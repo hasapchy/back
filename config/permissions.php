@@ -114,7 +114,7 @@ return [
             'actions' => ['view', 'create', 'update', 'delete'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
-        'orders_basement' => [
+        'orders_simple' => [
             'has_user_id' => true,
             'check_strategy' => 'user_id',
             'actions' => ['view', 'create', 'update', 'delete'],
@@ -271,9 +271,9 @@ return [
             'label' => 'orders',
             'resources' => ['orders', 'order_statuses', 'order_statuscategories'],
         ],
-        'orders_basement' => [
-            'label' => 'orders_basement',
-            'resources' => ['orders_basement'],
+        'orders_simple' => [
+            'label' => 'orders_simple',
+            'resources' => ['orders_simple'],
         ],
         'products' => [
             'label' => 'products',

@@ -240,9 +240,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/user\/me",
+                            "path": "api\/simple\/user\/me",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/user\/me"
+                            "raw": "{{baseUrl}}\/api\/simple\/user\/me"
                         },
                         "method": "GET",
                         "header": [
@@ -289,9 +289,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/user\/logout",
+                            "path": "api\/simple\/user\/logout",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/user\/logout"
+                            "raw": "{{baseUrl}}\/api\/simple\/user\/logout"
                         },
                         "method": "POST",
                         "header": [
@@ -318,9 +318,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/user\/profile",
+                            "path": "api\/simple\/user\/profile",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/user\/profile"
+                            "raw": "{{baseUrl}}\/api\/simple\/user\/profile"
                         },
                         "method": "POST",
                         "header": [
@@ -347,9 +347,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/orders",
+                            "path": "api\/simple\/orders",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/orders"
+                            "raw": "{{baseUrl}}\/api\/simple\/orders"
                         },
                         "method": "GET",
                         "header": [
@@ -396,9 +396,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/orders\/:id",
+                            "path": "api\/simple\/orders\/:id",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/orders\/:id",
+                            "raw": "{{baseUrl}}\/api\/simple\/orders\/:id",
                             "variable": [
                                 {
                                     "id": "id",
@@ -453,9 +453,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/orders",
+                            "path": "api\/simple\/orders",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/orders"
+                            "raw": "{{baseUrl}}\/api\/simple\/orders"
                         },
                         "method": "POST",
                         "header": [
@@ -485,9 +485,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/orders\/:id",
+                            "path": "api\/simple\/orders\/:id",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/orders\/:id",
+                            "raw": "{{baseUrl}}\/api\/simple\/orders\/:id",
                             "variable": [
                                 {
                                     "id": "id",
@@ -525,9 +525,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/orders\/:id",
+                            "path": "api\/simple\/orders\/:id",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/orders\/:id",
+                            "raw": "{{baseUrl}}\/api\/simple\/orders\/:id",
                             "variable": [
                                 {
                                     "id": "id",
@@ -562,9 +562,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/order_statuses",
+                            "path": "api\/simple\/order_statuses",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/order_statuses"
+                            "raw": "{{baseUrl}}\/api\/simple\/order_statuses"
                         },
                         "method": "GET",
                         "header": [
@@ -611,9 +611,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/order_statuses\/all",
+                            "path": "api\/simple\/order_statuses\/all",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/order_statuses\/all"
+                            "raw": "{{baseUrl}}\/api\/simple\/order_statuses\/all"
                         },
                         "method": "GET",
                         "header": [
@@ -660,9 +660,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/clients",
+                            "path": "api\/simple\/clients",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/clients"
+                            "raw": "{{baseUrl}}\/api\/simple\/clients"
                         },
                         "method": "GET",
                         "header": [
@@ -709,9 +709,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/clients\/all",
+                            "path": "api\/simple\/clients\/all",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/clients\/all"
+                            "raw": "{{baseUrl}}\/api\/simple\/clients\/all"
                         },
                         "method": "GET",
                         "header": [
@@ -758,9 +758,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/clients\/search",
+                            "path": "api\/simple\/clients\/search",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/clients\/search"
+                            "raw": "{{baseUrl}}\/api\/simple\/clients\/search"
                         },
                         "method": "GET",
                         "header": [
@@ -807,9 +807,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/clients\/:id",
+                            "path": "api\/simple\/clients\/:id",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/clients\/:id",
+                            "raw": "{{baseUrl}}\/api\/simple\/clients\/:id",
                             "variable": [
                                 {
                                     "id": "id",
@@ -864,9 +864,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/clients",
+                            "path": "api\/simple\/clients",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/clients"
+                            "raw": "{{baseUrl}}\/api\/simple\/clients"
                         },
                         "method": "POST",
                         "header": [
@@ -896,9 +896,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/products",
+                            "path": "api\/simple\/products",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/products"
+                            "raw": "{{baseUrl}}\/api\/simple\/products"
                         },
                         "method": "GET",
                         "header": [
@@ -945,9 +945,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/services",
+                            "path": "api\/simple\/services",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/services"
+                            "raw": "{{baseUrl}}\/api\/simple\/services"
                         },
                         "method": "GET",
                         "header": [
@@ -994,9 +994,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/products\/search",
+                            "path": "api\/simple\/products\/search",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/products\/search"
+                            "raw": "{{baseUrl}}\/api\/simple\/products\/search"
                         },
                         "method": "GET",
                         "header": [
@@ -1043,9 +1043,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/projects",
+                            "path": "api\/simple\/projects",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/projects"
+                            "raw": "{{baseUrl}}\/api\/simple\/projects"
                         },
                         "method": "GET",
                         "header": [
@@ -1092,9 +1092,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/projects\/all",
+                            "path": "api\/simple\/projects\/all",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/projects\/all"
+                            "raw": "{{baseUrl}}\/api\/simple\/projects\/all"
                         },
                         "method": "GET",
                         "header": [
@@ -1141,9 +1141,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/projects\/:id",
+                            "path": "api\/simple\/projects\/:id",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/projects\/:id",
+                            "raw": "{{baseUrl}}\/api\/simple\/projects\/:id",
                             "variable": [
                                 {
                                     "id": "id",
@@ -1198,9 +1198,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/warehouses",
+                            "path": "api\/simple\/warehouses",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/warehouses"
+                            "raw": "{{baseUrl}}\/api\/simple\/warehouses"
                         },
                         "method": "GET",
                         "header": [
@@ -1247,9 +1247,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/warehouses\/all",
+                            "path": "api\/simple\/warehouses\/all",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/warehouses\/all"
+                            "raw": "{{baseUrl}}\/api\/simple\/warehouses\/all"
                         },
                         "method": "GET",
                         "header": [
@@ -1296,9 +1296,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/cash_registers",
+                            "path": "api\/simple\/cash_registers",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/cash_registers"
+                            "raw": "{{baseUrl}}\/api\/simple\/cash_registers"
                         },
                         "method": "GET",
                         "header": [
@@ -1345,9 +1345,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/cash_registers\/all",
+                            "path": "api\/simple\/cash_registers\/all",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/cash_registers\/all"
+                            "raw": "{{baseUrl}}\/api\/simple\/cash_registers\/all"
                         },
                         "method": "GET",
                         "header": [
@@ -1394,9 +1394,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/app\/currency",
+                            "path": "api\/simple\/app\/currency",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/app\/currency"
+                            "raw": "{{baseUrl}}\/api\/simple\/app\/currency"
                         },
                         "method": "GET",
                         "header": [
@@ -1443,9 +1443,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/basement\/app\/units",
+                            "path": "api\/simple\/app\/units",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/basement\/app\/units"
+                            "raw": "{{baseUrl}}\/api\/simple\/app\/units"
                         },
                         "method": "GET",
                         "header": [

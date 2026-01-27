@@ -45,12 +45,12 @@
     </span>
 </a>
 <div class="tocify-wrapper">
-    
+
             <div class="lang-selector">
                                             <button type="button" class="lang-button" data-language-name="bash">bash</button>
                                             <button type="button" class="lang-button" data-language-name="javascript">javascript</button>
                     </div>
-    
+
     <div class="search">
         <input type="text" class="search" id="input-search" placeholder="Search">
     </div>
@@ -86,86 +86,86 @@
                                                                                 <li class="tocify-item level-2" data-unique="endpoints-GETapi-transaction_categories-all">
                                 <a href="#endpoints-GETapi-transaction_categories-all">Получить все категории транзакций</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-user-me">
-                                <a href="#endpoints-GETapi-basement-user-me">Получить данные текущего аутентифицированного пользователя</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-user-me">
+                                <a href="#endpoints-GETapi-simple-user-me">Получить данные текущего аутентифицированного пользователя</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-POSTapi-basement-user-logout">
-                                <a href="#endpoints-POSTapi-basement-user-logout">Выход пользователя из системы</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-POSTapi-simple-user-logout">
+                                <a href="#endpoints-POSTapi-simple-user-logout">Выход пользователя из системы</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-POSTapi-basement-user-profile">
-                                <a href="#endpoints-POSTapi-basement-user-profile">Обновить профиль текущего пользователя</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-POSTapi-simple-user-profile">
+                                <a href="#endpoints-POSTapi-simple-user-profile">Обновить профиль текущего пользователя</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-orders">
-                                <a href="#endpoints-GETapi-basement-orders">Получить список заказов с пагинацией</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-orders">
+                                <a href="#endpoints-GETapi-simple-orders">Получить список заказов с пагинацией</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-orders--id-">
-                                <a href="#endpoints-GETapi-basement-orders--id-">Получить заказ по ID</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-orders--id-">
+                                <a href="#endpoints-GETapi-simple-orders--id-">Получить заказ по ID</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-POSTapi-basement-orders">
-                                <a href="#endpoints-POSTapi-basement-orders">Создать новый заказ</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-POSTapi-simple-orders">
+                                <a href="#endpoints-POSTapi-simple-orders">Создать новый заказ</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-PUTapi-basement-orders--id-">
-                                <a href="#endpoints-PUTapi-basement-orders--id-">Обновить заказ</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-PUTapi-simple-orders--id-">
+                                <a href="#endpoints-PUTapi-simple-orders--id-">Обновить заказ</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-DELETEapi-basement-orders--id-">
-                                <a href="#endpoints-DELETEapi-basement-orders--id-">Удалить заказ</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-DELETEapi-simple-orders--id-">
+                                <a href="#endpoints-DELETEapi-simple-orders--id-">Удалить заказ</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-order_statuses">
-                                <a href="#endpoints-GETapi-basement-order_statuses">Получить список статусов заказов с пагинацией</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-order_statuses">
+                                <a href="#endpoints-GETapi-simple-order_statuses">Получить список статусов заказов с пагинацией</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-order_statuses-all">
-                                <a href="#endpoints-GETapi-basement-order_statuses-all">Получить все статусы заказов</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-order_statuses-all">
+                                <a href="#endpoints-GETapi-simple-order_statuses-all">Получить все статусы заказов</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-clients">
-                                <a href="#endpoints-GETapi-basement-clients">Получить список клиентов с пагинацией</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-clients">
+                                <a href="#endpoints-GETapi-simple-clients">Получить список клиентов с пагинацией</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-clients-all">
-                                <a href="#endpoints-GETapi-basement-clients-all">Получить всех клиентов</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-clients-all">
+                                <a href="#endpoints-GETapi-simple-clients-all">Получить всех клиентов</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-clients-search">
-                                <a href="#endpoints-GETapi-basement-clients-search">Поиск клиентов</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-clients-search">
+                                <a href="#endpoints-GETapi-simple-clients-search">Поиск клиентов</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-clients--id-">
-                                <a href="#endpoints-GETapi-basement-clients--id-">Получить клиента по ID</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-clients--id-">
+                                <a href="#endpoints-GETapi-simple-clients--id-">Получить клиента по ID</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-POSTapi-basement-clients">
-                                <a href="#endpoints-POSTapi-basement-clients">Создать нового клиента</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-POSTapi-simple-clients">
+                                <a href="#endpoints-POSTapi-simple-clients">Создать нового клиента</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-products">
-                                <a href="#endpoints-GETapi-basement-products">Получить список товаров с пагинацией</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-products">
+                                <a href="#endpoints-GETapi-simple-products">Получить список товаров с пагинацией</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-services">
-                                <a href="#endpoints-GETapi-basement-services">Получить список услуг с пагинацией</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-services">
+                                <a href="#endpoints-GETapi-simple-services">Получить список услуг с пагинацией</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-products-search">
-                                <a href="#endpoints-GETapi-basement-products-search">Поиск товаров и услуг</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-products-search">
+                                <a href="#endpoints-GETapi-simple-products-search">Поиск товаров и услуг</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-projects">
-                                <a href="#endpoints-GETapi-basement-projects">Получить список проектов с пагинацией</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-projects">
+                                <a href="#endpoints-GETapi-simple-projects">Получить список проектов с пагинацией</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-projects-all">
-                                <a href="#endpoints-GETapi-basement-projects-all">Получить все проекты</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-projects-all">
+                                <a href="#endpoints-GETapi-simple-projects-all">Получить все проекты</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-projects--id-">
-                                <a href="#endpoints-GETapi-basement-projects--id-">Получить проект по ID</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-projects--id-">
+                                <a href="#endpoints-GETapi-simple-projects--id-">Получить проект по ID</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-warehouses">
-                                <a href="#endpoints-GETapi-basement-warehouses">Получить список складов с пагинацией</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-warehouses">
+                                <a href="#endpoints-GETapi-simple-warehouses">Получить список складов с пагинацией</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-warehouses-all">
-                                <a href="#endpoints-GETapi-basement-warehouses-all">Получить все склады</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-warehouses-all">
+                                <a href="#endpoints-GETapi-simple-warehouses-all">Получить все склады</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-cash_registers">
-                                <a href="#endpoints-GETapi-basement-cash_registers">Получить список касс с пагинацией</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-cash_registers">
+                                <a href="#endpoints-GETapi-simple-cash_registers">Получить список касс с пагинацией</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-cash_registers-all">
-                                <a href="#endpoints-GETapi-basement-cash_registers-all">Получить все кассы пользователя</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-cash_registers-all">
+                                <a href="#endpoints-GETapi-simple-cash_registers-all">Получить все кассы пользователя</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-app-currency">
-                                <a href="#endpoints-GETapi-basement-app-currency">Получить список валют</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-app-currency">
+                                <a href="#endpoints-GETapi-simple-app-currency">Получить список валют</a>
                             </li>
-                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-basement-app-units">
-                                <a href="#endpoints-GETapi-basement-app-units">Получить список единиц измерения</a>
+                                                                                <li class="tocify-item level-2" data-unique="endpoints-GETapi-simple-app-units">
+                                <a href="#endpoints-GETapi-simple-app-units">Получить список единиц измерения</a>
                             </li>
                                                                                 <li class="tocify-item level-2" data-unique="endpoints-GETapi-app-currency">
                                 <a href="#endpoints-GETapi-app-currency">Получить список валют</a>
@@ -817,7 +817,7 @@ You can switch the language used with the tabs at the top right (or from the nav
 
         <h1 id="endpoints">Endpoints</h1>
 
-    
+
 
                                 <h2 id="endpoints-GETapi-documentation">Display Swagger API page.</h2>
 
@@ -1719,27 +1719,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-user-me">Получить данные текущего аутентифицированного пользователя</h2>
+                    <h2 id="endpoints-GETapi-simple-user-me">Получить данные текущего аутентифицированного пользователя</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-user-me">
+<span id="example-requests-GETapi-simple-user-me">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/user/me" \
+    --get "http://hasap.local/api/simple/user/me" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/user/me"
+    "http://hasap.local/api/simple/user/me"
 );
 
 const headers = {
@@ -1754,7 +1754,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-user-me">
+<span id="example-responses-GETapi-simple-user-me">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -1772,43 +1772,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-user-me" hidden>
+<span id="execution-results-GETapi-simple-user-me" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-user-me"></span>:
+                id="execution-response-status-GETapi-simple-user-me"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-user-me"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-user-me"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-user-me" hidden>
+<span id="execution-error-GETapi-simple-user-me" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-user-me">
+    <pre><code id="execution-error-message-GETapi-simple-user-me">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-user-me" data-method="GET"
-      data-path="api/basement/user/me"
+<form id="form-GETapi-simple-user-me" data-method="GET"
+      data-path="api/simple/user/me"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-user-me', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-user-me', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-user-me"
-                    onclick="tryItOut('GETapi-basement-user-me');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-user-me"
+                    onclick="tryItOut('GETapi-simple-user-me');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-user-me"
-                    onclick="cancelTryOut('GETapi-basement-user-me');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-user-me"
+                    onclick="cancelTryOut('GETapi-simple-user-me');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-user-me"
+                    id="btn-executetryout-GETapi-simple-user-me"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -1816,7 +1816,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/user/me</code></b>
+            <b><code>api/simple/user/me</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -1825,7 +1825,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-user-me"
+                              name="Content-Type"                data-endpoint="GETapi-simple-user-me"
                value="application/json"
                data-component="header">
     <br>
@@ -1837,7 +1837,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-user-me"
+                              name="Accept"                data-endpoint="GETapi-simple-user-me"
                value="application/json"
                data-component="header">
     <br>
@@ -1845,27 +1845,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-POSTapi-basement-user-logout">Выход пользователя из системы</h2>
+                    <h2 id="endpoints-POSTapi-simple-user-logout">Выход пользователя из системы</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-POSTapi-basement-user-logout">
+<span id="example-requests-POSTapi-simple-user-logout">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/basement/user/logout" \
+    "http://hasap.local/api/simple/user/logout" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/user/logout"
+    "http://hasap.local/api/simple/user/logout"
 );
 
 const headers = {
@@ -1880,45 +1880,45 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-POSTapi-basement-user-logout">
+<span id="example-responses-POSTapi-simple-user-logout">
 </span>
-<span id="execution-results-POSTapi-basement-user-logout" hidden>
+<span id="execution-results-POSTapi-simple-user-logout" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-POSTapi-basement-user-logout"></span>:
+                id="execution-response-status-POSTapi-simple-user-logout"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-POSTapi-basement-user-logout"
+    <pre class="json"><code id="execution-response-content-POSTapi-simple-user-logout"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-POSTapi-basement-user-logout" hidden>
+<span id="execution-error-POSTapi-simple-user-logout" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-POSTapi-basement-user-logout">
+    <pre><code id="execution-error-message-POSTapi-simple-user-logout">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-POSTapi-basement-user-logout" data-method="POST"
-      data-path="api/basement/user/logout"
+<form id="form-POSTapi-simple-user-logout" data-method="POST"
+      data-path="api/simple/user/logout"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('POSTapi-basement-user-logout', this);">
+      onsubmit="event.preventDefault(); executeTryOut('POSTapi-simple-user-logout', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-POSTapi-basement-user-logout"
-                    onclick="tryItOut('POSTapi-basement-user-logout');">Try it out ⚡
+                    id="btn-tryout-POSTapi-simple-user-logout"
+                    onclick="tryItOut('POSTapi-simple-user-logout');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-POSTapi-basement-user-logout"
-                    onclick="cancelTryOut('POSTapi-basement-user-logout');" hidden>Cancel 🛑
+                    id="btn-canceltryout-POSTapi-simple-user-logout"
+                    onclick="cancelTryOut('POSTapi-simple-user-logout');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-POSTapi-basement-user-logout"
+                    id="btn-executetryout-POSTapi-simple-user-logout"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -1926,7 +1926,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-black">POST</small>
-            <b><code>api/basement/user/logout</code></b>
+            <b><code>api/simple/user/logout</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -1935,7 +1935,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="POSTapi-basement-user-logout"
+                              name="Content-Type"                data-endpoint="POSTapi-simple-user-logout"
                value="application/json"
                data-component="header">
     <br>
@@ -1947,7 +1947,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="POSTapi-basement-user-logout"
+                              name="Accept"                data-endpoint="POSTapi-simple-user-logout"
                value="application/json"
                data-component="header">
     <br>
@@ -1955,27 +1955,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-POSTapi-basement-user-profile">Обновить профиль текущего пользователя</h2>
+                    <h2 id="endpoints-POSTapi-simple-user-profile">Обновить профиль текущего пользователя</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-POSTapi-basement-user-profile">
+<span id="example-requests-POSTapi-simple-user-profile">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/basement/user/profile" \
+    "http://hasap.local/api/simple/user/profile" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/user/profile"
+    "http://hasap.local/api/simple/user/profile"
 );
 
 const headers = {
@@ -1990,45 +1990,45 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-POSTapi-basement-user-profile">
+<span id="example-responses-POSTapi-simple-user-profile">
 </span>
-<span id="execution-results-POSTapi-basement-user-profile" hidden>
+<span id="execution-results-POSTapi-simple-user-profile" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-POSTapi-basement-user-profile"></span>:
+                id="execution-response-status-POSTapi-simple-user-profile"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-POSTapi-basement-user-profile"
+    <pre class="json"><code id="execution-response-content-POSTapi-simple-user-profile"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-POSTapi-basement-user-profile" hidden>
+<span id="execution-error-POSTapi-simple-user-profile" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-POSTapi-basement-user-profile">
+    <pre><code id="execution-error-message-POSTapi-simple-user-profile">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-POSTapi-basement-user-profile" data-method="POST"
-      data-path="api/basement/user/profile"
+<form id="form-POSTapi-simple-user-profile" data-method="POST"
+      data-path="api/simple/user/profile"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('POSTapi-basement-user-profile', this);">
+      onsubmit="event.preventDefault(); executeTryOut('POSTapi-simple-user-profile', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-POSTapi-basement-user-profile"
-                    onclick="tryItOut('POSTapi-basement-user-profile');">Try it out ⚡
+                    id="btn-tryout-POSTapi-simple-user-profile"
+                    onclick="tryItOut('POSTapi-simple-user-profile');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-POSTapi-basement-user-profile"
-                    onclick="cancelTryOut('POSTapi-basement-user-profile');" hidden>Cancel 🛑
+                    id="btn-canceltryout-POSTapi-simple-user-profile"
+                    onclick="cancelTryOut('POSTapi-simple-user-profile');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-POSTapi-basement-user-profile"
+                    id="btn-executetryout-POSTapi-simple-user-profile"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -2036,7 +2036,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-black">POST</small>
-            <b><code>api/basement/user/profile</code></b>
+            <b><code>api/simple/user/profile</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -2045,7 +2045,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="POSTapi-basement-user-profile"
+                              name="Content-Type"                data-endpoint="POSTapi-simple-user-profile"
                value="application/json"
                data-component="header">
     <br>
@@ -2057,7 +2057,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="POSTapi-basement-user-profile"
+                              name="Accept"                data-endpoint="POSTapi-simple-user-profile"
                value="application/json"
                data-component="header">
     <br>
@@ -2065,27 +2065,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-orders">Получить список заказов с пагинацией</h2>
+                    <h2 id="endpoints-GETapi-simple-orders">Получить список заказов с пагинацией</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-orders">
+<span id="example-requests-GETapi-simple-orders">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/orders" \
+    --get "http://hasap.local/api/simple/orders" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/orders"
+    "http://hasap.local/api/simple/orders"
 );
 
 const headers = {
@@ -2100,7 +2100,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-orders">
+<span id="example-responses-GETapi-simple-orders">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -2118,43 +2118,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-orders" hidden>
+<span id="execution-results-GETapi-simple-orders" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-orders"></span>:
+                id="execution-response-status-GETapi-simple-orders"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-orders"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-orders"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-orders" hidden>
+<span id="execution-error-GETapi-simple-orders" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-orders">
+    <pre><code id="execution-error-message-GETapi-simple-orders">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-orders" data-method="GET"
-      data-path="api/basement/orders"
+<form id="form-GETapi-simple-orders" data-method="GET"
+      data-path="api/simple/orders"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-orders', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-orders', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-orders"
-                    onclick="tryItOut('GETapi-basement-orders');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-orders"
+                    onclick="tryItOut('GETapi-simple-orders');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-orders"
-                    onclick="cancelTryOut('GETapi-basement-orders');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-orders"
+                    onclick="cancelTryOut('GETapi-simple-orders');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-orders"
+                    id="btn-executetryout-GETapi-simple-orders"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -2162,7 +2162,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/orders</code></b>
+            <b><code>api/simple/orders</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -2171,7 +2171,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-orders"
+                              name="Content-Type"                data-endpoint="GETapi-simple-orders"
                value="application/json"
                data-component="header">
     <br>
@@ -2183,7 +2183,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-orders"
+                              name="Accept"                data-endpoint="GETapi-simple-orders"
                value="application/json"
                data-component="header">
     <br>
@@ -2191,27 +2191,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-orders--id-">Получить заказ по ID</h2>
+                    <h2 id="endpoints-GETapi-simple-orders--id-">Получить заказ по ID</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-orders--id-">
+<span id="example-requests-GETapi-simple-orders--id-">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/orders/consequatur" \
+    --get "http://hasap.local/api/simple/orders/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/orders/consequatur"
+    "http://hasap.local/api/simple/orders/consequatur"
 );
 
 const headers = {
@@ -2226,7 +2226,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-orders--id-">
+<span id="example-responses-GETapi-simple-orders--id-">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -2244,43 +2244,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-orders--id-" hidden>
+<span id="execution-results-GETapi-simple-orders--id-" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-orders--id-"></span>:
+                id="execution-response-status-GETapi-simple-orders--id-"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-orders--id-"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-orders--id-"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-orders--id-" hidden>
+<span id="execution-error-GETapi-simple-orders--id-" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-orders--id-">
+    <pre><code id="execution-error-message-GETapi-simple-orders--id-">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-orders--id-" data-method="GET"
-      data-path="api/basement/orders/{id}"
+<form id="form-GETapi-simple-orders--id-" data-method="GET"
+      data-path="api/simple/orders/{id}"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-orders--id-', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-orders--id-', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-orders--id-"
-                    onclick="tryItOut('GETapi-basement-orders--id-');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-orders--id-"
+                    onclick="tryItOut('GETapi-simple-orders--id-');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-orders--id-"
-                    onclick="cancelTryOut('GETapi-basement-orders--id-');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-orders--id-"
+                    onclick="cancelTryOut('GETapi-simple-orders--id-');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-orders--id-"
+                    id="btn-executetryout-GETapi-simple-orders--id-"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -2288,7 +2288,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/orders/{id}</code></b>
+            <b><code>api/simple/orders/{id}</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -2297,7 +2297,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-orders--id-"
+                              name="Content-Type"                data-endpoint="GETapi-simple-orders--id-"
                value="application/json"
                data-component="header">
     <br>
@@ -2309,7 +2309,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-orders--id-"
+                              name="Accept"                data-endpoint="GETapi-simple-orders--id-"
                value="application/json"
                data-component="header">
     <br>
@@ -2322,7 +2322,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="id"                data-endpoint="GETapi-basement-orders--id-"
+                              name="id"                data-endpoint="GETapi-simple-orders--id-"
                value="consequatur"
                data-component="url">
     <br>
@@ -2330,20 +2330,20 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                     </form>
 
-                    <h2 id="endpoints-POSTapi-basement-orders">Создать новый заказ</h2>
+                    <h2 id="endpoints-POSTapi-simple-orders">Создать новый заказ</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-POSTapi-basement-orders">
+<span id="example-requests-POSTapi-simple-orders">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/basement/orders" \
+    "http://hasap.local/api/simple/orders" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -2383,7 +2383,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/orders"
+    "http://hasap.local/api/simple/orders"
 );
 
 const headers = {
@@ -2432,45 +2432,45 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-POSTapi-basement-orders">
+<span id="example-responses-POSTapi-simple-orders">
 </span>
-<span id="execution-results-POSTapi-basement-orders" hidden>
+<span id="execution-results-POSTapi-simple-orders" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-POSTapi-basement-orders"></span>:
+                id="execution-response-status-POSTapi-simple-orders"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-POSTapi-basement-orders"
+    <pre class="json"><code id="execution-response-content-POSTapi-simple-orders"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-POSTapi-basement-orders" hidden>
+<span id="execution-error-POSTapi-simple-orders" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-POSTapi-basement-orders">
+    <pre><code id="execution-error-message-POSTapi-simple-orders">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-POSTapi-basement-orders" data-method="POST"
-      data-path="api/basement/orders"
+<form id="form-POSTapi-simple-orders" data-method="POST"
+      data-path="api/simple/orders"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('POSTapi-basement-orders', this);">
+      onsubmit="event.preventDefault(); executeTryOut('POSTapi-simple-orders', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-POSTapi-basement-orders"
-                    onclick="tryItOut('POSTapi-basement-orders');">Try it out ⚡
+                    id="btn-tryout-POSTapi-simple-orders"
+                    onclick="tryItOut('POSTapi-simple-orders');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-POSTapi-basement-orders"
-                    onclick="cancelTryOut('POSTapi-basement-orders');" hidden>Cancel 🛑
+                    id="btn-canceltryout-POSTapi-simple-orders"
+                    onclick="cancelTryOut('POSTapi-simple-orders');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-POSTapi-basement-orders"
+                    id="btn-executetryout-POSTapi-simple-orders"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -2478,7 +2478,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-black">POST</small>
-            <b><code>api/basement/orders</code></b>
+            <b><code>api/simple/orders</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -2487,7 +2487,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="POSTapi-basement-orders"
+                              name="Content-Type"                data-endpoint="POSTapi-simple-orders"
                value="application/json"
                data-component="header">
     <br>
@@ -2499,7 +2499,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="POSTapi-basement-orders"
+                              name="Accept"                data-endpoint="POSTapi-simple-orders"
                value="application/json"
                data-component="header">
     <br>
@@ -2512,7 +2512,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="client_id"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="client_id"                data-endpoint="POSTapi-simple-orders"
                value="17"
                data-component="body">
     <br>
@@ -2524,7 +2524,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="project_id"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="project_id"                data-endpoint="POSTapi-simple-orders"
                value="17"
                data-component="body">
     <br>
@@ -2536,7 +2536,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="cash_id"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="cash_id"                data-endpoint="POSTapi-simple-orders"
                value="17"
                data-component="body">
     <br>
@@ -2548,7 +2548,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="warehouse_id"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="warehouse_id"                data-endpoint="POSTapi-simple-orders"
                value="17"
                data-component="body">
     <br>
@@ -2560,7 +2560,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="currency_id"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="currency_id"                data-endpoint="POSTapi-simple-orders"
                value="17"
                data-component="body">
     <br>
@@ -2572,7 +2572,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="category_id"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="category_id"                data-endpoint="POSTapi-simple-orders"
                value="17"
                data-component="body">
     <br>
@@ -2584,7 +2584,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="discount"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="discount"                data-endpoint="POSTapi-simple-orders"
                value="45"
                data-component="body">
     <br>
@@ -2596,7 +2596,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="discount_type"                data-endpoint="POSTapi-basement-orders"
+                              name="discount_type"                data-endpoint="POSTapi-simple-orders"
                value="fixed"
                data-component="body">
     <br>
@@ -2610,7 +2610,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="description"                data-endpoint="POSTapi-basement-orders"
+                              name="description"                data-endpoint="POSTapi-simple-orders"
                value="Dolores dolorum amet iste laborum eius est dolor."
                data-component="body">
     <br>
@@ -2622,7 +2622,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="date"                data-endpoint="POSTapi-basement-orders"
+                              name="date"                data-endpoint="POSTapi-simple-orders"
                value="2026-01-09T18:25:34"
                data-component="body">
     <br>
@@ -2634,7 +2634,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="note"                data-endpoint="POSTapi-basement-orders"
+                              name="note"                data-endpoint="POSTapi-simple-orders"
                value="consequatur"
                data-component="body">
     <br>
@@ -2656,7 +2656,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="products.0.product_id"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="products.0.product_id"                data-endpoint="POSTapi-simple-orders"
                value="17"
                data-component="body">
     <br>
@@ -2668,7 +2668,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="products.0.quantity"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="products.0.quantity"                data-endpoint="POSTapi-simple-orders"
                value="45"
                data-component="body">
     <br>
@@ -2680,7 +2680,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="products.0.price"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="products.0.price"                data-endpoint="POSTapi-simple-orders"
                value="56"
                data-component="body">
     <br>
@@ -2692,7 +2692,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="products.0.width"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="products.0.width"                data-endpoint="POSTapi-simple-orders"
                value="16"
                data-component="body">
     <br>
@@ -2704,7 +2704,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="products.0.height"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="products.0.height"                data-endpoint="POSTapi-simple-orders"
                value="50"
                data-component="body">
     <br>
@@ -2728,7 +2728,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="temp_products.0.name"                data-endpoint="POSTapi-basement-orders"
+                              name="temp_products.0.name"                data-endpoint="POSTapi-simple-orders"
                value="pfuudtdsufvyvddqamnii"
                data-component="body">
     <br>
@@ -2740,7 +2740,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="temp_products.0.description"                data-endpoint="POSTapi-basement-orders"
+                              name="temp_products.0.description"                data-endpoint="POSTapi-simple-orders"
                value="Dolores dolorum amet iste laborum eius est dolor."
                data-component="body">
     <br>
@@ -2752,7 +2752,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="temp_products.0.quantity"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="temp_products.0.quantity"                data-endpoint="POSTapi-simple-orders"
                value="12"
                data-component="body">
     <br>
@@ -2764,7 +2764,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="temp_products.0.price"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="temp_products.0.price"                data-endpoint="POSTapi-simple-orders"
                value="66"
                data-component="body">
     <br>
@@ -2776,7 +2776,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="temp_products.0.unit_id"                data-endpoint="POSTapi-basement-orders"
+                              name="temp_products.0.unit_id"                data-endpoint="POSTapi-simple-orders"
                value=""
                data-component="body">
     <br>
@@ -2788,7 +2788,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="temp_products.0.width"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="temp_products.0.width"                data-endpoint="POSTapi-simple-orders"
                value="13"
                data-component="body">
     <br>
@@ -2800,7 +2800,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="temp_products.0.height"                data-endpoint="POSTapi-basement-orders"
+               step="any"               name="temp_products.0.height"                data-endpoint="POSTapi-simple-orders"
                value="65"
                data-component="body">
     <br>
@@ -2810,20 +2810,20 @@ Must be one of:
         </div>
         </form>
 
-                    <h2 id="endpoints-PUTapi-basement-orders--id-">Обновить заказ</h2>
+                    <h2 id="endpoints-PUTapi-simple-orders--id-">Обновить заказ</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-PUTapi-basement-orders--id-">
+<span id="example-requests-PUTapi-simple-orders--id-">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/basement/orders/consequatur" \
+    "http://hasap.local/api/simple/orders/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -2869,7 +2869,7 @@ Must be one of:
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/orders/consequatur"
+    "http://hasap.local/api/simple/orders/consequatur"
 );
 
 const headers = {
@@ -2924,45 +2924,45 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-PUTapi-basement-orders--id-">
+<span id="example-responses-PUTapi-simple-orders--id-">
 </span>
-<span id="execution-results-PUTapi-basement-orders--id-" hidden>
+<span id="execution-results-PUTapi-simple-orders--id-" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-PUTapi-basement-orders--id-"></span>:
+                id="execution-response-status-PUTapi-simple-orders--id-"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-PUTapi-basement-orders--id-"
+    <pre class="json"><code id="execution-response-content-PUTapi-simple-orders--id-"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-PUTapi-basement-orders--id-" hidden>
+<span id="execution-error-PUTapi-simple-orders--id-" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-PUTapi-basement-orders--id-">
+    <pre><code id="execution-error-message-PUTapi-simple-orders--id-">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-PUTapi-basement-orders--id-" data-method="PUT"
-      data-path="api/basement/orders/{id}"
+<form id="form-PUTapi-simple-orders--id-" data-method="PUT"
+      data-path="api/simple/orders/{id}"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('PUTapi-basement-orders--id-', this);">
+      onsubmit="event.preventDefault(); executeTryOut('PUTapi-simple-orders--id-', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-PUTapi-basement-orders--id-"
-                    onclick="tryItOut('PUTapi-basement-orders--id-');">Try it out ⚡
+                    id="btn-tryout-PUTapi-simple-orders--id-"
+                    onclick="tryItOut('PUTapi-simple-orders--id-');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-PUTapi-basement-orders--id-"
-                    onclick="cancelTryOut('PUTapi-basement-orders--id-');" hidden>Cancel 🛑
+                    id="btn-canceltryout-PUTapi-simple-orders--id-"
+                    onclick="cancelTryOut('PUTapi-simple-orders--id-');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-PUTapi-basement-orders--id-"
+                    id="btn-executetryout-PUTapi-simple-orders--id-"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -2970,7 +2970,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-darkblue">PUT</small>
-            <b><code>api/basement/orders/{id}</code></b>
+            <b><code>api/simple/orders/{id}</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -2979,7 +2979,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="PUTapi-basement-orders--id-"
+                              name="Content-Type"                data-endpoint="PUTapi-simple-orders--id-"
                value="application/json"
                data-component="header">
     <br>
@@ -2991,7 +2991,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="PUTapi-basement-orders--id-"
+                              name="Accept"                data-endpoint="PUTapi-simple-orders--id-"
                value="application/json"
                data-component="header">
     <br>
@@ -3004,7 +3004,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="id"                data-endpoint="PUTapi-basement-orders--id-"
+                              name="id"                data-endpoint="PUTapi-simple-orders--id-"
                value="consequatur"
                data-component="url">
     <br>
@@ -3017,7 +3017,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="client_id"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="client_id"                data-endpoint="PUTapi-simple-orders--id-"
                value="17"
                data-component="body">
     <br>
@@ -3029,7 +3029,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="project_id"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="project_id"                data-endpoint="PUTapi-simple-orders--id-"
                value="17"
                data-component="body">
     <br>
@@ -3041,7 +3041,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="cash_id"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="cash_id"                data-endpoint="PUTapi-simple-orders--id-"
                value="17"
                data-component="body">
     <br>
@@ -3053,7 +3053,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="warehouse_id"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="warehouse_id"                data-endpoint="PUTapi-simple-orders--id-"
                value="17"
                data-component="body">
     <br>
@@ -3065,7 +3065,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="currency_id"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="currency_id"                data-endpoint="PUTapi-simple-orders--id-"
                value="17"
                data-component="body">
     <br>
@@ -3077,7 +3077,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="category_id"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="category_id"                data-endpoint="PUTapi-simple-orders--id-"
                value="17"
                data-component="body">
     <br>
@@ -3089,7 +3089,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="discount"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="discount"                data-endpoint="PUTapi-simple-orders--id-"
                value="45"
                data-component="body">
     <br>
@@ -3101,7 +3101,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="discount_type"                data-endpoint="PUTapi-basement-orders--id-"
+                              name="discount_type"                data-endpoint="PUTapi-simple-orders--id-"
                value="fixed"
                data-component="body">
     <br>
@@ -3115,7 +3115,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="date"                data-endpoint="PUTapi-basement-orders--id-"
+                              name="date"                data-endpoint="PUTapi-simple-orders--id-"
                value="2026-01-09T18:25:34"
                data-component="body">
     <br>
@@ -3127,7 +3127,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="note"                data-endpoint="PUTapi-basement-orders--id-"
+                              name="note"                data-endpoint="PUTapi-simple-orders--id-"
                value="consequatur"
                data-component="body">
     <br>
@@ -3139,7 +3139,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="description"                data-endpoint="PUTapi-basement-orders--id-"
+                              name="description"                data-endpoint="PUTapi-simple-orders--id-"
                value="Dolores dolorum amet iste laborum eius est dolor."
                data-component="body">
     <br>
@@ -3151,7 +3151,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="status_id"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="status_id"                data-endpoint="PUTapi-simple-orders--id-"
                value="17"
                data-component="body">
     <br>
@@ -3173,7 +3173,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="products.0.id"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="products.0.id"                data-endpoint="PUTapi-simple-orders--id-"
                value="17"
                data-component="body">
     <br>
@@ -3185,7 +3185,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="products.0.product_id"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="products.0.product_id"                data-endpoint="PUTapi-simple-orders--id-"
                value="17"
                data-component="body">
     <br>
@@ -3197,7 +3197,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="products.0.quantity"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="products.0.quantity"                data-endpoint="PUTapi-simple-orders--id-"
                value="45"
                data-component="body">
     <br>
@@ -3209,7 +3209,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="products.0.price"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="products.0.price"                data-endpoint="PUTapi-simple-orders--id-"
                value="56"
                data-component="body">
     <br>
@@ -3221,7 +3221,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="products.0.width"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="products.0.width"                data-endpoint="PUTapi-simple-orders--id-"
                value="16"
                data-component="body">
     <br>
@@ -3233,7 +3233,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="products.0.height"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="products.0.height"                data-endpoint="PUTapi-simple-orders--id-"
                value="50"
                data-component="body">
     <br>
@@ -3257,7 +3257,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="temp_products.0.id"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="temp_products.0.id"                data-endpoint="PUTapi-simple-orders--id-"
                value="17"
                data-component="body">
     <br>
@@ -3269,7 +3269,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="temp_products.0.name"                data-endpoint="PUTapi-basement-orders--id-"
+                              name="temp_products.0.name"                data-endpoint="PUTapi-simple-orders--id-"
                value="mqeopfuudtdsufvyvddqa"
                data-component="body">
     <br>
@@ -3281,7 +3281,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="temp_products.0.description"                data-endpoint="PUTapi-basement-orders--id-"
+                              name="temp_products.0.description"                data-endpoint="PUTapi-simple-orders--id-"
                value="Dolores dolorum amet iste laborum eius est dolor."
                data-component="body">
     <br>
@@ -3293,7 +3293,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="temp_products.0.quantity"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="temp_products.0.quantity"                data-endpoint="PUTapi-simple-orders--id-"
                value="12"
                data-component="body">
     <br>
@@ -3305,7 +3305,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="temp_products.0.price"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="temp_products.0.price"                data-endpoint="PUTapi-simple-orders--id-"
                value="66"
                data-component="body">
     <br>
@@ -3317,7 +3317,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="temp_products.0.unit_id"                data-endpoint="PUTapi-basement-orders--id-"
+                              name="temp_products.0.unit_id"                data-endpoint="PUTapi-simple-orders--id-"
                value=""
                data-component="body">
     <br>
@@ -3329,7 +3329,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="temp_products.0.width"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="temp_products.0.width"                data-endpoint="PUTapi-simple-orders--id-"
                value="13"
                data-component="body">
     <br>
@@ -3341,7 +3341,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="temp_products.0.height"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="temp_products.0.height"                data-endpoint="PUTapi-simple-orders--id-"
                value="65"
                data-component="body">
     <br>
@@ -3355,37 +3355,37 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="remove_temp_products[0]"                data-endpoint="PUTapi-basement-orders--id-"
+               step="any"               name="remove_temp_products[0]"                data-endpoint="PUTapi-simple-orders--id-"
                data-component="body">
         <input type="number" style="display: none"
-               name="remove_temp_products[1]"                data-endpoint="PUTapi-basement-orders--id-"
+               name="remove_temp_products[1]"                data-endpoint="PUTapi-simple-orders--id-"
                data-component="body">
     <br>
 <p>The <code>id</code> of an existing record in the order_temp_products table.</p>
         </div>
         </form>
 
-                    <h2 id="endpoints-DELETEapi-basement-orders--id-">Удалить заказ</h2>
+                    <h2 id="endpoints-DELETEapi-simple-orders--id-">Удалить заказ</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-DELETEapi-basement-orders--id-">
+<span id="example-requests-DELETEapi-simple-orders--id-">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/basement/orders/consequatur" \
+    "http://hasap.local/api/simple/orders/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/orders/consequatur"
+    "http://hasap.local/api/simple/orders/consequatur"
 );
 
 const headers = {
@@ -3400,45 +3400,45 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-DELETEapi-basement-orders--id-">
+<span id="example-responses-DELETEapi-simple-orders--id-">
 </span>
-<span id="execution-results-DELETEapi-basement-orders--id-" hidden>
+<span id="execution-results-DELETEapi-simple-orders--id-" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-DELETEapi-basement-orders--id-"></span>:
+                id="execution-response-status-DELETEapi-simple-orders--id-"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-DELETEapi-basement-orders--id-"
+    <pre class="json"><code id="execution-response-content-DELETEapi-simple-orders--id-"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-DELETEapi-basement-orders--id-" hidden>
+<span id="execution-error-DELETEapi-simple-orders--id-" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-DELETEapi-basement-orders--id-">
+    <pre><code id="execution-error-message-DELETEapi-simple-orders--id-">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-DELETEapi-basement-orders--id-" data-method="DELETE"
-      data-path="api/basement/orders/{id}"
+<form id="form-DELETEapi-simple-orders--id-" data-method="DELETE"
+      data-path="api/simple/orders/{id}"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('DELETEapi-basement-orders--id-', this);">
+      onsubmit="event.preventDefault(); executeTryOut('DELETEapi-simple-orders--id-', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-DELETEapi-basement-orders--id-"
-                    onclick="tryItOut('DELETEapi-basement-orders--id-');">Try it out ⚡
+                    id="btn-tryout-DELETEapi-simple-orders--id-"
+                    onclick="tryItOut('DELETEapi-simple-orders--id-');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-DELETEapi-basement-orders--id-"
-                    onclick="cancelTryOut('DELETEapi-basement-orders--id-');" hidden>Cancel 🛑
+                    id="btn-canceltryout-DELETEapi-simple-orders--id-"
+                    onclick="cancelTryOut('DELETEapi-simple-orders--id-');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-DELETEapi-basement-orders--id-"
+                    id="btn-executetryout-DELETEapi-simple-orders--id-"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -3446,7 +3446,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-red">DELETE</small>
-            <b><code>api/basement/orders/{id}</code></b>
+            <b><code>api/simple/orders/{id}</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -3455,7 +3455,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="DELETEapi-basement-orders--id-"
+                              name="Content-Type"                data-endpoint="DELETEapi-simple-orders--id-"
                value="application/json"
                data-component="header">
     <br>
@@ -3467,7 +3467,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="DELETEapi-basement-orders--id-"
+                              name="Accept"                data-endpoint="DELETEapi-simple-orders--id-"
                value="application/json"
                data-component="header">
     <br>
@@ -3480,7 +3480,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="id"                data-endpoint="DELETEapi-basement-orders--id-"
+                              name="id"                data-endpoint="DELETEapi-simple-orders--id-"
                value="consequatur"
                data-component="url">
     <br>
@@ -3488,27 +3488,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                     </form>
 
-                    <h2 id="endpoints-GETapi-basement-order_statuses">Получить список статусов заказов с пагинацией</h2>
+                    <h2 id="endpoints-GETapi-simple-order_statuses">Получить список статусов заказов с пагинацией</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-order_statuses">
+<span id="example-requests-GETapi-simple-order_statuses">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/order_statuses" \
+    --get "http://hasap.local/api/simple/order_statuses" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/order_statuses"
+    "http://hasap.local/api/simple/order_statuses"
 );
 
 const headers = {
@@ -3523,7 +3523,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-order_statuses">
+<span id="example-responses-GETapi-simple-order_statuses">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -3541,43 +3541,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-order_statuses" hidden>
+<span id="execution-results-GETapi-simple-order_statuses" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-order_statuses"></span>:
+                id="execution-response-status-GETapi-simple-order_statuses"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-order_statuses"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-order_statuses"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-order_statuses" hidden>
+<span id="execution-error-GETapi-simple-order_statuses" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-order_statuses">
+    <pre><code id="execution-error-message-GETapi-simple-order_statuses">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-order_statuses" data-method="GET"
-      data-path="api/basement/order_statuses"
+<form id="form-GETapi-simple-order_statuses" data-method="GET"
+      data-path="api/simple/order_statuses"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-order_statuses', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-order_statuses', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-order_statuses"
-                    onclick="tryItOut('GETapi-basement-order_statuses');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-order_statuses"
+                    onclick="tryItOut('GETapi-simple-order_statuses');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-order_statuses"
-                    onclick="cancelTryOut('GETapi-basement-order_statuses');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-order_statuses"
+                    onclick="cancelTryOut('GETapi-simple-order_statuses');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-order_statuses"
+                    id="btn-executetryout-GETapi-simple-order_statuses"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -3585,7 +3585,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/order_statuses</code></b>
+            <b><code>api/simple/order_statuses</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -3594,7 +3594,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-order_statuses"
+                              name="Content-Type"                data-endpoint="GETapi-simple-order_statuses"
                value="application/json"
                data-component="header">
     <br>
@@ -3606,7 +3606,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-order_statuses"
+                              name="Accept"                data-endpoint="GETapi-simple-order_statuses"
                value="application/json"
                data-component="header">
     <br>
@@ -3614,27 +3614,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-order_statuses-all">Получить все статусы заказов</h2>
+                    <h2 id="endpoints-GETapi-simple-order_statuses-all">Получить все статусы заказов</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-order_statuses-all">
+<span id="example-requests-GETapi-simple-order_statuses-all">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/order_statuses/all" \
+    --get "http://hasap.local/api/simple/order_statuses/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/order_statuses/all"
+    "http://hasap.local/api/simple/order_statuses/all"
 );
 
 const headers = {
@@ -3649,7 +3649,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-order_statuses-all">
+<span id="example-responses-GETapi-simple-order_statuses-all">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -3667,43 +3667,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-order_statuses-all" hidden>
+<span id="execution-results-GETapi-simple-order_statuses-all" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-order_statuses-all"></span>:
+                id="execution-response-status-GETapi-simple-order_statuses-all"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-order_statuses-all"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-order_statuses-all"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-order_statuses-all" hidden>
+<span id="execution-error-GETapi-simple-order_statuses-all" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-order_statuses-all">
+    <pre><code id="execution-error-message-GETapi-simple-order_statuses-all">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-order_statuses-all" data-method="GET"
-      data-path="api/basement/order_statuses/all"
+<form id="form-GETapi-simple-order_statuses-all" data-method="GET"
+      data-path="api/simple/order_statuses/all"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-order_statuses-all', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-order_statuses-all', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-order_statuses-all"
-                    onclick="tryItOut('GETapi-basement-order_statuses-all');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-order_statuses-all"
+                    onclick="tryItOut('GETapi-simple-order_statuses-all');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-order_statuses-all"
-                    onclick="cancelTryOut('GETapi-basement-order_statuses-all');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-order_statuses-all"
+                    onclick="cancelTryOut('GETapi-simple-order_statuses-all');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-order_statuses-all"
+                    id="btn-executetryout-GETapi-simple-order_statuses-all"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -3711,7 +3711,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/order_statuses/all</code></b>
+            <b><code>api/simple/order_statuses/all</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -3720,7 +3720,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-order_statuses-all"
+                              name="Content-Type"                data-endpoint="GETapi-simple-order_statuses-all"
                value="application/json"
                data-component="header">
     <br>
@@ -3732,7 +3732,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-order_statuses-all"
+                              name="Accept"                data-endpoint="GETapi-simple-order_statuses-all"
                value="application/json"
                data-component="header">
     <br>
@@ -3740,27 +3740,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-clients">Получить список клиентов с пагинацией</h2>
+                    <h2 id="endpoints-GETapi-simple-clients">Получить список клиентов с пагинацией</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-clients">
+<span id="example-requests-GETapi-simple-clients">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/clients" \
+    --get "http://hasap.local/api/simple/clients" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/clients"
+    "http://hasap.local/api/simple/clients"
 );
 
 const headers = {
@@ -3775,7 +3775,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-clients">
+<span id="example-responses-GETapi-simple-clients">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -3793,43 +3793,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-clients" hidden>
+<span id="execution-results-GETapi-simple-clients" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-clients"></span>:
+                id="execution-response-status-GETapi-simple-clients"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-clients"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-clients"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-clients" hidden>
+<span id="execution-error-GETapi-simple-clients" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-clients">
+    <pre><code id="execution-error-message-GETapi-simple-clients">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-clients" data-method="GET"
-      data-path="api/basement/clients"
+<form id="form-GETapi-simple-clients" data-method="GET"
+      data-path="api/simple/clients"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-clients', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-clients', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-clients"
-                    onclick="tryItOut('GETapi-basement-clients');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-clients"
+                    onclick="tryItOut('GETapi-simple-clients');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-clients"
-                    onclick="cancelTryOut('GETapi-basement-clients');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-clients"
+                    onclick="cancelTryOut('GETapi-simple-clients');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-clients"
+                    id="btn-executetryout-GETapi-simple-clients"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -3837,7 +3837,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/clients</code></b>
+            <b><code>api/simple/clients</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -3846,7 +3846,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-clients"
+                              name="Content-Type"                data-endpoint="GETapi-simple-clients"
                value="application/json"
                data-component="header">
     <br>
@@ -3858,7 +3858,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-clients"
+                              name="Accept"                data-endpoint="GETapi-simple-clients"
                value="application/json"
                data-component="header">
     <br>
@@ -3866,27 +3866,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-clients-all">Получить всех клиентов</h2>
+                    <h2 id="endpoints-GETapi-simple-clients-all">Получить всех клиентов</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-clients-all">
+<span id="example-requests-GETapi-simple-clients-all">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/clients/all" \
+    --get "http://hasap.local/api/simple/clients/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/clients/all"
+    "http://hasap.local/api/simple/clients/all"
 );
 
 const headers = {
@@ -3901,7 +3901,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-clients-all">
+<span id="example-responses-GETapi-simple-clients-all">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -3919,43 +3919,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-clients-all" hidden>
+<span id="execution-results-GETapi-simple-clients-all" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-clients-all"></span>:
+                id="execution-response-status-GETapi-simple-clients-all"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-clients-all"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-clients-all"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-clients-all" hidden>
+<span id="execution-error-GETapi-simple-clients-all" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-clients-all">
+    <pre><code id="execution-error-message-GETapi-simple-clients-all">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-clients-all" data-method="GET"
-      data-path="api/basement/clients/all"
+<form id="form-GETapi-simple-clients-all" data-method="GET"
+      data-path="api/simple/clients/all"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-clients-all', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-clients-all', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-clients-all"
-                    onclick="tryItOut('GETapi-basement-clients-all');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-clients-all"
+                    onclick="tryItOut('GETapi-simple-clients-all');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-clients-all"
-                    onclick="cancelTryOut('GETapi-basement-clients-all');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-clients-all"
+                    onclick="cancelTryOut('GETapi-simple-clients-all');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-clients-all"
+                    id="btn-executetryout-GETapi-simple-clients-all"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -3963,7 +3963,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/clients/all</code></b>
+            <b><code>api/simple/clients/all</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -3972,7 +3972,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-clients-all"
+                              name="Content-Type"                data-endpoint="GETapi-simple-clients-all"
                value="application/json"
                data-component="header">
     <br>
@@ -3984,7 +3984,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-clients-all"
+                              name="Accept"                data-endpoint="GETapi-simple-clients-all"
                value="application/json"
                data-component="header">
     <br>
@@ -3992,27 +3992,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-clients-search">Поиск клиентов</h2>
+                    <h2 id="endpoints-GETapi-simple-clients-search">Поиск клиентов</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-clients-search">
+<span id="example-requests-GETapi-simple-clients-search">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/clients/search" \
+    --get "http://hasap.local/api/simple/clients/search" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/clients/search"
+    "http://hasap.local/api/simple/clients/search"
 );
 
 const headers = {
@@ -4027,7 +4027,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-clients-search">
+<span id="example-responses-GETapi-simple-clients-search">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -4045,43 +4045,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-clients-search" hidden>
+<span id="execution-results-GETapi-simple-clients-search" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-clients-search"></span>:
+                id="execution-response-status-GETapi-simple-clients-search"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-clients-search"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-clients-search"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-clients-search" hidden>
+<span id="execution-error-GETapi-simple-clients-search" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-clients-search">
+    <pre><code id="execution-error-message-GETapi-simple-clients-search">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-clients-search" data-method="GET"
-      data-path="api/basement/clients/search"
+<form id="form-GETapi-simple-clients-search" data-method="GET"
+      data-path="api/simple/clients/search"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-clients-search', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-clients-search', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-clients-search"
-                    onclick="tryItOut('GETapi-basement-clients-search');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-clients-search"
+                    onclick="tryItOut('GETapi-simple-clients-search');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-clients-search"
-                    onclick="cancelTryOut('GETapi-basement-clients-search');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-clients-search"
+                    onclick="cancelTryOut('GETapi-simple-clients-search');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-clients-search"
+                    id="btn-executetryout-GETapi-simple-clients-search"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -4089,7 +4089,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/clients/search</code></b>
+            <b><code>api/simple/clients/search</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -4098,7 +4098,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-clients-search"
+                              name="Content-Type"                data-endpoint="GETapi-simple-clients-search"
                value="application/json"
                data-component="header">
     <br>
@@ -4110,7 +4110,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-clients-search"
+                              name="Accept"                data-endpoint="GETapi-simple-clients-search"
                value="application/json"
                data-component="header">
     <br>
@@ -4118,27 +4118,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-clients--id-">Получить клиента по ID</h2>
+                    <h2 id="endpoints-GETapi-simple-clients--id-">Получить клиента по ID</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-clients--id-">
+<span id="example-requests-GETapi-simple-clients--id-">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/clients/consequatur" \
+    --get "http://hasap.local/api/simple/clients/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/clients/consequatur"
+    "http://hasap.local/api/simple/clients/consequatur"
 );
 
 const headers = {
@@ -4153,7 +4153,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-clients--id-">
+<span id="example-responses-GETapi-simple-clients--id-">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -4171,43 +4171,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-clients--id-" hidden>
+<span id="execution-results-GETapi-simple-clients--id-" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-clients--id-"></span>:
+                id="execution-response-status-GETapi-simple-clients--id-"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-clients--id-"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-clients--id-"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-clients--id-" hidden>
+<span id="execution-error-GETapi-simple-clients--id-" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-clients--id-">
+    <pre><code id="execution-error-message-GETapi-simple-clients--id-">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-clients--id-" data-method="GET"
-      data-path="api/basement/clients/{id}"
+<form id="form-GETapi-simple-clients--id-" data-method="GET"
+      data-path="api/simple/clients/{id}"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-clients--id-', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-clients--id-', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-clients--id-"
-                    onclick="tryItOut('GETapi-basement-clients--id-');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-clients--id-"
+                    onclick="tryItOut('GETapi-simple-clients--id-');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-clients--id-"
-                    onclick="cancelTryOut('GETapi-basement-clients--id-');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-clients--id-"
+                    onclick="cancelTryOut('GETapi-simple-clients--id-');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-clients--id-"
+                    id="btn-executetryout-GETapi-simple-clients--id-"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -4215,7 +4215,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/clients/{id}</code></b>
+            <b><code>api/simple/clients/{id}</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -4224,7 +4224,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-clients--id-"
+                              name="Content-Type"                data-endpoint="GETapi-simple-clients--id-"
                value="application/json"
                data-component="header">
     <br>
@@ -4236,7 +4236,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-clients--id-"
+                              name="Accept"                data-endpoint="GETapi-simple-clients--id-"
                value="application/json"
                data-component="header">
     <br>
@@ -4249,7 +4249,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="id"                data-endpoint="GETapi-basement-clients--id-"
+                              name="id"                data-endpoint="GETapi-simple-clients--id-"
                value="consequatur"
                data-component="url">
     <br>
@@ -4257,20 +4257,20 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                     </form>
 
-                    <h2 id="endpoints-POSTapi-basement-clients">Создать нового клиента</h2>
+                    <h2 id="endpoints-POSTapi-simple-clients">Создать нового клиента</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-POSTapi-basement-clients">
+<span id="example-requests-POSTapi-simple-clients">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/basement/clients" \
+    "http://hasap.local/api/simple/clients" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -4299,7 +4299,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/clients"
+    "http://hasap.local/api/simple/clients"
 );
 
 const headers = {
@@ -4337,45 +4337,45 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-POSTapi-basement-clients">
+<span id="example-responses-POSTapi-simple-clients">
 </span>
-<span id="execution-results-POSTapi-basement-clients" hidden>
+<span id="execution-results-POSTapi-simple-clients" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-POSTapi-basement-clients"></span>:
+                id="execution-response-status-POSTapi-simple-clients"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-POSTapi-basement-clients"
+    <pre class="json"><code id="execution-response-content-POSTapi-simple-clients"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-POSTapi-basement-clients" hidden>
+<span id="execution-error-POSTapi-simple-clients" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-POSTapi-basement-clients">
+    <pre><code id="execution-error-message-POSTapi-simple-clients">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-POSTapi-basement-clients" data-method="POST"
-      data-path="api/basement/clients"
+<form id="form-POSTapi-simple-clients" data-method="POST"
+      data-path="api/simple/clients"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('POSTapi-basement-clients', this);">
+      onsubmit="event.preventDefault(); executeTryOut('POSTapi-simple-clients', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-POSTapi-basement-clients"
-                    onclick="tryItOut('POSTapi-basement-clients');">Try it out ⚡
+                    id="btn-tryout-POSTapi-simple-clients"
+                    onclick="tryItOut('POSTapi-simple-clients');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-POSTapi-basement-clients"
-                    onclick="cancelTryOut('POSTapi-basement-clients');" hidden>Cancel 🛑
+                    id="btn-canceltryout-POSTapi-simple-clients"
+                    onclick="cancelTryOut('POSTapi-simple-clients');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-POSTapi-basement-clients"
+                    id="btn-executetryout-POSTapi-simple-clients"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -4383,7 +4383,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-black">POST</small>
-            <b><code>api/basement/clients</code></b>
+            <b><code>api/simple/clients</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -4392,7 +4392,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="POSTapi-basement-clients"
+                              name="Content-Type"                data-endpoint="POSTapi-simple-clients"
                value="application/json"
                data-component="header">
     <br>
@@ -4404,7 +4404,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="POSTapi-basement-clients"
+                              name="Accept"                data-endpoint="POSTapi-simple-clients"
                value="application/json"
                data-component="header">
     <br>
@@ -4417,7 +4417,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="first_name"                data-endpoint="POSTapi-basement-clients"
+                              name="first_name"                data-endpoint="POSTapi-simple-clients"
                value="consequatur"
                data-component="body">
     <br>
@@ -4428,17 +4428,17 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <small>boolean</small>&nbsp;
 <i>optional</i> &nbsp;
  &nbsp;
-                <label data-endpoint="POSTapi-basement-clients" style="display: none">
+                <label data-endpoint="POSTapi-simple-clients" style="display: none">
             <input type="radio" name="is_conflict"
                    value="true"
-                   data-endpoint="POSTapi-basement-clients"
+                   data-endpoint="POSTapi-simple-clients"
                    data-component="body"             >
             <code>true</code>
         </label>
-        <label data-endpoint="POSTapi-basement-clients" style="display: none">
+        <label data-endpoint="POSTapi-simple-clients" style="display: none">
             <input type="radio" name="is_conflict"
                    value="false"
-                   data-endpoint="POSTapi-basement-clients"
+                   data-endpoint="POSTapi-simple-clients"
                    data-component="body"             >
             <code>false</code>
         </label>
@@ -4450,17 +4450,17 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <small>boolean</small>&nbsp;
 <i>optional</i> &nbsp;
  &nbsp;
-                <label data-endpoint="POSTapi-basement-clients" style="display: none">
+                <label data-endpoint="POSTapi-simple-clients" style="display: none">
             <input type="radio" name="is_supplier"
                    value="true"
-                   data-endpoint="POSTapi-basement-clients"
+                   data-endpoint="POSTapi-simple-clients"
                    data-component="body"             >
             <code>true</code>
         </label>
-        <label data-endpoint="POSTapi-basement-clients" style="display: none">
+        <label data-endpoint="POSTapi-simple-clients" style="display: none">
             <input type="radio" name="is_supplier"
                    value="false"
-                   data-endpoint="POSTapi-basement-clients"
+                   data-endpoint="POSTapi-simple-clients"
                    data-component="body"             >
             <code>false</code>
         </label>
@@ -4473,7 +4473,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="last_name"                data-endpoint="POSTapi-basement-clients"
+                              name="last_name"                data-endpoint="POSTapi-simple-clients"
                value="consequatur"
                data-component="body">
     <br>
@@ -4485,7 +4485,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="patronymic"                data-endpoint="POSTapi-basement-clients"
+                              name="patronymic"                data-endpoint="POSTapi-simple-clients"
                value="consequatur"
                data-component="body">
     <br>
@@ -4497,7 +4497,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="contact_person"                data-endpoint="POSTapi-basement-clients"
+                              name="contact_person"                data-endpoint="POSTapi-simple-clients"
                value="consequatur"
                data-component="body">
     <br>
@@ -4509,7 +4509,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="position"                data-endpoint="POSTapi-basement-clients"
+                              name="position"                data-endpoint="POSTapi-simple-clients"
                value="consequatur"
                data-component="body">
     <br>
@@ -4521,7 +4521,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="client_type"                data-endpoint="POSTapi-basement-clients"
+                              name="client_type"                data-endpoint="POSTapi-simple-clients"
                value="investor"
                data-component="body">
     <br>
@@ -4535,7 +4535,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="employee_id"                data-endpoint="POSTapi-basement-clients"
+                              name="employee_id"                data-endpoint="POSTapi-simple-clients"
                value=""
                data-component="body">
     <br>
@@ -4547,7 +4547,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="address"                data-endpoint="POSTapi-basement-clients"
+                              name="address"                data-endpoint="POSTapi-simple-clients"
                value="consequatur"
                data-component="body">
     <br>
@@ -4559,10 +4559,10 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="phones[0]"                data-endpoint="POSTapi-basement-clients"
+                              name="phones[0]"                data-endpoint="POSTapi-simple-clients"
                data-component="body">
         <input type="text" style="display: none"
-               name="phones[1]"                data-endpoint="POSTapi-basement-clients"
+               name="phones[1]"                data-endpoint="POSTapi-simple-clients"
                data-component="body">
     <br>
 <p>Количество символов в поле value должно быть не менее 6.</p>
@@ -4573,10 +4573,10 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="emails[0]"                data-endpoint="POSTapi-basement-clients"
+                              name="emails[0]"                data-endpoint="POSTapi-simple-clients"
                data-component="body">
         <input type="text" style="display: none"
-               name="emails[1]"                data-endpoint="POSTapi-basement-clients"
+               name="emails[1]"                data-endpoint="POSTapi-simple-clients"
                data-component="body">
     <br>
 <p>Поле value должно быть действительным электронным адресом.</p>
@@ -4587,7 +4587,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="note"                data-endpoint="POSTapi-basement-clients"
+                              name="note"                data-endpoint="POSTapi-simple-clients"
                value="consequatur"
                data-component="body">
     <br>
@@ -4598,17 +4598,17 @@ Must be one of:
 <small>boolean</small>&nbsp;
 <i>optional</i> &nbsp;
  &nbsp;
-                <label data-endpoint="POSTapi-basement-clients" style="display: none">
+                <label data-endpoint="POSTapi-simple-clients" style="display: none">
             <input type="radio" name="status"
                    value="true"
-                   data-endpoint="POSTapi-basement-clients"
+                   data-endpoint="POSTapi-simple-clients"
                    data-component="body"             >
             <code>true</code>
         </label>
-        <label data-endpoint="POSTapi-basement-clients" style="display: none">
+        <label data-endpoint="POSTapi-simple-clients" style="display: none">
             <input type="radio" name="status"
                    value="false"
-                   data-endpoint="POSTapi-basement-clients"
+                   data-endpoint="POSTapi-simple-clients"
                    data-component="body"             >
             <code>false</code>
         </label>
@@ -4621,7 +4621,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="discount"                data-endpoint="POSTapi-basement-clients"
+               step="any"               name="discount"                data-endpoint="POSTapi-simple-clients"
                value="56"
                data-component="body">
     <br>
@@ -4633,7 +4633,7 @@ Must be one of:
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="discount_type"                data-endpoint="POSTapi-basement-clients"
+                              name="discount_type"                data-endpoint="POSTapi-simple-clients"
                value="percent"
                data-component="body">
     <br>
@@ -4643,27 +4643,27 @@ Must be one of:
         </div>
         </form>
 
-                    <h2 id="endpoints-GETapi-basement-products">Получить список товаров с пагинацией</h2>
+                    <h2 id="endpoints-GETapi-simple-products">Получить список товаров с пагинацией</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-products">
+<span id="example-requests-GETapi-simple-products">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/products" \
+    --get "http://hasap.local/api/simple/products" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/products"
+    "http://hasap.local/api/simple/products"
 );
 
 const headers = {
@@ -4678,7 +4678,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-products">
+<span id="example-responses-GETapi-simple-products">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -4696,43 +4696,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-products" hidden>
+<span id="execution-results-GETapi-simple-products" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-products"></span>:
+                id="execution-response-status-GETapi-simple-products"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-products"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-products"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-products" hidden>
+<span id="execution-error-GETapi-simple-products" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-products">
+    <pre><code id="execution-error-message-GETapi-simple-products">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-products" data-method="GET"
-      data-path="api/basement/products"
+<form id="form-GETapi-simple-products" data-method="GET"
+      data-path="api/simple/products"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-products', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-products', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-products"
-                    onclick="tryItOut('GETapi-basement-products');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-products"
+                    onclick="tryItOut('GETapi-simple-products');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-products"
-                    onclick="cancelTryOut('GETapi-basement-products');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-products"
+                    onclick="cancelTryOut('GETapi-simple-products');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-products"
+                    id="btn-executetryout-GETapi-simple-products"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -4740,7 +4740,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/products</code></b>
+            <b><code>api/simple/products</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -4749,7 +4749,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-products"
+                              name="Content-Type"                data-endpoint="GETapi-simple-products"
                value="application/json"
                data-component="header">
     <br>
@@ -4761,7 +4761,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-products"
+                              name="Accept"                data-endpoint="GETapi-simple-products"
                value="application/json"
                data-component="header">
     <br>
@@ -4769,27 +4769,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-services">Получить список услуг с пагинацией</h2>
+                    <h2 id="endpoints-GETapi-simple-services">Получить список услуг с пагинацией</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-services">
+<span id="example-requests-GETapi-simple-services">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/services" \
+    --get "http://hasap.local/api/simple/services" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/services"
+    "http://hasap.local/api/simple/services"
 );
 
 const headers = {
@@ -4804,7 +4804,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-services">
+<span id="example-responses-GETapi-simple-services">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -4822,43 +4822,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-services" hidden>
+<span id="execution-results-GETapi-simple-services" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-services"></span>:
+                id="execution-response-status-GETapi-simple-services"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-services"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-services"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-services" hidden>
+<span id="execution-error-GETapi-simple-services" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-services">
+    <pre><code id="execution-error-message-GETapi-simple-services">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-services" data-method="GET"
-      data-path="api/basement/services"
+<form id="form-GETapi-simple-services" data-method="GET"
+      data-path="api/simple/services"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-services', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-services', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-services"
-                    onclick="tryItOut('GETapi-basement-services');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-services"
+                    onclick="tryItOut('GETapi-simple-services');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-services"
-                    onclick="cancelTryOut('GETapi-basement-services');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-services"
+                    onclick="cancelTryOut('GETapi-simple-services');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-services"
+                    id="btn-executetryout-GETapi-simple-services"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -4866,7 +4866,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/services</code></b>
+            <b><code>api/simple/services</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -4875,7 +4875,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-services"
+                              name="Content-Type"                data-endpoint="GETapi-simple-services"
                value="application/json"
                data-component="header">
     <br>
@@ -4887,7 +4887,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-services"
+                              name="Accept"                data-endpoint="GETapi-simple-services"
                value="application/json"
                data-component="header">
     <br>
@@ -4895,27 +4895,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-products-search">Поиск товаров и услуг</h2>
+                    <h2 id="endpoints-GETapi-simple-products-search">Поиск товаров и услуг</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-products-search">
+<span id="example-requests-GETapi-simple-products-search">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/products/search" \
+    --get "http://hasap.local/api/simple/products/search" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/products/search"
+    "http://hasap.local/api/simple/products/search"
 );
 
 const headers = {
@@ -4930,7 +4930,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-products-search">
+<span id="example-responses-GETapi-simple-products-search">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -4948,43 +4948,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-products-search" hidden>
+<span id="execution-results-GETapi-simple-products-search" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-products-search"></span>:
+                id="execution-response-status-GETapi-simple-products-search"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-products-search"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-products-search"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-products-search" hidden>
+<span id="execution-error-GETapi-simple-products-search" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-products-search">
+    <pre><code id="execution-error-message-GETapi-simple-products-search">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-products-search" data-method="GET"
-      data-path="api/basement/products/search"
+<form id="form-GETapi-simple-products-search" data-method="GET"
+      data-path="api/simple/products/search"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-products-search', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-products-search', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-products-search"
-                    onclick="tryItOut('GETapi-basement-products-search');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-products-search"
+                    onclick="tryItOut('GETapi-simple-products-search');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-products-search"
-                    onclick="cancelTryOut('GETapi-basement-products-search');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-products-search"
+                    onclick="cancelTryOut('GETapi-simple-products-search');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-products-search"
+                    id="btn-executetryout-GETapi-simple-products-search"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -4992,7 +4992,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/products/search</code></b>
+            <b><code>api/simple/products/search</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -5001,7 +5001,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-products-search"
+                              name="Content-Type"                data-endpoint="GETapi-simple-products-search"
                value="application/json"
                data-component="header">
     <br>
@@ -5013,7 +5013,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-products-search"
+                              name="Accept"                data-endpoint="GETapi-simple-products-search"
                value="application/json"
                data-component="header">
     <br>
@@ -5021,27 +5021,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-projects">Получить список проектов с пагинацией</h2>
+                    <h2 id="endpoints-GETapi-simple-projects">Получить список проектов с пагинацией</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-projects">
+<span id="example-requests-GETapi-simple-projects">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/projects" \
+    --get "http://hasap.local/api/simple/projects" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/projects"
+    "http://hasap.local/api/simple/projects"
 );
 
 const headers = {
@@ -5056,7 +5056,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-projects">
+<span id="example-responses-GETapi-simple-projects">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -5074,43 +5074,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-projects" hidden>
+<span id="execution-results-GETapi-simple-projects" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-projects"></span>:
+                id="execution-response-status-GETapi-simple-projects"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-projects"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-projects"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-projects" hidden>
+<span id="execution-error-GETapi-simple-projects" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-projects">
+    <pre><code id="execution-error-message-GETapi-simple-projects">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-projects" data-method="GET"
-      data-path="api/basement/projects"
+<form id="form-GETapi-simple-projects" data-method="GET"
+      data-path="api/simple/projects"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-projects', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-projects', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-projects"
-                    onclick="tryItOut('GETapi-basement-projects');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-projects"
+                    onclick="tryItOut('GETapi-simple-projects');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-projects"
-                    onclick="cancelTryOut('GETapi-basement-projects');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-projects"
+                    onclick="cancelTryOut('GETapi-simple-projects');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-projects"
+                    id="btn-executetryout-GETapi-simple-projects"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -5118,7 +5118,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/projects</code></b>
+            <b><code>api/simple/projects</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -5127,7 +5127,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-projects"
+                              name="Content-Type"                data-endpoint="GETapi-simple-projects"
                value="application/json"
                data-component="header">
     <br>
@@ -5139,7 +5139,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-projects"
+                              name="Accept"                data-endpoint="GETapi-simple-projects"
                value="application/json"
                data-component="header">
     <br>
@@ -5147,27 +5147,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-projects-all">Получить все проекты</h2>
+                    <h2 id="endpoints-GETapi-simple-projects-all">Получить все проекты</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-projects-all">
+<span id="example-requests-GETapi-simple-projects-all">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/projects/all" \
+    --get "http://hasap.local/api/simple/projects/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/projects/all"
+    "http://hasap.local/api/simple/projects/all"
 );
 
 const headers = {
@@ -5182,7 +5182,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-projects-all">
+<span id="example-responses-GETapi-simple-projects-all">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -5200,43 +5200,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-projects-all" hidden>
+<span id="execution-results-GETapi-simple-projects-all" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-projects-all"></span>:
+                id="execution-response-status-GETapi-simple-projects-all"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-projects-all"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-projects-all"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-projects-all" hidden>
+<span id="execution-error-GETapi-simple-projects-all" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-projects-all">
+    <pre><code id="execution-error-message-GETapi-simple-projects-all">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-projects-all" data-method="GET"
-      data-path="api/basement/projects/all"
+<form id="form-GETapi-simple-projects-all" data-method="GET"
+      data-path="api/simple/projects/all"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-projects-all', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-projects-all', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-projects-all"
-                    onclick="tryItOut('GETapi-basement-projects-all');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-projects-all"
+                    onclick="tryItOut('GETapi-simple-projects-all');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-projects-all"
-                    onclick="cancelTryOut('GETapi-basement-projects-all');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-projects-all"
+                    onclick="cancelTryOut('GETapi-simple-projects-all');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-projects-all"
+                    id="btn-executetryout-GETapi-simple-projects-all"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -5244,7 +5244,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/projects/all</code></b>
+            <b><code>api/simple/projects/all</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -5253,7 +5253,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-projects-all"
+                              name="Content-Type"                data-endpoint="GETapi-simple-projects-all"
                value="application/json"
                data-component="header">
     <br>
@@ -5265,7 +5265,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-projects-all"
+                              name="Accept"                data-endpoint="GETapi-simple-projects-all"
                value="application/json"
                data-component="header">
     <br>
@@ -5273,27 +5273,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-projects--id-">Получить проект по ID</h2>
+                    <h2 id="endpoints-GETapi-simple-projects--id-">Получить проект по ID</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-projects--id-">
+<span id="example-requests-GETapi-simple-projects--id-">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/projects/consequatur" \
+    --get "http://hasap.local/api/simple/projects/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/projects/consequatur"
+    "http://hasap.local/api/simple/projects/consequatur"
 );
 
 const headers = {
@@ -5308,7 +5308,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-projects--id-">
+<span id="example-responses-GETapi-simple-projects--id-">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -5326,43 +5326,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-projects--id-" hidden>
+<span id="execution-results-GETapi-simple-projects--id-" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-projects--id-"></span>:
+                id="execution-response-status-GETapi-simple-projects--id-"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-projects--id-"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-projects--id-"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-projects--id-" hidden>
+<span id="execution-error-GETapi-simple-projects--id-" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-projects--id-">
+    <pre><code id="execution-error-message-GETapi-simple-projects--id-">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-projects--id-" data-method="GET"
-      data-path="api/basement/projects/{id}"
+<form id="form-GETapi-simple-projects--id-" data-method="GET"
+      data-path="api/simple/projects/{id}"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-projects--id-', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-projects--id-', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-projects--id-"
-                    onclick="tryItOut('GETapi-basement-projects--id-');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-projects--id-"
+                    onclick="tryItOut('GETapi-simple-projects--id-');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-projects--id-"
-                    onclick="cancelTryOut('GETapi-basement-projects--id-');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-projects--id-"
+                    onclick="cancelTryOut('GETapi-simple-projects--id-');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-projects--id-"
+                    id="btn-executetryout-GETapi-simple-projects--id-"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -5370,7 +5370,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/projects/{id}</code></b>
+            <b><code>api/simple/projects/{id}</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -5379,7 +5379,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-projects--id-"
+                              name="Content-Type"                data-endpoint="GETapi-simple-projects--id-"
                value="application/json"
                data-component="header">
     <br>
@@ -5391,7 +5391,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-projects--id-"
+                              name="Accept"                data-endpoint="GETapi-simple-projects--id-"
                value="application/json"
                data-component="header">
     <br>
@@ -5404,7 +5404,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="id"                data-endpoint="GETapi-basement-projects--id-"
+                              name="id"                data-endpoint="GETapi-simple-projects--id-"
                value="consequatur"
                data-component="url">
     <br>
@@ -5412,27 +5412,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                     </form>
 
-                    <h2 id="endpoints-GETapi-basement-warehouses">Получить список складов с пагинацией</h2>
+                    <h2 id="endpoints-GETapi-simple-warehouses">Получить список складов с пагинацией</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-warehouses">
+<span id="example-requests-GETapi-simple-warehouses">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/warehouses" \
+    --get "http://hasap.local/api/simple/warehouses" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/warehouses"
+    "http://hasap.local/api/simple/warehouses"
 );
 
 const headers = {
@@ -5447,7 +5447,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-warehouses">
+<span id="example-responses-GETapi-simple-warehouses">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -5465,43 +5465,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-warehouses" hidden>
+<span id="execution-results-GETapi-simple-warehouses" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-warehouses"></span>:
+                id="execution-response-status-GETapi-simple-warehouses"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-warehouses"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-warehouses"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-warehouses" hidden>
+<span id="execution-error-GETapi-simple-warehouses" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-warehouses">
+    <pre><code id="execution-error-message-GETapi-simple-warehouses">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-warehouses" data-method="GET"
-      data-path="api/basement/warehouses"
+<form id="form-GETapi-simple-warehouses" data-method="GET"
+      data-path="api/simple/warehouses"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-warehouses', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-warehouses', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-warehouses"
-                    onclick="tryItOut('GETapi-basement-warehouses');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-warehouses"
+                    onclick="tryItOut('GETapi-simple-warehouses');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-warehouses"
-                    onclick="cancelTryOut('GETapi-basement-warehouses');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-warehouses"
+                    onclick="cancelTryOut('GETapi-simple-warehouses');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-warehouses"
+                    id="btn-executetryout-GETapi-simple-warehouses"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -5509,7 +5509,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/warehouses</code></b>
+            <b><code>api/simple/warehouses</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -5518,7 +5518,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-warehouses"
+                              name="Content-Type"                data-endpoint="GETapi-simple-warehouses"
                value="application/json"
                data-component="header">
     <br>
@@ -5530,7 +5530,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-warehouses"
+                              name="Accept"                data-endpoint="GETapi-simple-warehouses"
                value="application/json"
                data-component="header">
     <br>
@@ -5538,27 +5538,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-warehouses-all">Получить все склады</h2>
+                    <h2 id="endpoints-GETapi-simple-warehouses-all">Получить все склады</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-warehouses-all">
+<span id="example-requests-GETapi-simple-warehouses-all">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/warehouses/all" \
+    --get "http://hasap.local/api/simple/warehouses/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/warehouses/all"
+    "http://hasap.local/api/simple/warehouses/all"
 );
 
 const headers = {
@@ -5573,7 +5573,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-warehouses-all">
+<span id="example-responses-GETapi-simple-warehouses-all">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -5591,43 +5591,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-warehouses-all" hidden>
+<span id="execution-results-GETapi-simple-warehouses-all" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-warehouses-all"></span>:
+                id="execution-response-status-GETapi-simple-warehouses-all"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-warehouses-all"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-warehouses-all"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-warehouses-all" hidden>
+<span id="execution-error-GETapi-simple-warehouses-all" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-warehouses-all">
+    <pre><code id="execution-error-message-GETapi-simple-warehouses-all">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-warehouses-all" data-method="GET"
-      data-path="api/basement/warehouses/all"
+<form id="form-GETapi-simple-warehouses-all" data-method="GET"
+      data-path="api/simple/warehouses/all"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-warehouses-all', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-warehouses-all', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-warehouses-all"
-                    onclick="tryItOut('GETapi-basement-warehouses-all');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-warehouses-all"
+                    onclick="tryItOut('GETapi-simple-warehouses-all');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-warehouses-all"
-                    onclick="cancelTryOut('GETapi-basement-warehouses-all');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-warehouses-all"
+                    onclick="cancelTryOut('GETapi-simple-warehouses-all');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-warehouses-all"
+                    id="btn-executetryout-GETapi-simple-warehouses-all"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -5635,7 +5635,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/warehouses/all</code></b>
+            <b><code>api/simple/warehouses/all</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -5644,7 +5644,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-warehouses-all"
+                              name="Content-Type"                data-endpoint="GETapi-simple-warehouses-all"
                value="application/json"
                data-component="header">
     <br>
@@ -5656,7 +5656,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-warehouses-all"
+                              name="Accept"                data-endpoint="GETapi-simple-warehouses-all"
                value="application/json"
                data-component="header">
     <br>
@@ -5664,27 +5664,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-cash_registers">Получить список касс с пагинацией</h2>
+                    <h2 id="endpoints-GETapi-simple-cash_registers">Получить список касс с пагинацией</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-cash_registers">
+<span id="example-requests-GETapi-simple-cash_registers">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/cash_registers" \
+    --get "http://hasap.local/api/simple/cash_registers" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/cash_registers"
+    "http://hasap.local/api/simple/cash_registers"
 );
 
 const headers = {
@@ -5699,7 +5699,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-cash_registers">
+<span id="example-responses-GETapi-simple-cash_registers">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -5717,43 +5717,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-cash_registers" hidden>
+<span id="execution-results-GETapi-simple-cash_registers" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-cash_registers"></span>:
+                id="execution-response-status-GETapi-simple-cash_registers"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-cash_registers"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-cash_registers"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-cash_registers" hidden>
+<span id="execution-error-GETapi-simple-cash_registers" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-cash_registers">
+    <pre><code id="execution-error-message-GETapi-simple-cash_registers">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-cash_registers" data-method="GET"
-      data-path="api/basement/cash_registers"
+<form id="form-GETapi-simple-cash_registers" data-method="GET"
+      data-path="api/simple/cash_registers"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-cash_registers', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-cash_registers', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-cash_registers"
-                    onclick="tryItOut('GETapi-basement-cash_registers');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-cash_registers"
+                    onclick="tryItOut('GETapi-simple-cash_registers');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-cash_registers"
-                    onclick="cancelTryOut('GETapi-basement-cash_registers');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-cash_registers"
+                    onclick="cancelTryOut('GETapi-simple-cash_registers');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-cash_registers"
+                    id="btn-executetryout-GETapi-simple-cash_registers"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -5761,7 +5761,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/cash_registers</code></b>
+            <b><code>api/simple/cash_registers</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -5770,7 +5770,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-cash_registers"
+                              name="Content-Type"                data-endpoint="GETapi-simple-cash_registers"
                value="application/json"
                data-component="header">
     <br>
@@ -5782,7 +5782,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-cash_registers"
+                              name="Accept"                data-endpoint="GETapi-simple-cash_registers"
                value="application/json"
                data-component="header">
     <br>
@@ -5790,27 +5790,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-cash_registers-all">Получить все кассы пользователя</h2>
+                    <h2 id="endpoints-GETapi-simple-cash_registers-all">Получить все кассы пользователя</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-cash_registers-all">
+<span id="example-requests-GETapi-simple-cash_registers-all">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/cash_registers/all" \
+    --get "http://hasap.local/api/simple/cash_registers/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/cash_registers/all"
+    "http://hasap.local/api/simple/cash_registers/all"
 );
 
 const headers = {
@@ -5825,7 +5825,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-cash_registers-all">
+<span id="example-responses-GETapi-simple-cash_registers-all">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -5843,43 +5843,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-cash_registers-all" hidden>
+<span id="execution-results-GETapi-simple-cash_registers-all" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-cash_registers-all"></span>:
+                id="execution-response-status-GETapi-simple-cash_registers-all"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-cash_registers-all"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-cash_registers-all"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-cash_registers-all" hidden>
+<span id="execution-error-GETapi-simple-cash_registers-all" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-cash_registers-all">
+    <pre><code id="execution-error-message-GETapi-simple-cash_registers-all">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-cash_registers-all" data-method="GET"
-      data-path="api/basement/cash_registers/all"
+<form id="form-GETapi-simple-cash_registers-all" data-method="GET"
+      data-path="api/simple/cash_registers/all"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-cash_registers-all', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-cash_registers-all', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-cash_registers-all"
-                    onclick="tryItOut('GETapi-basement-cash_registers-all');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-cash_registers-all"
+                    onclick="tryItOut('GETapi-simple-cash_registers-all');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-cash_registers-all"
-                    onclick="cancelTryOut('GETapi-basement-cash_registers-all');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-cash_registers-all"
+                    onclick="cancelTryOut('GETapi-simple-cash_registers-all');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-cash_registers-all"
+                    id="btn-executetryout-GETapi-simple-cash_registers-all"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -5887,7 +5887,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/cash_registers/all</code></b>
+            <b><code>api/simple/cash_registers/all</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -5896,7 +5896,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-cash_registers-all"
+                              name="Content-Type"                data-endpoint="GETapi-simple-cash_registers-all"
                value="application/json"
                data-component="header">
     <br>
@@ -5908,7 +5908,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-cash_registers-all"
+                              name="Accept"                data-endpoint="GETapi-simple-cash_registers-all"
                value="application/json"
                data-component="header">
     <br>
@@ -5916,27 +5916,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-app-currency">Получить список валют</h2>
+                    <h2 id="endpoints-GETapi-simple-app-currency">Получить список валют</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-app-currency">
+<span id="example-requests-GETapi-simple-app-currency">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/app/currency" \
+    --get "http://hasap.local/api/simple/app/currency" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/app/currency"
+    "http://hasap.local/api/simple/app/currency"
 );
 
 const headers = {
@@ -5951,7 +5951,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-app-currency">
+<span id="example-responses-GETapi-simple-app-currency">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -5969,43 +5969,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-app-currency" hidden>
+<span id="execution-results-GETapi-simple-app-currency" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-app-currency"></span>:
+                id="execution-response-status-GETapi-simple-app-currency"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-app-currency"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-app-currency"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-app-currency" hidden>
+<span id="execution-error-GETapi-simple-app-currency" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-app-currency">
+    <pre><code id="execution-error-message-GETapi-simple-app-currency">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-app-currency" data-method="GET"
-      data-path="api/basement/app/currency"
+<form id="form-GETapi-simple-app-currency" data-method="GET"
+      data-path="api/simple/app/currency"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-app-currency', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-app-currency', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-app-currency"
-                    onclick="tryItOut('GETapi-basement-app-currency');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-app-currency"
+                    onclick="tryItOut('GETapi-simple-app-currency');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-app-currency"
-                    onclick="cancelTryOut('GETapi-basement-app-currency');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-app-currency"
+                    onclick="cancelTryOut('GETapi-simple-app-currency');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-app-currency"
+                    id="btn-executetryout-GETapi-simple-app-currency"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -6013,7 +6013,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/app/currency</code></b>
+            <b><code>api/simple/app/currency</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -6022,7 +6022,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-app-currency"
+                              name="Content-Type"                data-endpoint="GETapi-simple-app-currency"
                value="application/json"
                data-component="header">
     <br>
@@ -6034,7 +6034,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-app-currency"
+                              name="Accept"                data-endpoint="GETapi-simple-app-currency"
                value="application/json"
                data-component="header">
     <br>
@@ -6042,27 +6042,27 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                         </form>
 
-                    <h2 id="endpoints-GETapi-basement-app-units">Получить список единиц измерения</h2>
+                    <h2 id="endpoints-GETapi-simple-app-units">Получить список единиц измерения</h2>
 
 <p>
 </p>
 
 
 
-<span id="example-requests-GETapi-basement-app-units">
+<span id="example-requests-GETapi-simple-app-units">
 <blockquote>Example request:</blockquote>
 
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/basement/app/units" \
+    --get "http://hasap.local/api/simple/app/units" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/basement/app/units"
+    "http://hasap.local/api/simple/app/units"
 );
 
 const headers = {
@@ -6077,7 +6077,7 @@ fetch(url, {
 
 </span>
 
-<span id="example-responses-GETapi-basement-app-units">
+<span id="example-responses-GETapi-simple-app-units">
             <blockquote>
             <p>Example response (401):</p>
         </blockquote>
@@ -6095,43 +6095,43 @@ vary: Origin
 }</code>
  </pre>
     </span>
-<span id="execution-results-GETapi-basement-app-units" hidden>
+<span id="execution-results-GETapi-simple-app-units" hidden>
     <blockquote>Received response<span
-                id="execution-response-status-GETapi-basement-app-units"></span>:
+                id="execution-response-status-GETapi-simple-app-units"></span>:
     </blockquote>
-    <pre class="json"><code id="execution-response-content-GETapi-basement-app-units"
+    <pre class="json"><code id="execution-response-content-GETapi-simple-app-units"
       data-empty-response-text="<Empty response>" style="max-height: 400px;"></code></pre>
 </span>
-<span id="execution-error-GETapi-basement-app-units" hidden>
+<span id="execution-error-GETapi-simple-app-units" hidden>
     <blockquote>Request failed with error:</blockquote>
-    <pre><code id="execution-error-message-GETapi-basement-app-units">
+    <pre><code id="execution-error-message-GETapi-simple-app-units">
 
 Tip: Check that you&#039;re properly connected to the network.
 If you&#039;re a maintainer of ths API, verify that your API is running and you&#039;ve enabled CORS.
 You can check the Dev Tools console for debugging information.</code></pre>
 </span>
-<form id="form-GETapi-basement-app-units" data-method="GET"
-      data-path="api/basement/app/units"
+<form id="form-GETapi-simple-app-units" data-method="GET"
+      data-path="api/simple/app/units"
       data-authed="0"
       data-hasfiles="0"
       data-isarraybody="0"
       autocomplete="off"
-      onsubmit="event.preventDefault(); executeTryOut('GETapi-basement-app-units', this);">
+      onsubmit="event.preventDefault(); executeTryOut('GETapi-simple-app-units', this);">
     <h3>
         Request&nbsp;&nbsp;&nbsp;
                     <button type="button"
                     style="background-color: #8fbcd4; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-tryout-GETapi-basement-app-units"
-                    onclick="tryItOut('GETapi-basement-app-units');">Try it out ⚡
+                    id="btn-tryout-GETapi-simple-app-units"
+                    onclick="tryItOut('GETapi-simple-app-units');">Try it out ⚡
             </button>
             <button type="button"
                     style="background-color: #c97a7e; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-canceltryout-GETapi-basement-app-units"
-                    onclick="cancelTryOut('GETapi-basement-app-units');" hidden>Cancel 🛑
+                    id="btn-canceltryout-GETapi-simple-app-units"
+                    onclick="cancelTryOut('GETapi-simple-app-units');" hidden>Cancel 🛑
             </button>&nbsp;&nbsp;
             <button type="submit"
                     style="background-color: #6ac174; padding: 5px 10px; border-radius: 5px; border-width: thin;"
-                    id="btn-executetryout-GETapi-basement-app-units"
+                    id="btn-executetryout-GETapi-simple-app-units"
                     data-initial-text="Send Request 💥"
                     data-loading-text="⏱ Sending..."
                     hidden>Send Request 💥
@@ -6139,7 +6139,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </h3>
             <p>
             <small class="badge badge-green">GET</small>
-            <b><code>api/basement/app/units</code></b>
+            <b><code>api/simple/app/units</code></b>
         </p>
                 <h4 class="fancy-heading-panel"><b>Headers</b></h4>
                                 <div style="padding-left: 28px; clear: unset;">
@@ -6148,7 +6148,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Content-Type"                data-endpoint="GETapi-basement-app-units"
+                              name="Content-Type"                data-endpoint="GETapi-simple-app-units"
                value="application/json"
                data-component="header">
     <br>
@@ -6160,7 +6160,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
  &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="Accept"                data-endpoint="GETapi-basement-app-units"
+                              name="Accept"                data-endpoint="GETapi-simple-app-units"
                value="application/json"
                data-component="header">
     <br>
@@ -38834,9 +38834,9 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                     </form>
 
-            
 
-        
+
+
     </div>
     <div class="dark-box">
                     <div class="lang-selector">
@@ -38855,7 +38855,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
         return originalFetch.apply(this, args).then(response => {
             // Клонируем ответ для чтения без нарушения оригинального потока
             const clonedResponse = response.clone();
-            
+
             // Проверяем, является ли это запросом к эндпоинту логина
             const url = args[0];
             if (typeof url === 'string' && url.includes('/api/user/login')) {
@@ -38863,21 +38863,21 @@ You can check the Dev Tools console for debugging information.</code></pre>
                     if (data && data.access_token) {
                         // Сохраняем токен в localStorage
                         localStorage.setItem('scribe_access_token', data.access_token);
-                        
+
                         // Обновляем все поля Authorization в форме
                         updateAuthFields(data.access_token);
-                        
+
                         console.log('Access token сохранен автоматически из ответа логина');
                     }
                 }).catch(() => {
                     // Игнорируем ошибки парсинга
                 });
             }
-            
+
             return response;
         });
     };
-    
+
     // Функция для обновления всех полей Authorization
     function updateAuthFields(token) {
         // Ищем все скрытые поля Authorization
@@ -38887,7 +38887,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             // Триггерим событие change для обновления UI
             input.dispatchEvent(new Event('change', { bubbles: true }));
         });
-        
+
         // Также обновляем видимые поля, если они есть
         const visibleAuthInputs = document.querySelectorAll('input[data-component="header"][name="Authorization"]');
         visibleAuthInputs.forEach(input => {
@@ -38895,7 +38895,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
             input.dispatchEvent(new Event('change', { bubbles: true }));
         });
     }
-    
+
     // При загрузке страницы проверяем, есть ли сохраненный токен
     document.addEventListener('DOMContentLoaded', function() {
         const savedToken = localStorage.getItem('scribe_access_token');
@@ -38903,16 +38903,16 @@ You can check the Dev Tools console for debugging information.</code></pre>
             updateAuthFields(savedToken);
         }
     });
-    
+
     // Также перехватываем XMLHttpRequest для совместимости
     const originalXHROpen = XMLHttpRequest.prototype.open;
     const originalXHRSend = XMLHttpRequest.prototype.send;
-    
+
     XMLHttpRequest.prototype.open = function(method, url, ...args) {
         this._url = url;
         return originalXHROpen.apply(this, [method, url, ...args]);
     };
-    
+
     XMLHttpRequest.prototype.send = function(...args) {
         this.addEventListener('load', function() {
             if (this._url && this._url.includes('/api/user/login') && this.status === 200) {

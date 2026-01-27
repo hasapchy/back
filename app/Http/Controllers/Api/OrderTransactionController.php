@@ -43,13 +43,13 @@ class OrderTransactionController extends BaseController
 
         $userId = $this->getAuthenticatedUserIdOrFail();
         $user = $this->requireAuthenticatedUser();
-        
+
         // Проверка прав на обновление заказа
         $resource = $this->getOrderResourceForUser($user);
         if (!$this->canPerformAction($resource, 'update', $order)) {
             return $this->forbiddenResponse('У вас нет прав на редактирование этого заказа');
         }
-        
+
         $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
         if ($cashAccessCheck) {
             return $cashAccessCheck;
@@ -81,13 +81,13 @@ class OrderTransactionController extends BaseController
 
         $this->getAuthenticatedUserIdOrFail();
         $user = $this->requireAuthenticatedUser();
-        
+
         // Проверка прав на обновление заказа
         $resource = $this->getOrderResourceForUser($user);
         if (!$this->canPerformAction($resource, 'update', $order)) {
             return $this->forbiddenResponse('У вас нет прав на редактирование этого заказа');
         }
-        
+
         $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
         if ($cashAccessCheck) {
             return $cashAccessCheck;
@@ -115,13 +115,13 @@ class OrderTransactionController extends BaseController
 
         $this->getAuthenticatedUserIdOrFail();
         $user = $this->requireAuthenticatedUser();
-        
+
         // Проверка прав на просмотр заказа
         $resource = $this->getOrderResourceForUser($user);
         if (!$this->canPerformAction($resource, 'view', $order)) {
             return $this->forbiddenResponse('У вас нет прав на просмотр этого заказа');
         }
-        
+
         $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
         if ($cashAccessCheck) {
             return $cashAccessCheck;
@@ -138,12 +138,12 @@ class OrderTransactionController extends BaseController
      * Получить ресурс для проверки permissions в зависимости от роли пользователя
      *
      * @param User $user Пользователь
-     * @return string Название ресурса ('orders' или 'orders_basement')
+     * @return string Название ресурса ('orders' или 'orders_simple')
      */
     protected function getOrderResourceForUser(User $user): string
     {
-        if ($user->hasRole(config('basement.worker_role'))) {
-            return 'orders_basement';
+        if ($user->hasRole(config('simple.worker_role'))) {
+            return 'orders_simple';
         }
         return 'orders';
     }

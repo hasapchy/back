@@ -149,9 +149,9 @@ class OrdersRepository extends BaseRepository
                     ->select('orders.*', DB::raw('(orders.price - orders.discount) as total_price'));
             }
 
-            $isBasementWorker = $currentUser instanceof User && $currentUser->hasRole(config('basement.worker_role'));
+            $isSimpleWorker = $currentUser instanceof User && $currentUser->hasRole(config('simple.worker_role'));
 
-            if ($isBasementWorker && !$currentUser->is_admin) {
+            if ($isSimpleWorker && !$currentUser->is_admin) {
                 $query->where(function ($q) use ($userUuid) {
                     $q->whereExists(function ($subQuery) use ($userUuid) {
                         $subQuery->select(DB::raw(1))
@@ -310,7 +310,7 @@ class OrdersRepository extends BaseRepository
             $this->applyOwnFilter($unpaidQuery, $orderResource, 'orders', 'user_id', $currentUser);
             $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cash');
 
-            if ($isBasementWorker && !$currentUser->is_admin) {
+            if ($isSimpleWorker && !$currentUser->is_admin) {
                 $unpaidQuery->where(function ($q) use ($userUuid) {
                     $q->whereExists(function ($subQuery) use ($userUuid) {
                         $subQuery->select(DB::raw(1))
@@ -1525,12 +1525,12 @@ class OrdersRepository extends BaseRepository
      * Получить ресурс для проверки permissions в зависимости от роли пользователя
      *
      * @param User|null $user Пользователь
-     * @return string Название ресурса ('orders' или 'orders_basement')
+     * @return string Название ресурса ('orders' или 'orders_simple')
      */
     protected function getOrderResourceForUser(?User $user): string
     {
-        if ($user && $user->hasRole(config('basement.worker_role'))) {
-            return 'orders_basement';
+        if ($user && $user->hasRole(config('simple.worker_role'))) {
+            return 'orders_simple';
         }
         return 'orders';
     }
