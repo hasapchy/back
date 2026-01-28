@@ -45,7 +45,7 @@ class OrderController extends BaseController
         $user = $this->requireAuthenticatedUser();
 
         $resource = $this->getOrderResourceForUser($user);
-        
+
         if (!$this->canPerformAction($resource, 'view')) {
             return $this->forbiddenResponse('У вас нет прав на просмотр заказов');
         }
