@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('news', function (Blueprint $table) {
-            $table->foreignId('user_id')->nullable()->change();
+        Schema::table('client_balances', function (Blueprint $table) {
+            $table->text('note')->nullable()->after('is_default');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('news', function (Blueprint $table) {
-            $table->foreignId('user_id')->nullable(false)->change();
+        Schema::table('client_balances', function (Blueprint $table) {
+            $table->dropColumn('note');
         });
     }
 };

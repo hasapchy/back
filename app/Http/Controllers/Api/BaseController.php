@@ -408,8 +408,35 @@ class BaseController extends BaseRoutingController
     {
         if ($cashId) {
             $cashRegister = \App\Models\CashRegister::find($cashId);
-            if ($cashRegister && !$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
-                return $this->forbiddenResponse('У вас нет прав на эту кассу');
+            if ($cashRegister) {
+                $user = $this->getAuthenticatedUser();
+
+                if ($user && $user->hasRole(config('simple.worker_role'))) {
+                    $hasAccessByAssignment = $cashRegister->users()
+                        ->where('user_id', $user->id)
+                        ->exists();
+
+                    if ($hasAccessByAssignment) {
+                        return null;
+                    }
+
+                    $permissions = $this->getUserPermissions($user);
+                    $hasSimpleOrderPermission = false;
+                    foreach ($permissions as $permission) {
+                        if (str_starts_with($permission, 'orders_simple_')) {
+                            $hasSimpleOrderPermission = true;
+                            break;
+                        }
+                    }
+
+                    if ($hasSimpleOrderPermission) {
+                        return null;
+                    }
+                }
+
+                if (!$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
+                    return $this->forbiddenResponse('У вас нет прав на эту кассу');
+                }
             }
         }
         return null;

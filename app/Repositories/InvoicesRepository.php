@@ -238,6 +238,7 @@ class InvoicesRepository extends BaseRepository
             'orders.category_id',
             'orders.price',
             'orders.discount',
+            'orders.paid_amount',
             DB::raw('(orders.price - orders.discount) as total_price'),
             'orders.date',
             'orders.created_at',
@@ -280,7 +281,34 @@ class InvoicesRepository extends BaseRepository
                 $orderDate = $order->date;
             }
 
+            $totalPrice = (float) ($order->total_price ?? ($order->price - $order->discount));
+            $paidAmount = (float) ($order->paid_amount ?? 0);
+            $unpaidAmount = max(0, $totalPrice - $paidAmount);
+
+            if ($unpaidAmount <= 0) {
+                continue;
+            }
+
+            $orderProductsTotal = 0;
+
             foreach ($order->orderProducts as $orderProduct) {
+                $orderProductsTotal += $orderProduct->quantity * $orderProduct->price;
+            }
+
+            foreach ($order->tempProducts as $tempProduct) {
+                $orderProductsTotal += $tempProduct->quantity * $tempProduct->price;
+            }
+
+            if ($orderProductsTotal <= 0) {
+                continue;
+            }
+
+            $unpaidRatio = min(1, $unpaidAmount / $orderProductsTotal);
+
+            foreach ($order->orderProducts as $orderProduct) {
+                $productTotalPrice = $orderProduct->quantity * $orderProduct->price;
+                $adjustedTotalPrice = $productTotalPrice * $unpaidRatio;
+
                 $products[] = [
                     'product_id' => $orderProduct->product_id,
                     'order_id' => $order->id,
@@ -288,12 +316,15 @@ class InvoicesRepository extends BaseRepository
                     'product_description' => $orderProduct->product->description ?? null,
                     'quantity' => $orderProduct->quantity,
                     'price' => $orderProduct->price,
-                    'total_price' => $orderProduct->quantity * $orderProduct->price,
+                    'total_price' => $adjustedTotalPrice,
                     'unit_id' => $orderProduct->product->unit_id ?? null,
                 ];
             }
 
             foreach ($order->tempProducts as $tempProduct) {
+                $productTotalPrice = $tempProduct->quantity * $tempProduct->price;
+                $adjustedTotalPrice = $productTotalPrice * $unpaidRatio;
+
                 $products[] = [
                     'product_id' => null,
                     'order_id' => $order->id,
@@ -301,7 +332,7 @@ class InvoicesRepository extends BaseRepository
                     'product_description' => $tempProduct->description,
                     'quantity' => $tempProduct->quantity,
                     'price' => $tempProduct->price,
-                    'total_price' => $tempProduct->quantity * $tempProduct->price,
+                    'total_price' => $adjustedTotalPrice,
                     'unit_id' => $tempProduct->unit_id,
                 ];
             }

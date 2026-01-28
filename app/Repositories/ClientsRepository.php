@@ -9,6 +9,7 @@ use App\Models\Currency;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\CacheService;
+use App\Services\ClientBalanceService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -41,6 +42,8 @@ class ClientsRepository extends BaseRepository
                 'emails:id,client_id,email',
                 'user:id,name,photo',
                 'employee:id,name,surname,position,photo',
+                'balances.currency',
+                'defaultBalance.currency',
             ])
                 ->select([
                     'clients.*',
@@ -119,6 +122,8 @@ class ClientsRepository extends BaseRepository
                 'emails:id,client_id,email',
                 'user:id,name,photo',
                 'employee:id,name,surname,position,photo',
+                'balances.currency',
+                'defaultBalance.currency',
             ])
                 ->select([
                     'clients.id',
@@ -261,6 +266,8 @@ class ClientsRepository extends BaseRepository
                 'emails:id,client_id,email',
                 'user:id,name,photo',
                 'employee:id,name,surname,position,photo',
+                'balances.currency',
+                'defaultBalance.currency',
             ])
                 ->select([
                     'clients.*',
@@ -307,13 +314,18 @@ class ClientsRepository extends BaseRepository
             $this->syncPhones($client->id, $data['phones'] ?? []);
             $this->syncEmails($client->id, $data['emails'] ?? []);
 
+            $defaultCurrency = Currency::where('is_default', true)->first();
+            if ($defaultCurrency) {
+                ClientBalanceService::createBalance($client, $defaultCurrency, true);
+            }
+
             return $client;
         });
 
         CacheService::invalidateClientsCache();
         $this->invalidateClientBalanceCache($client->id);
 
-        return $client->load('phones', 'emails', 'user', 'employee');
+        return $client->load('phones', 'emails', 'user', 'employee', 'balances.currency', 'defaultBalance.currency');
     }
 
     /**
@@ -417,18 +429,28 @@ class ClientsRepository extends BaseRepository
      * @param  string|null  $dateTo  Дата окончания периода (формат: Y-m-d)
      * @return array Массив транзакций с описаниями
      */
-    public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null)
+    public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null, $balanceId = null)
     {
         $currentUser = auth('api')->user();
-        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $currentUser?->id]);
+        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $currentUser?->id]);
 
-        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $currentUser) {
+        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $currentUser) {
             try {
                 $defaultCurrency = Currency::where('is_default', true)->first();
                 $defaultCurrencySymbol = $defaultCurrency?->symbol;
 
-                $transactionsQuery = Transaction::where('client_id', $clientId)
+                $clientIdInt = is_string($clientId) ? intval($clientId) : $clientId;
+                
+                $transactionsQuery = Transaction::where('client_id', $clientIdInt)
                     ->where('is_deleted', false);
+
+                if ($balanceId) {
+                    $balance = \App\Models\ClientBalance::find($balanceId);
+                    
+                    if ($balance && $balance->client_id == $clientIdInt) {
+                        $transactionsQuery->where('client_balance_id', $balanceId);
+                    }
+                }
 
                 if ($excludeDebt === true) {
                     $transactionsQuery->where('is_debt', false);
@@ -510,8 +532,9 @@ class ClientsRepository extends BaseRepository
                 $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
                 $transactionsQuery = $transactionsRepository->applySourceTypeFilter($transactionsQuery);
 
-                $transactions = $transactionsQuery->get()
-                    ->flatMap(function ($item) use ($defaultCurrencySymbol) {
+                $transactions = $transactionsQuery->get();
+                
+                $transactions = $transactions->flatMap(function ($item) use ($defaultCurrencySymbol) {
                         $source = 'transaction';
                         if ($item->source_type === 'App\\Models\\Sale') {
                             $source = 'sale';

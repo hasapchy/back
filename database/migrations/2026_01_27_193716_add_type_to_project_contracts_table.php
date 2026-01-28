@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('news', function (Blueprint $table) {
-            $table->foreignId('user_id')->nullable()->change();
+        Schema::table('project_contracts', function (Blueprint $table) {
+            $table->tinyInteger('type')->default(0)->after('number')->comment('Тип контракта: 0 - безналичный, 1 - наличный');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('news', function (Blueprint $table) {
-            $table->foreignId('user_id')->nullable(false)->change();
+        Schema::table('project_contracts', function (Blueprint $table) {
+            $table->dropColumn('type');
         });
     }
 };

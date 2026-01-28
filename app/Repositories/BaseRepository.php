@@ -6,6 +6,7 @@ use App\Models\CashRegister;
 use App\Models\Category;
 use App\Models\CategoryUser;
 use App\Models\Currency;
+use App\Models\User;
 use App\Services\CurrencyConverter;
 use App\Services\RoundingService;
 
@@ -29,25 +30,98 @@ abstract class BaseRepository
      */
     protected function getUserCategoryIds(int $userId): array
     {
-        $categoryIds = CategoryUser::where('user_id', $userId)
-            ->pluck('category_id')
-            ->toArray();
+        $currentUser = auth('api')->user();
+        $isSimpleWorker = false;
+        
+        if ($currentUser instanceof User) {
+            $isSimpleWorker = $currentUser->hasRole(config('simple.worker_role'));
+            
+            if (!$isSimpleWorker) {
+                $permissions = $this->getUserPermissionsForCompany($currentUser);
+                foreach ($permissions as $permission) {
+                    if (str_starts_with($permission, 'orders_simple_')) {
+                        $isSimpleWorker = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        \Log::info('getUserCategoryIds', [
+            'user_id' => $userId,
+            'current_user_id' => $currentUser?->id,
+            'is_simple_worker' => $isSimpleWorker,
+            'has_role' => $currentUser instanceof User ? $currentUser->hasRole(config('simple.worker_role')) : false,
+        ]);
+
+        if ($isSimpleWorker) {
+            $mapping = config('simple.user_category_mapping', []);
+            $mappedCategoryId = $mapping[$userId] ?? null;
+
+            \Log::info('Simple worker category mapping', [
+                'user_id' => $userId,
+                'mapped_category_id' => $mappedCategoryId,
+                'mapping' => $mapping,
+            ]);
+
+            if ($mappedCategoryId) {
+                $categoryIds = $this->getCategoryWithChildrenIds($mappedCategoryId);
+                \Log::info('Using mapped category with children', ['category_ids' => $categoryIds]);
+            } else {
+                $categoryIds = CategoryUser::where('user_id', $userId)
+                    ->pluck('category_id')
+                    ->toArray();
+                \Log::info('Using category_users table', ['category_ids' => $categoryIds]);
+            }
+        } else {
+            $categoryIds = CategoryUser::where('user_id', $userId)
+                ->pluck('category_id')
+                ->toArray();
+            \Log::info('Not simple worker, using category_users', ['category_ids' => $categoryIds]);
+        }
 
         if (empty($categoryIds)) {
+            \Log::info('No category IDs found for user', ['user_id' => $userId]);
             return [];
         }
 
         $companyId = $this->getCurrentCompanyId();
 
         if ($companyId) {
+            $beforeFilter = $categoryIds;
             $categoryIds = Category::where('company_id', $companyId)
                 ->whereIn('id', $categoryIds)
                 ->pluck('id')
                 ->toArray();
+            \Log::info('Filtered by company', [
+                'company_id' => $companyId,
+                'before' => $beforeFilter,
+                'after' => $categoryIds,
+            ]);
         }
 
         $categoryIds = array_values(array_unique($categoryIds));
         sort($categoryIds);
+
+        \Log::info('Final category IDs', ['category_ids' => $categoryIds]);
+
+        return $categoryIds;
+    }
+
+    /**
+     * Получить ID категории и всех её подкатегорий рекурсивно
+     *
+     * @param int $categoryId ID категории
+     * @return array
+     */
+    protected function getCategoryWithChildrenIds(int $categoryId): array
+    {
+        $categoryIds = [$categoryId];
+        $children = Category::where('parent_id', $categoryId)->pluck('id')->toArray();
+
+        foreach ($children as $childId) {
+            $categoryIds = array_merge($categoryIds, $this->getCategoryWithChildrenIds($childId));
+        }
 
         return $categoryIds;
     }

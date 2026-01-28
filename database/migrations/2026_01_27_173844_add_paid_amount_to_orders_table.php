@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('news', function (Blueprint $table) {
-            $table->foreignId('user_id')->nullable()->change();
+        Schema::table('orders', function (Blueprint $table) {
+            $table->decimal('paid_amount', 15, 5)->default(0)->after('discount');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('news', function (Blueprint $table) {
-            $table->foreignId('user_id')->nullable(false)->change();
+        Schema::table('orders', function (Blueprint $table) {
+            $table->dropColumn('paid_amount');
         });
     }
 };

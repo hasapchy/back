@@ -45,6 +45,7 @@ class OrdersRepository extends BaseRepository
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
+        
         $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, 'single', $currentUser?->id, $companyId]);
 
         $searchTrimmed = is_string($search) ? trim($search) : '';
@@ -79,11 +80,17 @@ class OrdersRepository extends BaseRepository
                 ]);
             }
 
+            $orderResource = $this->getOrderResourceForUser($currentUser);
+            $isSimpleWorker = $currentUser instanceof User && 
+                ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
+            
             $query = Order::select([
                 'orders.*',
                 DB::raw('(orders.price - orders.discount) as total_price')
-            ])->with($withRelations)
-                ->where(function ($q) use ($userUuid) {
+            ])->with($withRelations);
+            
+            if (!$isSimpleWorker || $currentUser->is_admin) {
+                $query->where(function ($q) use ($userUuid) {
                     if ($this->shouldApplyUserFilter('cash_registers')) {
                         $q->whereNull('orders.cash_id');
                         $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
@@ -95,8 +102,8 @@ class OrdersRepository extends BaseRepository
                         });
                     }
                 });
+            }
 
-            $orderResource = $this->getOrderResourceForUser($currentUser);
             $this->applyOwnFilter($query, $orderResource, 'orders', 'user_id', $currentUser);
 
             if ($hasSearch) {
@@ -149,18 +156,20 @@ class OrdersRepository extends BaseRepository
                     ->select('orders.*', DB::raw('(orders.price - orders.discount) as total_price'));
             }
 
-            $isBasementWorker = $currentUser instanceof User && $currentUser->hasRole(config('basement.worker_role'));
+            $isSimpleWorker = $currentUser instanceof User && 
+                ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
 
-            if ($isBasementWorker && !$currentUser->is_admin) {
-                $query->where(function ($q) use ($userUuid) {
-                    $q->whereExists(function ($subQuery) use ($userUuid) {
-                        $subQuery->select(DB::raw(1))
-                            ->from('category_users')
-                            ->whereColumn('category_users.category_id', 'orders.category_id')
-                            ->where('category_users.user_id', $userUuid);
-                    })
-                        ->orWhereNull('orders.category_id');
-                });
+            if ($isSimpleWorker && !$currentUser->is_admin) {
+                $userCategoryIds = $this->getUserCategoryIds($userUuid);
+                
+                if (empty($userCategoryIds)) {
+                    $query->whereNull('orders.category_id');
+                } else {
+                    $query->where(function ($q) use ($userCategoryIds) {
+                        $q->whereIn('orders.category_id', $userCategoryIds)
+                            ->orWhereNull('orders.category_id');
+                    });
+                }
             }
 
             $query = $this->addCompanyFilterThroughRelation($query, 'cash');
@@ -264,7 +273,7 @@ class OrdersRepository extends BaseRepository
                     $order->setAttribute('payment_status', 'paid');
                 }
 
-                $order->makeVisible(['paid_amount', 'payment_status']);
+                $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
 
                 return $order;
             });
@@ -291,35 +300,38 @@ class OrdersRepository extends BaseRepository
                     $join->on('orders.id', '=', 'paid_amounts.source_id');
                 }
             )
-            ->whereNull('orders.project_id')
-            ->where(function ($q) use ($userUuid) {
-                if ($this->shouldApplyUserFilter('cash_registers')) {
-                    $q->whereNull('orders.cash_id');
-                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
-                    $q->orWhereExists(function ($subQuery) use ($filterUserId) {
-                        $subQuery->select(DB::raw(1))
-                            ->from('cash_register_users')
-                            ->join('cash_registers', 'cash_register_users.cash_register_id', '=', 'cash_registers.id')
-                            ->whereColumn('cash_registers.id', 'orders.cash_id')
-                            ->where('cash_register_users.user_id', $filterUserId);
-                    });
-                }
-            });
+            ->whereNull('orders.project_id');
+            
+            if (!$isSimpleWorker || $currentUser->is_admin) {
+                $unpaidQuery->where(function ($q) use ($userUuid) {
+                    if ($this->shouldApplyUserFilter('cash_registers')) {
+                        $q->whereNull('orders.cash_id');
+                        $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                        $q->orWhereExists(function ($subQuery) use ($filterUserId) {
+                            $subQuery->select(DB::raw(1))
+                                ->from('cash_register_users')
+                                ->join('cash_registers', 'cash_register_users.cash_register_id', '=', 'cash_registers.id')
+                                ->whereColumn('cash_registers.id', 'orders.cash_id')
+                                ->where('cash_register_users.user_id', $filterUserId);
+                        });
+                    }
+                });
+            }
 
-            $orderResource = $this->getOrderResourceForUser($currentUser);
             $this->applyOwnFilter($unpaidQuery, $orderResource, 'orders', 'user_id', $currentUser);
             $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cash');
 
-            if ($isBasementWorker && !$currentUser->is_admin) {
-                $unpaidQuery->where(function ($q) use ($userUuid) {
-                    $q->whereExists(function ($subQuery) use ($userUuid) {
-                        $subQuery->select(DB::raw(1))
-                            ->from('category_users')
-                            ->whereColumn('category_users.category_id', 'orders.category_id')
-                            ->where('category_users.user_id', $userUuid);
-                    })
-                        ->orWhereNull('orders.category_id');
-                });
+            if ($isSimpleWorker && !$currentUser->is_admin) {
+                $userCategoryIds = $this->getUserCategoryIds($userUuid);
+                
+                if (empty($userCategoryIds)) {
+                    $unpaidQuery->whereNull('orders.category_id');
+                } else {
+                    $unpaidQuery->where(function ($q) use ($userCategoryIds) {
+                        $q->whereIn('orders.category_id', $userCategoryIds)
+                            ->orWhereNull('orders.category_id');
+                    });
+                }
             }
 
             $unpaidResult = $unpaidQuery->first();
@@ -332,10 +344,12 @@ class OrdersRepository extends BaseRepository
 
         // Не кешируем поисковые запросы, чтобы сразу получать актуальные результаты
         if ($hasSearch) {
-            return $buildResult();
+            $result = $buildResult();
+            return $result;
         }
 
-        return CacheService::getPaginatedData($cacheKey, $buildResult, (int)$page);
+        $result = CacheService::getPaginatedData($cacheKey, $buildResult, (int)$page);
+        return $result;
     }
 
     /**
@@ -462,6 +476,7 @@ class OrdersRepository extends BaseRepository
             $totalPrice = (float) ($item->total_price ?? 0);
             $item->paid_amount = $paidAmount;
             $item->payment_status = $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid');
+            $item->payment_status_text = $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $totalPrice ? 'Частично оплачено' : 'Оплачено');
 
             return $item;
         });
@@ -807,7 +822,6 @@ class OrdersRepository extends BaseRepository
 
             $existingProducts = OrderProduct::where('order_id', $id)->get();
             $existingProductsMap = $existingProducts->keyBy('id');
-            $existingProductsByProductId = $existingProducts->groupBy('product_id');
             $processedProductIds = [];
             $productsChanged = false;
 
@@ -844,33 +858,33 @@ class OrdersRepository extends BaseRepository
 
                     $processedProductIds[] = $orderProductId;
                 } else {
-                    $existingByProductId = $existingProductsByProductId->get($cachedProduct['product_id']);
+                    $cachedWidth = $cachedProduct['width'] !== null ? (float)$cachedProduct['width'] : null;
+                    $cachedHeight = $cachedProduct['height'] !== null ? (float)$cachedProduct['height'] : null;
 
-                    if ($existingByProductId && $existingByProductId->isNotEmpty()) {
-                        $existingProduct = $existingByProductId->first();
-
-                        if (!in_array($existingProduct->id, $processedProductIds)) {
-                            $existingWidth = $existingProduct->width !== null ? (float)$existingProduct->width : null;
-                            $existingHeight = $existingProduct->height !== null ? (float)$existingProduct->height : null;
-                            $cachedWidth = $cachedProduct['width'] !== null ? (float)$cachedProduct['width'] : null;
-                            $cachedHeight = $cachedProduct['height'] !== null ? (float)$cachedProduct['height'] : null;
-
-                            $needsUpdate = abs((float)$existingProduct->quantity - (float)$cachedProduct['quantity']) > 0.0001
-                                || abs((float)$existingProduct->price - (float)$cachedProduct['price']) > 0.0001
-                                || $existingWidth !== $cachedWidth
-                                || $existingHeight !== $cachedHeight;
-
-                            if ($needsUpdate) {
-                                $existingProduct->quantity = $cachedProduct['quantity'];
-                                $existingProduct->price = $cachedProduct['price'];
-                                $existingProduct->width = $cachedProduct['width'] ?? null;
-                                $existingProduct->height = $cachedProduct['height'] ?? null;
-                                $existingProduct->save();
-                                $productsChanged = true;
-                            }
-
-                            $processedProductIds[] = $existingProduct->id;
+                    $existingProduct = $existingProducts->first(function ($product) use ($cachedProduct, $cachedWidth, $cachedHeight, $processedProductIds) {
+                        if ($product->product_id != $cachedProduct['product_id']) {
+                            return false;
                         }
+                        if (in_array($product->id, $processedProductIds)) {
+                            return false;
+                        }
+                        $productWidth = $product->width !== null ? (float)$product->width : null;
+                        $productHeight = $product->height !== null ? (float)$product->height : null;
+                        return $productWidth === $cachedWidth && $productHeight === $cachedHeight;
+                    });
+
+                    if ($existingProduct) {
+                        $needsUpdate = abs((float)$existingProduct->quantity - (float)$cachedProduct['quantity']) > 0.0001
+                            || abs((float)$existingProduct->price - (float)$cachedProduct['price']) > 0.0001;
+
+                        if ($needsUpdate) {
+                            $existingProduct->quantity = $cachedProduct['quantity'];
+                            $existingProduct->price = $cachedProduct['price'];
+                            $existingProduct->save();
+                            $productsChanged = true;
+                        }
+
+                        $processedProductIds[] = $existingProduct->id;
                     } else {
                         $newProduct = OrderProduct::create([
                             'order_id' => $id,
@@ -1518,20 +1532,53 @@ class OrdersRepository extends BaseRepository
         $order->setAttribute('payment_status',
             $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid')
         );
-        $order->makeVisible(['paid_amount', 'payment_status']);
+        $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
     }
 
     /**
      * Получить ресурс для проверки permissions в зависимости от роли пользователя
      *
      * @param User|null $user Пользователь
-     * @return string Название ресурса ('orders' или 'orders_basement')
+     * @return string Название ресурса ('orders' или 'orders_simple')
      */
     protected function getOrderResourceForUser(?User $user): string
     {
-        if ($user && $user->hasRole(config('basement.worker_role'))) {
-            return 'orders_basement';
+        if (!$user) {
+            return 'orders';
         }
+
+        if ($user->hasRole(config('simple.worker_role'))) {
+            return 'orders_simple';
+        }
+
+        $permissions = $this->getUserPermissionsForCompany($user);
+        foreach ($permissions as $permission) {
+            if (str_starts_with($permission, 'orders_simple_')) {
+                return 'orders_simple';
+            }
+        }
+
         return 'orders';
+    }
+
+    /**
+     * Обновить оплаченную сумму заказа на основе транзакций
+     *
+     * @param int $orderId ID заказа
+     * @return void
+     */
+    public function updateOrderPaidAmount($orderId): void
+    {
+        $paidAmount = Transaction::where('source_type', 'App\Models\Order')
+            ->where('source_id', $orderId)
+            ->where('is_debt', 0)
+            ->where('is_deleted', false)
+            ->sum('orig_amount');
+
+        Order::where('id', $orderId)->update([
+            'paid_amount' => (float) $paidAmount
+        ]);
+
+        CacheService::invalidateOrdersCache();
     }
 }

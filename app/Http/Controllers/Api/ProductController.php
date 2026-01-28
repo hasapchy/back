@@ -42,7 +42,7 @@ class ProductController extends BaseController
         $per_page = $request->query('per_page', 20);
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
-        $categoryId = $this->normalizeCategoryIdForBasementWorker($request->query('category_id'));
+        $categoryId = $this->normalizeCategoryIdForSimpleWorker($request->query('category_id'));
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, true, $page, $warehouseId, $search, $categoryId);
 
@@ -62,7 +62,7 @@ class ProductController extends BaseController
         $search = $request->query('search');
         $productsOnly = $request->query('products_only');
         $warehouseId = $request->query('warehouse_id');
-        $categoryId = $this->normalizeCategoryIdForBasementWorker($request->query('category_id'));
+        $categoryId = $this->normalizeCategoryIdForSimpleWorker($request->query('category_id'));
 
         $items = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId);
 
@@ -105,7 +105,7 @@ class ProductController extends BaseController
         $per_page = $request->query('per_page', 20);
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
-        $categoryId = $this->normalizeCategoryIdForBasementWorker($request->query('category_id'));
+        $categoryId = $this->normalizeCategoryIdForSimpleWorker($request->query('category_id'));
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, false, $page, $warehouseId, $search, $categoryId);
 
@@ -193,17 +193,18 @@ class ProductController extends BaseController
     }
 
     /**
-     * Нормализует categoryId для basement workers
-     * Для basement workers всегда возвращает null, чтобы использовать все доступные категории
+     * Нормализует categoryId для simple workers
+     * Для simple workers возвращает null, чтобы фильтрация происходила через getUserCategoryIds
+     * который учитывает маппинг из конфига и подкатегории
      *
      * @param mixed $categoryId
      * @return int|null
      */
-    protected function normalizeCategoryIdForBasementWorker($categoryId)
+    protected function normalizeCategoryIdForSimpleWorker($categoryId)
     {
         $user = auth('api')->user();
-        $isBasementWorker = $user instanceof User && $user->hasRole(config('basement.worker_role'));
+        $isSimpleWorker = $user instanceof User && $user->hasRole(config('simple.worker_role'));
 
-        return $isBasementWorker ? null : $categoryId;
+        return $isSimpleWorker ? null : $categoryId;
     }
 }

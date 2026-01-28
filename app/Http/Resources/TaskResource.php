@@ -51,14 +51,20 @@ class TaskResource extends JsonResource
                 return [
                     'id' => $this->supervisor->id,
                     'name' => $this->supervisor->name,
+                    'surname' => $this->supervisor->surname,
                     'email' => $this->supervisor->email,
+                    'position' => $this->supervisor->position,
+                    'photo' => $this->supervisor->photo,
                 ];
             }),
             'executor' => $this->whenLoaded('executor', function () {
                 return [
                     'id' => $this->executor->id,
                     'name' => $this->executor->name,
+                    'surname' => $this->executor->surname,
                     'email' => $this->executor->email,
+                    'position' => $this->executor->position,
+                    'photo' => $this->executor->photo,
                 ];
             }),
             'project' => $this->whenLoaded('project', function () {

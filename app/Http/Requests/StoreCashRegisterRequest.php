@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class StoreCashRegisterRequest extends FormRequest
@@ -31,6 +32,25 @@ class StoreCashRegisterRequest extends FormRequest
             'currency_id' => 'nullable|exists:currencies,id',
             'users' => 'required|array|min:1',
             'users.*' => 'exists:users,id',
+            'is_cash' => 'nullable|boolean',
+            'icon' => ['nullable', 'string', 'max:100', Rule::in($this->allowedIcons())],
+        ];
+    }
+
+    private function allowedIcons(): array
+    {
+        return [
+            'fa-solid fa-building-columns',
+            'fa-solid fa-ticket',
+            'fa-solid fa-location-dot',
+            'fa-solid fa-fire',
+            'fa-solid fa-thumbs-up',
+            'fa-solid fa-dollar-sign',
+            'fa-solid fa-cash-register',
+            'fa-solid fa-credit-card',
+            'fa-solid fa-briefcase',
+            'fa-solid fa-user',
+            'fa-solid fa-star',
         ];
     }
 

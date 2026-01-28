@@ -31,16 +31,22 @@ class StoreOrderRequest extends FormRequest
     public function rules(): array
     {
         $user = auth('api')->user();
-        $isBasementWorker = $user instanceof User && $user->hasRole(config('basement.worker_role'));
+        $isSimpleWorker = $user instanceof User && $user->hasRole(config('simple.worker_role'));
 
         return [
-            'client_id'            => ['required', 'integer', new ClientAccessRule()],
-            'project_id'           => ['nullable', 'integer', new ProjectAccessRule()],
-            'cash_id'              => ['nullable', 'integer', new CashRegisterAccessRule()],
+            'client_id'            => $isSimpleWorker
+                ? ['required', 'integer', 'exists:clients,id']
+                : ['required', 'integer', new ClientAccessRule()],
+            'project_id'           => $isSimpleWorker
+                ? ['nullable', 'integer', 'exists:projects,id']
+                : ['nullable', 'integer', new ProjectAccessRule()],
+            'cash_id'              => $isSimpleWorker
+                ? ['nullable', 'integer', 'exists:cash_registers,id']
+                : ['nullable', 'integer', new CashRegisterAccessRule()],
             'warehouse_id'         => ['required', 'integer', new WarehouseAccessRule()],
             'currency_id'          => 'nullable|integer|exists:currencies,id',
-            'category_id'          => $isBasementWorker 
-                ? 'nullable|integer|exists:categories,id' 
+            'category_id'          => $isSimpleWorker
+                ? 'nullable|integer|exists:categories,id'
                 : 'required|integer|exists:categories,id',
             'discount'             => 'nullable|numeric|min:0',
             'discount_type'        => 'nullable|in:fixed,percent|required_with:discount',

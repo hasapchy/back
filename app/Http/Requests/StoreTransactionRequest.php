@@ -36,6 +36,7 @@ class StoreTransactionRequest extends FormRequest
             'category_id' => 'required|exists:transaction_categories,id',
             'project_id' => ['nullable', 'sometimes', new ProjectAccessRule()],
             'client_id' => ['nullable', 'sometimes', new ClientAccessRule()],
+            'client_balance_id' => 'nullable|integer|exists:client_balances,id',
             'order_id' => 'nullable|integer|exists:orders,id',
             'source_type' => 'nullable|string',
             'source_id' => 'nullable|integer',

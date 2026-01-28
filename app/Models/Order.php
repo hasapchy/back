@@ -23,6 +23,7 @@ use App\Services\CacheService;
  * @property int|null $order_id ID родительского заказа
  * @property float $price Цена заказа
  * @property float $discount Скидка
+ * @property float $paid_amount Оплаченная сумма
  * @property int|null $cash_id ID кассы
  * @property int|null $warehouse_id ID склада
  * @property int|null $project_id ID проекта
@@ -43,6 +44,7 @@ use App\Services\CacheService;
  * @property-read \App\Models\Project|null $project
  * @property-read \App\Models\Company|null $company
  * @property-read \App\Models\Category|null $category
+ * @property-read string $payment_status_text Текст статуса оплаты на русском языке
  */
 class Order extends Model
 {
@@ -57,6 +59,7 @@ class Order extends Model
         'date',
         'price',
         'discount',
+        'paid_amount',
         'cash_id',
         'warehouse_id',
         'project_id',
@@ -127,6 +130,7 @@ class Order extends Model
     protected $casts = [
         'price' => 'decimal:5',
         'discount' => 'decimal:5',
+        'paid_amount' => 'decimal:5',
         'client_id' => 'integer',
         'project_id' => 'integer',
     ];
@@ -325,5 +329,24 @@ class Order extends Model
             return $query->whereDate('date', $date);
         }
         return $query;
+    }
+
+    /**
+     * Получить текст статуса оплаты на русском языке
+     *
+     * @return string
+     */
+    public function getPaymentStatusTextAttribute(): string
+    {
+        $paidAmount = (float) ($this->paid_amount ?? 0);
+        $totalPrice = (float) ($this->price - $this->discount);
+
+        if ($paidAmount <= 0) {
+            return 'Не оплачено';
+        } elseif ($paidAmount < $totalPrice) {
+            return 'Частично оплачено';
+        } else {
+            return 'Оплачено';
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Currency;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ClientResource extends JsonResource
@@ -11,10 +12,13 @@ class ClientResource extends JsonResource
      */
     public function toArray($request): array
     {
+        $defaultBalance = $this->defaultBalance;
+        $balances = $this->balances ?? collect();
+
         return [
             'id' => $this->id,
             'client_type' => $this->client_type,
-            'balance' => $this->balance,
+            'balance' => $defaultBalance ? (float) $defaultBalance->balance : (float) ($this->balance ?? 0),
             'is_supplier' => (bool)$this->is_supplier,
             'is_conflict' => (bool)$this->is_conflict,
             'first_name' => $this->first_name,
@@ -46,7 +50,21 @@ class ClientResource extends JsonResource
                 'id' => $phone->id,
                 'phone' => $phone->phone,
             ])->all(),
-            'currency_symbol' => $this->currency_symbol ?? null,
+            'balances' => $balances->map(fn($balance) => [
+                'id' => $balance->id,
+                'currency_id' => $balance->currency_id,
+                'currency' => [
+                    'id' => $balance->currency->id,
+                    'code' => $balance->currency->code,
+                    'symbol' => $balance->currency->symbol,
+                    'name' => $balance->currency->name,
+                ],
+                'balance' => (float) $balance->balance,
+                'is_default' => $balance->is_default,
+                'note' => $balance->note,
+            ])->all(),
+            'currency_symbol' => $defaultBalance?->currency->symbol 
+                ?? Currency::where('is_default', true)->value('symbol'),
         ];
     }
 }

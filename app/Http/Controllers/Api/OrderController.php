@@ -44,8 +44,8 @@ class OrderController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $user = $this->requireAuthenticatedUser();
 
-        // Проверка прав на просмотр заказов
         $resource = $this->getOrderResourceForUser($user);
+        
         if (!$this->canPerformAction($resource, 'view')) {
             return $this->forbiddenResponse('У вас нет прав на просмотр заказов');
         }
@@ -87,7 +87,7 @@ class OrderController extends BaseController
 
         $validatedData = $request->validated();
 
-        $categoryId = $this->resolveCategoryForBasementWorker($validatedData['category_id'] ?? null, $userUuid);
+        $categoryId = $this->resolveCategoryForSimpleWorker($validatedData['category_id'] ?? null, $userUuid);
         if ($categoryId instanceof \Illuminate\Http\JsonResponse) {
             return $categoryId;
         }
@@ -177,7 +177,7 @@ class OrderController extends BaseController
 
         $validatedData = $request->validated();
 
-        $categoryId = $this->resolveCategoryForBasementWorker($validatedData['category_id'] ?? null, $userUuid);
+        $categoryId = $this->resolveCategoryForSimpleWorker($validatedData['category_id'] ?? null, $userUuid);
         if ($categoryId instanceof \Illuminate\Http\JsonResponse) {
             return $categoryId;
         }
@@ -373,16 +373,28 @@ class OrderController extends BaseController
     }
 
     /**
-     * Разрешить категорию для basement worker
+     * Разрешить категорию для simple worker
      *
      * @param int|null $categoryId ID категории
      * @param int $userUuid ID пользователя
      * @return int|\Illuminate\Http\JsonResponse
      */
-    protected function resolveCategoryForBasementWorker(?int $categoryId, int $userUuid)
+    protected function resolveCategoryForSimpleWorker(?int $categoryId, int $userUuid)
     {
         $user = auth('api')->user();
-        if (!($user instanceof User && $user->hasRole(config('basement.worker_role')))) {
+        if (!($user instanceof User && $user->hasRole(config('simple.worker_role')))) {
+            return $categoryId;
+        }
+
+        $mapping = config('simple.user_category_mapping', []);
+        $mappedCategoryId = $mapping[$userUuid] ?? null;
+
+        if ($mappedCategoryId) {
+            if (!$categoryId) {
+                $categoryId = $mappedCategoryId;
+            } elseif ($categoryId != $mappedCategoryId) {
+                return $this->forbiddenResponse('У вас нет доступа к указанной категории');
+            }
             return $categoryId;
         }
 
@@ -399,7 +411,6 @@ class OrderController extends BaseController
         }
 
         if (!$categoryId) {
-            // Выбираем первую доступную категорию из назначенных пользователю
             $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
 
             if (!$categoryId) {
@@ -416,13 +427,22 @@ class OrderController extends BaseController
      * Получить ресурс для проверки permissions в зависимости от роли пользователя
      *
      * @param User $user Пользователь
-     * @return string Название ресурса ('orders' или 'orders_basement')
+     * @return string Название ресурса ('orders' или 'orders_simple')
      */
     protected function getOrderResourceForUser(User $user): string
     {
-        if ($user->hasRole(config('basement.worker_role'))) {
-            return 'orders_basement';
+        if ($user->hasRole(config('simple.worker_role'))) {
+            return 'orders_simple';
         }
+
+        $permissions = $this->getUserPermissions($user);
+
+        foreach ($permissions as $permission) {
+            if (str_starts_with($permission, 'orders_simple_')) {
+                return 'orders_simple';
+            }
+        }
+
         return 'orders';
     }
 }

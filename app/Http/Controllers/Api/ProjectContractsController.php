@@ -96,17 +96,19 @@ class ProjectContractsController extends BaseController
             $page = (int) $request->get('page', 1);
             $search = $request->get('search');
             $projectId = $request->get('project_id');
-            
+
             $isPaid = $request->has('is_paid') ? $request->boolean('is_paid') : null;
             $returned = $request->has('returned') ? $request->boolean('returned') : null;
+            $cashId = $request->get('cash_id') ? (int) $request->get('cash_id') : null;
+            $type = $request->has('type') ? (int) $request->get('type') : null;
 
             $user = $this->getAuthenticatedUser();
             $hasViewAll = $user && ($user->is_admin || $this->hasPermission('contracts_view_all', $user));
-            
+
             if (!$hasViewAll && $this->hasPermission('contracts_view_own', $user)) {
-                $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $user->id, $isPaid, $returned);
+                $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $user->id, $isPaid, $returned, $cashId, $type);
             } else {
-                $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $isPaid, $returned);
+                $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $isPaid, $returned, $cashId, $type);
             }
 
             return $this->paginatedResponse($result);
@@ -141,7 +143,7 @@ class ProjectContractsController extends BaseController
 
             return response()->json([
                 'message' => 'Контракт успешно создан',
-                'item' => $contract->load(['currency', 'project'])
+                'item' => $contract->load(['currency', 'project', 'cashRegister'])
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
@@ -199,10 +201,12 @@ class ProjectContractsController extends BaseController
 
             return response()->json([
                 'message' => 'Контракт успешно обновлен',
-                'item' => $contract->load(['currency', 'project'])
+                'item' => $contract->load(['currency', 'project', 'cashRegister'])
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
+        } catch (\DomainException $e) {
+            return $this->errorResponse($e->getMessage(), 422);
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при обновлении контракта: ' . $e->getMessage(), 500);
         }
