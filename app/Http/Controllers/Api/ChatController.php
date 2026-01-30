@@ -330,12 +330,15 @@ class ChatController extends BaseController
             return response()->json(['message' => 'Target chat does not belong to this company'], 403);
         }
 
+        $hideSenderName = $request->boolean('hide_sender_name');
+
         $forwardedMessage = $this->chatService->forwardMessage(
             $companyId,
             $user,
             $chat,
             $message,
-            $targetChat
+            $targetChat,
+            $hideSenderName
         );
 
         return (new ChatMessageResource($forwardedMessage->load(['user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])))->response()->setStatusCode(201);

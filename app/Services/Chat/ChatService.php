@@ -410,6 +410,11 @@ class ChatService
             abort(422, 'Message does not belong to this chat');
         }
 
+        // Редактирование разрешено только в течение 72 часов после создания
+        if ($message->created_at && now()->diffInHours($message->created_at) > 72) {
+            abort(422, 'Message can only be edited within 72 hours of creation');
+        }
+
         $updatedMessage = $this->messages->updateMessage((int) $message->id, (int) $user->id, $body);
         $updatedMessage->load(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo']);
 
@@ -451,7 +456,7 @@ class ChatService
                     try {
                         \Illuminate\Support\Facades\Storage::delete($file['path']);
                     } catch (\Exception $e) {
-                        \Log::error('Failed to delete attached file on message delete', [
+                        Log::error('Failed to delete attached file on message delete', [
                             'message_id' => $message->id,
                             'file_path' => $file['path'],
                             'error' => $e->getMessage(),
@@ -465,7 +470,7 @@ class ChatService
         try {
             event(new MessageDeleted($message, (int) $chat->company_id, (int) $chat->id));
         } catch (\Exception $e) {
-            \Log::error('Failed to broadcast MessageDeleted event', [
+            Log::error('Failed to broadcast MessageDeleted event', [
                 'message_id' => $message->id,
                 'chat_id' => $chat->id,
                 'error' => $e->getMessage(),
@@ -479,7 +484,8 @@ class ChatService
         User $user,
         Chat $sourceChat,
         ChatMessage $message,
-        Chat $targetChat
+        Chat $targetChat,
+        bool $hideSenderName = false
     ): ChatMessage {
         if ((int) $sourceChat->company_id !== $companyId || (int) $targetChat->company_id !== $companyId) {
             abort(403, 'Forbidden');
@@ -494,14 +500,16 @@ class ChatService
             abort(403, 'You are not a participant of the target chat');
         }
 
-        // Create forwarded message
+        // При скрытии отправителя создаём сообщение без ссылки на оригинал — выглядит как своё
+        $forwardedFromMessageId = $hideSenderName ? null : (int) $message->id;
+
         $forwardedMessage = $this->messages->createMessage(
             (int) $targetChat->id,
             (int) $user->id,
             $message->body,
             $message->files,
             null,
-            (int) $message->id
+            $forwardedFromMessageId
         );
 
         $forwardedMessage->load(['user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo']);
