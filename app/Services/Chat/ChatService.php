@@ -6,8 +6,10 @@ use App\Events\ChatReadUpdated;
 use App\Events\MessageSent;
 use App\Events\MessageUpdated;
 use App\Events\MessageDeleted;
+use App\Events\MessageReactionUpdated;
 use App\Models\Chat;
 use App\Models\ChatMessage;
+use App\Models\MessageReaction;
 use App\Models\User;
 use App\Repositories\Chat\ChatMessageRepository;
 use App\Repositories\Chat\ChatParticipantRepository;
@@ -560,6 +562,89 @@ class ChatService
             $directChat->direct_key = $newDirectKey;
             $directChat->save();
         }
+    }
+
+    /**
+     * Установить или снять реакцию на сообщение (один эмодзи на пользователя).
+     * @param string|null $emoji Один эмодзи (например "👍") или null чтобы снять реакцию.
+     */
+    public function setReaction(int $companyId, User $user, Chat $chat, ChatMessage $message, ?string $emoji): array
+    {
+        if ((int) $chat->company_id !== $companyId) {
+            abort(403, 'Forbidden');
+        }
+        if ((int) $message->chat_id !== (int) $chat->id) {
+            abort(422, 'Message does not belong to this chat');
+        }
+        if (!$this->participants->isParticipant((int) $chat->id, (int) $user->id)) {
+            abort(403, 'You are not a participant of this chat');
+        }
+
+        $userId = (int) $user->id;
+        $messageId = (int) $message->id;
+
+        if ($emoji === null || $emoji === '') {
+            MessageReaction::query()
+                ->where('message_id', $messageId)
+                ->where('user_id', $userId)
+                ->delete();
+        } else {
+            $emoji = mb_substr(trim($emoji), 0, 16);
+            if ($emoji === '') {
+                MessageReaction::query()
+                    ->where('message_id', $messageId)
+                    ->where('user_id', $userId)
+                    ->delete();
+            } else {
+                // Toggle: если у пользователя уже эта реакция — снять; иначе поставить/заменить
+                $existing = MessageReaction::query()
+                    ->where('message_id', $messageId)
+                    ->where('user_id', $userId)
+                    ->where('emoji', $emoji)
+                    ->first();
+                if ($existing) {
+                    $existing->delete();
+                } else {
+                    MessageReaction::query()->updateOrInsert(
+                        ['message_id' => $messageId, 'user_id' => $userId],
+                        ['emoji' => $emoji, 'updated_at' => now()]
+                    );
+                }
+            }
+        }
+
+        $reactions = $this->formatReactionsForMessage($messageId);
+
+        try {
+            event(new MessageReactionUpdated($message->fresh(), $reactions));
+        } catch (\Exception $e) {
+            Log::error('Failed to broadcast MessageReactionUpdated', [
+                'message_id' => $messageId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $reactions;
+    }
+
+    /** Формат реакций для API: [{ emoji, user_id }]. */
+    protected function formatReactionsForMessage(int $messageId): array
+    {
+        return MessageReaction::query()
+            ->where('message_id', $messageId)
+            ->with('user:id,name,surname')
+            ->get()
+            ->map(fn (MessageReaction $r) => [
+                'emoji' => $r->emoji,
+                'user_id' => (int) $r->user_id,
+                'user' => $r->relationLoaded('user') ? [
+                    'id' => (int) $r->user->id,
+                    'name' => $r->user->name,
+                    'surname' => $r->user->surname ?? null,
+                ] : null,
+            ])
+            ->values()
+            ->all();
     }
 
     public function deleteChat(int $companyId, User $user, Chat $chat): void

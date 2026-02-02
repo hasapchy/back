@@ -49,4 +49,9 @@ class ChatMessage extends Model
     {
         return $this->belongsTo(User::class, 'deleted_by');
     }
+
+    public function reactions(): HasMany
+    {
+        return $this->hasMany(MessageReaction::class, 'message_id');
+    }
 }

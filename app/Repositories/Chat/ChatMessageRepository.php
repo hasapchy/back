@@ -134,7 +134,7 @@ class ChatMessageRepository
     public function updateMessage(int $messageId, int $userId, string $body): ChatMessage
     {
         $message = ChatMessage::query()->findOrFail($messageId);
-        
+
         if ((int) $message->user_id !== $userId) {
             abort(403, 'You can only edit your own messages');
         }
@@ -151,7 +151,7 @@ class ChatMessageRepository
     public function deleteMessage(int $messageId, int $userId): bool
     {
         $message = ChatMessage::query()->findOrFail($messageId);
-        
+
         if ((int) $message->user_id !== $userId) {
             abort(403, 'You can only delete your own messages');
         }
