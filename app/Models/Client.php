@@ -202,14 +202,14 @@ class Client extends Model
     public function getDefaultBalance()
     {
         $defaultBalance = $this->defaultBalance;
-        
+
         if (!$defaultBalance) {
             $defaultCurrency = Currency::where('is_default', true)->first();
             if ($defaultCurrency) {
                 return $this->getBalanceForCurrency($defaultCurrency->id);
             }
         }
-        
+
         return $defaultBalance;
     }
 }

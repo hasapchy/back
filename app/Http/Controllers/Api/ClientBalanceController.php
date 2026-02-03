@@ -23,11 +23,11 @@ class ClientBalanceController extends BaseController
     {
         try {
             $client = Client::findOrFail($clientId);
-            
+
             if (!$this->canPerformAction('clients', 'view', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на просмотр балансов этого клиента');
             }
-            
+
             $balances = $client->balances()->with('currency')->get();
 
             $balancesData = $balances->map(function ($balance) {
@@ -70,11 +70,11 @@ class ClientBalanceController extends BaseController
             ]);
 
             $client = Client::findOrFail($clientId);
-            
+
             if (!$this->canPerformAction('clients', 'update', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
             }
-            
+
             $currency = Currency::findOrFail($validated['currency_id']);
 
             $isDefault = $validated['is_default'] ?? false;
@@ -134,7 +134,7 @@ class ClientBalanceController extends BaseController
             $balance = ClientBalance::where('client_id', $clientId)
                 ->with('currency')
                 ->findOrFail($id);
-            
+
             $client = $balance->client;
             if (!$this->canPerformAction('clients', 'update', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
@@ -208,7 +208,7 @@ class ClientBalanceController extends BaseController
         try {
             $balance = ClientBalance::where('client_id', $clientId)
                 ->findOrFail($id);
-            
+
             $client = $balance->client;
             if (!$this->canPerformAction('clients', 'delete', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на удаление балансов этого клиента');

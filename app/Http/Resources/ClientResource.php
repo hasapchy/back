@@ -63,7 +63,7 @@ class ClientResource extends JsonResource
                 'is_default' => $balance->is_default,
                 'note' => $balance->note,
             ])->all(),
-            'currency_symbol' => $defaultBalance?->currency->symbol 
+            'currency_symbol' => $defaultBalance?->currency->symbol
                 ?? Currency::where('is_default', true)->value('symbol'),
         ];
     }

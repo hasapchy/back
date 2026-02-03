@@ -136,7 +136,7 @@ class TransactionsController extends BaseController
             'type' => $validatedData['type'],
             'orig_amount' => $validatedData['orig_amount'],
         ]);
-        
+
         $item_created = $this->itemsRepository->createItem([
             'type' => $validatedData['type'],
             'user_id' => $userUuid,
@@ -343,7 +343,7 @@ class TransactionsController extends BaseController
     public function show($id)
     {
         $this->getAuthenticatedUserIdOrFail();
-        
+
         $transaction = Transaction::findOrFail($id);
 
         if (!$this->canPerformAction('transactions', 'view', $transaction)) {

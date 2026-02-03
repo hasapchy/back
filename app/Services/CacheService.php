@@ -25,7 +25,7 @@ class CacheService
     public static function remember(string $key, callable $callback, ?int $ttl = null)
     {
         $ttl = $ttl ?? self::CACHE_TTL['reference_data'];
-        
+
         $hasCache = Cache::has($key);
 
         if ($hasCache) {

@@ -30,27 +30,27 @@ class LinkTransactionsToClientBalances extends Command
     public function handle()
     {
         $dryRun = $this->option('dry-run');
-        
+
         if ($dryRun) {
             $this->info('DRY RUN MODE - No changes will be made');
         }
-        
+
         $this->info('Starting to link transactions to client balances...');
-        
+
         $transactions = Transaction::whereNotNull('client_id')
             ->whereNull('client_balance_id')
             ->with(['client', 'currency'])
             ->get();
-        
+
         $this->info("Found {$transactions->count()} transactions to process");
-        
+
         $bar = $this->output->createProgressBar($transactions->count());
         $bar->start();
-        
+
         $linked = 0;
         $skipped = 0;
         $errors = 0;
-        
+
         foreach ($transactions as $transaction) {
             try {
                 if (!$transaction->client || !$transaction->currency) {
@@ -58,24 +58,24 @@ class LinkTransactionsToClientBalances extends Command
                     $bar->advance();
                     continue;
                 }
-                
+
                 $balance = ClientBalance::where('client_id', $transaction->client_id)
                     ->where('currency_id', $transaction->currency_id)
                     ->where('is_default', true)
                     ->first();
-                
+
                 if (!$balance) {
                     $balance = ClientBalance::where('client_id', $transaction->client_id)
                         ->where('currency_id', $transaction->currency_id)
                         ->orderBy('id', 'asc')
                         ->first();
                 }
-                
+
                 if (!$balance) {
                     $defaultBalance = ClientBalance::where('client_id', $transaction->client_id)
                         ->where('is_default', true)
                         ->first();
-                    
+
                     if ($defaultBalance) {
                         if ($defaultBalance->currency_id === $transaction->currency_id) {
                             $balance = $defaultBalance;
@@ -86,7 +86,7 @@ class LinkTransactionsToClientBalances extends Command
                             }
                         }
                     }
-                    
+
                     if (!$balance) {
                         $firstBalance = ClientBalance::where('client_id', $transaction->client_id)
                             ->orderBy('id', 'asc')
@@ -96,7 +96,7 @@ class LinkTransactionsToClientBalances extends Command
                         }
                     }
                 }
-                
+
                 if ($balance) {
                     if (!$dryRun) {
                         $transaction->client_balance_id = $balance->id;
@@ -114,22 +114,22 @@ class LinkTransactionsToClientBalances extends Command
                 $this->newLine();
                 $this->error("Error processing transaction {$transaction->id}: " . $e->getMessage());
             }
-            
+
             $bar->advance();
         }
-        
+
         $bar->finish();
         $this->newLine();
-        
+
         $this->info("Completed!");
         $this->info("Linked: {$linked}");
         $this->info("Skipped: {$skipped}");
         $this->info("Errors: {$errors}");
-        
+
         if ($dryRun) {
             $this->warn('This was a dry run. Run without --dry-run to apply changes.');
         }
-        
+
         return Command::SUCCESS;
     }
 }
