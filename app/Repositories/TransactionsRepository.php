@@ -484,12 +484,12 @@ class TransactionsRepository extends BaseRepository
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->setSkipCashBalanceUpdate(true);
             $transaction->save();
-            
+
             if (! $skipClientUpdate && ! empty($data['client_id']) && ! $skipForOrderProject) {
                 $client = Client::find($data['client_id']);
                 if ($client) {
                     $balanceId = null;
-                    
+
                     Log::info('Transaction client balance update', [
                         'transaction_id' => $transaction->id ?? 'new',
                         'client_id' => $data['client_id'],
@@ -500,11 +500,11 @@ class TransactionsRepository extends BaseRepository
                         'type' => $data['type'],
                         'is_debt' => $data['is_debt'] ?? false,
                     ]);
-                    
+
                     if (!empty($data['client_balance_id'])) {
                         $balanceId = (int) $data['client_balance_id'];
                         $clientBalance = \App\Models\ClientBalance::lockForUpdate()->find($balanceId);
-                        
+
                         Log::info('Using specific client balance', [
                             'balance_id' => $balanceId,
                             'balance_found' => $clientBalance !== null,
@@ -513,12 +513,12 @@ class TransactionsRepository extends BaseRepository
                             'balance_currency_id' => $clientBalance->currency_id ?? null,
                             'transaction_currency_id' => $fromCurrency->id,
                         ]);
-                        
+
                         if ($clientBalance && $clientBalance->client_id == $client->id) {
                             $balanceCurrency = $clientBalance->currency;
                             if ($balanceCurrency) {
                                 $delta = 0;
-                                
+
                                 if ($balanceCurrency->id === $fromCurrency->id) {
                                     $amountToUse = $originalAmount;
                                     Log::info('Balance currency matches transaction currency, no conversion needed');
@@ -548,15 +548,15 @@ class TransactionsRepository extends BaseRepository
                                         Log::warning('Default currency not found, using original amount');
                                     }
                                 }
-                                
+
                                 $sign = (bool) ($data['is_debt'] ?? false)
                                     ? ($data['type'] == 1 ? 1 : -1)
                                     : ($data['type'] == 1 ? -1 : 1);
-                                
+
                                 $delta = $sign * $amountToUse;
                                 $oldBalance = $clientBalance->balance;
                                 $clientBalance->increment('balance', $delta);
-                                
+
                                 Log::info('Updated specific client balance', [
                                     'balance_id' => $balanceId,
                                     'old_balance' => $oldBalance,
@@ -586,16 +586,16 @@ class TransactionsRepository extends BaseRepository
                             $data['exchange_rate'] ?? null,
                             $toCurrency
                         );
-                        
+
                         Log::info('Updated balance using default logic', [
                             'balance_id' => $balanceId,
                         ]);
                     }
-                    
+
                     if ($balanceId) {
                         $transaction->client_balance_id = $balanceId;
                         $transaction->save();
-                        
+
                         Log::info('Transaction client_balance_id set', [
                             'transaction_id' => $transaction->id,
                             'client_balance_id' => $balanceId,
@@ -605,7 +605,7 @@ class TransactionsRepository extends BaseRepository
                             'client_id' => $data['client_id'],
                         ]);
                     }
-                    
+
                     CacheService::invalidateClientsCache();
                     $this->invalidateClientBalanceCache($data['client_id']);
                     CacheService::invalidateProjectsCache();
@@ -1081,7 +1081,7 @@ class TransactionsRepository extends BaseRepository
                         if ($clientBalance && $clientBalance->client_id == $client->id) {
                             $balanceCurrency = $clientBalance->currency;
                             $amountToUse = $transaction->orig_amount;
-                            
+
                             if ($balanceCurrency->id !== $fromCurrency->id) {
                                 $defaultCurrency = Currency::where('is_default', true)->first();
                                 $convertedAmount = CurrencyConverter::convert(
@@ -1097,11 +1097,11 @@ class TransactionsRepository extends BaseRepository
                                 $roundingService = new RoundingService;
                                 $amountToUse = $roundingService->roundForCompany($companyId, $convertedAmount);
                             }
-                            
+
                             $sign = (bool) $transaction->is_debt
                                 ? ($transaction->type == 1 ? -1 : 1)
                                 : ($transaction->type == 1 ? 1 : -1);
-                            
+
                             $clientBalance->increment('balance', $sign * $amountToUse);
                         }
                     } else {

@@ -45,11 +45,11 @@ class BalanceService
         $companyId = $client->company_id;
         $transactionDate = $transaction->created_at ? $transaction->created_at->toDateString() : null;
         $cashCurrency = $transaction->cashRegister ? $transaction->cashRegister->currency : null;
-        
+
         if ($transaction->client_balance_id) {
             return;
         }
-        
+
         $balanceId = ClientBalanceService::updateBalance(
             $client,
             $currency,
@@ -61,7 +61,7 @@ class BalanceService
             $transaction->exchange_rate,
             $cashCurrency
         );
-        
+
         if ($balanceId) {
             $transaction->client_balance_id = $balanceId;
             $transaction->save();
@@ -106,7 +106,7 @@ class BalanceService
         $companyId = $client->company_id;
         $transactionDate = $transaction->created_at ? $transaction->created_at->toDateString() : null;
         $cashCurrency = $transaction->cashRegister ? $transaction->cashRegister->currency : null;
-        
+
         $originalAmount = $transaction->getOriginal('orig_amount');
         $originalCurrency = Currency::find($transaction->getOriginal('currency_id'));
         $originalType = $transaction->getOriginal('type');
@@ -121,7 +121,7 @@ class BalanceService
             if ($oldClient && $originalCurrency) {
                 $oldCompanyId = $oldClient->company_id;
                 $oldTransactionDate = $transaction->created_at ? $transaction->created_at->toDateString() : null;
-                
+
                 ClientBalanceService::updateBalance(
                     $oldClient,
                     $originalCurrency,
@@ -146,7 +146,7 @@ class BalanceService
                 $transaction->exchange_rate,
                 $cashCurrency
             );
-            
+
             if ($balanceId) {
                 $transaction->client_balance_id = $balanceId;
                 $transaction->save();
@@ -163,7 +163,7 @@ class BalanceService
                 $transaction->exchange_rate,
                 $cashCurrency
             );
-            
+
             if ($balanceId) {
                 $transaction->client_balance_id = $balanceId;
                 $transaction->save();
@@ -194,7 +194,7 @@ class BalanceService
                 $transaction->exchange_rate,
                 $cashCurrency
             );
-            
+
             if ($balanceId) {
                 $transaction->client_balance_id = $balanceId;
                 $transaction->save();
@@ -238,16 +238,16 @@ class BalanceService
         $companyId = $client->company_id;
         $transactionDate = $transaction->created_at ? $transaction->created_at->toDateString() : null;
         $cashCurrency = $transaction->cashRegister ? $transaction->cashRegister->currency : null;
-        
+
         if ($transaction->client_balance_id) {
             $clientBalance = \App\Models\ClientBalance::lockForUpdate()->find($transaction->client_balance_id);
             if (!$clientBalance || $clientBalance->client_id != $client->id) {
                 return;
             }
-            
+
             $balanceCurrency = $clientBalance->currency;
             $amountToUse = $transaction->orig_amount;
-            
+
             if ($balanceCurrency->id !== $currency->id) {
                 $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
                 $convertedAmount = \App\Services\CurrencyConverter::convert(
@@ -263,11 +263,11 @@ class BalanceService
                 $roundingService = new \App\Services\RoundingService;
                 $amountToUse = $roundingService->roundForCompany($companyId, $convertedAmount);
             }
-            
+
             $sign = $transaction->is_debt
                 ? ($transaction->type == 1 ? -1 : 1)
                 : ($transaction->type == 1 ? 1 : -1);
-            
+
             $clientBalance->increment('balance', $sign * $amountToUse);
         } else {
             ClientBalanceService::updateBalance(

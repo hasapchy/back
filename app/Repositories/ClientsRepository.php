@@ -440,13 +440,13 @@ class ClientsRepository extends BaseRepository
                 $defaultCurrencySymbol = $defaultCurrency?->symbol;
 
                 $clientIdInt = is_string($clientId) ? intval($clientId) : $clientId;
-                
+
                 $transactionsQuery = Transaction::where('client_id', $clientIdInt)
                     ->where('is_deleted', false);
 
                 if ($balanceId) {
                     $balance = \App\Models\ClientBalance::find($balanceId);
-                    
+
                     if ($balance && $balance->client_id == $clientIdInt) {
                         $transactionsQuery->where('client_balance_id', $balanceId);
                     }
@@ -533,7 +533,7 @@ class ClientsRepository extends BaseRepository
                 $transactionsQuery = $transactionsRepository->applySourceTypeFilter($transactionsQuery);
 
                 $transactions = $transactionsQuery->get();
-                
+
                 $transactions = $transactions->flatMap(function ($item) use ($defaultCurrencySymbol) {
                         $source = 'transaction';
                         if ($item->source_type === 'App\\Models\\Sale') {

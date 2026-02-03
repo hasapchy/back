@@ -150,7 +150,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:clients_update_all,clients_update')->put('clients/{id}', [ClientController::class, 'update']);
     Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/{id}/balance-history', [ClientController::class, 'getBalanceHistory']);
     Route::middleware('permission.scope:clients_delete_all,clients_delete')->delete('clients/{id}', [ClientController::class, 'destroy']);
-    
+
     Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/{clientId}/balances', [ClientBalanceController::class, 'index']);
     Route::middleware('permission.scope:clients_update_all,clients_update')->post('clients/{clientId}/balances', [ClientBalanceController::class, 'store']);
     Route::middleware('permission.scope:clients_update_all,clients_update')->put('clients/{clientId}/balances/{id}', [ClientBalanceController::class, 'update']);

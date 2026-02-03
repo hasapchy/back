@@ -22,13 +22,13 @@ return new class extends Migration
         DB::transaction(function () use ($defaultCurrency) {
             DB::table('clients')->chunkById(100, function ($clients) use ($defaultCurrency) {
                 $balances = [];
-                
+
                 foreach ($clients as $client) {
                     $exists = DB::table('client_balances')
                         ->where('client_id', $client->id)
                         ->where('currency_id', $defaultCurrency->id)
                         ->exists();
-                    
+
                     if (!$exists) {
                         $balances[] = [
                             'client_id' => $client->id,
@@ -40,7 +40,7 @@ return new class extends Migration
                         ];
                     }
                 }
-                
+
                 if (!empty($balances)) {
                     DB::table('client_balances')->insert($balances);
                 }
