@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             TestUserSeeder::class,
             DepartmentSeeder::class,
             WorkscheduleSeeder::class,
+            ClientBalancesSeeder::class,
         ]);
     }
 }

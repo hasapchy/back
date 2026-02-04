@@ -1,22 +1,24 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use App\Models\Currency;
 
-return new class extends Migration
+class ClientBalancesSeeder extends Seeder
 {
     /**
-     * Run the migrations.
+     * Run the database seeds.
      */
-    public function up(): void
+    public function run(): void
     {
         $defaultCurrency = Currency::where('is_default', true)->first();
 
         if (!$defaultCurrency) {
-            throw new \Exception('Дефолтная валюта не найдена в системе');
+            $this->command->error('Дефолтная валюта не найдена. Пропускаем заполнение балансов.');
+            return;
         }
 
         DB::transaction(function () use ($defaultCurrency) {
@@ -24,6 +26,7 @@ return new class extends Migration
                 $balances = [];
 
                 foreach ($clients as $client) {
+                    // Проверяем, существует ли уже баланс
                     $exists = DB::table('client_balances')
                         ->where('client_id', $client->id)
                         ->where('currency_id', $defaultCurrency->id)
@@ -46,13 +49,7 @@ return new class extends Migration
                 }
             });
         });
-    }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
-    {
-        DB::table('client_balances')->truncate();
+        $this->command->info('Балансы клиентов успешно созданы.');
     }
-};
+}
