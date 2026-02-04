@@ -34,9 +34,20 @@ class UpdateProjectContractRequest extends FormRequest
             'cash_id' => ['required', 'exists:cash_registers,id', new CashRegisterTypeMatchRule()],
             'date' => 'required|date',
             'returned' => 'nullable|boolean',
-            'is_paid' => 'nullable|boolean',
             'files' => 'nullable|array',
             'note' => 'nullable|string',
+        ];
+    }
+
+    /**
+     * Сообщения валидации
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'cash_id.required' => 'Укажите кассу.',
         ];
     }
 
@@ -51,10 +62,6 @@ class UpdateProjectContractRequest extends FormRequest
 
         if (isset($data['returned'])) {
             $data['returned'] = filter_var($data['returned'], FILTER_VALIDATE_BOOLEAN);
-        }
-
-        if (isset($data['is_paid'])) {
-            $data['is_paid'] = filter_var($data['is_paid'], FILTER_VALIDATE_BOOLEAN);
         }
 
         $this->merge($data);

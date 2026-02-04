@@ -8,6 +8,7 @@ use App\Services\CurrencyConverter;
 use App\Services\TransactionSourceService;
 use App\Services\BalanceService;
 use App\Repositories\OrdersRepository;
+use App\Repositories\ProjectContractsRepository;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Services\CacheService;
@@ -221,8 +222,13 @@ class Transaction extends Model
                 }
             }
             if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
-                CacheService::invalidateByLike('%project_contract%');
-                CacheService::invalidateProjectsCache();
+                if (!$transaction->is_debt) {
+                    $contractsRepository = new ProjectContractsRepository();
+                    $contractsRepository->updateContractPaidAmount($transaction->source_id);
+                } else {
+                    CacheService::invalidateByLike('%project_contract%');
+                    CacheService::invalidateProjectsCache();
+                }
             }
         });
 
@@ -238,8 +244,13 @@ class Transaction extends Model
                 }
             }
             if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
-                CacheService::invalidateByLike('%project_contract%');
-                CacheService::invalidateProjectsCache();
+                if (!$transaction->is_debt) {
+                    $contractsRepository = new ProjectContractsRepository();
+                    $contractsRepository->updateContractPaidAmount($transaction->source_id);
+                } else {
+                    CacheService::invalidateByLike('%project_contract%');
+                    CacheService::invalidateProjectsCache();
+                }
             }
         });
 
@@ -267,8 +278,13 @@ class Transaction extends Model
                 }
             }
             if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
-                CacheService::invalidateByLike('%project_contract%');
-                CacheService::invalidateProjectsCache();
+                if (!$transaction->is_debt) {
+                    $contractsRepository = new ProjectContractsRepository();
+                    $contractsRepository->updateContractPaidAmount($transaction->source_id);
+                } else {
+                    CacheService::invalidateByLike('%project_contract%');
+                    CacheService::invalidateProjectsCache();
+                }
             }
         });
     }

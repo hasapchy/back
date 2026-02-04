@@ -296,6 +296,9 @@ class ChatService
 
         $this->participants->updateLastReadMessageId($chatId, $userId, $newId);
 
+        $cacheKey = "chats:company:{$companyId}:user:{$userId}";
+        Cache::forget($cacheKey);
+
         event(new ChatReadUpdated(
             companyId: (int) $chat->company_id,
             chatId: $chatId,

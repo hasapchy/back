@@ -26,6 +26,7 @@ class ProjectContractsRepository extends BaseRepository
         return ProjectContract::select([
             'project_contracts.id',
             'project_contracts.project_id',
+            'project_contracts.creator_id',
             'project_contracts.number',
             'project_contracts.type',
             'project_contracts.amount',
@@ -33,17 +34,64 @@ class ProjectContractsRepository extends BaseRepository
             'project_contracts.cash_id',
             'project_contracts.date',
             'project_contracts.returned',
-            'project_contracts.is_paid',
+            'project_contracts.paid_amount',
             'project_contracts.files',
             'project_contracts.note',
             'project_contracts.created_at',
             'project_contracts.updated_at',
             'currencies.name as currency_name',
             'currencies.symbol as currency_symbol',
-            'cash_registers.name as cash_register_name'
+            'cash_registers.name as cash_register_name',
+            'contract_creator.name as creator_name'
         ])
             ->leftJoin('currencies', 'project_contracts.currency_id', '=', 'currencies.id')
-            ->leftJoin('cash_registers', 'project_contracts.cash_id', '=', 'cash_registers.id');
+            ->leftJoin('cash_registers', 'project_contracts.cash_id', '=', 'cash_registers.id')
+            ->leftJoin('users as contract_creator', 'project_contracts.creator_id', '=', 'contract_creator.id');
+    }
+
+    /**
+     * Добавить к контрактам payment_status и payment_status_text из полей amount и paid_amount
+     *
+     * @param \Illuminate\Support\Collection|iterable $contracts
+     * @return \Illuminate\Support\Collection|iterable
+     */
+    private function enrichContractsWithPaymentStatus($contracts)
+    {
+        $collection = collect($contracts);
+
+        /** @var \App\Models\ProjectContract $contract */
+        foreach ($collection as $contract) {
+            $paidAmount = (float) ($contract->paid_amount ?? 0);
+            $amount = (float) ($contract->amount ?? 0);
+            $contract->payment_status = $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $amount ? 'partially_paid' : 'paid');
+            $contract->payment_status_text = $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $amount ? 'Частично оплачено' : 'Оплачено');
+        }
+
+        return $contracts;
+    }
+
+    /**
+     * Обновить оплаченную сумму контракта на основе транзакций (платежи: is_debt=0)
+     *
+     * @param int $contractId ID контракта
+     * @return void
+     */
+    public function updateContractPaidAmount(int $contractId): void
+    {
+        $paidAmount = Transaction::where('source_type', ProjectContract::class)
+            ->where('source_id', $contractId)
+            ->where('is_debt', 0)
+            ->where('is_deleted', false)
+            ->sum('orig_amount');
+
+        ProjectContract::where('id', $contractId)->update([
+            'paid_amount' => (float) $paidAmount
+        ]);
+
+        $contract = ProjectContract::find($contractId);
+        if ($contract) {
+            $this->invalidateProjectContractsCache($contract->project_id, $contractId);
+        }
     }
 
     /**
@@ -84,9 +132,10 @@ class ProjectContractsRepository extends BaseRepository
                 });
             }
 
-            return $query->orderBy('project_contracts.date', 'desc')
-                ->orderBy('project_contracts.created_at', 'desc')
+            $paginator = $query->orderBy('project_contracts.id', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
+            $this->enrichContractsWithPaymentStatus($paginator->getCollection());
+            return $paginator;
         }, (int)$page);
     }
 
@@ -106,9 +155,10 @@ class ProjectContractsRepository extends BaseRepository
 
             $this->applyCompanyFilter($query);
 
-            return $query->orderBy('project_contracts.date', 'desc')
-                ->orderBy('project_contracts.created_at', 'desc')
+            $items = $query->orderBy('project_contracts.id', 'desc')
                 ->get();
+            $this->enrichContractsWithPaymentStatus($items);
+            return $items;
         });
     }
 
@@ -150,7 +200,9 @@ class ProjectContractsRepository extends BaseRepository
             }
 
             $query->when($isPaid !== null, function ($q) use ($isPaid) {
-                return $q->where('project_contracts.is_paid', $isPaid ? 1 : 0);
+                return $isPaid
+                    ? $q->whereRaw('project_contracts.paid_amount >= project_contracts.amount')
+                    : $q->whereRaw('project_contracts.paid_amount < project_contracts.amount');
             })
             ->when($returned !== null, function ($q) use ($returned) {
                 return $q->where('project_contracts.returned', $returned ? 1 : 0);
@@ -170,9 +222,10 @@ class ProjectContractsRepository extends BaseRepository
                 });
             }
 
-            return $query->orderBy('project_contracts.date', 'desc')
-                ->orderBy('project_contracts.created_at', 'desc')
+            $paginator = $query->orderBy('project_contracts.id', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
+            $this->enrichContractsWithPaymentStatus($paginator->getCollection());
+            return $paginator;
         }, (int)$page);
     }
 
@@ -215,7 +268,9 @@ class ProjectContractsRepository extends BaseRepository
                 return $q->where('project_contracts.project_id', $projectId);
             })
             ->when($isPaid !== null, function ($q) use ($isPaid) {
-                return $q->where('project_contracts.is_paid', $isPaid ? 1 : 0);
+                return $isPaid
+                    ? $q->whereRaw('project_contracts.paid_amount >= project_contracts.amount')
+                    : $q->whereRaw('project_contracts.paid_amount < project_contracts.amount');
             })
             ->when($returned !== null, function ($q) use ($returned) {
                 return $q->where('project_contracts.returned', $returned ? 1 : 0);
@@ -235,9 +290,10 @@ class ProjectContractsRepository extends BaseRepository
                 });
             }
 
-            return $query->orderBy('project_contracts.date', 'desc')
-                ->orderBy('project_contracts.created_at', 'desc')
+            $paginator = $query->orderBy('project_contracts.id', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
+            $this->enrichContractsWithPaymentStatus($paginator->getCollection());
+            return $paginator;
         }, (int)$page);
     }
 
@@ -263,14 +319,14 @@ class ProjectContractsRepository extends BaseRepository
             $contract->cash_id = $data['cash_id'];
             $contract->date = $data['date'];
             $contract->returned = $data['returned'] ?? false;
-            $contract->is_paid = $data['is_paid'] ?? false;
+            $contract->paid_amount = 0;
             $contract->files = $data['files'] ?? [];
             $contract->note = $data['note'] ?? null;
             $contract->save();
 
-//            if ($contract->is_paid && $contract->cash_id && $project->client_id) {
-//                $this->createContractTransaction($contract, $project);
-//            }
+            if ($contract->cash_id && $project->client_id) {
+                $this->createContractTransaction($contract, $project);
+            }
 
             $this->invalidateProjectContractsCache($data['project_id']);
 
@@ -290,17 +346,6 @@ class ProjectContractsRepository extends BaseRepository
     {
         return DB::transaction(function () use ($id, $data) {
             $contract = ProjectContract::findOrFail($id);
-            $project = $contract->project;
-
-            $wasPaid = (bool) $contract->is_paid;
-
-            if ($wasPaid && array_key_exists('cash_id', $data) && (int) $contract->cash_id !== (int) ($data['cash_id'] ?? null)) {
-                throw new \DomainException('Нельзя изменить кассу для оплаченного контракта. Контракт уже отмечен как оплаченный.');
-            }
-
-            if ($wasPaid && array_key_exists('type', $data) && (int) $contract->type !== (int) $data['type']) {
-                throw new \DomainException('Нельзя изменить тип контракта для оплаченного контракта. Контракт уже отмечен как оплаченный.');
-            }
 
             $contract->number = $data['number'];
             if (array_key_exists('type', $data)) {
@@ -316,55 +361,39 @@ class ProjectContractsRepository extends BaseRepository
                 $contract->returned = (bool) $data['returned'];
             }
 
-            if (array_key_exists('is_paid', $data)) {
-                $isPaid = (bool) $data['is_paid'];
-                if ($wasPaid === true && $isPaid === false) {
-                    throw new \DomainException('Нельзя снять отметку об оплате. Контракт уже отмечен как оплаченный, это действие необратимо.');
-                }
-                $contract->is_paid = $isPaid;
-            }
-
             if (isset($data['files']) && is_array($data['files'])) {
                 $contract->files = $data['files'];
             }
 
             $contract->save();
 
-            $contractTransaction = Transaction::where('source_type', ProjectContract::class)
+            $debtTransaction = Transaction::where('source_type', ProjectContract::class)
                 ->where('source_id', $contract->id)
-                ->where('type', 1)
                 ->where('is_debt', true)
                 ->where('is_deleted', false)
                 ->first();
 
-//            if ($contract->is_paid && $contract->cash_id && $project->client_id) {
-//                if ($contractTransaction) {
-//                    $transactionNeedsUpdate = $contractTransaction->amount != $contract->amount
-//                        || (int) $contractTransaction->client_id !== (int) $project->client_id
-//                        || (int) $contractTransaction->project_id !== (int) $contract->project_id
-//                        || (int) $contractTransaction->cash_id !== (int) $contract->cash_id
-//                        || $contractTransaction->date != $contract->date
-//                        || $contractTransaction->note !== $contract->note;
-//
-//                    if ($transactionNeedsUpdate) {
-//                        $txRepo = new TransactionsRepository();
-//                        $txRepo->updateItem($contractTransaction->id, [
-//                            'amount' => $contract->amount,
-//                            'orig_amount' => $contract->amount,
-//                            'client_id' => $project->client_id,
-//                            'project_id' => $contract->project_id,
-//                            'cash_id' => $contract->cash_id,
-//                            'category_id' => 1,
-//                            'date' => $contract->date,
-//                            'note' => $contract->note,
-//                        ]);
-//                    }
-//                } else if (!$wasPaid) {
-//                    $this->createContractTransaction($contract, $project);
-//                }
-//            } else if ($contractTransaction) {
-//                $contractTransaction->delete();
-//            }
+            if ($debtTransaction) {
+                $project = $contract->project;
+                $cashRegister = CashRegister::find($contract->cash_id);
+                $contractCurrencyId = $contract->currency_id ?? ($cashRegister ? $cashRegister->currency_id : null);
+                if (!$contractCurrencyId) {
+                    $defaultCurrency = Currency::where('is_default', true)->first();
+                    $contractCurrencyId = $defaultCurrency ? $defaultCurrency->id : null;
+                }
+                $txRepo = app(TransactionsRepository::class);
+                $txRepo->updateItem($debtTransaction->id, [
+                    'amount'       => $contract->amount,
+                    'orig_amount'  => $contract->amount,
+                    'date'         => $contract->date,
+                    'note'         => $contract->note,
+                    'cash_id'      => $contract->cash_id,
+                    'currency_id'  => $contractCurrencyId,
+                    'client_id'    => $project->client_id,
+                    'project_id'   => $contract->project_id,
+                    'category_id'  => $debtTransaction->category_id,
+                ]);
+            }
 
             $this->invalidateProjectContractsCache($contract->project_id, $id);
 
@@ -386,12 +415,17 @@ class ProjectContractsRepository extends BaseRepository
             $query = ProjectContract::with([
                 'project:id,name,company_id',
                 'currency:id,name,symbol',
-                'cashRegister:id,name'
+                'cashRegister:id,name',
+                'creator:id,name'
             ])->where('id', $id);
 
             $this->applyCompanyFilter($query);
 
-            return $query->first();
+            $contract = $query->first();
+            if ($contract) {
+                $this->enrichContractsWithPaymentStatus(collect([$contract]));
+            }
+            return $contract;
         }, $this->getCacheTTL('item'));
     }
 
@@ -407,13 +441,13 @@ class ProjectContractsRepository extends BaseRepository
         return DB::transaction(function () use ($id) {
             $contract = ProjectContract::findOrFail($id);
 
-            $contractTransaction = Transaction::where('source_type', ProjectContract::class)
+            $linkedTransactions = Transaction::where('source_type', ProjectContract::class)
                 ->where('source_id', $contract->id)
                 ->where('is_deleted', false)
-                ->first();
+                ->get();
 
-            if ($contractTransaction) {
-                $contractTransaction->delete();
+            foreach ($linkedTransactions as $tx) {
+                $tx->delete();
             }
 
             $projectId = $contract->project_id;
