@@ -43,6 +43,7 @@ class ClientsRepository extends BaseRepository
                 'user:id,name,photo',
                 'employee:id,name,surname,position,photo',
                 'balances.currency',
+                'balances.users',
                 'defaultBalance.currency',
             ])
                 ->select([
@@ -123,6 +124,7 @@ class ClientsRepository extends BaseRepository
                 'user:id,name,photo',
                 'employee:id,name,surname,position,photo',
                 'balances.currency',
+                'balances.users',
                 'defaultBalance.currency',
             ])
                 ->select([
@@ -267,6 +269,7 @@ class ClientsRepository extends BaseRepository
                 'user:id,name,photo',
                 'employee:id,name,surname,position,photo',
                 'balances.currency',
+                'balances.users',
                 'defaultBalance.currency',
             ])
                 ->select([
@@ -325,7 +328,7 @@ class ClientsRepository extends BaseRepository
         CacheService::invalidateClientsCache();
         $this->invalidateClientBalanceCache($client->id);
 
-        return $client->load('phones', 'emails', 'user', 'employee', 'balances.currency', 'defaultBalance.currency');
+        return $client->load('phones', 'emails', 'user', 'employee', 'balances.currency', 'balances.users', 'defaultBalance.currency');
     }
 
     /**

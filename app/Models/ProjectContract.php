@@ -19,6 +19,7 @@ use App\Models\User;
  * @property int|null $cash_id ID кассы
  * @property \Carbon\Carbon $date Дата контракта
  * @property bool $returned Возвращен ли контракт
+ * @property float $paid_amount Оплаченная сумма
  * @property array|null $files Массив файлов
  * @property string|null $note Примечание
  * @property \Carbon\Carbon $created_at
@@ -46,7 +47,7 @@ class ProjectContract extends Model
         'cash_id',
         'date',
         'returned',
-        'is_paid',
+        'paid_amount',
         'files',
         'note'
     ];
@@ -55,9 +56,9 @@ class ProjectContract extends Model
         'date' => 'date',
         'type' => 'integer',
         'returned' => 'boolean',
-        'is_paid' => 'boolean',
         'files' => 'array',
-        'amount' => 'decimal:2'
+        'amount' => 'decimal:2',
+        'paid_amount' => 'decimal:5'
     ];
 
     /**
