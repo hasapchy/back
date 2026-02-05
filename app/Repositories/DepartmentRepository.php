@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\Department;
 use App\Models\DepartmentUser;
 use App\Services\CacheService;
+use Illuminate\Support\Facades\DB;
 
 class DepartmentRepository extends BaseRepository
 {
@@ -18,8 +19,8 @@ class DepartmentRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('departments_paginated', [$userId, $perPage, $currentUser?->id, $companyId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userId, $perPage, $page) {
+            // users не грузим: pivot department_user в tenant, User в central — cross-DB eager load даёт 500
             $query = Department::with([
-                'users:id,name,surname,email,position,photo',
                 'head:id,name,surname,email,position,photo',
                 'deputyHead:id,name,surname,email,position,photo',
                 'company:id,name',
@@ -27,7 +28,7 @@ class DepartmentRepository extends BaseRepository
 
             if ($this->shouldApplyUserFilter('departments')) {
                 $filterUserId = $this->getFilterUserIdForPermission('departments', $userId);
-                $departmentIds = \DB::table('department_user')
+                $departmentIds = DB::table('department_user')
                     ->where('user_id', $filterUserId)
                     ->pluck('department_id')
                     ->toArray();
@@ -56,8 +57,8 @@ class DepartmentRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('departments_all', [$userId, $currentUser?->id, $companyId]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($userId) {
+            // users не грузим: pivot department_user в tenant, User в central — cross-DB eager load даёт 500
             $query = Department::with([
-                'users:id,name,surname,email,position,photo',
                 'head:id,name,surname,email,position,photo',
                 'deputyHead:id,name,surname,email,position,photo',
                 'company:id,name',
@@ -65,7 +66,7 @@ class DepartmentRepository extends BaseRepository
 
             if ($this->shouldApplyUserFilter('departments')) {
                 $filterUserId = $this->getFilterUserIdForPermission('departments', $userId);
-                $departmentIds = \DB::table('department_user')
+                $departmentIds = DB::table('department_user')
                     ->where('user_id', $filterUserId)
                     ->pluck('department_id')
                     ->toArray();
@@ -103,8 +104,8 @@ class DepartmentRepository extends BaseRepository
 
         CacheService::invalidateDepartmentsCache();
 
+        // users не грузим: pivot department_user в tenant, User в central — load('users') даёт 500
         return $department->load([
-            'users:id,name,surname,email,position,photo',
             'head:id,name,surname,email,position,photo',
             'deputyHead:id,name,surname,email,position,photo',
             'company:id,name',
@@ -132,8 +133,8 @@ class DepartmentRepository extends BaseRepository
 
         CacheService::invalidateDepartmentsCache();
 
+        // users не грузим: pivot department_user в tenant, User в central — load('users') даёт 500
         return $department->load([
-            'users:id,name,surname,email,position,photo',
             'head:id,name,surname,email,position,photo',
             'deputyHead:id,name,surname,email,position,photo',
             'company:id,name',

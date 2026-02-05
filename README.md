@@ -11,6 +11,12 @@
 
 Backend API для системы учета и управления бизнесом.
 
+## API и мультитенантность (central / tenant БД)
+
+- **Без заголовка X-Company-ID** доступны только маршруты по central БД: `user/login`, `user/refresh`, `user/logout`, `user/me`, `user/current`, `user/profile`, `user/current-company`, `user/set-company`, `user/companies`, `users/*`, `permissions`, `roles/*`, `companies/*`.
+- **С заголовком X-Company-ID и настроенным tenant у компании** доступны все остальные маршруты (app/*, склады, заказы, клиенты, проекты, транзакции и т.д.). При отсутствии X-Company-ID или при отсутствии у компании `tenant_id` такие запросы возвращают 422 с сообщением о необходимости выбора компании/tenant.
+- Подробнее см. комментарий в начале файла `routes/api.php`.
+
 ## Команды для работы с балансами клиентов
 
 ### Пересчет балансов клиентов

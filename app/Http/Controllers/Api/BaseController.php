@@ -34,6 +34,25 @@ class BaseController extends BaseRoutingController
     }
 
     /**
+     * Проверить, что tenancy инициализирован (есть X-Company-ID и у компании есть tenant_id).
+     * Если нет — вернуть JsonResponse 422, иначе null (продолжить выполнение).
+     *
+     * @return JsonResponse|null
+     */
+    protected function requireTenancyOrFail(): ?JsonResponse
+    {
+        $companyId = $this->getCurrentCompanyId();
+        if (empty($companyId)) {
+            return $this->errorResponseByStatus(422, 'Заголовок X-Company-ID обязателен для этого запроса.', 'message');
+        }
+        $company = \App\Models\Company::find($companyId);
+        if (!$company || empty($company->tenant_id)) {
+            return $this->errorResponseByStatus(422, 'У компании не настроена тенантная БД (tenant) или компания не найдена.', 'message');
+        }
+        return null;
+    }
+
+    /**
      * Получить авторизованного пользователя API
      *
      * @return \App\Models\User|null

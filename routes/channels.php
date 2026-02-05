@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Company;
+use App\Models\Tenant;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\DB;
 
@@ -18,11 +20,28 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
+/**
+ * Инициализирует tenancy для компании, чтобы запросы к tenant-таблицам (departments, chat_participants и т.д.) шли в tenant-БД.
+ */
+function ensureTenancyForBroadcastChannel(int $companyId): void
+{
+    $company = Company::find($companyId);
+    if ($company && $company->tenant_id) {
+        $tenant = Tenant::on('central')->find($company->tenant_id);
+        if ($tenant) {
+            tenancy()->initialize($tenant);
+        }
+    }
+}
+
 Broadcast::channel('company.{companyId}.chat.{chatId}', function ($user, $companyId, $chatId) {
     $companyId = (int) $companyId;
     $chatId = (int) $chatId;
 
-    $isCompanyMember = DB::table('company_user')
+    ensureTenancyForBroadcastChannel($companyId);
+
+    $central = config('tenancy.database.central_connection', 'central');
+    $isCompanyMember = DB::connection($central)->table('company_user')
         ->where('company_id', $companyId)
         ->where('user_id', $user->id)
         ->exists();
@@ -56,7 +75,10 @@ Broadcast::channel('company.{companyId}.chat.{chatId}', function ($user, $compan
 Broadcast::channel('company.{companyId}.presence', function ($user, $companyId) {
     $companyId = (int) $companyId;
 
-    $isCompanyMember = DB::table('company_user')
+    ensureTenancyForBroadcastChannel($companyId);
+
+    $central = config('tenancy.database.central_connection', 'central');
+    $isCompanyMember = DB::connection($central)->table('company_user')
         ->where('company_id', $companyId)
         ->where('user_id', $user->id)
         ->exists();

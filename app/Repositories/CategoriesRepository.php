@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Category;
 use App\Models\CategoryUser;
+use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\CacheService;
 
@@ -21,16 +22,20 @@ class CategoriesRepository extends BaseRepository
     {
         $cacheKey = $this->generateCacheKey('categories_paginated', [$userUuid, $perPage]);
 
-        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
+            // users в central — join по users в tenant даёт 500; user_name добавляем в PHP
             $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
-                ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
-                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
+                ->select('categories.*', 'parents.name as parent_name');
 
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            return $query->with(['users:id,name,surname,email,position'])->paginate($perPage, ['*'], 'page', (int)$page);
-        }, (int)$page);
+            /** @var \Illuminate\Contracts\Pagination\LengthAwarePaginator $paginator */
+            $paginator = $query->paginate($perPage, ['*'], 'page', (int) $page);
+            $this->attachUserNamesToCategories($paginator->getCollection());
+
+            return $paginator;
+        }, (int) $page);
     }
 
     /**
@@ -43,15 +48,18 @@ class CategoriesRepository extends BaseRepository
     {
         $cacheKey = $this->generateCacheKey('categories_all', [$userUuid]);
 
-        return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid) {
+            // users в central — join по users в tenant даёт 500; user_name добавляем в PHP
             $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
-                ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
-                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
+                ->select('categories.*', 'parents.name as parent_name');
 
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            return $query->with(['users:id,name,surname,email,position'])->get();
+            $items = $query->get();
+            $this->attachUserNamesToCategories($items);
+
+            return $items;
         });
     }
 
@@ -65,16 +73,19 @@ class CategoriesRepository extends BaseRepository
     {
         $cacheKey = $this->generateCacheKey('categories_parents', [$userUuid]);
 
-        return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
-            $query = Category::leftJoin('users as users', 'categories.user_id', '=', 'users.id')
-                ->select('categories.*', 'users.name as user_name')
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid) {
+            // users в central — join по users в tenant даёт 500; user_name добавляем в PHP
+            $query = Category::query()
                 ->whereNull('categories.parent_id')
                 ->whereHas('children');
 
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            return $query->with(['users:id,name,surname,email,position'])->get();
+            $items = $query->get();
+            $this->attachUserNamesToCategories($items);
+
+            return $items;
         });
     }
 
@@ -141,6 +152,27 @@ class CategoriesRepository extends BaseRepository
         CacheService::invalidateCategoriesCache();
 
         return true;
+    }
+
+    /**
+     * Добавить user_name категориям из central.users (tenant-запрос не может джойнить users).
+     *
+     * @param \Illuminate\Support\Collection $categories
+     * @return void
+     */
+    private function attachUserNamesToCategories($categories)
+    {
+        $userIds = $categories->pluck('user_id')->filter()->unique()->values()->all();
+        if (empty($userIds)) {
+            foreach ($categories as $c) {
+                $c->user_name = null;
+            }
+            return;
+        }
+        $names = User::on('central')->whereIn('id', $userIds)->pluck('name', 'id');
+        foreach ($categories as $c) {
+            $c->user_name = $c->user_id ? ($names[$c->user_id] ?? null) : null;
+        }
     }
 
     /**

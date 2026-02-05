@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Models\User;
 use App\Models\WarehouseStock;
 use App\Models\WhMovement;
 use App\Models\WhMovementProduct;
@@ -22,9 +23,9 @@ class WarehouseMovementRepository extends BaseRepository
     {
         $cacheKey = $this->generateCacheKey('warehouse_movements_paginated', [$userUuid, $perPage]);
 
-        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
+            // users в central — join в tenant даёт 500; user_name добавляем в PHP
             $items = WhMovement::leftJoin('warehouses as warehouses_from', 'wh_movements.wh_from', '=', 'warehouses_from.id')
-                ->leftJoin('users', 'wh_movements.user_id', '=', 'users.id')
                 ->leftJoin('warehouses as warehouses_to', 'wh_movements.wh_to', '=', 'warehouses_to.id')
                 ->leftJoin('wh_users as wh_users_from', 'warehouses_from.id', '=', 'wh_users_from.warehouse_id')
                 ->leftJoin('wh_users as wh_users_to', 'warehouses_to.id', '=', 'wh_users_to.warehouse_id');
@@ -42,13 +43,14 @@ class WarehouseMovementRepository extends BaseRepository
                     'warehouses_to.name as warehouse_to_name',
                     'wh_movements.note as note',
                     'wh_movements.user_id as user_id',
-                    'users.name as user_name',
                     'wh_movements.date as date',
                     'wh_movements.created_at as created_at',
                     'wh_movements.updated_at as updated_at'
                 )
                 ->orderBy('wh_movements.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
+
+            $this->attachUserNamesToMovements($items->getCollection());
 
             $wh_writeoffs_ids = $items->pluck('id')->toArray();
             $products = $this->getProducts($wh_writeoffs_ids);
@@ -186,6 +188,27 @@ class WarehouseMovementRepository extends BaseRepository
 
             return true;
         });
+    }
+
+    /**
+     * Добавить user_name записям из central.users (tenant-запрос не может джойнить users).
+     *
+     * @param \Illuminate\Support\Collection $items
+     * @return void
+     */
+    private function attachUserNamesToMovements($items)
+    {
+        $userIds = $items->pluck('user_id')->filter()->unique()->values()->all();
+        if (empty($userIds)) {
+            foreach ($items as $item) {
+                $item->user_name = null;
+            }
+            return;
+        }
+        $names = User::on('central')->whereIn('id', $userIds)->pluck('name', 'id');
+        foreach ($items as $item) {
+            $item->user_name = $item->user_id ? ($names[$item->user_id] ?? null) : null;
+        }
     }
 
     /**

@@ -71,5 +71,7 @@ class Kernel extends HttpKernel
         'role'       => \Spatie\Permission\Middleware\RoleMiddleware::class,
         'time.restriction' => \App\Http\Middleware\CheckTimeRestriction::class,
         'user.active' => \App\Http\Middleware\CheckUserActive::class,
+        'tenant.required' => \App\Http\Middleware\RequireTenancy::class,
+        'tenant.for.broadcasting' => \App\Http\Middleware\InitializeTenancyForBroadcasting::class,
     ];
 }

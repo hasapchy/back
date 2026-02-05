@@ -290,7 +290,7 @@ class UsersController extends BaseController
             }
             $data = $request->validate([
                 'name' => 'nullable|string|max:255',
-                'email' => "nullable|email|unique:users,email,{$user->id},id",
+                'email' => "nullable|email|unique:central.users,email,{$user->id},id",
                 'birthday' => 'nullable|date',
                 'current_password' => 'nullable|string',
                 'password' => 'nullable|string|min:6',

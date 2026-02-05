@@ -67,7 +67,8 @@ class ChatController extends BaseController
             return response()->json(['message' => 'Cannot create direct chat with yourself'], 422);
         }
 
-        $isOtherInCompany = DB::table('company_user')
+        $central = config('tenancy.database.central_connection', 'central');
+        $isOtherInCompany = DB::connection($central)->table('company_user')
             ->where('company_id', $companyId)
             ->where('user_id', $otherUserId)
             ->exists();
@@ -99,7 +100,8 @@ class ChatController extends BaseController
         }
 
         // Проверяем membership всех участников в компании
-        $companyUserIds = DB::table('company_user')
+        $central = config('tenancy.database.central_connection', 'central');
+        $companyUserIds = DB::connection($central)->table('company_user')
             ->where('company_id', $companyId)
             ->whereIn('user_id', $userIds)
             ->pluck('user_id')

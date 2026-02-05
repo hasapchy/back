@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Models\User;
 use App\Models\WarehouseStock;
 use App\Models\WhUser;
 use App\Models\WhWriteoff;
@@ -24,8 +25,8 @@ class WarehouseWriteoffRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('warehouse_writeoffs_paginated', [$userUuid, $perPage]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
-            $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
-                ->leftJoin('users', 'wh_write_offs.user_id', '=', 'users.id');
+            // users в central — join в tenant даёт 500; user_name добавляем в PHP
+            $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id');
 
             if ($this->shouldApplyUserFilter('warehouses')) {
                 $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
@@ -46,12 +47,13 @@ class WarehouseWriteoffRepository extends BaseRepository
                 'warehouses.name as warehouse_name',
                 'wh_write_offs.note as note',
                 'wh_write_offs.user_id as user_id',
-                'users.name as user_name',
                 'wh_write_offs.created_at as created_at',
                 'wh_write_offs.updated_at as updated_at'
             )
                 ->orderBy('wh_write_offs.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
+
+            $this->attachUserNamesToWriteoffs($items->getCollection());
 
             $wh_writeoffs_ids = $items->pluck('id')->toArray();
             $products = $this->getProducts($wh_writeoffs_ids);
@@ -200,6 +202,27 @@ class WarehouseWriteoffRepository extends BaseRepository
 
             return true;
         });
+    }
+
+    /**
+     * Добавить user_name записям из central.users (tenant-запрос не может джойнить users).
+     *
+     * @param \Illuminate\Support\Collection $items
+     * @return void
+     */
+    private function attachUserNamesToWriteoffs($items)
+    {
+        $userIds = $items->pluck('user_id')->filter()->unique()->values()->all();
+        if (empty($userIds)) {
+            foreach ($items as $item) {
+                $item->user_name = null;
+            }
+            return;
+        }
+        $names = User::on('central')->whereIn('id', $userIds)->pluck('name', 'id');
+        foreach ($items as $item) {
+            $item->user_name = $item->user_id ? ($names[$item->user_id] ?? null) : null;
+        }
     }
 
     /**

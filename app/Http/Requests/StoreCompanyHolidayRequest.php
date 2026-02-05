@@ -24,7 +24,7 @@ class StoreCompanyHolidayRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'company_id' => 'required|integer|exists:companies,id',
+            'company_id' => 'required|integer|exists:central.companies,id',
             'name' => 'required|string|max:255',
             'date' => 'required|date',
             'is_recurring' => 'nullable|boolean',

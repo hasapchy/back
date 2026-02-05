@@ -15,7 +15,7 @@ class AppController extends BaseController
     use HasRoles;
 
     /**
-     * Получить список валют
+     * Получить список валют (требуется X-Company-ID и tenant — маршрут под middleware tenant.required).
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -57,7 +57,7 @@ class AppController extends BaseController
     }
 
     /**
-     * Получить список единиц измерения
+     * Получить список единиц измерения (требуется X-Company-ID и tenant — маршрут под middleware tenant.required).
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -85,7 +85,7 @@ class AppController extends BaseController
     }
 
     /**
-     * Получить курс обмена валюты
+     * Получить курс обмена валюты (требуется X-Company-ID и tenant — маршрут под middleware tenant.required).
      *
      * @param int $currencyId ID валюты
      * @return \Illuminate\Http\JsonResponse

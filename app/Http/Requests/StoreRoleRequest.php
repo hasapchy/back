@@ -29,6 +29,7 @@ class StoreRoleRequest extends FormRequest
         $companyId = $this->header('X-Company-ID');
 
         $uniqueRule = Rule::unique('roles', 'name')
+            ->connection('central')
             ->where('guard_name', 'api');
 
         if ($companyId) {
@@ -40,7 +41,7 @@ class StoreRoleRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255', $uniqueRule],
             'permissions' => 'nullable|array|max:1000',
-            'permissions.*' => 'string|exists:permissions,name,guard_name,api',
+            'permissions.*' => 'string|exists:central.permissions,name,guard_name,api',
         ];
     }
 

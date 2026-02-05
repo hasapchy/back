@@ -24,7 +24,7 @@ class UpdateCompanyHolidayRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'company_id' => 'sometimes|integer|exists:companies,id',
+            'company_id' => 'sometimes|integer|exists:central.companies,id',
             'name' => 'nullable|string|max:255',
             'date' => 'nullable|date',
             'is_recurring' => 'nullable|boolean',

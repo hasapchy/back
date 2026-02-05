@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\Company;
 
 class AdminSeeder extends Seeder
 {
@@ -31,6 +32,13 @@ class AdminSeeder extends Seeder
                 'is_active' => true,
                 'is_admin' => true,
             ]);
+        }
+
+        // Привязываем админа к тестовой компании (company_user), т.к. CompanySeeder выполняется до AdminSeeder
+        $company = Company::where('name', 'Тестовая компания')->first();
+        if ($company && !$admin->companies()->where('company_id', $company->id)->exists()) {
+            $admin->companies()->attach($company->id);
+            echo "Admin linked to company '{$company->name}' (company_user)\n";
         }
 
         $this->assignRolesToUserForAllCompanies($admin, ['admin', 'basement_worker']);

@@ -25,7 +25,7 @@ class StoreCompanyRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255|unique:companies,name',
+            'name' => 'required|string|max:255|unique:central.companies,name',
             'logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,svg|max:10240',
             'show_deleted_transactions' => 'nullable|boolean',
             'rounding_decimals' => 'nullable|integer|min:0|max:5',

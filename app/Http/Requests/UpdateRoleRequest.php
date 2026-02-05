@@ -31,11 +31,12 @@ class UpdateRoleRequest extends FormRequest
 
         $rules = [
             'permissions' => 'nullable|array|max:1000',
-            'permissions.*' => 'string|exists:permissions,name,guard_name,api',
+            'permissions.*' => 'string|exists:central.permissions,name,guard_name,api',
         ];
 
         if ($this->has('name')) {
             $uniqueRule = Rule::unique('roles', 'name')
+                ->connection('central')
                 ->ignore($roleId)
                 ->where('guard_name', 'api');
 
