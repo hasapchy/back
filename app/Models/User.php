@@ -15,6 +15,9 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasRoles, HasApiTokens;
 
+    /** Подключение к центральной БД (users только в central). */
+    protected $connection = 'central';
+
     protected $guard_name = 'api';
 
     protected static function booted()
@@ -167,7 +170,7 @@ class User extends Authenticatable
      */
     public function companyRoles()
     {
-        return $this->belongsToMany(\Spatie\Permission\Models\Role::class, 'company_user_role', 'user_id', 'role_id')
+        return $this->belongsToMany(config('permission.models.role'), 'company_user_role', 'user_id', 'role_id')
             ->withPivot('company_id')
             ->withTimestamps();
     }
@@ -184,7 +187,7 @@ class User extends Authenticatable
     public function getAllPermissions()
     {
         if ($this->is_admin) {
-            return \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
+            return \App\Models\Permission::where('guard_name', 'api')->get();
         }
 
         $permissionsViaRoles = $this->getPermissionsViaRoles();
@@ -203,14 +206,14 @@ class User extends Authenticatable
     public function getAllPermissionsForCompany(?int $companyId = null)
     {
         if ($this->is_admin) {
-            return \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
+            return \App\Models\Permission::where('guard_name', 'api')->get();
         }
 
         if (!$companyId) {
             return $this->getAllPermissions();
         }
 
-        $roleIds = DB::table('company_user_role')
+        $roleIds = DB::connection($this->getConnectionName())->table('company_user_role')
             ->where('user_id', $this->id)
             ->where('company_id', $companyId)
             ->pluck('role_id');
@@ -219,7 +222,7 @@ class User extends Authenticatable
             return collect([]);
         }
 
-        $permissionIds = DB::table('role_has_permissions')
+        $permissionIds = DB::connection($this->getConnectionName())->table('role_has_permissions')
             ->whereIn('role_id', $roleIds)
             ->pluck('permission_id')
             ->unique();
@@ -228,7 +231,7 @@ class User extends Authenticatable
             return collect([]);
         }
 
-        $permissions = \Spatie\Permission\Models\Permission::where('guard_name', 'api')
+        $permissions = \App\Models\Permission::where('guard_name', 'api')
             ->whereIn('id', $permissionIds)
             ->get();
 
@@ -243,7 +246,7 @@ class User extends Authenticatable
      */
     public function getRolesForCompany(int $companyId)
     {
-        $roleIds = DB::table('company_user_role')
+        $roleIds = DB::connection($this->getConnectionName())->table('company_user_role')
             ->where('user_id', $this->id)
             ->where('company_id', $companyId)
             ->pluck('role_id');
@@ -252,7 +255,7 @@ class User extends Authenticatable
             return collect([]);
         }
 
-        return \Spatie\Permission\Models\Role::where('guard_name', 'api')
+        return \App\Models\Role::where('guard_name', 'api')
             ->whereIn('id', $roleIds)
             ->get();
     }
@@ -265,14 +268,14 @@ class User extends Authenticatable
      */
     public function getAllCompanyRoles(): array
     {
-        $companyRoles = DB::table('company_user_role')
+        $companyRoles = DB::connection($this->getConnectionName())->table('company_user_role')
             ->where('user_id', $this->id)
             ->select('company_id', 'role_id')
             ->get();
 
         $roleIds = $companyRoles->pluck('role_id')->unique()->filter();
         $roles = $roleIds->isNotEmpty()
-            ? \Spatie\Permission\Models\Role::where('guard_name', 'api')
+            ? \App\Models\Role::where('guard_name', 'api')
                 ->whereIn('id', $roleIds)
                 ->get()
                 ->keyBy('id')

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Eloquent\Relations\BelongsToManyAcrossConnections;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\WarehouseStock;
@@ -48,15 +49,28 @@ class Warehouse extends Model
     }
 
     /**
-     * Связь many-to-many с пользователями
+     * Связь many-to-many с пользователями (pivot wh_users в tenant, users в central)
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToManyAcrossConnections
      */
     public function users()
     {
-        return $this->belongsToMany(User::class, 'wh_users', 'warehouse_id', 'user_id');
+        return new BelongsToManyAcrossConnections(
+            (new User)->newQuery(),
+            $this,
+            'wh_users',
+            'warehouse_id',
+            'user_id'
+        );
     }
 
+    /**
+     * Проверить, есть ли у склада пользователь (pivot в tenant)
+     */
+    public function hasUser($userId): bool
+    {
+        return $this->whUsers()->where('user_id', $userId)->exists();
+    }
 
     /**
      * Связь с компанией

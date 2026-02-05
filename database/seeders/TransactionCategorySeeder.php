@@ -3,12 +3,20 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 use App\Models\TransactionCategory;
 
 class TransactionCategorySeeder extends Seeder
 {
+    /**
+     * Сидер для tenant-БД. Пропускает выполнение в центральном контексте.
+     */
     public function run()
     {
+        if (!Schema::hasTable('transaction_categories')) {
+            return;
+        }
+
         TransactionCategory::updateOrCreate(['id' => 1], ['name' => 'SALE', 'type' => 1, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 2], ['name' => 'CUSTOMER_PAYMENT', 'type' => 1, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 3], ['name' => 'PREPAYMENT', 'type' => 1, 'user_id' => 1]);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
@@ -29,7 +30,7 @@ class UpdateCashRegisterRequest extends FormRequest
         return [
             'name' => 'required|string',
             'users' => 'required|array|min:1',
-            'users.*' => 'exists:users,id',
+            'users.*' => Rule::exists(User::class, 'id'),
             'is_cash' => 'nullable|boolean',
             'icon' => ['nullable', 'string', 'max:100', Rule::in($this->allowedIcons())],
         ];

@@ -4,15 +4,20 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 use App\Models\ProjectStatus;
 
 class ProjectStatusSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
+     * Сидер для tenant-БД. Пропускает выполнение в центральном контексте.
      */
     public function run(): void
     {
+        if (!Schema::hasTable('project_statuses')) {
+            return;
+        }
+
         $statuses = [
             [
                 'id' => 1,

@@ -104,7 +104,7 @@ class BaseController extends BaseRoutingController
         }
 
         if ($user->is_admin) {
-            return \Spatie\Permission\Models\Permission::where('guard_name', 'api')
+            return \App\Models\Permission::where('guard_name', 'api')
                 ->pluck('name')
                 ->toArray();
         }

@@ -3,15 +3,20 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 use App\Models\TaskStatus;
 
 class TaskStatusSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
+     * Сидер для tenant-БД. Пропускает выполнение в центральном контексте.
      */
     public function run(): void
     {
+        if (!Schema::hasTable('task_statuses')) {
+            return;
+        }
+
         $statuses = [
             [
                 'id' => 1,

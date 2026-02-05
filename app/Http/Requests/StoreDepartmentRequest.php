@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreDepartmentRequest extends FormRequest
 {
@@ -17,10 +19,10 @@ class StoreDepartmentRequest extends FormRequest
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'parent_id' => 'nullable|exists:departments,id',
-            'head_id' => 'nullable|exists:users,id',
-            'deputy_head_id' => 'nullable|exists:users,id',
+            'head_id' => ['nullable', Rule::exists(User::class, 'id')],
+            'deputy_head_id' => ['nullable', Rule::exists(User::class, 'id')],
             'users' => 'nullable|array',
-            'users.*' => 'exists:users,id',
+            'users.*' => Rule::exists(User::class, 'id'),
         ];
     }
 }

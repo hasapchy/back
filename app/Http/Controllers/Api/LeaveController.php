@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Leave;
+use App\Models\User;
 use App\Repositories\LeaveRepository;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
 
 /**
@@ -86,7 +88,7 @@ class LeaveController extends BaseController
 
         $request->validate([
             'leave_type_id' => 'required|integer|exists:leave_types,id',
-            'user_id' => 'nullable|integer|exists:users,id',
+            'user_id' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
             'comment' => 'nullable|string',
             'date_from' => 'required|date',
             'date_to' => 'required|date|after_or_equal:date_from',
@@ -120,7 +122,7 @@ class LeaveController extends BaseController
 
         $validationRules = [
             'leave_type_id' => 'nullable|integer|exists:leave_types,id',
-            'user_id' => 'nullable|integer|exists:users,id',
+            'user_id' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
             'comment' => 'nullable|string',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date',

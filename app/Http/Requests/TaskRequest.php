@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class TaskRequest extends FormRequest
 {
@@ -87,8 +89,8 @@ class TaskRequest extends FormRequest
         $rules = [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'supervisor_id' => 'required|exists:users,id',
-            'executor_id' => 'required|exists:users,id',
+            'supervisor_id' => ['required', Rule::exists(User::class, 'id')],
+            'executor_id' => ['required', Rule::exists(User::class, 'id')],
             'project_id' => 'nullable|exists:projects,id',
             'status_id' => 'nullable|exists:task_statuses,id',
             'priority' => 'nullable|in:low,normal,high',
@@ -102,8 +104,8 @@ class TaskRequest extends FormRequest
         // При обновлении не требуем обязательные поля, если они не переданы
         if ($this->isMethod('PUT') || $this->isMethod('PATCH')) {
             $rules['title'] = 'sometimes|required|string|max:255';
-            $rules['supervisor_id'] = 'sometimes|required|exists:users,id';
-            $rules['executor_id'] = 'sometimes|required|exists:users,id';
+            $rules['supervisor_id'] = ['sometimes', 'required', Rule::exists(User::class, 'id')];
+            $rules['executor_id'] = ['sometimes', 'required', Rule::exists(User::class, 'id')];
             $rules['status_id'] = 'sometimes|nullable|exists:task_statuses,id';
         }
 

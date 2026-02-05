@@ -5,15 +5,20 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Models\Currency;
 
 class ClientBalancesSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
+     * Сидер для tenant-БД. Пропускает выполнение в центральном контексте.
      */
     public function run(): void
     {
+        if (!Schema::hasTable('client_balances')) {
+            return;
+        }
+
         $defaultCurrency = Currency::where('is_default', true)->first();
 
         if (!$defaultCurrency) {

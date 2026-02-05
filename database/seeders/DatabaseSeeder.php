@@ -1,17 +1,29 @@
 <?php
 
 namespace Database\Seeders;
+
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
+    /**
+     * При tenants:seed выполняются только tenant-сидеры.
+     * Центральные сидеры (permissions, companies, roles, users) пропускаются.
+     */
     public function run(): void
     {
+        $isTenantContext = tenancy()->initialized ?? false;
+
+        if (!$isTenantContext) {
+            $this->call([
+                PermissionsSeeder::class,
+                CompanySeeder::class,
+                RolesSeeder::class,
+                AdminSeeder::class,
+            ]);
+        }
+
         $this->call([
-            PermissionsSeeder::class,
-            RolesSeeder::class,
-            AdminSeeder::class,
-            CompanySeeder::class,
             CurrencySeeder::class,
             TransactionCategorySeeder::class,
             OrderStatusSeeder::class,
@@ -21,10 +33,15 @@ class DatabaseSeeder extends Seeder
             UnitsSeeder::class,
             WarehouseSeeder::class,
             LeaveTypeSeeder::class,
-            TestUserSeeder::class,
             DepartmentSeeder::class,
-            WorkscheduleSeeder::class,
             ClientBalancesSeeder::class,
         ]);
+
+        if (!$isTenantContext) {
+            $this->call([
+                TestUserSeeder::class,
+                WorkscheduleSeeder::class,
+            ]);
+        }
     }
 }

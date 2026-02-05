@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\BaseController;
 use App\Models\Company;
 use App\Repositories\RolesRepository;
+use Illuminate\Support\Str;
+use App\Models\Tenant;
 use App\Services\CacheService;
 use App\Http\Requests\StoreCompanyRequest;
 use App\Http\Requests\UpdateCompanyRequest;
@@ -13,7 +15,9 @@ use App\Services\SalaryAccrualService;
 use App\Repositories\TransactionsRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Models\User;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 
@@ -58,7 +62,14 @@ class CompaniesController extends BaseController
         $rolesRepository = app(RolesRepository::class);
         $rolesRepository->createDefaultRolesForCompany($company->id);
 
-        return response()->json(['company' => $company]);
+        // Создаём tenant и привязываем к компании (создаётся отдельная БД, выполняются tenant-миграции)
+        $tenant = Tenant::on('central')->create([
+            'id' => Str::uuid()->toString(),
+            'data' => ['company_id' => $company->id],
+        ]);
+        $company->update(['tenant_id' => $tenant->id]);
+
+        return response()->json(['company' => $company->fresh()]);
     }
 
     /**
@@ -169,7 +180,7 @@ class CompaniesController extends BaseController
             $request->validate([
                 'date' => 'required|date',
                 'user_ids' => 'required|array|min:1',
-                'user_ids.*' => 'integer|exists:users,id',
+                'user_ids.*' => ['integer', Rule::exists(User::class, 'id')],
             ]);
 
             $date = $request->input('date');

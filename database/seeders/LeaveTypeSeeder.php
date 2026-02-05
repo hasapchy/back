@@ -3,15 +3,20 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 use App\Models\LeaveType;
 
 class LeaveTypeSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
+     * Сидер для tenant-БД. Пропускает выполнение в центральном контексте.
      */
     public function run(): void
     {
+        if (!Schema::hasTable('leave_types')) {
+            return;
+        }
+
         $leaveTypes = [
             ['name' => 'TIME_OFF', 'color' => '#3B82F6'],
             ['name' => 'VACATION', 'color' => '#10B981'],

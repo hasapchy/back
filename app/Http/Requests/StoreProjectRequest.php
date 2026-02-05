@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use App\Rules\ClientAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -31,7 +33,7 @@ class StoreProjectRequest extends FormRequest
             'date' => 'nullable|sometimes|date',
             'client_id' => ['required', new ClientAccessRule()],
             'users' => 'nullable|array',
-            'users.*' => 'exists:users,id',
+            'users.*' => Rule::exists(User::class, 'id'),
             'description' => 'nullable|string',
         ];
 

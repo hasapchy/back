@@ -30,9 +30,13 @@ class Company extends Model
 {
     use HasFactory;
 
+    /** Подключение к центральной БД (companies только в central). */
+    protected $connection = 'central';
+
     protected $fillable = [
         'name',
         'logo',
+        'tenant_id',
         'show_deleted_transactions',
         'rounding_decimals',
         'rounding_enabled',

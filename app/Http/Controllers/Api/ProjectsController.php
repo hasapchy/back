@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use App\Models\Project;
+use App\Models\User;
+use Illuminate\Validation\Rule;
 use ZipArchive;
 
 /**
@@ -45,7 +47,7 @@ class ProjectsController extends BaseController
             'date' => 'nullable|sometimes|date',
             'client_id' => 'required|exists:clients,id',
             'users' => 'nullable|array',
-            'users.*' => 'exists:users,id',
+            'users.*' => Rule::exists(User::class, 'id'),
             'description' => 'nullable|string',
         ];
 
@@ -204,7 +206,7 @@ class ProjectsController extends BaseController
     public function show($id)
     {
         $this->getAuthenticatedUserIdOrFail();
-        
+
         $project = Project::findOrFail($id);
 
         if (!$this->canPerformAction('projects', 'view', $project)) {

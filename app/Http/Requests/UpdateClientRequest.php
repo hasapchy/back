@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class UpdateClientRequest extends FormRequest
@@ -34,7 +36,7 @@ class UpdateClientRequest extends FormRequest
             'contact_person'   => 'nullable|string',
             'position'         => 'nullable|string',
             'client_type'      => 'required|string|in:company,individual,employee,investor',
-            'employee_id'      => 'nullable|exists:users,id',
+            'employee_id'      => ['nullable', Rule::exists(User::class, 'id')],
             'address'          => 'nullable|string',
             'phones'           => 'required|array',
             'phones.*'         => 'string|distinct|min:6',

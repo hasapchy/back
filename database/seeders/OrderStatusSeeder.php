@@ -3,13 +3,21 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 use App\Models\OrderStatusCategory;
 use App\Models\OrderStatus;
 
 class OrderStatusSeeder extends Seeder
 {
+    /**
+     * Сидер для tenant-БД. Пропускает выполнение в центральном контексте.
+     */
     public function run()
     {
+        if (!Schema::hasTable('order_statuses')) {
+            return;
+        }
+
         // Create Order Status Categories
         OrderStatusCategory::updateOrCreate(
             ['id' => 1],

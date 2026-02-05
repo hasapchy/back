@@ -4,13 +4,21 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Models\CashRegister;
 use App\Models\CashRegisterUser;
 
 class CashRegisterSeeder extends Seeder
 {
+    /**
+     * Сидер для tenant-БД. Пропускает выполнение в центральном контексте.
+     */
     public function run()
     {
+        if (!Schema::hasTable('currencies')) {
+            return;
+        }
+
         // Динамически получаем ID валюты TMT (не хардкод!)
         $tmtCurrency = DB::table('currencies')
             ->whereNull('company_id')

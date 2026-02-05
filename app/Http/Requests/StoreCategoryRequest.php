@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class StoreCategoryRequest extends FormRequest
@@ -29,7 +31,7 @@ class StoreCategoryRequest extends FormRequest
             'name' => 'required|string',
             'parent_id' => 'nullable|exists:categories,id',
             'users' => 'required|array|min:1',
-            'users.*' => 'exists:users,id',
+            'users.*' => Rule::exists(User::class, 'id'),
         ];
     }
 

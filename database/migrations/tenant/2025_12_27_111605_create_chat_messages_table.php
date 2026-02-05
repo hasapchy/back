@@ -1,0 +1,38 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('chat_messages', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('chat_id')->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('user_id');
+            $table->text('body')->nullable();
+            $table->json('files')->nullable();
+            $table->index(['chat_id', 'created_at']); // Для пагинации сообщений
+            $table->foreignId('parent_id')->nullable()->constrained('chat_messages')->onDelete('cascade'); // Ответ на сообщение
+            $table->boolean('is_edited')->default(false); // Редактировалось ли
+            $table->timestamp('edited_at')->nullable(); // Когда редактировали
+            $table->boolean('is_system')->default(false); // Системное сообщение
+            $table->softDeletes(); // Или $table->timestamp('deleted_at')->nullable();
+            $table->unsignedBigInteger('deleted_by')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('chat_messages');
+    }
+};

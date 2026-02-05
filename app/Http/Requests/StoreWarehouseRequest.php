@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class StoreWarehouseRequest extends FormRequest
@@ -28,7 +30,7 @@ class StoreWarehouseRequest extends FormRequest
         return [
             'name' => 'required|string',
             'users' => 'required|array|min:1',
-            'users.*' => 'exists:users,id',
+            'users.*' => Rule::exists(User::class, 'id'),
         ];
     }
 

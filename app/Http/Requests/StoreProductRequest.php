@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class StoreProductRequest extends FormRequest
@@ -40,7 +42,7 @@ class StoreProductRequest extends FormRequest
             'wholesale_price' => 'nullable|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
             'date' => 'nullable|date',
-            'user_id' => 'nullable|exists:users,id',
+            'user_id' => ['nullable', Rule::exists(User::class, 'id')],
         ];
     }
 

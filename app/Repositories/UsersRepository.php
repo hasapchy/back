@@ -4,7 +4,7 @@ namespace App\Repositories;
 
 use App\Models\User;
 use App\Services\CacheService;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\CashRegisterUser;
@@ -51,7 +51,7 @@ class UsersRepository extends BaseRepository
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $statusFilter, $page, $currentUser) {
             $companyId = $this->getCurrentCompanyId();
-            
+
             $query = User::select([
                 'users.id',
                 'users.name',
@@ -115,7 +115,7 @@ class UsersRepository extends BaseRepository
             [$permissionsMap, $rolesMap] = $this->getPermissionsAndRolesMaps($users, $userIds, $companyId);
             $companyRolesMap = $this->getCompanyRolesMap($userIds);
             $allPermissionsForAdmins = !$companyId
-                ? \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get()
+                ? \App\Models\Permission::where('guard_name', 'api')->get()
                 : null;
 
             $paginated->getCollection()->transform(function ($user) use ($salariesMap, $permissionsMap, $rolesMap, $companyRolesMap, $allPermissionsForAdmins) {
@@ -156,7 +156,7 @@ class UsersRepository extends BaseRepository
             [$permissionsMap, $rolesMap] = $this->getPermissionsAndRolesMaps($users, $userIds, $companyId);
             $companyRolesMap = $this->getCompanyRolesMap($userIds);
             $allPermissionsForAdmins = !$companyId
-                ? \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get()
+                ? \App\Models\Permission::where('guard_name', 'api')->get()
                 : null;
 
             return $users->map(function ($user) use ($salariesMap, $permissionsMap, $rolesMap, $companyRolesMap, $allPermissionsForAdmins) {
@@ -270,7 +270,7 @@ class UsersRepository extends BaseRepository
         if ($companyId) {
             [$permissionsMap, $rolesMap] = $this->getCompanyScopedPermissionsAndRoles($users, $userIds, $companyId);
         } else {
-            $allPermissions = \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
+            $allPermissions = \App\Models\Permission::where('guard_name', 'api')->get();
             $users->load(['roles.permissions', 'permissions']);
             foreach ($users as $user) {
                 $permissionsMap[$user->id] = $user->is_admin
@@ -295,9 +295,10 @@ class UsersRepository extends BaseRepository
     {
         $permissionsMap = [];
         $rolesMap = [];
-        $allPermissions = \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
+        $allPermissions = \App\Models\Permission::where('guard_name', 'api')->get();
 
-        $companyUserRoles = DB::table('company_user_role')
+        $companyUserRoles = DB::connection(config('tenancy.database.central_connection', 'central'))
+            ->table('company_user_role')
             ->whereIn('user_id', $userIds)
             ->where('company_id', $companyId)
             ->get()
@@ -314,7 +315,7 @@ class UsersRepository extends BaseRepository
             return [$permissionsMap, $rolesMap];
         }
 
-        $roles = \Spatie\Permission\Models\Role::where('guard_name', 'api')
+        $roles = \App\Models\Role::where('guard_name', 'api')
             ->whereIn('id', $allRoleIds)
             ->with('permissions:id,name')
             ->get()
@@ -322,7 +323,7 @@ class UsersRepository extends BaseRepository
 
         $allPermissionIds = $roles->flatMap->permissions->pluck('id')->unique();
         $permissions = $allPermissionIds->isNotEmpty()
-            ? \Spatie\Permission\Models\Permission::where('guard_name', 'api')
+            ? \App\Models\Permission::where('guard_name', 'api')
             ->whereIn('id', $allPermissionIds)
             ->get()
             ->keyBy('id')
@@ -359,7 +360,8 @@ class UsersRepository extends BaseRepository
             return [];
         }
 
-        $allCompanyRoles = DB::table('company_user_role')
+        $allCompanyRoles = DB::connection(config('tenancy.database.central_connection', 'central'))
+            ->table('company_user_role')
             ->whereIn('user_id', $userIds)
             ->select('user_id', 'company_id', 'role_id')
             ->get()
@@ -371,7 +373,7 @@ class UsersRepository extends BaseRepository
             return [];
         }
 
-        $allRoles = \Spatie\Permission\Models\Role::where('guard_name', 'api')
+        $allRoles = \App\Models\Role::where('guard_name', 'api')
             ->whereIn('id', $allRoleIds)
             ->get(['id', 'name'])
             ->keyBy('id');

@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class AccrueSalariesRequest extends FormRequest
 {
@@ -28,7 +30,7 @@ class AccrueSalariesRequest extends FormRequest
             'cash_id' => 'required|integer|exists:cash_registers,id',
             'note' => 'nullable|string|max:255',
             'user_ids' => 'required|array|min:1',
-            'user_ids.*' => 'integer|exists:users,id',
+            'user_ids.*' => ['integer', Rule::exists(User::class, 'id')],
             'payment_type' => 'required|boolean',
         ];
     }

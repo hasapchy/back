@@ -4,11 +4,19 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class CurrencySeeder extends Seeder
 {
+    /**
+     * Сидер для tenant-БД. Пропускает выполнение в центральном контексте.
+     */
     public function run()
     {
+        if (!Schema::hasTable('currencies')) {
+            return;
+        }
+
         $currencies = [
             [
                 'company_id' => null,
