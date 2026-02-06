@@ -317,2084 +317,6 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: api/simple/user/me
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить данные текущего аутентифицированного пользователя'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: api/simple/user/logout
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Выход пользователя из системы'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: api/simple/user/profile
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Обновить профиль текущего пользователя'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/orders
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить список заказов с пагинацией'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: 'api/simple/orders/{id}'
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить заказ по ID'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters:
-      id:
-        custom: []
-        name: id
-        description: 'The ID of the order.'
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      id: consequatur
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: api/simple/orders
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Создать новый заказ'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      client_id:
-        custom: []
-        name: client_id
-        description: ''
-        required: true
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      project_id:
-        custom: []
-        name: project_id
-        description: ''
-        required: false
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      cash_id:
-        custom: []
-        name: cash_id
-        description: ''
-        required: false
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      warehouse_id:
-        custom: []
-        name: warehouse_id
-        description: ''
-        required: true
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      currency_id:
-        custom: []
-        name: currency_id
-        description: 'The <code>id</code> of an existing record in the currencies table.'
-        required: false
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      category_id:
-        custom: []
-        name: category_id
-        description: 'The <code>id</code> of an existing record in the categories table.'
-        required: true
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      discount:
-        custom: []
-        name: discount
-        description: 'Поле value должно быть не менее 0.'
-        required: false
-        example: 45
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      discount_type:
-        custom: []
-        name: discount_type
-        description: 'This field is required when <code>discount</code> is present.'
-        required: false
-        example: fixed
-        type: string
-        enumValues:
-          - fixed
-          - percent
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      description:
-        custom: []
-        name: description
-        description: ''
-        required: false
-        example: 'Dolores dolorum amet iste laborum eius est dolor.'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      date:
-        custom: []
-        name: date
-        description: 'Поле value не является датой.'
-        required: false
-        example: '2026-01-13T13:25:34'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      note:
-        custom: []
-        name: note
-        description: ''
-        required: false
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      products:
-        custom: []
-        name: products
-        description: ''
-        required: false
-        example: null
-        type: 'object[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      temp_products:
-        custom: []
-        name: temp_products
-        description: ''
-        required: false
-        example: null
-        type: 'object[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'products[].product_id':
-        custom: []
-        name: 'products[].product_id'
-        description: 'This field is required when <code>products</code> is present. The <code>id</code> of an existing record in the products table.'
-        required: false
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'products[].quantity':
-        custom: []
-        name: 'products[].quantity'
-        description: 'This field is required when <code>products</code> is present. Поле value должно быть не менее 0.'
-        required: false
-        example: 45
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'products[].price':
-        custom: []
-        name: 'products[].price'
-        description: 'This field is required when <code>products</code> is present. Поле value должно быть не менее 0.'
-        required: false
-        example: 56
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'products[].width':
-        custom: []
-        name: 'products[].width'
-        description: 'Поле value должно быть не менее 0.'
-        required: false
-        example: 16
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      'products[].height':
-        custom: []
-        name: 'products[].height'
-        description: 'Поле value должно быть не менее 0.'
-        required: false
-        example: 50
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      'temp_products[].name':
-        custom: []
-        name: 'temp_products[].name'
-        description: 'This field is required when <code>temp_products</code> is present. Количество символов в поле value не может превышать 255.'
-        required: false
-        example: pfuudtdsufvyvddqamnii
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'temp_products[].description':
-        custom: []
-        name: 'temp_products[].description'
-        description: ''
-        required: false
-        example: 'Dolores dolorum amet iste laborum eius est dolor.'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      'temp_products[].quantity':
-        custom: []
-        name: 'temp_products[].quantity'
-        description: 'This field is required when <code>temp_products</code> is present. Поле value должно быть не менее 0.'
-        required: false
-        example: 12
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'temp_products[].price':
-        custom: []
-        name: 'temp_products[].price'
-        description: 'This field is required when <code>temp_products</code> is present. Поле value должно быть не менее 0.'
-        required: false
-        example: 66
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'temp_products[].unit_id':
-        custom: []
-        name: 'temp_products[].unit_id'
-        description: 'The <code>id</code> of an existing record in the units table.'
-        required: false
-        example: null
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      'temp_products[].width':
-        custom: []
-        name: 'temp_products[].width'
-        description: 'Поле value должно быть не менее 0.'
-        required: false
-        example: 13
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      'temp_products[].height':
-        custom: []
-        name: 'temp_products[].height'
-        description: 'Поле value должно быть не менее 0.'
-        required: false
-        example: 65
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-    cleanBodyParameters:
-      client_id: 17
-      project_id: 17
-      cash_id: 17
-      warehouse_id: 17
-      currency_id: 17
-      category_id: 17
-      discount: 45
-      discount_type: fixed
-      description: 'Dolores dolorum amet iste laborum eius est dolor.'
-      date: '2026-01-13T13:25:34'
-      note: consequatur
-      products:
-        -
-          product_id: 17
-          quantity: 45
-          price: 56
-          width: 16
-          height: 50
-      temp_products:
-        -
-          name: pfuudtdsufvyvddqamnii
-          description: 'Dolores dolorum amet iste laborum eius est dolor.'
-          quantity: 12
-          price: 66
-          width: 13
-          height: 65
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - PUT
-    uri: 'api/simple/orders/{id}'
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Обновить заказ'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters:
-      id:
-        custom: []
-        name: id
-        description: 'The ID of the order.'
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      id: consequatur
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      client_id:
-        custom: []
-        name: client_id
-        description: ''
-        required: true
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      project_id:
-        custom: []
-        name: project_id
-        description: ''
-        required: false
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      cash_id:
-        custom: []
-        name: cash_id
-        description: ''
-        required: false
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      warehouse_id:
-        custom: []
-        name: warehouse_id
-        description: ''
-        required: true
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      currency_id:
-        custom: []
-        name: currency_id
-        description: 'The <code>id</code> of an existing record in the currencies table.'
-        required: false
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      category_id:
-        custom: []
-        name: category_id
-        description: 'The <code>id</code> of an existing record in the categories table.'
-        required: false
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      discount:
-        custom: []
-        name: discount
-        description: 'Поле value должно быть не менее 0.'
-        required: false
-        example: 45
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      discount_type:
-        custom: []
-        name: discount_type
-        description: 'This field is required when <code>discount</code> is present.'
-        required: false
-        example: fixed
-        type: string
-        enumValues:
-          - fixed
-          - percent
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      date:
-        custom: []
-        name: date
-        description: 'Поле value не является датой.'
-        required: false
-        example: '2026-01-13T13:25:34'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      note:
-        custom: []
-        name: note
-        description: ''
-        required: false
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      description:
-        custom: []
-        name: description
-        description: ''
-        required: false
-        example: 'Dolores dolorum amet iste laborum eius est dolor.'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      status_id:
-        custom: []
-        name: status_id
-        description: 'The <code>id</code> of an existing record in the order_statuses table.'
-        required: false
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      products:
-        custom: []
-        name: products
-        description: ''
-        required: false
-        example: null
-        type: 'object[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      temp_products:
-        custom: []
-        name: temp_products
-        description: ''
-        required: false
-        example: null
-        type: 'object[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      remove_temp_products:
-        custom: []
-        name: remove_temp_products
-        description: 'The <code>id</code> of an existing record in the order_temp_products table.'
-        required: false
-        example:
-          - 17
-        type: 'integer[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'products[].id':
-        custom: []
-        name: 'products[].id'
-        description: 'The <code>id</code> of an existing record in the order_products table.'
-        required: false
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      'products[].product_id':
-        custom: []
-        name: 'products[].product_id'
-        description: 'This field is required when <code>products</code> is present. The <code>id</code> of an existing record in the products table.'
-        required: false
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'products[].quantity':
-        custom: []
-        name: 'products[].quantity'
-        description: 'This field is required when <code>products</code> is present. Поле value должно быть не менее 0.'
-        required: false
-        example: 45
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'products[].price':
-        custom: []
-        name: 'products[].price'
-        description: 'This field is required when <code>products</code> is present. Поле value должно быть не менее 0.'
-        required: false
-        example: 56
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'products[].width':
-        custom: []
-        name: 'products[].width'
-        description: 'Поле value должно быть не менее 0.'
-        required: false
-        example: 16
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      'products[].height':
-        custom: []
-        name: 'products[].height'
-        description: 'Поле value должно быть не менее 0.'
-        required: false
-        example: 50
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      'temp_products[].id':
-        custom: []
-        name: 'temp_products[].id'
-        description: 'The <code>id</code> of an existing record in the order_temp_products table.'
-        required: false
-        example: 17
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      'temp_products[].name':
-        custom: []
-        name: 'temp_products[].name'
-        description: 'This field is required when <code>temp_products</code> is present. Количество символов в поле value не может превышать 255.'
-        required: false
-        example: mqeopfuudtdsufvyvddqa
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'temp_products[].description':
-        custom: []
-        name: 'temp_products[].description'
-        description: ''
-        required: false
-        example: 'Dolores dolorum amet iste laborum eius est dolor.'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      'temp_products[].quantity':
-        custom: []
-        name: 'temp_products[].quantity'
-        description: 'This field is required when <code>temp_products</code> is present. Поле value должно быть не менее 0.'
-        required: false
-        example: 12
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'temp_products[].price':
-        custom: []
-        name: 'temp_products[].price'
-        description: 'This field is required when <code>temp_products</code> is present. Поле value должно быть не менее 0.'
-        required: false
-        example: 66
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      'temp_products[].unit_id':
-        custom: []
-        name: 'temp_products[].unit_id'
-        description: 'The <code>id</code> of an existing record in the units table.'
-        required: false
-        example: null
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      'temp_products[].width':
-        custom: []
-        name: 'temp_products[].width'
-        description: 'Поле value должно быть не менее 0.'
-        required: false
-        example: 13
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      'temp_products[].height':
-        custom: []
-        name: 'temp_products[].height'
-        description: 'Поле value должно быть не менее 0.'
-        required: false
-        example: 65
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-    cleanBodyParameters:
-      client_id: 17
-      project_id: 17
-      cash_id: 17
-      warehouse_id: 17
-      currency_id: 17
-      category_id: 17
-      discount: 45
-      discount_type: fixed
-      date: '2026-01-13T13:25:34'
-      note: consequatur
-      description: 'Dolores dolorum amet iste laborum eius est dolor.'
-      status_id: 17
-      remove_temp_products:
-        - 17
-      products:
-        -
-          id: 17
-          product_id: 17
-          quantity: 45
-          price: 56
-          width: 16
-          height: 50
-      temp_products:
-        -
-          id: 17
-          name: mqeopfuudtdsufvyvddqa
-          description: 'Dolores dolorum amet iste laborum eius est dolor.'
-          quantity: 12
-          price: 66
-          width: 13
-          height: 65
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - DELETE
-    uri: 'api/simple/orders/{id}'
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Удалить заказ'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters:
-      id:
-        custom: []
-        name: id
-        description: 'The ID of the order.'
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      id: consequatur
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/order_statuses
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить список статусов заказов с пагинацией'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/order_statuses/all
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить все статусы заказов'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/clients
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить список клиентов с пагинацией'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/clients/all
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить всех клиентов'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/clients/search
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Поиск клиентов'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: 'api/simple/clients/{id}'
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить клиента по ID'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters:
-      id:
-        custom: []
-        name: id
-        description: 'The ID of the client.'
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      id: consequatur
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: api/simple/clients
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Создать нового клиента'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      first_name:
-        custom: []
-        name: first_name
-        description: ''
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      is_conflict:
-        custom: []
-        name: is_conflict
-        description: ''
-        required: false
-        example: false
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      is_supplier:
-        custom: []
-        name: is_supplier
-        description: ''
-        required: false
-        example: true
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      last_name:
-        custom: []
-        name: last_name
-        description: ''
-        required: false
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      patronymic:
-        custom: []
-        name: patronymic
-        description: ''
-        required: false
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      contact_person:
-        custom: []
-        name: contact_person
-        description: ''
-        required: false
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      position:
-        custom: []
-        name: position
-        description: ''
-        required: false
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      client_type:
-        custom: []
-        name: client_type
-        description: ''
-        required: true
-        example: investor
-        type: string
-        enumValues:
-          - company
-          - individual
-          - employee
-          - investor
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      employee_id:
-        custom: []
-        name: employee_id
-        description: 'The <code>id</code> of an existing record in the users table.'
-        required: false
-        example: null
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      address:
-        custom: []
-        name: address
-        description: ''
-        required: false
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      phones:
-        custom: []
-        name: phones
-        description: 'Количество символов в поле value должно быть не менее 6.'
-        required: false
-        example:
-          - mqeopfuudtdsufvyvddqamniihfqcoynlazghdtqtqxbajwbpilpmufinllwloauydlsmsjury
-        type: 'string[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      emails:
-        custom: []
-        name: emails
-        description: 'Поле value должно быть действительным электронным адресом.'
-        required: false
-        example:
-          - jmacejkovic@example.com
-        type: 'string[]'
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      note:
-        custom: []
-        name: note
-        description: ''
-        required: false
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      status:
-        custom: []
-        name: status
-        description: ''
-        required: false
-        example: false
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      discount:
-        custom: []
-        name: discount
-        description: 'Поле value должно быть не менее 0.'
-        required: false
-        example: 56
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      discount_type:
-        custom: []
-        name: discount_type
-        description: ''
-        required: false
-        example: percent
-        type: string
-        enumValues:
-          - fixed
-          - percent
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-    cleanBodyParameters:
-      first_name: consequatur
-      is_conflict: false
-      is_supplier: true
-      last_name: consequatur
-      patronymic: consequatur
-      contact_person: consequatur
-      position: consequatur
-      client_type: investor
-      address: consequatur
-      phones:
-        - mqeopfuudtdsufvyvddqamniihfqcoynlazghdtqtqxbajwbpilpmufinllwloauydlsmsjury
-      emails:
-        - jmacejkovic@example.com
-      note: consequatur
-      status: false
-      discount: 56
-      discount_type: percent
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/products
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить список товаров с пагинацией'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/services
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить список услуг с пагинацией'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/products/search
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Поиск товаров и услуг'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/projects
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить список проектов с пагинацией'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/projects/all
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить все проекты'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: 'api/simple/projects/{id}'
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить проект по ID'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters:
-      id:
-        custom: []
-        name: id
-        description: 'The ID of the project.'
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      id: consequatur
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/warehouses
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить список складов с пагинацией'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/warehouses/all
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить все склады'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/cash_registers
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить список касс с пагинацией'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/cash_registers/all
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить все кассы пользователя'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/app/currency
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить список валют'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: api/simple/app/units
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Получить список единиц измерения'
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters: []
-    cleanUrlParameters: []
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
     uri: api/app/currency
     metadata:
       custom: []
@@ -2505,6 +427,51 @@ endpoints:
       subgroup: ''
       subgroupDescription: ''
       title: 'Получить список единиц измерения'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/app/versions
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Получить список версий приложения'
       description: ''
       authenticated: true
       deprecated: false
@@ -2729,7 +696,7 @@ endpoints:
         name: start_date
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -2740,7 +707,7 @@ endpoints:
         name: end_date
         description: 'Поле value не является датой. Поле value должно быть датой после <code>start_date</code>.'
         required: false
-        example: '2107-02-12'
+        example: '2107-03-08'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -2748,8 +715,8 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       exchange_rate: 73
-      start_date: '2026-01-13T13:25:35'
-      end_date: '2107-02-12'
+      start_date: '2026-02-06T14:38:54'
+      end_date: '2107-03-08'
     fileParameters: []
     responses: []
     responseFields: []
@@ -2825,7 +792,7 @@ endpoints:
         name: start_date
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -2836,7 +803,7 @@ endpoints:
         name: end_date
         description: 'Поле value не является датой. Поле value должно быть датой после <code>start_date</code>.'
         required: false
-        example: '2107-02-12'
+        example: '2107-03-08'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -2844,8 +811,8 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       exchange_rate: 73
-      start_date: '2026-01-13T13:25:35'
-      end_date: '2107-02-12'
+      start_date: '2026-02-06T14:38:54'
+      end_date: '2107-03-08'
     fileParameters: []
     responses: []
     responseFields: []
@@ -3059,17 +1026,107 @@ endpoints:
       deprecated: false
     headers:
       Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
+      Content-Type: multipart/form-data
       Accept: application/json
       X-Company-ID: '1'
     urlParameters: []
     cleanUrlParameters: []
     queryParameters: []
     cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses: []
+    bodyParameters:
+      name:
+        custom: []
+        name: name
+        description: Имя.
+        required: false
+        example: Иван
+        type: string
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+      surname:
+        custom: []
+        name: surname
+        description: Фамилия.
+        required: false
+        example: Петров
+        type: string
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+      email:
+        custom: []
+        name: email
+        description: Email.
+        required: false
+        example: ivan@example.com
+        type: string
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+      birthday:
+        custom: []
+        name: birthday
+        description: 'Дата рождения (Y-m-d).'
+        required: false
+        example: '1990-01-15'
+        type: string
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+      current_password:
+        custom: []
+        name: current_password
+        description: 'Текущий пароль (обязателен при смене пароля).'
+        required: false
+        example: oldpass123
+        type: string
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+      password:
+        custom: []
+        name: password
+        description: 'Новый пароль (min 6 символов).'
+        required: false
+        example: newpass456
+        type: string
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+      photo:
+        custom: []
+        name: photo
+        description: 'Фото (jpeg, png, jpg, gif, max 2MB). Example:'
+        required: false
+        example: null
+        type: file
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      name: Иван
+      surname: Петров
+      email: ivan@example.com
+      birthday: '1990-01-15'
+      current_password: oldpass123
+      password: newpass456
+    fileParameters:
+      photo: null
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"user":{"id":1,"name":"Иван","surname":"Петров","email":"ivan@example.com","birthday":"1990-01-15","photo":null,"roles":[],"permissions":[]}}'
+        headers: []
+        description: ''
     responseFields: []
     auth:
       - headers
@@ -3328,12 +1385,23 @@ endpoints:
         exampleWasSpecified: false
         nullable: false
         deprecated: false
+      phone:
+        custom: []
+        name: phone
+        description: 'Количество символов в поле value не может превышать 20.'
+        required: false
+        example: wbpilpmufinllwloa
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
       password:
         custom: []
         name: password
         description: 'Количество символов в поле value должно быть не менее 6.'
         required: true
-        example: "'YAKYLk4>SJIrIV#lz."
+        example: 'z.KcLcDi`wmUB)z&~n'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3344,7 +1412,7 @@ endpoints:
         name: hire_date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3355,7 +1423,7 @@ endpoints:
         name: birthday
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3366,7 +1434,7 @@ endpoints:
         name: position
         description: 'Количество символов в поле value не может превышать 255.'
         required: false
-        example: lsmsjuryvojcybzvrbyic
+        example: rbyickznkygloigmkwxph
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3377,7 +1445,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -3479,11 +1547,12 @@ endpoints:
       name: vmqeopfuudtdsufvyvddq
       surname: amniihfqcoynlazghdtqt
       email: andreanne00@example.org
-      password: "'YAKYLk4>SJIrIV#lz."
-      hire_date: '2026-01-13T13:25:35'
-      birthday: '2026-01-13T13:25:35'
-      position: lsmsjuryvojcybzvrbyic
-      is_active: true
+      phone: wbpilpmufinllwloa
+      password: 'z.KcLcDi`wmUB)z&~n'
+      hire_date: '2026-02-06T14:38:54'
+      birthday: '2026-02-06T14:38:54'
+      position: rbyickznkygloigmkwxph
+      is_active: false
       is_admin: true
       roles:
         - consequatur
@@ -3577,12 +1646,23 @@ endpoints:
         exampleWasSpecified: false
         nullable: true
         deprecated: false
+      phone:
+        custom: []
+        name: phone
+        description: 'Количество символов в поле value не может превышать 20.'
+        required: false
+        example: wbpilpmufinllwloa
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
       password:
         custom: []
         name: password
         description: 'Количество символов в поле value должно быть не менее 6.'
         required: false
-        example: "'YAKYLk4>SJIrIV#lz."
+        example: 'z.KcLcDi`wmUB)z&~n'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3593,7 +1673,7 @@ endpoints:
         name: hire_date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3604,7 +1684,7 @@ endpoints:
         name: birthday
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3615,7 +1695,7 @@ endpoints:
         name: position
         description: 'Количество символов в поле value не может превышать 255.'
         required: false
-        example: lsmsjuryvojcybzvrbyic
+        example: rbyickznkygloigmkwxph
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3626,7 +1706,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -3728,11 +1808,12 @@ endpoints:
       name: vmqeopfuudtdsufvyvddq
       surname: amniihfqcoynlazghdtqt
       email: andreanne00@example.org
-      password: "'YAKYLk4>SJIrIV#lz."
-      hire_date: '2026-01-13T13:25:35'
-      birthday: '2026-01-13T13:25:35'
-      position: lsmsjuryvojcybzvrbyic
-      is_active: true
+      phone: wbpilpmufinllwloa
+      password: 'z.KcLcDi`wmUB)z&~n'
+      hire_date: '2026-02-06T14:38:54'
+      birthday: '2026-02-06T14:38:54'
+      position: rbyickznkygloigmkwxph
+      is_active: false
       is_admin: true
       roles:
         - consequatur
@@ -4774,6 +2855,17 @@ endpoints:
         exampleWasSpecified: false
         nullable: true
         deprecated: false
+      work_schedule:
+        custom: []
+        name: work_schedule
+        description: ''
+        required: false
+        example: null
+        type: object
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
     cleanBodyParameters:
       name: vmqeopfuudtdsufvyvddq
       show_deleted_transactions: true
@@ -4974,6 +3066,17 @@ endpoints:
         exampleWasSpecified: false
         nullable: true
         deprecated: false
+      work_schedule:
+        custom: []
+        name: work_schedule
+        description: ''
+        required: false
+        example: null
+        type: object
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
     cleanBodyParameters:
       name: vmqeopfuudtdsufvyvddq
       show_deleted_transactions: true
@@ -5087,7 +3190,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -5139,7 +3242,7 @@ endpoints:
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
       cash_id: 17
       note: mqeopfuudtdsufvyvddqa
       user_ids:
@@ -5703,7 +3806,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -5781,7 +3884,7 @@ endpoints:
       warehouse_id: 17
       type: balance
       cash_id: 17
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
       note: consequatur
       project_id: 17
       products:
@@ -5841,7 +3944,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -5859,7 +3962,7 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
       note: consequatur
     fileParameters: []
     responses: []
@@ -6317,7 +4420,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -6371,7 +4474,7 @@ endpoints:
     cleanBodyParameters:
       warehouse_from_id: 17
       warehouse_to_id: 17
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
       note: consequatur
       products:
         -
@@ -6451,7 +4554,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -6505,7 +4608,7 @@ endpoints:
     cleanBodyParameters:
       warehouse_from_id: 17
       warehouse_to_id: 17
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
       note: consequatur
       products:
         -
@@ -7258,7 +5361,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -7284,7 +5387,7 @@ endpoints:
       retail_price: 45
       wholesale_price: 56
       purchase_price: 16
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
     fileParameters:
       image: null
     responses: []
@@ -7470,7 +5573,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -7496,7 +5599,7 @@ endpoints:
       retail_price: 45
       wholesale_price: 56
       purchase_price: 16
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
     fileParameters:
       image: null
     responses: []
@@ -8343,6 +6446,231 @@ endpoints:
     custom: []
     httpMethods:
       - GET
+    uri: 'api/clients/{clientId}/balances'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Получить все балансы клиента'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      clientId:
+        custom: []
+        name: clientId
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      clientId: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/clients/{clientId}/balances'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Создать баланс в валюте'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      clientId:
+        custom: []
+        name: clientId
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      clientId: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/clients/{clientId}/balances/{id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Обновить баланс (установить как дефолтный)'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      clientId:
+        custom: []
+        name: clientId
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the balance.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      clientId: consequatur
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/clients/{clientId}/balances/{id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Удалить баланс'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      clientId:
+        custom: []
+        name: clientId
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the balance.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      clientId: consequatur
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
     uri: api/cash_registers
     metadata:
       custom: []
@@ -8543,9 +6871,44 @@ endpoints:
         exampleWasSpecified: false
         nullable: false
         deprecated: false
+      is_cash:
+        custom: []
+        name: is_cash
+        description: ''
+        required: false
+        example: true
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      icon:
+        custom: []
+        name: icon
+        description: 'Количество символов в поле value не может превышать 100.'
+        required: false
+        example: pfuudtdsufvyvddqamnii
+        type: string
+        enumValues:
+          - 'fa-solid fa-building-columns'
+          - 'fa-solid fa-ticket'
+          - 'fa-solid fa-location-dot'
+          - 'fa-solid fa-fire'
+          - 'fa-solid fa-thumbs-up'
+          - 'fa-solid fa-dollar-sign'
+          - 'fa-solid fa-cash-register'
+          - 'fa-solid fa-credit-card'
+          - 'fa-solid fa-briefcase'
+          - 'fa-solid fa-user'
+          - 'fa-solid fa-star'
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
     cleanBodyParameters:
       name: consequatur
       balance: 11613.31890586
+      is_cash: true
+      icon: pfuudtdsufvyvddqamnii
     fileParameters: []
     responses: []
     responseFields: []
@@ -8615,8 +6978,43 @@ endpoints:
         exampleWasSpecified: false
         nullable: false
         deprecated: false
+      is_cash:
+        custom: []
+        name: is_cash
+        description: ''
+        required: false
+        example: false
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      icon:
+        custom: []
+        name: icon
+        description: 'Количество символов в поле value не может превышать 100.'
+        required: false
+        example: qeopfuudtdsufvyvddqam
+        type: string
+        enumValues:
+          - 'fa-solid fa-building-columns'
+          - 'fa-solid fa-ticket'
+          - 'fa-solid fa-location-dot'
+          - 'fa-solid fa-fire'
+          - 'fa-solid fa-thumbs-up'
+          - 'fa-solid fa-dollar-sign'
+          - 'fa-solid fa-cash-register'
+          - 'fa-solid fa-credit-card'
+          - 'fa-solid fa-briefcase'
+          - 'fa-solid fa-user'
+          - 'fa-solid fa-star'
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
     cleanBodyParameters:
       name: consequatur
+      is_cash: false
+      icon: qeopfuudtdsufvyvddqam
     fileParameters: []
     responses: []
     responseFields: []
@@ -8863,7 +7261,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -8904,7 +7302,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       name: consequatur
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
       client_id: consequatur
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
     fileParameters: []
@@ -8970,7 +7368,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9011,7 +7409,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       name: consequatur
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
       client_id: consequatur
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
     fileParameters: []
@@ -9579,12 +7977,25 @@ endpoints:
         exampleWasSpecified: false
         nullable: false
         deprecated: false
+      type:
+        custom: []
+        name: type
+        description: ''
+        required: true
+        example: '0'
+        type: integer
+        enumValues:
+          - '0'
+          - '1'
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
       amount:
         custom: []
         name: amount
         description: 'Поле value должно быть не менее 0.'
         required: true
-        example: 45
+        example: 46
         type: number
         enumValues: []
         exampleWasSpecified: false
@@ -9601,12 +8012,23 @@ endpoints:
         exampleWasSpecified: false
         nullable: true
         deprecated: false
+      cash_id:
+        custom: []
+        name: cash_id
+        description: 'The <code>id</code> of an existing record in the cash_registers table.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
       date:
         custom: []
         name: date
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9615,17 +8037,6 @@ endpoints:
       returned:
         custom: []
         name: returned
-        description: ''
-        required: false
-        example: true
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      is_paid:
-        custom: []
-        name: is_paid
         description: ''
         required: false
         example: false
@@ -9659,10 +8070,11 @@ endpoints:
     cleanBodyParameters:
       project_id: consequatur
       number: mqeopfuudtdsufvyvddqa
-      amount: 45
-      date: '2026-01-13T13:25:35'
-      returned: true
-      is_paid: false
+      type: '0'
+      amount: 46
+      cash_id: consequatur
+      date: '2026-02-06T14:38:54'
+      returned: false
       note: consequatur
     fileParameters: []
     responses: []
@@ -9824,12 +8236,25 @@ endpoints:
         exampleWasSpecified: false
         nullable: false
         deprecated: false
+      type:
+        custom: []
+        name: type
+        description: ''
+        required: true
+        example: '0'
+        type: integer
+        enumValues:
+          - '0'
+          - '1'
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
       amount:
         custom: []
         name: amount
         description: 'Поле value должно быть не менее 0.'
         required: true
-        example: 1
+        example: 45
         type: number
         enumValues: []
         exampleWasSpecified: false
@@ -9846,12 +8271,23 @@ endpoints:
         exampleWasSpecified: false
         nullable: true
         deprecated: false
+      cash_id:
+        custom: []
+        name: cash_id
+        description: 'The <code>id</code> of an existing record in the cash_registers table.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
       date:
         custom: []
         name: date
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9862,18 +8298,7 @@ endpoints:
         name: returned
         description: ''
         required: false
-        example: true
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      is_paid:
-        custom: []
-        name: is_paid
-        description: ''
-        required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -9903,10 +8328,11 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       number: vmqeopfuudtdsufvyvddq
-      amount: 1
-      date: '2026-01-13T13:25:35'
-      returned: true
-      is_paid: true
+      type: '0'
+      amount: 45
+      cash_id: consequatur
+      date: '2026-02-06T14:38:54'
+      returned: false
       note: consequatur
     fileParameters: []
     responses: []
@@ -9943,453 +8369,6 @@ endpoints:
         custom: []
         name: id
         description: 'The ID of the contract.'
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      id: consequatur
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: 'api/projects/{projectId}/transactions'
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: ''
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters:
-      projectId:
-        custom: []
-        name: projectId
-        description: ''
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      projectId: consequatur
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: 'api/projects/{projectId}/transactions/all'
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: ''
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters:
-      projectId:
-        custom: []
-        name: projectId
-        description: ''
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      projectId: consequatur
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - POST
-    uri: 'api/projects/{projectId}/transactions'
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: ''
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters:
-      projectId:
-        custom: []
-        name: projectId
-        description: ''
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      projectId: consequatur
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      project_id:
-        custom: []
-        name: project_id
-        description: ''
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      type:
-        custom: []
-        name: type
-        description: ''
-        required: true
-        example: false
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      amount:
-        custom: []
-        name: amount
-        description: 'Поле value должно быть не менее 0.01.'
-        required: true
-        example: 56
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      currency_id:
-        custom: []
-        name: currency_id
-        description: 'The <code>id</code> of an existing record in the currencies table.'
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      note:
-        custom: []
-        name: note
-        description: ''
-        required: false
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      date:
-        custom: []
-        name: date
-        description: 'Поле value не является датой.'
-        required: true
-        example: '2026-01-13T13:25:35'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      project_id: consequatur
-      type: false
-      amount: 56
-      currency_id: consequatur
-      note: consequatur
-      date: '2026-01-13T13:25:35'
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - GET
-    uri: 'api/project-transactions/{id}'
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: ''
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters:
-      id:
-        custom: []
-        name: id
-        description: 'The ID of the project transaction.'
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      id: consequatur
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
-    fileParameters: []
-    responses:
-      -
-        custom: []
-        status: 401
-        content: '{"message":"Unauthenticated."}'
-        headers:
-          cache-control: 'no-cache, private'
-          content-type: application/json
-          vary: Origin
-        description: null
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - PUT
-    uri: 'api/project-transactions/{id}'
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: ''
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters:
-      id:
-        custom: []
-        name: id
-        description: 'The ID of the project transaction.'
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      id: consequatur
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      type:
-        custom: []
-        name: type
-        description: ''
-        required: true
-        example: false
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      amount:
-        custom: []
-        name: amount
-        description: 'Поле value должно быть не менее 0.'
-        required: true
-        example: 45
-        type: number
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      currency_id:
-        custom: []
-        name: currency_id
-        description: 'The <code>id</code> of an existing record in the currencies table.'
-        required: true
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      note:
-        custom: []
-        name: note
-        description: ''
-        required: false
-        example: consequatur
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      date:
-        custom: []
-        name: date
-        description: 'Поле value не является датой.'
-        required: true
-        example: '2026-01-13T13:25:35'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanBodyParameters:
-      type: false
-      amount: 45
-      currency_id: consequatur
-      note: consequatur
-      date: '2026-01-13T13:25:35'
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth:
-      - headers
-      - Authorization
-      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - DELETE
-    uri: 'api/project-transactions/{id}'
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: ''
-      description: ''
-      authenticated: true
-      deprecated: false
-    headers:
-      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
-      Content-Type: application/json
-      Accept: application/json
-      X-Company-ID: '1'
-    urlParameters:
-      id:
-        custom: []
-        name: id
-        description: 'The ID of the project transaction.'
         required: true
         example: consequatur
         type: string
@@ -10856,6 +8835,17 @@ endpoints:
         exampleWasSpecified: false
         nullable: true
         deprecated: false
+      client_balance_id:
+        custom: []
+        name: client_balance_id
+        description: 'The <code>id</code> of an existing record in the client_balances table.'
+        required: false
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
       order_id:
         custom: []
         name: order_id
@@ -10905,7 +8895,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10950,11 +8940,12 @@ endpoints:
       currency_id: consequatur
       cash_id: 17
       category_id: consequatur
+      client_balance_id: 17
       order_id: 17
       source_type: consequatur
       source_id: 17
       note: consequatur
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
       is_debt: false
       is_adjustment: true
       exchange_rate: 16
@@ -11054,7 +9045,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11129,7 +9120,7 @@ endpoints:
     cleanBodyParameters:
       category_id: consequatur
       note: consequatur
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
       orig_amount: 45
       is_debt: true
       source_type: consequatur
@@ -11379,7 +9370,7 @@ endpoints:
       cash_id_to:
         custom: []
         name: cash_id_to
-        description: ''
+        description: 'The value and <code>cash_id_from</code> must be different.'
         required: true
         example: 17
         type: integer
@@ -11487,7 +9478,7 @@ endpoints:
       cash_id_to:
         custom: []
         name: cash_id_to
-        description: ''
+        description: 'The value and <code>cash_id_from</code> must be different.'
         required: true
         example: 17
         type: integer
@@ -11759,7 +9750,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11830,7 +9821,7 @@ endpoints:
       currency_id: 17
       discount: 45
       discount_type: fixed
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
       note: consequatur
       products:
         -
@@ -12000,6 +9991,51 @@ endpoints:
   -
     custom: []
     httpMethods:
+      - GET
+    uri: api/orders/first-stage-count
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Количество заказов на первой стадии (status_id = 1), доступных текущему пользователю.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
       - POST
     uri: api/orders
     metadata:
@@ -12128,7 +10164,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -12309,7 +10345,7 @@ endpoints:
       discount: 45
       discount_type: fixed
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
       note: consequatur
       products:
         -
@@ -12468,7 +10504,7 @@ endpoints:
         name: date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -12704,7 +10740,7 @@ endpoints:
       category_id: 17
       discount: 45
       discount_type: fixed
-      date: '2026-01-13T13:25:35'
+      date: '2026-02-06T14:38:54'
       note: consequatur
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
       status_id: 17
@@ -14125,7 +12161,7 @@ endpoints:
         name: date_from
         description: 'Поле value не является датой.'
         required: true
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14136,7 +12172,7 @@ endpoints:
         name: date_to
         description: 'Поле value не является датой. Поле value должно быть датой после или равной <code>date_from</code>.'
         required: true
-        example: '2107-02-12'
+        example: '2107-03-08'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14146,8 +12182,8 @@ endpoints:
       leave_type_id: 17
       user_id: 17
       comment: consequatur
-      date_from: '2026-01-13T13:25:35'
-      date_to: '2107-02-12'
+      date_from: '2026-02-06T14:38:54'
+      date_to: '2107-03-08'
     fileParameters: []
     responses: []
     responseFields: []
@@ -14233,7 +12269,7 @@ endpoints:
         name: date_from
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14244,7 +12280,7 @@ endpoints:
         name: date_to
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14254,8 +12290,8 @@ endpoints:
       leave_type_id: 17
       user_id: 17
       comment: consequatur
-      date_from: '2026-01-13T13:25:35'
-      date_to: '2026-01-13T13:25:35'
+      date_from: '2026-02-06T14:38:54'
+      date_to: '2026-02-06T14:38:54'
     fileParameters: []
     responses: []
     responseFields: []
@@ -14304,6 +12340,455 @@ endpoints:
     cleanQueryParameters: []
     bodyParameters: []
     cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/company-holidays
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Получить список праздников компании с пагинацией'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/company-holidays/all
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Получить все праздники компании'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/company-holidays/{id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Получить праздник по ID'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the company holiday.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/company-holidays
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Создать новый праздник'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      company_id:
+        custom: []
+        name: company_id
+        description: 'The <code>id</code> of an existing record in the companies table.'
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      name:
+        custom: []
+        name: name
+        description: 'Количество символов в поле value не может превышать 255.'
+        required: true
+        example: mqeopfuudtdsufvyvddqa
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      date:
+        custom: []
+        name: date
+        description: 'Поле value не является датой.'
+        required: true
+        example: '2026-02-06T14:38:54'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      is_recurring:
+        custom: []
+        name: is_recurring
+        description: ''
+        required: false
+        example: true
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      color:
+        custom: []
+        name: color
+        description: 'Количество символов в поле value не может превышать 7.'
+        required: false
+        example: niihfq
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      company_id: 17
+      name: mqeopfuudtdsufvyvddqa
+      date: '2026-02-06T14:38:54'
+      is_recurring: true
+      color: niihfq
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/company-holidays/{id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Обновить праздник'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the company holiday.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      company_id:
+        custom: []
+        name: company_id
+        description: 'The <code>id</code> of an existing record in the companies table.'
+        required: false
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      name:
+        custom: []
+        name: name
+        description: 'Количество символов в поле value не может превышать 255.'
+        required: false
+        example: mqeopfuudtdsufvyvddqa
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      date:
+        custom: []
+        name: date
+        description: 'Поле value не является датой.'
+        required: false
+        example: '2026-02-06T14:38:54'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      is_recurring:
+        custom: []
+        name: is_recurring
+        description: ''
+        required: false
+        example: true
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      color:
+        custom: []
+        name: color
+        description: 'Количество символов в поле value не может превышать 7.'
+        required: false
+        example: niihfq
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      company_id: 17
+      name: mqeopfuudtdsufvyvddqa
+      date: '2026-02-06T14:38:54'
+      is_recurring: true
+      color: niihfq
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/company-holidays/{id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Удалить праздник'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the company holiday.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/company-holidays/batch-delete
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Пакетное удаление праздников'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      ids:
+        custom: []
+        name: ids
+        description: ''
+        required: false
+        example:
+          - 17
+        type: 'integer[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      ids:
+        - 17
     fileParameters: []
     responses: []
     responseFields: []
@@ -14625,7 +13110,7 @@ endpoints:
         name: invoice_date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14656,7 +13141,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       client_id: 17
-      invoice_date: '2026-01-13T13:25:35'
+      invoice_date: '2026-02-06T14:38:54'
       note: consequatur
       order_ids:
         - 17
@@ -14723,7 +13208,7 @@ endpoints:
         name: invoice_date
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:35'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14835,7 +13320,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       client_id: 17
-      invoice_date: '2026-01-13T13:25:35'
+      invoice_date: '2026-02-06T14:38:54'
       note: consequatur
       status: cancelled
       order_ids:
@@ -15505,6 +13990,51 @@ endpoints:
     custom: []
     httpMethods:
       - GET
+    uri: api/tasks/overdue-count
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Количество просроченных задач (дедлайн просрочен), доступных текущему пользователю.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
     uri: 'api/tasks/{id}'
     metadata:
       custom: []
@@ -15682,7 +14212,7 @@ endpoints:
         name: deadline
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:36'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15710,6 +14240,17 @@ endpoints:
         exampleWasSpecified: false
         nullable: true
         deprecated: false
+      checklist:
+        custom: []
+        name: checklist
+        description: ''
+        required: false
+        example: null
+        type: object
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
     cleanBodyParameters:
       title: vmqeopfuudtdsufvyvddq
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
@@ -15717,7 +14258,7 @@ endpoints:
       executor_id: consequatur
       priority: low
       complexity: simple
-      deadline: '2026-01-13T13:25:36'
+      deadline: '2026-02-06T14:38:54'
     fileParameters: []
     responses: []
     responseFields: []
@@ -15864,7 +14405,7 @@ endpoints:
         name: deadline
         description: 'Поле value не является датой.'
         required: false
-        example: '2026-01-13T13:25:36'
+        example: '2026-02-06T14:38:54'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15892,12 +14433,23 @@ endpoints:
         exampleWasSpecified: false
         nullable: true
         deprecated: false
+      checklist:
+        custom: []
+        name: checklist
+        description: ''
+        required: false
+        example: null
+        type: object
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
     cleanBodyParameters:
       title: vmqeopfuudtdsufvyvddq
       description: 'Dolores dolorum amet iste laborum eius est dolor.'
       priority: normal
       complexity: complex
-      deadline: '2026-01-13T13:25:36'
+      deadline: '2026-02-06T14:38:54'
     fileParameters: []
     responses: []
     responseFields: []
@@ -17197,7 +15749,7 @@ endpoints:
       files:
         custom: []
         name: files
-        description: 'Must be a file. Размер файла в поле value не может превышать 10240 Килобайт(а).'
+        description: 'Must be a file. Размер файла в поле value не может превышать 51200 Килобайт(а).'
         required: false
         example:
           - null
@@ -17206,11 +15758,299 @@ endpoints:
         exampleWasSpecified: false
         nullable: false
         deprecated: false
+      parent_id:
+        custom: []
+        name: parent_id
+        description: 'The <code>id</code> of an existing record in the chat_messages table.'
+        required: false
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
     cleanBodyParameters:
       body: vmqeopfuudtdsufvyvddq
+      parent_id: 17
     fileParameters:
       files:
         - null
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/chats/{chat_id}/messages/{message_id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: ''
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      chat_id:
+        custom: []
+        name: chat_id
+        description: 'The ID of the chat.'
+        required: true
+        example: 1
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      message_id:
+        custom: []
+        name: message_id
+        description: 'The ID of the message.'
+        required: true
+        example: 1
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      chat_id: 1
+      message_id: 1
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      body:
+        custom: []
+        name: body
+        description: 'Количество символов в поле value не может превышать 10000.'
+        required: true
+        example: vmqeopfuudtdsufvyvddq
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      body: vmqeopfuudtdsufvyvddq
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/chats/{chat_id}/messages/{message_id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: ''
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      chat_id:
+        custom: []
+        name: chat_id
+        description: 'The ID of the chat.'
+        required: true
+        example: 1
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      message_id:
+        custom: []
+        name: message_id
+        description: 'The ID of the message.'
+        required: true
+        example: 1
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      chat_id: 1
+      message_id: 1
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/chats/{chat_id}/messages/{message_id}/forward'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: ''
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      chat_id:
+        custom: []
+        name: chat_id
+        description: 'The ID of the chat.'
+        required: true
+        example: 1
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      message_id:
+        custom: []
+        name: message_id
+        description: 'The ID of the message.'
+        required: true
+        example: 1
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      chat_id: 1
+      message_id: 1
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      target_chat_id:
+        custom: []
+        name: target_chat_id
+        description: 'The <code>id</code> of an existing record in the chats table.'
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      hide_sender_name:
+        custom: []
+        name: hide_sender_name
+        description: ''
+        required: false
+        example: false
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      target_chat_id: 17
+      hide_sender_name: false
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/chats/{chat_id}/messages/{message_id}/reaction'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: ''
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      chat_id:
+        custom: []
+        name: chat_id
+        description: 'The ID of the chat.'
+        required: true
+        example: 1
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      message_id:
+        custom: []
+        name: message_id
+        description: 'The ID of the message.'
+        required: true
+        example: 1
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      chat_id: 1
+      message_id: 1
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
     responses: []
     responseFields: []
     auth:
@@ -17585,6 +16425,480 @@ endpoints:
     cleanQueryParameters: []
     bodyParameters: []
     cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/message-templates
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Получить список шаблонов с пагинацией'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/message-templates/all
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Получить все шаблоны'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/message-templates/types
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Получить доступные типы шаблонов из конфига'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/message-templates/{id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Получить шаблон по ID'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the message template.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 401
+        content: '{"message":"Unauthenticated."}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          vary: Origin
+        description: null
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/message-templates
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Создать новый шаблон'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      type:
+        custom: []
+        name: type
+        description: 'Количество символов в поле value не может превышать 255.'
+        required: true
+        example: vmqeopfuudtdsufvyvddq
+        type: string
+        enumValues:
+          - birthday
+          - holiday
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      name:
+        custom: []
+        name: name
+        description: 'Количество символов в поле value не может превышать 255.'
+        required: true
+        example: amniihfqcoynlazghdtqt
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      content:
+        custom: []
+        name: content
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      is_active:
+        custom: []
+        name: is_active
+        description: ''
+        required: false
+        example: false
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      type: vmqeopfuudtdsufvyvddq
+      name: amniihfqcoynlazghdtqt
+      content: consequatur
+      is_active: false
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/message-templates/{id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Обновить шаблон'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the message template.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      type:
+        custom: []
+        name: type
+        description: 'Количество символов в поле value не может превышать 255.'
+        required: false
+        example: vmqeopfuudtdsufvyvddq
+        type: string
+        enumValues:
+          - birthday
+          - holiday
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      name:
+        custom: []
+        name: name
+        description: 'Количество символов в поле value не может превышать 255.'
+        required: false
+        example: amniihfqcoynlazghdtqt
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      content:
+        custom: []
+        name: content
+        description: ''
+        required: false
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      is_active:
+        custom: []
+        name: is_active
+        description: ''
+        required: false
+        example: false
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      type: vmqeopfuudtdsufvyvddq
+      name: amniihfqcoynlazghdtqt
+      content: consequatur
+      is_active: false
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/message-templates/{id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Удалить шаблон'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the message template.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/message-templates/batch-delete
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Пакетное удаление шаблонов'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+      X-Company-ID: '1'
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      ids:
+        custom: []
+        name: ids
+        description: ''
+        required: false
+        example:
+          - 17
+        type: 'integer[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      ids:
+        - 17
     fileParameters: []
     responses: []
     responseFields: []

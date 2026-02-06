@@ -84,6 +84,7 @@ class AuthController extends BaseController
                 'surname' => $user->surname,
                 'email' => $user->email,
                 'photo' => $user->photo,
+                'birthday' => $user->birthday?->format('Y-m-d'),
                 'is_admin' => $user->is_admin,
                 'roles' => $resolvedRoles,
                 'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
@@ -114,6 +115,7 @@ class AuthController extends BaseController
                 'surname' => $user->surname,
                 'email' => $user->email,
                 'photo' => $user->photo,
+                'birthday' => $user->birthday?->format('Y-m-d'),
                 'is_admin' => $user->is_admin,
                 'roles' => $roles,
                 'permissions' => $permissions
@@ -196,6 +198,8 @@ class AuthController extends BaseController
                 'name' => $user->name,
                 'surname' => $user->surname,
                 'email' => $user->email,
+                'photo' => $user->photo,
+                'birthday' => $user->birthday?->format('Y-m-d'),
                 'is_admin' => $user->is_admin,
                 'roles' => $resolvedRoles,
                 'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
