@@ -44,6 +44,15 @@ return [
             'throw' => false,
         ],
 
+        /** Центральное хранилище для сущностей central (users и т.д.); base_path() не меняется tenancy */
+        'central_public' => [
+            'driver' => 'local',
+            'root' => base_path('storage/app/public'),
+            'url' => env('APP_URL').'/storage',
+            'visibility' => 'public',
+            'throw' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

@@ -35,8 +35,7 @@ class UpdateRoleRequest extends FormRequest
         ];
 
         if ($this->has('name')) {
-            $uniqueRule = Rule::unique('roles', 'name')
-                ->connection('central')
+            $uniqueRule = Rule::unique('central.roles', 'name')
                 ->ignore($roleId)
                 ->where('guard_name', 'api');
 

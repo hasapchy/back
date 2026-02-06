@@ -54,7 +54,7 @@ class CompaniesController extends BaseController
         $data = $request->validated();
 
         if ($request->hasFile('logo')) {
-            $data['logo'] = $request->file('logo')->store('companies', 'public');
+            $data['logo'] = $request->file('logo')->store('companies', 'central_public');
         }
 
         $company = Company::create($data);
@@ -86,10 +86,12 @@ class CompaniesController extends BaseController
         $data = $request->validated();
 
         if ($request->hasFile('logo')) {
-            if ($company->logo && $company->logo !== 'logo.png') {
-                Storage::disk('public')->delete($company->logo);
+            $disk = Storage::disk('central_public');
+            $oldLogoPath = ($company->logo && $company->logo !== 'logo.png') ? ltrim($company->logo, '/') : null;
+            if ($oldLogoPath && $disk->exists($oldLogoPath)) {
+                $disk->delete($oldLogoPath);
             }
-            $data['logo'] = $request->file('logo')->store('companies', 'public');
+            $data['logo'] = $request->file('logo')->store('companies', 'central_public');
         }
 
         Log::info('UpdateCompanyRequest', $data);
@@ -109,6 +111,11 @@ class CompaniesController extends BaseController
     public function destroy($id)
     {
         $company = Company::findOrFail($id);
+        $disk = Storage::disk('central_public');
+        $logoPath = ($company->logo && $company->logo !== 'logo.png') ? ltrim($company->logo, '/') : null;
+        if ($logoPath && $disk->exists($logoPath)) {
+            $disk->delete($logoPath);
+        }
         $company->delete();
 
         return response()->json(['message' => 'Company deleted']);

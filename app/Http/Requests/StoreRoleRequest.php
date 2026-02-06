@@ -28,8 +28,7 @@ class StoreRoleRequest extends FormRequest
     {
         $companyId = $this->header('X-Company-ID');
 
-        $uniqueRule = Rule::unique('roles', 'name')
-            ->connection('central')
+        $uniqueRule = Rule::unique('central.roles', 'name')
             ->where('guard_name', 'api');
 
         if ($companyId) {

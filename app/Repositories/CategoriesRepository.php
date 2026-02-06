@@ -30,7 +30,7 @@ class CategoriesRepository extends BaseRepository
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            /** @var \Illuminate\Contracts\Pagination\LengthAwarePaginator $paginator */
+            /** @var \Illuminate\Pagination\LengthAwarePaginator $paginator */
             $paginator = $query->paginate($perPage, ['*'], 'page', (int) $page);
             $this->attachUserNamesToCategories($paginator->getCollection());
 

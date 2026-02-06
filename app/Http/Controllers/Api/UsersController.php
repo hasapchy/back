@@ -61,7 +61,9 @@ class UsersController extends BaseController
         if ($request->hasFile('photo')) {
             $photo = $request->file('photo');
             $photoName = time() . '_' . $photo->getClientOriginalName();
-            $photo->storeAs('public/uploads/users', $photoName);
+            /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+            $disk = Storage::disk('central_public');
+            $disk->putFileAs('uploads/users', $photo, $photoName);
             $data['photo'] = 'uploads/users/' . $photoName;
         }
 
@@ -351,18 +353,23 @@ class UsersController extends BaseController
      */
     private function handlePhotoUpload(Request $request, $user)
     {
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('central_public');
+
         if ($request->hasFile('photo')) {
-            if ($user->photo) {
-                Storage::disk('public')->delete($user->photo);
+            $oldPhotoPath = $user->photo ? ltrim($user->photo, '/') : null;
+            if ($oldPhotoPath && $disk->exists($oldPhotoPath)) {
+                $disk->delete($oldPhotoPath);
             }
             $photo = $request->file('photo');
             $photoName = time() . '_' . $photo->getClientOriginalName();
-            $photo->storeAs('public/uploads/users', $photoName);
+            $disk->putFileAs('uploads/users', $photo, $photoName);
             $photoData = ['photo' => 'uploads/users/' . $photoName];
             $user = $this->itemsRepository->updateItem($user->id, $photoData);
         } elseif ($request->has('photo') && ($request->input('photo') === '' || $request->input('photo') === null)) {
-            if ($user->photo) {
-                Storage::disk('public')->delete($user->photo);
+            $oldPhotoPath = $user->photo ? ltrim($user->photo, '/') : null;
+            if ($oldPhotoPath && $disk->exists($oldPhotoPath)) {
+                $disk->delete($oldPhotoPath);
             }
             $photoData = ['photo' => ''];
             $user = $this->itemsRepository->updateItem($user->id, $photoData);
