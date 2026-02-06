@@ -23,14 +23,17 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 /**
  * Инициализирует tenancy для компании, чтобы запросы к tenant-таблицам (chat_participants, chats и т.д.) шли в tenant-БД.
  */
-function ensureTenancyForBroadcastChannel(int $companyId): void
-{
-    $company = Company::find($companyId);
+if (! function_exists('ensureTenancyForBroadcastChannel')) {
+    function ensureTenancyForBroadcastChannel(int $companyId): void
+    {
+        $company = Company::on('central')->find($companyId);
+
     if ($company && $company->tenant_id) {
         $tenant = Tenant::on('central')->find($company->tenant_id);
         if ($tenant) {
             tenancy()->initialize($tenant);
         }
+    }
     }
 }
 
@@ -39,14 +42,12 @@ Broadcast::channel('company.{companyId}.chat.{chatId}', function ($user, $compan
         $companyId = (int) $companyId;
         $chatId = (int) $chatId;
 
-        $central = config('tenancy.database.central_connection', 'central');
-        if (! DB::connection($central)->table('company_user')
-            ->where('company_id', $companyId)
-            ->where('user_id', $user->id)
-            ->exists()) {
+        if (! userBelongsToCompany($user->id, $companyId)) {
             return false;
         }
-        if (! $user->is_admin && ! $user->getAllPermissionsForCompany($companyId)->contains('name', 'chats_view_all')) {
+
+        $perms = $user->getAllPermissionsForCompany($companyId)->pluck('name');
+        if (! $user->is_admin && ! $perms->contains('chats_view_all') && ! $perms->contains('chats_view')) {
             return false;
         }
 
@@ -62,17 +63,17 @@ Broadcast::channel('company.{companyId}.chat.{chatId}', function ($user, $compan
         report($e);
 
         return false;
+    } finally {
+        if (app()->has('tenancy') && tenancy()->initialized) {
+            tenancy()->end();
+        }
     }
 });
 
 Broadcast::channel('company.{companyId}.orders', function ($user, $companyId) {
     try {
         $companyId = (int) $companyId;
-        $central = config('tenancy.database.central_connection', 'central');
-        if (! DB::connection($central)->table('company_user')
-            ->where('company_id', $companyId)
-            ->where('user_id', $user->id)
-            ->exists()) {
+        if (! userBelongsToCompany($user->id, $companyId)) {
             return false;
         }
         if ($user->is_admin) {
@@ -94,14 +95,11 @@ Broadcast::channel('company.{companyId}.orders', function ($user, $companyId) {
 Broadcast::channel('company.{companyId}.presence', function ($user, $companyId) {
     try {
         $companyId = (int) $companyId;
-        $central = config('tenancy.database.central_connection', 'central');
-        if (! DB::connection($central)->table('company_user')
-            ->where('company_id', $companyId)
-            ->where('user_id', $user->id)
-            ->exists()) {
+        if (! userBelongsToCompany($user->id, $companyId)) {
             return false;
         }
-        if (! $user->is_admin && ! $user->getAllPermissionsForCompany($companyId)->contains('name', 'chats_view_all')) {
+        $perms = $user->getAllPermissionsForCompany($companyId)->pluck('name');
+        if (! $user->is_admin && ! $perms->contains('chats_view_all') && ! $perms->contains('chats_view')) {
             return false;
         }
 
@@ -118,3 +116,15 @@ Broadcast::channel('company.{companyId}.presence', function ($user, $companyId) 
         return false;
     }
 });
+
+
+function userBelongsToCompany($userId, $companyId): bool
+{
+    $central = config('tenancy.database.central_connection', 'central');
+
+    return DB::connection($central)
+        ->table('company_user')
+        ->where('company_id', $companyId)
+        ->where('user_id', $userId)
+        ->exists();
+}
