@@ -98,11 +98,7 @@ Broadcast::channel('company.{companyId}.presence', function ($user, $companyId) 
         if (! userBelongsToCompany($user->id, $companyId)) {
             return false;
         }
-        $perms = $user->getAllPermissionsForCompany($companyId)->pluck('name');
-        if (! $user->is_admin && ! $perms->contains('chats_view_all') && ! $perms->contains('chats_view')) {
-            return false;
-        }
-
+        // Виджет «Онлайн сейчас» — для всех сотрудников компании, не только с правами чатов
         return [
             'id' => $user->id,
             'name' => $user->name,

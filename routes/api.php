@@ -223,6 +223,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
         Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->put('orders/{id}', [OrderController::class, 'update']);
         Route::middleware('permission.scope:orders_delete_all,orders_delete,orders_simple_delete_all,orders_simple_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
         Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
+        Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders/first-stage-count', [OrderController::class, 'firstStageCount']);
         Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders/{id}', [OrderController::class, 'show']);
 
         Route::middleware('permission:orders_update')->post('orders/{orderId}/transactions', [OrderTransactionController::class, 'linkTransaction']);

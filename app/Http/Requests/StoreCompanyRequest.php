@@ -86,6 +86,14 @@ class StoreCompanyRequest extends FormRequest
             }
         }
 
+        // work_schedule: FormData отправляет объект как JSON-строку — преобразуем в массив
+        if (isset($data['work_schedule'])) {
+            if (is_string($data['work_schedule'])) {
+                $decoded = json_decode($data['work_schedule'], true);
+                $data['work_schedule'] = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : null;
+            }
+        }
+
         $this->merge($data);
     }
 

@@ -132,9 +132,10 @@ class AuthController extends BaseController
     public function logout(Request $request)
     {
         $user = $request->user();
-
-        if ($user && $user->currentAccessToken()) {
-            $user->currentAccessToken()->delete();
+        /** @var \Laravel\Sanctum\PersonalAccessToken|null $token */
+        $token = $user?->currentAccessToken();
+        if ($token) {
+            $token->delete();
         }
 
         return response()->json(['message' => 'Successfully logged out']);
