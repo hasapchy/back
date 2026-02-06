@@ -12,13 +12,18 @@ class ClientResource extends JsonResource
      */
     public function toArray($request): array
     {
-        $defaultBalance = $this->defaultBalance;
+        $user = auth('api')->user();
         $balances = $this->balances ?? collect();
+        if ($user && !$user->is_admin) {
+            $balances = $balances->filter(fn ($b) => $b->canUserAccess($user->id));
+        }
+        $visibleDefault = $balances->firstWhere('is_default', true) ?? $balances->first();
+        $balanceValue = $visibleDefault ? (float) $visibleDefault->balance : (float) ($this->balance ?? 0);
 
         return [
             'id' => $this->id,
             'client_type' => $this->client_type,
-            'balance' => $defaultBalance ? (float) $defaultBalance->balance : (float) ($this->balance ?? 0),
+            'balance' => $balanceValue,
             'is_supplier' => (bool)$this->is_supplier,
             'is_conflict' => (bool)$this->is_conflict,
             'first_name' => $this->first_name,
@@ -62,8 +67,12 @@ class ClientResource extends JsonResource
                 'balance' => (float) $balance->balance,
                 'is_default' => $balance->is_default,
                 'note' => $balance->note,
-            ])->all(),
-            'currency_symbol' => $defaultBalance?->currency->symbol
+                'users' => ($balance->users ?? collect())->map(fn ($u) => [
+                    'id' => $u->id,
+                    'name' => trim(($u->name ?? '') . ' ' . ($u->surname ?? '')),
+                ])->values()->all(),
+            ])->values()->all(),
+            'currency_symbol' => $visibleDefault?->currency?->symbol
                 ?? Currency::where('is_default', true)->value('symbol'),
         ];
     }

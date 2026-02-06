@@ -146,6 +146,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
         Route::middleware('permission.scope:products_update_all,products_update')->delete('products/{id}/categories', [ProductController::class, 'removeCategory']);
         Route::middleware('permission.scope:products_update_all,products_update')->post('products/{id}/categories/primary', [ProductController::class, 'setPrimaryCategory']);
 
+
         Route::get('clients', [ClientController::class, 'index']);
         Route::get('clients/all', [ClientController::class, 'all']);
         Route::get('clients/search', [ClientController::class, 'search']);
@@ -154,6 +155,11 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
         Route::middleware('permission.scope:clients_update_all,clients_update')->put('clients/{id}', [ClientController::class, 'update']);
         Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/{id}/balance-history', [ClientController::class, 'getBalanceHistory']);
         Route::middleware('permission.scope:clients_delete_all,clients_delete')->delete('clients/{id}', [ClientController::class, 'destroy']);
+
+        Route::middleware('permission:client_balances_view_all')->get('clients/{clientId}/balances', [ClientBalanceController::class, 'index']);
+        Route::middleware('permission:client_balances_create')->post('clients/{clientId}/balances', [ClientBalanceController::class, 'store']);
+        Route::middleware('permission:client_balances_update_all')->put('clients/{clientId}/balances/{id}', [ClientBalanceController::class, 'update']);
+        Route::middleware('permission:client_balances_delete_all')->delete('clients/{clientId}/balances/{id}', [ClientBalanceController::class, 'destroy']);
 
         Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/{clientId}/balances', [ClientBalanceController::class, 'index']);
         Route::middleware('permission.scope:clients_update_all,clients_update')->post('clients/{clientId}/balances', [ClientBalanceController::class, 'store']);
@@ -205,6 +211,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
         Route::middleware('permission:transfers_create')->post('transfers', [TransfersController::class, 'store']);
         Route::middleware(['permission:transfers_update', 'time.restriction:CashTransfer'])->put('transfers/{id}', [TransfersController::class, 'update']);
         Route::middleware(['permission:transfers_delete', 'time.restriction:CashTransfer'])->delete('transfers/{id}', [TransfersController::class, 'destroy']);
+
 
         Route::middleware('permission.scope:sales_view_all,sales_view')->get('sales', [SaleController::class, 'index']);
         Route::middleware(['permission:sales_create'])->post('sales', [SaleController::class, 'store']);
@@ -278,6 +285,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
 
             // Tasks routes
         Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks', [TasksController::class, 'index']);
+        Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks/overdue-count', [TasksController::class, 'overdueCount']);
         Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks/{id}', [TasksController::class, 'show']);
         Route::middleware('permission:tasks_create')->post('tasks', [TasksController::class, 'store']);
         Route::middleware('permission.scope:tasks_update_all,tasks_update')->put('tasks/{id}', [TasksController::class, 'update']);

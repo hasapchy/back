@@ -25,26 +25,18 @@ class ClientBalanceController extends BaseController
             $client = Client::findOrFail($clientId);
 
             if (!$this->canPerformAction('clients', 'view', $client)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр балансов этого клиента');
+                return $this->forbiddenResponse('У вас нет прав на просмотр этого клиента');
+            }
+            if (!$this->hasPermission('client_balances_view_all')) {
+                return $this->forbiddenResponse('У вас нет прав на просмотр балансов клиента');
             }
 
-            $balances = $client->balances()->with('currency')->get();
-
-            $balancesData = $balances->map(function ($balance) {
-                return [
-                    'id' => $balance->id,
-                    'currency_id' => $balance->currency_id,
-                    'currency' => [
-                        'id' => $balance->currency->id,
-                        'code' => $balance->currency->code,
-                        'symbol' => $balance->currency->symbol,
-                        'name' => $balance->currency->name,
-                    ],
-                    'balance' => (float) $balance->balance,
-                    'is_default' => $balance->is_default,
-                    'note' => $balance->note,
-                ];
-            })->values()->all();
+            $user = $this->getAuthenticatedUser();
+            $balances = $client->balances()->with(['currency', 'users:id,name,surname'])->get();
+            if (!$user->is_admin) {
+                $balances = $balances->filter(fn ($b) => $b->canUserAccess($user->id));
+            }
+            $balancesData = $balances->values()->map(fn ($balance) => $this->formatBalanceResponse($balance))->all();
 
             return $this->successResponse($balancesData);
         } catch (\Exception $e) {
@@ -67,12 +59,17 @@ class ClientBalanceController extends BaseController
                 'is_default' => 'boolean',
                 'balance' => 'nullable|numeric',
                 'note' => 'nullable|string',
+                'user_ids' => 'nullable|array',
+                'user_ids.*' => 'exists:users,id',
             ]);
 
             $client = Client::findOrFail($clientId);
 
             if (!$this->canPerformAction('clients', 'update', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
+            }
+            if (!$this->hasPermission('client_balances_create')) {
+                return $this->forbiddenResponse('У вас нет прав на создание баланса клиента');
             }
 
             $currency = Currency::findOrFail($validated['currency_id']);
@@ -91,22 +88,14 @@ class ClientBalanceController extends BaseController
             $balance = ClientBalance::where('client_id', $clientId)
                 ->where('currency_id', $currency->id)
                 ->orderBy('id', 'desc')
-                ->with('currency')
+                ->with(['currency', 'users:id,name,surname'])
                 ->first();
 
-            return $this->successResponse([
-                'id' => $balance->id,
-                'currency_id' => $balance->currency_id,
-                'currency' => [
-                    'id' => $balance->currency->id,
-                    'code' => $balance->currency->code,
-                    'symbol' => $balance->currency->symbol,
-                    'name' => $balance->currency->name,
-                ],
-                'balance' => (float) $balance->balance,
-                'is_default' => $balance->is_default,
-                'note' => $balance->note,
-            ], 'Баланс создан успешно', 201);
+            $userIds = $validated['user_ids'] ?? [];
+            $balance->users()->sync($userIds);
+            $balance->load('users:id,name,surname');
+
+            return $this->successResponse($this->formatBalanceResponse($balance), 'Баланс создан успешно', 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse($e->getMessage(), 422);
         } catch (\Exception $e) {
@@ -129,15 +118,20 @@ class ClientBalanceController extends BaseController
                 'is_default' => 'boolean',
                 'skip_confirmation' => 'boolean',
                 'note' => 'nullable|string',
+                'user_ids' => 'nullable|array',
+                'user_ids.*' => 'exists:users,id',
             ]);
 
             $balance = ClientBalance::where('client_id', $clientId)
-                ->with('currency')
+                ->with(['currency', 'users:id,name,surname'])
                 ->findOrFail($id);
 
             $client = $balance->client;
             if (!$this->canPerformAction('clients', 'update', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
+            }
+            if (!$this->hasPermission('client_balances_update_all')) {
+                return $this->forbiddenResponse('У вас нет прав на редактирование баланса клиента');
             }
 
             if (!empty($validated['is_default']) && $validated['is_default'] && !$balance->is_default) {
@@ -167,28 +161,19 @@ class ClientBalanceController extends BaseController
                     ClientBalanceService::clearDefaultFlags($balance->client_id, $balance->id);
                 }
 
-                $balance->update($validated);
+                $balance->update(array_diff_key($validated, array_flip(['user_ids', 'skip_confirmation'])));
+                if (array_key_exists('user_ids', $validated)) {
+                    $balance->users()->sync($validated['user_ids']);
+                }
             });
 
             CacheService::invalidateClientsCache();
             CacheService::invalidateClientBalanceCache($balance->client_id);
 
             $balance->refresh();
-            $balance->load('currency');
+            $balance->load(['currency', 'users:id,name,surname']);
 
-            return $this->successResponse([
-                'id' => $balance->id,
-                'currency_id' => $balance->currency_id,
-                'currency' => [
-                    'id' => $balance->currency->id,
-                    'code' => $balance->currency->code,
-                    'symbol' => $balance->currency->symbol,
-                    'name' => $balance->currency->name,
-                ],
-                'balance' => (float) $balance->balance,
-                'is_default' => $balance->is_default,
-                'note' => $balance->note,
-            ], 'Баланс обновлен успешно');
+            return $this->successResponse($this->formatBalanceResponse($balance), 'Баланс обновлен успешно');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse($e->getMessage(), 422);
         } catch (\Exception $e) {
@@ -206,12 +191,13 @@ class ClientBalanceController extends BaseController
     public function destroy($clientId, $id)
     {
         try {
-            $balance = ClientBalance::where('client_id', $clientId)
-                ->findOrFail($id);
-
+            $balance = ClientBalance::where('client_id', $clientId)->findOrFail($id);
             $client = $balance->client;
-            if (!$this->canPerformAction('clients', 'delete', $client)) {
-                return $this->forbiddenResponse('У вас нет прав на удаление балансов этого клиента');
+            if (!$this->canPerformAction('clients', 'update', $client)) {
+                return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
+            }
+            if (!$this->hasPermission('client_balances_delete_all')) {
+                return $this->forbiddenResponse('У вас нет прав на удаление баланса клиента');
             }
 
             if ($balance->is_default) {
@@ -243,4 +229,34 @@ class ClientBalanceController extends BaseController
             return $this->errorResponse('Ошибка при удалении баланса: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * Формат ответа с данными баланса и списком пользователей
+     *
+     * @param \App\Models\ClientBalance $balance
+     * @return array
+     */
+    private function formatBalanceResponse(ClientBalance $balance): array
+    {
+        $users = ($balance->users ?? collect())->map(fn ($u) => [
+            'id' => $u->id,
+            'name' => trim(($u->name ?? '') . ' ' . ($u->surname ?? '')),
+        ])->values()->all();
+
+        return [
+            'id' => $balance->id,
+            'currency_id' => $balance->currency_id,
+            'currency' => $balance->currency ? [
+                'id' => $balance->currency->id,
+                'code' => $balance->currency->code,
+                'symbol' => $balance->currency->symbol,
+                'name' => $balance->currency->name,
+            ] : null,
+            'balance' => (float) $balance->balance,
+            'is_default' => $balance->is_default,
+            'note' => $balance->note,
+            'users' => $users,
+        ];
+    }
+
 }

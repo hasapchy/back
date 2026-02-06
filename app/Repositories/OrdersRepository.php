@@ -353,6 +353,61 @@ class OrdersRepository extends BaseRepository
     }
 
     /**
+     * Количество заказов на первой стадии (status_id = 1), доступных текущему пользователю.
+     *
+     * @return int
+     */
+    public function getFirstStageOrdersCount(): int
+    {
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        if (! $currentUser) {
+            return 0;
+        }
+        $userUuid = $currentUser->id;
+        $companyId = $this->getCurrentCompanyId();
+
+        $orderResource = $this->getOrderResourceForUser($currentUser);
+        $isSimpleWorker = $currentUser instanceof User &&
+            ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
+
+        $query = Order::query()->where('orders.status_id', 1);
+
+        if (!$isSimpleWorker || $currentUser->is_admin) {
+            $query->where(function ($q) use ($userUuid) {
+                if ($this->shouldApplyUserFilter('cash_registers')) {
+                    $q->whereNull('orders.cash_id');
+                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                    $q->orWhereExists(function ($subQuery) use ($filterUserId) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('cash_register_users')
+                            ->whereColumn('cash_register_users.cash_register_id', 'orders.cash_id')
+                            ->where('cash_register_users.user_id', $filterUserId);
+                    });
+                }
+            });
+        }
+
+        $this->applyOwnFilter($query, $orderResource, 'orders', 'user_id', $currentUser);
+
+        if ($isSimpleWorker && !$currentUser->is_admin) {
+            $userCategoryIds = $this->getUserCategoryIds($userUuid);
+            if (empty($userCategoryIds)) {
+                $query->whereNull('orders.category_id');
+            } else {
+                $query->where(function ($q) use ($userCategoryIds) {
+                    $q->whereIn('orders.category_id', $userCategoryIds)
+                        ->orWhereNull('orders.category_id');
+                });
+            }
+        }
+
+        $query = $this->addCompanyFilterThroughRelation($query, 'cash');
+
+        return (int) $query->count();
+    }
+
+    /**
      * Получить заказ по ID
      *
      * @param int $id ID заказа

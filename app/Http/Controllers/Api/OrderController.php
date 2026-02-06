@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Category;
 use App\Models\CategoryUser;
 use Illuminate\Http\Request;
+use App\Events\OrderFirstStageCountUpdated;
 use App\Http\Resources\OrderCollection;
 use App\Http\Resources\OrderResource;
 
@@ -66,6 +67,24 @@ class OrderController extends BaseController
         $unpaidOrdersTotal = $items->unpaid_orders_total ?? null;
 
         return new OrderCollection($items, $unpaidOrdersTotal);
+    }
+
+    /**
+     * Количество заказов на первой стадии (status_id = 1), доступных текущему пользователю.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function firstStageCount()
+    {
+        $user = $this->requireAuthenticatedUser();
+        $resource = $this->getOrderResourceForUser($user);
+        if (! $this->canPerformAction($resource, 'view')) {
+            return $this->forbiddenResponse('У вас нет прав на просмотр заказов');
+        }
+
+        $count = $this->itemRepository->getFirstStageOrdersCount();
+
+        return response()->json(['data' => ['count' => $count]]);
     }
 
     /**
@@ -147,6 +166,7 @@ class OrderController extends BaseController
             }
 
             $order = $this->itemRepository->getItemById($order->id);
+            event(new OrderFirstStageCountUpdated((int) $this->getCurrentCompanyId()));
             return (new OrderResource($order))->additional(['message' => 'Заказ успешно создан']);
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage(), 400);
@@ -239,6 +259,7 @@ class OrderController extends BaseController
             }
 
             $updatedOrder = $this->itemRepository->getItemById($id);
+            event(new OrderFirstStageCountUpdated((int) $this->getCurrentCompanyId()));
             return (new OrderResource($updatedOrder))->additional(['message' => 'Заказ сохранён']);
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage(), 400);
@@ -280,6 +301,7 @@ class OrderController extends BaseController
                 CacheService::invalidateProjectsCache();
             }
 
+            event(new OrderFirstStageCountUpdated((int) $this->getCurrentCompanyId()));
             return response()->json(['order' => $deleted, 'message' => 'Заказ успешно удалён']);
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка при удалении заказа: ' . $th->getMessage(), 400);
@@ -321,7 +343,7 @@ class OrderController extends BaseController
 
             if ($result > 0) {
                 CacheService::invalidateOrdersCache();
-
+                event(new OrderFirstStageCountUpdated((int) $this->getCurrentCompanyId()));
                 return response()->json(['message' => "Статус обновлён у {$result} заказ(ов)"]);
             } else {
                 return response()->json(['message' => "Статус не изменился"]);

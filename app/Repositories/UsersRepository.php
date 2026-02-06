@@ -57,6 +57,7 @@ class UsersRepository extends BaseRepository
                 'users.name',
                 'users.surname',
                 'users.email',
+                'users.phone',
                 'users.is_active',
                 'users.hire_date',
                 'users.birthday',
@@ -185,6 +186,7 @@ class UsersRepository extends BaseRepository
             'users.name',
             'users.surname',
             'users.email',
+            'users.phone',
             'users.is_active',
             'users.hire_date',
             'users.birthday',
@@ -415,6 +417,7 @@ class UsersRepository extends BaseRepository
             $user->name     = $data['name'];
             $user->surname  = $data['surname'] ?? null;
             $user->email    = $data['email'];
+            $user->phone    = !empty($data['phone']) ? $data['phone'] : null;
             $user->password = $data['password'];
             $user->hire_date = $data['hire_date'] ?? null;
             $user->birthday = !empty($data['birthday']) ? Carbon::parse($data['birthday'])->format('Y-m-d') : null;
@@ -468,6 +471,7 @@ class UsersRepository extends BaseRepository
             $user->name = $data['name'] ?? $user->name;
             $user->surname = array_key_exists('surname', $data) ? $data['surname'] : $user->surname;
             $user->email = $data['email'] ?? $user->email;
+            $user->phone = array_key_exists('phone', $data) ? ($data['phone'] ?: null) : $user->phone;
             $user->hire_date = array_key_exists('hire_date', $data) ? $data['hire_date'] : $user->hire_date;
             $user->birthday = array_key_exists('birthday', $data) && $data['birthday']
                 ? Carbon::parse($data['birthday'])->format('Y-m-d')
@@ -931,6 +935,7 @@ class UsersRepository extends BaseRepository
                 'users.name',
                 'users.surname',
                 'users.email',
+                'users.phone',
                 'users.is_active',
                 'users.hire_date',
                 'users.birthday',
