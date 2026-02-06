@@ -10,7 +10,7 @@
     ],
     "info": {
         "name": "Laravel API Documentation",
-        "_postman_id": "d3e6f361-4cd5-4ef5-ad66-7af010387b48",
+        "_postman_id": "b800c072-7fcd-4eb6-8f44-2178623ada0f",
         "description": "",
         "schema": "https:\/\/schema.getpostman.com\/json\/collection\/v2.1.0\/collection.json"
     },
@@ -236,1258 +236,6 @@
                     ]
                 },
                 {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0434\u0430\u043d\u043d\u044b\u0435 \u0442\u0435\u043a\u0443\u0449\u0435\u0433\u043e \u0430\u0443\u0442\u0435\u043d\u0442\u0438\u0444\u0438\u0446\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u043e\u0433\u043e \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044f",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/user\/me",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/user\/me"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u0412\u044b\u0445\u043e\u0434 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044f \u0438\u0437 \u0441\u0438\u0441\u0442\u0435\u043c\u044b",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/user\/logout",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/user\/logout"
-                        },
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": []
-                },
-                {
-                    "name": "\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u0440\u043e\u0444\u0438\u043b\u044c \u0442\u0435\u043a\u0443\u0449\u0435\u0433\u043e \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044f",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/user\/profile",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/user\/profile"
-                        },
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": []
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0441 \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0435\u0439",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/orders",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/orders"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0437\u0430\u043a\u0430\u0437 \u043f\u043e ID",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/orders\/:id",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/orders\/:id",
-                            "variable": [
-                                {
-                                    "id": "id",
-                                    "key": "id",
-                                    "value": "consequatur",
-                                    "description": "The ID of the order."
-                                }
-                            ]
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u043d\u043e\u0432\u044b\u0439 \u0437\u0430\u043a\u0430\u0437",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/orders",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/orders"
-                        },
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\"client_id\":17,\"project_id\":17,\"cash_id\":17,\"warehouse_id\":17,\"currency_id\":17,\"category_id\":17,\"discount\":45,\"discount_type\":\"fixed\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"date\":\"2026-01-13T13:25:34\",\"note\":\"consequatur\",\"products\":[{\"product_id\":17,\"quantity\":45,\"price\":56,\"width\":16,\"height\":50}],\"temp_products\":[{\"name\":\"pfuudtdsufvyvddqamnii\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"quantity\":12,\"price\":66,\"width\":13,\"height\":65}]}"
-                        },
-                        "description": ""
-                    },
-                    "response": []
-                },
-                {
-                    "name": "\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u0437\u0430\u043a\u0430\u0437",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/orders\/:id",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/orders\/:id",
-                            "variable": [
-                                {
-                                    "id": "id",
-                                    "key": "id",
-                                    "value": "consequatur",
-                                    "description": "The ID of the order."
-                                }
-                            ]
-                        },
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\"client_id\":17,\"project_id\":17,\"cash_id\":17,\"warehouse_id\":17,\"currency_id\":17,\"category_id\":17,\"discount\":45,\"discount_type\":\"fixed\",\"date\":\"2026-01-13T13:25:34\",\"note\":\"consequatur\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"status_id\":17,\"remove_temp_products\":[17],\"products\":[{\"id\":17,\"product_id\":17,\"quantity\":45,\"price\":56,\"width\":16,\"height\":50}],\"temp_products\":[{\"id\":17,\"name\":\"mqeopfuudtdsufvyvddqa\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"quantity\":12,\"price\":66,\"width\":13,\"height\":65}]}"
-                        },
-                        "description": ""
-                    },
-                    "response": []
-                },
-                {
-                    "name": "\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0437\u0430\u043a\u0430\u0437",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/orders\/:id",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/orders\/:id",
-                            "variable": [
-                                {
-                                    "id": "id",
-                                    "key": "id",
-                                    "value": "consequatur",
-                                    "description": "The ID of the order."
-                                }
-                            ]
-                        },
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": []
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u0441\u0442\u0430\u0442\u0443\u0441\u043e\u0432 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0441 \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0435\u0439",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/order_statuses",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/order_statuses"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0432\u0441\u0435 \u0441\u0442\u0430\u0442\u0443\u0441\u044b \u0437\u0430\u043a\u0430\u0437\u043e\u0432",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/order_statuses\/all",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/order_statuses\/all"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0441 \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0435\u0439",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/clients",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/clients"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0432\u0441\u0435\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/clients\/all",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/clients\/all"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u0438\u0441\u043a \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/clients\/search",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/clients\/search"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u043a\u043b\u0438\u0435\u043d\u0442\u0430 \u043f\u043e ID",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/clients\/:id",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/clients\/:id",
-                            "variable": [
-                                {
-                                    "id": "id",
-                                    "key": "id",
-                                    "value": "consequatur",
-                                    "description": "The ID of the client."
-                                }
-                            ]
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u043d\u043e\u0432\u043e\u0433\u043e \u043a\u043b\u0438\u0435\u043d\u0442\u0430",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/clients",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/clients"
-                        },
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\"first_name\":\"consequatur\",\"is_conflict\":false,\"is_supplier\":true,\"last_name\":\"consequatur\",\"patronymic\":\"consequatur\",\"contact_person\":\"consequatur\",\"position\":\"consequatur\",\"client_type\":\"investor\",\"address\":\"consequatur\",\"phones\":[\"mqeopfuudtdsufvyvddqamniihfqcoynlazghdtqtqxbajwbpilpmufinllwloauydlsmsjury\"],\"emails\":[\"jmacejkovic@example.com\"],\"note\":\"consequatur\",\"status\":false,\"discount\":56,\"discount_type\":\"percent\"}"
-                        },
-                        "description": ""
-                    },
-                    "response": []
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u0442\u043e\u0432\u0430\u0440\u043e\u0432 \u0441 \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0435\u0439",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/products",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/products"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u0443\u0441\u043b\u0443\u0433 \u0441 \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0435\u0439",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/services",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/services"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u0438\u0441\u043a \u0442\u043e\u0432\u0430\u0440\u043e\u0432 \u0438 \u0443\u0441\u043b\u0443\u0433",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/products\/search",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/products\/search"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u043f\u0440\u043e\u0435\u043a\u0442\u043e\u0432 \u0441 \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0435\u0439",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/projects",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/projects"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0432\u0441\u0435 \u043f\u0440\u043e\u0435\u043a\u0442\u044b",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/projects\/all",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/projects\/all"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u043f\u0440\u043e\u0435\u043a\u0442 \u043f\u043e ID",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/projects\/:id",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/projects\/:id",
-                            "variable": [
-                                {
-                                    "id": "id",
-                                    "key": "id",
-                                    "value": "consequatur",
-                                    "description": "The ID of the project."
-                                }
-                            ]
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u0441\u043a\u043b\u0430\u0434\u043e\u0432 \u0441 \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0435\u0439",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/warehouses",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/warehouses"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0432\u0441\u0435 \u0441\u043a\u043b\u0430\u0434\u044b",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/warehouses\/all",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/warehouses\/all"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u043a\u0430\u0441\u0441 \u0441 \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0435\u0439",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/cash_registers",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/cash_registers"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0432\u0441\u0435 \u043a\u0430\u0441\u0441\u044b \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044f",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/cash_registers\/all",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/cash_registers\/all"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u0432\u0430\u043b\u044e\u0442",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/app\/currency",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/app\/currency"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u0435\u0434\u0438\u043d\u0438\u0446 \u0438\u0437\u043c\u0435\u0440\u0435\u043d\u0438\u044f",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/simple\/app\/units",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/simple\/app\/units"
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
                     "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u0432\u0430\u043b\u044e\u0442",
                     "request": {
                         "url": {
@@ -1601,6 +349,55 @@
                             "path": "api\/app\/units",
                             "query": [],
                             "raw": "{{baseUrl}}\/api\/app\/units"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [
+                                {
+                                    "key": "cache-control",
+                                    "value": "no-cache, private"
+                                },
+                                {
+                                    "key": "content-type",
+                                    "value": "application\/json"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Origin"
+                                }
+                            ],
+                            "code": 401,
+                            "body": "{\"message\":\"Unauthenticated.\"}",
+                            "name": ""
+                        }
+                    ]
+                },
+                {
+                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u0432\u0435\u0440\u0441\u0438\u0439 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/app\/versions",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/app\/versions"
                         },
                         "method": "GET",
                         "header": [
@@ -1811,7 +608,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"exchange_rate\":73,\"start_date\":\"2026-01-13T13:25:35\",\"end_date\":\"2107-02-12\"}"
+                            "raw": "{\"exchange_rate\":73,\"start_date\":\"2026-02-06T14:38:54\",\"end_date\":\"2107-03-08\"}"
                         },
                         "description": ""
                     },
@@ -1857,7 +654,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"exchange_rate\":73,\"start_date\":\"2026-01-13T13:25:35\",\"end_date\":\"2107-02-12\"}"
+                            "raw": "{\"exchange_rate\":73,\"start_date\":\"2026-02-06T14:38:54\",\"end_date\":\"2107-03-08\"}"
                         },
                         "description": ""
                     },
@@ -2046,7 +843,7 @@
                         "header": [
                             {
                                 "key": "Content-Type",
-                                "value": "application\/json"
+                                "value": "multipart\/form-data"
                             },
                             {
                                 "key": "Accept",
@@ -2057,10 +854,62 @@
                                 "value": "1"
                             }
                         ],
-                        "body": null,
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "name",
+                                    "value": "\u0418\u0432\u0430\u043d",
+                                    "type": "text",
+                                    "description": "\u0418\u043c\u044f."
+                                },
+                                {
+                                    "key": "surname",
+                                    "value": "\u041f\u0435\u0442\u0440\u043e\u0432",
+                                    "type": "text",
+                                    "description": "\u0424\u0430\u043c\u0438\u043b\u0438\u044f."
+                                },
+                                {
+                                    "key": "email",
+                                    "value": "ivan@example.com",
+                                    "type": "text",
+                                    "description": "Email."
+                                },
+                                {
+                                    "key": "birthday",
+                                    "value": "1990-01-15",
+                                    "type": "text",
+                                    "description": "\u0414\u0430\u0442\u0430 \u0440\u043e\u0436\u0434\u0435\u043d\u0438\u044f (Y-m-d)."
+                                },
+                                {
+                                    "key": "current_password",
+                                    "value": "oldpass123",
+                                    "type": "text",
+                                    "description": "\u0422\u0435\u043a\u0443\u0449\u0438\u0439 \u043f\u0430\u0440\u043e\u043b\u044c (\u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u0435\u043d \u043f\u0440\u0438 \u0441\u043c\u0435\u043d\u0435 \u043f\u0430\u0440\u043e\u043b\u044f)."
+                                },
+                                {
+                                    "key": "password",
+                                    "value": "newpass456",
+                                    "type": "text",
+                                    "description": "\u041d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c (min 6 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432)."
+                                },
+                                {
+                                    "key": "photo",
+                                    "src": [],
+                                    "type": "file"
+                                }
+                            ]
+                        },
                         "description": ""
                     },
-                    "response": []
+                    "response": [
+                        {
+                            "header": [],
+                            "code": 200,
+                            "body": "{\"user\":{\"id\":1,\"name\":\"\u0418\u0432\u0430\u043d\",\"surname\":\"\u041f\u0435\u0442\u0440\u043e\u0432\",\"email\":\"ivan@example.com\",\"birthday\":\"1990-01-15\",\"photo\":null,\"roles\":[],\"permissions\":[]}}",
+                            "name": ""
+                        }
+                    ]
                 },
                 {
                     "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439 \u0441 \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0435\u0439",
@@ -2312,32 +1161,38 @@
                                     "description": "\u041f\u043e\u043b\u0435 value \u0434\u043e\u043b\u0436\u043d\u043e \u0431\u044b\u0442\u044c \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u043c \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u043d\u044b\u043c \u0430\u0434\u0440\u0435\u0441\u043e\u043c."
                                 },
                                 {
+                                    "key": "phone",
+                                    "value": "wbpilpmufinllwloa",
+                                    "type": "text",
+                                    "description": "\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432 \u0432 \u043f\u043e\u043b\u0435 value \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u043f\u0440\u0435\u0432\u044b\u0448\u0430\u0442\u044c 20."
+                                },
+                                {
                                     "key": "password",
-                                    "value": "'YAKYLk4>SJIrIV#lz.",
+                                    "value": "z.KcLcDi`wmUB)z&~n",
                                     "type": "text",
                                     "description": "\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432 \u0432 \u043f\u043e\u043b\u0435 value \u0434\u043e\u043b\u0436\u043d\u043e \u0431\u044b\u0442\u044c \u043d\u0435 \u043c\u0435\u043d\u0435\u0435 6."
                                 },
                                 {
                                     "key": "hire_date",
-                                    "value": "2026-01-13T13:25:35",
+                                    "value": "2026-02-06T14:38:54",
                                     "type": "text",
                                     "description": "\u041f\u043e\u043b\u0435 value \u043d\u0435 \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u0434\u0430\u0442\u043e\u0439."
                                 },
                                 {
                                     "key": "birthday",
-                                    "value": "2026-01-13T13:25:35",
+                                    "value": "2026-02-06T14:38:54",
                                     "type": "text",
                                     "description": "\u041f\u043e\u043b\u0435 value \u043d\u0435 \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u0434\u0430\u0442\u043e\u0439."
                                 },
                                 {
                                     "key": "position",
-                                    "value": "lsmsjuryvojcybzvrbyic",
+                                    "value": "rbyickznkygloigmkwxph",
                                     "type": "text",
                                     "description": "\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432 \u0432 \u043f\u043e\u043b\u0435 value \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u043f\u0440\u0435\u0432\u044b\u0448\u0430\u0442\u044c 255."
                                 },
                                 {
                                     "key": "is_active",
-                                    "value": "1",
+                                    "value": "",
                                     "type": "text",
                                     "description": ""
                                 },
@@ -2442,32 +1297,38 @@
                                     "description": "\u041f\u043e\u043b\u0435 value \u0434\u043e\u043b\u0436\u043d\u043e \u0431\u044b\u0442\u044c \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u043c \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u043d\u044b\u043c \u0430\u0434\u0440\u0435\u0441\u043e\u043c."
                                 },
                                 {
+                                    "key": "phone",
+                                    "value": "wbpilpmufinllwloa",
+                                    "type": "text",
+                                    "description": "\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432 \u0432 \u043f\u043e\u043b\u0435 value \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u043f\u0440\u0435\u0432\u044b\u0448\u0430\u0442\u044c 20."
+                                },
+                                {
                                     "key": "password",
-                                    "value": "'YAKYLk4>SJIrIV#lz.",
+                                    "value": "z.KcLcDi`wmUB)z&~n",
                                     "type": "text",
                                     "description": "\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432 \u0432 \u043f\u043e\u043b\u0435 value \u0434\u043e\u043b\u0436\u043d\u043e \u0431\u044b\u0442\u044c \u043d\u0435 \u043c\u0435\u043d\u0435\u0435 6."
                                 },
                                 {
                                     "key": "hire_date",
-                                    "value": "2026-01-13T13:25:35",
+                                    "value": "2026-02-06T14:38:54",
                                     "type": "text",
                                     "description": "\u041f\u043e\u043b\u0435 value \u043d\u0435 \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u0434\u0430\u0442\u043e\u0439."
                                 },
                                 {
                                     "key": "birthday",
-                                    "value": "2026-01-13T13:25:35",
+                                    "value": "2026-02-06T14:38:54",
                                     "type": "text",
                                     "description": "\u041f\u043e\u043b\u0435 value \u043d\u0435 \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u0434\u0430\u0442\u043e\u0439."
                                 },
                                 {
                                     "key": "position",
-                                    "value": "lsmsjuryvojcybzvrbyic",
+                                    "value": "rbyickznkygloigmkwxph",
                                     "type": "text",
                                     "description": "\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432 \u0432 \u043f\u043e\u043b\u0435 value \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u043f\u0440\u0435\u0432\u044b\u0448\u0430\u0442\u044c 255."
                                 },
                                 {
                                     "key": "is_active",
-                                    "value": "1",
+                                    "value": "",
                                     "type": "text",
                                     "description": ""
                                 },
@@ -3560,7 +2421,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"date\":\"2026-01-13T13:25:35\",\"cash_id\":17,\"note\":\"mqeopfuudtdsufvyvddqa\",\"user_ids\":[17],\"payment_type\":false}"
+                            "raw": "{\"date\":\"2026-02-06T14:38:54\",\"cash_id\":17,\"note\":\"mqeopfuudtdsufvyvddqa\",\"user_ids\":[17],\"payment_type\":false}"
                         },
                         "description": ""
                     },
@@ -4011,7 +2872,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"client_id\":17,\"warehouse_id\":17,\"type\":\"balance\",\"cash_id\":17,\"date\":\"2026-01-13T13:25:35\",\"note\":\"consequatur\",\"project_id\":17,\"products\":[{\"product_id\":17,\"quantity\":45,\"price\":56}]}"
+                            "raw": "{\"client_id\":17,\"warehouse_id\":17,\"type\":\"balance\",\"cash_id\":17,\"date\":\"2026-02-06T14:38:54\",\"note\":\"consequatur\",\"project_id\":17,\"products\":[{\"product_id\":17,\"quantity\":45,\"price\":56}]}"
                         },
                         "description": ""
                     },
@@ -4051,7 +2912,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"date\":\"2026-01-13T13:25:35\",\"note\":\"consequatur\"}"
+                            "raw": "{\"date\":\"2026-02-06T14:38:54\",\"note\":\"consequatur\"}"
                         },
                         "description": ""
                     },
@@ -4327,7 +3188,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"warehouse_from_id\":17,\"warehouse_to_id\":17,\"date\":\"2026-01-13T13:25:35\",\"note\":\"consequatur\",\"products\":[{\"product_id\":17,\"quantity\":45}]}"
+                            "raw": "{\"warehouse_from_id\":17,\"warehouse_to_id\":17,\"date\":\"2026-02-06T14:38:54\",\"note\":\"consequatur\",\"products\":[{\"product_id\":17,\"quantity\":45}]}"
                         },
                         "description": ""
                     },
@@ -4367,7 +3228,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"warehouse_from_id\":17,\"warehouse_to_id\":17,\"date\":\"2026-01-13T13:25:35\",\"note\":\"consequatur\",\"products\":[{\"product_id\":17,\"quantity\":45}]}"
+                            "raw": "{\"warehouse_from_id\":17,\"warehouse_to_id\":17,\"date\":\"2026-02-06T14:38:54\",\"note\":\"consequatur\",\"products\":[{\"product_id\":17,\"quantity\":45}]}"
                         },
                         "description": ""
                     },
@@ -4947,7 +3808,7 @@
                                 },
                                 {
                                     "key": "date",
-                                    "value": "2026-01-13T13:25:35",
+                                    "value": "2026-02-06T14:38:54",
                                     "type": "text",
                                     "description": "\u041f\u043e\u043b\u0435 value \u043d\u0435 \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u0434\u0430\u0442\u043e\u0439."
                                 },
@@ -5047,7 +3908,7 @@
                                 },
                                 {
                                     "key": "date",
-                                    "value": "2026-01-13T13:25:35",
+                                    "value": "2026-02-06T14:38:54",
                                     "type": "text",
                                     "description": "\u041f\u043e\u043b\u0435 value \u043d\u0435 \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u0434\u0430\u0442\u043e\u0439."
                                 },
@@ -5475,6 +4336,186 @@
                     "response": []
                 },
                 {
+                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0432\u0441\u0435 \u0431\u0430\u043b\u0430\u043d\u0441\u044b \u043a\u043b\u0438\u0435\u043d\u0442\u0430",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/clients\/:clientId\/balances",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/clients\/:clientId\/balances",
+                            "variable": [
+                                {
+                                    "id": "clientId",
+                                    "key": "clientId",
+                                    "value": "consequatur",
+                                    "description": ""
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [
+                                {
+                                    "key": "cache-control",
+                                    "value": "no-cache, private"
+                                },
+                                {
+                                    "key": "content-type",
+                                    "value": "application\/json"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Origin"
+                                }
+                            ],
+                            "code": 401,
+                            "body": "{\"message\":\"Unauthenticated.\"}",
+                            "name": ""
+                        }
+                    ]
+                },
+                {
+                    "name": "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u0431\u0430\u043b\u0430\u043d\u0441 \u0432 \u0432\u0430\u043b\u044e\u0442\u0435",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/clients\/:clientId\/balances",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/clients\/:clientId\/balances",
+                            "variable": [
+                                {
+                                    "id": "clientId",
+                                    "key": "clientId",
+                                    "value": "consequatur",
+                                    "description": ""
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u0431\u0430\u043b\u0430\u043d\u0441 (\u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u043a\u0430\u043a \u0434\u0435\u0444\u043e\u043b\u0442\u043d\u044b\u0439)",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/clients\/:clientId\/balances\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/clients\/:clientId\/balances\/:id",
+                            "variable": [
+                                {
+                                    "id": "clientId",
+                                    "key": "clientId",
+                                    "value": "consequatur",
+                                    "description": ""
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": "consequatur",
+                                    "description": "The ID of the balance."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0431\u0430\u043b\u0430\u043d\u0441",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/clients\/:clientId\/balances\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/clients\/:clientId\/balances\/:id",
+                            "variable": [
+                                {
+                                    "id": "clientId",
+                                    "key": "clientId",
+                                    "value": "consequatur",
+                                    "description": ""
+                                },
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": "consequatur",
+                                    "description": "The ID of the balance."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
                     "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u043a\u0430\u0441\u0441 \u0441 \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0435\u0439",
                     "request": {
                         "url": {
@@ -5647,7 +4688,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"consequatur\",\"balance\":11613.31890586}"
+                            "raw": "{\"name\":\"consequatur\",\"balance\":11613.31890586,\"is_cash\":true,\"icon\":\"pfuudtdsufvyvddqamnii\"}"
                         },
                         "description": ""
                     },
@@ -5687,7 +4728,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"consequatur\"}"
+                            "raw": "{\"name\":\"consequatur\",\"is_cash\":false,\"icon\":\"qeopfuudtdsufvyvddqam\"}"
                         },
                         "description": ""
                     },
@@ -5911,7 +4952,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"consequatur\",\"date\":\"2026-01-13T13:25:35\",\"client_id\":\"consequatur\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\"}"
+                            "raw": "{\"name\":\"consequatur\",\"date\":\"2026-02-06T14:38:54\",\"client_id\":\"consequatur\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\"}"
                         },
                         "description": ""
                     },
@@ -5951,7 +4992,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"name\":\"consequatur\",\"date\":\"2026-01-13T13:25:35\",\"client_id\":\"consequatur\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\"}"
+                            "raw": "{\"name\":\"consequatur\",\"date\":\"2026-02-06T14:38:54\",\"client_id\":\"consequatur\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\"}"
                         },
                         "description": ""
                     },
@@ -6408,7 +5449,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"project_id\":\"consequatur\",\"number\":\"mqeopfuudtdsufvyvddqa\",\"amount\":45,\"date\":\"2026-01-13T13:25:35\",\"returned\":true,\"is_paid\":false,\"note\":\"consequatur\"}"
+                            "raw": "{\"project_id\":\"consequatur\",\"number\":\"mqeopfuudtdsufvyvddqa\",\"type\":\"0\",\"amount\":46,\"cash_id\":\"consequatur\",\"date\":\"2026-02-06T14:38:54\",\"returned\":false,\"note\":\"consequatur\"}"
                         },
                         "description": ""
                     },
@@ -6554,7 +5595,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"number\":\"vmqeopfuudtdsufvyvddq\",\"amount\":1,\"date\":\"2026-01-13T13:25:35\",\"returned\":true,\"is_paid\":true,\"note\":\"consequatur\"}"
+                            "raw": "{\"number\":\"vmqeopfuudtdsufvyvddq\",\"type\":\"0\",\"amount\":45,\"cash_id\":\"consequatur\",\"date\":\"2026-02-06T14:38:54\",\"returned\":false,\"note\":\"consequatur\"}"
                         },
                         "description": ""
                     },
@@ -6574,294 +5615,6 @@
                                     "key": "id",
                                     "value": "consequatur",
                                     "description": "The ID of the contract."
-                                }
-                            ]
-                        },
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": []
-                },
-                {
-                    "name": "GET api\/projects\/{projectId}\/transactions",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/projects\/:projectId\/transactions",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/projects\/:projectId\/transactions",
-                            "variable": [
-                                {
-                                    "id": "projectId",
-                                    "key": "projectId",
-                                    "value": "consequatur",
-                                    "description": ""
-                                }
-                            ]
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "GET api\/projects\/{projectId}\/transactions\/all",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/projects\/:projectId\/transactions\/all",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/projects\/:projectId\/transactions\/all",
-                            "variable": [
-                                {
-                                    "id": "projectId",
-                                    "key": "projectId",
-                                    "value": "consequatur",
-                                    "description": ""
-                                }
-                            ]
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "POST api\/projects\/{projectId}\/transactions",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/projects\/:projectId\/transactions",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/projects\/:projectId\/transactions",
-                            "variable": [
-                                {
-                                    "id": "projectId",
-                                    "key": "projectId",
-                                    "value": "consequatur",
-                                    "description": ""
-                                }
-                            ]
-                        },
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\"project_id\":\"consequatur\",\"type\":false,\"amount\":56,\"currency_id\":\"consequatur\",\"note\":\"consequatur\",\"date\":\"2026-01-13T13:25:35\"}"
-                        },
-                        "description": ""
-                    },
-                    "response": []
-                },
-                {
-                    "name": "GET api\/project-transactions\/{id}",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/project-transactions\/:id",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/project-transactions\/:id",
-                            "variable": [
-                                {
-                                    "id": "id",
-                                    "key": "id",
-                                    "value": "consequatur",
-                                    "description": "The ID of the project transaction."
-                                }
-                            ]
-                        },
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": null,
-                        "description": ""
-                    },
-                    "response": [
-                        {
-                            "header": [
-                                {
-                                    "key": "cache-control",
-                                    "value": "no-cache, private"
-                                },
-                                {
-                                    "key": "content-type",
-                                    "value": "application\/json"
-                                },
-                                {
-                                    "key": "vary",
-                                    "value": "Origin"
-                                }
-                            ],
-                            "code": 401,
-                            "body": "{\"message\":\"Unauthenticated.\"}",
-                            "name": ""
-                        }
-                    ]
-                },
-                {
-                    "name": "PUT api\/project-transactions\/{id}",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/project-transactions\/:id",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/project-transactions\/:id",
-                            "variable": [
-                                {
-                                    "id": "id",
-                                    "key": "id",
-                                    "value": "consequatur",
-                                    "description": "The ID of the project transaction."
-                                }
-                            ]
-                        },
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "Accept",
-                                "value": "application\/json"
-                            },
-                            {
-                                "key": "X-Company-ID",
-                                "value": "1"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\"type\":false,\"amount\":45,\"currency_id\":\"consequatur\",\"note\":\"consequatur\",\"date\":\"2026-01-13T13:25:35\"}"
-                        },
-                        "description": ""
-                    },
-                    "response": []
-                },
-                {
-                    "name": "DELETE api\/project-transactions\/{id}",
-                    "request": {
-                        "url": {
-                            "host": "{{baseUrl}}",
-                            "path": "api\/project-transactions\/:id",
-                            "query": [],
-                            "raw": "{{baseUrl}}\/api\/project-transactions\/:id",
-                            "variable": [
-                                {
-                                    "id": "id",
-                                    "key": "id",
-                                    "value": "consequatur",
-                                    "description": "The ID of the project transaction."
                                 }
                             ]
                         },
@@ -7167,7 +5920,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"type\":\"0\",\"orig_amount\":45,\"currency_id\":\"consequatur\",\"cash_id\":17,\"category_id\":\"consequatur\",\"order_id\":17,\"source_type\":\"consequatur\",\"source_id\":17,\"note\":\"consequatur\",\"date\":\"2026-01-13T13:25:35\",\"is_debt\":false,\"is_adjustment\":true,\"exchange_rate\":16}"
+                            "raw": "{\"type\":\"0\",\"orig_amount\":45,\"currency_id\":\"consequatur\",\"cash_id\":17,\"category_id\":\"consequatur\",\"client_balance_id\":17,\"order_id\":17,\"source_type\":\"consequatur\",\"source_id\":17,\"note\":\"consequatur\",\"date\":\"2026-02-06T14:38:54\",\"is_debt\":false,\"is_adjustment\":true,\"exchange_rate\":16}"
                         },
                         "description": ""
                     },
@@ -7207,7 +5960,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"category_id\":\"consequatur\",\"note\":\"consequatur\",\"date\":\"2026-01-13T13:25:35\",\"orig_amount\":45,\"is_debt\":true,\"source_type\":\"consequatur\",\"source_id\":17,\"exchange_rate\":45}"
+                            "raw": "{\"category_id\":\"consequatur\",\"note\":\"consequatur\",\"date\":\"2026-02-06T14:38:54\",\"orig_amount\":45,\"is_debt\":true,\"source_type\":\"consequatur\",\"source_id\":17,\"exchange_rate\":45}"
                         },
                         "description": ""
                     },
@@ -7589,7 +6342,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"client_id\":17,\"project_id\":17,\"type\":\"balance\",\"cash_id\":17,\"warehouse_id\":17,\"currency_id\":17,\"discount\":45,\"discount_type\":\"fixed\",\"date\":\"2026-01-13T13:25:35\",\"note\":\"consequatur\",\"products\":[{\"product_id\":17,\"quantity\":45,\"price\":56}]}"
+                            "raw": "{\"client_id\":17,\"project_id\":17,\"type\":\"balance\",\"cash_id\":17,\"warehouse_id\":17,\"currency_id\":17,\"discount\":45,\"discount_type\":\"fixed\",\"date\":\"2026-02-06T14:38:54\",\"note\":\"consequatur\",\"products\":[{\"product_id\":17,\"quantity\":45,\"price\":56}]}"
                         },
                         "description": ""
                     },
@@ -7739,6 +6492,55 @@
                     ]
                 },
                 {
+                    "name": "\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043d\u0430 \u043f\u0435\u0440\u0432\u043e\u0439 \u0441\u0442\u0430\u0434\u0438\u0438 (status_id = 1), \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0445 \u0442\u0435\u043a\u0443\u0449\u0435\u043c\u0443 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044e.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/orders\/first-stage-count",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/orders\/first-stage-count"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [
+                                {
+                                    "key": "cache-control",
+                                    "value": "no-cache, private"
+                                },
+                                {
+                                    "key": "content-type",
+                                    "value": "application\/json"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Origin"
+                                }
+                            ],
+                            "code": 401,
+                            "body": "{\"message\":\"Unauthenticated.\"}",
+                            "name": ""
+                        }
+                    ]
+                },
+                {
                     "name": "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u043d\u043e\u0432\u044b\u0439 \u0437\u0430\u043a\u0430\u0437",
                     "request": {
                         "url": {
@@ -7764,7 +6566,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"client_id\":17,\"project_id\":17,\"cash_id\":17,\"warehouse_id\":17,\"currency_id\":17,\"category_id\":17,\"discount\":45,\"discount_type\":\"fixed\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"date\":\"2026-01-13T13:25:35\",\"note\":\"consequatur\",\"products\":[{\"product_id\":17,\"quantity\":45,\"price\":56,\"width\":16,\"height\":50}],\"temp_products\":[{\"name\":\"pfuudtdsufvyvddqamnii\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"quantity\":12,\"price\":66,\"width\":13,\"height\":65}]}"
+                            "raw": "{\"client_id\":17,\"project_id\":17,\"cash_id\":17,\"warehouse_id\":17,\"currency_id\":17,\"category_id\":17,\"discount\":45,\"discount_type\":\"fixed\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"date\":\"2026-02-06T14:38:54\",\"note\":\"consequatur\",\"products\":[{\"product_id\":17,\"quantity\":45,\"price\":56,\"width\":16,\"height\":50}],\"temp_products\":[{\"name\":\"pfuudtdsufvyvddqamnii\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"quantity\":12,\"price\":66,\"width\":13,\"height\":65}]}"
                         },
                         "description": ""
                     },
@@ -7804,7 +6606,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"client_id\":17,\"project_id\":17,\"cash_id\":17,\"warehouse_id\":17,\"currency_id\":17,\"category_id\":17,\"discount\":45,\"discount_type\":\"fixed\",\"date\":\"2026-01-13T13:25:35\",\"note\":\"consequatur\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"status_id\":17,\"remove_temp_products\":[17],\"products\":[{\"id\":17,\"product_id\":17,\"quantity\":45,\"price\":56,\"width\":16,\"height\":50}],\"temp_products\":[{\"id\":17,\"name\":\"mqeopfuudtdsufvyvddqa\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"quantity\":12,\"price\":66,\"width\":13,\"height\":65}]}"
+                            "raw": "{\"client_id\":17,\"project_id\":17,\"cash_id\":17,\"warehouse_id\":17,\"currency_id\":17,\"category_id\":17,\"discount\":45,\"discount_type\":\"fixed\",\"date\":\"2026-02-06T14:38:54\",\"note\":\"consequatur\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"status_id\":17,\"remove_temp_products\":[17],\"products\":[{\"id\":17,\"product_id\":17,\"quantity\":45,\"price\":56,\"width\":16,\"height\":50}],\"temp_products\":[{\"id\":17,\"name\":\"mqeopfuudtdsufvyvddqa\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"quantity\":12,\"price\":66,\"width\":13,\"height\":65}]}"
                         },
                         "description": ""
                     },
@@ -8878,7 +7680,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"leave_type_id\":17,\"user_id\":17,\"comment\":\"consequatur\",\"date_from\":\"2026-01-13T13:25:35\",\"date_to\":\"2107-02-12\"}"
+                            "raw": "{\"leave_type_id\":17,\"user_id\":17,\"comment\":\"consequatur\",\"date_from\":\"2026-02-06T14:38:54\",\"date_to\":\"2107-03-08\"}"
                         },
                         "description": ""
                     },
@@ -8918,7 +7720,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"leave_type_id\":17,\"user_id\":17,\"comment\":\"consequatur\",\"date_from\":\"2026-01-13T13:25:35\",\"date_to\":\"2026-01-13T13:25:35\"}"
+                            "raw": "{\"leave_type_id\":17,\"user_id\":17,\"comment\":\"consequatur\",\"date_from\":\"2026-02-06T14:38:54\",\"date_to\":\"2026-02-06T14:38:54\"}"
                         },
                         "description": ""
                     },
@@ -8957,6 +7759,302 @@
                             }
                         ],
                         "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u043f\u0440\u0430\u0437\u0434\u043d\u0438\u043a\u043e\u0432 \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0438 \u0441 \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0435\u0439",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/company-holidays",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/company-holidays"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [
+                                {
+                                    "key": "cache-control",
+                                    "value": "no-cache, private"
+                                },
+                                {
+                                    "key": "content-type",
+                                    "value": "application\/json"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Origin"
+                                }
+                            ],
+                            "code": 401,
+                            "body": "{\"message\":\"Unauthenticated.\"}",
+                            "name": ""
+                        }
+                    ]
+                },
+                {
+                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0432\u0441\u0435 \u043f\u0440\u0430\u0437\u0434\u043d\u0438\u043a\u0438 \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0438",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/company-holidays\/all",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/company-holidays\/all"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [
+                                {
+                                    "key": "cache-control",
+                                    "value": "no-cache, private"
+                                },
+                                {
+                                    "key": "content-type",
+                                    "value": "application\/json"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Origin"
+                                }
+                            ],
+                            "code": 401,
+                            "body": "{\"message\":\"Unauthenticated.\"}",
+                            "name": ""
+                        }
+                    ]
+                },
+                {
+                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u043f\u0440\u0430\u0437\u0434\u043d\u0438\u043a \u043f\u043e ID",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/company-holidays\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/company-holidays\/:id",
+                            "variable": [
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": "consequatur",
+                                    "description": "The ID of the company holiday."
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [
+                                {
+                                    "key": "cache-control",
+                                    "value": "no-cache, private"
+                                },
+                                {
+                                    "key": "content-type",
+                                    "value": "application\/json"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Origin"
+                                }
+                            ],
+                            "code": 401,
+                            "body": "{\"message\":\"Unauthenticated.\"}",
+                            "name": ""
+                        }
+                    ]
+                },
+                {
+                    "name": "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u043d\u043e\u0432\u044b\u0439 \u043f\u0440\u0430\u0437\u0434\u043d\u0438\u043a",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/company-holidays",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/company-holidays"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"company_id\":17,\"name\":\"mqeopfuudtdsufvyvddqa\",\"date\":\"2026-02-06T14:38:54\",\"is_recurring\":true,\"color\":\"niihfq\"}"
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u0440\u0430\u0437\u0434\u043d\u0438\u043a",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/company-holidays\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/company-holidays\/:id",
+                            "variable": [
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": "consequatur",
+                                    "description": "The ID of the company holiday."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"company_id\":17,\"name\":\"mqeopfuudtdsufvyvddqa\",\"date\":\"2026-02-06T14:38:54\",\"is_recurring\":true,\"color\":\"niihfq\"}"
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u043f\u0440\u0430\u0437\u0434\u043d\u0438\u043a",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/company-holidays\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/company-holidays\/:id",
+                            "variable": [
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": "consequatur",
+                                    "description": "The ID of the company holiday."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "\u041f\u0430\u043a\u0435\u0442\u043d\u043e\u0435 \u0443\u0434\u0430\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u0430\u0437\u0434\u043d\u0438\u043a\u043e\u0432",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/company-holidays\/batch-delete",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/company-holidays\/batch-delete"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"ids\":[17]}"
+                        },
                         "description": ""
                     },
                     "response": []
@@ -9194,7 +8292,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"client_id\":17,\"invoice_date\":\"2026-01-13T13:25:35\",\"note\":\"consequatur\",\"order_ids\":[17]}"
+                            "raw": "{\"client_id\":17,\"invoice_date\":\"2026-02-06T14:38:54\",\"note\":\"consequatur\",\"order_ids\":[17]}"
                         },
                         "description": ""
                     },
@@ -9234,7 +8332,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"client_id\":17,\"invoice_date\":\"2026-01-13T13:25:35\",\"note\":\"consequatur\",\"status\":\"cancelled\",\"order_ids\":[17],\"total_amount\":45,\"products\":[{\"product_name\":\"qeopfuudtdsufvyvddqam\",\"quantity\":46,\"price\":28,\"total_price\":30}]}"
+                            "raw": "{\"client_id\":17,\"invoice_date\":\"2026-02-06T14:38:54\",\"note\":\"consequatur\",\"status\":\"cancelled\",\"order_ids\":[17],\"total_amount\":45,\"products\":[{\"product_name\":\"qeopfuudtdsufvyvddqam\",\"quantity\":46,\"price\":28,\"total_price\":30}]}"
                         },
                         "description": ""
                     },
@@ -9756,6 +8854,55 @@
                     ]
                 },
                 {
+                    "name": "\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u043f\u0440\u043e\u0441\u0440\u043e\u0447\u0435\u043d\u043d\u044b\u0445 \u0437\u0430\u0434\u0430\u0447 (\u0434\u0435\u0434\u043b\u0430\u0439\u043d \u043f\u0440\u043e\u0441\u0440\u043e\u0447\u0435\u043d), \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0445 \u0442\u0435\u043a\u0443\u0449\u0435\u043c\u0443 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044e.",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/tasks\/overdue-count",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/tasks\/overdue-count"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [
+                                {
+                                    "key": "cache-control",
+                                    "value": "no-cache, private"
+                                },
+                                {
+                                    "key": "content-type",
+                                    "value": "application\/json"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Origin"
+                                }
+                            ],
+                            "code": 401,
+                            "body": "{\"message\":\"Unauthenticated.\"}",
+                            "name": ""
+                        }
+                    ]
+                },
+                {
                     "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0437\u0430\u0434\u0430\u0447\u0443 \u043f\u043e ID",
                     "request": {
                         "url": {
@@ -9838,7 +8985,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"title\":\"vmqeopfuudtdsufvyvddq\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"supervisor_id\":\"consequatur\",\"executor_id\":\"consequatur\",\"priority\":\"low\",\"complexity\":\"simple\",\"deadline\":\"2026-01-13T13:25:36\"}"
+                            "raw": "{\"title\":\"vmqeopfuudtdsufvyvddq\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"supervisor_id\":\"consequatur\",\"executor_id\":\"consequatur\",\"priority\":\"low\",\"complexity\":\"simple\",\"deadline\":\"2026-02-06T14:38:54\"}"
                         },
                         "description": ""
                     },
@@ -9878,7 +9025,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"title\":\"vmqeopfuudtdsufvyvddq\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"priority\":\"normal\",\"complexity\":\"complex\",\"deadline\":\"2026-01-13T13:25:36\"}"
+                            "raw": "{\"title\":\"vmqeopfuudtdsufvyvddq\",\"description\":\"Dolores dolorum amet iste laborum eius est dolor.\",\"priority\":\"normal\",\"complexity\":\"complex\",\"deadline\":\"2026-02-06T14:38:54\"}"
                         },
                         "description": ""
                     },
@@ -10810,12 +9957,196 @@
                                     "description": "\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432 \u0432 \u043f\u043e\u043b\u0435 value \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u043f\u0440\u0435\u0432\u044b\u0448\u0430\u0442\u044c 10000."
                                 },
                                 {
+                                    "key": "parent_id",
+                                    "value": "17",
+                                    "type": "text",
+                                    "description": "The <code>id<\/code> of an existing record in the chat_messages table."
+                                },
+                                {
                                     "key": "files[]",
                                     "src": [],
                                     "type": "file"
                                 }
                             ]
                         },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "PUT api\/chats\/{chat_id}\/messages\/{message_id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/chats\/:chat_id\/messages\/:message_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/chats\/:chat_id\/messages\/:message_id",
+                            "variable": [
+                                {
+                                    "id": "chat_id",
+                                    "key": "chat_id",
+                                    "value": "1",
+                                    "description": "The ID of the chat."
+                                },
+                                {
+                                    "id": "message_id",
+                                    "key": "message_id",
+                                    "value": "1",
+                                    "description": "The ID of the message."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"body\":\"vmqeopfuudtdsufvyvddq\"}"
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "DELETE api\/chats\/{chat_id}\/messages\/{message_id}",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/chats\/:chat_id\/messages\/:message_id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/chats\/:chat_id\/messages\/:message_id",
+                            "variable": [
+                                {
+                                    "id": "chat_id",
+                                    "key": "chat_id",
+                                    "value": "1",
+                                    "description": "The ID of the chat."
+                                },
+                                {
+                                    "id": "message_id",
+                                    "key": "message_id",
+                                    "value": "1",
+                                    "description": "The ID of the message."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/chats\/{chat_id}\/messages\/{message_id}\/forward",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/chats\/:chat_id\/messages\/:message_id\/forward",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/chats\/:chat_id\/messages\/:message_id\/forward",
+                            "variable": [
+                                {
+                                    "id": "chat_id",
+                                    "key": "chat_id",
+                                    "value": "1",
+                                    "description": "The ID of the chat."
+                                },
+                                {
+                                    "id": "message_id",
+                                    "key": "message_id",
+                                    "value": "1",
+                                    "description": "The ID of the message."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"target_chat_id\":17,\"hide_sender_name\":false}"
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "POST api\/chats\/{chat_id}\/messages\/{message_id}\/reaction",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/chats\/:chat_id\/messages\/:message_id\/reaction",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/chats\/:chat_id\/messages\/:message_id\/reaction",
+                            "variable": [
+                                {
+                                    "id": "chat_id",
+                                    "key": "chat_id",
+                                    "value": "1",
+                                    "description": "The ID of the chat."
+                                },
+                                {
+                                    "id": "message_id",
+                                    "key": "message_id",
+                                    "value": "1",
+                                    "description": "The ID of the message."
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
                         "description": ""
                     },
                     "response": []
@@ -11117,6 +10448,351 @@
                             }
                         ],
                         "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a \u0448\u0430\u0431\u043b\u043e\u043d\u043e\u0432 \u0441 \u043f\u0430\u0433\u0438\u043d\u0430\u0446\u0438\u0435\u0439",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/message-templates",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/message-templates"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [
+                                {
+                                    "key": "cache-control",
+                                    "value": "no-cache, private"
+                                },
+                                {
+                                    "key": "content-type",
+                                    "value": "application\/json"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Origin"
+                                }
+                            ],
+                            "code": 401,
+                            "body": "{\"message\":\"Unauthenticated.\"}",
+                            "name": ""
+                        }
+                    ]
+                },
+                {
+                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0432\u0441\u0435 \u0448\u0430\u0431\u043b\u043e\u043d\u044b",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/message-templates\/all",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/message-templates\/all"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [
+                                {
+                                    "key": "cache-control",
+                                    "value": "no-cache, private"
+                                },
+                                {
+                                    "key": "content-type",
+                                    "value": "application\/json"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Origin"
+                                }
+                            ],
+                            "code": 401,
+                            "body": "{\"message\":\"Unauthenticated.\"}",
+                            "name": ""
+                        }
+                    ]
+                },
+                {
+                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u0442\u0438\u043f\u044b \u0448\u0430\u0431\u043b\u043e\u043d\u043e\u0432 \u0438\u0437 \u043a\u043e\u043d\u0444\u0438\u0433\u0430",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/message-templates\/types",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/message-templates\/types"
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [
+                                {
+                                    "key": "cache-control",
+                                    "value": "no-cache, private"
+                                },
+                                {
+                                    "key": "content-type",
+                                    "value": "application\/json"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Origin"
+                                }
+                            ],
+                            "code": 401,
+                            "body": "{\"message\":\"Unauthenticated.\"}",
+                            "name": ""
+                        }
+                    ]
+                },
+                {
+                    "name": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0448\u0430\u0431\u043b\u043e\u043d \u043f\u043e ID",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/message-templates\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/message-templates\/:id",
+                            "variable": [
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": "consequatur",
+                                    "description": "The ID of the message template."
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": [
+                        {
+                            "header": [
+                                {
+                                    "key": "cache-control",
+                                    "value": "no-cache, private"
+                                },
+                                {
+                                    "key": "content-type",
+                                    "value": "application\/json"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Origin"
+                                }
+                            ],
+                            "code": 401,
+                            "body": "{\"message\":\"Unauthenticated.\"}",
+                            "name": ""
+                        }
+                    ]
+                },
+                {
+                    "name": "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u043d\u043e\u0432\u044b\u0439 \u0448\u0430\u0431\u043b\u043e\u043d",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/message-templates",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/message-templates"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"type\":\"vmqeopfuudtdsufvyvddq\",\"name\":\"amniihfqcoynlazghdtqt\",\"content\":\"consequatur\",\"is_active\":false}"
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u0448\u0430\u0431\u043b\u043e\u043d",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/message-templates\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/message-templates\/:id",
+                            "variable": [
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": "consequatur",
+                                    "description": "The ID of the message template."
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"type\":\"vmqeopfuudtdsufvyvddq\",\"name\":\"amniihfqcoynlazghdtqt\",\"content\":\"consequatur\",\"is_active\":false}"
+                        },
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0448\u0430\u0431\u043b\u043e\u043d",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/message-templates\/:id",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/message-templates\/:id",
+                            "variable": [
+                                {
+                                    "id": "id",
+                                    "key": "id",
+                                    "value": "consequatur",
+                                    "description": "The ID of the message template."
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": null,
+                        "description": ""
+                    },
+                    "response": []
+                },
+                {
+                    "name": "\u041f\u0430\u043a\u0435\u0442\u043d\u043e\u0435 \u0443\u0434\u0430\u043b\u0435\u043d\u0438\u0435 \u0448\u0430\u0431\u043b\u043e\u043d\u043e\u0432",
+                    "request": {
+                        "url": {
+                            "host": "{{baseUrl}}",
+                            "path": "api\/message-templates\/batch-delete",
+                            "query": [],
+                            "raw": "{{baseUrl}}\/api\/message-templates\/batch-delete"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application\/json"
+                            },
+                            {
+                                "key": "X-Company-ID",
+                                "value": "1"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"ids\":[17]}"
+                        },
                         "description": ""
                     },
                     "response": []

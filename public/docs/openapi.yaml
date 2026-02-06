@@ -395,1106 +395,6 @@ paths:
                     updated_at: '2025-12-22T13:50:37.000000Z'
       tags:
         - Endpoints
-  /api/simple/user/me:
-    get:
-      summary: 'Получить данные текущего аутентифицированного пользователя'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/user/logout:
-    post:
-      summary: 'Выход пользователя из системы'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses: {  }
-      tags:
-        - Endpoints
-  /api/simple/user/profile:
-    post:
-      summary: 'Обновить профиль текущего пользователя'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses: {  }
-      tags:
-        - Endpoints
-  /api/simple/orders:
-    get:
-      summary: 'Получить список заказов с пагинацией'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-    post:
-      summary: 'Создать новый заказ'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses: {  }
-      tags:
-        - Endpoints
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                client_id:
-                  type: integer
-                  description: ''
-                  example: 17
-                project_id:
-                  type: integer
-                  description: ''
-                  example: 17
-                  nullable: true
-                cash_id:
-                  type: integer
-                  description: ''
-                  example: 17
-                  nullable: true
-                warehouse_id:
-                  type: integer
-                  description: ''
-                  example: 17
-                currency_id:
-                  type: integer
-                  description: 'The <code>id</code> of an existing record in the currencies table.'
-                  example: 17
-                  nullable: true
-                category_id:
-                  type: integer
-                  description: 'The <code>id</code> of an existing record in the categories table.'
-                  example: 17
-                discount:
-                  type: number
-                  description: 'Поле value должно быть не менее 0.'
-                  example: 45
-                  nullable: true
-                discount_type:
-                  type: string
-                  description: 'This field is required when <code>discount</code> is present.'
-                  example: fixed
-                  enum:
-                    - fixed
-                    - percent
-                  nullable: true
-                description:
-                  type: string
-                  description: ''
-                  example: 'Dolores dolorum amet iste laborum eius est dolor.'
-                  nullable: true
-                date:
-                  type: string
-                  description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:34'
-                  nullable: true
-                note:
-                  type: string
-                  description: ''
-                  example: consequatur
-                  nullable: true
-                products:
-                  type: array
-                  description: ''
-                  example: null
-                  items:
-                    type: object
-                    properties:
-                      product_id:
-                        type: integer
-                        description: 'This field is required when <code>products</code> is present. The <code>id</code> of an existing record in the products table.'
-                        example: 17
-                      quantity:
-                        type: number
-                        description: 'This field is required when <code>products</code> is present. Поле value должно быть не менее 0.'
-                        example: 45
-                      price:
-                        type: number
-                        description: 'This field is required when <code>products</code> is present. Поле value должно быть не менее 0.'
-                        example: 56
-                      width:
-                        type: number
-                        description: 'Поле value должно быть не менее 0.'
-                        example: 16
-                        nullable: true
-                      height:
-                        type: number
-                        description: 'Поле value должно быть не менее 0.'
-                        example: 50
-                        nullable: true
-                temp_products:
-                  type: array
-                  description: ''
-                  example: null
-                  items:
-                    type: object
-                    properties:
-                      name:
-                        type: string
-                        description: 'This field is required when <code>temp_products</code> is present. Количество символов в поле value не может превышать 255.'
-                        example: pfuudtdsufvyvddqamnii
-                      description:
-                        type: string
-                        description: ''
-                        example: 'Dolores dolorum amet iste laborum eius est dolor.'
-                        nullable: true
-                      quantity:
-                        type: number
-                        description: 'This field is required when <code>temp_products</code> is present. Поле value должно быть не менее 0.'
-                        example: 12
-                      price:
-                        type: number
-                        description: 'This field is required when <code>temp_products</code> is present. Поле value должно быть не менее 0.'
-                        example: 66
-                      unit_id:
-                        type: string
-                        description: 'The <code>id</code> of an existing record in the units table.'
-                        example: null
-                        nullable: true
-                      width:
-                        type: number
-                        description: 'Поле value должно быть не менее 0.'
-                        example: 13
-                        nullable: true
-                      height:
-                        type: number
-                        description: 'Поле value должно быть не менее 0.'
-                        example: 65
-                        nullable: true
-              required:
-                - client_id
-                - warehouse_id
-                - category_id
-  '/api/simple/orders/{id}':
-    get:
-      summary: 'Получить заказ по ID'
-      operationId: ID
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-    put:
-      summary: 'Обновить заказ'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses: {  }
-      tags:
-        - Endpoints
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                client_id:
-                  type: integer
-                  description: ''
-                  example: 17
-                project_id:
-                  type: integer
-                  description: ''
-                  example: 17
-                  nullable: true
-                cash_id:
-                  type: integer
-                  description: ''
-                  example: 17
-                  nullable: true
-                warehouse_id:
-                  type: integer
-                  description: ''
-                  example: 17
-                currency_id:
-                  type: integer
-                  description: 'The <code>id</code> of an existing record in the currencies table.'
-                  example: 17
-                  nullable: true
-                category_id:
-                  type: integer
-                  description: 'The <code>id</code> of an existing record in the categories table.'
-                  example: 17
-                  nullable: true
-                discount:
-                  type: number
-                  description: 'Поле value должно быть не менее 0.'
-                  example: 45
-                  nullable: true
-                discount_type:
-                  type: string
-                  description: 'This field is required when <code>discount</code> is present.'
-                  example: fixed
-                  enum:
-                    - fixed
-                    - percent
-                  nullable: true
-                date:
-                  type: string
-                  description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:34'
-                  nullable: true
-                note:
-                  type: string
-                  description: ''
-                  example: consequatur
-                  nullable: true
-                description:
-                  type: string
-                  description: ''
-                  example: 'Dolores dolorum amet iste laborum eius est dolor.'
-                  nullable: true
-                status_id:
-                  type: integer
-                  description: 'The <code>id</code> of an existing record in the order_statuses table.'
-                  example: 17
-                  nullable: true
-                products:
-                  type: array
-                  description: ''
-                  example: null
-                  items:
-                    type: object
-                    nullable: true
-                    properties:
-                      id:
-                        type: integer
-                        description: 'The <code>id</code> of an existing record in the order_products table.'
-                        example: 17
-                        nullable: true
-                      product_id:
-                        type: integer
-                        description: 'This field is required when <code>products</code> is present. The <code>id</code> of an existing record in the products table.'
-                        example: 17
-                      quantity:
-                        type: number
-                        description: 'This field is required when <code>products</code> is present. Поле value должно быть не менее 0.'
-                        example: 45
-                      price:
-                        type: number
-                        description: 'This field is required when <code>products</code> is present. Поле value должно быть не менее 0.'
-                        example: 56
-                      width:
-                        type: number
-                        description: 'Поле value должно быть не менее 0.'
-                        example: 16
-                        nullable: true
-                      height:
-                        type: number
-                        description: 'Поле value должно быть не менее 0.'
-                        example: 50
-                        nullable: true
-                temp_products:
-                  type: array
-                  description: ''
-                  example: null
-                  items:
-                    type: object
-                    nullable: true
-                    properties:
-                      id:
-                        type: integer
-                        description: 'The <code>id</code> of an existing record in the order_temp_products table.'
-                        example: 17
-                        nullable: true
-                      name:
-                        type: string
-                        description: 'This field is required when <code>temp_products</code> is present. Количество символов в поле value не может превышать 255.'
-                        example: mqeopfuudtdsufvyvddqa
-                      description:
-                        type: string
-                        description: ''
-                        example: 'Dolores dolorum amet iste laborum eius est dolor.'
-                        nullable: true
-                      quantity:
-                        type: number
-                        description: 'This field is required when <code>temp_products</code> is present. Поле value должно быть не менее 0.'
-                        example: 12
-                      price:
-                        type: number
-                        description: 'This field is required when <code>temp_products</code> is present. Поле value должно быть не менее 0.'
-                        example: 66
-                      unit_id:
-                        type: string
-                        description: 'The <code>id</code> of an existing record in the units table.'
-                        example: null
-                        nullable: true
-                      width:
-                        type: number
-                        description: 'Поле value должно быть не менее 0.'
-                        example: 13
-                        nullable: true
-                      height:
-                        type: number
-                        description: 'Поле value должно быть не менее 0.'
-                        example: 65
-                        nullable: true
-                remove_temp_products:
-                  type: array
-                  description: 'The <code>id</code> of an existing record in the order_temp_products table.'
-                  example:
-                    - 17
-                  items:
-                    type: integer
-              required:
-                - client_id
-                - warehouse_id
-    delete:
-      summary: 'Удалить заказ'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses: {  }
-      tags:
-        - Endpoints
-    parameters:
-      -
-        in: path
-        name: id
-        description: 'The ID of the order.'
-        example: consequatur
-        required: true
-        schema:
-          type: string
-  /api/simple/order_statuses:
-    get:
-      summary: 'Получить список статусов заказов с пагинацией'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/order_statuses/all:
-    get:
-      summary: 'Получить все статусы заказов'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/clients:
-    get:
-      summary: 'Получить список клиентов с пагинацией'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-    post:
-      summary: 'Создать нового клиента'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses: {  }
-      tags:
-        - Endpoints
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                first_name:
-                  type: string
-                  description: ''
-                  example: consequatur
-                is_conflict:
-                  type: boolean
-                  description: ''
-                  example: false
-                  nullable: true
-                is_supplier:
-                  type: boolean
-                  description: ''
-                  example: true
-                  nullable: true
-                last_name:
-                  type: string
-                  description: ''
-                  example: consequatur
-                  nullable: true
-                patronymic:
-                  type: string
-                  description: ''
-                  example: consequatur
-                  nullable: true
-                contact_person:
-                  type: string
-                  description: ''
-                  example: consequatur
-                  nullable: true
-                position:
-                  type: string
-                  description: ''
-                  example: consequatur
-                  nullable: true
-                client_type:
-                  type: string
-                  description: ''
-                  example: investor
-                  enum:
-                    - company
-                    - individual
-                    - employee
-                    - investor
-                employee_id:
-                  type: string
-                  description: 'The <code>id</code> of an existing record in the users table.'
-                  example: null
-                  nullable: true
-                address:
-                  type: string
-                  description: ''
-                  example: consequatur
-                  nullable: true
-                phones:
-                  type: array
-                  description: 'Количество символов в поле value должно быть не менее 6.'
-                  example:
-                    - mqeopfuudtdsufvyvddqamniihfqcoynlazghdtqtqxbajwbpilpmufinllwloauydlsmsjury
-                  items:
-                    type: string
-                emails:
-                  type: array
-                  description: 'Поле value должно быть действительным электронным адресом.'
-                  example:
-                    - jmacejkovic@example.com
-                  items:
-                    type: string
-                    nullable: true
-                note:
-                  type: string
-                  description: ''
-                  example: consequatur
-                  nullable: true
-                status:
-                  type: boolean
-                  description: ''
-                  example: false
-                  nullable: true
-                discount:
-                  type: number
-                  description: 'Поле value должно быть не менее 0.'
-                  example: 56
-                  nullable: true
-                discount_type:
-                  type: string
-                  description: ''
-                  example: percent
-                  enum:
-                    - fixed
-                    - percent
-                  nullable: true
-              required:
-                - first_name
-                - client_type
-  /api/simple/clients/all:
-    get:
-      summary: 'Получить всех клиентов'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/clients/search:
-    get:
-      summary: 'Поиск клиентов'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  '/api/simple/clients/{id}':
-    get:
-      summary: 'Получить клиента по ID'
-      operationId: ID
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-    parameters:
-      -
-        in: path
-        name: id
-        description: 'The ID of the client.'
-        example: consequatur
-        required: true
-        schema:
-          type: string
-  /api/simple/products:
-    get:
-      summary: 'Получить список товаров с пагинацией'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/services:
-    get:
-      summary: 'Получить список услуг с пагинацией'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/products/search:
-    get:
-      summary: 'Поиск товаров и услуг'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/projects:
-    get:
-      summary: 'Получить список проектов с пагинацией'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/projects/all:
-    get:
-      summary: 'Получить все проекты'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  '/api/simple/projects/{id}':
-    get:
-      summary: 'Получить проект по ID'
-      operationId: ID
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-    parameters:
-      -
-        in: path
-        name: id
-        description: 'The ID of the project.'
-        example: consequatur
-        required: true
-        schema:
-          type: string
-  /api/simple/warehouses:
-    get:
-      summary: 'Получить список складов с пагинацией'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/warehouses/all:
-    get:
-      summary: 'Получить все склады'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/cash_registers:
-    get:
-      summary: 'Получить список касс с пагинацией'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/cash_registers/all:
-    get:
-      summary: 'Получить все кассы пользователя'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/app/currency:
-    get:
-      summary: 'Получить список валют'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-  /api/simple/app/units:
-    get:
-      summary: 'Получить список единиц измерения'
-      operationId: ''
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
   /api/app/currency:
     get:
       summary: 'Получить список валют'
@@ -1563,6 +463,34 @@ paths:
   /api/app/units:
     get:
       summary: 'Получить список единиц измерения'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
+  /api/app/versions:
+    get:
+      summary: 'Получить список версий приложения'
       operationId: ''
       description: ''
       parameters:
@@ -1689,11 +617,11 @@ paths:
                 start_date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                 end_date:
                   type: string
                   description: 'Поле value не является датой. Поле value должно быть датой после <code>start_date</code>.'
-                  example: '2107-02-12'
+                  example: '2107-03-08'
                   nullable: true
               required:
                 - exchange_rate
@@ -1737,11 +665,11 @@ paths:
                 start_date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                 end_date:
                   type: string
                   description: 'Поле value не является датой. Поле value должно быть датой после <code>start_date</code>.'
-                  example: '2107-02-12'
+                  example: '2107-03-08'
                   nullable: true
               required:
                 - exchange_rate
@@ -1863,9 +791,88 @@ paths:
           example: '1'
           schema:
             type: string
-      responses: {  }
+      responses:
+        200:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  user:
+                    id: 1
+                    name: Иван
+                    surname: Петров
+                    email: ivan@example.com
+                    birthday: '1990-01-15'
+                    photo: null
+                    roles: []
+                    permissions: []
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: Иван
+                      surname:
+                        type: string
+                        example: Петров
+                      email:
+                        type: string
+                        example: ivan@example.com
+                      birthday:
+                        type: string
+                        example: '1990-01-15'
+                      photo:
+                        type: string
+                        example: null
+                      roles:
+                        type: array
+                        example: []
+                      permissions:
+                        type: array
+                        example: []
       tags:
         - Endpoints
+      requestBody:
+        required: false
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Имя.
+                  example: Иван
+                surname:
+                  type: string
+                  description: Фамилия.
+                  example: Петров
+                email:
+                  type: string
+                  description: Email.
+                  example: ivan@example.com
+                birthday:
+                  type: string
+                  description: 'Дата рождения (Y-m-d).'
+                  example: '1990-01-15'
+                current_password:
+                  type: string
+                  description: 'Текущий пароль (обязателен при смене пароля).'
+                  example: oldpass123
+                password:
+                  type: string
+                  description: 'Новый пароль (min 6 символов).'
+                  example: newpass456
+                photo:
+                  type: string
+                  format: binary
+                  description: 'Фото (jpeg, png, jpg, gif, max 2MB). Example:'
   /api/users:
     get:
       summary: 'Получить список пользователей с пагинацией'
@@ -1929,29 +936,34 @@ paths:
                   type: string
                   description: 'Поле value должно быть действительным электронным адресом.'
                   example: andreanne00@example.org
+                phone:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 20.'
+                  example: wbpilpmufinllwloa
+                  nullable: true
                 password:
                   type: string
                   description: 'Количество символов в поле value должно быть не менее 6.'
-                  example: "'YAKYLk4>SJIrIV#lz."
+                  example: 'z.KcLcDi`wmUB)z&~n'
                 hire_date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 birthday:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 position:
                   type: string
                   description: 'Количество символов в поле value не может превышать 255.'
-                  example: lsmsjuryvojcybzvrbyic
+                  example: rbyickznkygloigmkwxph
                   nullable: true
                 is_active:
                   type: boolean
                   description: ''
-                  example: true
+                  example: false
                   nullable: true
                 is_admin:
                   type: boolean
@@ -2128,30 +1140,35 @@ paths:
                   description: 'Поле value должно быть действительным электронным адресом.'
                   example: andreanne00@example.org
                   nullable: true
+                phone:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 20.'
+                  example: wbpilpmufinllwloa
+                  nullable: true
                 password:
                   type: string
                   description: 'Количество символов в поле value должно быть не менее 6.'
-                  example: "'YAKYLk4>SJIrIV#lz."
+                  example: 'z.KcLcDi`wmUB)z&~n'
                   nullable: true
                 hire_date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 birthday:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 position:
                   type: string
                   description: 'Количество символов в поле value не может превышать 255.'
-                  example: lsmsjuryvojcybzvrbyic
+                  example: rbyickznkygloigmkwxph
                   nullable: true
                 is_active:
                   type: boolean
                   description: ''
-                  example: true
+                  example: false
                   nullable: true
                 is_admin:
                   type: boolean
@@ -2757,6 +1774,12 @@ paths:
                   description: ''
                   example: false
                   nullable: true
+                work_schedule:
+                  type: object
+                  description: ''
+                  example: null
+                  properties: {  }
+                  nullable: true
               required:
                 - name
   '/api/companies/{id}':
@@ -2851,6 +1874,12 @@ paths:
                   description: ''
                   example: false
                   nullable: true
+                work_schedule:
+                  type: object
+                  description: ''
+                  example: null
+                  properties: {  }
+                  nullable: true
               required:
                 - name
     delete:
@@ -2903,7 +1932,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                 cash_id:
                   type: integer
                   description: 'The <code>id</code> of an existing record in the cash_registers table.'
@@ -3224,7 +2253,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 note:
                   type: string
@@ -3318,7 +2347,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 note:
                   type: string
@@ -3569,7 +2598,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 note:
                   type: string
@@ -3633,7 +2662,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 note:
                   type: string
@@ -3985,7 +3014,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 user_id:
                   type: string
@@ -4166,7 +3195,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 user_id:
                   type: string
@@ -4602,6 +3631,106 @@ paths:
         required: true
         schema:
           type: string
+  '/api/clients/{clientId}/balances':
+    get:
+      summary: 'Получить все балансы клиента'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
+    post:
+      summary: 'Создать баланс в валюте'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+    parameters:
+      -
+        in: path
+        name: clientId
+        description: ''
+        example: consequatur
+        required: true
+        schema:
+          type: string
+  '/api/clients/{clientId}/balances/{id}':
+    put:
+      summary: 'Обновить баланс (установить как дефолтный)'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+    delete:
+      summary: 'Удалить баланс'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+    parameters:
+      -
+        in: path
+        name: clientId
+        description: ''
+        example: consequatur
+        required: true
+        schema:
+          type: string
+      -
+        in: path
+        name: id
+        description: 'The ID of the balance.'
+        example: consequatur
+        required: true
+        schema:
+          type: string
   /api/cash_registers:
     get:
       summary: 'Получить список касс с пагинацией'
@@ -4671,6 +3800,28 @@ paths:
                   example: null
                   items:
                     type: string
+                is_cash:
+                  type: boolean
+                  description: ''
+                  example: true
+                  nullable: true
+                icon:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 100.'
+                  example: pfuudtdsufvyvddqamnii
+                  enum:
+                    - 'fa-solid fa-building-columns'
+                    - 'fa-solid fa-ticket'
+                    - 'fa-solid fa-location-dot'
+                    - 'fa-solid fa-fire'
+                    - 'fa-solid fa-thumbs-up'
+                    - 'fa-solid fa-dollar-sign'
+                    - 'fa-solid fa-cash-register'
+                    - 'fa-solid fa-credit-card'
+                    - 'fa-solid fa-briefcase'
+                    - 'fa-solid fa-user'
+                    - 'fa-solid fa-star'
+                  nullable: true
               required:
                 - name
                 - balance
@@ -4763,6 +3914,28 @@ paths:
                   example: null
                   items:
                     type: string
+                is_cash:
+                  type: boolean
+                  description: ''
+                  example: false
+                  nullable: true
+                icon:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 100.'
+                  example: qeopfuudtdsufvyvddqam
+                  enum:
+                    - 'fa-solid fa-building-columns'
+                    - 'fa-solid fa-ticket'
+                    - 'fa-solid fa-location-dot'
+                    - 'fa-solid fa-fire'
+                    - 'fa-solid fa-thumbs-up'
+                    - 'fa-solid fa-dollar-sign'
+                    - 'fa-solid fa-cash-register'
+                    - 'fa-solid fa-credit-card'
+                    - 'fa-solid fa-briefcase'
+                    - 'fa-solid fa-user'
+                    - 'fa-solid fa-star'
+                  nullable: true
               required:
                 - name
     delete:
@@ -4846,7 +4019,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 client_id:
                   type: string
@@ -4951,7 +4124,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 client_id:
                   type: string
@@ -5253,25 +4426,31 @@ paths:
                   type: string
                   description: 'Количество символов в поле value не может превышать 255.'
                   example: mqeopfuudtdsufvyvddqa
+                type:
+                  type: integer
+                  description: ''
+                  example: '0'
+                  enum:
+                    - '0'
+                    - '1'
                 amount:
                   type: number
                   description: 'Поле value должно быть не менее 0.'
-                  example: 45
+                  example: 46
                 currency_id:
                   type: string
                   description: 'The <code>id</code> of an existing record in the currencies table.'
                   example: null
                   nullable: true
+                cash_id:
+                  type: string
+                  description: 'The <code>id</code> of an existing record in the cash_registers table.'
+                  example: consequatur
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                 returned:
-                  type: boolean
-                  description: ''
-                  example: true
-                  nullable: true
-                is_paid:
                   type: boolean
                   description: ''
                   example: false
@@ -5290,7 +4469,9 @@ paths:
               required:
                 - project_id
                 - number
+                - type
                 - amount
+                - cash_id
                 - date
     parameters:
       -
@@ -5420,28 +4601,34 @@ paths:
                   type: string
                   description: 'Количество символов в поле value не может превышать 255.'
                   example: vmqeopfuudtdsufvyvddq
+                type:
+                  type: integer
+                  description: ''
+                  example: '0'
+                  enum:
+                    - '0'
+                    - '1'
                 amount:
                   type: number
                   description: 'Поле value должно быть не менее 0.'
-                  example: 1
+                  example: 45
                 currency_id:
                   type: string
                   description: 'The <code>id</code> of an existing record in the currencies table.'
                   example: null
                   nullable: true
+                cash_id:
+                  type: string
+                  description: 'The <code>id</code> of an existing record in the cash_registers table.'
+                  example: consequatur
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                 returned:
                   type: boolean
                   description: ''
-                  example: true
-                  nullable: true
-                is_paid:
-                  type: boolean
-                  description: ''
-                  example: true
+                  example: false
                   nullable: true
                 files:
                   type: object
@@ -5456,7 +4643,9 @@ paths:
                   nullable: true
               required:
                 - number
+                - type
                 - amount
+                - cash_id
                 - date
     delete:
       summary: 'Удаление контракта'
@@ -5478,233 +4667,6 @@ paths:
         in: path
         name: id
         description: 'The ID of the contract.'
-        example: consequatur
-        required: true
-        schema:
-          type: string
-  '/api/projects/{projectId}/transactions':
-    get:
-      summary: ''
-      operationId: getApiProjectsProjectIdTransactions
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-    post:
-      summary: ''
-      operationId: postApiProjectsProjectIdTransactions
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses: {  }
-      tags:
-        - Endpoints
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                project_id:
-                  type: string
-                  description: ''
-                  example: consequatur
-                type:
-                  type: boolean
-                  description: ''
-                  example: false
-                amount:
-                  type: number
-                  description: 'Поле value должно быть не менее 0.01.'
-                  example: 56
-                currency_id:
-                  type: string
-                  description: 'The <code>id</code> of an existing record in the currencies table.'
-                  example: consequatur
-                note:
-                  type: string
-                  description: ''
-                  example: consequatur
-                  nullable: true
-                date:
-                  type: string
-                  description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
-              required:
-                - project_id
-                - type
-                - amount
-                - currency_id
-                - date
-    parameters:
-      -
-        in: path
-        name: projectId
-        description: ''
-        example: consequatur
-        required: true
-        schema:
-          type: string
-  '/api/projects/{projectId}/transactions/all':
-    get:
-      summary: ''
-      operationId: getApiProjectsProjectIdTransactionsAll
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-    parameters:
-      -
-        in: path
-        name: projectId
-        description: ''
-        example: consequatur
-        required: true
-        schema:
-          type: string
-  '/api/project-transactions/{id}':
-    get:
-      summary: ''
-      operationId: getApiProjectTransactionsId
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses:
-        401:
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                example:
-                  message: Unauthenticated.
-                properties:
-                  message:
-                    type: string
-                    example: Unauthenticated.
-      tags:
-        - Endpoints
-    put:
-      summary: ''
-      operationId: putApiProjectTransactionsId
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses: {  }
-      tags:
-        - Endpoints
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                type:
-                  type: boolean
-                  description: ''
-                  example: false
-                amount:
-                  type: number
-                  description: 'Поле value должно быть не менее 0.'
-                  example: 45
-                currency_id:
-                  type: string
-                  description: 'The <code>id</code> of an existing record in the currencies table.'
-                  example: consequatur
-                note:
-                  type: string
-                  description: ''
-                  example: consequatur
-                  nullable: true
-                date:
-                  type: string
-                  description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
-              required:
-                - type
-                - amount
-                - currency_id
-                - date
-    delete:
-      summary: ''
-      operationId: deleteApiProjectTransactionsId
-      description: ''
-      parameters:
-        -
-          in: header
-          name: X-Company-ID
-          description: ''
-          example: '1'
-          schema:
-            type: string
-      responses: {  }
-      tags:
-        - Endpoints
-    parameters:
-      -
-        in: path
-        name: id
-        description: 'The ID of the project transaction.'
         example: consequatur
         required: true
         schema:
@@ -5949,6 +4911,11 @@ paths:
                   description: ''
                   example: null
                   nullable: true
+                client_balance_id:
+                  type: integer
+                  description: 'The <code>id</code> of an existing record in the client_balances table.'
+                  example: 17
+                  nullable: true
                 order_id:
                   type: integer
                   description: 'The <code>id</code> of an existing record in the orders table.'
@@ -5972,7 +4939,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 is_debt:
                   type: boolean
@@ -6040,7 +5007,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 orig_amount:
                   type: number
@@ -6209,7 +5176,7 @@ paths:
                   example: 17
                 cash_id_to:
                   type: integer
-                  description: ''
+                  description: 'The value and <code>cash_id_from</code> must be different.'
                   example: 17
                 amount:
                   type: number
@@ -6258,7 +5225,7 @@ paths:
                   example: 17
                 cash_id_to:
                   type: integer
-                  description: ''
+                  description: 'The value and <code>cash_id_from</code> must be different.'
                   example: 17
                 amount:
                   type: number
@@ -6398,7 +5365,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 note:
                   type: string
@@ -6584,7 +5551,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 note:
                   type: string
@@ -6663,6 +5630,34 @@ paths:
                 - client_id
                 - warehouse_id
                 - category_id
+  /api/orders/first-stage-count:
+    get:
+      summary: 'Количество заказов на первой стадии (status_id = 1), доступных текущему пользователю.'
+      operationId: statusId1
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
   '/api/orders/{id}':
     put:
       summary: 'Обновить заказ'
@@ -6730,7 +5725,7 @@ paths:
                 date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 note:
                   type: string
@@ -7538,11 +6533,11 @@ paths:
                 date_from:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                 date_to:
                   type: string
                   description: 'Поле value не является датой. Поле value должно быть датой после или равной <code>date_from</code>.'
-                  example: '2107-02-12'
+                  example: '2107-03-08'
               required:
                 - leave_type_id
                 - date_from
@@ -7643,12 +6638,12 @@ paths:
                 date_from:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 date_to:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
     delete:
       summary: 'Удалить запись отпуска'
@@ -7674,6 +6669,238 @@ paths:
         required: true
         schema:
           type: string
+  /api/company-holidays:
+    get:
+      summary: 'Получить список праздников компании с пагинацией'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
+    post:
+      summary: 'Создать новый праздник'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: 'The <code>id</code> of an existing record in the companies table.'
+                  example: 17
+                name:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 255.'
+                  example: mqeopfuudtdsufvyvddqa
+                date:
+                  type: string
+                  description: 'Поле value не является датой.'
+                  example: '2026-02-06T14:38:54'
+                is_recurring:
+                  type: boolean
+                  description: ''
+                  example: true
+                  nullable: true
+                color:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 7.'
+                  example: niihfq
+                  nullable: true
+              required:
+                - company_id
+                - name
+                - date
+  /api/company-holidays/all:
+    get:
+      summary: 'Получить все праздники компании'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
+  '/api/company-holidays/{id}':
+    get:
+      summary: 'Получить праздник по ID'
+      operationId: ID
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
+    put:
+      summary: 'Обновить праздник'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id:
+                  type: integer
+                  description: 'The <code>id</code> of an existing record in the companies table.'
+                  example: 17
+                name:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 255.'
+                  example: mqeopfuudtdsufvyvddqa
+                  nullable: true
+                date:
+                  type: string
+                  description: 'Поле value не является датой.'
+                  example: '2026-02-06T14:38:54'
+                  nullable: true
+                is_recurring:
+                  type: boolean
+                  description: ''
+                  example: true
+                  nullable: true
+                color:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 7.'
+                  example: niihfq
+                  nullable: true
+    delete:
+      summary: 'Удалить праздник'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+    parameters:
+      -
+        in: path
+        name: id
+        description: 'The ID of the company holiday.'
+        example: consequatur
+        required: true
+        schema:
+          type: string
+  /api/company-holidays/batch-delete:
+    post:
+      summary: 'Пакетное удаление праздников'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  description: ''
+                  example:
+                    - 17
+                  items:
+                    type: integer
   /api/transaction_categories:
     get:
       summary: 'Получить список категорий транзакций с пагинацией'
@@ -7850,7 +7077,7 @@ paths:
                 invoice_date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 note:
                   type: string
@@ -7896,7 +7123,7 @@ paths:
                 invoice_date:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:35'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 note:
                   type: string
@@ -8385,7 +7612,7 @@ paths:
                 deadline:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:36'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 files:
                   type: object
@@ -8399,10 +7626,44 @@ paths:
                   example: null
                   properties: {  }
                   nullable: true
+                checklist:
+                  type: object
+                  description: ''
+                  example: null
+                  properties: {  }
+                  nullable: true
               required:
                 - title
                 - supervisor_id
                 - executor_id
+  /api/tasks/overdue-count:
+    get:
+      summary: 'Количество просроченных задач (дедлайн просрочен), доступных текущему пользователю.'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
   '/api/tasks/{id}':
     get:
       summary: 'Получить задачу по ID'
@@ -8501,7 +7762,7 @@ paths:
                 deadline:
                   type: string
                   description: 'Поле value не является датой.'
-                  example: '2026-01-13T13:25:36'
+                  example: '2026-02-06T14:38:54'
                   nullable: true
                 files:
                   type: object
@@ -8510,6 +7771,12 @@ paths:
                   properties: {  }
                   nullable: true
                 comments:
+                  type: object
+                  description: ''
+                  example: null
+                  properties: {  }
+                  nullable: true
+                checklist:
                   type: object
                   description: ''
                   example: null
@@ -9184,10 +8451,15 @@ paths:
                   nullable: true
                 files:
                   type: array
-                  description: 'Must be a file. Размер файла в поле value не может превышать 10240 Килобайт(а).'
+                  description: 'Must be a file. Размер файла в поле value не может превышать 51200 Килобайт(а).'
                   items:
                     type: string
                     format: binary
+                parent_id:
+                  type: integer
+                  description: 'The <code>id</code> of an existing record in the chat_messages table.'
+                  example: 17
+                  nullable: true
     parameters:
       -
         in: path
@@ -9230,6 +8502,150 @@ paths:
         in: path
         name: chat_id
         description: 'The ID of the chat.'
+        example: 1
+        required: true
+        schema:
+          type: integer
+  '/api/chats/{chat_id}/messages/{message_id}':
+    put:
+      summary: ''
+      operationId: putApiChatsChat_idMessagesMessage_id
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 10000.'
+                  example: vmqeopfuudtdsufvyvddq
+              required:
+                - body
+    delete:
+      summary: ''
+      operationId: deleteApiChatsChat_idMessagesMessage_id
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+    parameters:
+      -
+        in: path
+        name: chat_id
+        description: 'The ID of the chat.'
+        example: 1
+        required: true
+        schema:
+          type: integer
+      -
+        in: path
+        name: message_id
+        description: 'The ID of the message.'
+        example: 1
+        required: true
+        schema:
+          type: integer
+  '/api/chats/{chat_id}/messages/{message_id}/forward':
+    post:
+      summary: ''
+      operationId: postApiChatsChat_idMessagesMessage_idForward
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_chat_id:
+                  type: integer
+                  description: 'The <code>id</code> of an existing record in the chats table.'
+                  example: 17
+                hide_sender_name:
+                  type: boolean
+                  description: ''
+                  example: false
+              required:
+                - target_chat_id
+    parameters:
+      -
+        in: path
+        name: chat_id
+        description: 'The ID of the chat.'
+        example: 1
+        required: true
+        schema:
+          type: integer
+      -
+        in: path
+        name: message_id
+        description: 'The ID of the message.'
+        example: 1
+        required: true
+        schema:
+          type: integer
+  '/api/chats/{chat_id}/messages/{message_id}/reaction':
+    post:
+      summary: ''
+      operationId: postApiChatsChat_idMessagesMessage_idReaction
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+    parameters:
+      -
+        in: path
+        name: chat_id
+        description: 'The ID of the chat.'
+        example: 1
+        required: true
+        schema:
+          type: integer
+      -
+        in: path
+        name: message_id
+        description: 'The ID of the message.'
         example: 1
         required: true
         schema:
@@ -9430,3 +8846,257 @@ paths:
         required: true
         schema:
           type: string
+  /api/message-templates:
+    get:
+      summary: 'Получить список шаблонов с пагинацией'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
+    post:
+      summary: 'Создать новый шаблон'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 255.'
+                  example: vmqeopfuudtdsufvyvddq
+                  enum:
+                    - birthday
+                    - holiday
+                name:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 255.'
+                  example: amniihfqcoynlazghdtqt
+                content:
+                  type: string
+                  description: ''
+                  example: consequatur
+                is_active:
+                  type: boolean
+                  description: ''
+                  example: false
+              required:
+                - type
+                - name
+                - content
+  /api/message-templates/all:
+    get:
+      summary: 'Получить все шаблоны'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
+  /api/message-templates/types:
+    get:
+      summary: 'Получить доступные типы шаблонов из конфига'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
+  '/api/message-templates/{id}':
+    get:
+      summary: 'Получить шаблон по ID'
+      operationId: ID
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: Unauthenticated.
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+      tags:
+        - Endpoints
+    put:
+      summary: 'Обновить шаблон'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 255.'
+                  example: vmqeopfuudtdsufvyvddq
+                  enum:
+                    - birthday
+                    - holiday
+                name:
+                  type: string
+                  description: 'Количество символов в поле value не может превышать 255.'
+                  example: amniihfqcoynlazghdtqt
+                  nullable: true
+                content:
+                  type: string
+                  description: ''
+                  example: consequatur
+                  nullable: true
+                is_active:
+                  type: boolean
+                  description: ''
+                  example: false
+    delete:
+      summary: 'Удалить шаблон'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+    parameters:
+      -
+        in: path
+        name: id
+        description: 'The ID of the message template.'
+        example: consequatur
+        required: true
+        schema:
+          type: string
+  /api/message-templates/batch-delete:
+    post:
+      summary: 'Пакетное удаление шаблонов'
+      operationId: ''
+      description: ''
+      parameters:
+        -
+          in: header
+          name: X-Company-ID
+          description: ''
+          example: '1'
+          schema:
+            type: string
+      responses: {  }
+      tags:
+        - Endpoints
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  description: ''
+                  example:
+                    - 17
+                  items:
+                    type: integer
