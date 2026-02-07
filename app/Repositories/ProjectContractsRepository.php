@@ -173,18 +173,18 @@ class ProjectContractsRepository extends BaseRepository
      * @param bool|null $returned Фильтр по статусу возврата (опционально)
      * @param int|null $cashId Фильтр по кассе (опционально)
      * @param int|null $type Фильтр по типу контракта (опционально)
+     * @param bool $activeProjectsOnly Только контракты активных проектов
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getAllContractsWithPagination($perPage = 20, $page = 1, $search = null, $projectId = null, $isPaid = null, $returned = null, $cashId = null, $type = null)
+    public function getAllContractsWithPagination($perPage = 20, $page = 1, $search = null, $projectId = null, $isPaid = null, $returned = null, $cashId = null, $type = null, $activeProjectsOnly = false)
     {
-        // Формируем ключ кэша с явными префиксами для фильтров, чтобы избежать коллизий
         $isPaidKey = $isPaid === true ? 'paid1' : ($isPaid === false ? 'paid0' : 'paidn');
         $returnedKey = $returned === true ? 'ret1' : ($returned === false ? 'ret0' : 'retn');
 
         $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';
-        $cacheKey = $this->generateCacheKey('all_contracts_paginated', [$perPage, $page, $searchKey, $projectId, $isPaidKey, $returnedKey, $cashId, $type]);
+        $cacheKey = $this->generateCacheKey('all_contracts_paginated', [$perPage, $page, $searchKey, $projectId, $isPaidKey, $returnedKey, $cashId, $type, $activeProjectsOnly]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $isPaid, $returned, $cashId, $type) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $isPaid, $returned, $cashId, $type, $activeProjectsOnly) {
 
             $query = $this->getBaseQuery()
                 ->leftJoin('projects', 'project_contracts.project_id', '=', 'projects.id')
@@ -193,6 +193,11 @@ class ProjectContractsRepository extends BaseRepository
             $companyId = $this->getCurrentCompanyId();
             if ($companyId) {
                 $query->where('projects.company_id', $companyId);
+            }
+
+            if ($activeProjectsOnly) {
+                $query->join('project_statuses', 'projects.status_id', '=', 'project_statuses.id')
+                    ->where('project_statuses.is_tr_visible', true);
             }
 
             if ($projectId) {
@@ -241,18 +246,18 @@ class ProjectContractsRepository extends BaseRepository
      * @param bool|null $returned Фильтр по статусу возврата (опционально)
      * @param int|null $cashId Фильтр по кассе (опционально)
      * @param int|null $type Фильтр по типу контракта (опционально)
+     * @param bool $activeProjectsOnly Только контракты активных проектов
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getAllContractsWithPaginationForUser($perPage = 20, $page = 1, $search = null, $projectId = null, $userId, $isPaid = null, $returned = null, $cashId = null, $type = null)
+    public function getAllContractsWithPaginationForUser($perPage = 20, $page = 1, $search = null, $projectId = null, $userId, $isPaid = null, $returned = null, $cashId = null, $type = null, $activeProjectsOnly = false)
     {
-        // Формируем ключ кэша с явными префиксами для фильтров, чтобы избежать коллизий
         $isPaidKey = $isPaid === true ? 'paid1' : ($isPaid === false ? 'paid0' : 'paidn');
         $returnedKey = $returned === true ? 'ret1' : ($returned === false ? 'ret0' : 'retn');
 
         $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';
-        $cacheKey = $this->generateCacheKey('all_contracts_paginated_user', [$perPage, $page, $searchKey, $projectId, $userId, $isPaidKey, $returnedKey, $cashId, $type]);
+        $cacheKey = $this->generateCacheKey('all_contracts_paginated_user', [$perPage, $page, $searchKey, $projectId, $userId, $isPaidKey, $returnedKey, $cashId, $type, $activeProjectsOnly]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $userId, $isPaid, $returned, $cashId, $type) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $userId, $isPaid, $returned, $cashId, $type, $activeProjectsOnly) {
 
             $query = $this->getBaseQuery()
                 ->leftJoin('projects', 'project_contracts.project_id', '=', 'projects.id')
@@ -262,6 +267,11 @@ class ProjectContractsRepository extends BaseRepository
             $companyId = $this->getCurrentCompanyId();
             if ($companyId) {
                 $query->where('projects.company_id', $companyId);
+            }
+
+            if ($activeProjectsOnly) {
+                $query->join('project_statuses', 'projects.status_id', '=', 'project_statuses.id')
+                    ->where('project_statuses.is_tr_visible', true);
             }
 
             $query->when($projectId, function ($q) use ($projectId) {

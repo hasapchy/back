@@ -514,6 +514,7 @@ class ClientsRepository extends BaseRepository
                     'currency:id,symbol',
                     'user:id,name',
                     'category:id,name',
+                    'project:id,name',
                 ])
                     ->select(
                         'id',
@@ -529,7 +530,8 @@ class ClientsRepository extends BaseRepository
                         'currency_id',
                         'cash_id',
                         'category_id',
-                        'client_id'
+                        'client_id',
+                        'project_id'
                     );
 
                 $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
@@ -579,6 +581,7 @@ class ClientsRepository extends BaseRepository
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
+                                'project_name' => $item->project->name ?? null,
                             ];
                         } elseif ($source === 'transaction') {
                             $transactionId = $item->id;
@@ -611,6 +614,7 @@ class ClientsRepository extends BaseRepository
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
+                                'project_name' => $item->project->name ?? null,
                             ];
                         } elseif ($source === 'sale') {
                             $saleId = $item->source_id;
@@ -631,6 +635,7 @@ class ClientsRepository extends BaseRepository
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
+                                'project_name' => $item->project->name ?? null,
                             ];
                         } elseif ($source === 'order') {
                             $orderId = $item->source_id;
@@ -657,6 +662,7 @@ class ClientsRepository extends BaseRepository
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
+                                'project_name' => $item->project->name ?? null,
                             ];
                         } else {
                             $description = $item->note ?? 'Транзакция';
@@ -677,6 +683,7 @@ class ClientsRepository extends BaseRepository
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
+                                'project_name' => $item->project->name ?? null,
                             ];
                         }
 

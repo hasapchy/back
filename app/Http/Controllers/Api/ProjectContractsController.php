@@ -96,6 +96,7 @@ class ProjectContractsController extends BaseController
             $page = (int) $request->get('page', 1);
             $search = $request->get('search');
             $projectId = $request->get('project_id');
+            $activeProjectsOnly = $request->boolean('active_projects_only');
 
             $isPaid = $request->has('is_paid') ? $request->boolean('is_paid') : null;
             $returned = $request->has('returned') ? $request->boolean('returned') : null;
@@ -106,9 +107,9 @@ class ProjectContractsController extends BaseController
             $hasViewAll = $user && ($user->is_admin || $this->hasPermission('contracts_view_all', $user));
 
             if (!$hasViewAll && $this->hasPermission('contracts_view_own', $user)) {
-                $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $user->id, $isPaid, $returned, $cashId, $type);
+                $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $user->id, $isPaid, $returned, $cashId, $type, $activeProjectsOnly);
             } else {
-                $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $isPaid, $returned, $cashId, $type);
+                $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $isPaid, $returned, $cashId, $type, $activeProjectsOnly);
             }
 
             return $this->paginatedResponse($result);

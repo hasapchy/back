@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\ProjectContract;
+use App\Models\Transaction;
 use App\Rules\ProjectAccessRule;
 use App\Rules\ClientAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -40,6 +42,38 @@ class UpdateTransactionRequest extends FormRequest
             'source_id' => 'nullable|integer',
             'exchange_rate' => 'nullable|numeric|min:0.000001',
         ];
+    }
+
+    /**
+     * Настроить валидатор
+     *
+     * @param Validator $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $sourceType = $this->input('source_type');
+            $sourceId = $this->input('source_id');
+            $projectId = $this->input('project_id');
+            if (!$projectId && $this->route('id')) {
+                $transaction = Transaction::find($this->route('id'));
+                if ($transaction) {
+                    $projectId = $transaction->project_id;
+                }
+            }
+            if (!$sourceType || !$sourceId || strpos($sourceType, 'ProjectContract') === false) {
+                return;
+            }
+            $contract = ProjectContract::find($sourceId);
+            if (!$contract) {
+                $validator->errors()->add('source_id', __('Контракт не найден.'));
+                return;
+            }
+            if ($projectId && (int) $contract->project_id !== (int) $projectId) {
+                $validator->errors()->add('source_id', __('Контракт не принадлежит выбранному проекту.'));
+            }
+        });
     }
 
     /**

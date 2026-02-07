@@ -31,7 +31,7 @@ class UpdateUserRequest extends FormRequest
             'surname'  => 'nullable|string|max:255',
             'email'    => "nullable|email|unique:users,email,{$userId},id",
             'phone'    => 'nullable|string|max:20',
-            'password' => 'nullable|string|min:6',
+            'password' => 'nullable|string|min:6|confirmed',
             'hire_date' => 'nullable|date',
             'birthday' => 'nullable|date',
             'position' => 'nullable|string|max:255',

@@ -51,7 +51,7 @@ class UsersRepository extends BaseRepository
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $statusFilter, $page, $currentUser) {
             $companyId = $this->getCurrentCompanyId();
-            
+
             $query = User::select([
                 'users.id',
                 'users.name',
