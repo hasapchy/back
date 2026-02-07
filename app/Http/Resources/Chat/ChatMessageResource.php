@@ -78,6 +78,18 @@ class ChatMessageResource extends JsonResource
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
             'deleted_at' => $this->deleted_at?->toDateTimeString(),
+            'reactions' => $this->when(
+                $this->relationLoaded('reactions'),
+                fn () => $this->reactions->map(fn ($r) => [
+                    'emoji' => $r->emoji,
+                    'user_id' => (int) $r->user_id,
+                    'user' => $r->relationLoaded('user') ? [
+                        'id' => (int) $r->user->id,
+                        'name' => $r->user->name,
+                        'surname' => $r->user->surname ?? null,
+                    ] : null,
+                ])->values()->all()
+            ),
         ];
     }
 }

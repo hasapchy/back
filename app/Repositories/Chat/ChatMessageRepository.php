@@ -38,7 +38,7 @@ class ChatMessageRepository
         }
 
         return ChatMessage::query()
-            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])
+            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo', 'reactions.user:id,name,surname'])
             ->whereIn('id', $ids)
             ->get();
     }
@@ -46,7 +46,7 @@ class ChatMessageRepository
     public function getMessages(int $chatId, ?int $afterId, int $limit): Collection
     {
         $query = ChatMessage::query()
-            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])
+            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo', 'reactions.user:id,name,surname'])
             ->where('chat_id', $chatId)
             ->orderBy('id');
 
@@ -61,7 +61,7 @@ class ChatMessageRepository
     {
         // Get newest first, then reverse to chronological asc for UI
         $items = ChatMessage::query()
-            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])
+            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo', 'reactions.user:id,name,surname'])
             ->where('chat_id', $chatId)
             ->orderByDesc('id')
             ->limit($limit)
@@ -73,7 +73,7 @@ class ChatMessageRepository
     public function getMessagesBeforeId(int $chatId, int $beforeId, int $limit): Collection
     {
         $items = ChatMessage::query()
-            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])
+            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo', 'reactions.user:id,name,surname'])
             ->where('chat_id', $chatId)
             ->where('id', '<', $beforeId)
             ->orderByDesc('id')
@@ -134,7 +134,7 @@ class ChatMessageRepository
     public function updateMessage(int $messageId, int $userId, string $body): ChatMessage
     {
         $message = ChatMessage::query()->findOrFail($messageId);
-        
+
         if ((int) $message->user_id !== $userId) {
             abort(403, 'You can only edit your own messages');
         }
@@ -151,7 +151,7 @@ class ChatMessageRepository
     public function deleteMessage(int $messageId, int $userId): bool
     {
         $message = ChatMessage::query()->findOrFail($messageId);
-        
+
         if ((int) $message->user_id !== $userId) {
             abort(403, 'You can only delete your own messages');
         }
@@ -164,7 +164,7 @@ class ChatMessageRepository
     public function getMessageWithRelations(int $messageId): ?ChatMessage
     {
         return ChatMessage::query()
-            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])
+            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo', 'reactions.user:id,name,surname'])
             ->find($messageId);
     }
 

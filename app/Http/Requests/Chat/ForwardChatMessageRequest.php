@@ -15,6 +15,7 @@ class ForwardChatMessageRequest extends FormRequest
     {
         return [
             'target_chat_id' => ['required', 'integer', 'exists:chats,id'],
+            'hide_sender_name' => ['sometimes', 'boolean'],
         ];
     }
 }
