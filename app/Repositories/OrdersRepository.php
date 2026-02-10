@@ -45,7 +45,7 @@ class OrdersRepository extends BaseRepository
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        
+
         $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, 'single', $currentUser?->id, $companyId]);
 
         $searchTrimmed = is_string($search) ? trim($search) : '';
@@ -81,14 +81,14 @@ class OrdersRepository extends BaseRepository
             }
 
             $orderResource = $this->getOrderResourceForUser($currentUser);
-            $isSimpleWorker = $currentUser instanceof User && 
+            $isSimpleWorker = $currentUser instanceof User &&
                 ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
-            
+
             $query = Order::select([
                 'orders.*',
                 DB::raw('(orders.price - orders.discount) as total_price')
             ])->with($withRelations);
-            
+
             if (!$isSimpleWorker || $currentUser->is_admin) {
                 $query->where(function ($q) use ($userUuid) {
                     if ($this->shouldApplyUserFilter('cash_registers')) {
@@ -156,12 +156,12 @@ class OrdersRepository extends BaseRepository
                     ->select('orders.*', DB::raw('(orders.price - orders.discount) as total_price'));
             }
 
-            $isSimpleWorker = $currentUser instanceof User && 
+            $isSimpleWorker = $currentUser instanceof User &&
                 ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
 
             if ($isSimpleWorker && !$currentUser->is_admin) {
                 $userCategoryIds = $this->getUserCategoryIds($userUuid);
-                
+
                 if (empty($userCategoryIds)) {
                     $query->whereNull('orders.category_id');
                 } else {
@@ -301,7 +301,7 @@ class OrdersRepository extends BaseRepository
                 }
             )
             ->whereNull('orders.project_id');
-            
+
             if (!$isSimpleWorker || $currentUser->is_admin) {
                 $unpaidQuery->where(function ($q) use ($userUuid) {
                     if ($this->shouldApplyUserFilter('cash_registers')) {
@@ -323,7 +323,7 @@ class OrdersRepository extends BaseRepository
 
             if ($isSimpleWorker && !$currentUser->is_admin) {
                 $userCategoryIds = $this->getUserCategoryIds($userUuid);
-                
+
                 if (empty($userCategoryIds)) {
                     $unpaidQuery->whereNull('orders.category_id');
                 } else {

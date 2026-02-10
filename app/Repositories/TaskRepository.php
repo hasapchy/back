@@ -69,10 +69,10 @@ class TaskRepository extends BaseRepository
             $hasViewOwn = in_array('tasks_view_own', $permissions);
 
             if (!$hasViewAll && $hasViewOwn) {
-                $isOwnTask = $task->creator_id === $user->id 
-                          || $task->supervisor_id === $user->id 
+                $isOwnTask = $task->creator_id === $user->id
+                          || $task->supervisor_id === $user->id
                           || $task->executor_id === $user->id;
-                
+
                 if (!$isOwnTask) {
                     abort(403, 'You do not have permission to view this task');
                 }

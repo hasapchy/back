@@ -63,8 +63,27 @@ class ProjectContractsRepository extends BaseRepository
         foreach ($collection as $contract) {
             $paidAmount = (float) ($contract->paid_amount ?? 0);
             $amount = (float) ($contract->amount ?? 0);
-            $contract->payment_status = $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $amount ? 'partially_paid' : 'paid');
-            $contract->payment_status_text = $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $amount ? 'Частично оплачено' : 'Оплачено');
+
+            $status = 'unpaid';
+            $text = 'Не оплачено';
+
+            if ($paidAmount > 0 && $amount > 0) {
+                if ($paidAmount >= $amount) {
+                    $status = 'paid';
+                    $text = 'Оплачено';
+                } else {
+                    $status = 'partially_paid';
+
+                    $symbol = $contract->currency_symbol ?? '';
+                    $formattedPaidAmount = number_format($paidAmount, 2);
+                    $amountWithCurrency = trim($formattedPaidAmount . ' ' . $symbol);
+
+                    $text = $amountWithCurrency !== '' ? 'Частично оплачено: ' . $amountWithCurrency : 'Частично оплачено';
+                }
+            }
+
+            $contract->payment_status = $status;
+            $contract->payment_status_text = $text;
         }
 
         return $contracts;
