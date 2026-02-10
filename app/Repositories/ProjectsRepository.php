@@ -8,6 +8,7 @@ use App\Models\ProjectStatus;
 use App\Models\Currency;
 use App\Services\CacheService;
 use App\Models\Transaction;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -31,6 +32,32 @@ class ProjectsRepository extends BaseRepository
             'creator:id,name,photo',
             'users:id,name',
         ];
+    }
+
+    /**
+     * Базовые связи без users (таблица project_users только в tenant-БД)
+     *
+     * @return array
+     */
+    private function getBaseRelationsWithoutUsers(): array
+    {
+        return [
+            'client:id,first_name,last_name,contact_person,balance',
+            'client.phones:id,client_id,phone',
+            'client.emails:id,client_id,email',
+            'currency:id,name,symbol',
+            'status:id,name,color,is_tr_visible',
+            'creator:id,name,photo',
+        ];
+    }
+
+    /**
+     * Проверить, что исключение связано с отсутствием таблицы project_users
+     */
+    private function isProjectUsersTableError(QueryException $e): bool
+    {
+        $msg = $e->getMessage();
+        return str_contains($msg, 'project_users') || (int) $e->getCode() === 1146;
     }
 
     /**
@@ -74,60 +101,88 @@ class ProjectsRepository extends BaseRepository
         $ttl = (!$search && $dateFilter === 'all_time' && !$statusId && !$clientId && $contractType === null) ? 1800 : 600;
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId, $clientId, $contractType, $currentUser) {
-            $query = Project::select(['projects.*'])
-                ->with(array_merge($this->getBaseRelations(), [
-                    'projectUsers:id,project_id,user_id'
-                ]));
-
-            $query = $this->addCompanyFilterDirect($query, 'projects');
-
-            if ($search) {
-                $searchTrimmed = trim((string)$search);
-                $searchLower = mb_strtolower($searchTrimmed);
-                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
-                    $q->where('projects.id', 'like', "%{$searchTrimmed}%")
-                        ->orWhereRaw('LOWER(projects.name) LIKE ?', ["%{$searchLower}%"]);
-
-                    $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
-                        $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
-                    })
-                    ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
-                        $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
-                    })
-                    ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
-                        $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
-                    });
-                });
+            try {
+                return $this->runGetItemsWithPaginationQuery($perPage, $page, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, $currentUser, $this->getBaseRelations(), true);
+            } catch (QueryException $e) {
+                if ($this->isProjectUsersTableError($e)) {
+                    return $this->runGetItemsWithPaginationQuery($perPage, $page, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, $currentUser, $this->getBaseRelationsWithoutUsers(), false);
+                }
+                throw $e;
             }
-
-            if ($dateFilter && $dateFilter !== 'all_time') {
-                $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'projects.date');
-            }
-
-            if ($statusId) {
-                $query->where('projects.status_id', $statusId);
-            }
-
-            if ($clientId) {
-                $query->where('projects.client_id', $clientId);
-            }
-
-            $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
-
-            $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
-
-            $paginated->getCollection()->transform(function ($project) {
-                return $this->transformProject($project);
-            });
-
-            return $paginated;
         }, (int)$page);
+    }
+
+    /**
+     * Выполнить запрос проектов с пагинацией
+     *
+     * @param int $perPage
+     * @param int $page
+     * @param string|null $search
+     * @param string $dateFilter
+     * @param string|null $startDate
+     * @param string|null $endDate
+     * @param int|null $statusId
+     * @param int|null $clientId
+     * @param \App\Models\User|null $currentUser
+     * @param array $relations
+     * @param bool $withProjectUsers
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
+    private function runGetItemsWithPaginationQuery($perPage, $page, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, $currentUser, array $relations, bool $withProjectUsers)
+    {
+        $with = $relations;
+        if ($withProjectUsers) {
+            $with[] = 'projectUsers:id,project_id,user_id';
+        }
+        $query = Project::select(['projects.*'])->with($with);
+        $query = $this->addCompanyFilterDirect($query, 'projects');
+
+        if ($search) {
+            $searchTrimmed = trim((string)$search);
+            $searchLower = mb_strtolower($searchTrimmed);
+            $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                $q->where('projects.id', 'like', "%{$searchTrimmed}%")
+                    ->orWhereRaw('LOWER(projects.name) LIKE ?', ["%{$searchLower}%"]);
+
+                $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
+                    $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
+                })
+                ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
+                    $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                })
+                ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
+                    $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                });
+            });
+        }
+
+        if ($dateFilter && $dateFilter !== 'all_time') {
+            $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'projects.date');
+        }
+
+        if ($statusId) {
+            $query->where('projects.status_id', $statusId);
+        }
+
+        if ($clientId) {
+            $query->where('projects.client_id', $clientId);
+        }
+
+        $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
+
+        $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+        $paginated->getCollection()->transform(function ($project) {
+            return $this->transformProject($project);
+        });
+
+        return $paginated;
     }
 
 
 
     /**
-     * Получить все проекты
+     * Получить все проекты. При ошибке по таблице project_users (central вместо tenant)
+     * повторяет запрос без связи users.
      *
      * @param bool $activeOnly Только активные проекты
      * @return \Illuminate\Database\Eloquent\Collection
@@ -140,26 +195,43 @@ class ProjectsRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('projects_all', [$activeOnly, $currentUser?->id, $companyId]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($activeOnly, $currentUser) {
-            $query = Project::select(['projects.*'])
-                ->with($this->getBaseRelations());
-
-            $query = $this->addCompanyFilterDirect($query, 'projects');
-
-            if ($activeOnly) {
-                $query->join('project_statuses', 'projects.status_id', '=', 'project_statuses.id')
-                    ->where('project_statuses.is_tr_visible', true);
+            try {
+                return $this->runGetAllItemsQuery($activeOnly, $currentUser, $this->getBaseRelations());
+            } catch (QueryException $e) {
+                if ($this->isProjectUsersTableError($e)) {
+                    return $this->runGetAllItemsQuery($activeOnly, $currentUser, $this->getBaseRelationsWithoutUsers());
+                }
+                throw $e;
             }
-
-            $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
-
-            $items = $query->orderBy('created_at', 'desc')->get();
-
-            $items->transform(function ($project) {
-                return $this->transformProject($project);
-            });
-
-            return $items;
         }, $this->getCacheTTL('reference'));
+    }
+
+    /**
+     * Выполнить запрос всех проектов с заданным набором связей
+     *
+     * @param bool $activeOnly
+     * @param \App\Models\User|null $currentUser
+     * @param array $relations
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    private function runGetAllItemsQuery($activeOnly, $currentUser, array $relations)
+    {
+        $query = Project::select(['projects.*'])->with($relations);
+        $query = $this->addCompanyFilterDirect($query, 'projects');
+
+        if ($activeOnly) {
+            $query->join('project_statuses', 'projects.status_id', '=', 'project_statuses.id')
+                ->where('project_statuses.is_tr_visible', true);
+        }
+
+        $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
+
+        $items = $query->orderBy('created_at', 'desc')->get();
+        $items->transform(function ($project) {
+            return $this->transformProject($project);
+        });
+
+        return $items;
     }
 
     /**

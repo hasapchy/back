@@ -46,7 +46,12 @@ class ProjectContractsRepository extends BaseRepository
         ])
             ->leftJoin('currencies', 'project_contracts.currency_id', '=', 'currencies.id')
             ->leftJoin('cash_registers', 'project_contracts.cash_id', '=', 'cash_registers.id')
-            ->leftJoin('users as contract_creator', 'project_contracts.creator_id', '=', 'contract_creator.id');
+            ->leftJoin(
+                DB::connection('central')->getDatabaseName() . '.users as contract_creator',
+                'project_contracts.creator_id',
+                '=',
+                'contract_creator.id'
+            );
     }
 
     /**

@@ -30,7 +30,9 @@ class InitializeTenancyByCompanyHeader
         $tenant = Tenant::on('central')->find($company->tenant_id);
 
         if (!$tenant) {
-            return $next($request);
+            return response()->json([
+                'message' => 'Tenant не найден или не настроен.',
+            ], 422);
         }
 
         tenancy()->initialize($tenant);

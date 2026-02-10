@@ -145,6 +145,50 @@ class BelongsToManyAcrossConnections extends Relation
     }
 
     /**
+     * Синхронизирует pivot. Удаляет отсутствующие, добавляет новые.
+     *
+     * @param array $ids Массив related ID (user_id)
+     * @return array{attached: array, detached: array, updated: array}
+     */
+    public function sync(array $ids): array
+    {
+        $parentId = $this->parent->getKey();
+        if ($parentId === null) {
+            return ['attached' => [], 'detached' => [], 'updated' => []];
+        }
+
+        $connection = $this->parent->getConnection();
+        $existing = $connection->table($this->pivotTable)
+            ->where($this->foreignPivotKey, $parentId)
+            ->pluck($this->relatedPivotKey)
+            ->all();
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        $detached = array_diff($existing, $ids);
+        $attached = array_diff($ids, $existing);
+
+        $connection->table($this->pivotTable)
+            ->where($this->foreignPivotKey, $parentId)
+            ->delete();
+
+        $now = now();
+        foreach ($ids as $id) {
+            $connection->table($this->pivotTable)->insert([
+                $this->foreignPivotKey => $parentId,
+                $this->relatedPivotKey => $id,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        return [
+            'attached' => array_values($attached),
+            'detached' => array_values($detached),
+            'updated' => [],
+        ];
+    }
+
+    /**
      * whereHas не поддерживается для cross-database (pivot в tenant, related в central).
      * Используйте whereIn + подзапрос к pivot или ручную проверку.
      */

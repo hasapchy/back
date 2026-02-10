@@ -37,7 +37,7 @@ class CashRegisterSeeder extends Seeder
         if ($existingCashRegister) {
             $existingCashRegister->update([
                 'balance' => $existingCashRegister->balance,
-                'currency_id' => 1,
+                'currency_id' => $tmtCurrencyId,
                 'is_cash' => true,
             ]);
             $cashRegister = $existingCashRegister;
@@ -46,7 +46,7 @@ class CashRegisterSeeder extends Seeder
                 'id' => 1,
                 'name' => 'Главная касса',
                 'balance' => 0,
-                'currency_id' => 1,
+                'currency_id' => $tmtCurrencyId,
                 'is_cash' => true,
             ]);
         }

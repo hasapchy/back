@@ -3,13 +3,14 @@
 namespace App\Http\Middleware;
 
 use App\Models\Company;
+use App\Models\Tenant;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Требует инициализированный tenant для маршрутов, работающих только с tenant-БД.
- * Проверяет наличие X-Company-ID и что у компании есть tenant_id (tenancy инициализируется в InitializeTenancyByCompanyHeader).
+ * Проверяет X-Company-ID, наличие tenant_id у компании и явно инициализирует tenancy.
  */
 class RequireTenancy
 {
@@ -36,6 +37,15 @@ class RequireTenancy
                 'message' => 'У компании не настроена тенантная БД (tenant).',
             ], 422);
         }
+
+        $tenant = Tenant::on('central')->find($company->tenant_id);
+        if (!$tenant) {
+            return response()->json([
+                'message' => 'Tenant не найден или не настроен.',
+            ], 422);
+        }
+
+        tenancy()->initialize($tenant);
 
         return $next($request);
     }

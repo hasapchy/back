@@ -431,9 +431,14 @@ class BaseController extends BaseRoutingController
                 $user = $this->getAuthenticatedUser();
 
                 if ($user && $user->hasRole(config('simple.worker_role'))) {
-                    $hasAccessByAssignment = $cashRegister->users()
-                        ->where('user_id', $user->id)
-                        ->exists();
+                    $hasAccessByAssignment = false;
+                    try {
+                        $hasAccessByAssignment = $cashRegister->users()
+                            ->where('user_id', $user->id)
+                            ->exists();
+                    } catch (\Throwable $e) {
+                        // Таблица cash_register_users только в tenant-БД; при ошибке БД не даём доступ по назначению
+                    }
 
                     if ($hasAccessByAssignment) {
                         return null;

@@ -10,6 +10,7 @@ class CurrencySeeder extends Seeder
 {
     /**
      * Сидер для tenant-БД. Пропускает выполнение в центральном контексте.
+     * При ошибках выводит debug-сообщения.
      */
     public function run()
     {
@@ -17,6 +18,21 @@ class CurrencySeeder extends Seeder
             return;
         }
 
+        try {
+            $this->seedCurrencies();
+        } catch (\Throwable $e) {
+            if ($this->command) {
+                $this->command->error("CurrencySeeder: " . $e->getMessage());
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Заполняет таблицы currencies и currency_histories.
+     */
+    private function seedCurrencies(): void
+    {
         $currencies = [
             [
                 'company_id' => null,
@@ -81,37 +97,59 @@ class CurrencySeeder extends Seeder
         }
 
         // 2. Получаем актуальные ID
-        $currencyIds = DB::table('currencies')->pluck('id', 'code');
+        $currencyIds = DB::table('currencies')->whereNull('company_id')->pluck('id', 'code');
 
-        // 3. Подготовка истории валют
+        // 3. Проверка currencyIds перед формированием истории
+        foreach ($currencies as $currency) {
+            if (!isset($currencyIds[$currency['code']])) {
+                throw new \RuntimeException("валюта {$currency['code']} не найдена в currencyIds");
+            }
+        }
+
+        // 4. Подготовка истории валют
         $currencyHistories = [];
-
-        // Реальные курсы
         $realRates = [
             'TMT' => 1.00,
             'USD' => 19.65,
             'RUB' => 0.234,
         ];
-
         $today = now()->toDateString();
 
         foreach ($currencies as $currency) {
             $exchangeRate = $realRates[$currency['code']] ?? 1.00;
-
             $currencyHistories[] = [
                 'currency_id' => $currencyIds[$currency['code']],
                 'exchange_rate' => $exchangeRate,
-                'start_date' => $today, // Фиксированная дата
+                'start_date' => $today,
                 'created_at' => now(),
                 'updated_at' => now()
             ];
         }
 
-        // 4. Вставка истории с использованием upsert
-        DB::table('currency_histories')->upsert(
-            $currencyHistories,
-            ['currency_id', 'start_date'], // Уникальность: валюта + дата
-            ['exchange_rate', 'updated_at'] // Обновляем только курс
-        );
+        // 5. Вставка истории: upsert с fallback при отсутствии unique-индекса
+        if (!Schema::hasTable('currency_histories')) {
+            if ($this->command) {
+                $this->command->warn('CurrencySeeder: таблица currency_histories отсутствует, пропускаем.');
+            }
+            return;
+        }
+
+        try {
+            DB::table('currency_histories')->upsert(
+                $currencyHistories,
+                ['currency_id', 'start_date'],
+                ['exchange_rate', 'updated_at']
+            );
+        } catch (\Throwable $e) {
+            if ($this->command) {
+                $this->command->warn("CurrencySeeder: upsert не удался ({$e->getMessage()}), пробуем updateOrInsert по одному.");
+            }
+            foreach ($currencyHistories as $row) {
+                DB::table('currency_histories')->updateOrInsert(
+                    ['currency_id' => $row['currency_id'], 'start_date' => $row['start_date']],
+                    $row
+                );
+            }
+        }
     }
 }

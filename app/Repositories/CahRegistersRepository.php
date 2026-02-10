@@ -6,6 +6,7 @@ use App\Models\CashRegister;
 use App\Models\CashRegisterUser;
 use App\Models\Transaction;
 use App\Services\CacheService;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class CahRegistersRepository extends BaseRepository
@@ -20,13 +21,10 @@ class CahRegistersRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $query = CashRegister::with(['currency:id,name,symbol', 'users:id,name']);
-
-        $this->applyUserFilter($query, $userUuid);
-        $query = $this->addCompanyFilterDirect($query, 'cash_registers');
-
-        return $query->orderBy('cash_registers.created_at', 'desc')
-            ->paginate($perPage, ['*'], 'page', (int)$page);
+        return $this->runCashRegisterListQuery(function ($query) use ($perPage, $page) {
+            return $query->orderBy('cash_registers.created_at', 'desc')
+                ->paginate($perPage, ['*'], 'page', (int)$page);
+        }, $userUuid);
     }
 
     /**
@@ -41,14 +39,45 @@ class CahRegistersRepository extends BaseRepository
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid, $currentUser?->id, $companyId]);
 
-        return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
-            $query = CashRegister::with(['currency:id,name,symbol', 'users:id,name']);
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid) {
+            return $this->runCashRegisterListQuery(function ($query) {
+                return $query->orderBy('cash_registers.id')->get();
+            }, $userUuid);
+        });
+    }
 
+    /**
+     * Выполнить запрос списка касс (с пагинацией или get). При ошибке по таблице cash_register_users
+     * повторяет запрос без связи users и без фильтра по пользователю (tenant-таблица может отсутствовать на central).
+     *
+     * @param callable $execute Функция, принимающая query, возвращающая результат (paginate/get)
+     * @param int $userUuid ID пользователя
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator|\Illuminate\Database\Eloquent\Collection
+     */
+    protected function runCashRegisterListQuery(callable $execute, $userUuid)
+    {
+        try {
+            $query = CashRegister::with(['currency:id,name,symbol', 'users:id,name']);
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'cash_registers');
+            return $execute($query);
+        } catch (QueryException $e) {
+            if ($this->isCashRegisterUsersTableError($e)) {
+                $fallback = CashRegister::with(['currency:id,name,symbol']);
+                $fallback = $this->addCompanyFilterDirect($fallback, 'cash_registers');
+                return $execute($fallback);
+            }
+            throw $e;
+        }
+    }
 
-            return $query->orderBy('cash_registers.id')->get();
-        });
+    /**
+     * Проверить, что исключение связано с отсутствием таблицы cash_register_users
+     */
+    protected function isCashRegisterUsersTableError(QueryException $e): bool
+    {
+        $msg = $e->getMessage();
+        return str_contains($msg, 'cash_register_users') || (int) $e->getCode() === 1146;
     }
 
     /**
@@ -287,7 +316,8 @@ class CahRegistersRepository extends BaseRepository
     }
 
     /**
-     * Применить фильтр пользователя к запросу касс
+     * Применить фильтр пользователя к запросу касс (по таблице cash_register_users).
+     * При отсутствии таблицы (central вместо tenant) фильтр не применяется.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query Query builder
      * @param int $userUuid ID пользователя
@@ -304,17 +334,24 @@ class CahRegistersRepository extends BaseRepository
             return;
         }
 
-        $filterUserId = $currentUser->id;
-        $cashRegisterIds = CashRegisterUser::where('user_id', $filterUserId)
-            ->pluck('cash_register_id')
-            ->toArray();
+        try {
+            $filterUserId = $currentUser->id;
+            $cashRegisterIds = CashRegisterUser::where('user_id', $filterUserId)
+                ->pluck('cash_register_id')
+                ->toArray();
 
-        if (empty($cashRegisterIds)) {
-            $query->whereRaw('1 = 0');
-            return;
+            if (empty($cashRegisterIds)) {
+                $query->whereRaw('1 = 0');
+                return;
+            }
+
+            $query->whereIn('cash_registers.id', $cashRegisterIds);
+        } catch (QueryException $e) {
+            if ($this->isCashRegisterUsersTableError($e)) {
+                return;
+            }
+            throw $e;
         }
-
-        $query->whereIn('cash_registers.id', $cashRegisterIds);
     }
 
     /**

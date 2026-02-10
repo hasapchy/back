@@ -92,7 +92,7 @@ class ClientBalanceController extends BaseController
                 ->first();
 
             $userIds = $validated['user_ids'] ?? [];
-            $balance->users()->sync($userIds);
+            $balance->syncBalanceUsers($userIds);
             $balance->load('users:id,name,surname');
 
             return $this->successResponse($this->formatBalanceResponse($balance), 'Баланс создан успешно', 201);
@@ -163,7 +163,7 @@ class ClientBalanceController extends BaseController
 
                 $balance->update(array_diff_key($validated, array_flip(['user_ids', 'skip_confirmation'])));
                 if (array_key_exists('user_ids', $validated)) {
-                    $balance->users()->sync($validated['user_ids']);
+                    $balance->syncBalanceUsers($validated['user_ids'] ?? []);
                 }
             });
 
