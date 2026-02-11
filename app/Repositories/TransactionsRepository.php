@@ -1306,7 +1306,6 @@ class TransactionsRepository extends BaseRepository
                     'discount',
                     'created_at',
                     'updated_at',
-                    'clients.balance as balance',
                 ])
                 ->get()
                 ->keyBy('id');
@@ -1341,8 +1340,6 @@ class TransactionsRepository extends BaseRepository
 
         $permissions = $this->getUserPermissionsForCompany($user);
 
-        // Права по источникам работают независимо от transactions_view_all
-        // transactions_view_all влияет только на фильтр по user_id (через applyOwnFilter)
         $hasViewSale = in_array('transactions_view_sale', $permissions);
         $hasViewOrder = in_array('transactions_view_order', $permissions);
         $hasViewReceipt = in_array('transactions_view_receipt', $permissions);
@@ -1351,9 +1348,6 @@ class TransactionsRepository extends BaseRepository
 
         $hasAnySourcePermission = $hasViewSale || $hasViewOrder || $hasViewReceipt || $hasViewSalary || $hasViewOther;
 
-        // Если есть права по источникам, применяем фильтр
-        // Если нет прав по источникам, но есть базовое право transactions_view, показываем все
-        // Если нет никаких прав, фильтр не применяется (для обратной совместимости)
         if (! $hasAnySourcePermission) {
             return $query;
         }

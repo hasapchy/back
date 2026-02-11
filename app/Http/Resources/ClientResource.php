@@ -18,7 +18,7 @@ class ClientResource extends JsonResource
             $balances = $balances->filter(fn ($b) => $b->canUserAccess($user->id));
         }
         $visibleDefault = $balances->firstWhere('is_default', true) ?? $balances->first();
-        $balanceValue = $visibleDefault ? (float) $visibleDefault->balance : (float) ($this->balance ?? 0);
+        $balanceValue = $visibleDefault ? (float) $visibleDefault->balance : 0.0;
 
         return [
             'id' => $this->id,

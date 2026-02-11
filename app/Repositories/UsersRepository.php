@@ -885,7 +885,7 @@ class UsersRepository extends BaseRepository
         return CacheService::remember($cacheKey, function () use ($userId) {
             $query = Client::where('employee_id', $userId)
                 ->where('client_type', 'employee')
-                ->select('id', 'balance', 'company_id');
+                ->select('id', 'company_id');
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
             $client = $query->first();
@@ -896,7 +896,7 @@ class UsersRepository extends BaseRepository
 
             return [
                 'client_id' => $client->id,
-                'balance' => $client->balance ?? 0,
+                'balance' => 0,
             ];
         }, 900);
     }

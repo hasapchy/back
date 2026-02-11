@@ -45,11 +45,7 @@ class ClientsRepository extends BaseRepository
                 'balances.currency',
                 'balances.users',
                 'defaultBalance.currency',
-            ])
-                ->select([
-                    'clients.*',
-                    'clients.balance as balance',
-                ]);
+            ]);
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
 
@@ -127,20 +123,6 @@ class ClientsRepository extends BaseRepository
                 'balances.users',
                 'defaultBalance.currency',
             ])
-                ->select([
-                    'clients.id',
-                    'clients.company_id',
-                    'clients.user_id',
-                    'clients.client_type',
-                    'clients.balance',
-                    'clients.is_supplier',
-                    'clients.first_name',
-                    'clients.last_name',
-                    'clients.patronymic',
-                    'clients.contact_person',
-                    'clients.position',
-                    'clients.employee_id',
-                ])
                 ->where('clients.status', true);
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
@@ -215,10 +197,6 @@ class ClientsRepository extends BaseRepository
                 'user:id,name,photo',
                 'employee:id,name,surname,position,photo',
             ])
-                ->select([
-                    'clients.*',
-                    'clients.balance as balance',
-                ])
                 ->where('clients.status', true);
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
@@ -272,10 +250,6 @@ class ClientsRepository extends BaseRepository
                 'balances.users',
                 'defaultBalance.currency',
             ])
-                ->select([
-                    'clients.*',
-                    'clients.balance as balance',
-                ])
                 ->where('clients.id', $id);
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
@@ -393,11 +367,10 @@ class ClientsRepository extends BaseRepository
             $query->where('company_id', $companyId);
         }
 
-        $clients = $query->get()->map(function ($client) {
+            $clients = $query->get()->map(function ($client) {
             return (object) [
                 'id' => $client->id,
                 'client_type' => $client->client_type,
-                'balance' => $client->balance,
                 'is_supplier' => $client->is_supplier,
                 'is_conflict' => $client->is_conflict,
                 'first_name' => $client->first_name,
