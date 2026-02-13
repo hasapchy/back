@@ -7,6 +7,27 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class ChatMessageResource extends JsonResource
 {
+    /** Добавить url для каждого файла (tenant), чтобы картинки в чате открывались. */
+    private function mapFilesWithUrl(?array $files): ?array
+    {
+        if (!is_array($files) || empty($files)) {
+            return $files;
+        }
+        $companyId = request()->header('X-Company-ID');
+        $base = request()->getSchemeAndHttpHost() . '/storage/tenant/';
+        return array_map(function ($file) use ($companyId, $base) {
+            $file = is_array($file) ? $file : (array) $file;
+            if (!empty($companyId) && !empty($file['path'])) {
+                $file['url'] = $base . $companyId . '/' . ltrim($file['path'], '/');
+            }
+            // Гарантировать name для отображения: в БД хранится оригинальное имя, fallback — из path
+            if (empty($file['name']) && !empty($file['path'])) {
+                $file['name'] = basename($file['path']);
+            }
+            return $file;
+        }, $files);
+    }
+
     /**
      * Keep compatible with legacy "messages" endpoint (it returned full model arrays).
      *
@@ -20,7 +41,7 @@ class ChatMessageResource extends JsonResource
             $parent = [
                 'id' => (int) $parentMessage->id,
                 'body' => $parentMessage->body,
-                'files' => $parentMessage->files,
+                'files' => $this->mapFilesWithUrl($parentMessage->files),
                 'user' => $this->when(
                     $parentMessage->relationLoaded('user'),
                     fn () => [
@@ -39,7 +60,7 @@ class ChatMessageResource extends JsonResource
             $forwardedFrom = [
                 'id' => (int) $forwardedMessage->id,
                 'body' => $forwardedMessage->body,
-                'files' => $forwardedMessage->files,
+                'files' => $this->mapFilesWithUrl($forwardedMessage->files),
                 'user' => $this->when(
                     $forwardedMessage->relationLoaded('user'),
                     fn () => [
@@ -58,7 +79,7 @@ class ChatMessageResource extends JsonResource
             'chat_id' => (int) $this->chat_id,
             'user_id' => (int) $this->user_id,
             'body' => $this->body,
-            'files' => $this->files,
+            'files' => $this->mapFilesWithUrl($this->files),
             'parent_id' => $this->parent_id,
             'parent' => $parent,
             'forwarded_from_message_id' => $this->forwarded_from_message_id,

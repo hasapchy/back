@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\RolesController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\TasksController;
 use App\Http\Controllers\Api\TaskStatusController;
+use App\Http\Controllers\Api\TenantStorageController;
 use App\Http\Controllers\Api\TransactionCategoryController;
 use App\Http\Controllers\Api\TransactionsController;
 use App\Http\Controllers\Api\TransfersController;
@@ -87,6 +88,9 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission:companies_delete_all')->delete('companies/{id}', [CompaniesController::class, 'destroy']);
     Route::middleware('permission:employee_salaries_accrue')->post('companies/{id}/salaries/accrue', [CompaniesController::class, 'accrueSalaries']);
     Route::middleware('permission:employee_salaries_accrue')->get('companies/{id}/salaries/check', [CompaniesController::class, 'checkExistingSalaries']);
+
+    // Файлы из tenant storage (чаты и др.); companyId в URL, т.к. <img src> не отправляет заголовки
+    Route::get('tenant/{companyId}/{path}', [TenantStorageController::class, 'show'])->where('path', '.+');
 
     // --- Маршруты только tenant (обязателен X-Company-ID и company.tenant_id) ---
     Route::middleware(['tenant.required'])->group(function () {

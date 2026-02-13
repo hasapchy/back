@@ -342,6 +342,7 @@ class ChatService
 
         $storedFiles = [];
         foreach ($files as $file) {
+            // На диске — UUID (уникальность, безопасность); в БД — оригинальное имя для отображения
             $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs('chats/' . $chat->id, $filename, 'public');
 

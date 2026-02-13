@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductPrice;
 use App\Models\ProductCategory;
@@ -35,6 +36,11 @@ class ProductsRepository extends BaseRepository
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $currentUser) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
+            // При products_view_all и пустых category_users — показывать все категории компании
+            if (empty($userCategoryIds) && $currentUser && in_array('products_view_all', $this->getUserPermissionsForCompany($currentUser))) {
+                $companyId = $this->getCurrentCompanyId();
+                $userCategoryIds = $companyId ? Category::where('company_id', $companyId)->pluck('id')->toArray() : [];
+            }
 
             if ($categoryId) {
                 $userCategoryIds = array_intersect($userCategoryIds, [$categoryId]);
@@ -54,6 +60,11 @@ class ProductsRepository extends BaseRepository
                 ->pluck('product_id')
                 ->unique()
                 ->toArray();
+
+            $hasProductsViewAll = $currentUser && in_array('products_view_all', $this->getUserPermissionsForCompany($currentUser));
+            if (empty($userProductIds) && $hasProductsViewAll) {
+                $userProductIds = Product::where('type', $type)->pluck('id')->toArray();
+            }
 
             if (empty($userProductIds)) {
                 return new \Illuminate\Pagination\LengthAwarePaginator(
@@ -367,19 +378,20 @@ class ProductsRepository extends BaseRepository
      */
     public function getItemById($id, $userUuid)
     {
-        $userCategoryIds = $this->getUserCategoryIds($userUuid);
+        $hasProductsViewAll = in_array('products_view_all', $this->getUserPermissionsForCompany());
 
-        if (empty($userCategoryIds)) {
-            return null;
-        }
-
-        $userProductIds = ProductCategory::whereIn('category_id', $userCategoryIds)
-            ->pluck('product_id')
-            ->unique()
-            ->toArray();
-
-        if (!in_array($id, $userProductIds)) {
-            return null;
+        if (!$hasProductsViewAll) {
+            $userCategoryIds = $this->getUserCategoryIds($userUuid);
+            if (empty($userCategoryIds)) {
+                return null;
+            }
+            $userProductIds = ProductCategory::whereIn('category_id', $userCategoryIds)
+                ->pluck('product_id')
+                ->unique()
+                ->toArray();
+            if (!in_array((int) $id, $userProductIds)) {
+                return null;
+            }
         }
 
         $product = Product::with(['categories', 'unit', 'prices', 'creator'])->find($id);
