@@ -419,7 +419,6 @@ class ProjectContractsRepository extends BaseRepository
                     'cash_id'      => $contract->cash_id,
                     'currency_id'  => $contractCurrencyId,
                     'client_id'    => $project->client_id,
-                    'project_id'   => $contract->project_id,
                     'category_id'  => $debtTransaction->category_id,
                 ]);
             }
