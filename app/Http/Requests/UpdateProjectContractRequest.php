@@ -27,7 +27,7 @@ class UpdateProjectContractRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'number' => 'required|string|max:255',
+            'number' => 'required_if:type,0|nullable|string|max:255',
             'type' => 'required|integer|in:0,1',
             'amount' => 'required|numeric|min:0',
             'currency_id' => 'nullable|exists:currencies,id',

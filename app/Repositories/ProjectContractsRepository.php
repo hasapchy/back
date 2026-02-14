@@ -524,6 +524,7 @@ class ProjectContractsRepository extends BaseRepository
             'note'         => $contract->note,
             'user_id'      => auth('api')->id(),
             'currency_id'  => $contractCurrencyId,
+            'project_id'   => null,
         ], ProjectContract::class, $contract->id, true);
     }
 
