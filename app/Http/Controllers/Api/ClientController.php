@@ -11,6 +11,7 @@ use App\Repositories\ClientsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Контроллер для работы с клиентами
@@ -118,8 +119,10 @@ class ClientController extends BaseController
         $cashRegisterId = $request->input('cash_register_id') ? intval($request->input('cash_register_id')) : null;
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
+        $balanceIdRaw = $request->input('balance_id');
+        $balanceId = $balanceIdRaw ? intval($balanceIdRaw) : null;
 
-        $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo);
+        $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId);
 
         return response()->json(['history' => $history]);
     }

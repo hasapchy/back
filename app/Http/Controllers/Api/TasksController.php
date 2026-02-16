@@ -39,6 +39,22 @@ class TasksController extends BaseController
     }
 
     /**
+     * Количество просроченных задач (дедлайн просрочен), доступных текущему пользователю.
+     */
+    public function overdueCount()
+    {
+        $user = $this->requireAuthenticatedUser();
+        $permissions = $this->getUserPermissions($user);
+        if (!in_array('tasks_view_all', $permissions) && !in_array('tasks_view_own', $permissions)) {
+            return $this->forbiddenResponse('У вас нет прав на просмотр задач');
+        }
+
+        $count = $this->taskRepository->getOverdueCount();
+
+        return response()->json(['data' => ['count' => $count]]);
+    }
+
+    /**
      * Создать новую задачу
      */
     public function store(TaskRequest $request)

@@ -26,7 +26,15 @@ class CacheService
     {
         $ttl = $ttl ?? self::CACHE_TTL['reference_data'];
 
-        return Cache::remember($key, $ttl, $callback);
+        $hasCache = Cache::has($key);
+
+        if ($hasCache) {
+            return Cache::get($key);
+        }
+
+        $result = $callback();
+        Cache::put($key, $result, $ttl);
+        return $result;
     }
 
     /**

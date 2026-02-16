@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CashRegistersController;
 use App\Http\Controllers\Api\CategoriesController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\ClientController;
+use App\Http\Controllers\Api\ClientBalanceController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\CompaniesController;
 use App\Http\Controllers\Api\CompanyHolidayController;
@@ -151,6 +152,11 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/{id}/balance-history', [ClientController::class, 'getBalanceHistory']);
     Route::middleware('permission.scope:clients_delete_all,clients_delete')->delete('clients/{id}', [ClientController::class, 'destroy']);
 
+    Route::middleware('permission:client_balances_view_all')->get('clients/{clientId}/balances', [ClientBalanceController::class, 'index']);
+    Route::middleware('permission:client_balances_create')->post('clients/{clientId}/balances', [ClientBalanceController::class, 'store']);
+    Route::middleware('permission:client_balances_update_all')->put('clients/{clientId}/balances/{id}', [ClientBalanceController::class, 'update']);
+    Route::middleware('permission:client_balances_delete_all')->delete('clients/{clientId}/balances/{id}', [ClientBalanceController::class, 'destroy']);
+
     Route::middleware('permission.scope:cash_registers_view_all,cash_registers_view')->get('cash_registers', [CashRegistersController::class, 'index']);
     Route::get('cash_registers/all', [CashRegistersController::class, 'all']);
     Route::middleware('permission.scope:cash_registers_view_all,cash_registers_view')->get('cash_registers/balance', [CashRegistersController::class, 'getCashBalance']);
@@ -203,6 +209,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:sales_view_all,sales_view')->get('sales/{id}', [SaleController::class, 'show']);
 
     Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders', [OrderController::class, 'index']);
+    Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders/first-stage-count', [OrderController::class, 'firstStageCount']);
     Route::middleware('permission:orders_create,orders_simple_create')->post('orders', [OrderController::class, 'store']);
     Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->put('orders/{id}', [OrderController::class, 'update']);
     Route::middleware('permission.scope:orders_delete_all,orders_delete,orders_simple_delete_all,orders_simple_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
@@ -272,6 +279,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
 
     // Tasks routes
     Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks', [TasksController::class, 'index']);
+    Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks/overdue-count', [TasksController::class, 'overdueCount']);
     Route::middleware('permission.scope:tasks_view_all,tasks_view')->get('tasks/{id}', [TasksController::class, 'show']);
     Route::middleware('permission:tasks_create')->post('tasks', [TasksController::class, 'store']);
     Route::middleware('permission.scope:tasks_update_all,tasks_update')->put('tasks/{id}', [TasksController::class, 'update']);
@@ -311,6 +319,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:chats_write_all,chats_write')->put('chats/{chat}/messages/{message}', [ChatController::class, 'updateMessage']);
     Route::middleware('permission.scope:chats_write_all,chats_write')->delete('chats/{chat}/messages/{message}', [ChatController::class, 'deleteMessage']);
     Route::middleware('permission.scope:chats_write_all,chats_write')->post('chats/{chat}/messages/{message}/forward', [ChatController::class, 'forwardMessage']);
+    Route::middleware('permission.scope:chats_write_all,chats_write')->post('chats/{chat}/messages/{message}/reaction', [ChatController::class, 'setReaction']);
     Route::middleware('permission.scope:chats_view_all,chats_view')->delete('chats/{chat}', [ChatController::class, 'destroy']);
 
     // News routes

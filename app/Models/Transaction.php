@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use App\Services\CurrencyConverter;
 use App\Services\TransactionSourceService;
 use App\Services\BalanceService;
+use App\Repositories\OrdersRepository;
+use App\Repositories\ProjectContractsRepository;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Services\CacheService;
@@ -65,6 +67,7 @@ class Transaction extends Model
         'cash_id',
         'category_id',
         'client_id',
+        'client_balance_id',
         'currency_id',
         'date',
         'note',
@@ -213,10 +216,19 @@ class Transaction extends Model
             CacheService::invalidateTransactionsCache();
             if ($transaction->source_type === 'App\\Models\\Order' && $transaction->source_id) {
                 CacheService::invalidateOrdersCache();
+                if (!$transaction->is_debt) {
+                    $ordersRepository = new OrdersRepository();
+                    $ordersRepository->updateOrderPaidAmount($transaction->source_id);
+                }
             }
             if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
-                CacheService::invalidateByLike('%project_contract%');
-                CacheService::invalidateProjectsCache();
+                if (!$transaction->is_debt) {
+                    $contractsRepository = new ProjectContractsRepository();
+                    $contractsRepository->updateContractPaidAmount($transaction->source_id);
+                } else {
+                    CacheService::invalidateByLike('%project_contract%');
+                    CacheService::invalidateProjectsCache();
+                }
             }
         });
 
@@ -226,10 +238,19 @@ class Transaction extends Model
             CacheService::invalidateTransactionsCache();
             if ($transaction->source_type === 'App\\Models\\Order' && $transaction->source_id) {
                 CacheService::invalidateOrdersCache();
+                if (!$transaction->is_debt) {
+                    $ordersRepository = new OrdersRepository();
+                    $ordersRepository->updateOrderPaidAmount($transaction->source_id);
+                }
             }
             if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
-                CacheService::invalidateByLike('%project_contract%');
-                CacheService::invalidateProjectsCache();
+                if (!$transaction->is_debt) {
+                    $contractsRepository = new ProjectContractsRepository();
+                    $contractsRepository->updateContractPaidAmount($transaction->source_id);
+                } else {
+                    CacheService::invalidateByLike('%project_contract%');
+                    CacheService::invalidateProjectsCache();
+                }
             }
         });
 
@@ -249,9 +270,21 @@ class Transaction extends Model
             }
 
             CacheService::invalidateTransactionsCache();
+            if ($transaction->source_type === 'App\\Models\\Order' && $transaction->source_id) {
+                CacheService::invalidateOrdersCache();
+                if (!$transaction->is_debt) {
+                    $ordersRepository = new OrdersRepository();
+                    $ordersRepository->updateOrderPaidAmount($transaction->source_id);
+                }
+            }
             if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
-                CacheService::invalidateByLike('%project_contract%');
-                CacheService::invalidateProjectsCache();
+                if (!$transaction->is_debt) {
+                    $contractsRepository = new ProjectContractsRepository();
+                    $contractsRepository->updateContractPaidAmount($transaction->source_id);
+                } else {
+                    CacheService::invalidateByLike('%project_contract%');
+                    CacheService::invalidateProjectsCache();
+                }
             }
         });
     }
@@ -284,6 +317,16 @@ class Transaction extends Model
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');
+    }
+
+    /**
+     * Связь с балансом клиента
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function clientBalance()
+    {
+        return $this->belongsTo(ClientBalance::class, 'client_balance_id');
     }
 
     /**

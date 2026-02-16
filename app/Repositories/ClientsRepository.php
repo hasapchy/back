@@ -9,6 +9,7 @@ use App\Models\Currency;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\CacheService;
+use App\Services\ClientBalanceService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -41,11 +42,10 @@ class ClientsRepository extends BaseRepository
                 'emails:id,client_id,email',
                 'user:id,name,photo',
                 'employee:id,name,surname,position,photo',
-            ])
-                ->select([
-                    'clients.*',
-                    'clients.balance as balance',
-                ]);
+                'balances.currency',
+                'balances.users',
+                'defaultBalance.currency',
+            ]);
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
 
@@ -119,21 +119,10 @@ class ClientsRepository extends BaseRepository
                 'emails:id,client_id,email',
                 'user:id,name,photo',
                 'employee:id,name,surname,position,photo',
+                'balances.currency',
+                'balances.users',
+                'defaultBalance.currency',
             ])
-                ->select([
-                    'clients.id',
-                    'clients.company_id',
-                    'clients.user_id',
-                    'clients.client_type',
-                    'clients.balance',
-                    'clients.is_supplier',
-                    'clients.first_name',
-                    'clients.last_name',
-                    'clients.patronymic',
-                    'clients.contact_person',
-                    'clients.position',
-                    'clients.employee_id',
-                ])
                 ->where('clients.status', true);
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
@@ -208,10 +197,6 @@ class ClientsRepository extends BaseRepository
                 'user:id,name,photo',
                 'employee:id,name,surname,position,photo',
             ])
-                ->select([
-                    'clients.*',
-                    'clients.balance as balance',
-                ])
                 ->where('clients.status', true);
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
@@ -261,11 +246,10 @@ class ClientsRepository extends BaseRepository
                 'emails:id,client_id,email',
                 'user:id,name,photo',
                 'employee:id,name,surname,position,photo',
+                'balances.currency',
+                'balances.users',
+                'defaultBalance.currency',
             ])
-                ->select([
-                    'clients.*',
-                    'clients.balance as balance',
-                ])
                 ->where('clients.id', $id);
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
@@ -307,13 +291,18 @@ class ClientsRepository extends BaseRepository
             $this->syncPhones($client->id, $data['phones'] ?? []);
             $this->syncEmails($client->id, $data['emails'] ?? []);
 
+            $defaultCurrency = Currency::where('is_default', true)->first();
+            if ($defaultCurrency) {
+                ClientBalanceService::createBalance($client, $defaultCurrency, true);
+            }
+
             return $client;
         });
 
         CacheService::invalidateClientsCache();
         $this->invalidateClientBalanceCache($client->id);
 
-        return $client->load('phones', 'emails', 'user', 'employee');
+        return $client->load('phones', 'emails', 'user', 'employee', 'balances.currency', 'balances.users', 'defaultBalance.currency');
     }
 
     /**
@@ -378,11 +367,10 @@ class ClientsRepository extends BaseRepository
             $query->where('company_id', $companyId);
         }
 
-        $clients = $query->get()->map(function ($client) {
+            $clients = $query->get()->map(function ($client) {
             return (object) [
                 'id' => $client->id,
                 'client_type' => $client->client_type,
-                'balance' => $client->balance,
                 'is_supplier' => $client->is_supplier,
                 'is_conflict' => $client->is_conflict,
                 'first_name' => $client->first_name,
@@ -417,18 +405,28 @@ class ClientsRepository extends BaseRepository
      * @param  string|null  $dateTo  Дата окончания периода (формат: Y-m-d)
      * @return array Массив транзакций с описаниями
      */
-    public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null)
+    public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null, $balanceId = null)
     {
         $currentUser = auth('api')->user();
-        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $currentUser?->id]);
+        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $currentUser?->id]);
 
-        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $currentUser) {
+        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $currentUser) {
             try {
                 $defaultCurrency = Currency::where('is_default', true)->first();
                 $defaultCurrencySymbol = $defaultCurrency?->symbol;
 
-                $transactionsQuery = Transaction::where('client_id', $clientId)
+                $clientIdInt = is_string($clientId) ? intval($clientId) : $clientId;
+
+                $transactionsQuery = Transaction::where('client_id', $clientIdInt)
                     ->where('is_deleted', false);
+
+                if ($balanceId) {
+                    $balance = \App\Models\ClientBalance::find($balanceId);
+
+                    if ($balance && $balance->client_id == $clientIdInt) {
+                        $transactionsQuery->where('client_balance_id', $balanceId);
+                    }
+                }
 
                 if ($excludeDebt === true) {
                     $transactionsQuery->where('is_debt', false);
@@ -489,6 +487,7 @@ class ClientsRepository extends BaseRepository
                     'currency:id,symbol',
                     'user:id,name',
                     'category:id,name',
+                    'project:id,name',
                 ])
                     ->select(
                         'id',
@@ -504,14 +503,16 @@ class ClientsRepository extends BaseRepository
                         'currency_id',
                         'cash_id',
                         'category_id',
-                        'client_id'
+                        'client_id',
+                        'project_id'
                     );
 
                 $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
                 $transactionsQuery = $transactionsRepository->applySourceTypeFilter($transactionsQuery);
 
-                $transactions = $transactionsQuery->get()
-                    ->flatMap(function ($item) use ($defaultCurrencySymbol) {
+                $transactions = $transactionsQuery->get();
+
+                $transactions = $transactions->flatMap(function ($item) use ($defaultCurrencySymbol) {
                         $source = 'transaction';
                         if ($item->source_type === 'App\\Models\\Sale') {
                             $source = 'sale';
@@ -553,6 +554,7 @@ class ClientsRepository extends BaseRepository
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
+                                'project_name' => $item->project->name ?? null,
                             ];
                         } elseif ($source === 'transaction') {
                             $transactionId = $item->id;
@@ -585,6 +587,7 @@ class ClientsRepository extends BaseRepository
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
+                                'project_name' => $item->project->name ?? null,
                             ];
                         } elseif ($source === 'sale') {
                             $saleId = $item->source_id;
@@ -605,6 +608,7 @@ class ClientsRepository extends BaseRepository
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
+                                'project_name' => $item->project->name ?? null,
                             ];
                         } elseif ($source === 'order') {
                             $orderId = $item->source_id;
@@ -631,6 +635,7 @@ class ClientsRepository extends BaseRepository
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
+                                'project_name' => $item->project->name ?? null,
                             ];
                         } else {
                             $description = $item->note ?? 'Транзакция';
@@ -651,6 +656,7 @@ class ClientsRepository extends BaseRepository
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
+                                'project_name' => $item->project->name ?? null,
                             ];
                         }
 

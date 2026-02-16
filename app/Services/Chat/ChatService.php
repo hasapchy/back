@@ -6,8 +6,10 @@ use App\Events\ChatReadUpdated;
 use App\Events\MessageSent;
 use App\Events\MessageUpdated;
 use App\Events\MessageDeleted;
+use App\Events\MessageReactionUpdated;
 use App\Models\Chat;
 use App\Models\ChatMessage;
+use App\Models\MessageReaction;
 use App\Models\User;
 use App\Repositories\Chat\ChatMessageRepository;
 use App\Repositories\Chat\ChatParticipantRepository;
@@ -294,6 +296,9 @@ class ChatService
 
         $this->participants->updateLastReadMessageId($chatId, $userId, $newId);
 
+        $cacheKey = "chats:company:{$companyId}:user:{$userId}";
+        Cache::forget($cacheKey);
+
         event(new ChatReadUpdated(
             companyId: (int) $chat->company_id,
             chatId: $chatId,
@@ -410,6 +415,11 @@ class ChatService
             abort(422, 'Message does not belong to this chat');
         }
 
+        // Редактирование разрешено только в течение 72 часов после создания
+        if ($message->created_at && now()->diffInHours($message->created_at) > 72) {
+            abort(422, 'Message can only be edited within 72 hours of creation');
+        }
+
         $updatedMessage = $this->messages->updateMessage((int) $message->id, (int) $user->id, $body);
         $updatedMessage->load(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo']);
 
@@ -451,7 +461,7 @@ class ChatService
                     try {
                         \Illuminate\Support\Facades\Storage::delete($file['path']);
                     } catch (\Exception $e) {
-                        \Log::error('Failed to delete attached file on message delete', [
+                        Log::error('Failed to delete attached file on message delete', [
                             'message_id' => $message->id,
                             'file_path' => $file['path'],
                             'error' => $e->getMessage(),
@@ -465,7 +475,7 @@ class ChatService
         try {
             event(new MessageDeleted($message, (int) $chat->company_id, (int) $chat->id));
         } catch (\Exception $e) {
-            \Log::error('Failed to broadcast MessageDeleted event', [
+            Log::error('Failed to broadcast MessageDeleted event', [
                 'message_id' => $message->id,
                 'chat_id' => $chat->id,
                 'error' => $e->getMessage(),
@@ -479,7 +489,8 @@ class ChatService
         User $user,
         Chat $sourceChat,
         ChatMessage $message,
-        Chat $targetChat
+        Chat $targetChat,
+        bool $hideSenderName = false
     ): ChatMessage {
         if ((int) $sourceChat->company_id !== $companyId || (int) $targetChat->company_id !== $companyId) {
             abort(403, 'Forbidden');
@@ -494,14 +505,16 @@ class ChatService
             abort(403, 'You are not a participant of the target chat');
         }
 
-        // Create forwarded message
+        // При скрытии отправителя создаём сообщение без ссылки на оригинал — выглядит как своё
+        $forwardedFromMessageId = $hideSenderName ? null : (int) $message->id;
+
         $forwardedMessage = $this->messages->createMessage(
             (int) $targetChat->id,
             (int) $user->id,
             $message->body,
             $message->files,
             null,
-            (int) $message->id
+            $forwardedFromMessageId
         );
 
         $forwardedMessage->load(['user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo']);
@@ -552,6 +565,89 @@ class ChatService
             $directChat->direct_key = $newDirectKey;
             $directChat->save();
         }
+    }
+
+    /**
+     * Установить или снять реакцию на сообщение (один эмодзи на пользователя).
+     * @param string|null $emoji Один эмодзи (например "👍") или null чтобы снять реакцию.
+     */
+    public function setReaction(int $companyId, User $user, Chat $chat, ChatMessage $message, ?string $emoji): array
+    {
+        if ((int) $chat->company_id !== $companyId) {
+            abort(403, 'Forbidden');
+        }
+        if ((int) $message->chat_id !== (int) $chat->id) {
+            abort(422, 'Message does not belong to this chat');
+        }
+        if (!$this->participants->isParticipant((int) $chat->id, (int) $user->id)) {
+            abort(403, 'You are not a participant of this chat');
+        }
+
+        $userId = (int) $user->id;
+        $messageId = (int) $message->id;
+
+        if ($emoji === null || $emoji === '') {
+            MessageReaction::query()
+                ->where('message_id', $messageId)
+                ->where('user_id', $userId)
+                ->delete();
+        } else {
+            $emoji = mb_substr(trim($emoji), 0, 16);
+            if ($emoji === '') {
+                MessageReaction::query()
+                    ->where('message_id', $messageId)
+                    ->where('user_id', $userId)
+                    ->delete();
+            } else {
+                // Toggle: если у пользователя уже эта реакция — снять; иначе поставить/заменить
+                $existing = MessageReaction::query()
+                    ->where('message_id', $messageId)
+                    ->where('user_id', $userId)
+                    ->where('emoji', $emoji)
+                    ->first();
+                if ($existing) {
+                    $existing->delete();
+                } else {
+                    MessageReaction::query()->updateOrInsert(
+                        ['message_id' => $messageId, 'user_id' => $userId],
+                        ['emoji' => $emoji, 'updated_at' => now()]
+                    );
+                }
+            }
+        }
+
+        $reactions = $this->formatReactionsForMessage($messageId);
+
+        try {
+            event(new MessageReactionUpdated($message->fresh(), $reactions));
+        } catch (\Exception $e) {
+            Log::error('Failed to broadcast MessageReactionUpdated', [
+                'message_id' => $messageId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $reactions;
+    }
+
+    /** Формат реакций для API: [{ emoji, user_id }]. */
+    protected function formatReactionsForMessage(int $messageId): array
+    {
+        return MessageReaction::query()
+            ->where('message_id', $messageId)
+            ->with('user:id,name,surname')
+            ->get()
+            ->map(fn (MessageReaction $r) => [
+                'emoji' => $r->emoji,
+                'user_id' => (int) $r->user_id,
+                'user' => $r->relationLoaded('user') ? [
+                    'id' => (int) $r->user->id,
+                    'name' => $r->user->name,
+                    'surname' => $r->user->surname ?? null,
+                ] : null,
+            ])
+            ->values()
+            ->all();
     }
 
     public function deleteChat(int $companyId, User $user, Chat $chat): void

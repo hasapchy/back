@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Order;
 use App\Rules\ClientAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -33,6 +34,34 @@ class StoreInvoiceRequest extends FormRequest
             'order_ids' => 'required|array|min:1',
             'order_ids.*' => 'integer|exists:orders,id',
         ];
+    }
+
+    /**
+     * @param Validator $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $orderIds = $this->input('order_ids', []);
+            if (empty($orderIds)) {
+                return;
+            }
+            $orders = Order::with(['orderProducts', 'tempProducts'])
+                ->whereIn('id', $orderIds)
+                ->get();
+            foreach ($orders as $order) {
+                $hasProducts = $order->orderProducts->where('quantity', '>', 0)->isNotEmpty()
+                    || $order->tempProducts->where('quantity', '>', 0)->isNotEmpty();
+                if (!$hasProducts) {
+                    $validator->errors()->add(
+                        'order_ids',
+                        __('Заказ #:id не содержит товаров с количеством больше нуля.', ['id' => $order->id])
+                    );
+                    break;
+                }
+            }
+        });
     }
 
     /**

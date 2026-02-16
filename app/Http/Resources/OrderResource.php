@@ -56,6 +56,9 @@ class OrderResource extends JsonResource
         $price = (float)(data_get($resource, 'price', 0));
         $discount = (float)(data_get($resource, 'discount', 0));
         $totalPrice = $price - $discount;
+        $paidAmount = (float)(data_get($resource, 'paid_amount', 0));
+
+        $paymentStatusText = $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $totalPrice ? 'Частично оплачено' : 'Оплачено');
 
         $status = data_get($resource, 'status');
         $category = data_get($resource, 'category');
@@ -79,6 +82,8 @@ class OrderResource extends JsonResource
             'price' => $price,
             'discount' => $discount,
             'total_price' => $totalPrice,
+            'paid_amount' => $paidAmount,
+            'payment_status_text' => $paymentStatusText,
             'date' => $this->date ? (is_string($this->date) ? $this->date : $this->date->toIso8601String()) : null,
             'created_at' => $this->created_at ? (is_string($this->created_at) ? $this->created_at : $this->created_at->toIso8601String()) : null,
             'updated_at' => $this->updated_at ? (is_string($this->updated_at) ? $this->updated_at : $this->updated_at->toIso8601String()) : null,

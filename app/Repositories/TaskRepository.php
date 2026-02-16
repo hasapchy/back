@@ -69,10 +69,10 @@ class TaskRepository extends BaseRepository
             $hasViewOwn = in_array('tasks_view_own', $permissions);
 
             if (!$hasViewAll && $hasViewOwn) {
-                $isOwnTask = $task->creator_id === $user->id 
-                          || $task->supervisor_id === $user->id 
+                $isOwnTask = $task->creator_id === $user->id
+                          || $task->supervisor_id === $user->id
                           || $task->executor_id === $user->id;
-                
+
                 if (!$isOwnTask) {
                     abort(403, 'You do not have permission to view this task');
                 }
@@ -128,5 +128,34 @@ class TaskRepository extends BaseRepository
         $task->update(['status_id' => $statusId]);
 
         return $task;
+    }
+
+    /**
+     * Количество просроченных задач (deadline < now), доступных текущему пользователю.
+     */
+    public function getOverdueCount(): int
+    {
+        $companyId = $this->getCurrentCompanyId();
+        $query = Task::query()
+            ->where('company_id', $companyId)
+            ->whereNotNull('deadline')
+            ->where('deadline', '<', now());
+
+        $user = auth('api')->user();
+        if ($user && !$user->is_admin) {
+            $permissions = $this->getUserPermissionsForCompany($user);
+            $hasViewAll = in_array('tasks_view_all', $permissions);
+            $hasViewOwn = in_array('tasks_view_own', $permissions);
+
+            if (!$hasViewAll && $hasViewOwn) {
+                $query->where(function ($q) use ($user) {
+                    $q->where('creator_id', $user->id)
+                        ->orWhere('supervisor_id', $user->id)
+                        ->orWhere('executor_id', $user->id);
+                });
+            }
+        }
+
+        return (int) $query->count();
     }
 }

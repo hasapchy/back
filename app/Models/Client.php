@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ClientsPhone;
 use App\Models\ClientsEmail;
+use App\Models\Currency;
 
 /**
  * Модель клиента
@@ -133,6 +134,26 @@ class Client extends Model
     }
 
     /**
+     * Связь с балансами клиента
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function balances()
+    {
+        return $this->hasMany(ClientBalance::class);
+    }
+
+    /**
+     * Связь с дефолтным балансом клиента
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function defaultBalance()
+    {
+        return $this->hasOne(ClientBalance::class)->where('is_default', true);
+    }
+
+    /**
      * Scope для фильтрации по компании
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
@@ -160,5 +181,35 @@ class Client extends Model
             return $query->where('client_type', $clientType);
         }
         return $query;
+    }
+
+    /**
+     * Получить баланс клиента для указанной валюты
+     *
+     * @param int $currencyId ID валюты
+     * @return ClientBalance|null
+     */
+    public function getBalanceForCurrency($currencyId)
+    {
+        return $this->balances()->where('currency_id', $currencyId)->first();
+    }
+
+    /**
+     * Получить дефолтный баланс клиента
+     *
+     * @return ClientBalance|null
+     */
+    public function getDefaultBalance()
+    {
+        $defaultBalance = $this->defaultBalance;
+
+        if (!$defaultBalance) {
+            $defaultCurrency = Currency::where('is_default', true)->first();
+            if ($defaultCurrency) {
+                return $this->getBalanceForCurrency($defaultCurrency->id);
+            }
+        }
+
+        return $defaultBalance;
     }
 }

@@ -300,6 +300,39 @@ class ChatController extends BaseController
         return response()->json(['data' => ['ok' => true]]);
     }
 
+    public function setReaction(Request $request, Chat $chat, ChatMessage $message): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser();
+        $companyId = (int) $this->getCurrentCompanyId();
+
+        if (! $companyId) {
+            return response()->json(['message' => 'X-Company-ID header is required'], 422);
+        }
+
+        if ((int) $chat->company_id !== $companyId) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $isParticipant = ChatParticipant::query()
+            ->where('chat_id', $chat->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (! $isParticipant) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $emoji = $request->input('emoji');
+        if ($emoji !== null && $emoji !== '') {
+            $emoji = is_string($emoji) ? trim($emoji) : '';
+            $emoji = mb_substr($emoji, 0, 16) ?: null;
+        }
+
+        $reactions = $this->chatService->setReaction($companyId, $user, $chat, $message, $emoji);
+
+        return response()->json(['data' => ['reactions' => $reactions]]);
+    }
+
     public function forwardMessage(ForwardChatMessageRequest $request, Chat $chat, ChatMessage $message): JsonResponse
     {
         $user = $this->requireAuthenticatedUser();
@@ -330,12 +363,15 @@ class ChatController extends BaseController
             return response()->json(['message' => 'Target chat does not belong to this company'], 403);
         }
 
+        $hideSenderName = $request->boolean('hide_sender_name');
+
         $forwardedMessage = $this->chatService->forwardMessage(
             $companyId,
             $user,
             $chat,
             $message,
-            $targetChat
+            $targetChat,
+            $hideSenderName
         );
 
         return (new ChatMessageResource($forwardedMessage->load(['user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])))->response()->setStatusCode(201);

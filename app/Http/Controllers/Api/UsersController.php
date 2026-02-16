@@ -277,6 +277,16 @@ class UsersController extends BaseController
     /**
      * Обновить профиль текущего пользователя
      *
+     * @bodyParam name string Имя. Example: Иван
+     * @bodyParam surname string Фамилия. Example: Петров
+     * @bodyParam email string Email. Example: ivan@example.com
+     * @bodyParam birthday string Дата рождения (Y-m-d). Example: 1990-01-15
+     * @bodyParam current_password string Текущий пароль (обязателен при смене пароля). Example: oldpass123
+     * @bodyParam password string Новый пароль (min 6 символов). Example: newpass456
+     * @bodyParam photo file Фото (jpeg, png, jpg, gif, max 2MB). Example:
+     *
+     * @response 200 {"user":{"id":1,"name":"Иван","surname":"Петров","email":"ivan@example.com","birthday":"1990-01-15","photo":null,"roles":[],"permissions":[]}}
+     *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
@@ -290,6 +300,7 @@ class UsersController extends BaseController
             }
             $data = $request->validate([
                 'name' => 'nullable|string|max:255',
+                'surname' => 'nullable|string|max:255',
                 'email' => "nullable|email|unique:users,email,{$user->id},id",
                 'birthday' => 'nullable|date',
                 'current_password' => 'nullable|string',

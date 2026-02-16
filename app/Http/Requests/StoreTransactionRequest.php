@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\ProjectContract;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\ProjectAccessRule;
 use App\Rules\ClientAccessRule;
@@ -36,6 +37,7 @@ class StoreTransactionRequest extends FormRequest
             'category_id' => 'required|exists:transaction_categories,id',
             'project_id' => ['nullable', 'sometimes', new ProjectAccessRule()],
             'client_id' => ['nullable', 'sometimes', new ClientAccessRule()],
+            'client_balance_id' => 'nullable|integer|exists:client_balances,id',
             'order_id' => 'nullable|integer|exists:orders,id',
             'source_type' => 'nullable|string',
             'source_id' => 'nullable|integer',
@@ -45,6 +47,32 @@ class StoreTransactionRequest extends FormRequest
             'is_adjustment' => 'nullable|boolean',
             'exchange_rate' => 'nullable|numeric|min:0.000001',
         ];
+    }
+
+    /**
+     * Настроить валидатор
+     *
+     * @param Validator $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $sourceType = $this->input('source_type');
+            $sourceId = $this->input('source_id');
+            $projectId = $this->input('project_id');
+            if (!$sourceType || !$sourceId || strpos($sourceType, 'ProjectContract') === false) {
+                return;
+            }
+            $contract = ProjectContract::find($sourceId);
+            if (!$contract) {
+                $validator->errors()->add('source_id', __('Контракт не найден.'));
+                return;
+            }
+            if ($projectId && (int) $contract->project_id !== (int) $projectId) {
+                $validator->errors()->add('source_id', __('Контракт не принадлежит выбранному проекту.'));
+            }
+        });
     }
 
     /**

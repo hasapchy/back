@@ -259,6 +259,13 @@ class CurrencyHistoryController extends BaseController
 
                 return $currencies->map(function ($currency) use ($companyId) {
                     $currentRate = $currency->getCurrentExchangeRateForCompany($companyId);
+                    $previousRate = CurrencyHistory::query()
+                        ->where('currency_id', $currency->id)
+                        ->forCompany($companyId)
+                        ->orderBy('start_date', 'desc')
+                        ->skip(1)
+                        ->value('exchange_rate');
+
                     return [
                         'id' => $currency->id,
                         'name' => $currency->name,
@@ -266,6 +273,7 @@ class CurrencyHistoryController extends BaseController
                         'is_default' => $currency->is_default,
                         'is_report' => $currency->is_report,
                         'current_rate' => $currentRate ? $currentRate->exchange_rate : 1,
+                        'previous_rate' => $previousRate,
                         'rate_start_date' => $currentRate ? $currentRate->start_date : null
                     ];
                 });
