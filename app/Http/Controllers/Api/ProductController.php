@@ -5,8 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
+use App\Models\OrderProduct;
 use App\Models\Product;
+use App\Models\SalesProduct;
 use App\Models\User;
+use App\Models\WhReceiptProduct;
+use App\Models\WarehouseStock;
+use App\Models\WhWriteoffProduct;
 use App\Repositories\ProductsRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -190,6 +195,99 @@ class ProductController extends BaseController
         }
 
         return response()->json(['message' => 'Товар/услуга успешно удалена']);
+    }
+
+    /**
+     * Получить историю операций по товару
+     *
+     * @param Request $request
+     * @param int $id ID товара
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function history(Request $request, $id)
+    {
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $product = Product::with('unit')->findOrFail($id);
+
+        if (! $this->canPerformAction('products', 'view', $product)) {
+            return $this->forbiddenResponse('У вас нет прав на просмотр этого товара');
+        }
+
+        $unitShortName = $product->unit ? $product->unit->short_name : '';
+        $filter = $request->query('filter', 'all');
+        $history = collect();
+
+        if (in_array($filter, ['all', 'income'])) {
+            foreach (WhReceiptProduct::where('product_id', $id)->with(['receipt.user'])->get() as $rp) {
+                $r = $rp->receipt;
+                if (!$r) continue;
+                $u = $r->user ?? null;
+                $history->push([
+                    'source_label' => 'Оприходование',
+                    'quantity' => (float) $rp->quantity,
+                    'unit_short_name' => $unitShortName,
+                    'date' => $r->date,
+                    'user_name' => $u ? trim($u->name . ' ' . $u->surname) : '-',
+                ]);
+            }
+        }
+
+        if (in_array($filter, ['all', 'expense'])) {
+            foreach (WhWriteoffProduct::where('product_id', $id)->with(['writeOff.user'])->get() as $wp) {
+                $w = $wp->writeOff;
+                if (!$w) continue;
+                $u = $w->user ?? null;
+                $history->push([
+                    'source_label' => 'Списание',
+                    'quantity' => -(float) $wp->quantity,
+                    'unit_short_name' => $unitShortName,
+                    'date' => $w->date,
+                    'user_name' => $u ? trim($u->name . ' ' . $u->surname) : '-',
+                ]);
+            }
+            foreach (SalesProduct::where('product_id', $id)->with(['sale.user'])->get() as $sp) {
+                $s = $sp->sale;
+                if (!$s) continue;
+                $u = $s->user ?? null;
+                $history->push([
+                    'source_label' => 'Продажа',
+                    'quantity' => -(float) $sp->quantity,
+                    'unit_short_name' => $unitShortName,
+                    'date' => $s->date,
+                    'user_name' => $u ? trim($u->name . ' ' . $u->surname) : '-',
+                ]);
+            }
+            foreach (OrderProduct::where('product_id', $id)->with(['order.user'])->get() as $op) {
+                $o = $op->order;
+                if (!$o) continue;
+                $u = $o->user ?? null;
+                $history->push([
+                    'source_label' => 'Заказ',
+                    'quantity' => -(float) $op->quantity,
+                    'unit_short_name' => $unitShortName,
+                    'date' => $o->date,
+                    'user_name' => $u ? trim($u->name . ' ' . $u->surname) : '-',
+                ]);
+            }
+        }
+
+        $history = $history->sortByDesc('date')->values()->toArray();
+
+        $warehouseStocks = [];
+        foreach (WarehouseStock::where('product_id', $id)->with('warehouse')->get() as $ws) {
+            if ($ws->warehouse) {
+                $warehouseStocks[] = [
+                    'warehouse_name' => $ws->warehouse->name,
+                    'quantity' => (float) $ws->quantity,
+                    'unit_short_name' => $unitShortName,
+                ];
+            }
+        }
+
+        return response()->json([
+            'items' => $history,
+            'warehouse_stocks' => $warehouseStocks,
+        ]);
     }
 
     /**

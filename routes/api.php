@@ -136,6 +136,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:products_update_all,products_update')->put('products/{id}', [ProductController::class, 'update']);
     Route::middleware('permission.scope:products_delete_all,products_delete')->delete('products/{id}', [ProductController::class, 'destroy']);
 
+    Route::middleware('permission.scope:products_view_all,products_view')->get('products/{id}/history', [ProductController::class, 'history']);
     Route::middleware('permission.scope:products_view_all,products_view')->get('products/{id}/categories', [ProductController::class, 'getProductCategories']);
     Route::middleware('permission.scope:products_update_all,products_update')->post('products/{id}/categories', [ProductController::class, 'addCategory']);
     Route::middleware('permission.scope:products_update_all,products_update')->delete('products/{id}/categories', [ProductController::class, 'removeCategory']);

@@ -13,17 +13,17 @@ class LeaveTypeSeeder extends Seeder
     public function run(): void
     {
         $leaveTypes = [
-            ['name' => 'TIME_OFF', 'color' => '#3B82F6'],
-            ['name' => 'VACATION', 'color' => '#10B981'],
-            ['name' => 'SICK_LEAVE', 'color' => '#F59E0B'],
-            ['name' => 'ABSENCE', 'color' => '#EF4444'],
-            ['name' => 'UNPAID_LEAVE', 'color' => '#8B5CF6']
+            ['name' => 'TIME_OFF', 'color' => '#3B82F6', 'is_penalty' => true],
+            ['name' => 'VACATION', 'color' => '#10B981', 'is_penalty' => false],
+            ['name' => 'SICK_LEAVE', 'color' => '#F59E0B', 'is_penalty' => true],
+            ['name' => 'ABSENCE', 'color' => '#EF4444', 'is_penalty' => true],
+            ['name' => 'UNPAID_LEAVE', 'color' => '#8B5CF6', 'is_penalty' => true]
         ];
 
         foreach ($leaveTypes as $leaveType) {
             LeaveType::updateOrCreate(
                 ['name' => $leaveType['name']],
-                ['color' => $leaveType['color']]
+                ['color' => $leaveType['color'], 'is_penalty' => $leaveType['is_penalty']]
             );
         }
     }

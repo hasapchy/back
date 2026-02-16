@@ -25,4 +25,9 @@ class Leave extends Model
     {
         return $this->belongsTo(Company::class);
     }
+
+    public function transactions()
+    {
+        return $this->morphMany(Transaction::class, 'source');
+    }
 }

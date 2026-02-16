@@ -10,7 +10,11 @@ class LeaveType extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'color'];
+    protected $fillable = ['name', 'color', 'is_penalty'];
+
+    protected $casts = [
+        'is_penalty' => 'boolean',
+    ];
 
     public function leaves()
     {

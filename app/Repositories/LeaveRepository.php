@@ -4,9 +4,14 @@ namespace App\Repositories;
 
 use App\Models\Leave;
 use App\Services\CacheService;
+use App\Services\PenaltyLeaveTransactionService;
 
 class LeaveRepository extends BaseRepository
 {
+    public function __construct(
+        protected PenaltyLeaveTransactionService $penaltyLeaveTransactionService
+    ) {
+    }
     /**
      * Получить базовые связи для отпусков
      */
@@ -34,7 +39,7 @@ class LeaveRepository extends BaseRepository
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $filters, $page) {
             $query = Leave::with(['leaveType', 'user']);
-
+            $this->applyCompanyFilter($query);
             $this->applyFilters($query, $filters);
 
             return $query->orderBy('date_from', 'desc')
@@ -56,7 +61,7 @@ class LeaveRepository extends BaseRepository
 
         return CacheService::getReferenceData($cacheKey, function () use ($filters) {
             $query = Leave::with(['leaveType', 'user']);
-
+            $this->applyCompanyFilter($query);
             $this->applyFilters($query, $filters);
 
             return $query->orderBy('leaves.date_from', 'desc')->get();
@@ -71,7 +76,10 @@ class LeaveRepository extends BaseRepository
      */
     public function getItemById($id)
     {
-        return Leave::with($this->getBaseRelations())->findOrFail($id);
+        $query = Leave::with($this->getBaseRelations())->where('id', $id);
+        $this->applyCompanyFilter($query);
+
+        return $query->firstOrFail();
     }
 
     /**
@@ -89,9 +97,13 @@ class LeaveRepository extends BaseRepository
         ]);
 
         $item = Leave::create($itemData);
+        $item->load(['leaveType', 'user']);
+
+        $this->penaltyLeaveTransactionService->createTransactionForPenaltyLeave($item);
+
         CacheService::invalidateLeavesCache();
 
-        return $item->load(['leaveType', 'user']);
+        return $item;
     }
 
     /**
@@ -103,8 +115,12 @@ class LeaveRepository extends BaseRepository
      */
     public function updateItem($id, $data)
     {
-        $item = Leave::findOrFail($id);
+        $query = Leave::where('id', $id);
+        $this->applyCompanyFilter($query);
+        $item = $query->firstOrFail();
         $item->update($data);
+        $item->load(['leaveType', 'user']);
+        $this->penaltyLeaveTransactionService->createTransactionForPenaltyLeave($item);
         CacheService::invalidateLeavesCache();
 
         return $item->load(['leaveType', 'user']);
@@ -118,28 +134,15 @@ class LeaveRepository extends BaseRepository
      */
     public function deleteItem($id)
     {
-        $item = Leave::findOrFail($id);
+        $query = Leave::where('id', $id);
+        $this->applyCompanyFilter($query);
+        $item = $query->firstOrFail();
+        $item->load(['leaveType', 'user']);
+        $this->penaltyLeaveTransactionService->deleteTransactionsForLeave($item);
         $item->delete();
         CacheService::invalidateLeavesCache();
 
         return true;
-    }
-
-    /**
-     * Применить фильтр по компании к запросу отпусков через связь user->companies
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query  Query builder
-     * @return void
-     */
-    private function applyLeaveCompanyFilter($query)
-    {
-        $companyId = $this->getCurrentCompanyId();
-        if ($companyId) {
-            $query->join('company_user', 'leaves.user_id', '=', 'company_user.user_id')
-                ->where('company_user.company_id', $companyId)
-                ->select('leaves.*')
-                ->distinct();
-        }
     }
 
     /**

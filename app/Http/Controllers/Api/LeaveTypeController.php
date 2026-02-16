@@ -62,11 +62,13 @@ class LeaveTypeController extends BaseController
         $request->validate([
             'name' => 'required|string',
             'color' => 'nullable|string|max:7',
+            'is_penalty' => 'nullable|boolean',
         ]);
 
         $created = $this->leaveTypeRepository->createItem([
             'name' => $request->name,
             'color' => $request->color,
+            'is_penalty' => (bool) $request->boolean('is_penalty'),
         ]);
         if (! $created) {
             return $this->errorResponse('Ошибка создания типа отпуска', 400);
@@ -88,11 +90,13 @@ class LeaveTypeController extends BaseController
         $request->validate([
             'name' => 'required|string',
             'color' => 'nullable|string|max:7',
+            'is_penalty' => 'nullable|boolean',
         ]);
 
         $updated = $this->leaveTypeRepository->updateItem($id, [
             'name' => $request->name,
             'color' => $request->color,
+            'is_penalty' => (bool) $request->boolean('is_penalty'),
         ]);
         if (! $updated) {
             return $this->errorResponse('Ошибка обновления', 400);

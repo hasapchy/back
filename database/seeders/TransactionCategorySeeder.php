@@ -38,5 +38,7 @@ class TransactionCategorySeeder extends Seeder
         TransactionCategory::updateOrCreate(['id' => 27], ['name' => 'FINE', 'type' => 0, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 28], ['name' => 'RENT_INCOME', 'type' => 1, 'user_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 29], ['name' => 'CUSTOMER_PAYMENT', 'type' => 1, 'user_id' => 1]);
+        TransactionCategory::updateOrCreate(['id' => 30], ['name' => 'CONTRACT', 'type' => 1, 'user_id' => 1]);
+        TransactionCategory::updateOrCreate(['id' => 31], ['name' => 'UNPAID_LEAVE', 'type' => 0, 'user_id' => 1]);
     }
 }
