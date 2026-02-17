@@ -12,7 +12,7 @@ use App\Models\Traits\HasManyToManyUsers;
  * @property int $id
  * @property string $name Название категории
  * @property int|null $parent_id ID родительской категории
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID создателя
  * @property int|null $company_id ID компании
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -27,7 +27,7 @@ class Category extends Model
 {
     use HasFactory, HasManyToManyUsers;
 
-    protected $fillable = ['name', 'parent_id', 'user_id', 'company_id'];
+    protected $fillable = ['name', 'parent_id', 'creator_id', 'company_id'];
 
     /**
      * Связь с дочерними категориями
@@ -69,6 +69,10 @@ class Category extends Model
         return $this->belongsToMany(User::class, 'category_users', 'category_id', 'user_id');
     }
 
+    public function hasUser($userId)
+    {
+        return $this->users()->wherePivot('user_id', $userId)->exists();
+    }
 
     /**
      * Связь с компанией

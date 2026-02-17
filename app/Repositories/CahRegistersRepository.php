@@ -281,7 +281,8 @@ class CahRegistersRepository extends BaseRepository
             $userIds,
             [
                 'require_at_least_one' => true,
-                'error_message' => 'Касса должна иметь хотя бы одного пользователя'
+                'error_message' => 'Касса должна иметь хотя бы одного пользователя',
+                'user_column' => 'user_id',
             ]
         );
     }

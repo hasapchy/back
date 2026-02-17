@@ -26,7 +26,7 @@ class WhReceiptFactory extends Factory
         return [
             'supplier_id' => Client::factory(),
             'warehouse_id' => Warehouse::factory(),
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
             'note' => fake()->optional()->sentence(),
             'amount' => fake()->randomFloat(2, 100, 10000),
             'date' => now(),

@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @property int $id
  * @property int $company_id ID компании
- * @property int $user_id ID пользователя, выполнившего начисление
+ * @property int $creator_id ID пользователя, выполнившего начисление
  * @property int $cash_id ID кассы
  * @property string $date Дата начисления
  * @property string|null $note Примечание
@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\Carbon $updated_at
  *
  * @property-read \App\Models\Company $company
- * @property-read \App\Models\User $user
+ * @property-read \App\Models\User $creator
  * @property-read \App\Models\CashRegister $cashRegister
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\SalaryAccrualItem[] $items
  */
@@ -32,7 +32,7 @@ class SalaryAccrual extends Model
 
     protected $fillable = [
         'company_id',
-        'user_id',
+        'creator_id',
         'cash_id',
         'date',
         'note',
@@ -57,13 +57,11 @@ class SalaryAccrual extends Model
     }
 
     /**
-     * Связь с пользователем
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

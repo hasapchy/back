@@ -42,7 +42,7 @@ class UpdateProductRequest extends FormRequest
             'wholesale_price' => 'nullable|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
             'date' => 'nullable|date',
-            'user_id' => 'nullable|exists:users,id',
+            'creator_id' => 'nullable|exists:users,id',
         ];
     }
 

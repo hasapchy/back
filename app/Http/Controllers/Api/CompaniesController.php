@@ -15,7 +15,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Контроллер для работы с компаниями
@@ -81,7 +80,6 @@ class CompaniesController extends BaseController
             $data['logo'] = $request->file('logo')->store('companies', 'public');
         }
 
-        Log::info('UpdateCompanyRequest', $data);
         $company->update($data);
 
         $company = $company->fresh();
@@ -123,7 +121,7 @@ class CompaniesController extends BaseController
             $date = $validatedData['date'];
             $cashId = $validatedData['cash_id'];
             $note = $validatedData['note'] ?? null;
-            $userIds = $validatedData['user_ids'];
+            $userIds = $validatedData['creator_ids'];
             $paymentType = (bool)$validatedData['payment_type'];
 
             $transactionsRepository = app(TransactionsRepository::class);
@@ -168,12 +166,12 @@ class CompaniesController extends BaseController
 
             $request->validate([
                 'date' => 'required|date',
-                'user_ids' => 'required|array|min:1',
-                'user_ids.*' => 'integer|exists:users,id',
+                'creator_ids' => 'required|array|min:1',
+                'creator_ids.*' => 'integer|exists:users,id',
             ]);
 
             $date = $request->input('date');
-            $userIds = $request->input('user_ids');
+            $userIds = $request->input('creator_ids');
 
             $transactionsRepository = app(TransactionsRepository::class);
             $salaryAccrualService = new SalaryAccrualService($transactionsRepository);
@@ -186,10 +184,6 @@ class CompaniesController extends BaseController
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
-            Log::error('Error in checkExistingSalaries', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return $this->errorResponse('Ошибка при проверке начислений: ' . $e->getMessage(), 500);
         }
     }

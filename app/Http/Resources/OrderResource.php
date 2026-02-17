@@ -63,7 +63,7 @@ class OrderResource extends JsonResource
         $status = data_get($resource, 'status');
         $category = data_get($resource, 'category');
         $client = data_get($resource, 'client');
-        $user = data_get($resource, 'user');
+        $user = data_get($resource, 'creator') ?? data_get($resource, 'user');
         $cash = data_get($resource, 'cash');
         $warehouse = data_get($resource, 'warehouse');
         $project = data_get($resource, 'project');
@@ -75,7 +75,7 @@ class OrderResource extends JsonResource
             'status_id' => data_get($resource, 'status_id'),
             'category_id' => data_get($resource, 'category_id'),
             'client_id' => data_get($resource, 'client_id'),
-            'user_id' => data_get($resource, 'user_id'),
+            'creator_id' => data_get($resource, 'creator_id'),
             'cash_id' => data_get($resource, 'cash_id'),
             'warehouse_id' => data_get($resource, 'warehouse_id'),
             'project_id' => data_get($resource, 'project_id'),

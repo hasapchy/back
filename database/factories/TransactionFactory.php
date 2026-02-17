@@ -32,7 +32,7 @@ class TransactionFactory extends Factory
 
         return [
             'type' => fake()->randomElement([0, 1]),
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
             'orig_amount' => $origAmount,
             'amount' => $amount,
             'currency_id' => Currency::factory(),

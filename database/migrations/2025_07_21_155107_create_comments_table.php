@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->text('body');
             $table->morphs('commentable'); // commentable_type + commentable_id
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }

@@ -59,8 +59,8 @@ class ClientBalanceController extends BaseController
                 'is_default' => 'boolean',
                 'balance' => 'nullable|numeric',
                 'note' => 'nullable|string',
-                'user_ids' => 'nullable|array',
-                'user_ids.*' => 'exists:users,id',
+                'creator_ids' => 'nullable|array',
+                'creator_ids.*' => 'exists:users,id',
             ]);
 
             $client = Client::findOrFail($clientId);
@@ -91,7 +91,7 @@ class ClientBalanceController extends BaseController
                 ->with(['currency', 'users:id,name,surname'])
                 ->first();
 
-            $userIds = $validated['user_ids'] ?? [];
+            $userIds = $validated['creator_ids'] ?? [];
             $balance->users()->sync($userIds);
             $balance->load('users:id,name,surname');
 
@@ -118,8 +118,8 @@ class ClientBalanceController extends BaseController
                 'is_default' => 'boolean',
                 'skip_confirmation' => 'boolean',
                 'note' => 'nullable|string',
-                'user_ids' => 'nullable|array',
-                'user_ids.*' => 'exists:users,id',
+                'creator_ids' => 'nullable|array',
+                'creator_ids.*' => 'exists:users,id',
             ]);
 
             $balance = ClientBalance::where('client_id', $clientId)
@@ -161,9 +161,9 @@ class ClientBalanceController extends BaseController
                     ClientBalanceService::clearDefaultFlags($balance->client_id, $balance->id);
                 }
 
-                $balance->update(array_diff_key($validated, array_flip(['user_ids', 'skip_confirmation'])));
-                if (array_key_exists('user_ids', $validated)) {
-                    $balance->users()->sync($validated['user_ids']);
+                $balance->update(array_diff_key($validated, array_flip(['creator_ids', 'skip_confirmation'])));
+                if (array_key_exists('creator_ids', $validated)) {
+                    $balance->users()->sync($validated['creator_ids']);
                 }
             });
 

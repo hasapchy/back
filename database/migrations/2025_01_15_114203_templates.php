@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('icon');
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('cash_id')->constrained('cash_registers')->onDelete('cascade');
             $table->decimal('amount', 15, 2)->nullable();
             $table->boolean('type')->nullable();

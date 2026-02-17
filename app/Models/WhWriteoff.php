@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $warehouse_id ID склада
  * @property string|null $note Примечание
  * @property \Carbon\Carbon $date Дата списания
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID создателя
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -27,7 +27,7 @@ class WhWriteoff extends Model
 
     protected $table = 'wh_write_offs';
 
-    protected $fillable = ['warehouse_id', 'note', 'date', 'user_id'];
+    protected $fillable = ['warehouse_id', 'note', 'date', 'creator_id'];
 
     protected $casts = [
         'date' => 'date',
@@ -54,13 +54,11 @@ class WhWriteoff extends Model
     }
 
     /**
-     * Связь с пользователем
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

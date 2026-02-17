@@ -24,13 +24,6 @@ class MessageSent implements ShouldBroadcast
             'parent.user:id,name,surname,photo',
             'forwardedFrom.user:id,name,surname,photo',
         ]);
-        
-        \Log::info("[MessageSent Event] Создано событие для сообщения", [
-            'message_id' => $this->message->id,
-            'chat_id' => $this->message->chat_id,
-            'user_id' => $this->message->user_id,
-            'body' => substr($this->message->body ?? '', 0, 50),
-        ]);
     }
 
     /**
@@ -41,8 +34,7 @@ class MessageSent implements ShouldBroadcast
     public function broadcastOn(): array
     {
         $channel = "company.{$this->message->chat->company_id}.chat.{$this->message->chat_id}";
-        \Log::info("[MessageSent Event] Broadcasting на канал: {$channel}");
-        
+
         return [
             new PrivateChannel($channel),
         ];

@@ -93,7 +93,7 @@ class ChatMessageRepository
 
     /**
      * Optimized unread counts for multiple chats:
-     * counts messages with id > last_read_message_id for participant (user_id) and excludes own messages.
+     * counts messages with id > last_read_message_id for participant (creator_id) and excludes own messages.
      *
      * @return array<int, int> map chat_id => unread_count
      */
@@ -108,7 +108,7 @@ class ChatMessageRepository
             ->leftJoin('chat_messages as m', function ($join) use ($userId) {
                 $join->on('m.chat_id', '=', 'cp.chat_id')
                     ->whereRaw('m.id > COALESCE(cp.last_read_message_id, 0)')
-                    ->where('m.user_id', '!=', $userId);
+                    ->where('m.creator_id', '!=', $userId);
             })
             ->where('cp.user_id', $userId)
             ->whereIn('cp.chat_id', $chatIds)
@@ -123,7 +123,7 @@ class ChatMessageRepository
     {
         return ChatMessage::query()->create([
             'chat_id' => $chatId,
-            'user_id' => $userId,
+            'creator_id' => $userId,
             'body' => $body,
             'files' => $files,
             'parent_id' => $parentId,
@@ -135,7 +135,7 @@ class ChatMessageRepository
     {
         $message = ChatMessage::query()->findOrFail($messageId);
 
-        if ((int) $message->user_id !== $userId) {
+        if ((int) $message->creator_id !== $userId) {
             abort(403, 'You can only edit your own messages');
         }
 
@@ -152,7 +152,7 @@ class ChatMessageRepository
     {
         $message = ChatMessage::query()->findOrFail($messageId);
 
-        if ((int) $message->user_id !== $userId) {
+        if ((int) $message->creator_id !== $userId) {
             abort(403, 'You can only delete your own messages');
         }
 

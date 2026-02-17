@@ -29,7 +29,7 @@ class ProductFactory extends Factory
             'barcode' => fake()->optional()->ean13(),
             'type' => fake()->boolean(),
             'is_serialized' => false,
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
             'company_id' => Company::factory(),
             'date' => now(),
         ];

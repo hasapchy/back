@@ -18,31 +18,31 @@ class ProjectStatusSeeder extends Seeder
                 'id' => 1,
                 'name' => 'NEW',
                 'color' => '#007bff',
-                'user_id' => 1
+                'creator_id' => 1
             ],
             [
                 'id' => 2,
                 'name' => 'IN_PROGRESS',
                 'color' => '#28a745',
-                'user_id' => 1
+                'creator_id' => 1
             ],
             [
                 'id' => 3,
                 'name' => 'PENDING',
                 'color' => '#f49510',
-                'user_id' => 1
+                'creator_id' => 1
             ],
             [
                 'id' => 4,
                 'name' => 'COMPLETED',
                 'color' => '#6c757d',
-                'user_id' => 1
+                'creator_id' => 1
             ],
             [
                 'id' => 5,
                 'name' => 'CANCELLED',
                 'color' => '#dc3545',
-                'user_id' => 1
+                'creator_id' => 1
             ]
         ];
 

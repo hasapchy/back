@@ -191,7 +191,7 @@ class ClientController extends BaseController
 
         DB::beginTransaction();
         try {
-            $validatedData['user_id'] = $this->getAuthenticatedUserIdOrFail();
+            $validatedData['creator_id'] = $this->getAuthenticatedUserIdOrFail();
             $client = $this->itemsRepository->createItem($validatedData);
 
             DB::commit();

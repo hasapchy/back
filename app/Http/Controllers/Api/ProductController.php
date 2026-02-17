@@ -218,10 +218,10 @@ class ProductController extends BaseController
         $history = collect();
 
         if (in_array($filter, ['all', 'income'])) {
-            foreach (WhReceiptProduct::where('product_id', $id)->with(['receipt.user'])->get() as $rp) {
+            foreach (WhReceiptProduct::where('product_id', $id)->with(['receipt.creator'])->get() as $rp) {
                 $r = $rp->receipt;
                 if (!$r) continue;
-                $u = $r->user ?? null;
+                $u = $r->creator ?? null;
                 $history->push([
                     'source_label' => 'Оприходование',
                     'quantity' => (float) $rp->quantity,
@@ -233,10 +233,10 @@ class ProductController extends BaseController
         }
 
         if (in_array($filter, ['all', 'expense'])) {
-            foreach (WhWriteoffProduct::where('product_id', $id)->with(['writeOff.user'])->get() as $wp) {
+            foreach (WhWriteoffProduct::where('product_id', $id)->with(['writeOff.creator'])->get() as $wp) {
                 $w = $wp->writeOff;
                 if (!$w) continue;
-                $u = $w->user ?? null;
+                $u = $w->creator ?? null;
                 $history->push([
                     'source_label' => 'Списание',
                     'quantity' => -(float) $wp->quantity,
@@ -245,10 +245,10 @@ class ProductController extends BaseController
                     'user_name' => $u ? trim($u->name . ' ' . $u->surname) : '-',
                 ]);
             }
-            foreach (SalesProduct::where('product_id', $id)->with(['sale.user'])->get() as $sp) {
+            foreach (SalesProduct::where('product_id', $id)->with(['sale.creator'])->get() as $sp) {
                 $s = $sp->sale;
                 if (!$s) continue;
-                $u = $s->user ?? null;
+                $u = $s->creator ?? null;
                 $history->push([
                     'source_label' => 'Продажа',
                     'quantity' => -(float) $sp->quantity,
@@ -257,10 +257,10 @@ class ProductController extends BaseController
                     'user_name' => $u ? trim($u->name . ' ' . $u->surname) : '-',
                 ]);
             }
-            foreach (OrderProduct::where('product_id', $id)->with(['order.user'])->get() as $op) {
+            foreach (OrderProduct::where('product_id', $id)->with(['order.creator'])->get() as $op) {
                 $o = $op->order;
                 if (!$o) continue;
-                $u = $o->user ?? null;
+                $u = $o->creator ?? null;
                 $history->push([
                     'source_label' => 'Заказ',
                     'quantity' => -(float) $op->quantity,

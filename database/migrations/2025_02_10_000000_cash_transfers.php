@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('cash_id_to')->constrained('cash_registers');
             $table->foreignId('tr_id_from')->constrained('transactions');
             $table->foreignId('tr_id_to')->constrained('transactions');
-            $table->foreignId('user_id')->constrained('users');
+            $table->foreignId('creator_id')->constrained('users');
             $table->unsignedDecimal('amount', 15, 2);
             $table->text('note')->nullable();
             $table->timestamp('date');

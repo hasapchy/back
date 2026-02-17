@@ -32,7 +32,7 @@ class InvoicesRepository extends BaseRepository
             $query = Invoice::with([
                 'client.phones',
                 'client.emails',
-                'user',
+                'creator',
                 'orders.cash.currency',
                 'orders.orderProducts.product.unit',
                 'orders.tempProducts.unit',
@@ -40,7 +40,7 @@ class InvoicesRepository extends BaseRepository
                 'products.order'
             ]);
 
-            $this->applyOwnFilter($query, 'invoices', 'invoices', 'user_id');
+            $this->applyOwnFilter($query, 'invoices', 'invoices', 'creator_id');
 
             if ($search) {
                 $searchTrimmed = trim((string)$search);
@@ -95,7 +95,7 @@ class InvoicesRepository extends BaseRepository
         $invoice = Invoice::with([
             'client.phones',
             'client.emails',
-            'user',
+            'creator',
             'orders.cash.currency',
             'orders.orderProducts.product.unit',
             'orders.tempProducts.unit',
@@ -121,7 +121,7 @@ class InvoicesRepository extends BaseRepository
         return DB::transaction(function () use ($data) {
             $invoice = Invoice::create([
                 'client_id' => $data['client_id'],
-                'user_id' => $data['user_id'],
+                'creator_id' => $data['creator_id'],
                 'invoice_date' => $data['invoice_date'] ?? now()->toDateString(),
                 'note' => $data['note'] ?? '',
                 'total_amount' => $data['total_amount'] ?? 0,
@@ -213,7 +213,7 @@ class InvoicesRepository extends BaseRepository
         $query->leftJoin('warehouses', 'orders.warehouse_id', '=', 'warehouses.id');
         $query->leftJoin('cash_registers', 'orders.cash_id', '=', 'cash_registers.id');
         $query->leftJoin('projects', 'orders.project_id', '=', 'projects.id');
-        $query->leftJoin('users', 'orders.user_id', '=', 'users.id');
+        $query->leftJoin('users', 'orders.creator_id', '=', 'users.id');
         $query->leftJoin('currencies as cash_currency', 'cash_registers.currency_id', '=', 'cash_currency.id');
         $query->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id');
         $query->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id');
@@ -231,7 +231,7 @@ class InvoicesRepository extends BaseRepository
             'order_status_categories.name as status_category_name',
             'order_status_categories.color as status_category_color',
             'orders.client_id',
-            'orders.user_id',
+            'orders.creator_id',
             'orders.cash_id',
             'orders.warehouse_id',
             'orders.project_id',

@@ -46,7 +46,8 @@ class ProjectsRepository extends BaseRepository
             ProjectUser::class,
             'project_id',
             $projectId,
-            $userIds
+            $userIds,
+            ['user_column' => 'user_id']
         );
     }
 
@@ -112,7 +113,7 @@ class ProjectsRepository extends BaseRepository
                 $query->where('projects.client_id', $clientId);
             }
 
-            $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
+            $this->applyOwnFilter($query, 'projects', 'projects', 'creator_id', $currentUser);
 
             $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
@@ -150,7 +151,7 @@ class ProjectsRepository extends BaseRepository
                     ->where('project_statuses.is_tr_visible', true);
             }
 
-            $this->applyOwnFilter($query, 'projects', 'projects', 'user_id', $currentUser);
+            $this->applyOwnFilter($query, 'projects', 'projects', 'creator_id', $currentUser);
 
             $items = $query->orderBy('created_at', 'desc')->get();
 
@@ -179,7 +180,7 @@ class ProjectsRepository extends BaseRepository
             $item->budget = $data['budget'] ?? 0;
             $item->currency_id = $data['currency_id'] ?? null;
             $item->date = $data['date'];
-            $item->user_id = $data['user_id'];
+            $item->creator_id = $data['creator_id'];
             $item->client_id = $data['client_id'];
             $item->company_id = $companyId;
             $item->description = $data['description'] ?? null;
@@ -251,7 +252,7 @@ class ProjectsRepository extends BaseRepository
                 'projects.budget',
                 'projects.currency_id',
                 'projects.date',
-                'projects.user_id',
+                'projects.creator_id',
                 'projects.client_id',
                 'projects.files',
                 'projects.created_at',
@@ -353,7 +354,7 @@ class ProjectsRepository extends BaseRepository
                     'source_id',
                     'is_debt',
                     'note',
-                    'user_id',
+                    'creator_id',
                     'cash_id',
                     'category_id'
                 );
@@ -393,8 +394,8 @@ class ProjectsRepository extends BaseRepository
                     'orig_amount' => $item->orig_amount,
                     'is_debt' => $item->is_debt,
                     'note' => $item->note,
-                    'user_id' => $item->user_id,
-                    'user_name' => $item->user->name,
+                    'creator_id' => $item->creator_id,
+                    'user_name' => $item->creator->name,
                     'cash_currency_symbol' => $item->cashRegister?->currency->symbol ?? $item->currency->symbol,
                     'category_name' => $item->category->name ?? null
                 ];

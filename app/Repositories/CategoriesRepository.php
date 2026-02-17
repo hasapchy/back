@@ -23,7 +23,7 @@ class CategoriesRepository extends BaseRepository
 
         return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
             $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
-                ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
+                ->leftJoin('users as users', 'categories.creator_id', '=', 'users.id')
                 ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
 
             $this->applyUserFilter($query, $userUuid);
@@ -45,7 +45,7 @@ class CategoriesRepository extends BaseRepository
 
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
             $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
-                ->leftJoin('users as users', 'categories.user_id', '=', 'users.id')
+                ->leftJoin('users as users', 'categories.creator_id', '=', 'users.id')
                 ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
 
             $this->applyUserFilter($query, $userUuid);
@@ -66,7 +66,7 @@ class CategoriesRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('categories_parents', [$userUuid]);
 
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
-            $query = Category::leftJoin('users as users', 'categories.user_id', '=', 'users.id')
+            $query = Category::leftJoin('users as users', 'categories.creator_id', '=', 'users.id')
                 ->select('categories.*', 'users.name as user_name')
                 ->whereNull('categories.parent_id')
                 ->whereHas('children');
@@ -91,7 +91,7 @@ class CategoriesRepository extends BaseRepository
         $item = new Category();
         $item->name = $data['name'];
         $item->parent_id = empty($data['parent_id']) ? null : (int) $data['parent_id'];
-        $item->user_id = $data['user_id'];
+        $item->creator_id = $data['creator_id'];
         $item->company_id = $companyId;
         $item->save();
 
@@ -116,7 +116,7 @@ class CategoriesRepository extends BaseRepository
         $item = Category::findOrFail($id);
         $item->name = $data['name'];
         $item->parent_id = empty($data['parent_id']) ? null : (int) $data['parent_id'];
-        $item->user_id = $data['user_id'];
+        $item->creator_id = $data['creator_id'];
         $item->company_id = $companyId;
         $item->save();
 
@@ -179,7 +179,8 @@ class CategoriesRepository extends BaseRepository
             [
                 'require_at_least_one' => true,
                 'filter_empty' => true,
-                'error_message' => 'Категория должна иметь хотя бы одного пользователя'
+                'error_message' => 'Категория должна иметь хотя бы одного пользователя',
+                'user_column' => 'user_id',
             ]
         );
     }

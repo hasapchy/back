@@ -55,7 +55,7 @@ class NewsRepository extends BaseRepository
             }
 
             if (! empty($authorId)) {
-                $query->where('news.user_id', $authorId);
+                $query->where('news.creator_id', $authorId);
             }
 
             return $query->orderBy('created_at', 'desc')
@@ -79,7 +79,7 @@ class NewsRepository extends BaseRepository
             $query = $this->addCompanyFilterDirect($query, 'news');
 
             if ($authorId !== null) {
-                $query->where('news.user_id', $authorId);
+                $query->where('news.creator_id', $authorId);
             }
 
             return $query->orderBy('created_at', 'desc')->get();
@@ -97,7 +97,7 @@ class NewsRepository extends BaseRepository
             $item = new News;
             $item->title = $data['title'];
             $item->content = $data['content'];
-            $item->user_id = $data['user_id'] ?? $data['author_id'] ?? null; // Поддержка старого ключа для обратной совместимости
+            $item->creator_id = $data['creator_id'] ?? $data['author_id'] ?? null; // Поддержка старого ключа для обратной совместимости
             $item->company_id = $companyId;
             $item->save();
 
@@ -137,7 +137,7 @@ class NewsRepository extends BaseRepository
                 'news.id',
                 'news.title',
                 'news.content',
-                'news.user_id',
+                'news.creator_id',
                 'news.company_id',
                 'news.created_at',
                 'news.updated_at',

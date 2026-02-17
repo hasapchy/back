@@ -40,18 +40,18 @@ class OrderControllerTest extends TestCase
         $this->adminUser->companies()->attach($this->company->id);
         $this->client = \App\Models\Client::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
         $this->warehouse = Warehouse::factory()->create([
             'company_id' => $this->company->id,
         ]);
         $this->category = Category::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
         $this->product = Product::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
     }
 
@@ -97,7 +97,7 @@ class OrderControllerTest extends TestCase
     {
         $order = Order::factory()->create([
             'client_id' => $this->client->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
 
         $data = [
@@ -118,7 +118,7 @@ class OrderControllerTest extends TestCase
     {
         $order = Order::factory()->create([
             'client_id' => $this->client->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
 
         $response = $this->actingAsApi($this->adminUser)

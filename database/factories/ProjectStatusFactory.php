@@ -24,7 +24,7 @@ class ProjectStatusFactory extends Factory
         return [
             'name' => fake()->words(2, true),
             'color' => fake()->hexColor(),
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
         ];
     }
 }

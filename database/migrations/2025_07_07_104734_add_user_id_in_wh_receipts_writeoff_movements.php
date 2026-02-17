@@ -12,15 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('wh_receipts', function (Blueprint $table) {
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
         });
 
         Schema::table('wh_write_offs', function (Blueprint $table) {
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
         });
 
         Schema::table('wh_movements', function (Blueprint $table) {
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
         });
     }
 
@@ -30,16 +30,16 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('wh_receipts', function (Blueprint $table) {
-            $table->dropForeign(['user_id']);
-            $table->dropColumn('user_id');
+            $table->dropForeign(['creator_id']);
+            $table->dropColumn('creator_id');
         });
         Schema::table('wh_write_offs', function (Blueprint $table) {
-            $table->dropForeign(['user_id']);
-            $table->dropColumn('user_id');
+            $table->dropForeign(['creator_id']);
+            $table->dropColumn('creator_id');
         });
         Schema::table('wh_movements', function (Blueprint $table) {
-            $table->dropForeign(['user_id']);
-            $table->dropColumn('user_id');
+            $table->dropForeign(['creator_id']);
+            $table->dropColumn('creator_id');
         });
     }
 };

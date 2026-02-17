@@ -28,7 +28,7 @@ class DepartmentRepository extends BaseRepository
             if ($this->shouldApplyUserFilter('departments')) {
                 $filterUserId = $this->getFilterUserIdForPermission('departments', $userId);
                 $departmentIds = \DB::table('department_user')
-                    ->where('user_id', $filterUserId)
+                    ->where('creator_id', $filterUserId)
                     ->pluck('department_id')
                     ->toArray();
 
@@ -66,7 +66,7 @@ class DepartmentRepository extends BaseRepository
             if ($this->shouldApplyUserFilter('departments')) {
                 $filterUserId = $this->getFilterUserIdForPermission('departments', $userId);
                 $departmentIds = \DB::table('department_user')
-                    ->where('user_id', $filterUserId)
+                    ->where('creator_id', $filterUserId)
                     ->pluck('department_id')
                     ->toArray();
 

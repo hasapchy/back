@@ -22,7 +22,7 @@ class ProjectStatusRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('project_statuses_paginated', [$userUuid, $perPage, $page]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $page) {
-            return ProjectStatus::with('user')->paginate($perPage, ['*'], 'page', $page);
+            return ProjectStatus::with('creator')->paginate($perPage, ['*'], 'page', $page);
         }, $page);
     }
 
@@ -37,7 +37,7 @@ class ProjectStatusRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('project_statuses_all', [$userUuid]);
 
         return CacheService::getReferenceData($cacheKey, function () {
-            return ProjectStatus::with('user')->get();
+            return ProjectStatus::with('creator')->get();
         });
     }
 

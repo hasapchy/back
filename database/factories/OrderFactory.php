@@ -30,7 +30,7 @@ class OrderFactory extends Factory
         $discount = fake()->randomFloat(2, 0, $price * 0.15);
 
         return [
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
             'client_id' => Client::factory(),
             'category_id' => Category::factory(),
             'status_id' => OrderStatus::factory(),

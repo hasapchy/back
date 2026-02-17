@@ -14,12 +14,12 @@ return new class extends Migration
         Schema::create('company_user_role', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained()->onDelete('cascade');
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('role_id')->constrained('roles')->onDelete('cascade');
             $table->timestamps();
 
-            $table->unique(['company_id', 'user_id', 'role_id']);
-            $table->index(['company_id', 'user_id']);
+            $table->unique(['company_id', 'creator_id', 'role_id']);
+            $table->index(['company_id', 'creator_id']);
         });
     }
 

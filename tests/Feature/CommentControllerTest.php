@@ -72,7 +72,7 @@ class CommentControllerTest extends TestCase
         $comment = \App\Models\Comment::factory()->create([
             'commentable_type' => Order::class,
             'commentable_id' => $order->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
 
         $response = $this->actingAsApi($this->adminUser)

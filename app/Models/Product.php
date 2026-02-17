@@ -26,7 +26,7 @@ use App\Models\Unit;
  * @property bool $is_serialized Является ли серийным
  * @property bool $type Тип продукта (0 - товар, 1 - услуга)
  * @property \Carbon\Carbon|null $date Дата
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID пользователя
  * @property int|null $company_id ID компании
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -56,7 +56,7 @@ class Product extends Model
         'is_serialized',
         'type',
         'date',
-        'user_id',
+        'creator_id',
         'company_id',
     ];
 
@@ -154,7 +154,7 @@ class Product extends Model
      */
     public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

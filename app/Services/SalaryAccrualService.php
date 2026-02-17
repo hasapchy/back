@@ -70,7 +70,7 @@ class SalaryAccrualService
         try {
             $salaryAccrual = SalaryAccrual::create([
                 'company_id' => $companyId,
-                'user_id' => $userId,
+                'creator_id' => $userId,
                 'cash_id' => $cashId,
                 'date' => $date,
                 'note' => $note,
@@ -119,7 +119,7 @@ class SalaryAccrualService
 
                     $transactionData = [
                         'type' => 0,
-                        'user_id' => $userId,
+                        'creator_id' => $userId,
                         'orig_amount' => $activeSalary->amount,
                         'currency_id' => $activeSalary->currency_id,
                         'cash_id' => $cashId,
@@ -262,7 +262,7 @@ class SalaryAccrualService
             if ($hasAccrual || $hasManual) {
                 $user = \App\Models\User::find($userId);
                 $affectedUsers[] = [
-                    'user_id' => $userId,
+                    'creator_id' => $userId,
                     'user_name' => $user ? ($user->name . ' ' . ($user->surname ?? '')) : "ID: {$userId}",
                     'has_batch_accrual' => $hasAccrual,
                     'has_manual_accrual' => $hasManual

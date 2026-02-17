@@ -207,7 +207,9 @@ class ProjectContractsRepository extends BaseRepository
 
             $query = $this->getBaseQuery()
                 ->leftJoin('projects', 'project_contracts.project_id', '=', 'projects.id')
-                ->addSelect('projects.name as project_name', 'projects.id as project_id');
+                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
+                ->addSelect('projects.name as project_name', 'projects.id as project_id',
+                    'clients.id as client_id', 'clients.first_name as client_first_name', 'clients.last_name as client_last_name');
 
             $companyId = $this->getCurrentCompanyId();
             if ($companyId) {
@@ -280,8 +282,10 @@ class ProjectContractsRepository extends BaseRepository
 
             $query = $this->getBaseQuery()
                 ->leftJoin('projects', 'project_contracts.project_id', '=', 'projects.id')
-                ->addSelect('projects.name as project_name', 'projects.id as project_id')
-                ->where('projects.user_id', $userId);
+                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
+                ->addSelect('projects.name as project_name', 'projects.id as project_id',
+                    'clients.id as client_id', 'clients.first_name as client_first_name', 'clients.last_name as client_last_name')
+                ->where('projects.creator_id', $userId);
 
             $companyId = $this->getCurrentCompanyId();
             if ($companyId) {
@@ -349,7 +353,7 @@ class ProjectContractsRepository extends BaseRepository
             $contract->date = $data['date'];
             $contract->returned = $data['returned'] ?? false;
             $contract->paid_amount = 0;
-            $contract->files = $data['files'] ?? [];
+            $contract->files = $data['files'] ?? null;
             $contract->note = $data['note'] ?? null;
             $contract->save();
 
@@ -390,8 +394,8 @@ class ProjectContractsRepository extends BaseRepository
                 $contract->returned = (bool) $data['returned'];
             }
 
-            if (isset($data['files']) && is_array($data['files'])) {
-                $contract->files = $data['files'];
+            if (array_key_exists('files', $data)) {
+                $contract->files = $data['files'] ?: null;
             }
 
             $contract->save();
@@ -419,6 +423,7 @@ class ProjectContractsRepository extends BaseRepository
                     'cash_id'      => $contract->cash_id,
                     'currency_id'  => $contractCurrencyId,
                     'client_id'    => $project->client_id,
+                    'project_id'   => $contract->project_id,
                     'category_id'  => $debtTransaction->category_id,
                 ]);
             }
@@ -501,6 +506,35 @@ class ProjectContractsRepository extends BaseRepository
             return;
         }
 
+        $this->createContractDebtTransaction($contract, $project, auth('api')->id());
+    }
+
+    /**
+     * Создать долговую транзакцию по контракту (для контрактов без существующей долговой транзакции).
+     * Используется при создании контракта и в одноразовой команде contracts:create-debt-transactions.
+     *
+     * @param ProjectContract $contract Контракт
+     * @param Project $project Проект (должен быть загружен с client_id)
+     * @param int|null $userId ID пользователя (для консоли; в API — auth)
+     * @return bool true если транзакция создана, false если пропущено
+     * @throws \Exception
+     */
+    public function createContractDebtTransaction(ProjectContract $contract, Project $project, ?int $userId = null): bool
+    {
+        if (!$contract->cash_id || !$project->client_id) {
+            return false;
+        }
+
+        $hasDebt = Transaction::where('source_type', ProjectContract::class)
+            ->where('source_id', $contract->id)
+            ->where('is_debt', true)
+            ->where('is_deleted', false)
+            ->exists();
+
+        if ($hasDebt) {
+            return false;
+        }
+
         $cashRegister = CashRegister::findOrFail($contract->cash_id);
         $contractCurrencyId = $contract->currency_id ?? $cashRegister->currency_id;
 
@@ -519,13 +553,17 @@ class ProjectContractsRepository extends BaseRepository
             'type'         => 1,
             'is_debt'      => true,
             'cash_id'      => $contract->cash_id,
-            'category_id'  => 1,
-            'date'         => $contract->date,
+            'category_id'  => 30,
+            'date'         => now(),
             'note'         => $contract->note,
-            'user_id'      => auth('api')->id(),
+            'creator_id'      => $userId ?? auth('api')->id(),
             'currency_id'  => $contractCurrencyId,
             'project_id'   => null,
         ], ProjectContract::class, $contract->id, true);
+
+        $this->updateContractPaidAmount($contract->id);
+
+        return true;
     }
 
     /**

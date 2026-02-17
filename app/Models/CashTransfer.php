@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $cash_id_to ID кассы-получателя
  * @property int $tr_id_from ID транзакции-источника
  * @property int $tr_id_to ID транзакции-получателя
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID пользователя
  * @property float $amount Сумма перевода
  * @property string|null $note Примечание
  * @property \Carbon\Carbon $date Дата перевода
@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \App\Models\CashRegister $toCashRegister
  * @property-read \App\Models\Transaction $fromTransaction
  * @property-read \App\Models\Transaction $toTransaction
- * @property-read \App\Models\User $user
+ * @property-read \App\Models\User $creator
  * @property-read \App\Models\Currency|null $currency
  */
 class CashTransfer extends Model
@@ -36,7 +36,7 @@ class CashTransfer extends Model
         'cash_id_to',
         'tr_id_from',
         'tr_id_to',
-        'user_id',
+        'creator_id',
         'amount',
         'exchange_rate',
         'note',
@@ -89,13 +89,11 @@ class CashTransfer extends Model
     }
 
     /**
-     * Связь с пользователем
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

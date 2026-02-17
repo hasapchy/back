@@ -15,12 +15,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('chat_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('role')->default('member'); // owner, member
-            // FK на chat_messages нельзя создавать здесь, т.к. chat_messages создаётся в следующей миграции.
-            // Добавим FK отдельной миграцией после создания chat_messages.
+            $table->string('role')->default('member');
             $table->unsignedBigInteger('last_read_message_id')->nullable();
             $table->timestamp('joined_at');
-            $table->index('user_id'); // Для поиска всех чатов пользователя
+            $table->index('user_id');
             $table->timestamp('muted_until')->nullable(); // Мьют участника
             $table->json('settings')->nullable(); // Настройки уведомлений и т.д.
             $table->timestamps();

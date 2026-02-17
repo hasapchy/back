@@ -25,7 +25,7 @@ class CommentFactory extends Factory
             'body' => fake()->sentence(),
             'commentable_type' => Order::class,
             'commentable_id' => Order::factory(),
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
         ];
     }
 }

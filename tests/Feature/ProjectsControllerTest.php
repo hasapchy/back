@@ -37,7 +37,7 @@ class ProjectsControllerTest extends TestCase
         $this->currency = Currency::factory()->create();
         $this->client = \App\Models\Client::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
     }
 
@@ -79,7 +79,7 @@ class ProjectsControllerTest extends TestCase
     {
         $project = Project::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
             'client_id' => $this->client->id,
         ]);
 
@@ -100,7 +100,7 @@ class ProjectsControllerTest extends TestCase
     {
         $project = Project::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
             'client_id' => $this->client->id,
         ]);
 

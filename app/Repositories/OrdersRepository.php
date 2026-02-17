@@ -60,7 +60,7 @@ class OrdersRepository extends BaseRepository
             $withRelations = [
                 'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict',
                 'client.phones:id,client_id,phone',
-                'user:id,name,photo',
+                'creator:id,name,photo',
                 'status:id,name',
                 'status.category:id,name,color',
                 'warehouse:id,name',
@@ -104,7 +104,7 @@ class OrdersRepository extends BaseRepository
                 });
             }
 
-            $this->applyOwnFilter($query, $orderResource, 'orders', 'user_id', $currentUser);
+            $this->applyOwnFilter($query, $orderResource, 'orders', 'creator_id', $currentUser);
 
             if ($hasSearch) {
                 $searchLower = mb_strtolower($searchTrimmed);
@@ -185,9 +185,9 @@ class OrdersRepository extends BaseRepository
                     $order->client_contact_person = $order->client->contact_person;
                 }
 
-                if ($order->user) {
-                    $order->user_name = $order->user->name;
-                    $order->user_photo = $order->user->photo;
+                if ($order->creator) {
+                    $order->user_name = $order->creator->name;
+                    $order->user_photo = $order->creator->photo;
                 }
 
                 if ($order->status) {
@@ -260,7 +260,7 @@ class OrdersRepository extends BaseRepository
 
                 $order->products = $allProducts;
 
-                $paidAmount = (float) $transactionsRepository->getTotalByOrderId($order->user_id ?? 1, $order->id);
+                $paidAmount = (float) $transactionsRepository->getTotalByOrderId($order->creator_id ?? 1, $order->id);
                 $totalPrice = (float) ($order->total_price ?? 0);
 
                 $order->setAttribute('paid_amount', $paidAmount);
@@ -318,7 +318,7 @@ class OrdersRepository extends BaseRepository
                 });
             }
 
-            $this->applyOwnFilter($unpaidQuery, $orderResource, 'orders', 'user_id', $currentUser);
+            $this->applyOwnFilter($unpaidQuery, $orderResource, 'orders', 'creator_id', $currentUser);
             $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cash');
 
             if ($isSimpleWorker && !$currentUser->is_admin) {
@@ -388,7 +388,7 @@ class OrdersRepository extends BaseRepository
             });
         }
 
-        $this->applyOwnFilter($query, $orderResource, 'orders', 'user_id', $currentUser);
+        $this->applyOwnFilter($query, $orderResource, 'orders', 'creator_id', $currentUser);
 
         if ($isSimpleWorker && !$currentUser->is_admin) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
@@ -463,7 +463,7 @@ class OrdersRepository extends BaseRepository
                 'cash:id,name,currency_id',
                 'cash.currency:id,name,symbol',
                 'project:id,name',
-                'user:id,name,photo',
+                'creator:id,name,photo',
                 'status:id,name,category_id',
                 'status.category:id,name,color',
                 'category:id,name',
@@ -494,7 +494,7 @@ class OrdersRepository extends BaseRepository
                 'status_category_name' => $order->status->category->name ?? null,
                 'status_category_color' => $order->status->category->color ?? null,
                 'client_id' => $order->client_id,
-                'user_id' => $order->user_id,
+                'creator_id' => $order->creator_id,
                 'cash_id' => $order->cash_id,
                 'warehouse_id' => $order->warehouse_id,
                 'project_id' => $order->project_id,
@@ -510,8 +510,8 @@ class OrdersRepository extends BaseRepository
                 'currency_name' => $order->cash?->currency->name,
                 'currency_symbol' => $order->cash?->currency->symbol,
                 'project_name' => $order->project->name ?? null,
-                'user_name' => $order->user->name,
-                'user_photo' => $order->user->photo,
+                'user_name' => $order->creator->name,
+                'user_photo' => $order->creator->photo,
                 'category_name' => $order->category->name ?? null,
                 'products' => $products->get($order->id, collect()),
                 'client' => $clients->get($order->client_id),
@@ -601,7 +601,7 @@ class OrdersRepository extends BaseRepository
      */
     public function createItem($data)
     {
-        $userUuid = $data['user_id'];
+        $userUuid = $data['creator_id'];
         $client_id = $data['client_id'];
         $warehouse_id = $data['warehouse_id'];
         $cash_id = $data['cash_id'];
@@ -686,7 +686,7 @@ class OrdersRepository extends BaseRepository
             $order->date = $date;
             $order->note = $note;
             $order->description = $description;
-            $order->user_id = $userUuid;
+            $order->creator_id = $userUuid;
             $order->save();
 
             if (!empty($productsCache)) {
@@ -733,7 +733,7 @@ class OrdersRepository extends BaseRepository
                     'category_id'  => 1,
                     'date'         => $date,
                     'note'         => $note,
-                    'user_id'      => $userUuid,
+                    'creator_id'      => $userUuid,
                     'project_id'   => $project_id,
                     'currency_id'  => $defaultCurrency->id,
                 ], Order::class, $order->id, true);
@@ -1085,7 +1085,7 @@ class OrdersRepository extends BaseRepository
                     'category_id'  => 1,
                     'date'         => $date,
                     'note'         => $note,
-                    'user_id'      => $order->user_id,
+                    'creator_id'      => $order->creator_id,
                     'project_id'   => $project_id,
                     'currency_id'  => $defaultCurrency->id,
                 ], Order::class, $order->id, true);
@@ -1536,8 +1536,8 @@ class OrdersRepository extends BaseRepository
 
         $order->project_name = $order->project->name ?? null;
         $order->category_name = $order->category->name ?? null;
-        $order->user_name = $order->user->name ?? null;
-        $order->user_photo = $order->user->photo ?? null;
+        $order->user_name = $order->creator->name ?? null;
+        $order->user_photo = $order->creator->photo ?? null;
 
         if ($loadProducts) {
             $regularProducts = $order->orderProducts ? $order->orderProducts->map(function ($orderProduct) {

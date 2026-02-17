@@ -49,7 +49,7 @@ class RepositoryCacheCrudTest extends TestCase
         try {
             $category = \App\Models\OrderStatusCategory::firstOrCreate(
                 ['name' => 'Test Category'],
-                ['user_id' => 1, 'color' => '#000000']
+                ['creator_id' => 1, 'color' => '#000000']
             );
             $status = $repo->createItem(['name' => 'Test Status', 'category_id' => $category->id]);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after create');
@@ -78,7 +78,7 @@ class RepositoryCacheCrudTest extends TestCase
         $this->assertTrue(Cache::has($fullKey));
 
         try {
-            $category = $repo->createItem(['name' => 'Test Category', 'user_id' => 1, 'color' => '#000000']);
+            $category = $repo->createItem(['name' => 'Test Category', 'creator_id' => 1, 'color' => '#000000']);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after create');
 
             Cache::put($fullKey, ['test'], 3600);
@@ -103,7 +103,7 @@ class RepositoryCacheCrudTest extends TestCase
         $this->assertTrue(Cache::has($fullKey));
 
         try {
-            $status = $repo->createItem(['name' => 'Test Status', 'user_id' => 1]);
+            $status = $repo->createItem(['name' => 'Test Status', 'creator_id' => 1]);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after create');
 
             Cache::put($fullKey, ['test'], 3600);
@@ -128,13 +128,13 @@ class RepositoryCacheCrudTest extends TestCase
         $this->assertTrue(Cache::has($fullKey));
 
         try {
-            $repo->createItem(['name' => 'Test Category', 'type' => 1, 'user_id' => 1]);
+            $repo->createItem(['name' => 'Test Category', 'type' => 1, 'creator_id' => 1]);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after create');
 
             $category = \App\Models\TransactionCategory::where('name', 'Test Category')->first();
             if ($category && $category->canBeEdited()) {
                 Cache::put($fullKey, ['test'], 3600);
-                $repo->updateItem($category->id, ['name' => 'Updated Category', 'type' => 1, 'user_id' => 1]);
+                $repo->updateItem($category->id, ['name' => 'Updated Category', 'type' => 1, 'creator_id' => 1]);
                 $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after update');
 
                 if ($category->canBeDeleted()) {
@@ -158,13 +158,13 @@ class RepositoryCacheCrudTest extends TestCase
         $this->assertTrue(Cache::has($fullKey));
 
         try {
-            $repo->createItem(['name' => 'Test Category', 'parent_id' => null, 'user_id' => 1, 'users' => [1]]);
+            $repo->createItem(['name' => 'Test Category', 'parent_id' => null, 'creator_id' => 1, 'users' => [1]]);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after create');
 
             $category = \App\Models\Category::where('name', 'Test Category')->first();
             if ($category) {
                 Cache::put($fullKey, ['test'], 3600);
-                $repo->updateItem($category->id, ['name' => 'Updated Category', 'parent_id' => null, 'user_id' => 1, 'users' => [1]]);
+                $repo->updateItem($category->id, ['name' => 'Updated Category', 'parent_id' => null, 'creator_id' => 1, 'users' => [1]]);
                 $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after update');
 
                 Cache::put($fullKey, ['test'], 3600);
@@ -188,7 +188,7 @@ class RepositoryCacheCrudTest extends TestCase
         try {
             $client = \App\Models\Client::firstOrCreate(
                 ['first_name' => 'Test', 'last_name' => 'Client'],
-                ['client_type' => 'individual', 'user_id' => 1, 'company_id' => 1]
+                ['client_type' => 'individual', 'creator_id' => 1, 'company_id' => 1]
             );
 
             Cache::put($fullKey, ['test'], 3600);
@@ -196,7 +196,7 @@ class RepositoryCacheCrudTest extends TestCase
 
             $invoiceData = [
                 'client_id' => $client->id,
-                'user_id' => 1,
+                'creator_id' => 1,
                 'total_amount' => 1000,
                 'invoice_date' => now()->toDateString(),
             ];
@@ -235,7 +235,7 @@ class RepositoryCacheCrudTest extends TestCase
             );
             $client = \App\Models\Client::firstOrCreate(
                 ['first_name' => 'Test', 'last_name' => 'Client'],
-                ['client_type' => 'individual', 'user_id' => 1, 'company_id' => 1]
+                ['client_type' => 'individual', 'creator_id' => 1, 'company_id' => 1]
             );
             $warehouse = \App\Models\Warehouse::firstOrCreate(['name' => 'Test Warehouse'], ['company_id' => 1]);
             $status = \App\Models\OrderStatus::firstOrCreate(['name' => 'Test Status'], ['category_id' => 1]);
@@ -249,7 +249,7 @@ class RepositoryCacheCrudTest extends TestCase
                 'warehouse_id' => $warehouse->id,
                 'total_price' => 1000,
                 'date' => now(),
-                'user_id' => 1,
+                'creator_id' => 1,
                 'status_id' => $status->id,
                 'currency_id' => $currency->id,
                 'project_id' => null,
@@ -283,7 +283,7 @@ class RepositoryCacheCrudTest extends TestCase
             );
             $client = \App\Models\Client::firstOrCreate(
                 ['first_name' => 'Test', 'last_name' => 'Client'],
-                ['client_type' => 'individual', 'user_id' => 1, 'company_id' => 1]
+                ['client_type' => 'individual', 'creator_id' => 1, 'company_id' => 1]
             );
             $warehouse = \App\Models\Warehouse::firstOrCreate(['name' => 'Test Warehouse'], ['company_id' => 1]);
 
@@ -297,7 +297,7 @@ class RepositoryCacheCrudTest extends TestCase
                 'amount' => 1000,
                 'date' => now(),
                 'is_debt' => true,
-                'user_id' => 1,
+                'creator_id' => 1,
                 'type' => 'balance',
                 'products' => [],
             ]);
@@ -323,7 +323,7 @@ class RepositoryCacheCrudTest extends TestCase
                 'first_name' => 'Test',
                 'last_name' => 'Client2',
                 'client_type' => 'individual',
-                'user_id' => 1,
+                'creator_id' => 1,
             ];
             $client = $repo->createItem($clientData);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after create');
@@ -358,7 +358,7 @@ class RepositoryCacheCrudTest extends TestCase
             $unit = \App\Models\Unit::firstOrCreate(['short_name' => 'TU'], ['name' => 'Test Unit']);
             $category = \App\Models\Category::firstOrCreate(
                 ['name' => 'Test Category'],
-                ['user_id' => 1, 'company_id' => 1]
+                ['creator_id' => 1, 'company_id' => 1]
             );
 
             Cache::put($fullKey, ['test'], 3600);
@@ -371,7 +371,7 @@ class RepositoryCacheCrudTest extends TestCase
                 'barcode' => 'BAR-' . time(),
                 'type' => 1,
                 'unit_id' => $unit->id,
-                'user_id' => 1,
+                'creator_id' => 1,
                 'categories' => [$category->id],
             ]);
 
@@ -402,12 +402,12 @@ class RepositoryCacheCrudTest extends TestCase
 
             $category = \App\Models\TransactionCategory::firstOrCreate(
                 ['name' => 'Test Category'],
-                ['type' => 1, 'user_id' => 1]
+                ['type' => 1, 'creator_id' => 1]
             );
 
             $transactionId = $repo->createItem([
                 'type' => 1,
-                'user_id' => 1,
+                'creator_id' => 1,
                 'orig_amount' => 1000,
                 'currency_id' => $currency->id,
                 'cash_id' => $cashRegister->id,
@@ -449,7 +449,7 @@ class RepositoryCacheCrudTest extends TestCase
                 'cash_id_from' => $cashFrom->id,
                 'cash_id_to' => $cashTo->id,
                 'amount' => 1000,
-                'user_id' => 1,
+                'creator_id' => 1,
                 'note' => 'Test transfer',
             ]);
 
@@ -592,7 +592,7 @@ class RepositoryCacheCrudTest extends TestCase
             );
             $supplier = \App\Models\Client::firstOrCreate(
                 ['first_name' => 'Test', 'last_name' => 'Supplier'],
-                ['client_type' => 'individual', 'is_supplier' => true, 'user_id' => 1, 'company_id' => 1]
+                ['client_type' => 'individual', 'is_supplier' => true, 'creator_id' => 1, 'company_id' => 1]
             );
             $warehouse = \App\Models\Warehouse::firstOrCreate(['name' => 'Test Warehouse'], ['company_id' => 1]);
 
@@ -628,7 +628,7 @@ class RepositoryCacheCrudTest extends TestCase
             );
             $client = \App\Models\Client::firstOrCreate(
                 ['first_name' => 'Test', 'last_name' => 'Client'],
-                ['client_type' => 'individual', 'user_id' => 1, 'company_id' => 1]
+                ['client_type' => 'individual', 'creator_id' => 1, 'company_id' => 1]
             );
 
             $repo->createItem([
@@ -636,7 +636,7 @@ class RepositoryCacheCrudTest extends TestCase
                 'budget' => 10000,
                 'currency_id' => $currency->id,
                 'date' => now(),
-                'user_id' => 1,
+                'creator_id' => 1,
                 'client_id' => $client->id,
                 'users' => [1],
             ]);
@@ -659,11 +659,11 @@ class RepositoryCacheCrudTest extends TestCase
             );
             $client = \App\Models\Client::firstOrCreate(
                 ['first_name' => 'Test', 'last_name' => 'Client'],
-                ['client_type' => 'individual', 'user_id' => 1, 'company_id' => 1]
+                ['client_type' => 'individual', 'creator_id' => 1, 'company_id' => 1]
             );
             $project = \App\Models\Project::firstOrCreate(
                 ['name' => 'Test Project'],
-                ['user_id' => 1, 'client_id' => $client->id, 'date' => now()]
+                ['creator_id' => 1, 'client_id' => $client->id, 'date' => now()]
             );
 
             $cacheKey = $repo->generateCacheKey('project_contracts_paginated', [$project->id, 20, 1, null]);
@@ -693,14 +693,14 @@ class RepositoryCacheCrudTest extends TestCase
         try {
             $client = \App\Models\Client::firstOrCreate(
                 ['first_name' => 'Test', 'last_name' => 'Client'],
-                ['client_type' => 'individual', 'user_id' => 1, 'company_id' => 1]
+                ['client_type' => 'individual', 'creator_id' => 1, 'company_id' => 1]
             );
             $status = \App\Models\OrderStatus::firstOrCreate(['name' => 'Test Status'], ['category_id' => 1]);
             $order = \App\Models\Order::firstOrCreate(
                 ['id' => 1],
                 [
                     'client_id' => $client->id,
-                    'user_id' => 1,
+                    'creator_id' => 1,
                     'status_id' => $status->id,
                     'date' => now(),
                     'price' => 1000,
@@ -772,7 +772,7 @@ class RepositoryCacheCrudTest extends TestCase
             $field = $repo->createItem([
                 'name' => 'Test Field',
                 'type' => 'string',
-                'user_id' => 1,
+                'creator_id' => 1,
             ]);
 
             CacheService::invalidateByLike('%order_af%');

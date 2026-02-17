@@ -148,7 +148,7 @@ paths:
                     type:
                       type: integer
                       example: 1
-                    user_id:
+                    creator_id:
                       type: integer
                       example: 1
                     user_name:
@@ -165,7 +165,7 @@ paths:
                     id: 1
                     name: SALE
                     type: 1
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -173,7 +173,7 @@ paths:
                     id: 2
                     name: CUSTOMER_PAYMENT
                     type: 1
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -181,7 +181,7 @@ paths:
                     id: 3
                     name: PREPAYMENT
                     type: 1
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -189,7 +189,7 @@ paths:
                     id: 4
                     name: OTHER_INCOME
                     type: 1
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -197,7 +197,7 @@ paths:
                     id: 5
                     name: CUSTOMER_REFUND
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -205,7 +205,7 @@ paths:
                     id: 6
                     name: GOODS_PAYMENT
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -213,7 +213,7 @@ paths:
                     id: 7
                     name: SALARY_PAYMENT
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -221,7 +221,7 @@ paths:
                     id: 8
                     name: TAX_PAYMENT
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -229,7 +229,7 @@ paths:
                     id: 9
                     name: RENT_PAYMENT
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -237,7 +237,7 @@ paths:
                     id: 10
                     name: FUEL_TRANSPORT
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -245,7 +245,7 @@ paths:
                     id: 11
                     name: UTILITIES
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -253,7 +253,7 @@ paths:
                     id: 12
                     name: ADVERTISING
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -261,7 +261,7 @@ paths:
                     id: 13
                     name: PHONE_INTERNET
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -269,7 +269,7 @@ paths:
                     id: 14
                     name: OTHER_EXPENSE
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-08-16T01:40:25.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -277,7 +277,7 @@ paths:
                     id: 15
                     name: FOOD
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-09-15T11:49:31.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -285,7 +285,7 @@ paths:
                     id: 16
                     name: LOGISTICS
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-09-15T11:49:31.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -293,7 +293,7 @@ paths:
                     id: 17
                     name: TRANSFER_OUTCOME
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-09-15T11:49:31.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -301,7 +301,7 @@ paths:
                     id: 18
                     name: TRANSFER_INCOME
                     type: 1
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-12-22T13:50:36.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -309,7 +309,7 @@ paths:
                     id: 19
                     name: NON_CASH
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-10-04T11:32:57.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -317,7 +317,7 @@ paths:
                     id: 20
                     name: BONUS
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-10-09T13:27:10.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -325,7 +325,7 @@ paths:
                     id: 21
                     name: BALANCE_ADJUSTMENT_EXP
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-10-28T13:47:46.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -333,7 +333,7 @@ paths:
                     id: 22
                     name: BALANCE_ADJUSTMENT_INC
                     type: 1
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-10-28T13:47:46.000000Z'
                     updated_at: '2025-12-22T13:50:36.000000Z'
@@ -341,7 +341,7 @@ paths:
                     id: 23
                     name: ADVANCE
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-12-22T13:50:37.000000Z'
                     updated_at: '2025-12-22T13:50:37.000000Z'
@@ -349,7 +349,7 @@ paths:
                     id: 24
                     name: SALARY_ACCRUAL
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-12-22T13:50:37.000000Z'
                     updated_at: '2025-12-22T13:50:37.000000Z'
@@ -357,7 +357,7 @@ paths:
                     id: 25
                     name: ORDER
                     type: 1
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-12-22T13:50:37.000000Z'
                     updated_at: '2025-12-22T13:50:37.000000Z'
@@ -365,7 +365,7 @@ paths:
                     id: 26
                     name: PREMIUM
                     type: 1
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-12-22T13:50:37.000000Z'
                     updated_at: '2025-12-22T13:50:37.000000Z'
@@ -373,7 +373,7 @@ paths:
                     id: 27
                     name: FINE
                     type: 0
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-12-22T13:50:37.000000Z'
                     updated_at: '2025-12-22T13:50:37.000000Z'
@@ -381,7 +381,7 @@ paths:
                     id: 28
                     name: RENT_INCOME
                     type: 1
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-12-22T13:50:37.000000Z'
                     updated_at: '2025-12-22T13:50:37.000000Z'
@@ -389,7 +389,7 @@ paths:
                     id: 29
                     name: CUSTOMER_PAYMENT
                     type: 1
-                    user_id: 1
+                    creator_id: 1
                     user_name: Арслан
                     created_at: '2025-12-22T13:50:37.000000Z'
                     updated_at: '2025-12-22T13:50:37.000000Z'
@@ -1942,7 +1942,7 @@ paths:
                   description: 'Количество символов в поле value не может превышать 255.'
                   example: mqeopfuudtdsufvyvddqa
                   nullable: true
-                user_ids:
+                creator_ids:
                   type: array
                   description: 'The <code>id</code> of an existing record in the users table.'
                   example:
@@ -3016,7 +3016,7 @@ paths:
                   description: 'Поле value не является датой.'
                   example: '2026-02-06T14:38:54'
                   nullable: true
-                user_id:
+                creator_id:
                   type: string
                   description: 'The <code>id</code> of an existing record in the users table.'
                   example: null
@@ -3197,7 +3197,7 @@ paths:
                   description: 'Поле value не является датой.'
                   example: '2026-02-06T14:38:54'
                   nullable: true
-                user_id:
+                creator_id:
                   type: string
                   description: 'The <code>id</code> of an existing record in the users table.'
                   example: null
@@ -6520,7 +6520,7 @@ paths:
                   type: integer
                   description: 'The <code>id</code> of an existing record in the leave_types table.'
                   example: 17
-                user_id:
+                creator_id:
                   type: integer
                   description: 'The <code>id</code> of an existing record in the users table.'
                   example: 17
@@ -6625,7 +6625,7 @@ paths:
                   description: 'The <code>id</code> of an existing record in the leave_types table.'
                   example: 17
                   nullable: true
-                user_id:
+                creator_id:
                   type: integer
                   description: 'The <code>id</code> of an existing record in the users table.'
                   example: 17
@@ -8352,12 +8352,12 @@ paths:
             schema:
               type: object
               properties:
-                user_id:
+                creator_id:
                   type: integer
                   description: 'The <code>id</code> of an existing record in the users table.'
                   example: 17
               required:
-                - user_id
+                - creator_id
   /api/chats/groups:
     post:
       summary: ''
@@ -8385,7 +8385,7 @@ paths:
                   type: string
                   description: 'Количество символов в поле value не может превышать 255.'
                   example: vmqeopfuudtdsufvyvddq
-                user_ids:
+                creator_ids:
                   type: array
                   description: 'The <code>id</code> of an existing record in the users table.'
                   example:

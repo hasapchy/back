@@ -160,7 +160,8 @@ class WarehouseRepository extends BaseRepository
             $userIds,
             [
                 'require_at_least_one' => true,
-                'error_message' => 'Склад должен иметь хотя бы одного пользователя'
+                'error_message' => 'Склад должен иметь хотя бы одного пользователя',
+                'user_column' => 'user_id',
             ]
         );
     }

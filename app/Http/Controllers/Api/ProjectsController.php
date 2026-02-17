@@ -69,7 +69,7 @@ class ProjectsController extends BaseController
         $data = [
             'name' => $validatedData['name'],
             'date' => $validatedData['date'] ?? null,
-            'user_id' => $userId,
+            'creator_id' => $userId,
             'client_id' => $validatedData['client_id'],
             'users' => $validatedData['users'] ?? null,
             'description' => $validatedData['description'] ?? null,
@@ -178,7 +178,7 @@ class ProjectsController extends BaseController
         $validatedData = $request->validated();
 
         $itemData = $this->prepareProjectData($validatedData, $user->id);
-        unset($itemData['user_id']);
+        unset($itemData['creator_id']);
 
         try {
             $itemUpdated = $this->itemsRepository->updateItem($id, $itemData);

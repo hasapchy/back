@@ -36,11 +36,11 @@ class InvoiceControllerTest extends TestCase
         $this->adminUser->companies()->attach($this->company->id);
         $this->client = \App\Models\Client::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
         $this->order = Order::factory()->create([
             'client_id' => $this->client->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
     }
 
@@ -80,7 +80,7 @@ class InvoiceControllerTest extends TestCase
     {
         $invoice = Invoice::factory()->create([
             'client_id' => $this->client->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
 
         $data = [
@@ -101,7 +101,7 @@ class InvoiceControllerTest extends TestCase
     {
         $invoice = Invoice::factory()->create([
             'client_id' => $this->client->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
 
         $response = $this->actingAsApi($this->adminUser)

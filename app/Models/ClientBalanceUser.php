@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @property int $id
  * @property int $client_balance_id
- * @property int $user_id
+ * @property int $creator_id
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -23,7 +23,7 @@ class ClientBalanceUser extends Model
 
     protected $table = 'client_balance_users';
 
-    protected $fillable = ['client_balance_id', 'user_id'];
+    protected $fillable = ['client_balance_id', 'creator_id'];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -38,6 +38,6 @@ class ClientBalanceUser extends Model
      */
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 }

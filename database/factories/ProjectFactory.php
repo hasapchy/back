@@ -26,7 +26,7 @@ class ProjectFactory extends Factory
     {
         return [
             'name' => fake()->words(3, true),
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
             'client_id' => Client::factory(),
             'company_id' => fake()->optional(0.3)->passthrough(Company::factory()),
             'budget' => fake()->randomFloat(2, 1000, 100000),

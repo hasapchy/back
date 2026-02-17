@@ -24,7 +24,7 @@ class CategoryFactory extends Factory
         return [
             'name' => fake()->words(2, true),
             'parent_id' => null,
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
             'company_id' => null,
         ];
     }

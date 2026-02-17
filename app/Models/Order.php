@@ -15,7 +15,7 @@ use App\Services\CacheService;
  * @property int $id
  * @property string $name Название заказа
  * @property int $client_id ID клиента
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID создателя
  * @property int $status_id ID статуса заказа
  * @property string|null $description Описание
  * @property string|null $note Примечание
@@ -32,7 +32,7 @@ use App\Services\CacheService;
  * @property \Carbon\Carbon $updated_at
  *
  * @property-read \App\Models\Client $client
- * @property-read \App\Models\User $user
+ * @property-read \App\Models\User $creator
  * @property-read \App\Models\OrderStatus $status
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\OrderProduct[] $orderProducts
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\OrderProduct[] $products
@@ -52,7 +52,7 @@ class Order extends Model
 
     protected $fillable = [
         'client_id',
-        'user_id',
+        'creator_id',
         'status_id',
         'description',
         'note',
@@ -69,7 +69,7 @@ class Order extends Model
 
     protected static $logAttributes = [
         'client_id',
-        'user_id',
+        'creator_id',
         'status_id',
         'description',
         'note',
@@ -146,13 +146,11 @@ class Order extends Model
     }
 
     /**
-     * Связь с пользователем
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

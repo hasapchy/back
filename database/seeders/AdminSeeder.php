@@ -67,14 +67,14 @@ class AdminSeeder extends Seeder
                 if ($role) {
                     $exists = DB::table('company_user_role')
                         ->where('company_id', $company->id)
-                        ->where('user_id', $user->id)
+                        ->where('creator_id', $user->id)
                         ->where('role_id', $role->id)
                         ->exists();
 
                     if (!$exists) {
                         DB::table('company_user_role')->insert([
                             'company_id' => $company->id,
-                            'user_id' => $user->id,
+                            'creator_id' => $user->id,
                             'role_id' => $role->id,
                             'created_at' => now(),
                             'updated_at' => now(),

@@ -72,7 +72,7 @@ class WarehouseReceiptRepository extends BaseRepository
             'wh_receipts.cash_id',
             'wh_receipts.project_id',
             'wh_receipts.note',
-            'wh_receipts.user_id',
+            'wh_receipts.creator_id',
             'wh_receipts.date',
             'wh_receipts.created_at',
             'wh_receipts.updated_at',
@@ -85,7 +85,7 @@ class WarehouseReceiptRepository extends BaseRepository
                 'warehouse:id,name',
                 'cashRegister:id,name,currency_id',
                 'cashRegister.currency:id,name,symbol',
-                'user:id,name',
+                'creator:id,name',
                 'project:id,name',
                 'supplier:id,first_name,last_name,contact_person,status,balance',
                 'supplier.phones:id,client_id,phone',
@@ -159,7 +159,7 @@ class WarehouseReceiptRepository extends BaseRepository
             $receipt->date         = $date;
             $receipt->note         = $note;
             $receipt->amount       = $total_amount;
-            $receipt->user_id      = auth('api')->id();
+            $receipt->creator_id      = auth('api')->id();
             $receipt->save();
 
             foreach ($products as $product) {
@@ -410,7 +410,7 @@ class WarehouseReceiptRepository extends BaseRepository
     {
         return [
             'type' => 0,
-            'user_id' => auth('api')->id(),
+            'creator_id' => auth('api')->id(),
             'amount' => $data['amount'],
             'orig_amount' => $data['amount'],
             'currency_id' => $data['currency_id'],

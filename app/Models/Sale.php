@@ -25,7 +25,7 @@ use App\Services\CacheService;
  * @property string|null $note Примечание
  * @property float $price Цена продажи
  * @property int|null $project_id ID проекта
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID создателя
  * @property int $warehouse_id ID склада
  * @property bool|null $no_balance_update Флаг обновления баланса
  * @property \Carbon\Carbon $created_at
@@ -35,7 +35,7 @@ use App\Services\CacheService;
  * @property-read \App\Models\Warehouse $warehouse
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\SalesProduct[] $products
  * @property-read \App\Models\CashRegister $cashRegister
- * @property-read \App\Models\User $user
+ * @property-read \App\Models\User $creator
  * @property-read \App\Models\Project $project
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
  */
@@ -51,7 +51,7 @@ class Sale extends Model
         'note',
         'price',
         'project_id',
-        'user_id',
+        'creator_id',
         'warehouse_id',
         'no_balance_update',
     ];
@@ -122,13 +122,11 @@ class Sale extends Model
     }
 
     /**
-     * Связь с пользователем
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

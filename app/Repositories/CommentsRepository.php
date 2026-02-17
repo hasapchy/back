@@ -27,7 +27,7 @@ class CommentsRepository extends BaseRepository
                 'comments.body',
                 'comments.commentable_type',
                 'comments.commentable_id',
-                'comments.user_id',
+                'comments.creator_id',
                 'comments.created_at',
                 'comments.updated_at'
             ])
@@ -59,10 +59,10 @@ class CommentsRepository extends BaseRepository
 
             $comment = Comment::create([
                 'body' => $body,
-                'user_id' => $userId,
+                'creator_id' => $userId,
                 'commentable_type' => $modelClass,
                 'commentable_id' => $id,
-            ])->load(['user:id,name,email']);
+            ])->load(['creator:id,name,email']);
 
             $this->invalidateCommentsCache($type, $id);
 
@@ -73,10 +73,10 @@ class CommentsRepository extends BaseRepository
                 'commentable_id' => $comment->commentable_id,
                 'created_at' => $comment->created_at,
                 'updated_at' => $comment->updated_at,
-                'user_id' => $comment->user_id,
+                'creator_id' => $comment->creator_id,
                 'user' => [
-                    'id' => $comment->user->id,
-                    'name' => $comment->user->name,
+                    'id' => $comment->creator->id,
+                    'name' => $comment->creator->name,
                 ],
             ];
         });
@@ -99,7 +99,7 @@ class CommentsRepository extends BaseRepository
                 'comments.body',
                 'comments.commentable_type',
                 'comments.commentable_id',
-                'comments.user_id'
+                'comments.creator_id'
             ])
                 ->where('id', $id);
 
@@ -112,7 +112,7 @@ class CommentsRepository extends BaseRepository
 
             $this->invalidateCommentsCache($comment->commentable_type, $comment->commentable_id);
 
-            return $comment->load(['user:id,name,email']);
+            return $comment->load(['creator:id,name,email']);
         });
     }
 
@@ -211,7 +211,7 @@ class CommentsRepository extends BaseRepository
     {
         $currentUser = auth('api')->user();
         if (!optional($currentUser)->is_admin) {
-            $query->where('user_id', $userId);
+            $query->where('creator_id', $userId);
         }
     }
 }

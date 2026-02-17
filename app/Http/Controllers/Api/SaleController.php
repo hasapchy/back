@@ -70,7 +70,7 @@ class SaleController extends BaseController
         }
 
         $data = [
-            'user_id'       => $userUuid,
+            'creator_id'       => $userUuid,
             'client_id'     => $validatedData['client_id'],
             'project_id'    => $validatedData['project_id'] ?? null,
             'type'          => $validatedData['type'],

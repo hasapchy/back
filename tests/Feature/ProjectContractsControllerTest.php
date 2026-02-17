@@ -39,11 +39,11 @@ class ProjectContractsControllerTest extends TestCase
         $this->currency = Currency::factory()->create();
         $this->client = \App\Models\Client::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
         $this->project = \App\Models\Project::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
             'client_id' => $this->client->id,
         ]);
     }

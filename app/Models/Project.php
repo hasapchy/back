@@ -11,7 +11,7 @@ use App\Models\Traits\HasManyToManyUsers;
  *
  * @property int $id
  * @property string $name Название проекта
- * @property int $user_id ID создателя проекта
+ * @property int $creator_id ID создателя проекта
  * @property int $client_id ID клиента
  * @property array|null $files Массив файлов проекта
  * @property float $budget Бюджет проекта
@@ -37,7 +37,7 @@ class Project extends Model
 {
     use HasFactory, HasManyToManyUsers;
 
-    protected $fillable = ['name', 'user_id', 'client_id', 'files', 'budget', 'currency_id', 'date', 'description', 'status_id', 'company_id'];
+    protected $fillable = ['name', 'creator_id', 'client_id', 'files', 'budget', 'currency_id', 'date', 'description', 'status_id', 'company_id'];
 
     protected $casts = [
         'files' => 'array',
@@ -62,7 +62,7 @@ class Project extends Model
      */
     public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**
@@ -103,6 +103,11 @@ class Project extends Model
     public function users()
     {
         return $this->belongsToMany(User::class, 'project_users', 'project_id', 'user_id');
+    }
+
+    public function hasUser($userId)
+    {
+        return $this->users()->wherePivot('user_id', $userId)->exists();
     }
 
     /**

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('chat_messages', function (Blueprint $table) {
             $table->id();
             $table->foreignId('chat_id')->constrained()->onDelete('cascade');
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained()->onDelete('cascade');
             $table->text('body')->nullable();
             $table->json('files')->nullable();
             $table->index(['chat_id', 'created_at']); // Для пагинации сообщений

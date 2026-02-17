@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** Реакция пользователя на сообщение (один эмодзи на сообщение). */
 class MessageReaction extends Model
 {
-    protected $fillable = ['message_id', 'user_id', 'emoji'];
+    protected $fillable = ['message_id', 'creator_id', 'emoji'];
 
     public function message(): BelongsTo
     {
@@ -17,6 +17,6 @@ class MessageReaction extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'creator_id');
     }
 }

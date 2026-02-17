@@ -29,7 +29,7 @@ class SaleFactory extends Factory
 
         return [
             'client_id' => Client::factory(),
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
             'warehouse_id' => Warehouse::factory(),
             'cash_id' => CashRegister::factory(),
             'project_id' => fake()->optional(0.3)->passthrough(Project::factory()),

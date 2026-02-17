@@ -186,7 +186,7 @@ class UsersController extends BaseController
         $permissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId) : $user->getAllPermissions();
 
         return response()->json([
-            'user_id' => $user->id,
+            'creator_id' => $user->id,
             'user_email' => $user->email,
             'permissions' => $permissions->pluck('name')->toArray(),
             'permissions_count' => $permissions->count()

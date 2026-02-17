@@ -8,17 +8,17 @@ use App\Models\Company;
 
 class LinkUserToCompany extends Command
 {
-    protected $signature = 'user:link-company {user_id} {company_id}';
+    protected $signature = 'user:link-company {creator_id} {company_id}';
     protected $description = 'Связать пользователя с компанией';
 
     public function handle()
     {
-        $userId = $this->argument('user_id');
+        $creatorId = $this->argument('creator_id');
         $companyId = $this->argument('company_id');
-        
-        $user = User::find($userId);
+
+        $user = User::find($creatorId);
         if (!$user) {
-            $this->error("Пользователь с ID {$userId} не найден");
+            $this->error("Пользователь с ID {$creatorId} не найден");
             return;
         }
         

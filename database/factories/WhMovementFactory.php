@@ -27,7 +27,7 @@ class WhMovementFactory extends Factory
         return [
             'wh_from' => $warehouseFrom->id,
             'wh_to' => $warehouseTo->id,
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
             'note' => fake()->optional()->sentence(),
             'date' => now(),
         ];

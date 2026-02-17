@@ -30,8 +30,8 @@ class UserCompanyController extends BaseController
 
         if ($selectedCompanyId) {
             $company = Company::where('id', $selectedCompanyId)
-                ->whereHas('users', function($query) use ($user) {
-                    $query->where('user_id', $user->id);
+                ->whereHas('users', function ($query) use ($user) {
+                    $query->where('users.id', $user->id);
                 })
                 ->first();
 

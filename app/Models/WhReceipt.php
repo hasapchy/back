@@ -17,7 +17,7 @@ use App\Services\TransactionDeletionService;
  * @property int|null $cash_id ID кассы
  * @property float $amount Сумма
  * @property \Carbon\Carbon $date Дата прихода
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID пользователя
  * @property int|null $project_id ID проекта
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -25,7 +25,7 @@ use App\Services\TransactionDeletionService;
  * @property-read \App\Models\Client|null $supplier
  * @property-read \App\Models\Warehouse $warehouse
  * @property-read \App\Models\CashRegister|null $cashRegister
- * @property-read \App\Models\User $user
+ * @property-read \App\Models\User $creator
  * @property-read \App\Models\Currency|null $currency
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhReceiptProduct[] $products
  * @property-read \App\Models\Project|null $project
@@ -42,7 +42,7 @@ class WhReceipt extends Model
         'cash_id',
         'amount',
         'date',
-        'user_id',
+        'creator_id',
         'project_id',
     ];
 
@@ -89,13 +89,11 @@ class WhReceipt extends Model
     }
 
     /**
-     * Связь с пользователем
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

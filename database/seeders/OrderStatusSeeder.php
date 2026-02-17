@@ -15,7 +15,7 @@ class OrderStatusSeeder extends Seeder
             ['id' => 1],
             [
                 'name' => 'NEW',
-                'user_id' => 1,
+                'creator_id' => 1,
                 'color' => '#207ac7',
             ]
         );
@@ -24,7 +24,7 @@ class OrderStatusSeeder extends Seeder
             ['id' => 2],
             [
                 'name' => 'IN_PROGRESS',
-                'user_id' => 1,
+                'creator_id' => 1,
                 'color' => '#5cb85c',
             ]
         );
@@ -33,7 +33,7 @@ class OrderStatusSeeder extends Seeder
             ['id' => 3],
             [
                 'name' => 'READY',
-                'user_id' => 1,
+                'creator_id' => 1,
                 'color' => '#53585c',
             ]
         );
@@ -43,7 +43,7 @@ class OrderStatusSeeder extends Seeder
             ['id' => 4],
             [
                 'name' => 'COMPLETED',
-                'user_id' => 1,
+                'creator_id' => 1,
                 'color' => '#939699',
             ]
         );
@@ -51,7 +51,7 @@ class OrderStatusSeeder extends Seeder
             ['id' => 5],
             [
                 'name' => 'CANCELLED',
-                'user_id' => 1,
+                'creator_id' => 1,
                 'color' => '#d9534f',
             ]
         );

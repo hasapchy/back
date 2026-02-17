@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('transaction_categories', function (Blueprint $table) {
-            $table->foreignId('user_id')->nullable()->after('type')->constrained('users')->onDelete('cascade');
+            $table->foreignId('creator_id')->nullable()->after('type')->constrained('users')->onDelete('cascade');
         });
     }
 
@@ -22,8 +22,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('transaction_categories', function (Blueprint $table) {
-            $table->dropForeign(['user_id']);
-            $table->dropColumn('user_id');
+            $table->dropForeign(['creator_id']);
+            $table->dropColumn('creator_id');
         });
     }
 };

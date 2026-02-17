@@ -19,7 +19,7 @@ class TransactionCategoryRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('transaction_categories_paginated', [$perPage, $page]);
 
         return CacheService::getPaginatedData($cacheKey, function() use ($perPage, $page) {
-            return TransactionCategory::with('user')->paginate($perPage, ['*'], 'page', (int) $page);
+            return TransactionCategory::with('creator')->paginate($perPage, ['*'], 'page', (int) $page);
         }, 1);
     }
 
@@ -33,7 +33,7 @@ class TransactionCategoryRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('transaction_categories_all', []);
 
         return CacheService::getReferenceData($cacheKey, function() {
-            return TransactionCategory::with('user')->get();
+            return TransactionCategory::with('creator')->get();
         });
     }
 
@@ -48,7 +48,7 @@ class TransactionCategoryRepository extends BaseRepository
         $item = new TransactionCategory();
         $item->name = $data['name'];
         $item->type = $data['type'];
-        $item->user_id = $data['user_id'];
+        $item->creator_id = $data['creator_id'];
         $item->save();
         CacheService::invalidateTransactionCategoriesCache();
         return true;
@@ -72,7 +72,7 @@ class TransactionCategoryRepository extends BaseRepository
 
         $item->name = $data['name'];
         $item->type = $data['type'];
-        $item->user_id = $data['user_id'];
+        $item->creator_id = $data['creator_id'];
         $item->save();
         CacheService::invalidateTransactionCategoriesCache();
         return true;

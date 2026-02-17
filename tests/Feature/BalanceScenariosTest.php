@@ -146,7 +146,7 @@ class BalanceScenariosTest extends TestCase
             if (!$category) {
                 $category = Category::create([
                     'name' => 'TEST_CATEGORY',
-                    'user_id' => $user->id,
+                    'creator_id' => $user->id,
                 ]);
             }
 
@@ -166,7 +166,7 @@ class BalanceScenariosTest extends TestCase
                 'client_type' => 'individual',
                 'status' => true,
                 'is_supplier' => true,
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'company_id' => $companyId,
                 'discount' => 0,
                 'discount_type' => 'fixed',
@@ -197,7 +197,7 @@ class BalanceScenariosTest extends TestCase
                 'client_id' => $client->id,
                 'warehouse_id' => $warehouse->id,
                 'cash_id' => $cashRegister->id,
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'price' => $saleAmount,
                 'discount' => 0,
                 'date' => now(),
@@ -215,7 +215,7 @@ class BalanceScenariosTest extends TestCase
                 'source_type' => Sale::class,
                 'source_id' => $sale1->id,
                 'date' => now(),
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'project_id' => null,
             ]);
             // Приходная транзакция (для кассы)
@@ -231,7 +231,7 @@ class BalanceScenariosTest extends TestCase
                 'source_type' => Sale::class,
                 'source_id' => $sale1->id,
                 'date' => now(),
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'project_id' => null,
             ]);
             $this->testData['sales'][] = $sale1->id;
@@ -245,7 +245,7 @@ class BalanceScenariosTest extends TestCase
                 'client_id' => $client->id,
                 'warehouse_id' => $warehouse->id,
                 'cash_id' => $cashRegister->id,
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'price' => $saleAmount,
                 'discount' => 0,
                 'date' => now(),
@@ -262,7 +262,7 @@ class BalanceScenariosTest extends TestCase
                 'source_type' => Sale::class,
                 'source_id' => $sale2->id,
                 'date' => now(),
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'project_id' => null,
             ]);
             $this->testData['sales'][] = $sale2->id;
@@ -275,7 +275,7 @@ class BalanceScenariosTest extends TestCase
                 'client_id' => $client->id,
                 'warehouse_id' => $warehouse->id,
                 'cash_id' => $cashRegister->id,
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'status_id' => $orderStatus->id,
                 'category_id' => $category->id,
                 'price' => $orderAmount,
@@ -295,7 +295,7 @@ class BalanceScenariosTest extends TestCase
                 'source_type' => Order::class,
                 'source_id' => $order1->id,
                 'date' => now(),
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'project_id' => null,
             ]);
             $this->testData['orders'][] = $order1->id;
@@ -309,7 +309,7 @@ class BalanceScenariosTest extends TestCase
                 'client_id' => $client->id,
                 'warehouse_id' => $warehouse->id,
                 'cash_id' => $cashRegister->id,
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'status_id' => $orderStatus->id,
                 'category_id' => $category->id,
                 'price' => $orderAmount,
@@ -329,7 +329,7 @@ class BalanceScenariosTest extends TestCase
                 'source_type' => Order::class,
                 'source_id' => $order2->id,
                 'date' => now(),
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'project_id' => null,
             ]);
             // Клиент оплатил 100 из 250 - создаем транзакцию оплаты долга
@@ -346,7 +346,7 @@ class BalanceScenariosTest extends TestCase
                 'source_id' => $order2->id,
                 'date' => now(),
                 'note' => 'Частичная оплата заказа',
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'project_id' => null,
             ], true, false); // false - НЕ пропускать обновление баланса клиента!
             $this->testData['orders'][] = $order2->id;
@@ -398,7 +398,7 @@ class BalanceScenariosTest extends TestCase
                 'currency_id' => $defaultCurrency->id,
                 'category_id' => 1,
                 'date' => now(),
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'project_id' => null,
             ], true);
             $this->testData['transactions'][] = $tr1Id;
@@ -417,7 +417,7 @@ class BalanceScenariosTest extends TestCase
                 'currency_id' => $defaultCurrency->id,
                 'category_id' => 1,
                 'date' => now(),
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'project_id' => null,
             ], true);
             $this->testData['transactions'][] = $tr2Id;
@@ -436,7 +436,7 @@ class BalanceScenariosTest extends TestCase
                 'currency_id' => $defaultCurrency->id,
                 'category_id' => 1,
                 'date' => now(),
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'project_id' => null,
             ], true);
             $this->testData['transactions'][] = $tr3Id;
@@ -455,7 +455,7 @@ class BalanceScenariosTest extends TestCase
                 'currency_id' => $defaultCurrency->id,
                 'category_id' => 1,
                 'date' => now(),
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'project_id' => null,
             ], true);
             $this->testData['transactions'][] = $tr4Id;
@@ -468,7 +468,7 @@ class BalanceScenariosTest extends TestCase
                 'supplier_id' => $client->id,
                 'warehouse_id' => $warehouse->id,
                 'cash_id' => $cashRegister->id,
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'amount' => $receiptAmount,
                 'date' => now(),
             ]);
@@ -484,7 +484,7 @@ class BalanceScenariosTest extends TestCase
                 'source_type' => WhReceipt::class,
                 'source_id' => $receipt1->id,
                 'date' => now(),
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'project_id' => null,
             ]);
             $this->testData['receipts'][] = $receipt1->id;
@@ -497,7 +497,7 @@ class BalanceScenariosTest extends TestCase
                 'supplier_id' => $client->id,
                 'warehouse_id' => $warehouse->id,
                 'cash_id' => $cashRegister->id,
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'amount' => $receiptAmount,
                 'date' => now(),
             ]);
@@ -513,7 +513,7 @@ class BalanceScenariosTest extends TestCase
                 'source_type' => WhReceipt::class,
                 'source_id' => $receipt2->id,
                 'date' => now(),
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'project_id' => null,
             ]);
             $this->testData['receipts'][] = $receipt2->id;

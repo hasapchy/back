@@ -23,7 +23,7 @@ class InvoiceFactory extends Factory
     {
         return [
             'client_id' => Client::factory(),
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
             'invoice_date' => fake()->dateTime(),
             'note' => fake()->optional()->sentence(),
             'total_amount' => fake()->randomFloat(2, 100, 10000),

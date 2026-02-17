@@ -22,7 +22,7 @@ class TaskStatusRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('task_statuses_paginated', [$userUuid, $perPage, $page]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $page) {
-            return TaskStatus::with('user')->paginate($perPage, ['*'], 'page', $page);
+            return TaskStatus::with('creator')->paginate($perPage, ['*'], 'page', $page);
         }, $page);
     }
 
@@ -37,7 +37,7 @@ class TaskStatusRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('task_statuses_all', [$userUuid]);
 
         return CacheService::getReferenceData($cacheKey, function () {
-            return TaskStatus::with('user')->get();
+            return TaskStatus::with('creator')->get();
         });
     }
 

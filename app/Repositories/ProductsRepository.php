@@ -69,7 +69,7 @@ class ProductsRepository extends BaseRepository
                 ->whereIn('id', $userProductIds)
                 ->where('type', $type);
 
-            $this->applyOwnFilter($query, 'products', 'products', 'user_id', $currentUser);
+            $this->applyOwnFilter($query, 'products', 'products', 'creator_id', $currentUser);
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -200,7 +200,7 @@ class ProductsRepository extends BaseRepository
         $product->barcode = $data['barcode'];
         $product->unit_id = $data['unit_id'];
         $product->date = $data['date'] ?? now();
-        $product->user_id = $data['user_id'] ?? auth()->id();
+        $product->creator_id = $data['creator_id'] ?? auth()->id();
         $product->save();
 
         if (isset($data['categories']) && !empty($data['categories'])) {

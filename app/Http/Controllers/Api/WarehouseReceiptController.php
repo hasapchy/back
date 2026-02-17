@@ -82,7 +82,7 @@ class WarehouseReceiptController extends BaseController
             'warehouse_id' => $validatedData['warehouse_id'],
             'type' => $validatedData['type'],
             'cash_id' => $validatedData['cash_id'] ?? null,
-            'user_id' => $userUuid,
+            'creator_id' => $userUuid,
             'date' => $validatedData['date'] ?? now(),
             'note' => $validatedData['note'] ?? '',
             'project_id' => $validatedData['project_id'] ?? null,

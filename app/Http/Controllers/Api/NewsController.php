@@ -71,7 +71,7 @@ class NewsController extends BaseController
         $itemData = [
             'title' => $validatedData['title'],
             'content' => $processedContent,
-            'user_id' => $userId,
+            'creator_id' => $userId,
         ];
 
         try {

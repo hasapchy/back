@@ -41,7 +41,7 @@ class SalesRepository extends BaseRepository
                 'sales.client_id',
                 'sales.warehouse_id',
                 'sales.cash_id',
-                'sales.user_id',
+                'sales.creator_id',
                 'sales.project_id',
                 'sales.date',
                 'sales.price',
@@ -60,7 +60,7 @@ class SalesRepository extends BaseRepository
                     'warehouse:id,name',
                     'cashRegister:id,name,currency_id',
                     'cashRegister.currency:id,name,symbol',
-                    'user:id,name',
+                    'creator:id,name',
                     'project:id,name',
                     'products:id,sale_id,product_id,quantity,price',
                     'products.product:id,name,image,unit_id',
@@ -75,7 +75,7 @@ class SalesRepository extends BaseRepository
                 $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'sales.date');
             }
 
-            $this->applyOwnFilter($query, 'sales', 'sales', 'user_id', $currentUser);
+            $this->applyOwnFilter($query, 'sales', 'sales', 'creator_id', $currentUser);
 
             $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
 
@@ -103,7 +103,7 @@ class SalesRepository extends BaseRepository
                 'warehouse:id,name',
                 'cashRegister:id,currency_id',
                 'cashRegister.currency:id,name,symbol',
-                'user:id,name',
+                'creator:id,name',
                 'project:id,name',
                 'products:id,sale_id,product_id,quantity,price',
                 'products.product:id,name,image,unit_id,type',
@@ -161,7 +161,7 @@ class SalesRepository extends BaseRepository
      * Создать новую продажу
      *
      * @param array $data Данные продажи:
-     *   - user_id (int) ID пользователя
+     *   - creator_id (int) ID пользователя
      *   - client_id (int) ID клиента
      *   - project_id (int|null) ID проекта
      *   - warehouse_id (int) ID склада
@@ -179,7 +179,7 @@ class SalesRepository extends BaseRepository
     public function createItem(array $data)
     {
         return DB::transaction(function () use ($data) {
-            $userId      = $data['user_id'];
+            $userId      = $data['creator_id'];
             $clientId    = $data['client_id'];
             $projectId   = $data['project_id'] ?? null;
             $warehouseId = $data['warehouse_id'];
@@ -233,7 +233,7 @@ class SalesRepository extends BaseRepository
             $totalPrice = $roundingService->roundForCompany($companyId, (float) $totalPrice);
 
             $sale = Sale::create([
-                'user_id'      => $userId,
+                'creator_id'      => $userId,
                 'client_id'    => $clientId,
                 'project_id'   => $projectId,
                 'cash_id'      => $cashId,
@@ -251,7 +251,7 @@ class SalesRepository extends BaseRepository
                 'category_id' => 1,
                 'date' => $date,
                 'note' => $note,
-                'user_id' => $userId,
+                'creator_id' => $userId,
                 'project_id' => $projectId,
                 'currency_id' => $defaultCurrency->id,
             ]);
@@ -340,7 +340,7 @@ class SalesRepository extends BaseRepository
      *   - category_id (int) ID категории
      *   - date (string) Дата транзакции
      *   - note (string|null) Примечание
-     *   - user_id (int) ID пользователя
+     *   - creator_id (int) ID пользователя
      *   - project_id (int|null) ID проекта
      *   - currency_id (int) ID валюты
      * @return array<string, mixed> Данные транзакции для создания
@@ -357,7 +357,7 @@ class SalesRepository extends BaseRepository
             'category_id' => $data['category_id'],
             'date' => $data['date'],
             'note' => $data['note'],
-            'user_id' => $data['user_id'],
+            'creator_id' => $data['creator_id'],
             'project_id' => $data['project_id'],
             'currency_id' => $data['currency_id'],
         ];

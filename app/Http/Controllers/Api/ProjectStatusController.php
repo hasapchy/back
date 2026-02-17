@@ -70,7 +70,7 @@ class ProjectStatusController extends BaseController
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
             'is_tr_visible' => $validatedData['is_tr_visible'] ?? true,
-            'user_id' => $userUuid,
+            'creator_id' => $userUuid,
         ]);
         if (! $created) {
             return $this->errorResponse('Ошибка создания статуса', 400);

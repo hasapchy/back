@@ -14,7 +14,7 @@ class News extends Model
         'title',
         'content',
         'company_id',
-        'user_id',
+        'creator_id',
         'meta',
     ];
 
@@ -27,18 +27,13 @@ class News extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
-    /**
-     * Алиас для обратной совместимости
-     *
-     * @deprecated Используйте user() вместо author()
-     */
     public function author()
     {
-        return $this->user();
+        return $this->creator();
     }
 }

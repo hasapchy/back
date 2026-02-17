@@ -162,7 +162,7 @@ class MessageTemplateRepository extends BaseRepository
                 'message_templates.name',
                 'message_templates.content',
                 'message_templates.company_id',
-                'message_templates.user_id',
+                'message_templates.creator_id',
                 'message_templates.is_active',
                 'message_templates.created_at',
                 'message_templates.updated_at',

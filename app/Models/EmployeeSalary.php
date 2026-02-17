@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
  * Модель зарплаты сотрудника
  *
  * @property int $id
- * @property int $user_id ID пользователя
+ * @property int $user_id ID пользователя (сотрудника)
  * @property int $company_id ID компании
  * @property string $start_date Дата начала действия зарплаты
  * @property string|null $end_date Дата окончания действия зарплаты

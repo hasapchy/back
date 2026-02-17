@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $wh_to ID склада-получателя
  * @property string|null $note Примечание
  * @property \Carbon\Carbon $date Дата перемещения
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID пользователя
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -30,7 +30,7 @@ class WhMovement extends Model
         'wh_to',
         'note',
         'date',
-        'user_id',
+        'creator_id',
     ];
 
     protected $casts = [

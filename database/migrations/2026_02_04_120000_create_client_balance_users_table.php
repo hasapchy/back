@@ -14,12 +14,12 @@ return new class extends Migration
         Schema::create('client_balance_users', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('client_balance_id');
-            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('creator_id');
             $table->timestamps();
 
             $table->foreign('client_balance_id')->references('id')->on('client_balances')->onDelete('cascade');
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->unique(['client_balance_id', 'user_id']);
+            $table->foreign('creator_id')->references('id')->on('users')->onDelete('cascade');
+            $table->unique(['client_balance_id', 'creator_id']);
         });
     }
 

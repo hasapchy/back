@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
             $table->boolean('type');
             $table->unsignedDecimal('amount', 15, 2);
             $table->unsignedDecimal('orig_amount', 15, 2)->nullable();

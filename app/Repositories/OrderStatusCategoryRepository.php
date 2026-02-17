@@ -20,7 +20,7 @@ class OrderStatusCategoryRepository extends BaseRepository
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $page) {
             $query = OrderStatusCategory::query();
-            $this->applyOwnFilter($query, 'order_status_categories', 'order_status_categories', 'user_id');
+            $this->applyOwnFilter($query, 'order_status_categories', 'order_status_categories', 'creator_id');
 
             return $query->orderBy('created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', $page);
@@ -39,7 +39,7 @@ class OrderStatusCategoryRepository extends BaseRepository
 
         return CacheService::getReferenceData($cacheKey, function () {
             $query = OrderStatusCategory::query();
-            $this->applyOwnFilter($query, 'order_status_categories', 'order_status_categories', 'user_id');
+            $this->applyOwnFilter($query, 'order_status_categories', 'order_status_categories', 'creator_id');
 
             return $query->get();
         });

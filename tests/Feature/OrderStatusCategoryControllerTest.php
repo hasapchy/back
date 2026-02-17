@@ -65,7 +65,7 @@ class OrderStatusCategoryControllerTest extends TestCase
     public function test_update_order_status_category_success(): void
     {
         $category = OrderStatusCategory::factory()->create([
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
 
         $data = [

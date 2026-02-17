@@ -11,11 +11,11 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property string $name Название статуса
  * @property string $color Цвет статуса
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID создателя
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
- * @property-read \App\Models\User $user
+ * @property-read \App\Models\User $creator
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Task[] $tasks
  */
 class TaskStatus extends Model
@@ -25,7 +25,7 @@ class TaskStatus extends Model
     protected $fillable = [
         'name',
         'color',
-        'user_id'
+        'creator_id'
     ];
 
     /**
@@ -39,24 +39,20 @@ class TaskStatus extends Model
     }
 
     /**
-     * Связь с пользователем
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**
-     * Scope для фильтрации по пользователю
-     *
      * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $userId ID пользователя
+     * @param int $userId
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByUser($query, $userId)
     {
-        return $query->where('user_id', $userId);
+        return $query->where('creator_id', $userId);
     }
 }

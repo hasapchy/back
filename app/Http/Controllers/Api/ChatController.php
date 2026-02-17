@@ -62,7 +62,7 @@ class ChatController extends BaseController
             return response()->json(['message' => 'X-Company-ID header is required'], 422);
         }
 
-        $otherUserId = (int) $request->validated()['user_id'];
+        $otherUserId = (int) $request->validated()['creator_id'];
         if ($otherUserId === (int) $user->id) {
             return response()->json(['message' => 'Cannot create direct chat with yourself'], 422);
         }
@@ -91,7 +91,7 @@ class ChatController extends BaseController
         }
 
         $data = $request->validated();
-        $userIds = array_values(array_unique(array_map('intval', $data['user_ids'] ?? [])));
+        $userIds = array_values(array_unique(array_map('intval', $data['creator_ids'] ?? [])));
 
         // Добавляем создателя в группу автоматически
         if (! in_array((int) $user->id, $userIds, true)) {
@@ -108,7 +108,7 @@ class ChatController extends BaseController
 
         $missing = array_values(array_diff($userIds, $companyUserIds));
         if (! empty($missing)) {
-            return response()->json(['message' => 'Some users are not in this company', 'user_ids' => $missing], 403);
+            return response()->json(['message' => 'Some users are not in this company', 'creator_ids' => $missing], 403);
         }
 
         $chat = $this->chatService->createGroupChat($companyId, $user, (string) $data['title'], $userIds);

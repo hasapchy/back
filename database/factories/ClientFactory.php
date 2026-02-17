@@ -25,7 +25,7 @@ class ClientFactory extends Factory
             'is_supplier' => false,
             'is_conflict' => false,
             'status' => true,
-            'user_id' => null,
+            'creator_id' => null,
             'company_id' => null,
         ];
     }

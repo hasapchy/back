@@ -38,8 +38,8 @@ class ClientResource extends JsonResource
             'discount' => $this->discount,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
-            'user_id' => $this->user_id,
-            'user_name' => $this->user?->name,
+            'creator_id' => $this->creator_id,
+            'user_name' => $this->creator?->name,
             'employee_id' => $this->employee_id,
             'employee' => $this->employee ? [
                 'id' => $this->employee->id,

@@ -21,7 +21,7 @@ return new class extends Migration
     {
         Schema::create('project_transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('project_id')->constrained('projects')->onDelete('cascade');
             $table->decimal('amount', 15, 2);
             $table->foreignId('currency_id')->constrained('currencies')->onDelete('cascade');

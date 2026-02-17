@@ -46,8 +46,8 @@ class TransactionCategoryController extends BaseController
                 'id' => $item->id,
                 'name' => $item->name,
                 'type' => $item->type,
-                'user_id' => $item->user_id,
-                'user_name' => $item->user ? $item->user->name : null,
+                'creator_id' => $item->creator_id,
+                'user_name' => $item->creator ? $item->creator->name : null,
                 'created_at' => $item->created_at,
                 'updated_at' => $item->updated_at,
             ];
@@ -77,8 +77,8 @@ class TransactionCategoryController extends BaseController
                 'id' => $item->id,
                 'name' => $item->name,
                 'type' => $item->type,
-                'user_id' => $item->user_id,
-                'user_name' => $item->user ? $item->user->name : null,
+                'creator_id' => $item->creator_id,
+                'user_name' => $item->creator ? $item->creator->name : null,
                 'created_at' => $item->created_at,
                 'updated_at' => $item->updated_at,
             ];
@@ -99,7 +99,7 @@ class TransactionCategoryController extends BaseController
         $created = $this->transactionCategoryRepository->createItem([
             'name' => $validatedData['name'],
             'type' => $validatedData['type'],
-            'user_id' => $userUuid,
+            'creator_id' => $userUuid,
         ]);
 
         if (!$created) return $this->errorResponse('Ошибка создания категории транзакции', 400);
@@ -123,7 +123,7 @@ class TransactionCategoryController extends BaseController
             $updated = $this->transactionCategoryRepository->updateItem($id, [
                 'name' => $validatedData['name'],
                 'type' => $validatedData['type'],
-                'user_id' => $userUuid,
+                'creator_id' => $userUuid,
             ]);
 
             if (!$updated) return $this->notFoundResponse('Категория транзакции не найдена');

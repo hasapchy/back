@@ -15,8 +15,8 @@ class CreateGroupChatRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'user_ids' => ['required', 'array', 'min:1', 'max:50'],
-            'user_ids.*' => ['integer', 'distinct', 'exists:users,id'],
+            'creator_ids' => ['required', 'array', 'min:1', 'max:50'],
+            'creator_ids.*' => ['integer', 'distinct', 'exists:users,id'],
         ];
     }
 }

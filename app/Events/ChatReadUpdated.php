@@ -36,7 +36,7 @@ class ChatReadUpdated implements ShouldBroadcast
     {
         return [
             'chat_id' => $this->chatId,
-            'user_id' => $this->userId,
+            'creator_id' => $this->userId,
             'last_read_message_id' => $this->lastReadMessageId,
         ];
     }

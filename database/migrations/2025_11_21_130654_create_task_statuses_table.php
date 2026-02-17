@@ -15,11 +15,11 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('color')->default('#6c757d');
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
             $table->timestamps();
 
             // Опционально: индекс для быстрого поиска по пользователю
-            $table->index(['user_id']);
+            $table->index(['creator_id']);
         });
     }
 

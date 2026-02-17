@@ -11,11 +11,11 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property string $name Название категории
  * @property int $type Тип категории (0 - расход, 1 - доход)
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID создателя
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
- * @property-read \App\Models\User $user
+ * @property-read \App\Models\User $creator
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
  */
 class TransactionCategory extends Model
@@ -25,7 +25,7 @@ class TransactionCategory extends Model
     protected $fillable = [
         'name',
         'type',
-        'user_id',
+        'creator_id',
     ];
 
     protected $casts = [
@@ -35,13 +35,11 @@ class TransactionCategory extends Model
     protected static $protectedCategoryIds = [1, 2, 3, 4, 5, 6, 7, 14, 17];
 
     /**
-     * Связь с пользователем
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

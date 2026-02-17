@@ -57,7 +57,7 @@ class OrderTransactionController extends BaseController
 
         $transaction = Transaction::findOrFail($request->transaction_id);
 
-        if ($transaction->user_id != $userId) {
+        if ($transaction->creator_id != $userId) {
             return $this->forbiddenResponse('Нет доступа к транзакции');
         }
 

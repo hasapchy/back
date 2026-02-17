@@ -41,11 +41,11 @@ class WarehouseReceiptControllerTest extends TestCase
         ]);
         $this->product = Product::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
         $this->client = \App\Models\Client::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
     }
 
@@ -92,7 +92,7 @@ class WarehouseReceiptControllerTest extends TestCase
         $receipt = WhReceipt::factory()->create([
             'warehouse_id' => $this->warehouse->id,
             'supplier_id' => $this->client->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
 
         $data = [
@@ -120,7 +120,7 @@ class WarehouseReceiptControllerTest extends TestCase
         $receipt = WhReceipt::factory()->create([
             'warehouse_id' => $this->warehouse->id,
             'supplier_id' => $this->client->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
 
         $response = $this->actingAsApi($this->adminUser)

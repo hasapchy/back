@@ -1386,7 +1386,7 @@ vary: Origin
         &quot;id&quot;: 1,
         &quot;name&quot;: &quot;SALE&quot;,
         &quot;type&quot;: 1,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1395,7 +1395,7 @@ vary: Origin
         &quot;id&quot;: 2,
         &quot;name&quot;: &quot;CUSTOMER_PAYMENT&quot;,
         &quot;type&quot;: 1,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1404,7 +1404,7 @@ vary: Origin
         &quot;id&quot;: 3,
         &quot;name&quot;: &quot;PREPAYMENT&quot;,
         &quot;type&quot;: 1,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1413,7 +1413,7 @@ vary: Origin
         &quot;id&quot;: 4,
         &quot;name&quot;: &quot;OTHER_INCOME&quot;,
         &quot;type&quot;: 1,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1422,7 +1422,7 @@ vary: Origin
         &quot;id&quot;: 5,
         &quot;name&quot;: &quot;CUSTOMER_REFUND&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1431,7 +1431,7 @@ vary: Origin
         &quot;id&quot;: 6,
         &quot;name&quot;: &quot;GOODS_PAYMENT&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1440,7 +1440,7 @@ vary: Origin
         &quot;id&quot;: 7,
         &quot;name&quot;: &quot;SALARY_PAYMENT&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1449,7 +1449,7 @@ vary: Origin
         &quot;id&quot;: 8,
         &quot;name&quot;: &quot;TAX_PAYMENT&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1458,7 +1458,7 @@ vary: Origin
         &quot;id&quot;: 9,
         &quot;name&quot;: &quot;RENT_PAYMENT&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1467,7 +1467,7 @@ vary: Origin
         &quot;id&quot;: 10,
         &quot;name&quot;: &quot;FUEL_TRANSPORT&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1476,7 +1476,7 @@ vary: Origin
         &quot;id&quot;: 11,
         &quot;name&quot;: &quot;UTILITIES&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1485,7 +1485,7 @@ vary: Origin
         &quot;id&quot;: 12,
         &quot;name&quot;: &quot;ADVERTISING&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1494,7 +1494,7 @@ vary: Origin
         &quot;id&quot;: 13,
         &quot;name&quot;: &quot;PHONE_INTERNET&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1503,7 +1503,7 @@ vary: Origin
         &quot;id&quot;: 14,
         &quot;name&quot;: &quot;OTHER_EXPENSE&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-08-16T01:40:25.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1512,7 +1512,7 @@ vary: Origin
         &quot;id&quot;: 15,
         &quot;name&quot;: &quot;FOOD&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-09-15T11:49:31.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1521,7 +1521,7 @@ vary: Origin
         &quot;id&quot;: 16,
         &quot;name&quot;: &quot;LOGISTICS&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-09-15T11:49:31.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1530,7 +1530,7 @@ vary: Origin
         &quot;id&quot;: 17,
         &quot;name&quot;: &quot;TRANSFER_OUTCOME&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-09-15T11:49:31.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1539,7 +1539,7 @@ vary: Origin
         &quot;id&quot;: 18,
         &quot;name&quot;: &quot;TRANSFER_INCOME&quot;,
         &quot;type&quot;: 1,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1548,7 +1548,7 @@ vary: Origin
         &quot;id&quot;: 19,
         &quot;name&quot;: &quot;NON_CASH&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-10-04T11:32:57.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1557,7 +1557,7 @@ vary: Origin
         &quot;id&quot;: 20,
         &quot;name&quot;: &quot;BONUS&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-10-09T13:27:10.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1566,7 +1566,7 @@ vary: Origin
         &quot;id&quot;: 21,
         &quot;name&quot;: &quot;BALANCE_ADJUSTMENT_EXP&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-10-28T13:47:46.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1575,7 +1575,7 @@ vary: Origin
         &quot;id&quot;: 22,
         &quot;name&quot;: &quot;BALANCE_ADJUSTMENT_INC&quot;,
         &quot;type&quot;: 1,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-10-28T13:47:46.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:36.000000Z&quot;
@@ -1584,7 +1584,7 @@ vary: Origin
         &quot;id&quot;: 23,
         &quot;name&quot;: &quot;ADVANCE&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;
@@ -1593,7 +1593,7 @@ vary: Origin
         &quot;id&quot;: 24,
         &quot;name&quot;: &quot;SALARY_ACCRUAL&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;
@@ -1602,7 +1602,7 @@ vary: Origin
         &quot;id&quot;: 25,
         &quot;name&quot;: &quot;ORDER&quot;,
         &quot;type&quot;: 1,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;
@@ -1611,7 +1611,7 @@ vary: Origin
         &quot;id&quot;: 26,
         &quot;name&quot;: &quot;PREMIUM&quot;,
         &quot;type&quot;: 1,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;
@@ -1620,7 +1620,7 @@ vary: Origin
         &quot;id&quot;: 27,
         &quot;name&quot;: &quot;FINE&quot;,
         &quot;type&quot;: 0,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;
@@ -1629,7 +1629,7 @@ vary: Origin
         &quot;id&quot;: 28,
         &quot;name&quot;: &quot;RENT_INCOME&quot;,
         &quot;type&quot;: 1,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;
@@ -1638,7 +1638,7 @@ vary: Origin
         &quot;id&quot;: 29,
         &quot;name&quot;: &quot;CUSTOMER_PAYMENT&quot;,
         &quot;type&quot;: 1,
-        &quot;user_id&quot;: 1,
+        &quot;creator_id&quot;: 1,
         &quot;user_name&quot;: &quot;Арслан&quot;,
         &quot;created_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;,
         &quot;updated_at&quot;: &quot;2025-12-22T13:50:37.000000Z&quot;
@@ -12106,7 +12106,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
     \"date\": \"2026-01-09T18:25:35\",
     \"cash_id\": 17,
     \"note\": \"mqeopfuudtdsufvyvddqa\",
-    \"user_ids\": [
+    \"creator_ids\": [
         17
     ],
     \"payment_type\": false
@@ -12128,7 +12128,7 @@ let body = {
     "date": "2026-01-09T18:25:35",
     "cash_id": 17,
     "note": "mqeopfuudtdsufvyvddqa",
-    "user_ids": [
+    "creator_ids": [
         17
     ],
     "payment_type": false
@@ -12266,15 +12266,15 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <p>Количество символов в поле value не может превышать 255. Example: <code>mqeopfuudtdsufvyvddqa</code></p>
         </div>
                 <div style=" padding-left: 28px;  clear: unset;">
-            <b style="line-height: 2;"><code>user_ids</code></b>&nbsp;&nbsp;
+            <b style="line-height: 2;"><code>creator_ids</code></b>&nbsp;&nbsp;
 <small>integer[]</small>&nbsp;
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="user_ids[0]"                data-endpoint="POSTapi-companies--id--salaries-accrue"
+               step="any"               name="creator_ids[0]"                data-endpoint="POSTapi-companies--id--salaries-accrue"
                data-component="body">
         <input type="number" style="display: none"
-               name="user_ids[1]"                data-endpoint="POSTapi-companies--id--salaries-accrue"
+               name="creator_ids[1]"                data-endpoint="POSTapi-companies--id--salaries-accrue"
                data-component="body">
     <br>
 <p>The <code>id</code> of an existing record in the users table.</p>
@@ -17069,12 +17069,12 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <p>Поле value не является датой. Example: <code>2026-01-09T18:25:35</code></p>
         </div>
                 <div style=" padding-left: 28px;  clear: unset;">
-            <b style="line-height: 2;"><code>user_id</code></b>&nbsp;&nbsp;
+            <b style="line-height: 2;"><code>creator_id</code></b>&nbsp;&nbsp;
 <small>string</small>&nbsp;
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="user_id"                data-endpoint="POSTapi-products"
+                              name="creator_id"                data-endpoint="POSTapi-products"
                value=""
                data-component="body">
     <br>
@@ -17386,12 +17386,12 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <p>Поле value не является датой. Example: <code>2026-01-09T18:25:35</code></p>
         </div>
                 <div style=" padding-left: 28px;  clear: unset;">
-            <b style="line-height: 2;"><code>user_id</code></b>&nbsp;&nbsp;
+            <b style="line-height: 2;"><code>creator_id</code></b>&nbsp;&nbsp;
 <small>string</small>&nbsp;
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="text" style="display: none"
-                              name="user_id"                data-endpoint="PUTapi-products--id-"
+                              name="creator_id"                data-endpoint="PUTapi-products--id-"
                value=""
                data-component="body">
     <br>
@@ -31532,7 +31532,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
     --header "Accept: application/json" \
     --data "{
     \"leave_type_id\": 17,
-    \"user_id\": 17,
+    \"creator_id\": 17,
     \"comment\": \"consequatur\",
     \"date_from\": \"2026-01-09T18:25:35\",
     \"date_to\": \"2107-02-08\"
@@ -31552,7 +31552,7 @@ const headers = {
 
 let body = {
     "leave_type_id": 17,
-    "user_id": 17,
+    "creator_id": 17,
     "comment": "consequatur",
     "date_from": "2026-01-09T18:25:35",
     "date_to": "2107-02-08"
@@ -31653,12 +31653,12 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <p>The <code>id</code> of an existing record in the leave_types table. Example: <code>17</code></p>
         </div>
                 <div style=" padding-left: 28px;  clear: unset;">
-            <b style="line-height: 2;"><code>user_id</code></b>&nbsp;&nbsp;
+            <b style="line-height: 2;"><code>creator_id</code></b>&nbsp;&nbsp;
 <small>integer</small>&nbsp;
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="user_id"                data-endpoint="POSTapi-leaves"
+               step="any"               name="creator_id"                data-endpoint="POSTapi-leaves"
                value="17"
                data-component="body">
     <br>
@@ -31720,7 +31720,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
     --header "Accept: application/json" \
     --data "{
     \"leave_type_id\": 17,
-    \"user_id\": 17,
+    \"creator_id\": 17,
     \"comment\": \"consequatur\",
     \"date_from\": \"2026-01-09T18:25:35\",
     \"date_to\": \"2026-01-09T18:25:35\"
@@ -31740,7 +31740,7 @@ const headers = {
 
 let body = {
     "leave_type_id": 17,
-    "user_id": 17,
+    "creator_id": 17,
     "comment": "consequatur",
     "date_from": "2026-01-09T18:25:35",
     "date_to": "2026-01-09T18:25:35"
@@ -31854,12 +31854,12 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <p>The <code>id</code> of an existing record in the leave_types table. Example: <code>17</code></p>
         </div>
                 <div style=" padding-left: 28px;  clear: unset;">
-            <b style="line-height: 2;"><code>user_id</code></b>&nbsp;&nbsp;
+            <b style="line-height: 2;"><code>creator_id</code></b>&nbsp;&nbsp;
 <small>integer</small>&nbsp;
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="user_id"                data-endpoint="PUTapi-leaves--id-"
+               step="any"               name="creator_id"                data-endpoint="PUTapi-leaves--id-"
                value="17"
                data-component="body">
     <br>
@@ -38003,7 +38003,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
-    \"user_id\": 17
+    \"creator_id\": 17
 }"
 </code></pre></div>
 
@@ -38019,7 +38019,7 @@ const headers = {
 };
 
 let body = {
-    "user_id": 17
+    "creator_id": 17
 };
 
 fetch(url, {
@@ -38105,12 +38105,12 @@ You can check the Dev Tools console for debugging information.</code></pre>
             </div>
                                 <h4 class="fancy-heading-panel"><b>Body Parameters</b></h4>
         <div style=" padding-left: 28px;  clear: unset;">
-            <b style="line-height: 2;"><code>user_id</code></b>&nbsp;&nbsp;
+            <b style="line-height: 2;"><code>creator_id</code></b>&nbsp;&nbsp;
 <small>integer</small>&nbsp;
  &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="user_id"                data-endpoint="POSTapi-chats-direct"
+               step="any"               name="creator_id"                data-endpoint="POSTapi-chats-direct"
                value="17"
                data-component="body">
     <br>
@@ -38136,7 +38136,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
     --header "Accept: application/json" \
     --data "{
     \"title\": \"vmqeopfuudtdsufvyvddq\",
-    \"user_ids\": [
+    \"creator_ids\": [
         17
     ]
 }"
@@ -38155,7 +38155,7 @@ const headers = {
 
 let body = {
     "title": "vmqeopfuudtdsufvyvddq",
-    "user_ids": [
+    "creator_ids": [
         17
     ]
 };
@@ -38255,15 +38255,15 @@ You can check the Dev Tools console for debugging information.</code></pre>
 <p>Количество символов в поле value не может превышать 255. Example: <code>vmqeopfuudtdsufvyvddq</code></p>
         </div>
                 <div style=" padding-left: 28px;  clear: unset;">
-            <b style="line-height: 2;"><code>user_ids</code></b>&nbsp;&nbsp;
+            <b style="line-height: 2;"><code>creator_ids</code></b>&nbsp;&nbsp;
 <small>integer[]</small>&nbsp;
 <i>optional</i> &nbsp;
  &nbsp;
                 <input type="number" style="display: none"
-               step="any"               name="user_ids[0]"                data-endpoint="POSTapi-chats-groups"
+               step="any"               name="creator_ids[0]"                data-endpoint="POSTapi-chats-groups"
                data-component="body">
         <input type="number" style="display: none"
-               name="user_ids[1]"                data-endpoint="POSTapi-chats-groups"
+               name="creator_ids[1]"                data-endpoint="POSTapi-chats-groups"
                data-component="body">
     <br>
 <p>The <code>id</code> of an existing record in the users table.</p>

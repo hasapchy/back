@@ -39,7 +39,7 @@ class WarehouseWriteoffControllerTest extends TestCase
         ]);
         $this->product = Product::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
     }
 

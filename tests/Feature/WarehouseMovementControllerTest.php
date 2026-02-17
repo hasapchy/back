@@ -43,7 +43,7 @@ class WarehouseMovementControllerTest extends TestCase
         ]);
         $this->product = Product::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
     }
 
@@ -89,7 +89,7 @@ class WarehouseMovementControllerTest extends TestCase
         $movement = WhMovement::factory()->create([
             'wh_from' => $this->warehouseFrom->id,
             'wh_to' => $this->warehouseTo->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
 
         $data = [
@@ -116,7 +116,7 @@ class WarehouseMovementControllerTest extends TestCase
         $movement = WhMovement::factory()->create([
             'wh_from' => $this->warehouseFrom->id,
             'wh_to' => $this->warehouseTo->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
 
         $response = $this->actingAsApi($this->adminUser)

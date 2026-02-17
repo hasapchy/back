@@ -65,7 +65,7 @@ class OrderStatusCategoryController extends BaseController
         $created = $this->orderStatusCategoryRepository->createItem([
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
-            'user_id' => $userUuid,
+            'creator_id' => $userUuid,
         ]);
         if (! $created) {
             return $this->errorResponse('Ошибка создания категории статусов', 400);

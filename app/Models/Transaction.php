@@ -32,7 +32,7 @@ use App\Services\CacheService;
  * @property float|null $def_amount Сумма в дефолтной валюте (манат)
  * @property int|null $project_id ID проекта
  * @property int $type Тип транзакции (0 - расход, 1 - доход)
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID создателя
  * @property int|null $company_id ID компании
  * @property bool $is_debt Является ли долговой транзакцией
  * @property string|null $source_type Тип источника (morphable)
@@ -45,7 +45,7 @@ use App\Services\CacheService;
  * @property-read \App\Models\TransactionCategory $category
  * @property-read \App\Models\Client|null $client
  * @property-read \App\Models\Currency $currency
- * @property-read \App\Models\User $user
+ * @property-read \App\Models\User $creator
  * @property-read \App\Models\Project|null $project
  * @property-read \App\Models\Company|null $company
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\CashTransfer[] $cashTransfersFrom
@@ -79,7 +79,7 @@ class Transaction extends Model
         'def_amount',
         'project_id',
         'type',
-        'user_id',
+        'creator_id',
         'is_debt',
         'source_type',
         'source_id',
@@ -96,7 +96,7 @@ class Transaction extends Model
         'note',
         'project_id',
         'type',
-        'user_id',
+        'creator_id',
     ];
 
     protected static $logName = 'transaction';
@@ -243,10 +243,15 @@ class Transaction extends Model
                     $ordersRepository->updateOrderPaidAmount($transaction->source_id);
                 }
             }
+            $contractsRepository = new ProjectContractsRepository();
+            $oldSourceType = $transaction->getOriginal('source_type');
+            $oldSourceId = $transaction->getOriginal('source_id');
+            if ($oldSourceType === 'App\\Models\\ProjectContract' && $oldSourceId && (int) $oldSourceId !== (int) $transaction->source_id) {
+                $contractsRepository->updateContractPaidAmount((int) $oldSourceId);
+            }
             if ($transaction->source_type === 'App\\Models\\ProjectContract' && $transaction->source_id) {
                 if (!$transaction->is_debt) {
-                    $contractsRepository = new ProjectContractsRepository();
-                    $contractsRepository->updateContractPaidAmount($transaction->source_id);
+                    $contractsRepository->updateContractPaidAmount((int) $transaction->source_id);
                 } else {
                     CacheService::invalidateByLike('%project_contract%');
                     CacheService::invalidateProjectsCache();
@@ -350,13 +355,11 @@ class Transaction extends Model
     }
 
     /**
-     * Связь с пользователем
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

@@ -14,7 +14,7 @@ class StartDirectChatRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'creator_id' => ['required', 'integer', 'exists:users,id'],
         ];
     }
 }

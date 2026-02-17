@@ -119,7 +119,7 @@ class ChatService
                 'last_message' => $lastMessage ? [
                     'id' => (int) $lastMessage->id,
                     'chat_id' => (int) $lastMessage->chat_id,
-                    'user_id' => (int) $lastMessage->user_id,
+                    'creator_id' => (int) $lastMessage->creator_id,
                     'body' => $lastMessage->body,
                     'files' => $lastMessage->files,
                     'created_at' => $lastMessage->created_at?->toDateTimeString(),
@@ -136,7 +136,7 @@ class ChatService
             Log::channel('chat')->warning('Slow chats list', [
                 'time_ms' => $elapsed,
                 'company_id' => $companyId,
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'chats_count' => $chats->count(),
             ]);
         }
@@ -391,7 +391,7 @@ class ChatService
             Log::channel('chat')->warning('Slow message send', [
                 'time_ms' => $elapsed,
                 'chat_id' => $chat->id,
-                'user_id' => $user->id,
+                'creator_id' => $user->id,
                 'has_files' => !empty($storedFiles),
                 'files_count' => count($storedFiles),
             ]);
@@ -589,27 +589,27 @@ class ChatService
         if ($emoji === null || $emoji === '') {
             MessageReaction::query()
                 ->where('message_id', $messageId)
-                ->where('user_id', $userId)
+                ->where('creator_id', $userId)
                 ->delete();
         } else {
             $emoji = mb_substr(trim($emoji), 0, 16);
             if ($emoji === '') {
                 MessageReaction::query()
                     ->where('message_id', $messageId)
-                    ->where('user_id', $userId)
+                    ->where('creator_id', $userId)
                     ->delete();
             } else {
                 // Toggle: если у пользователя уже эта реакция — снять; иначе поставить/заменить
                 $existing = MessageReaction::query()
                     ->where('message_id', $messageId)
-                    ->where('user_id', $userId)
+                    ->where('creator_id', $userId)
                     ->where('emoji', $emoji)
                     ->first();
                 if ($existing) {
                     $existing->delete();
                 } else {
                     MessageReaction::query()->updateOrInsert(
-                        ['message_id' => $messageId, 'user_id' => $userId],
+                        ['message_id' => $messageId, 'creator_id' => $userId],
                         ['emoji' => $emoji, 'updated_at' => now()]
                     );
                 }
@@ -630,7 +630,7 @@ class ChatService
         return $reactions;
     }
 
-    /** Формат реакций для API: [{ emoji, user_id }]. */
+    /** Формат реакций для API: [{ emoji, creator_id }]. */
     protected function formatReactionsForMessage(int $messageId): array
     {
         return MessageReaction::query()
@@ -639,7 +639,7 @@ class ChatService
             ->get()
             ->map(fn (MessageReaction $r) => [
                 'emoji' => $r->emoji,
-                'user_id' => (int) $r->user_id,
+                'creator_id' => (int) $r->creator_id,
                 'user' => $r->relationLoaded('user') ? [
                     'id' => (int) $r->user->id,
                     'name' => $r->user->name,

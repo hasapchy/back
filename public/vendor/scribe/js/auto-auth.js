@@ -38,9 +38,7 @@
             if (typeof url === 'string' && url.includes('/api/user/login')) {
                 clonedResponse.json().then(data => {
                     if (data && data.access_token) {
-                        // Сохраняем токен
                         updateAuthFields(data.access_token);
-                        console.log('✅ Access token автоматически сохранен из ответа логина');
                     }
                 }).catch(() => {
                     // Игнорируем ошибки парсинга
@@ -67,7 +65,6 @@
                     const data = JSON.parse(this.responseText);
                     if (data && data.access_token) {
                         updateAuthFields(data.access_token);
-                        console.log('✅ Access token автоматически сохранен из ответа логина (XHR)');
                     }
                 } catch (e) {
                     // Игнорируем ошибки парсинга
@@ -83,15 +80,12 @@
             const savedToken = localStorage.getItem('scribe_access_token');
             if (savedToken) {
                 updateAuthFields(savedToken);
-                console.log('✅ Сохраненный access token восстановлен');
             }
         });
     } else {
-        // DOM уже загружен
         const savedToken = localStorage.getItem('scribe_access_token');
         if (savedToken) {
             updateAuthFields(savedToken);
-            console.log('✅ Сохраненный access token восстановлен');
         }
     }
 })();

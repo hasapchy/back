@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignId('orig_currency_id')->constrained('currencies')->onDelete('cascade');
             $table->foreignId('currency_id')->constrained('currencies')->nullable()->onDelete('cascade');
             $table->foreignId('warehouse_id')->constrained('warehouses')->onDelete('cascade');
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('project_id')->nullable()->constrained('projects')->onDelete('cascade');
             $table->foreignId('transaction_id')->nullable()->constrained('transactions')->onDelete('cascade');
             $table->unsignedDecimal('orig_price', 15, 2)->nullable();

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('order_status_categories', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
             $table->string('color');
             $table->timestamps();
         });

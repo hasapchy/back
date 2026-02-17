@@ -49,7 +49,7 @@ class AuthController extends BaseController
         }
 
         if (!Hash::check($request->password, $user->password)) {
-            Log::warning('Login attempt: invalid password', ['email' => $request->email, 'user_id' => $user->id]);
+            Log::warning('Login attempt: invalid password', ['email' => $request->email, 'creator_id' => $user->id]);
             return $this->unauthorizedResponse('Неверный логин или пароль');
         }
 

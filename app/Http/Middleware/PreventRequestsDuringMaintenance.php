@@ -92,14 +92,6 @@ class PreventRequestsDuringMaintenance extends Middleware
             $bypassHeader = $request->headers->get('x-maintenance-bypass');
         }
 
-        if (app()->environment('local')) {
-            \Log::info('Maintenance bypass check', [
-                'secret' => $secret,
-                'header_value' => $bypassHeader,
-                'all_headers' => $request->headers->all(),
-            ]);
-        }
-
         return $bypassHeader !== null && $bypassHeader === $secret;
     }
 }

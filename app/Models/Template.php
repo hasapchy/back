@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\Carbon|null $transaction_date Дата транзакции
  * @property string|null $note Примечание
  * @property int|null $client_id ID клиента
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID пользователя
  * @property int|null $project_id ID проекта
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -45,7 +45,7 @@ class Template extends Model
         'transaction_date',
         'note',
         'client_id',
-        'user_id',
+        'creator_id',
         'project_id',
     ];
 

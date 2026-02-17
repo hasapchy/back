@@ -14,12 +14,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $name Название шаблона
  * @property string $content HTML контент с переменными
  * @property int|null $company_id ID компании
- * @property int $user_id ID пользователя, создавшего шаблон
+ * @property int $creator_id ID создателя шаблона
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  * @property \Carbon\Carbon|null $deleted_at
  * @property-read \App\Models\Company|null $company
- * @property-read \App\Models\User $user
+ * @property-read \App\Models\User $creator
  */
 class MessageTemplate extends Model
 {
@@ -30,7 +30,7 @@ class MessageTemplate extends Model
         'name',
         'content',
         'company_id',
-        'user_id',
+        'creator_id',
         'is_active',
     ];
 
@@ -45,13 +45,11 @@ class MessageTemplate extends Model
     }
 
     /**
-     * Связь с пользователем
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

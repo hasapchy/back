@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('salary_accruals', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained('companies')->onDelete('cascade');
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('cash_id')->constrained('cash_registers')->onDelete('restrict');
             $table->date('date');
             $table->string('note')->nullable();
@@ -25,7 +25,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['company_id', 'date']);
-            $table->index(['user_id']);
+            $table->index(['creator_id']);
         });
 
         Schema::create('salary_accrual_items', function (Blueprint $table) {

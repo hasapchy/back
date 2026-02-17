@@ -116,6 +116,10 @@ class CashRegister extends Model
         return $this->belongsToMany(User::class, 'cash_register_users', 'cash_register_id', 'user_id');
     }
 
+    public function hasUser($userId)
+    {
+        return $this->users()->wherePivot('user_id', $userId)->exists();
+    }
 
     /**
      * Получить разрешенных пользователей кассы

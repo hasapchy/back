@@ -40,7 +40,7 @@ class ClientsRepository extends BaseRepository
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
-                'user:id,name,photo',
+                'creator:id,name,photo',
                 'employee:id,name,surname,position,photo',
                 'balances.currency',
                 'balances.users',
@@ -49,7 +49,7 @@ class ClientsRepository extends BaseRepository
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
 
-            $this->applyOwnFilter($query, 'clients', 'clients', 'user_id', $currentUser);
+            $this->applyOwnFilter($query, 'clients', 'clients', 'creator_id', $currentUser);
 
             if ($statusFilter) {
                 $query->where('clients.status', $statusFilter === 'active');
@@ -117,7 +117,7 @@ class ClientsRepository extends BaseRepository
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
-                'user:id,name,photo',
+                'creator:id,name,photo',
                 'employee:id,name,surname,position,photo',
                 'balances.currency',
                 'balances.users',
@@ -127,7 +127,7 @@ class ClientsRepository extends BaseRepository
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
 
-            $this->applyOwnFilter($query, 'clients', 'clients', 'user_id', $currentUser);
+            $this->applyOwnFilter($query, 'clients', 'clients', 'creator_id', $currentUser);
 
             if (! empty($typeFilter)) {
                 $query->whereIn('clients.client_type', $typeFilter);
@@ -194,14 +194,14 @@ class ClientsRepository extends BaseRepository
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
-                'user:id,name,photo',
+                'creator:id,name,photo',
                 'employee:id,name,surname,position,photo',
             ])
                 ->where('clients.status', true);
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
 
-            $this->applyOwnFilter($query, 'clients', 'clients', 'user_id', $currentUser);
+            $this->applyOwnFilter($query, 'clients', 'clients', 'creator_id', $currentUser);
 
             if (! empty($typeFilter)) {
                 $query->whereIn('clients.client_type', $typeFilter);
@@ -244,7 +244,7 @@ class ClientsRepository extends BaseRepository
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
-                'user:id,name,photo',
+                'creator:id,name,photo',
                 'employee:id,name,surname,position,photo',
                 'balances.currency',
                 'balances.users',
@@ -270,7 +270,7 @@ class ClientsRepository extends BaseRepository
             $companyId = $this->getCurrentCompanyId();
 
             $client = Client::create([
-                'user_id' => $data['user_id'] ?? null,
+                'creator_id' => $data['creator_id'] ?? null,
                 'company_id' => $companyId,
                 'employee_id' => $data['employee_id'] ?? null,
                 'first_name' => $data['first_name'],
@@ -302,7 +302,7 @@ class ClientsRepository extends BaseRepository
         CacheService::invalidateClientsCache();
         $this->invalidateClientBalanceCache($client->id);
 
-        return $client->load('phones', 'emails', 'user', 'employee', 'balances.currency', 'balances.users', 'defaultBalance.currency');
+        return $client->load('phones', 'emails', 'creator', 'employee', 'balances.currency', 'balances.users', 'defaultBalance.currency');
     }
 
     /**
@@ -317,7 +317,7 @@ class ClientsRepository extends BaseRepository
         $client = DB::transaction(function () use ($id, $data) {
             $client = Client::findOrFail($id);
             $updateData = [
-                'user_id' => $data['user_id'] ?? $client->user_id,
+                'creator_id' => $data['creator_id'] ?? $client->creator_id,
                 'employee_id' => $data['employee_id'] ?? $client->employee_id,
                 'first_name' => $data['first_name'],
                 'is_conflict' => $data['is_conflict'] ?? false,
@@ -347,7 +347,7 @@ class ClientsRepository extends BaseRepository
         CacheService::invalidateClientsCache();
         $this->invalidateClientBalanceCache($id);
 
-        return $client->load('phones', 'emails', 'user', 'employee');
+        return $client->load('phones', 'emails', 'creator', 'employee');
     }
 
     /**
@@ -485,7 +485,7 @@ class ClientsRepository extends BaseRepository
                     'cashRegister:id,name,currency_id',
                     'cashRegister.currency:id,symbol',
                     'currency:id,symbol',
-                    'user:id,name',
+                    'creator:id,name',
                     'category:id,name',
                     'project:id,name',
                 ])
@@ -499,7 +499,7 @@ class ClientsRepository extends BaseRepository
                         'source_id',
                         'is_debt',
                         'note',
-                        'user_id',
+                        'creator_id',
                         'currency_id',
                         'cash_id',
                         'category_id',
@@ -549,8 +549,8 @@ class ClientsRepository extends BaseRepository
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
                                 'description' => $description,
-                                'user_id' => $item->user_id,
-                                'user_name' => $item->user->name,
+                                'creator_id' => $item->creator_id,
+                                'user_name' => $item->creator->name,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
@@ -582,8 +582,8 @@ class ClientsRepository extends BaseRepository
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
                                 'description' => $description,
-                                'user_id' => $item->user_id,
-                                'user_name' => $item->user->name,
+                                'creator_id' => $item->creator_id,
+                                'user_name' => $item->creator->name,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
@@ -603,8 +603,8 @@ class ClientsRepository extends BaseRepository
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
                                 'description' => '🛒 Продажа #'.$saleId.($item->is_debt ? ' (в кредит)' : ''),
-                                'user_id' => $item->user_id,
-                                'user_name' => $item->user->name,
+                                'creator_id' => $item->creator_id,
+                                'user_name' => $item->creator->name,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
@@ -630,8 +630,8 @@ class ClientsRepository extends BaseRepository
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
                                 'description' => $description,
-                                'user_id' => $item->user_id,
-                                'user_name' => $item->user->name,
+                                'creator_id' => $item->creator_id,
+                                'user_name' => $item->creator->name,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
@@ -651,8 +651,8 @@ class ClientsRepository extends BaseRepository
                                 'is_debt' => $item->is_debt,
                                 'note' => $item->note,
                                 'description' => $description,
-                                'user_id' => $item->user_id,
-                                'user_name' => $item->user->name,
+                                'creator_id' => $item->creator_id,
+                                'user_name' => $item->creator->name,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,

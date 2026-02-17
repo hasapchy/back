@@ -11,7 +11,7 @@ class ChatMessage extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['chat_id', 'user_id', 'body', 'files', 'parent_id', 'forwarded_from_message_id', 'is_edited', 'edited_at'];
+    protected $fillable = ['chat_id', 'creator_id', 'body', 'files', 'parent_id', 'forwarded_from_message_id', 'is_edited', 'edited_at'];
 
     protected $casts = [
         'files' => 'array',
@@ -20,9 +20,14 @@ class ChatMessage extends Model
         'is_system' => 'boolean',
     ];
 
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'creator_id');
+    }
+
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     public function chat(): BelongsTo

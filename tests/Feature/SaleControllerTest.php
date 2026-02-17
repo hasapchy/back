@@ -43,7 +43,7 @@ class SaleControllerTest extends TestCase
         $this->currency = Currency::factory()->create();
         $this->client = \App\Models\Client::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
         $this->warehouse = Warehouse::factory()->create([
             'company_id' => $this->company->id,
@@ -54,7 +54,7 @@ class SaleControllerTest extends TestCase
         ]);
         $this->product = Product::factory()->create([
             'company_id' => $this->company->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
     }
 
@@ -102,7 +102,7 @@ class SaleControllerTest extends TestCase
     {
         $sale = Sale::factory()->create([
             'client_id' => $this->client->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
             'warehouse_id' => $this->warehouse->id,
             'cash_id' => $this->cashRegister->id,
             'currency_id' => $this->currency->id,

@@ -12,7 +12,7 @@ use App\Models\Currency;
  * Модель клиента
  *
  * @property int $id
- * @property int|null $user_id ID пользователя, создавшего клиента
+ * @property int|null $creator_id ID создателя
  * @property int|null $company_id ID компании
  * @property int|null $employee_id ID сотрудника (для типов employee/investor)
  * @property string $client_type Тип клиента (company, individual, employee, investor)
@@ -33,7 +33,7 @@ use App\Models\Currency;
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
- * @property-read \App\Models\User|null $user
+ * @property-read \App\Models\User|null $creator
  * @property-read \App\Models\User|null $employee
  * @property-read \App\Models\Company|null $company
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\ClientsPhone[] $phones
@@ -46,7 +46,7 @@ class Client extends Model
     public const CLIENT_TYPES = ['company', 'individual', 'employee', 'investor'];
 
     protected $fillable = [
-        'user_id',
+        'creator_id',
         'company_id',
         'employee_id',
         'client_type',
@@ -74,13 +74,11 @@ class Client extends Model
     ];
 
     /**
-     * Связь с пользователем (кто создал клиента)
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

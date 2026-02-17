@@ -28,7 +28,7 @@ trait HasManyToManyUsers
      */
     public function hasUser($userId)
     {
-        return $this->users()->where('user_id', $userId)->exists();
+        return $this->users()->wherePivot('creator_id', $userId)->exists();
     }
 }
 

@@ -53,12 +53,12 @@ return new class extends Migration
             $this->addIndexIfNotExists($table, 'sales_client_id_index', 'client_id');
             $this->addIndexIfNotExists($table, 'sales_warehouse_id_index', 'warehouse_id');
             $this->addIndexIfNotExists($table, 'sales_cash_id_index', 'cash_id');
-            $this->addIndexIfNotExists($table, 'sales_user_id_index', 'user_id');
+            $this->addIndexIfNotExists($table, 'sales_creator_id_index', 'creator_id');
             $this->addIndexIfNotExists($table, 'sales_created_at_index', 'created_at');
         });
 
         // Составные индексы
-        $this->addCompositeIndexIfNotExists('sales', 'sales_date_user_warehouse_index', ['date', 'user_id', 'warehouse_id']);
+        $this->addCompositeIndexIfNotExists('sales', 'sales_date_user_warehouse_index', ['date', 'creator_id', 'warehouse_id']);
         $this->addCompositeIndexIfNotExists('sales', 'sales_client_date_index', ['client_id', 'date']);
         $this->addCompositeIndexIfNotExists('sales', 'sales_warehouse_date_index', ['warehouse_id', 'date']);
     }
@@ -171,7 +171,7 @@ return new class extends Migration
             $this->addIndexIfNotExists($table, 'transactions_date_index', 'date');
             $this->addIndexIfNotExists($table, 'transactions_type_index', 'type');
             $this->addIndexIfNotExists($table, 'transactions_amount_index', 'amount');
-            $this->addIndexIfNotExists($table, 'transactions_user_id_index', 'user_id');
+            $this->addIndexIfNotExists($table, 'transactions_creator_id_index', 'creator_id');
             $this->addIndexIfNotExists($table, 'transactions_cash_id_index', 'cash_id');
             $this->addIndexIfNotExists($table, 'transactions_category_id_index', 'category_id');
             $this->addIndexIfNotExists($table, 'transactions_client_id_index', 'client_id');
@@ -182,7 +182,7 @@ return new class extends Migration
 
         // Составные индексы
         $this->addCompositeIndexIfNotExists('transactions', 'transactions_date_type_index', ['date', 'type']);
-        $this->addCompositeIndexIfNotExists('transactions', 'transactions_date_user_index', ['date', 'user_id']);
+        $this->addCompositeIndexIfNotExists('transactions', 'transactions_date_user_index', ['date', 'creator_id']);
         $this->addCompositeIndexIfNotExists('transactions', 'transactions_date_cash_index', ['date', 'cash_id']);
         $this->addCompositeIndexIfNotExists('transactions', 'transactions_client_date_index', ['client_id', 'date']);
         $this->addCompositeIndexIfNotExists('transactions', 'transactions_project_date_index', ['project_id', 'date']);
@@ -199,7 +199,7 @@ return new class extends Migration
 
         Schema::table('orders', function (Blueprint $table) {
             // Составные индексы для основных полей
-            $this->addCompositeIndexIfNotExists('orders', 'idx_orders_user_created', ['user_id', 'created_at']);
+            $this->addCompositeIndexIfNotExists('orders', 'idx_orders_user_created', ['creator_id', 'created_at']);
             $this->addCompositeIndexIfNotExists('orders', 'idx_orders_client_created', ['client_id', 'created_at']);
             $this->addCompositeIndexIfNotExists('orders', 'idx_orders_warehouse_created', ['warehouse_id', 'created_at']);
             $this->addCompositeIndexIfNotExists('orders', 'idx_orders_status_created', ['status_id', 'created_at']);
@@ -208,7 +208,7 @@ return new class extends Migration
             $this->addCompositeIndexIfNotExists('orders', 'idx_orders_cash_created', ['cash_id', 'created_at']);
 
             // Составные индексы для сложных запросов
-            $this->addCompositeIndexIfNotExists('orders', 'idx_orders_user_status_created', ['user_id', 'status_id', 'created_at']);
+            $this->addCompositeIndexIfNotExists('orders', 'idx_orders_user_status_created', ['creator_id', 'status_id', 'created_at']);
             $this->addCompositeIndexIfNotExists('orders', 'idx_orders_warehouse_status_created', ['warehouse_id', 'status_id', 'created_at']);
             $this->addCompositeIndexIfNotExists('orders', 'idx_orders_client_status_created', ['client_id', 'status_id', 'created_at']);
 
@@ -277,7 +277,7 @@ return new class extends Migration
         if (Schema::hasTable('comments')) {
             Schema::table('comments', function (Blueprint $table) {
                 $this->addCompositeIndexIfNotExists('comments', 'comments_commentable_index', ['commentable_type', 'commentable_id']);
-                $this->addIndexIfNotExists($table, 'comments_user_index', 'user_id');
+                $this->addIndexIfNotExists($table, 'comments_user_index', 'creator_id');
                 $this->addIndexIfNotExists($table, 'comments_created_at_index', 'created_at');
                 $this->addCompositeIndexIfNotExists('comments', 'comments_commentable_created_index', ['commentable_type', 'commentable_id', 'created_at']);
             });
@@ -287,11 +287,11 @@ return new class extends Migration
         if (Schema::hasTable('activity_log')) {
             Schema::table('activity_log', function (Blueprint $table) {
                 $this->addCompositeIndexIfNotExists('activity_log', 'activity_log_subject_index', ['subject_type', 'subject_id']);
-                $this->addIndexIfNotExists($table, 'activity_log_causer_index', 'causer_id');
+                $this->addIndexIfNotExists($table, 'activity_log_causer_index', 'cacreator_id');
                 $this->addIndexIfNotExists($table, 'activity_log_name_index', 'log_name');
                 $this->addIndexIfNotExists($table, 'activity_log_created_at_index', 'created_at');
                 $this->addCompositeIndexIfNotExists('activity_log', 'activity_log_subject_created_index', ['subject_type', 'subject_id', 'created_at']);
-                $this->addCompositeIndexIfNotExists('activity_log', 'activity_log_causer_created_index', ['causer_id', 'created_at']);
+                $this->addCompositeIndexIfNotExists('activity_log', 'activity_log_causer_created_index', ['cacreator_id', 'created_at']);
             });
         }
 
@@ -320,16 +320,16 @@ return new class extends Migration
 
         Schema::table('projects', function (Blueprint $table) {
             $this->addIndexIfNotExists($table, 'projects_name_index', 'name');
-            $this->addIndexIfNotExists($table, 'projects_user_id_index', 'user_id');
+            $this->addIndexIfNotExists($table, 'projects_creator_id_index', 'creator_id');
             $this->addIndexIfNotExists($table, 'projects_client_id_index', 'client_id');
             $this->addIndexIfNotExists($table, 'projects_date_index', 'date');
             $this->addIndexIfNotExists($table, 'projects_created_at_index', 'created_at');
         });
 
         // Составные индексы для projects
-        $this->addCompositeIndexIfNotExists('projects', 'projects_user_date_index', ['user_id', 'date']);
+        $this->addCompositeIndexIfNotExists('projects', 'projects_user_date_index', ['creator_id', 'date']);
         $this->addCompositeIndexIfNotExists('projects', 'projects_client_date_index', ['client_id', 'date']);
-        $this->addCompositeIndexIfNotExists('projects', 'projects_name_user_index', ['name', 'user_id']);
+        $this->addCompositeIndexIfNotExists('projects', 'projects_name_user_index', ['name', 'creator_id']);
     }
 
     /**
@@ -410,7 +410,7 @@ return new class extends Migration
             $table->dropIndexIfExists('sales_client_id_index');
             $table->dropIndexIfExists('sales_warehouse_id_index');
             $table->dropIndexIfExists('sales_cash_id_index');
-            $table->dropIndexIfExists('sales_user_id_index');
+            $table->dropIndexIfExists('sales_creator_id_index');
             $table->dropIndexIfExists('sales_created_at_index');
         });
 
@@ -514,7 +514,7 @@ return new class extends Migration
             $table->dropIndexIfExists('transactions_date_index');
             $table->dropIndexIfExists('transactions_type_index');
             $table->dropIndexIfExists('transactions_amount_index');
-            $table->dropIndexIfExists('transactions_user_id_index');
+            $table->dropIndexIfExists('transactions_creator_id_index');
             $table->dropIndexIfExists('transactions_cash_id_index');
             $table->dropIndexIfExists('transactions_category_id_index');
             $table->dropIndexIfExists('transactions_client_id_index');
@@ -633,7 +633,7 @@ return new class extends Migration
 
         Schema::table('projects', function (Blueprint $table) {
             $table->dropIndexIfExists('projects_name_index');
-            $table->dropIndexIfExists('projects_user_id_index');
+            $table->dropIndexIfExists('projects_creator_id_index');
             $table->dropIndexIfExists('projects_client_id_index');
             $table->dropIndexIfExists('projects_date_index');
             $table->dropIndexIfExists('projects_created_at_index');

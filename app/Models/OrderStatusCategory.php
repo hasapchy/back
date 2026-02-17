@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @property int $id
  * @property string $name Название категории
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID пользователя
  * @property string $color Цвет категории
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -24,7 +24,7 @@ class OrderStatusCategory extends Model
 
     protected const PROTECTED_CATEGORY_IDS = [1, 2, 3, 4, 5];
 
-    protected $fillable = ['name', 'user_id', 'color'];
+    protected $fillable = ['name', 'creator_id', 'color'];
 
     protected static function booted()
     {
@@ -40,9 +40,9 @@ class OrderStatusCategory extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

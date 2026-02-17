@@ -142,7 +142,7 @@ class CommentController extends BaseController
         }
 
         $comment = Comment::where('id', $id)
-            ->where('user_id', $user->id)
+            ->where('creator_id', $user->id)
             ->first();
 
         if (!$comment) {
@@ -217,7 +217,7 @@ class CommentController extends BaseController
                 ];
             } else {
                 // Для Order, Transaction, Sale и других
-                $selectFields = array_merge($selectFields, ['client_id', 'user_id', 'status_id', 'category_id']);
+                $selectFields = array_merge($selectFields, ['client_id', 'creator_id', 'status_id', 'category_id']);
                 $withRelations = [
                     'client:id,first_name,last_name,contact_person',
                     'user:id,name',
@@ -271,9 +271,9 @@ class CommentController extends BaseController
     {
         return $model->comments()
             ->select([
-                'comments.id', 'comments.body', 'comments.user_id', 'comments.created_at'
+                'comments.id', 'comments.body', 'comments.creator_id', 'comments.created_at'
             ])
-            ->with(['user:id,name,email'])
+            ->with(['creator:id,name,email'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($comment) {
@@ -281,7 +281,7 @@ class CommentController extends BaseController
                     'type' => 'comment',
                     'id' => $comment->id,
                     'body' => $comment->body,
-                    'user' => $comment->user,
+                    'user' => $comment->creator,
                     'created_at' => $comment->created_at,
                 ];
             });
@@ -299,7 +299,7 @@ class CommentController extends BaseController
         return $model->activities()
             ->select([
                 'activity_log.id', 'activity_log.description', 'activity_log.properties',
-                'activity_log.causer_id', 'activity_log.created_at', 'activity_log.log_name'
+                'activity_log.cacreator_id', 'activity_log.created_at', 'activity_log.log_name'
             ])
             ->with(['causer:id,name', 'subject'])
             ->orderBy('created_at', 'desc')
@@ -537,7 +537,7 @@ class CommentController extends BaseController
             ->get()
             ->flatMap(function ($transaction) {
                 return $transaction->activities()
-                    ->select(['activity_log.id', 'activity_log.description', 'activity_log.causer_id', 'activity_log.created_at'])
+                    ->select(['activity_log.id', 'activity_log.description', 'activity_log.cacreator_id', 'activity_log.created_at'])
                     ->with(['causer:id,name', 'subject'])
                     ->get()->map(function ($log) use ($transaction) {
                         $desc = $log->description;
@@ -637,7 +637,7 @@ class CommentController extends BaseController
     {
         $baseFieldToModelMap = [
             'client_id' => Client::class,
-            'user_id' => User::class,
+            'creator_id' => User::class,
             'creator_id' => User::class,
             'supervisor_id' => User::class,
             'executor_id' => User::class,
@@ -688,9 +688,9 @@ class CommentController extends BaseController
             ];
         }
 
-        if ($log->causer_id) {
+        if ($log->cacreator_id) {
             try {
-                $user = User::select('id', 'name')->find($log->causer_id);
+                $user = User::select('id', 'name')->find($log->cacreator_id);
                 if ($user) {
                     return [
                         'id' => $user->id,
@@ -704,8 +704,8 @@ class CommentController extends BaseController
         if ($log->description === 'created' || $log->description === 'Создан заказ') {
             try {
                 $subject = $log->subject;
-                if ($subject && isset($subject->user_id) && $subject->user_id) {
-                    $user = User::select('id', 'name')->find($subject->user_id);
+                if ($subject && isset($subject->creator_id) && $subject->creator_id) {
+                    $user = User::select('id', 'name')->find($subject->creator_id);
                     if ($user) {
                         return [
                             'id' => $user->id,

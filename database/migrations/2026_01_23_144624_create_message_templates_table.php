@@ -17,13 +17,13 @@ return new class extends Migration
             $table->string('name'); // Название шаблона
             $table->text('content'); // HTML контент с переменными
             $table->unsignedBigInteger('company_id')->nullable();
-            $table->unsignedBigInteger('user_id'); // Кто создал
+            $table->unsignedBigInteger('creator_id'); // Кто создал
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
 
             $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('creator_id')->references('id')->on('users')->onDelete('cascade');
 
             $table->index('type');
             $table->index('company_id');

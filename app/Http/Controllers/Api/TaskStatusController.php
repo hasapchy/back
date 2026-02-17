@@ -68,7 +68,7 @@ class TaskStatusController extends BaseController
         $created = $this->taskStatusRepository->createItem([
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
-            'user_id' => $userUuid,
+            'creator_id' => $userUuid,
         ]);
         if (! $created) {
             return $this->errorResponse('Ошибка создания статуса', 400);

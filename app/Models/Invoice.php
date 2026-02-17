@@ -12,7 +12,7 @@ use Spatie\Activitylog\LogOptions;
  *
  * @property int $id
  * @property int $client_id ID клиента
- * @property int $user_id ID пользователя
+ * @property int $creator_id ID создателя
  * @property \Carbon\Carbon $invoice_date Дата счета
  * @property string|null $note Примечание
  * @property float $total_amount Общая сумма
@@ -22,7 +22,7 @@ use Spatie\Activitylog\LogOptions;
  * @property \Carbon\Carbon $updated_at
  *
  * @property-read \App\Models\Client $client
- * @property-read \App\Models\User $user
+ * @property-read \App\Models\User $creator
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Order[] $orders
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\InvoiceProduct[] $products
  * @property-read \Illuminate\Database\Eloquent\Collection|\Spatie\Activitylog\Models\Activity[] $activities
@@ -33,7 +33,7 @@ class Invoice extends Model
 
     protected $fillable = [
         'client_id',
-        'user_id',
+        'creator_id',
         'invoice_date',
         'note',
         'total_amount',
@@ -43,7 +43,7 @@ class Invoice extends Model
 
     protected static $logAttributes = [
         'client_id',
-        'user_id',
+        'creator_id',
         'invoice_date',
         'note',
         'total_amount',
@@ -110,13 +110,11 @@ class Invoice extends Model
     }
 
     /**
-     * Связь с пользователем
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function user()
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

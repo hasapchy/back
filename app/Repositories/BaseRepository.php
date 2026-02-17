@@ -47,63 +47,38 @@ abstract class BaseRepository
             }
         }
 
-        \Log::info('getUserCategoryIds', [
-            'user_id' => $userId,
-            'current_user_id' => $currentUser?->id,
-            'is_simple_worker' => $isSimpleWorker,
-            'has_role' => $currentUser instanceof User ? $currentUser->hasRole(config('simple.worker_role')) : false,
-        ]);
-
         if ($isSimpleWorker) {
             $mapping = config('simple.user_category_mapping', []);
             $mappedCategoryId = $mapping[$userId] ?? null;
 
-            \Log::info('Simple worker category mapping', [
-                'user_id' => $userId,
-                'mapped_category_id' => $mappedCategoryId,
-                'mapping' => $mapping,
-            ]);
-
             if ($mappedCategoryId) {
                 $categoryIds = $this->getCategoryWithChildrenIds($mappedCategoryId);
-                \Log::info('Using mapped category with children', ['category_ids' => $categoryIds]);
             } else {
                 $categoryIds = CategoryUser::where('user_id', $userId)
                     ->pluck('category_id')
                     ->toArray();
-                \Log::info('Using category_users table', ['category_ids' => $categoryIds]);
             }
         } else {
             $categoryIds = CategoryUser::where('user_id', $userId)
                 ->pluck('category_id')
                 ->toArray();
-            \Log::info('Not simple worker, using category_users', ['category_ids' => $categoryIds]);
         }
 
         if (empty($categoryIds)) {
-            \Log::info('No category IDs found for user', ['user_id' => $userId]);
             return [];
         }
 
         $companyId = $this->getCurrentCompanyId();
 
         if ($companyId) {
-            $beforeFilter = $categoryIds;
             $categoryIds = Category::where('company_id', $companyId)
                 ->whereIn('id', $categoryIds)
                 ->pluck('id')
                 ->toArray();
-            \Log::info('Filtered by company', [
-                'company_id' => $companyId,
-                'before' => $beforeFilter,
-                'after' => $categoryIds,
-            ]);
         }
 
         $categoryIds = array_values(array_unique($categoryIds));
         sort($categoryIds);
-
-        \Log::info('Final category IDs', ['category_ids' => $categoryIds]);
 
         return $categoryIds;
     }
@@ -475,7 +450,7 @@ abstract class BaseRepository
             'source_id'    => $sourceId,
             'date'         => $data['date'] ?? now(),
             'note'         => $data['note'] ?? null,
-            'user_id'      => $data['user_id'] ?? auth('api')->id(),
+            'creator_id'      => $data['creator_id'] ?? auth('api')->id(),
             'project_id'   => $data['project_id'] ?? null,
             'currency_id'  => $data['currency_id'] ?? $defaultCurrency->id,
         ];
@@ -550,11 +525,11 @@ abstract class BaseRepository
      * @param \Illuminate\Database\Eloquent\Builder $query Query builder
      * @param string $resource Название ресурса (например, 'clients', 'orders', 'projects')
      * @param string $tableName Имя таблицы (например, 'clients', 'orders')
-     * @param string $userIdColumn Имя колонки с user_id (по умолчанию 'user_id')
+     * @param string $userIdColumn Имя колонки с creator_id (по умолчанию 'creator_id')
      * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    protected function applyOwnFilter($query, string $resource, string $tableName, string $userIdColumn = 'user_id', $user = null)
+    protected function applyOwnFilter($query, string $resource, string $tableName, string $userIdColumn = 'creator_id', $user = null)
     {
         /** @var \App\Models\User|null $user */
         $user = $user ?? auth('api')->user();
@@ -664,30 +639,27 @@ abstract class BaseRepository
         $requireAtLeastOne = $options['require_at_least_one'] ?? false;
         $filterEmpty = $options['filter_empty'] ?? false;
         $errorMessage = $options['error_message'] ?? 'Должен быть указан хотя бы один пользователь';
+        $userColumn = $options['user_column'] ?? 'creator_id';
 
-        // Фильтруем пустые значения, если требуется
         if ($filterEmpty) {
             $userIds = array_filter($userIds, function ($userId) {
                 return !empty($userId);
             });
         }
 
-        // Проверяем, требуется ли хотя бы один пользователь
         if ($requireAtLeastOne && empty($userIds)) {
             throw new \Exception($errorMessage);
         }
 
-        // Удаляем старые связи
         $modelClass::where($foreignKey, $entityId)->delete();
 
-        // Создаем новые связи, если есть пользователи
         if (!empty($userIds)) {
             $now = now();
             $insertData = [];
             foreach ($userIds as $userId) {
                 $insertData[] = [
                     $foreignKey => $entityId,
-                    'user_id' => (int) $userId,
+                    $userColumn => (int) $userId,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];

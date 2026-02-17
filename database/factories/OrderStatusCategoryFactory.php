@@ -23,7 +23,7 @@ class OrderStatusCategoryFactory extends Factory
         return [
             'name' => fake()->words(2, true),
             'color' => fake()->hexColor(),
-            'user_id' => \App\Models\User::factory(),
+            'creator_id' => \App\Models\User::factory(),
         ];
     }
 }

@@ -42,7 +42,7 @@ class TransactionsControllerTest extends TestCase
             'currency_id' => $this->currency->id,
         ]);
         $this->category = TransactionCategory::factory()->create([
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
     }
 
@@ -87,7 +87,7 @@ class TransactionsControllerTest extends TestCase
             'cash_id' => $this->cashRegister->id,
             'currency_id' => $this->currency->id,
             'category_id' => $this->category->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
 
         $data = [
@@ -112,7 +112,7 @@ class TransactionsControllerTest extends TestCase
             'cash_id' => $this->cashRegister->id,
             'currency_id' => $this->currency->id,
             'category_id' => $this->category->id,
-            'user_id' => $this->adminUser->id,
+            'creator_id' => $this->adminUser->id,
         ]);
 
         $response = $this->actingAsApi($this->adminUser)

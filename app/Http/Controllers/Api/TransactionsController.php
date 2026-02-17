@@ -7,10 +7,10 @@ use App\Http\Requests\StoreTransactionRequest;
 use App\Http\Requests\UpdateTransactionRequest;
 use App\Models\Transaction;
 use App\Models\Order;
+use App\Models\ProjectContract;
 use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Контроллер для работы с транзакциями
@@ -44,6 +44,7 @@ class TransactionsController extends BaseController
         $cash_register_id = $request->query('cash_id');
         $date_filter_type = $request->query('date_filter_type');
         $order_id = $request->query('order_id');
+        $contract_id = $request->query('contract_id');
         $search = $request->query('search');
         $transaction_type = $request->query('transaction_type');
         $source = $request->query('source');
@@ -77,7 +78,8 @@ class TransactionsController extends BaseController
             $start_date,
             $end_date,
             $is_debt,
-            $category_ids
+            $category_ids,
+            $contract_id
         );
 
         $response = [
@@ -129,23 +131,22 @@ class TransactionsController extends BaseController
             $sourceId = $validatedData['order_id'];
         }
 
-        \Illuminate\Support\Facades\Log::info('Creating transaction', [
-            'client_id' => $validatedData['client_id'] ?? null,
-            'client_balance_id' => $validatedData['client_balance_id'] ?? null,
-            'has_client_balance_id' => !empty($validatedData['client_balance_id']),
-            'type' => $validatedData['type'],
-            'orig_amount' => $validatedData['orig_amount'],
-        ]);
+        [$clientId, $categoryId] = $this->resolveClientAndCategoryFromSource(
+            $sourceType,
+            $sourceId,
+            $validatedData['client_id'] ?? null,
+            $validatedData['category_id']
+        );
 
         $item_created = $this->itemsRepository->createItem([
             'type' => $validatedData['type'],
-            'user_id' => $userUuid,
+            'creator_id' => $userUuid,
             'orig_amount' => $validatedData['orig_amount'],
             'currency_id' => $validatedData['currency_id'],
             'cash_id' => $validatedData['cash_id'],
-            'category_id' => $validatedData['category_id'],
+            'category_id' => $categoryId,
             'project_id' => $validatedData['project_id'] ?? null,
-            'client_id' => $validatedData['client_id'] ?? null,
+            'client_id' => $clientId,
             'client_balance_id' => $validatedData['client_balance_id'] ?? null,
             'source_type' => $sourceType,
             'source_id' => $sourceId,
@@ -160,7 +161,7 @@ class TransactionsController extends BaseController
         }
 
         CacheService::invalidateTransactionsCache();
-        if (isset($validatedData['client_id']) && $validatedData['client_id']) {
+        if ($clientId) {
             CacheService::invalidateClientsCache();
         }
         if (isset($validatedData['project_id']) && $validatedData['project_id']) {
@@ -224,10 +225,17 @@ class TransactionsController extends BaseController
             }
         }
 
+        [$updateClientId, $updateCategoryId] = $this->resolveClientAndCategoryFromSource(
+            $updateSourceType,
+            $updateSourceId,
+            $validatedData['client_id'] ?? null,
+            $validatedData['category_id']
+        );
+
         $updateData = [
-            'category_id' => $validatedData['category_id'],
+            'category_id' => $updateCategoryId,
             'project_id' => $validatedData['project_id'] ?? null,
-            'client_id' => $validatedData['client_id'] ?? null,
+            'client_id' => $updateClientId,
             'note' => $validatedData['note'] ?? null,
             'date' => $validatedData['date'] ?? now(),
             'is_debt' => $validatedData['is_debt'] ?? false
@@ -246,13 +254,6 @@ class TransactionsController extends BaseController
             $updateData['exchange_rate'] = $validatedData['exchange_rate'];
         }
 
-        Log::info('transaction.update.payload', [
-            'transaction_id' => $id,
-            'user_id' => $userUuid,
-            'exchange_rate_from_request' => $validatedData['exchange_rate'] ?? null,
-            'update_data' => $updateData,
-        ]);
-
         if (isset($validatedData['source_type']) || isset($validatedData['source_id']) || $request->has('order_id')) {
             $updateData['source_type'] = $updateSourceType;
             $updateData['source_id'] = $updateSourceId;
@@ -265,7 +266,7 @@ class TransactionsController extends BaseController
         }
 
         CacheService::invalidateTransactionsCache();
-        if ((isset($validatedData['client_id']) && $validatedData['client_id']) || $transaction_exist->client_id) {
+        if ($updateClientId || $transaction_exist->client_id) {
             CacheService::invalidateClientsCache();
         }
         if ((isset($validatedData['project_id']) && $validatedData['project_id']) || $transaction_exist->project_id) {
@@ -331,6 +332,7 @@ class TransactionsController extends BaseController
         }
 
         $total = $this->itemsRepository->getTotalByOrderId($userUuid, $orderId);
+
         return response()->json(['total' => $total]);
     }
 
@@ -357,6 +359,18 @@ class TransactionsController extends BaseController
         return response()->json(['item' => $item]);
     }
 
+    /**
+     * @return array{0: int|null, 1: int}
+     */
+    private function resolveClientAndCategoryFromSource(?string $sourceType, $sourceId, ?int $clientId, int $categoryId): array
+    {
+        if ($sourceType !== ProjectContract::class || !$sourceId) {
+            return [$clientId, $categoryId];
+        }
+        $contract = ProjectContract::with('project')->find($sourceId);
+        return [$contract?->project?->client_id ?? $clientId, 30];
+    }
+
     private function isRestrictedTransaction($transaction)
     {
         if ($transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists()) {
@@ -368,6 +382,11 @@ class TransactionsController extends BaseController
 
             if ($sourceType === 'EmployeeSalary') {
                 return false;
+            }
+
+            if ($sourceType === 'ProjectContract') {
+                $user = $this->getAuthenticatedUser();
+                return !($user && $user->is_admin);
             }
 
             return true;

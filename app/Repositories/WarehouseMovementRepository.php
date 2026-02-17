@@ -24,7 +24,7 @@ class WarehouseMovementRepository extends BaseRepository
 
         return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
             $items = WhMovement::leftJoin('warehouses as warehouses_from', 'wh_movements.wh_from', '=', 'warehouses_from.id')
-                ->leftJoin('users', 'wh_movements.user_id', '=', 'users.id')
+                ->leftJoin('users', 'wh_movements.creator_id', '=', 'users.id')
                 ->leftJoin('warehouses as warehouses_to', 'wh_movements.wh_to', '=', 'warehouses_to.id')
                 ->leftJoin('wh_users as wh_users_from', 'warehouses_from.id', '=', 'wh_users_from.warehouse_id')
                 ->leftJoin('wh_users as wh_users_to', 'warehouses_to.id', '=', 'wh_users_to.warehouse_id');
@@ -41,7 +41,7 @@ class WarehouseMovementRepository extends BaseRepository
                     'wh_movements.wh_to as warehouse_to_id',
                     'warehouses_to.name as warehouse_to_name',
                     'wh_movements.note as note',
-                    'wh_movements.user_id as user_id',
+                    'wh_movements.creator_id as creator_id',
                     'users.name as user_name',
                     'wh_movements.date as date',
                     'wh_movements.created_at as created_at',
@@ -82,7 +82,7 @@ class WarehouseMovementRepository extends BaseRepository
             $movement->wh_to = $warehouse_to_id;
             $movement->date = $date;
             $movement->note = $note;
-            $movement->user_id = auth('api')->id();
+            $movement->creator_id = auth('api')->id();
             $movement->save();
 
             foreach ($products as $product) {

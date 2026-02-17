@@ -25,7 +25,7 @@ class WarehouseWriteoffRepository extends BaseRepository
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
             $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
-                ->leftJoin('users', 'wh_write_offs.user_id', '=', 'users.id');
+                ->leftJoin('users', 'wh_write_offs.creator_id', '=', 'users.id');
 
             if ($this->shouldApplyUserFilter('warehouses')) {
                 $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
@@ -45,7 +45,7 @@ class WarehouseWriteoffRepository extends BaseRepository
                 'wh_write_offs.warehouse_id as warehouse_id',
                 'warehouses.name as warehouse_name',
                 'wh_write_offs.note as note',
-                'wh_write_offs.user_id as user_id',
+                'wh_write_offs.creator_id as creator_id',
                 'users.name as user_name',
                 'wh_write_offs.created_at as created_at',
                 'wh_write_offs.updated_at as updated_at'
@@ -81,7 +81,7 @@ class WarehouseWriteoffRepository extends BaseRepository
             $writeoff = new WhWriteoff();
             $writeoff->warehouse_id = $warehouse_id;
             $writeoff->note = $note;
-            $writeoff->user_id      = auth('api')->id();
+            $writeoff->creator_id      = auth('api')->id();
             $writeoff->save();
 
             foreach ($products as $product) {

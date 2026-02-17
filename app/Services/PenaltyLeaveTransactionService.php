@@ -66,7 +66,7 @@ class PenaltyLeaveTransactionService
 
         $transactionData = [
             'type' => 1,
-            'user_id' => auth('api')->id(),
+            'creator_id' => auth('api')->id(),
             'orig_amount' => $origAmount,
             'currency_id' => $salaries->first()->currency_id,
             'cash_id' => $cash->id,

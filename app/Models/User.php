@@ -95,7 +95,7 @@ class User extends Authenticatable
      */
     public function companies()
     {
-        return $this->belongsToMany(Company::class, 'company_user');
+        return $this->belongsToMany(Company::class, 'company_user', 'user_id', 'company_id');
     }
 
     /**
@@ -126,7 +126,7 @@ class User extends Authenticatable
      */
     public function projectUsers()
     {
-        return $this->hasMany(\App\Models\ProjectUser::class, 'user_id');
+        return $this->hasMany(\App\Models\ProjectUser::class, 'creator_id');
     }
 
     /**
@@ -168,13 +168,13 @@ class User extends Authenticatable
      */
     public function companyRoles()
     {
-        return $this->belongsToMany(\Spatie\Permission\Models\Role::class, 'company_user_role', 'user_id', 'role_id')
+        return $this->belongsToMany(\Spatie\Permission\Models\Role::class, 'company_user_role', 'creator_id', 'role_id')
             ->withPivot('company_id')
             ->withTimestamps();
     }
     public function leaves()
     {
-        return $this->hasMany(Leave::class);
+        return $this->hasMany(Leave::class, 'user_id');
     }
 
     /**
@@ -212,7 +212,7 @@ class User extends Authenticatable
         }
 
         $roleIds = DB::table('company_user_role')
-            ->where('user_id', $this->id)
+            ->where('creator_id', $this->id)
             ->where('company_id', $companyId)
             ->pluck('role_id');
 
@@ -245,7 +245,7 @@ class User extends Authenticatable
     public function getRolesForCompany(int $companyId)
     {
         $roleIds = DB::table('company_user_role')
-            ->where('user_id', $this->id)
+            ->where('creator_id', $this->id)
             ->where('company_id', $companyId)
             ->pluck('role_id');
 
@@ -267,7 +267,7 @@ class User extends Authenticatable
     public function getAllCompanyRoles(): array
     {
         $companyRoles = DB::table('company_user_role')
-            ->where('user_id', $this->id)
+            ->where('creator_id', $this->id)
             ->select('company_id', 'role_id')
             ->get();
 

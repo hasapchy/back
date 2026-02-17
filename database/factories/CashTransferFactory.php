@@ -44,7 +44,7 @@ class CashTransferFactory extends Factory
             'cash_id_to' => $cashTo->id,
             'tr_id_from' => $fromTransaction->id,
             'tr_id_to' => $toTransaction->id,
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
             'amount' => fake()->randomFloat(2, 100, 10000),
             'note' => fake()->optional()->sentence(),
             'date' => now(),

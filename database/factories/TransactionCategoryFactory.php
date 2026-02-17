@@ -24,7 +24,7 @@ class TransactionCategoryFactory extends Factory
         return [
             'name' => fake()->words(2, true),
             'type' => fake()->boolean() ? 1 : 0,
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
         ];
     }
 }

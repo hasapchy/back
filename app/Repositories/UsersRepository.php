@@ -300,10 +300,10 @@ class UsersRepository extends BaseRepository
         $allPermissions = \Spatie\Permission\Models\Permission::where('guard_name', 'api')->get();
 
         $companyUserRoles = DB::table('company_user_role')
-            ->whereIn('user_id', $userIds)
+            ->whereIn('creator_id', $userIds)
             ->where('company_id', $companyId)
             ->get()
-            ->groupBy('user_id');
+            ->groupBy('creator_id');
 
         $allRoleIds = $companyUserRoles->flatten()->pluck('role_id')->unique()->filter();
 
@@ -362,10 +362,10 @@ class UsersRepository extends BaseRepository
         }
 
         $allCompanyRoles = DB::table('company_user_role')
-            ->whereIn('user_id', $userIds)
-            ->select('user_id', 'company_id', 'role_id')
+            ->whereIn('creator_id', $userIds)
+            ->select('creator_id', 'company_id', 'role_id')
             ->get()
-            ->groupBy('user_id');
+            ->groupBy('creator_id');
 
         $allRoleIds = $allCompanyRoles->flatten()->pluck('role_id')->unique()->filter();
 
@@ -654,24 +654,24 @@ class UsersRepository extends BaseRepository
         $relatedData = [];
 
         $checks = [
-            [Transaction::class, 'user_id', 'транзакции'],
-            [Order::class, 'user_id', 'заказы'],
-            [Sale::class, 'user_id', 'продажи'],
-            [WhReceipt::class, 'user_id', 'приходы на склад'],
-            [WhWriteoff::class, 'user_id', 'списания со склада'],
-            [WhMovement::class, 'user_id', 'перемещения между складами'],
-            [Project::class, 'user_id', 'проекты'],
+            [Transaction::class, 'creator_id', 'транзакции'],
+            [Order::class, 'creator_id', 'заказы'],
+            [Sale::class, 'creator_id', 'продажи'],
+            [WhReceipt::class, 'creator_id', 'приходы на склад'],
+            [WhWriteoff::class, 'creator_id', 'списания со склада'],
+            [WhMovement::class, 'creator_id', 'перемещения между складами'],
+            [Project::class, 'creator_id', 'проекты'],
             [Client::class, 'employee_id', 'клиенты как сотрудник'],
-            [Client::class, 'user_id', 'клиенты'],
-            [Category::class, 'user_id', 'категории'],
-            [Product::class, 'user_id', 'товары'],
-            [Invoice::class, 'user_id', 'счета'],
-            [CashTransfer::class, 'user_id', 'переводы между кассами'],
-            [TransactionCategory::class, 'user_id', 'категории транзакций'],
-            [OrderStatusCategory::class, 'user_id', 'категории статусов заказов'],
-            [ProjectStatus::class, 'user_id', 'статусы проектов'],
-            [Template::class, 'user_id', 'шаблоны'],
-            [Comment::class, 'user_id', 'комментарии'],
+            [Client::class, 'creator_id', 'клиенты'],
+            [Category::class, 'creator_id', 'категории'],
+            [Product::class, 'creator_id', 'товары'],
+            [Invoice::class, 'creator_id', 'счета'],
+            [CashTransfer::class, 'creator_id', 'переводы между кассами'],
+            [TransactionCategory::class, 'creator_id', 'категории транзакций'],
+            [OrderStatusCategory::class, 'creator_id', 'категории статусов заказов'],
+            [ProjectStatus::class, 'creator_id', 'статусы проектов'],
+            [Template::class, 'creator_id', 'шаблоны'],
+            [Comment::class, 'creator_id', 'комментарии'],
         ];
 
         foreach ($checks as [$model, $field, $label]) {

@@ -14,7 +14,7 @@ class PermissionsSeeder extends Seeder
         foreach ($resources as $resourceName => $config) {
             $actions = $config['actions'] ?? [];
             $scopeActions = $config['scope_actions'] ?? [];
-            $hasUserId = $config['has_user_id'] ?? false;
+            $hasUserId = $config['has_creator_id'] ?? false;
 
             foreach ($actions as $action) {
                 if (in_array($action, $scopeActions)) {

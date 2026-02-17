@@ -112,7 +112,7 @@ class OrderController extends BaseController
         }
 
         $data = [
-            'user_id'      => $userUuid,
+            'creator_id'      => $userUuid,
             'client_id'    => $validatedData['client_id'],
             'project_id'   => $validatedData['project_id'] ?? null,
             'cash_id'      => $validatedData['cash_id'] ?? null,
@@ -421,7 +421,7 @@ class OrderController extends BaseController
         }
 
         $companyId = $this->getCurrentCompanyId();
-        $userCategoryIds = CategoryUser::where('user_id', $userUuid)
+        $userCategoryIds = CategoryUser::where('creator_id', $userUuid)
             ->pluck('category_id')
             ->toArray();
 

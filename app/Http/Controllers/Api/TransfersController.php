@@ -58,7 +58,7 @@ class TransfersController extends BaseController
             'cash_id_from' => $validatedData['cash_id_from'],
             'cash_id_to' => $validatedData['cash_id_to'],
             'amount' => $validatedData['amount'],
-            'user_id' => $userUuid,
+            'creator_id' => $userUuid,
             'note' => $validatedData['note'] ?? null,
             'exchange_rate' => $validatedData['exchange_rate'] ?? null,
         ]);
@@ -98,7 +98,7 @@ class TransfersController extends BaseController
             'cash_id_to' => $validatedData['cash_id_to'],
             'amount' => $validatedData['amount'],
             'note' => $validatedData['note'] ?? null,
-            'user_id' => $userUuid,
+            'creator_id' => $userUuid,
             'exchange_rate' => $validatedData['exchange_rate'] ?? null,
         ]);
 

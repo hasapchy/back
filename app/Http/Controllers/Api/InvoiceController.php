@@ -81,7 +81,7 @@ class InvoiceController extends BaseController
 
             $data = [
                 'client_id' => $validatedData['client_id'],
-                'user_id' => $userUuid,
+                'creator_id' => $userUuid,
                 'invoice_date' => $validatedData['invoice_date'] ?? now()->toDateString(),
                 'note' => $validatedData['note'] ?? '',
                 'order_ids' => $validatedData['order_ids'],

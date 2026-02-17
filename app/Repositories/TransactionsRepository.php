@@ -13,7 +13,6 @@ use App\Services\RoundingService;
 use App\Services\TransactionSourceService;
 use App\Services\ClientBalanceService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class TransactionsRepository extends BaseRepository
 {
@@ -36,6 +35,7 @@ class TransactionsRepository extends BaseRepository
      * @param  int|null  $cash_id  ID кассы
      * @param  string|null  $date_filter_type  Тип фильтра по дате
      * @param  int|null  $order_id  ID заказа
+     * @param  int|null  $contract_id  ID контракта проекта
      * @param  string|null  $search  Поисковый запрос
      * @param  int|null  $transaction_type  Тип транзакции (0 - расход, 1 - доход)
      * @param  string|null  $source  Источник транзакции
@@ -46,7 +46,7 @@ class TransactionsRepository extends BaseRepository
      * @param  array|null  $category_ids  Массив ID категорий транзакций
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null)
+    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null)
     {
         $companyId = $this->getCurrentCompanyId() ?? 'default';
 
@@ -58,24 +58,17 @@ class TransactionsRepository extends BaseRepository
 
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
+        $userUuid = $userUuid ?? $currentUser?->id;
         $searchKey = $search !== null ? md5(trim((string) $search)) : 'null';
         $showDeletedKey = $showDeleted ? '1' : '0';
         $sourcePermissionsKey = $this->getSourcePermissionsKey($currentUser);
         $categoryIdsKey = $category_ids ? md5(implode(',', $category_ids)) : 'null';
-        $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $categoryIdsKey, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId()]);
+        $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $categoryIdsKey, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId(), $contract_id]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $showDeleted, $currentUser) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $showDeleted, $currentUser, $userUuid, $contract_id) {
             $searchTrimmed = is_string($search) ? trim($search) : '';
             $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
 
-            if ($hasSearch) {
-                Log::info('transactions.search.start', [
-                    'user_id' => $currentUser?->id,
-                    'company_id' => $this->getCurrentCompanyId(),
-                    'search' => $searchTrimmed,
-                    'search_length' => mb_strlen($searchTrimmed),
-                ]);
-            }
             $query = Transaction::with([
                 'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
                 'client.phones:id,client_id,phone',
@@ -85,7 +78,7 @@ class TransactionsRepository extends BaseRepository
                 'cashRegister.currency:id,name,symbol',
                 'category:id,name,type',
                 'project:id,name',
-                'user:id,name',
+                'creator:id,name',
                 'cashTransfersFrom:id,tr_id_from',
                 'cashTransfersTo:id,tr_id_to',
             ])
@@ -123,6 +116,10 @@ class TransactionsRepository extends BaseRepository
                 ->when($order_id, function ($query, $order_id) {
                     return $query->where('source_type', 'App\\Models\\Order')
                         ->where('source_id', $order_id);
+                })
+                ->when($contract_id, function ($query, $contract_id) {
+                    return $query->where('source_type', 'App\\Models\\ProjectContract')
+                        ->where('source_id', $contract_id);
                 })
                 ->when($hasSearch, function ($query) use ($searchTrimmed) {
                     $searchLower = mb_strtolower($searchTrimmed);
@@ -210,38 +207,27 @@ class TransactionsRepository extends BaseRepository
                     return $q->whereIn('transactions.category_id', $category_ids);
                 });
 
-            $this->applyOwnFilter($query, 'transactions', 'transactions', 'user_id', $currentUser);
+            if ($this->shouldApplyUserFilter('cash_registers')) {
+                $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+
+                $query->where(function ($q) use ($filterUserId) {
+                    $q->whereNull('transactions.cash_id');
+                    $q->orWhereExists(function ($subQuery) use ($filterUserId) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('cash_register_users')
+                            ->whereColumn('cash_register_users.cash_register_id', 'transactions.cash_id')
+                            ->where('cash_register_users.user_id', $filterUserId);
+                    });
+                });
+            }
+
+            $this->applyOwnFilter($query, 'transactions', 'transactions', 'creator_id', $currentUser);
             $this->applySourceTypeFilter($query, $currentUser);
 
             $query->orderBy('transactions.id', 'desc');
 
-            if ($hasSearch) {
-                Log::info('transactions.search.query', [
-                    'sql' => $query->toSql(),
-                    'bindings' => $query->getBindings(),
-                ]);
-            }
-
             /** @var \Illuminate\Pagination\LengthAwarePaginator $paginatedResults */
             $paginatedResults = $query->paginate($perPage, ['*'], 'page', (int) $page);
-            Log::info('transactions.search.result', [
-                'user_id' => $currentUser?->id,
-                'company_id' => $this->getCurrentCompanyId(),
-                'search' => $searchTrimmed,
-                'has_search' => $hasSearch,
-                'cash_id' => $cash_id,
-                'date_filter_type' => $date_filter_type,
-                'order_id' => $order_id,
-                'transaction_type' => $transaction_type,
-                'source' => $source,
-                'project_id' => $project_id,
-                'start_date' => $start_date,
-                'end_date' => $end_date,
-                'is_debt' => $is_debt,
-                'category_ids' => $category_ids,
-                'show_deleted' => $showDeleted,
-                'count' => $paginatedResults->total(),
-            ]);
 
             $paginatedResults->getCollection()->load([
                 'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
@@ -252,7 +238,7 @@ class TransactionsRepository extends BaseRepository
                 'cashRegister.currency:id,name,symbol',
                 'category:id,name,type',
                 'project:id,name',
-                'user:id,name',
+                'creator:id,name',
                 'cashTransfersFrom:id,tr_id_from',
                 'cashTransfersTo:id,tr_id_to',
             ]);
@@ -286,8 +272,8 @@ class TransactionsRepository extends BaseRepository
                     'orig_currency_name' => $transaction->currency?->name,
                     'orig_currency_symbol' => $transaction->currency?->symbol,
                     'exchange_rate' => $transaction->exchange_rate,
-                    'user_id' => $transaction->user_id,
-                    'user_name' => $transaction->user?->name,
+                    'creator_id' => $transaction->creator_id,
+                    'user_name' => $transaction->creator?->name,
                     'category_id' => $transaction->category_id,
                     'category_name' => $transaction->category?->name,
                     'category_type' => $transaction->category?->type,
@@ -453,7 +439,7 @@ class TransactionsRepository extends BaseRepository
         try {
             $transaction = new Transaction;
             $transaction->type = $data['type'];
-            $transaction->user_id = $data['user_id'];
+            $transaction->creator_id = $data['creator_id'];
             $transaction->orig_amount = $originalAmount;
             $transaction->amount = $convertedAmount;
             $transaction->currency_id = $data['currency_id'];
@@ -490,29 +476,9 @@ class TransactionsRepository extends BaseRepository
                 if ($client) {
                     $balanceId = null;
 
-                    Log::info('Transaction client balance update', [
-                        'transaction_id' => $transaction->id ?? 'new',
-                        'client_id' => $data['client_id'],
-                        'client_balance_id' => $data['client_balance_id'] ?? null,
-                        'has_client_balance_id' => !empty($data['client_balance_id']),
-                        'original_amount' => $originalAmount,
-                        'currency_id' => $fromCurrency->id,
-                        'type' => $data['type'],
-                        'is_debt' => $data['is_debt'] ?? false,
-                    ]);
-
                     if (!empty($data['client_balance_id'])) {
                         $balanceId = (int) $data['client_balance_id'];
                         $clientBalance = \App\Models\ClientBalance::lockForUpdate()->find($balanceId);
-
-                        Log::info('Using specific client balance', [
-                            'balance_id' => $balanceId,
-                            'balance_found' => $clientBalance !== null,
-                            'balance_client_id' => $clientBalance->client_id ?? null,
-                            'request_client_id' => $client->id,
-                            'balance_currency_id' => $clientBalance->currency_id ?? null,
-                            'transaction_currency_id' => $fromCurrency->id,
-                        ]);
 
                         if ($clientBalance && $clientBalance->client_id == $client->id) {
                             $balanceCurrency = $clientBalance->currency;
@@ -521,7 +487,6 @@ class TransactionsRepository extends BaseRepository
 
                                 if ($balanceCurrency->id === $fromCurrency->id) {
                                     $amountToUse = $originalAmount;
-                                    Log::info('Balance currency matches transaction currency, no conversion needed');
                                 } else {
                                     $defaultCurrency = Currency::where('is_default', true)->first();
                                     if ($defaultCurrency) {
@@ -537,15 +502,8 @@ class TransactionsRepository extends BaseRepository
                                         );
                                         $roundingService = new \App\Services\RoundingService;
                                         $amountToUse = $roundingService->roundForCompany($companyId, $convertedAmount);
-                                        Log::info('Converted amount for balance', [
-                                            'original_amount' => $originalAmount,
-                                            'converted_amount' => $amountToUse,
-                                            'from_currency' => $fromCurrency->id,
-                                            'to_currency' => $balanceCurrency->id,
-                                        ]);
                                     } else {
                                         $amountToUse = $originalAmount;
-                                        Log::warning('Default currency not found, using original amount');
                                     }
                                 }
 
@@ -556,25 +514,9 @@ class TransactionsRepository extends BaseRepository
                                 $delta = $sign * $amountToUse;
                                 $oldBalance = $clientBalance->balance;
                                 $clientBalance->increment('balance', $delta);
-
-                                Log::info('Updated specific client balance', [
-                                    'balance_id' => $balanceId,
-                                    'old_balance' => $oldBalance,
-                                    'new_balance' => $clientBalance->fresh()->balance,
-                                    'delta' => $delta,
-                                    'amount_used' => $amountToUse,
-                                    'sign' => $sign,
-                                ]);
                             }
-                        } else {
-                            Log::warning('Client balance not found or client mismatch', [
-                                'balance_id' => $balanceId,
-                                'balance_client_id' => $clientBalance->client_id ?? null,
-                                'request_client_id' => $client->id,
-                            ]);
                         }
                     } else {
-                        Log::info('No client_balance_id provided, using default balance logic');
                         $balanceId = ClientBalanceService::updateBalance(
                             $client,
                             $fromCurrency,
@@ -586,24 +528,11 @@ class TransactionsRepository extends BaseRepository
                             $data['exchange_rate'] ?? null,
                             $toCurrency
                         );
-
-                        Log::info('Updated balance using default logic', [
-                            'balance_id' => $balanceId,
-                        ]);
                     }
 
                     if ($balanceId) {
                         $transaction->client_balance_id = $balanceId;
                         $transaction->save();
-
-                        Log::info('Transaction client_balance_id set', [
-                            'transaction_id' => $transaction->id,
-                            'client_balance_id' => $balanceId,
-                        ]);
-                    } else {
-                        Log::warning('No balance_id returned from updateBalance', [
-                            'client_id' => $data['client_id'],
-                        ]);
                     }
 
                     CacheService::invalidateClientsCache();
@@ -929,16 +858,6 @@ class TransactionsRepository extends BaseRepository
                 $oldCashCurrency = $cashRegister->currency;
 
                 if ($oldClient && $oldCurrency) {
-                    Log::info('transaction.client_balance.on_update_old', [
-                        'transaction_id' => $transaction->id,
-                        'client_id' => $oldClientId,
-                        'orig_amount' => $oldOrigAmount,
-                        'currency_id' => $oldCurrencyId,
-                        'cash_currency_id' => $oldCashCurrency->id,
-                        'company_id' => $companyId,
-                        'exchange_rate' => $oldExchangeRate ?? null,
-                    ]);
-
                     ClientBalanceService::updateBalance(
                         $oldClient,
                         $oldCurrency,
@@ -956,16 +875,6 @@ class TransactionsRepository extends BaseRepository
             if (! $shouldSkipNew && $transaction->client_id) {
                 $client = Client::find($transaction->client_id);
                 if ($client) {
-                    Log::info('transaction.client_balance.on_update_new', [
-                        'transaction_id' => $transaction->id,
-                        'client_id' => $transaction->client_id,
-                        'orig_amount' => $newOrigAmount,
-                        'currency_id' => $fromCurrency->id,
-                        'cash_currency_id' => $toCurrency->id,
-                        'company_id' => $companyId,
-                        'exchange_rate' => $data['exchange_rate'] ?? null,
-                    ]);
-
                     ClientBalanceService::updateBalance(
                         $client,
                         $fromCurrency,
@@ -1138,8 +1047,21 @@ class TransactionsRepository extends BaseRepository
                 $projectsRepository->invalidateProjectCache($transaction->project_id);
             }
 
-            if ($transaction->source_type === 'App\Models\Order' && $transaction->source_id) {
+            if ($transaction->source_type === \App\Models\Order::class && $transaction->source_id) {
                 CacheService::invalidateOrdersCache();
+                if (!$transaction->is_debt) {
+                    $ordersRepository = new \App\Repositories\OrdersRepository();
+                    $ordersRepository->updateOrderPaidAmount($transaction->source_id);
+                }
+            }
+            if ($transaction->source_type === \App\Models\ProjectContract::class && $transaction->source_id) {
+                if (!$transaction->is_debt) {
+                    $contractsRepository = new \App\Repositories\ProjectContractsRepository();
+                    $contractsRepository->updateContractPaidAmount((int) $transaction->source_id);
+                } else {
+                    CacheService::invalidateByLike('%project_contract%');
+                    CacheService::invalidateProjectsCache();
+                }
             }
 
             return true;
@@ -1236,7 +1158,7 @@ class TransactionsRepository extends BaseRepository
     private function getItems(array $ids = [])
     {
         $query = Transaction::query();
-        $query->leftJoin('users as users', 'transactions.user_id', '=', 'users.id');
+        $query->leftJoin('users as users', 'transactions.creator_id', '=', 'users.id');
         $query->leftJoin('currencies as currencies', 'transactions.currency_id', '=', 'currencies.id');
         $query->join('cash_registers as cash_registers', 'transactions.cash_id', '=', 'cash_registers.id');
         $query->join('currencies as cash_register_currencies', 'cash_registers.currency_id', '=', 'cash_register_currencies.id');
@@ -1267,7 +1189,7 @@ class TransactionsRepository extends BaseRepository
             'currencies.name as orig_currency_name',
             'currencies.symbol as orig_currency_symbol',
             'transactions.exchange_rate as exchange_rate',
-            'transactions.user_id as user_id',
+            'transactions.creator_id as creator_id',
             'users.name as user_name',
             'transactions.category_id as category_id',
             'transaction_categories.name as category_name',
@@ -1402,7 +1324,7 @@ class TransactionsRepository extends BaseRepository
         $permissions = $this->getUserPermissionsForCompany($user);
 
         // Права по источникам работают независимо от transactions_view_all
-        // transactions_view_all влияет только на фильтр по user_id
+        // transactions_view_all влияет только на фильтр по creator_id
         $sources = [];
         if (in_array('transactions_view_sale', $permissions)) {
             $sources[] = 'sale';

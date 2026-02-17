@@ -49,7 +49,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Static mapping of user IDs to category IDs for simple workers.
-    | Format: 'user_id' => 'category_id'
+    | Format: 'creator_id' => 'category_id'
     | Multiple users can map to the same category.
     |
     */

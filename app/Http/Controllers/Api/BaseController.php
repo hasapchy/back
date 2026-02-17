@@ -142,7 +142,7 @@ class BaseController extends BaseRoutingController
      *
      * @param string $resource Ресурс (например, 'users', 'orders')
      * @param string $action Действие (например, 'view', 'update', 'delete')
-     * @param mixed $record Запись для проверки (должна иметь user_id)
+     * @param mixed $record Запись для проверки (должна иметь creator_id)
      * @param \App\Models\User|null $user Пользователь
      * @return bool
      */
@@ -342,11 +342,11 @@ class BaseController extends BaseRoutingController
      * Проверить, является ли пользователь владельцем записи или админом
      *
      * @param Model $model Модель для проверки
-     * @param string $userIdField Поле с ID пользователя (по умолчанию 'user_id')
+     * @param string $userIdField Поле с ID пользователя (по умолчанию 'creator_id')
      * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
      * @return bool
      */
-    protected function isOwnerOrAdmin(Model $model, string $userIdField = 'user_id', $user = null): bool
+    protected function isOwnerOrAdmin(Model $model, string $userIdField = 'creator_id', $user = null): bool
     {
         $user = $user ?? $this->requireAuthenticatedUser();
 
@@ -361,11 +361,11 @@ class BaseController extends BaseRoutingController
      * Проверить, является ли пользователь владельцем записи или админом, или выбросить исключение
      *
      * @param Model $model Модель для проверки
-     * @param string $userIdField Поле с ID пользователя (по умолчанию 'user_id')
+     * @param string $userIdField Поле с ID пользователя (по умолчанию 'creator_id')
      * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
      * @throws \Illuminate\Http\Exceptions\HttpResponseException
      */
-    protected function requireOwnerOrAdmin(Model $model, string $userIdField = 'user_id', $user = null): void
+    protected function requireOwnerOrAdmin(Model $model, string $userIdField = 'creator_id', $user = null): void
     {
         if (!$this->isOwnerOrAdmin($model, $userIdField, $user)) {
             abort(403, 'У вас нет прав на эту операцию');
@@ -412,9 +412,7 @@ class BaseController extends BaseRoutingController
                 $user = $this->getAuthenticatedUser();
 
                 if ($user && $user->hasRole(config('simple.worker_role'))) {
-                    $hasAccessByAssignment = $cashRegister->users()
-                        ->where('user_id', $user->id)
-                        ->exists();
+                    $hasAccessByAssignment = $cashRegister->hasUser($user->id);
 
                     if ($hasAccessByAssignment) {
                         return null;

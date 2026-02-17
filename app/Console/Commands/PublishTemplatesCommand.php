@@ -153,7 +153,7 @@ class PublishTemplatesCommand extends Command
                         'title' => $template->name,
                         'content' => $content,
                         'company_id' => $companyId,
-                        'user_id' => $template->user_id,
+                        'creator_id' => $template->creator_id,
                         'meta' => [
                             'template_type' => $type,
                             'source_id' => $item->id ?? null,

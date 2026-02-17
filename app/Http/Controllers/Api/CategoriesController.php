@@ -81,7 +81,7 @@ class CategoriesController extends BaseController
         $category_created = $this->itemsRepository->createItem([
             'name' => $validatedData['name'],
             'parent_id' => $validatedData['parent_id'] ?? null,
-            'user_id' => $userUuid,
+            'creator_id' => $userUuid,
             'users' => $validatedData['users']
         ]);
 
@@ -108,7 +108,7 @@ class CategoriesController extends BaseController
         $category_updated = $this->itemsRepository->updateItem($id, [
             'name' => $validatedData['name'],
             'parent_id' => $validatedData['parent_id'] ?? null,
-            'user_id' => $userUuid,
+            'creator_id' => $userUuid,
             'users' => $validatedData['users']
         ]);
 

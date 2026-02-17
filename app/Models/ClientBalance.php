@@ -91,7 +91,12 @@ class ClientBalance extends Model
      */
     public function users()
     {
-        return $this->belongsToMany(User::class, 'client_balance_users', 'client_balance_id', 'user_id');
+        return $this->belongsToMany(User::class, 'client_balance_users', 'client_balance_id', 'creator_id');
+    }
+
+    public function hasUser($userId)
+    {
+        return $this->users()->wherePivot('creator_id', $userId)->exists();
     }
 
     /**

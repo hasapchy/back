@@ -144,7 +144,7 @@ class MessageTemplateController extends BaseController
             'type' => $validatedData['type'],
             'name' => $validatedData['name'],
             'content' => $validatedData['content'],
-            'user_id' => $userId,
+            'creator_id' => $userId,
             'is_active' => $validatedData['is_active'] ?? true,
         ];
 

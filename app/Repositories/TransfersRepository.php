@@ -91,8 +91,8 @@ class TransfersRepository extends BaseRepository
                     'currency_to_symbol' => $toCash?->currency?->symbol,
                     'amount' => $transfer->amount,
                     'exchange_rate' => $transfer->exchange_rate,
-                    'user_id' => $transfer->user?->id,
-                    'user_name' => $transfer->user?->name,
+                    'creator_id' => $transfer->creator?->id,
+                    'user_name' => $transfer->creator?->name,
                     'date' => $transfer->date,
                     'note' => $transfer->note,
                     'category_id' => self::TRANSFER_OUTCOME_CATEGORY_ID,
@@ -116,7 +116,7 @@ class TransfersRepository extends BaseRepository
         $cash_from_id = $data['cash_id_from'];
         $cash_to_id = $data['cash_id_to'];
         $amount = $data['amount'];
-        $userUuid = $data['user_id'];
+        $userUuid = $data['creator_id'];
         $note = $data['note'];
         $date_of_transfer = $data['date'] ?? now();
         $fromCashRegister = CashRegister::findOrFail($cash_from_id);
@@ -159,7 +159,7 @@ class TransfersRepository extends BaseRepository
 
             $fromTransactionData = [
                 'type' => '0',
-                'user_id' => $userUuid,
+                'creator_id' => $userUuid,
                 'orig_amount' => $amount,
                 'currency_id' => $fromCashRegister->currency_id,
                 'cash_id' => $fromCashRegister->id,
@@ -172,7 +172,7 @@ class TransfersRepository extends BaseRepository
 
             $toTransactionData = [
                 'type' => '1',
-                'user_id' => $userUuid,
+                'creator_id' => $userUuid,
                 'orig_amount' => $amountInTargetCurrency,
                 'currency_id' => $toCashRegister->currency_id,
                 'cash_id' => $toCashRegister->id,
@@ -192,7 +192,7 @@ class TransfersRepository extends BaseRepository
                 'cash_id_to' => $toCashRegister->id,
                 'tr_id_from' => $toTransactionId,
                 'tr_id_to' => $fromTransactionId,
-                'user_id' => $userUuid,
+                'creator_id' => $userUuid,
                 'amount' => $amount,
                 'exchange_rate' => $exchangeRate,
                 'note' => $note,

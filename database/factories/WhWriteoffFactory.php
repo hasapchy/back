@@ -23,7 +23,7 @@ class WhWriteoffFactory extends Factory
     {
         return [
             'warehouse_id' => Warehouse::factory(),
-            'user_id' => User::factory(),
+            'creator_id' => User::factory(),
             'note' => fake()->optional()->sentence(),
             'date' => now(),
         ];

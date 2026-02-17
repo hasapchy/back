@@ -62,15 +62,20 @@ class PermissionCheckService
                 return $record->hasUser($user->id);
             }
             if (method_exists($record, 'users')) {
-                return $record->users()->where('user_id', $user->id)->exists();
+                return $record->users()->where('creator_id', $user->id)->exists();
             }
             return false;
         }
 
-        if ($strategy === 'user_id' || $strategy === 'default') {
+        if ($strategy === 'creator_id' || $strategy === 'default') {
             if ($resource === 'users' && method_exists($record, 'getKey')) {
                 return $record->getKey() === $user->id;
             }
+            $userId = $record->creator_id ?? null;
+            return $userId && $userId === $user->id;
+        }
+
+        if ($strategy === 'user_id') {
             $userId = $record->user_id ?? null;
             return $userId && $userId === $user->id;
         }
