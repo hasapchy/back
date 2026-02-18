@@ -339,7 +339,7 @@ class ProjectsRepository extends BaseRepository
                 ->with([
                     'cashRegister.currency:id,symbol',
                     'currency:id,symbol,name,is_default',
-                    'user:id,name',
+                    'creator:id,name',
                     'category:id,name'
                 ])
                 ->select(
@@ -395,9 +395,9 @@ class ProjectsRepository extends BaseRepository
                     'is_debt' => $item->is_debt,
                     'note' => $item->note,
                     'creator_id' => $item->creator_id,
-                    'user_name' => $item->creator->name,
-                    'cash_currency_symbol' => $item->cashRegister?->currency->symbol ?? $item->currency->symbol,
-                    'category_name' => $item->category->name ?? null
+                    'user_name' => $item->creator?->name ?? null,
+                    'cash_currency_symbol' => $item->cashRegister?->currency?->symbol ?? $item->currency?->symbol,
+                    'category_name' => $item->category?->name ?? null
                 ];
             });
 

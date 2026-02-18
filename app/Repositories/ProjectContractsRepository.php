@@ -90,6 +90,28 @@ class ProjectContractsRepository extends BaseRepository
     }
 
     /**
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string|null $paymentStatus unpaid|partially_paid|paid
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    private function applyPaymentStatusFilter($query, $paymentStatus)
+    {
+        if ($paymentStatus === null) {
+            return $query;
+        }
+        if ($paymentStatus === 'paid') {
+            return $query->whereRaw('project_contracts.paid_amount >= project_contracts.amount');
+        }
+        if ($paymentStatus === 'unpaid') {
+            return $query->whereRaw('project_contracts.paid_amount <= 0');
+        }
+        if ($paymentStatus === 'partially_paid') {
+            return $query->whereRaw('project_contracts.paid_amount > 0 AND project_contracts.paid_amount < project_contracts.amount');
+        }
+        return $query;
+    }
+
+    /**
      * Обновить оплаченную сумму контракта на основе транзакций (платежи: is_debt=0)
      *
      * @param int $contractId ID контракта
@@ -188,22 +210,21 @@ class ProjectContractsRepository extends BaseRepository
      * @param int $page Номер страницы
      * @param string|null $search Поисковый запрос
      * @param int|null $projectId Фильтр по проекту (опционально)
-     * @param bool|null $isPaid Фильтр по статусу оплаты (опционально)
+     * @param string|null $paymentStatus Фильтр по статусу оплаты: unpaid, partially_paid, paid
      * @param bool|null $returned Фильтр по статусу возврата (опционально)
      * @param int|null $cashId Фильтр по кассе (опционально)
      * @param int|null $type Фильтр по типу контракта (опционально)
      * @param bool $activeProjectsOnly Только контракты активных проектов
+     * @param int|null $projectStatusId Фильтр по статусу проекта
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getAllContractsWithPagination($perPage = 20, $page = 1, $search = null, $projectId = null, $isPaid = null, $returned = null, $cashId = null, $type = null, $activeProjectsOnly = false)
+    public function getAllContractsWithPagination($perPage = 20, $page = 1, $search = null, $projectId = null, $paymentStatus = null, $returned = null, $cashId = null, $type = null, $activeProjectsOnly = false, $projectStatusId = null)
     {
-        $isPaidKey = $isPaid === true ? 'paid1' : ($isPaid === false ? 'paid0' : 'paidn');
         $returnedKey = $returned === true ? 'ret1' : ($returned === false ? 'ret0' : 'retn');
-
         $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';
-        $cacheKey = $this->generateCacheKey('all_contracts_paginated', [$perPage, $page, $searchKey, $projectId, $isPaidKey, $returnedKey, $cashId, $type, $activeProjectsOnly]);
+        $cacheKey = $this->generateCacheKey('all_contracts_paginated', [$perPage, $page, $searchKey, $projectId, $paymentStatus, $returnedKey, $cashId, $type, $activeProjectsOnly, $projectStatusId]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $isPaid, $returned, $cashId, $type, $activeProjectsOnly) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId) {
 
             $query = $this->getBaseQuery()
                 ->leftJoin('projects', 'project_contracts.project_id', '=', 'projects.id')
@@ -221,16 +242,16 @@ class ProjectContractsRepository extends BaseRepository
                     ->where('project_statuses.is_tr_visible', true);
             }
 
+            if ($projectStatusId !== null) {
+                $query->where('projects.status_id', $projectStatusId);
+            }
+
             if ($projectId) {
                 $query->where('project_contracts.project_id', $projectId);
             }
 
-            $query->when($isPaid !== null, function ($q) use ($isPaid) {
-                return $isPaid
-                    ? $q->whereRaw('project_contracts.paid_amount >= project_contracts.amount')
-                    : $q->whereRaw('project_contracts.paid_amount < project_contracts.amount');
-            })
-            ->when($returned !== null, function ($q) use ($returned) {
+            $this->applyPaymentStatusFilter($query, $paymentStatus);
+            $query->when($returned !== null, function ($q) use ($returned) {
                 return $q->where('project_contracts.returned', $returned ? 1 : 0);
             })
             ->when($cashId !== null, function ($q) use ($cashId) {
@@ -263,22 +284,21 @@ class ProjectContractsRepository extends BaseRepository
      * @param string|null $search Поисковый запрос
      * @param int|null $projectId Фильтр по проекту (опционально)
      * @param int $userId ID пользователя
-     * @param bool|null $isPaid Фильтр по статусу оплаты (опционально)
+     * @param string|null $paymentStatus Фильтр по статусу оплаты: unpaid, partially_paid, paid
      * @param bool|null $returned Фильтр по статусу возврата (опционально)
      * @param int|null $cashId Фильтр по кассе (опционально)
      * @param int|null $type Фильтр по типу контракта (опционально)
      * @param bool $activeProjectsOnly Только контракты активных проектов
+     * @param int|null $projectStatusId Фильтр по статусу проекта
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getAllContractsWithPaginationForUser($perPage = 20, $page = 1, $search = null, $projectId = null, $userId, $isPaid = null, $returned = null, $cashId = null, $type = null, $activeProjectsOnly = false)
+    public function getAllContractsWithPaginationForUser($perPage = 20, $page = 1, $search = null, $projectId = null, $userId, $paymentStatus = null, $returned = null, $cashId = null, $type = null, $activeProjectsOnly = false, $projectStatusId = null)
     {
-        $isPaidKey = $isPaid === true ? 'paid1' : ($isPaid === false ? 'paid0' : 'paidn');
         $returnedKey = $returned === true ? 'ret1' : ($returned === false ? 'ret0' : 'retn');
-
         $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';
-        $cacheKey = $this->generateCacheKey('all_contracts_paginated_user', [$perPage, $page, $searchKey, $projectId, $userId, $isPaidKey, $returnedKey, $cashId, $type, $activeProjectsOnly]);
+        $cacheKey = $this->generateCacheKey('all_contracts_paginated_user', [$perPage, $page, $searchKey, $projectId, $userId, $paymentStatus, $returnedKey, $cashId, $type, $activeProjectsOnly, $projectStatusId]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $userId, $isPaid, $returned, $cashId, $type, $activeProjectsOnly) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $userId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId) {
 
             $query = $this->getBaseQuery()
                 ->leftJoin('projects', 'project_contracts.project_id', '=', 'projects.id')
@@ -297,15 +317,15 @@ class ProjectContractsRepository extends BaseRepository
                     ->where('project_statuses.is_tr_visible', true);
             }
 
+            if ($projectStatusId !== null) {
+                $query->where('projects.status_id', $projectStatusId);
+            }
+
             $query->when($projectId, function ($q) use ($projectId) {
                 return $q->where('project_contracts.project_id', $projectId);
-            })
-            ->when($isPaid !== null, function ($q) use ($isPaid) {
-                return $isPaid
-                    ? $q->whereRaw('project_contracts.paid_amount >= project_contracts.amount')
-                    : $q->whereRaw('project_contracts.paid_amount < project_contracts.amount');
-            })
-            ->when($returned !== null, function ($q) use ($returned) {
+            });
+            $this->applyPaymentStatusFilter($query, $paymentStatus);
+            $query->when($returned !== null, function ($q) use ($returned) {
                 return $q->where('project_contracts.returned', $returned ? 1 : 0);
             })
             ->when($cashId !== null, function ($q) use ($cashId) {
@@ -423,7 +443,6 @@ class ProjectContractsRepository extends BaseRepository
                     'cash_id'      => $contract->cash_id,
                     'currency_id'  => $contractCurrencyId,
                     'client_id'    => $project->client_id,
-                    'project_id'   => $contract->project_id,
                     'category_id'  => $debtTransaction->category_id,
                 ]);
             }

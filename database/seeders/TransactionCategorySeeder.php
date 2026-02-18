@@ -7,7 +7,12 @@ use App\Models\TransactionCategory;
 
 class TransactionCategorySeeder extends Seeder
 {
-    public function run()
+    /**
+     * Run the database seeds.
+     *
+     * @return void
+     */
+    public function run(): void
     {
         TransactionCategory::updateOrCreate(['id' => 1], ['name' => 'SALE', 'type' => 1, 'creator_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 2], ['name' => 'CUSTOMER_PAYMENT', 'type' => 1, 'creator_id' => 1]);
@@ -37,7 +42,6 @@ class TransactionCategorySeeder extends Seeder
         TransactionCategory::updateOrCreate(['id' => 26], ['name' => 'PREMIUM', 'type' => 1, 'creator_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 27], ['name' => 'FINE', 'type' => 0, 'creator_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 28], ['name' => 'RENT_INCOME', 'type' => 1, 'creator_id' => 1]);
-        TransactionCategory::updateOrCreate(['id' => 29], ['name' => 'CUSTOMER_PAYMENT', 'type' => 1, 'creator_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 30], ['name' => 'CONTRACT', 'type' => 1, 'creator_id' => 1]);
         TransactionCategory::updateOrCreate(['id' => 31], ['name' => 'UNPAID_LEAVE', 'type' => 0, 'creator_id' => 1]);
     }

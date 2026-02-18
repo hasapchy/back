@@ -97,13 +97,14 @@ class ProjectsController extends BaseController
 
         $page = (int) $request->input('page', 1);
         $perPage = (int) $request->input('per_page', 20);
+        $search = $request->input('search');
         $statusId = $request->input('status_id') ? (int) $request->input('status_id') : null;
         $clientId = $request->input('client_id') ? (int) $request->input('client_id') : null;
         $dateFilter = $request->input('date_filter', 'all_time');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        $items = $this->itemsRepository->getItemsWithPagination($perPage, $page, null, $dateFilter, $startDate, $endDate, $statusId, $clientId, null);
+        $items = $this->itemsRepository->getItemsWithPagination($perPage, $page, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, null);
 
         return $this->paginatedResponse($items);
     }

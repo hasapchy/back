@@ -609,7 +609,9 @@ class TransactionsRepository extends BaseRepository
 
         $transaction->client_id = $data['client_id'];
         $transaction->category_id = $data['category_id'];
-        $transaction->project_id = $data['project_id'];
+        if (array_key_exists('project_id', $data)) {
+            $transaction->project_id = $data['project_id'];
+        }
         $transaction->date = $data['date'];
         $transaction->note = ! empty($data['note']) ? $data['note'] : null;
 
@@ -697,7 +699,9 @@ class TransactionsRepository extends BaseRepository
 
             $transaction->client_id = $data['client_id'];
             $transaction->category_id = $data['category_id'];
-            $transaction->project_id = $data['project_id'];
+            if (array_key_exists('project_id', $data)) {
+                $transaction->project_id = $data['project_id'];
+            }
             $transaction->date = $data['date'];
             $transaction->note = $data['note'] ?? null;
 

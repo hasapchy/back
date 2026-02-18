@@ -96,9 +96,11 @@ class ProjectContractsController extends BaseController
             $page = (int) $request->get('page', 1);
             $search = $request->get('search');
             $projectId = $request->get('project_id');
+            $projectStatusId = $request->get('project_status_id') ? (int) $request->get('project_status_id') : null;
             $activeProjectsOnly = $request->boolean('active_projects_only');
 
-            $isPaid = $request->has('is_paid') ? $request->boolean('is_paid') : null;
+            $v = $request->get('payment_status');
+            $paymentStatus = ($v !== null && $v !== '' && in_array($v, ['unpaid', 'partially_paid', 'paid'], true)) ? $v : null;
             $returned = $request->has('returned') ? $request->boolean('returned') : null;
             $cashId = $request->get('cash_id') ? (int) $request->get('cash_id') : null;
             $type = $request->has('type') ? (int) $request->get('type') : null;
@@ -107,9 +109,9 @@ class ProjectContractsController extends BaseController
             $hasViewAll = $user && ($user->is_admin || $this->hasPermission('contracts_view_all', $user));
 
             if (!$hasViewAll && $this->hasPermission('contracts_view_own', $user)) {
-                $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $user->id, $isPaid, $returned, $cashId, $type, $activeProjectsOnly);
+                $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $user->id, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
             } else {
-                $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $isPaid, $returned, $cashId, $type, $activeProjectsOnly);
+                $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
             }
 
             return $this->paginatedResponse($result);
