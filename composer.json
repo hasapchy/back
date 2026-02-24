@@ -28,7 +28,6 @@
         "knuckleswtf/scribe": "^5.6",
         "laravel/boost": "^1.8",
         "laravel/pint": "^1.0",
-        "laravel/telescope": "^5.15",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^7.0",
         "phpunit/phpunit": "^10.1",

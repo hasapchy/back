@@ -17,6 +17,7 @@ class Chat extends Model
         'last_message_at',
         'is_archived',
         'avatar',
+        'pinned_message_id',
     ];
 
     protected $casts = [
@@ -47,5 +48,10 @@ class Chat extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(ChatMessage::class);
+    }
+
+    public function pinnedMessage(): BelongsTo
+    {
+        return $this->belongsTo(ChatMessage::class, 'pinned_message_id');
     }
 }

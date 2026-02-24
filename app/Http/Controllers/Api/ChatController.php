@@ -26,14 +26,41 @@ class ChatController extends BaseController
     {
     }
 
-    public function index(IndexChatsRequest $request): JsonResponse
+    /**
+     * @return array{0: \App\Models\User, 1: int}
+     */
+    protected function requireUserAndCompany(): array
     {
         $user = $this->requireAuthenticatedUser();
         $companyId = (int) $this->getCurrentCompanyId();
-
-        if (! $companyId) {
-            return response()->json(['message' => 'X-Company-ID header is required'], 422);
+        if (!$companyId) {
+            abort(422, 'X-Company-ID header is required');
         }
+        return [$user, $companyId];
+    }
+
+    /**
+     * @return array{0: \App\Models\User, 1: int}
+     */
+    protected function requireChatAccess(Chat $chat): array
+    {
+        [$user, $companyId] = $this->requireUserAndCompany();
+        if ((int) $chat->company_id !== $companyId) {
+            abort(403, 'Forbidden');
+        }
+        $isParticipant = ChatParticipant::query()
+            ->where('chat_id', $chat->id)
+            ->where('user_id', $user->id)
+            ->exists();
+        if (!$isParticipant) {
+            abort(403, 'Forbidden');
+        }
+        return [$user, $companyId];
+    }
+
+    public function index(IndexChatsRequest $request): JsonResponse
+    {
+        [$user, $companyId] = $this->requireUserAndCompany();
 
         $payload = $this->chatService->listChats($companyId, $user);
         return ChatListItemResource::collection(collect($payload))->response();
@@ -41,12 +68,7 @@ class ChatController extends BaseController
 
     public function general(): JsonResponse
     {
-        $user = $this->requireAuthenticatedUser();
-        $companyId = (int) $this->getCurrentCompanyId();
-
-        if (! $companyId) {
-            return response()->json(['message' => 'X-Company-ID header is required'], 422);
-        }
+        [$user, $companyId] = $this->requireUserAndCompany();
 
         $chat = $this->chatService->ensureGeneralChat($companyId, $user);
 
@@ -55,12 +77,7 @@ class ChatController extends BaseController
 
     public function startDirect(StartDirectChatRequest $request): JsonResponse
     {
-        $user = $this->requireAuthenticatedUser();
-        $companyId = (int) $this->getCurrentCompanyId();
-
-        if (! $companyId) {
-            return response()->json(['message' => 'X-Company-ID header is required'], 422);
-        }
+        [$user, $companyId] = $this->requireUserAndCompany();
 
         $otherUserId = (int) $request->validated()['creator_id'];
         if ($otherUserId === (int) $user->id) {
@@ -83,12 +100,7 @@ class ChatController extends BaseController
 
     public function createGroup(CreateGroupChatRequest $request): JsonResponse
     {
-        $user = $this->requireAuthenticatedUser();
-        $companyId = (int) $this->getCurrentCompanyId();
-
-        if (! $companyId) {
-            return response()->json(['message' => 'X-Company-ID header is required'], 422);
-        }
+        [$user, $companyId] = $this->requireUserAndCompany();
 
         $data = $request->validated();
         $userIds = array_values(array_unique(array_map('intval', $data['creator_ids'] ?? [])));
@@ -118,25 +130,7 @@ class ChatController extends BaseController
 
     public function messages(Request $request, Chat $chat): JsonResponse
     {
-        $user = $this->requireAuthenticatedUser();
-        $companyId = (int) $this->getCurrentCompanyId();
-
-        if (! $companyId) {
-            return response()->json(['message' => 'X-Company-ID header is required'], 422);
-        }
-
-        if ((int) $chat->company_id !== $companyId) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $isParticipant = ChatParticipant::query()
-            ->where('chat_id', $chat->id)
-            ->where('user_id', $user->id)
-            ->exists();
-
-        if (! $isParticipant) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
+        [$user, $companyId] = $this->requireChatAccess($chat);
 
         $limit = (int) $request->query('limit', 200);
         $limit = max(1, min(200, $limit));
@@ -159,27 +153,22 @@ class ChatController extends BaseController
         return ChatMessageResource::collection($messages)->response();
     }
 
+    public function searchMessages(Request $request, Chat $chat): JsonResponse
+    {
+        [$user, $companyId] = $this->requireChatAccess($chat);
+
+        $q = $request->query('q', '');
+        $limit = (int) $request->query('limit', 50);
+        $limit = max(1, min(100, $limit));
+
+        $messages = $this->chatService->searchMessages($companyId, $user, $chat, $q, $limit);
+
+        return ChatMessageResource::collection($messages)->response();
+    }
+
     public function markAsRead(MarkChatReadRequest $request, Chat $chat): JsonResponse
     {
-        $user = $this->requireAuthenticatedUser();
-        $companyId = (int) $this->getCurrentCompanyId();
-
-        if (! $companyId) {
-            return response()->json(['message' => 'X-Company-ID header is required'], 422);
-        }
-
-        if ((int) $chat->company_id !== $companyId) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $isParticipant = ChatParticipant::query()
-            ->where('chat_id', $chat->id)
-            ->where('user_id', $user->id)
-            ->exists();
-
-        if (! $isParticipant) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
+        [$user, $companyId] = $this->requireChatAccess($chat);
 
         $data = $request->validated();
         $lastMessageId = isset($data['last_message_id']) ? (int) $data['last_message_id'] : null;
@@ -189,27 +178,18 @@ class ChatController extends BaseController
         return response()->json(['data' => ['ok' => true]]);
     }
 
+    public function typing(Chat $chat): JsonResponse
+    {
+        [$user, $companyId] = $this->requireChatAccess($chat);
+
+        $this->chatService->sendTyping($companyId, $user, $chat);
+
+        return response()->json(['data' => ['ok' => true]]);
+    }
+
     public function storeMessage(StoreChatMessageRequest $request, Chat $chat): JsonResponse
     {
-        $user = $this->requireAuthenticatedUser();
-        $companyId = (int) $this->getCurrentCompanyId();
-
-        if (! $companyId) {
-            return response()->json(['message' => 'X-Company-ID header is required'], 422);
-        }
-
-        if ((int) $chat->company_id !== $companyId) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $isParticipant = ChatParticipant::query()
-            ->where('chat_id', $chat->id)
-            ->where('user_id', $user->id)
-            ->exists();
-
-        if (! $isParticipant) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
+        [$user, $companyId] = $this->requireChatAccess($chat);
 
         if ($chat->type === 'general' && ! $this->hasPermission('chats_write_general', $user)) {
             return response()->json(['message' => 'Forbidden'], 403);
@@ -239,35 +219,19 @@ class ChatController extends BaseController
 
     public function updateMessage(UpdateChatMessageRequest $request, Chat $chat, ChatMessage $message): JsonResponse
     {
-        $user = $this->requireAuthenticatedUser();
-        $companyId = (int) $this->getCurrentCompanyId();
-
-        if (! $companyId) {
-            return response()->json(['message' => 'X-Company-ID header is required'], 422);
-        }
-
-        if ((int) $chat->company_id !== $companyId) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $isParticipant = ChatParticipant::query()
-            ->where('chat_id', $chat->id)
-            ->where('user_id', $user->id)
-            ->exists();
-
-        if (! $isParticipant) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
+        [$user, $companyId] = $this->requireChatAccess($chat);
 
         $data = $request->validated();
         $body = trim((string) $data['body']);
+        $files = isset($data['files']) && is_array($data['files']) ? $data['files'] : null;
 
         $updatedMessage = $this->chatService->updateMessage(
             $companyId,
             $user,
             $chat,
             $message,
-            $body
+            $body,
+            $files
         );
 
         return (new ChatMessageResource($updatedMessage->load(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo'])))->response();
@@ -275,25 +239,7 @@ class ChatController extends BaseController
 
     public function deleteMessage(Chat $chat, ChatMessage $message): JsonResponse
     {
-        $user = $this->requireAuthenticatedUser();
-        $companyId = (int) $this->getCurrentCompanyId();
-
-        if (! $companyId) {
-            return response()->json(['message' => 'X-Company-ID header is required'], 422);
-        }
-
-        if ((int) $chat->company_id !== $companyId) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $isParticipant = ChatParticipant::query()
-            ->where('chat_id', $chat->id)
-            ->where('user_id', $user->id)
-            ->exists();
-
-        if (! $isParticipant) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
+        [$user, $companyId] = $this->requireChatAccess($chat);
 
         $this->chatService->deleteMessage($companyId, $user, $chat, $message);
 
@@ -302,30 +248,12 @@ class ChatController extends BaseController
 
     public function setReaction(Request $request, Chat $chat, ChatMessage $message): JsonResponse
     {
-        $user = $this->requireAuthenticatedUser();
-        $companyId = (int) $this->getCurrentCompanyId();
-
-        if (! $companyId) {
-            return response()->json(['message' => 'X-Company-ID header is required'], 422);
-        }
-
-        if ((int) $chat->company_id !== $companyId) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $isParticipant = ChatParticipant::query()
-            ->where('chat_id', $chat->id)
-            ->where('user_id', $user->id)
-            ->exists();
-
-        if (! $isParticipant) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
+        [$user, $companyId] = $this->requireChatAccess($chat);
 
         $emoji = $request->input('emoji');
-        if ($emoji !== null && $emoji !== '') {
-            $emoji = is_string($emoji) ? trim($emoji) : '';
-            $emoji = mb_substr($emoji, 0, 16) ?: null;
+        $emoji = is_string($emoji) ? mb_substr(trim($emoji), 0, 16) : null;
+        if ($emoji === '') {
+            $emoji = null;
         }
 
         $reactions = $this->chatService->setReaction($companyId, $user, $chat, $message, $emoji);
@@ -333,27 +261,25 @@ class ChatController extends BaseController
         return response()->json(['data' => ['reactions' => $reactions]]);
     }
 
+    public function pinMessage(Chat $chat, ChatMessage $message): JsonResponse
+    {
+        [$user, $companyId] = $this->requireChatAccess($chat);
+
+        $updated = $this->chatService->pinMessage($companyId, $user, $chat, $message);
+        return (new ChatResource($updated))->response();
+    }
+
+    public function unpinMessage(Chat $chat): JsonResponse
+    {
+        [$user, $companyId] = $this->requireChatAccess($chat);
+
+        $updated = $this->chatService->unpinMessage($companyId, $user, $chat);
+        return (new ChatResource($updated))->response();
+    }
+
     public function forwardMessage(ForwardChatMessageRequest $request, Chat $chat, ChatMessage $message): JsonResponse
     {
-        $user = $this->requireAuthenticatedUser();
-        $companyId = (int) $this->getCurrentCompanyId();
-
-        if (! $companyId) {
-            return response()->json(['message' => 'X-Company-ID header is required'], 422);
-        }
-
-        if ((int) $chat->company_id !== $companyId) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $isParticipant = ChatParticipant::query()
-            ->where('chat_id', $chat->id)
-            ->where('user_id', $user->id)
-            ->exists();
-
-        if (! $isParticipant) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
+        [$user, $companyId] = $this->requireChatAccess($chat);
 
         $data = $request->validated();
         $targetChatId = (int) $data['target_chat_id'];
@@ -379,25 +305,7 @@ class ChatController extends BaseController
 
     public function destroy(Chat $chat): JsonResponse
     {
-        $user = $this->requireAuthenticatedUser();
-        $companyId = (int) $this->getCurrentCompanyId();
-
-        if (! $companyId) {
-            return response()->json(['message' => 'X-Company-ID header is required'], 422);
-        }
-
-        if ((int) $chat->company_id !== $companyId) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
-
-        $isParticipant = ChatParticipant::query()
-            ->where('chat_id', $chat->id)
-            ->where('user_id', $user->id)
-            ->exists();
-
-        if (! $isParticipant) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
+        [$user, $companyId] = $this->requireChatAccess($chat);
 
         $this->chatService->deleteChat($companyId, $user, $chat);
 

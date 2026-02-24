@@ -53,6 +53,14 @@ class ChatParticipantRepository
             ->exists();
     }
 
+    public function getParticipant(int $chatId, int $userId): ?ChatParticipant
+    {
+        return ChatParticipant::query()
+            ->where('chat_id', $chatId)
+            ->where('user_id', $userId)
+            ->first();
+    }
+
     public function updateLastReadMessageId(int $chatId, int $userId, int $messageId): void
     {
         ChatParticipant::query()

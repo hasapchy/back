@@ -71,13 +71,13 @@ class PermissionCheckService
             if ($resource === 'users' && method_exists($record, 'getKey')) {
                 return $record->getKey() === $user->id;
             }
-            $userId = $record->creator_id ?? null;
-            return $userId && $userId === $user->id;
+            $ownerId = $record->creator_id ?? $record->user_id ?? null;
+            return $ownerId === null || (int) $ownerId === (int) $user->id;
         }
 
         if ($strategy === 'user_id') {
-            $userId = $record->user_id ?? null;
-            return $userId && $userId === $user->id;
+            $ownerId = $record->user_id ?? $record->creator_id ?? null;
+            return $ownerId === null || (int) $ownerId === (int) $user->id;
         }
 
         return true;

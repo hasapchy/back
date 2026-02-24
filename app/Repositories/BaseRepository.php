@@ -527,9 +527,10 @@ abstract class BaseRepository
      * @param string $tableName Имя таблицы (например, 'clients', 'orders')
      * @param string $userIdColumn Имя колонки с creator_id (по умолчанию 'creator_id')
      * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
+     * @param string|null $additionalOwnColumn Доп. колонка «своей» записи (например employee_id для клиента-сотрудника)
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    protected function applyOwnFilter($query, string $resource, string $tableName, string $userIdColumn = 'creator_id', $user = null)
+    protected function applyOwnFilter($query, string $resource, string $tableName, string $userIdColumn = 'creator_id', $user = null, ?string $additionalOwnColumn = null)
     {
         /** @var \App\Models\User|null $user */
         $user = $user ?? auth('api')->user();
@@ -546,7 +547,14 @@ abstract class BaseRepository
         $hasViewOwn = in_array("{$resource}_view_own", $permissions);
 
         if (!$hasViewAll && $hasViewOwn) {
-            $query->where("{$tableName}.{$userIdColumn}", $user->id);
+            if ($additionalOwnColumn !== null) {
+                $query->where(function ($q) use ($tableName, $userIdColumn, $additionalOwnColumn, $user) {
+                    $q->where("{$tableName}.{$userIdColumn}", $user->id)
+                        ->orWhere("{$tableName}.{$additionalOwnColumn}", $user->id);
+                });
+            } else {
+                $query->where("{$tableName}.{$userIdColumn}", $user->id);
+            }
         }
 
         return $query;

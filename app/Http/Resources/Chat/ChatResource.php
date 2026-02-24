@@ -25,6 +25,21 @@ class ChatResource extends JsonResource
             }
         }
 
+        $pinnedMessage = null;
+        if ($this->relationLoaded('pinnedMessage') && $this->pinnedMessage) {
+            $pm = $this->pinnedMessage;
+            $pinnedMessage = [
+                'id' => (int) $pm->id,
+                'body' => $pm->body,
+                'created_at' => $pm->created_at?->toDateTimeString(),
+                'user' => $pm->relationLoaded('user') && $pm->user ? [
+                    'id' => (int) $pm->user->id,
+                    'name' => $pm->user->name,
+                    'surname' => $pm->user->surname ?? null,
+                ] : null,
+            ];
+        }
+
         return [
             'id' => (int) $this->id,
             'company_id' => (int) $this->company_id,
@@ -36,6 +51,7 @@ class ChatResource extends JsonResource
             'last_message_at' => $this->last_message_at?->toDateTimeString(),
             'is_archived' => (bool) $this->is_archived,
             'avatar' => $this->avatar,
+            'pinned_message' => $pinnedMessage,
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];

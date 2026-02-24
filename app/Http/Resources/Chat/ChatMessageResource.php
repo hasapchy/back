@@ -82,7 +82,7 @@ class ChatMessageResource extends JsonResource
                 $this->relationLoaded('reactions'),
                 fn () => $this->reactions->map(fn ($r) => [
                     'emoji' => $r->emoji,
-                    'creator_id' => (int) $r->creator_id,
+                    'creator_id' => (int) ($r->user_id ?? $r->creator_id ?? 0),
                     'user' => $r->relationLoaded('user') ? [
                         'id' => (int) $r->user->id,
                         'name' => $r->user->name,

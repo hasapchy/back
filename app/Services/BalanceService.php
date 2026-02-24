@@ -89,24 +89,6 @@ class BalanceService
             return;
         }
 
-        if (!$transaction->client_id) {
-            return;
-        }
-
-        $client = Client::find($transaction->client_id);
-        if (!$client) {
-            return;
-        }
-
-        $currency = $transaction->currency;
-        if (!$currency) {
-            return;
-        }
-
-        $companyId = $client->company_id;
-        $transactionDate = $transaction->created_at ? $transaction->created_at->toDateString() : null;
-        $cashCurrency = $transaction->cashRegister ? $transaction->cashRegister->currency : null;
-
         $originalAmount = $transaction->getOriginal('orig_amount');
         $originalCurrency = Currency::find($transaction->getOriginal('currency_id'));
         $originalType = $transaction->getOriginal('type');

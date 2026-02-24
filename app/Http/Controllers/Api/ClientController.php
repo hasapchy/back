@@ -91,7 +91,11 @@ class ClientController extends BaseController
                 return $this->notFoundResponse('Client not found');
             }
 
-            if (! $this->canPerformAction('clients', 'view', $client)) {
+            $currentUser = $this->getAuthenticatedUser();
+            $canViewOwnBalance = $currentUser && $this->hasPermission('settings_client_balance_view_own', $currentUser)
+                && (int) $client->employee_id === (int) $currentUser->id;
+
+            if (!$canViewOwnBalance && ! $this->canPerformAction('clients', 'view', $client)) {
                 return $this->forbiddenResponse('У вас нет прав на просмотр этого клиента');
             }
 
@@ -111,7 +115,12 @@ class ClientController extends BaseController
     {
         $user = $this->requireAuthenticatedUser();
 
-        if (! $this->hasPermission('settings_client_balance_view', $user)) {
+        $client = $this->itemsRepository->getItemById($id);
+        $canViewOwnBalance = $client && (int) $client->employee_id === (int) $user->id
+            && $this->hasPermission('settings_client_balance_view_own', $user);
+        $canViewAllBalance = $this->hasPermission('settings_client_balance_view', $user);
+
+        if (!$canViewOwnBalance && !$canViewAllBalance) {
             return $this->forbiddenResponse('Нет доступа к просмотру баланса клиента');
         }
 

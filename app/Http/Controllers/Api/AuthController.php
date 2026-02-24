@@ -69,8 +69,13 @@ class AuthController extends BaseController
 
         $expiresAt = $ttl ? now()->addMinutes($ttl) : null;
 
+        $user->tokens()->delete();
+
         $accessToken = $user->createToken('access-token', ['*'], $expiresAt);
         $refreshToken = $user->createToken('refresh-token', ['refresh'], $remember ? now()->addMinutes(43200) : now()->addMinutes(10080));
+
+        $companyId = $user->companies()->value('companies.id');
+        $permissions = $this->getUserPermissions($user, $companyId ? (int) $companyId : null);
 
         return response()->json([
             'access_token' => $accessToken->plainTextToken,
@@ -87,7 +92,7 @@ class AuthController extends BaseController
                 'birthday' => $user->birthday?->format('Y-m-d'),
                 'is_admin' => $user->is_admin,
                 'roles' => $resolvedRoles,
-                'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
+                'permissions' => $permissions
             ]
         ]);
     }

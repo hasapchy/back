@@ -146,10 +146,10 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::get('clients', [ClientController::class, 'index']);
     Route::get('clients/all', [ClientController::class, 'all']);
     Route::get('clients/search', [ClientController::class, 'search']);
-    Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/{id}', [ClientController::class, 'show']);
+    Route::middleware('permission.scope:clients_view_all,clients_view,settings_client_balance_view_own')->get('clients/{id}', [ClientController::class, 'show']);
     Route::middleware('permission:clients_create')->post('clients', [ClientController::class, 'store']);
     Route::middleware('permission.scope:clients_update_all,clients_update')->put('clients/{id}', [ClientController::class, 'update']);
-    Route::middleware('permission.scope:clients_view_all,clients_view')->get('clients/{id}/balance-history', [ClientController::class, 'getBalanceHistory']);
+    Route::middleware('permission.scope:clients_view_all,clients_view,settings_client_balance_view_own')->get('clients/{id}/balance-history', [ClientController::class, 'getBalanceHistory']);
     Route::middleware('permission.scope:clients_delete_all,clients_delete')->delete('clients/{id}', [ClientController::class, 'destroy']);
 
     Route::middleware('permission:client_balances_view_all')->get('clients/{clientId}/balances', [ClientBalanceController::class, 'index']);
@@ -313,13 +313,17 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:chats_view_all,chats_view')->post('chats/general', [ChatController::class, 'general']);
     Route::middleware('permission.scope:chats_view_all,chats_view')->post('chats/direct', [ChatController::class, 'startDirect']);
     Route::middleware('permission.scope:chats_group_create,chats_group_create')->post('chats/groups', [ChatController::class, 'createGroup']);
+    Route::middleware('permission.scope:chats_view_all,chats_view')->get('chats/{chat}/messages/search', [ChatController::class, 'searchMessages']);
     Route::middleware('permission.scope:chats_view_all,chats_view')->get('chats/{chat}/messages', [ChatController::class, 'messages']);
     Route::middleware('permission.scope:chats_view_all,chats_view')->post('chats/{chat}/read', [ChatController::class, 'markAsRead']);
+    Route::middleware(['permission.scope:chats_view_all,chats_view', 'throttle:30,60'])->post('chats/{chat}/typing', [ChatController::class, 'typing']);
     Route::middleware('permission.scope:chats_write_all,chats_write')->post('chats/{chat}/messages', [ChatController::class, 'storeMessage']);
     Route::middleware('permission.scope:chats_write_all,chats_write')->put('chats/{chat}/messages/{message}', [ChatController::class, 'updateMessage']);
     Route::middleware('permission.scope:chats_write_all,chats_write')->delete('chats/{chat}/messages/{message}', [ChatController::class, 'deleteMessage']);
     Route::middleware('permission.scope:chats_write_all,chats_write')->post('chats/{chat}/messages/{message}/forward', [ChatController::class, 'forwardMessage']);
     Route::middleware('permission.scope:chats_write_all,chats_write')->post('chats/{chat}/messages/{message}/reaction', [ChatController::class, 'setReaction']);
+    Route::middleware('permission.scope:chats_write_all,chats_write')->post('chats/{chat}/messages/{message}/pin', [ChatController::class, 'pinMessage']);
+    Route::middleware('permission.scope:chats_write_all,chats_write')->delete('chats/{chat}/pin', [ChatController::class, 'unpinMessage']);
     Route::middleware('permission.scope:chats_view_all,chats_view')->delete('chats/{chat}', [ChatController::class, 'destroy']);
 
     // News routes

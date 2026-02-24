@@ -111,7 +111,7 @@ class ClientBalanceService
             }
 
             if ($balance) {
-                $delta = self::calculateBalanceDelta($amount, $type, $isDebt);
+                $delta = self::balanceDelta($amount, $type, $isDebt);
                 $balance->increment('balance', $delta);
                 $balanceId = $balance->id;
                 return;
@@ -131,7 +131,7 @@ class ClientBalanceService
             }
 
             if ($defaultBalance->currency_id === $transactionCurrency->id) {
-                $delta = self::calculateBalanceDelta($amount, $type, $isDebt);
+                $delta = self::balanceDelta($amount, $type, $isDebt);
                 $defaultBalance->increment('balance', $delta);
                 $balanceId = $defaultBalance->id;
                 return;
@@ -156,7 +156,7 @@ class ClientBalanceService
                 $roundingService = new RoundingService;
                 $convertedAmount = $roundingService->roundForCompany($companyId, $convertedAmount);
 
-                $delta = self::calculateBalanceDelta($convertedAmount, $type, $isDebt);
+                $delta = self::balanceDelta($convertedAmount, $type, $isDebt);
                 $defaultBalance->increment('balance', $delta);
                 $balanceId = $defaultBalance->id;
             } catch (\Exception $e) {
@@ -205,15 +205,14 @@ class ClientBalanceService
     }
 
     /**
-     * Вычислить изменение баланса на основе типа транзакции
-     * Логика соответствует ClientsRepository::calculateBalanceDelta и TransactionsRepository::updateClientBalanceValue
+     * Вычислить изменение баланса на основе типа транзакции (публичный для проверок/отчётов).
      *
      * @param float $amount Сумма
      * @param int $type Тип транзакции (0 или 1)
      * @param bool $isDebt Является ли долгом
      * @return float
      */
-    private static function calculateBalanceDelta(float $amount, int $type, bool $isDebt): float
+    public static function balanceDelta(float $amount, int $type, bool $isDebt): float
     {
         if ($amount == 0.0) {
             return 0;

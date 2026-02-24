@@ -49,7 +49,7 @@ class ClientsRepository extends BaseRepository
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
 
-            $this->applyOwnFilter($query, 'clients', 'clients', 'creator_id', $currentUser);
+            $this->applyOwnFilter($query, 'clients', 'clients', 'creator_id', $currentUser, 'employee_id');
 
             if ($statusFilter) {
                 $query->where('clients.status', $statusFilter === 'active');
@@ -127,7 +127,7 @@ class ClientsRepository extends BaseRepository
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
 
-            $this->applyOwnFilter($query, 'clients', 'clients', 'creator_id', $currentUser);
+            $this->applyOwnFilter($query, 'clients', 'clients', 'creator_id', $currentUser, 'employee_id');
 
             if (! empty($typeFilter)) {
                 $query->whereIn('clients.client_type', $typeFilter);
@@ -201,7 +201,7 @@ class ClientsRepository extends BaseRepository
 
             $query = $this->addCompanyFilterDirect($query, 'clients');
 
-            $this->applyOwnFilter($query, 'clients', 'clients', 'creator_id', $currentUser);
+            $this->applyOwnFilter($query, 'clients', 'clients', 'creator_id', $currentUser, 'employee_id');
 
             if (! empty($typeFilter)) {
                 $query->whereIn('clients.client_type', $typeFilter);

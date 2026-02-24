@@ -4,15 +4,14 @@ namespace App\Events;
 
 use App\Models\ChatMessage;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Bus\Queueable;
 
 /** Событие обновления реакций на сообщение (добавление/удаление). */
-class MessageReactionUpdated implements ShouldBroadcast
+class MessageReactionUpdated implements ShouldBroadcastNow
 {
-    use Dispatchable, SerializesModels, Queueable;
+    use Dispatchable, SerializesModels;
 
     public function __construct(
         public ChatMessage $message,

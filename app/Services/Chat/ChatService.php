@@ -7,6 +7,7 @@ use App\Events\MessageSent;
 use App\Events\MessageUpdated;
 use App\Events\MessageDeleted;
 use App\Events\MessageReactionUpdated;
+use App\Events\UserTyping;
 use App\Models\Chat;
 use App\Models\ChatMessage;
 use App\Models\MessageReaction;
@@ -72,9 +73,12 @@ class ChatService
 
         $unreadCounts = $this->messages->getUnreadCountsByChatIds($chatIds, (int) $user->id);
 
-        $userId = (int) $user->id;
+        $pinnedIds = $chats->pluck('pinned_message_id')->filter()->unique()->values()->toArray();
+        $pinnedMessages = !empty($pinnedIds)
+            ? $this->messages->getMessagesByIds($pinnedIds)->keyBy('id')
+            : collect();
 
-        $result = $chats->map(function (Chat $chat) use ($lastMessages, $unreadCounts, $participantsByChatId, $userId) {
+        $result = $chats->map(function (Chat $chat) use ($lastMessages, $unreadCounts, $participantsByChatId, $userId, $pinnedMessages) {
             $lastMessage = $lastMessages->get($chat->id);
             $unreadCount = (int) ($unreadCounts[(int) $chat->id] ?? 0);
 
@@ -125,9 +129,9 @@ class ChatService
                     'created_at' => $lastMessage->created_at?->toDateTimeString(),
                 ] : null,
                 'unread_count' => $unreadCount,
-                // For direct chats: read receipts
                 'my_last_read_message_id' => $myLastReadId,
                 'peer_last_read_message_id' => $peerLastReadId,
+                'pinned_message' => $this->formatPinnedMessage($chat->pinned_message_id, $pinnedMessages),
             ];
         })->values()->toArray();
 
@@ -142,6 +146,32 @@ class ChatService
         }
 
         return $result;
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, ChatMessage> $pinnedMessages
+     * @return array<string, mixed>|null
+     */
+    private function formatPinnedMessage(?int $pinnedMessageId, $pinnedMessages): ?array
+    {
+        if (!$pinnedMessageId) {
+            return null;
+        }
+        $msg = $pinnedMessages->get($pinnedMessageId);
+        if (!$msg) {
+            return null;
+        }
+        $user = $msg->relationLoaded('user') ? $msg->user : null;
+        return [
+            'id' => (int) $msg->id,
+            'body' => $msg->body,
+            'created_at' => $msg->created_at?->toDateTimeString(),
+            'user' => $user ? [
+                'id' => (int) $user->id,
+                'name' => $user->name,
+                'surname' => $user->surname ?? null,
+            ] : null,
+        ];
     }
 
     public function ensureGeneralChat(int $companyId, User $user): Chat
@@ -167,6 +197,8 @@ class ChatService
 
         $chat = $this->chats->findDirectChatByKey($companyId, $directKey);
         if ($chat) {
+            $this->participants->firstOrCreate((int) $chat->id, (int) $user->id, 'member');
+            $this->participants->firstOrCreate((int) $chat->id, $otherUserId, 'member');
             return $chat;
         }
 
@@ -271,6 +303,14 @@ class ChatService
         return $messages;
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\ChatMessage>
+     */
+    public function searchMessages(int $companyId, User $user, Chat $chat, string $q, int $limit = 50)
+    {
+        return $this->messages->searchInChat((int) $chat->id, $q, $limit);
+    }
+
     public function markAsRead(int $companyId, User $user, Chat $chat, ?int $lastMessageId = null): void
     {
         $messageId = $lastMessageId ?: $this->messages->getMaxMessageId((int) $chat->id);
@@ -305,6 +345,49 @@ class ChatService
             userId: $userId,
             lastReadMessageId: $newId
         ));
+    }
+
+    public function sendTyping(int $companyId, User $user, Chat $chat): void
+    {
+        event(new UserTyping($chat, $user));
+    }
+
+    public function pinMessage(int $companyId, User $user, Chat $chat, ChatMessage $message): Chat
+    {
+        if ((int) $message->chat_id !== (int) $chat->id) {
+            abort(422, 'Message does not belong to this chat');
+        }
+        $chat->update(['pinned_message_id' => $message->id]);
+        $this->invalidateChatListCache($companyId, (int) $chat->id);
+        $updated = $chat->fresh(['pinnedMessage.user:id,name,surname']);
+        $pinnedPayload = $updated->pinnedMessage ? [
+            'id' => (int) $updated->pinnedMessage->id,
+            'body' => $updated->pinnedMessage->body,
+            'created_at' => $updated->pinnedMessage->created_at?->toDateTimeString(),
+            'user' => $updated->pinnedMessage->relationLoaded('user') && $updated->pinnedMessage->user ? [
+                'id' => (int) $updated->pinnedMessage->user->id,
+                'name' => $updated->pinnedMessage->user->name,
+                'surname' => $updated->pinnedMessage->user->surname ?? null,
+            ] : null,
+        ] : null;
+        try {
+            event(new \App\Events\ChatPinnedMessageUpdated($companyId, (int) $chat->id, $pinnedPayload));
+        } catch (\Exception $e) {
+            Log::warning('Failed to broadcast ChatPinnedMessageUpdated', ['error' => $e->getMessage()]);
+        }
+        return $updated;
+    }
+
+    public function unpinMessage(int $companyId, User $user, Chat $chat): Chat
+    {
+        $chat->update(['pinned_message_id' => null]);
+        $this->invalidateChatListCache($companyId, (int) $chat->id);
+        try {
+            event(new \App\Events\ChatPinnedMessageUpdated($companyId, (int) $chat->id, null));
+        } catch (\Exception $e) {
+            Log::warning('Failed to broadcast ChatPinnedMessageUpdated', ['error' => $e->getMessage()]);
+        }
+        return $chat->fresh();
     }
 
     /**
@@ -405,22 +488,27 @@ class ChatService
         User $user,
         Chat $chat,
         ChatMessage $message,
-        string $body
+        string $body,
+        ?array $files = null
     ): ChatMessage {
-        if ((int) $chat->company_id !== $companyId) {
-            abort(403, 'Forbidden');
-        }
-
         if ((int) $message->chat_id !== (int) $chat->id) {
             abort(422, 'Message does not belong to this chat');
         }
 
-        // Редактирование разрешено только в течение 72 часов после создания
         if ($message->created_at && now()->diffInHours($message->created_at) > 72) {
             abort(422, 'Message can only be edited within 72 hours of creation');
         }
 
-        $updatedMessage = $this->messages->updateMessage((int) $message->id, (int) $user->id, $body);
+        $sanitizedFiles = null;
+        if ($files !== null) {
+            $existingPaths = collect($message->files ?? [])->pluck('path')->filter()->values()->all();
+            $sanitizedFiles = collect($files)->filter(function ($f) use ($existingPaths) {
+                $path = is_array($f) ? ($f['path'] ?? '') : '';
+                return $path !== '' && in_array($path, $existingPaths, true);
+            })->values()->all();
+        }
+
+        $updatedMessage = $this->messages->updateMessage((int) $message->id, (int) $user->id, $body, $sanitizedFiles);
         $updatedMessage->load(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo']);
 
         // Отправляем событие через broadcasting
@@ -443,16 +531,26 @@ class ChatService
         Chat $chat,
         ChatMessage $message
     ): void {
-        if ((int) $chat->company_id !== $companyId) {
-            abort(403, 'Forbidden');
-        }
-
         if ((int) $message->chat_id !== (int) $chat->id) {
             abort(422, 'Message does not belong to this chat');
         }
 
-        // Delete the message record
-        $this->messages->deleteMessage((int) $message->id, (int) $user->id);
+        $userId = (int) $user->id;
+        $isAuthor = (int) $message->creator_id === $userId;
+        $canDeleteForEveryone = false;
+        if (!$isAuthor && $chat->type === 'group') {
+            $participant = $this->participants->getParticipant((int) $chat->id, $userId);
+            $canDeleteForEveryone = $participant && in_array($participant->role, ['admin', 'owner'], true);
+        }
+        if (!$isAuthor && !$canDeleteForEveryone) {
+            abort(403, 'You can only delete your own messages');
+        }
+
+        if ($isAuthor) {
+            $this->messages->deleteMessage((int) $message->id, $userId);
+        } else {
+            $this->messages->deleteMessageAsAdmin((int) $message->id, $userId);
+        }
 
         // If the message had attached files, delete them from storage
         if (!empty($message->files) && is_array($message->files)) {
@@ -492,10 +590,6 @@ class ChatService
         Chat $targetChat,
         bool $hideSenderName = false
     ): ChatMessage {
-        if ((int) $sourceChat->company_id !== $companyId || (int) $targetChat->company_id !== $companyId) {
-            abort(403, 'Forbidden');
-        }
-
         if ((int) $message->chat_id !== (int) $sourceChat->id) {
             abort(422, 'Message does not belong to source chat');
         }
@@ -573,14 +667,8 @@ class ChatService
      */
     public function setReaction(int $companyId, User $user, Chat $chat, ChatMessage $message, ?string $emoji): array
     {
-        if ((int) $chat->company_id !== $companyId) {
-            abort(403, 'Forbidden');
-        }
         if ((int) $message->chat_id !== (int) $chat->id) {
             abort(422, 'Message does not belong to this chat');
-        }
-        if (!$this->participants->isParticipant((int) $chat->id, (int) $user->id)) {
-            abort(403, 'You are not a participant of this chat');
         }
 
         $userId = (int) $user->id;
@@ -589,30 +677,21 @@ class ChatService
         if ($emoji === null || $emoji === '') {
             MessageReaction::query()
                 ->where('message_id', $messageId)
-                ->where('creator_id', $userId)
+                ->where('user_id', $userId)
                 ->delete();
         } else {
-            $emoji = mb_substr(trim($emoji), 0, 16);
-            if ($emoji === '') {
-                MessageReaction::query()
-                    ->where('message_id', $messageId)
-                    ->where('creator_id', $userId)
-                    ->delete();
+            $existing = MessageReaction::query()
+                ->where('message_id', $messageId)
+                ->where('user_id', $userId)
+                ->where('emoji', $emoji)
+                ->first();
+            if ($existing) {
+                $existing->delete();
             } else {
-                // Toggle: если у пользователя уже эта реакция — снять; иначе поставить/заменить
-                $existing = MessageReaction::query()
-                    ->where('message_id', $messageId)
-                    ->where('creator_id', $userId)
-                    ->where('emoji', $emoji)
-                    ->first();
-                if ($existing) {
-                    $existing->delete();
-                } else {
-                    MessageReaction::query()->updateOrInsert(
-                        ['message_id' => $messageId, 'creator_id' => $userId],
-                        ['emoji' => $emoji, 'updated_at' => now()]
-                    );
-                }
+                MessageReaction::query()->updateOrInsert(
+                    ['message_id' => $messageId, 'user_id' => $userId],
+                    ['emoji' => $emoji, 'updated_at' => now()]
+                );
             }
         }
 
@@ -639,7 +718,7 @@ class ChatService
             ->get()
             ->map(fn (MessageReaction $r) => [
                 'emoji' => $r->emoji,
-                'creator_id' => (int) $r->creator_id,
+                'creator_id' => (int) $r->user_id,
                 'user' => $r->relationLoaded('user') ? [
                     'id' => (int) $r->user->id,
                     'name' => $r->user->name,
@@ -652,11 +731,6 @@ class ChatService
 
     public function deleteChat(int $companyId, User $user, Chat $chat): void
     {
-        if ((int) $chat->company_id !== $companyId) {
-            abort(403, 'Forbidden');
-        }
-
-        // Only creator can delete group chat
         if ($chat->type === 'group' && (int) $chat->created_by !== (int) $user->id) {
             abort(403, 'Only chat creator can delete the chat');
         }

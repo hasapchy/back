@@ -25,7 +25,11 @@ Broadcast::channel('company.{companyId}.chat.{chatId}', function ($user, $compan
         if (! DB::table('company_user')->where('company_id', $companyId)->where('user_id', $user->id)->exists()) {
             return false;
         }
-        if (! $user->is_admin && ! $user->getAllPermissionsForCompany($companyId)->contains('name', 'chats_view_all')) {
+        $permissions = $user->getAllPermissionsForCompany($companyId)->pluck('name');
+        $hasChatAccess = $user->is_admin
+            || $permissions->contains('chats_view_all')
+            || $permissions->contains('chats_view');
+        if (! $hasChatAccess) {
             return false;
         }
         return DB::table('chat_participants')
@@ -66,7 +70,11 @@ Broadcast::channel('company.{companyId}.presence', function ($user, $companyId) 
         if (! DB::table('company_user')->where('company_id', $companyId)->where('user_id', $user->id)->exists()) {
             return false;
         }
-        if (! $user->is_admin && ! $user->getAllPermissionsForCompany($companyId)->contains('name', 'chats_view_all')) {
+        $permissions = $user->getAllPermissionsForCompany($companyId)->pluck('name');
+        $hasChatAccess = $user->is_admin
+            || $permissions->contains('chats_view_all')
+            || $permissions->contains('chats_view');
+        if (! $hasChatAccess) {
             return false;
         }
         return [

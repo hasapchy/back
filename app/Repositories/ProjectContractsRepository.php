@@ -167,9 +167,38 @@ class ProjectContractsRepository extends BaseRepository
             $this->applyCompanyFilter($query);
 
             if ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('project_contracts.number', 'like', "%{$search}%")
-                        ->orWhere('project_contracts.amount', 'like', "%{$search}%");
+                $searchTrimmed = trim((string) $search);
+                $searchLower = mb_strtolower($searchTrimmed);
+                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                    $q->where('project_contracts.number', 'like', "%{$searchTrimmed}%")
+                        ->orWhere('project_contracts.amount', 'like', "%{$searchTrimmed}%")
+                        ->orWhereExists(function ($sub) use ($searchTrimmed) {
+                            $sub->select(DB::raw(1))
+                                ->from('projects')
+                                ->whereColumn('projects.id', 'project_contracts.project_id')
+                                ->whereExists(function ($clientSub) use ($searchTrimmed) {
+                                    $clientSub->select(DB::raw(1))
+                                        ->from('clients')
+                                        ->whereColumn('clients.id', 'projects.client_id')
+                                        ->where(function ($cq) use ($searchTrimmed) {
+                                            $this->applyClientSearchConditions($cq, $searchTrimmed, 'clients');
+                                        });
+                                });
+                        })
+                        ->orWhereExists(function ($phoneSub) use ($searchLower) {
+                            $phoneSub->select(DB::raw(1))
+                                ->from('clients_phones')
+                                ->join('projects', 'projects.client_id', '=', 'clients_phones.client_id')
+                                ->whereColumn('projects.id', 'project_contracts.project_id')
+                                ->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                        })
+                        ->orWhereExists(function ($emailSub) use ($searchLower) {
+                            $emailSub->select(DB::raw(1))
+                                ->from('clients_emails')
+                                ->join('projects', 'projects.client_id', '=', 'clients_emails.client_id')
+                                ->whereColumn('projects.id', 'project_contracts.project_id')
+                                ->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                        });
                 });
             }
 
@@ -262,10 +291,32 @@ class ProjectContractsRepository extends BaseRepository
             });
 
             if ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('project_contracts.number', 'like', "%{$search}%")
-                        ->orWhere('project_contracts.amount', 'like', "%{$search}%")
-                        ->orWhere('projects.name', 'like', "%{$search}%");
+                $searchTrimmed = trim((string) $search);
+                $searchLower = mb_strtolower($searchTrimmed);
+                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                    $q->where('project_contracts.number', 'like', "%{$searchTrimmed}%")
+                        ->orWhere('project_contracts.amount', 'like', "%{$searchTrimmed}%")
+                        ->orWhere('projects.name', 'like', "%{$searchTrimmed}%")
+                        ->orWhereExists(function ($sub) use ($searchTrimmed) {
+                            $sub->select(DB::raw(1))
+                                ->from('clients')
+                                ->whereColumn('clients.id', 'projects.client_id')
+                                ->where(function ($cq) use ($searchTrimmed) {
+                                    $this->applyClientSearchConditions($cq, $searchTrimmed, 'clients');
+                                });
+                        })
+                        ->orWhereExists(function ($phoneSub) use ($searchLower) {
+                            $phoneSub->select(DB::raw(1))
+                                ->from('clients_phones')
+                                ->whereColumn('clients_phones.client_id', 'projects.client_id')
+                                ->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                        })
+                        ->orWhereExists(function ($emailSub) use ($searchLower) {
+                            $emailSub->select(DB::raw(1))
+                                ->from('clients_emails')
+                                ->whereColumn('clients_emails.client_id', 'projects.client_id')
+                                ->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                        });
                 });
             }
 
@@ -336,10 +387,32 @@ class ProjectContractsRepository extends BaseRepository
             });
 
             if ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('project_contracts.number', 'like', "%{$search}%")
-                        ->orWhere('project_contracts.amount', 'like', "%{$search}%")
-                        ->orWhere('projects.name', 'like', "%{$search}%");
+                $searchTrimmed = trim((string) $search);
+                $searchLower = mb_strtolower($searchTrimmed);
+                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                    $q->where('project_contracts.number', 'like', "%{$searchTrimmed}%")
+                        ->orWhere('project_contracts.amount', 'like', "%{$searchTrimmed}%")
+                        ->orWhere('projects.name', 'like', "%{$searchTrimmed}%")
+                        ->orWhereExists(function ($sub) use ($searchTrimmed) {
+                            $sub->select(DB::raw(1))
+                                ->from('clients')
+                                ->whereColumn('clients.id', 'projects.client_id')
+                                ->where(function ($cq) use ($searchTrimmed) {
+                                    $this->applyClientSearchConditions($cq, $searchTrimmed, 'clients');
+                                });
+                        })
+                        ->orWhereExists(function ($phoneSub) use ($searchLower) {
+                            $phoneSub->select(DB::raw(1))
+                                ->from('clients_phones')
+                                ->whereColumn('clients_phones.client_id', 'projects.client_id')
+                                ->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                        })
+                        ->orWhereExists(function ($emailSub) use ($searchLower) {
+                            $emailSub->select(DB::raw(1))
+                                ->from('clients_emails')
+                                ->whereColumn('clients_emails.client_id', 'projects.client_id')
+                                ->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                        });
                 });
             }
 

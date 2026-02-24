@@ -83,6 +83,28 @@ class ChatMessageRepository
         return $items->reverse()->values();
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, ChatMessage>
+     */
+    public function searchInChat(int $chatId, string $q, int $limit = 50): Collection
+    {
+        $term = trim($q);
+        if ($term === '') {
+            return new Collection();
+        }
+
+        $escaped = str_replace(['%', '_', '\\'], ['\\%', '\\_', '\\\\'], $term);
+        $pattern = '%' . $escaped . '%';
+
+        return ChatMessage::query()
+            ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo', 'reactions.user:id,name,surname'])
+            ->where('chat_id', $chatId)
+            ->where('body', 'like', $pattern)
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+    }
+
     public function messageExistsInChat(int $chatId, int $messageId): bool
     {
         return DB::table('chat_messages')
@@ -131,7 +153,7 @@ class ChatMessageRepository
         ]);
     }
 
-    public function updateMessage(int $messageId, int $userId, string $body): ChatMessage
+    public function updateMessage(int $messageId, int $userId, string $body, ?array $files = null): ChatMessage
     {
         $message = ChatMessage::query()->findOrFail($messageId);
 
@@ -139,11 +161,15 @@ class ChatMessageRepository
             abort(403, 'You can only edit your own messages');
         }
 
-        $message->update([
+        $data = [
             'body' => $body,
             'is_edited' => true,
             'edited_at' => now(),
-        ]);
+        ];
+        if ($files !== null) {
+            $data['files'] = $files;
+        }
+        $message->update($data);
 
         return $message->fresh();
     }
@@ -159,6 +185,12 @@ class ChatMessageRepository
         return $message->update([
             'deleted_by' => $userId,
         ]) && $message->delete();
+    }
+
+    public function deleteMessageAsAdmin(int $messageId, int $deletedByUserId): bool
+    {
+        $message = ChatMessage::query()->findOrFail($messageId);
+        return $message->update(['deleted_by' => $deletedByUserId]) && $message->delete();
     }
 
     public function getMessageWithRelations(int $messageId): ?ChatMessage

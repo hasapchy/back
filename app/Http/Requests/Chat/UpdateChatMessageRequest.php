@@ -15,6 +15,10 @@ class UpdateChatMessageRequest extends FormRequest
     {
         return [
             'body' => ['required', 'string', 'max:10000'],
+            'files' => ['nullable', 'array', 'max:10'],
+            'files.*.path' => ['required', 'string'],
+            'files.*.name' => ['nullable', 'string', 'max:255'],
+            'files.*.mime_type' => ['nullable', 'string', 'max:100'],
         ];
     }
 }
