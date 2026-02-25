@@ -443,6 +443,14 @@ class CacheService
     }
 
     /**
+     * Инвалидировать кеш шаблонов транзакций
+     */
+    public static function invalidateTransactionTemplatesCache(): void
+    {
+        self::invalidateByLike('%transaction_template%');
+    }
+
+    /**
      * Invalidate departments cache
      */
     public static function invalidateDepartmentsCache(): void

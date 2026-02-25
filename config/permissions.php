@@ -96,6 +96,12 @@ return [
                 'view_other' => 'transactions_view_other',
             ],
         ],
+        'transaction_templates' => [
+            'has_creator_id' => true,
+            'check_strategy' => 'creator_id',
+            'actions' => ['view', 'create', 'update', 'delete'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
         'mutual_settlements' => [
             'has_creator_id' => false,
             'check_strategy' => 'default',
@@ -267,7 +273,7 @@ return [
     'groups' => [
         'finance' => [
             'label' => 'finance',
-            'resources' => ['transactions', 'mutual_settlements', 'transaction_categories', 'invoices', 'cash_registers', 'transfers'],
+            'resources' => ['transactions', 'transaction_templates', 'mutual_settlements', 'transaction_categories', 'invoices', 'cash_registers', 'transfers'],
         ],
         'warehouses' => [
             'label' => 'warehouses',

@@ -44,8 +44,10 @@ class UsersController extends BaseController
     {
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 20);
+        $activeOnly = $request->boolean('active_only', true);
+        $statusFilter = $activeOnly ? true : null;
 
-        return $this->paginatedResponse($this->itemsRepository->getItemsWithPagination($page, $perPage));
+        return $this->paginatedResponse($this->itemsRepository->getItemsWithPagination($page, $perPage, null, $statusFilter));
     }
 
     /**

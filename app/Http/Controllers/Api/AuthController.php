@@ -69,10 +69,19 @@ class AuthController extends BaseController
 
         $expiresAt = $ttl ? now()->addMinutes($ttl) : null;
 
-        $user->tokens()->delete();
+        $fingerprint = $request->input('device_fingerprint');
+        if ($fingerprint !== null && $fingerprint !== '') {
+            $user->tokens()->where('device_fingerprint', $fingerprint)->delete();
+        } else {
+            $user->tokens()->delete();
+        }
 
         $accessToken = $user->createToken('access-token', ['*'], $expiresAt);
         $refreshToken = $user->createToken('refresh-token', ['refresh'], $remember ? now()->addMinutes(43200) : now()->addMinutes(10080));
+
+        $deviceName = $request->input('device_name') ?? $request->userAgent();
+        $this->setDeviceOnToken($accessToken->accessToken, $fingerprint, $deviceName);
+        $this->setDeviceOnToken($refreshToken->accessToken, $fingerprint, $deviceName);
 
         $companyId = $user->companies()->value('companies.id');
         $permissions = $this->getUserPermissions($user, $companyId ? (int) $companyId : null);
@@ -192,6 +201,9 @@ class AuthController extends BaseController
         $newAccessToken = $user->createToken('access-token', ['*'], $expiresAt);
         $newRefreshToken = $user->createToken('refresh-token', ['refresh'], $isRemember ? now()->addMinutes(43200) : now()->addMinutes(10080));
 
+        $this->setDeviceOnToken($newAccessToken->accessToken, $token->device_fingerprint, $token->device_name);
+        $this->setDeviceOnToken($newRefreshToken->accessToken, $token->device_fingerprint, $token->device_name);
+
         return response()->json([
             'access_token'  => $newAccessToken->plainTextToken,
             'refresh_token' => $newRefreshToken->plainTextToken,
@@ -210,5 +222,22 @@ class AuthController extends BaseController
                 'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
             ]
         ]);
+    }
+
+    /**
+     * @param \Laravel\Sanctum\PersonalAccessToken $token
+     * @param string|null $fingerprint
+     * @param string|null $deviceName
+     * @return void
+     */
+    private function setDeviceOnToken($token, ?string $fingerprint, ?string $deviceName): void
+    {
+        $payload = array_filter([
+            'device_fingerprint' => $fingerprint,
+            'device_name' => $deviceName,
+        ], fn ($v) => $v !== null);
+        if ($payload !== []) {
+            $token->forceFill($payload)->save();
+        }
     }
 }

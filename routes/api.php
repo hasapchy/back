@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\TasksController;
 use App\Http\Controllers\Api\TaskStatusController;
 use App\Http\Controllers\Api\TransactionCategoryController;
+use App\Http\Controllers\Api\TransactionTemplateController;
 use App\Http\Controllers\Api\TransactionsController;
 use App\Http\Controllers\Api\TransfersController;
 use App\Http\Controllers\Api\UserCompanyController;
@@ -197,6 +198,14 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware(['permission.scope:transactions_delete_all,transactions_delete', 'time.restriction:Transaction'])->delete('transactions/{id}', [TransactionsController::class, 'destroy']);
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions/{id}', [TransactionsController::class, 'show']);
+
+    Route::middleware('permission.scope:transaction_templates_view_all,transaction_templates_view_own')->get('transaction-templates', [TransactionTemplateController::class, 'index']);
+    Route::middleware('permission.scope:transaction_templates_view_all,transaction_templates_view_own')->get('transaction-templates/all', [TransactionTemplateController::class, 'all']);
+    Route::middleware('permission.scope:transaction_templates_view_all,transaction_templates_view_own')->get('transaction-templates/{id}/apply', [TransactionTemplateController::class, 'apply']);
+    Route::middleware('permission.scope:transaction_templates_view_all,transaction_templates_view_own')->get('transaction-templates/{id}', [TransactionTemplateController::class, 'show']);
+    Route::middleware('permission:transaction_templates_create')->post('transaction-templates', [TransactionTemplateController::class, 'store']);
+    Route::middleware('permission.scope:transaction_templates_update_all,transaction_templates_update_own')->put('transaction-templates/{id}', [TransactionTemplateController::class, 'update']);
+    Route::middleware('permission.scope:transaction_templates_delete_all,transaction_templates_delete_own')->delete('transaction-templates/{id}', [TransactionTemplateController::class, 'destroy']);
 
     Route::middleware('permission.scope:transfers_view_all,transfers_view')->get('transfers', [TransfersController::class, 'index']);
     Route::middleware('permission:transfers_create')->post('transfers', [TransfersController::class, 'store']);

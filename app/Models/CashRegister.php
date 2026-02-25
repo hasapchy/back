@@ -87,13 +87,13 @@ class CashRegister extends Model
     }
 
     /**
-     * Связь с шаблонами
+     * Связь с шаблонами транзакций
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
     public function templates()
     {
-        return $this->hasMany(Template::class);
+        return $this->hasMany(Template::class, 'cash_id');
     }
 
     /**

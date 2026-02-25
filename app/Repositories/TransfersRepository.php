@@ -46,7 +46,7 @@ class TransfersRepository extends BaseRepository
                     'toCashRegister.currency' => function ($q) {
                         $q->select('id', 'name', 'symbol');
                     },
-                    'user:id,name',
+                    'creator:id,name',
                 ])
                 ->select('cash_transfers.*')
                 ->where(function ($q) use ($userUuid) {
@@ -55,12 +55,12 @@ class TransfersRepository extends BaseRepository
                         $q->whereExists(function ($subQuery) use ($filterUserId) {
                             $subQuery->select(DB::raw(1))
                                 ->from('cash_register_users')
-                                ->whereColumn('cash_register_users.cash_register_id', 'transfers.from_cash_register_id')
+                                ->whereColumn('cash_register_users.cash_register_id', 'cash_transfers.cash_id_from')
                                 ->where('cash_register_users.user_id', $filterUserId);
                         })->orWhereExists(function ($subQuery) use ($filterUserId) {
                             $subQuery->select(DB::raw(1))
                                 ->from('cash_register_users')
-                                ->whereColumn('cash_register_users.cash_register_id', 'transfers.to_cash_register_id')
+                                ->whereColumn('cash_register_users.cash_register_id', 'cash_transfers.cash_id_to')
                                 ->where('cash_register_users.user_id', $filterUserId);
                         });
                     }
