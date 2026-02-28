@@ -46,7 +46,7 @@ class TransactionsRepository extends BaseRepository
      * @param  array|null  $category_ids  Массив ID категорий транзакций
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null)
+    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null, ?array $exportIds = null, ?int $exportLimit = null)
     {
         $companyId = $this->getCurrentCompanyId() ?? 'default';
 
@@ -65,7 +65,7 @@ class TransactionsRepository extends BaseRepository
         $categoryIdsKey = $category_ids ? md5(implode(',', $category_ids)) : 'null';
         $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $categoryIdsKey, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId(), $contract_id]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $showDeleted, $currentUser, $userUuid, $contract_id) {
+        $runQuery = function () use ($perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $showDeleted, $currentUser, $userUuid, $contract_id, $exportIds, $exportLimit) {
             $searchTrimmed = is_string($search) ? trim($search) : '';
             $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
 
@@ -224,7 +224,15 @@ class TransactionsRepository extends BaseRepository
             $this->applyOwnFilter($query, 'transactions', 'transactions', 'creator_id', $currentUser);
             $this->applySourceTypeFilter($query, $currentUser);
 
+            $query->when($exportIds !== null && $exportIds !== [], fn ($q) => $q->whereIn('transactions.id', $exportIds));
             $query->orderBy('transactions.id', 'desc');
+
+            if ($exportLimit !== null) {
+                $results = $query->limit($exportLimit)->get();
+                $items = $results->map(fn ($transaction) => $this->transformTransactionToListItem($transaction));
+
+                return (object) ['items' => $items->all()];
+            }
 
             /** @var \Illuminate\Pagination\LengthAwarePaginator $paginatedResults */
             $paginatedResults = $query->paginate($perPage, ['*'], 'page', (int) $page);
@@ -253,60 +261,7 @@ class TransactionsRepository extends BaseRepository
             $totalDebtPositive = $debtStats->positive ?? 0;
             $totalDebtNegative = $debtStats->negative ?? 0;
 
-            $paginatedResults->getCollection()->transform(function ($transaction) {
-                return (object) [
-                    'id' => $transaction->id,
-                    'type' => $transaction->type,
-                    'is_transfer' => $this->isTransfer($transaction),
-                    'is_sale' => $this->isSale($transaction),
-                    'is_receipt' => $this->isReceipt($transaction),
-                    'is_debt' => $transaction->is_debt,
-                    'cash_id' => $transaction->cash_id,
-                    'cash_name' => $transaction->cashRegister?->name,
-                    'cash_amount' => $transaction->amount,
-                    'cash_currency_id' => $transaction->cashRegister?->currency?->id,
-                    'cash_currency_name' => $transaction->cashRegister?->currency?->name,
-                    'cash_currency_symbol' => $transaction->cashRegister?->currency?->symbol,
-                    'orig_amount' => $transaction->orig_amount,
-                    'orig_currency_id' => $transaction->currency?->id,
-                    'orig_currency_name' => $transaction->currency?->name,
-                    'orig_currency_symbol' => $transaction->currency?->symbol,
-                    'exchange_rate' => $transaction->exchange_rate,
-                    'creator_id' => $transaction->creator_id,
-                    'user_name' => $transaction->creator?->name,
-                    'category_id' => $transaction->category_id,
-                    'category_name' => $transaction->category?->name,
-                    'category_type' => $transaction->category?->type,
-                    'project_id' => $transaction->project_id,
-                    'project_name' => $transaction->project?->name,
-                    'client_id' => $transaction->client_id,
-                    'client' => $transaction->client ? [
-                        'id' => $transaction->client->id,
-                        'first_name' => $transaction->client->first_name,
-                        'last_name' => $transaction->client->last_name,
-                        'client_type' => $transaction->client->client_type,
-                        'is_supplier' => $transaction->client->is_supplier,
-                        'is_conflict' => $transaction->client->is_conflict,
-                        'address' => $transaction->client->address,
-                        'note' => $transaction->client->note,
-                        'status' => $transaction->client->status,
-                        'discount_type' => $transaction->client->discount_type,
-                        'discount' => $transaction->client->discount,
-                        'created_at' => $transaction->client->created_at,
-                        'updated_at' => $transaction->client->updated_at,
-                        'phones' => $transaction->client->phones ? $transaction->client->phones->toArray() : [],
-                        'emails' => $transaction->client->emails ? $transaction->client->emails->toArray() : [],
-                        'balance' => $transaction->client_balance ?? 0,
-                    ] : null,
-                    'note' => $transaction->note,
-                    'date' => $transaction->date,
-                    'created_at' => $transaction->created_at,
-                    'updated_at' => $transaction->updated_at,
-                    'source_type' => $transaction->source_type,
-                    'source_id' => $transaction->source_id,
-                    'is_deleted' => $transaction->is_deleted ?? false,
-                ];
-            });
+            $paginatedResults->getCollection()->transform(fn ($transaction) => $this->transformTransactionToListItem($transaction));
 
             /** @var object $paginatedResults */
             $paginatedResults->total_debt_positive = $totalDebtPositive;
@@ -314,7 +269,102 @@ class TransactionsRepository extends BaseRepository
             $paginatedResults->total_debt_balance = $totalDebtPositive - $totalDebtNegative;
 
             return $paginatedResults;
-        }, (int) $page);
+        };
+
+        if ($exportLimit !== null) {
+            return $runQuery();
+        }
+
+        return CacheService::getPaginatedData($cacheKey, $runQuery, (int) $page);
+    }
+
+    /**
+     * Получить транзакции для экспорта
+     *
+     * @param  int  $userUuid
+     * @param  int|null  $cash_id
+     * @param  string|null  $date_filter_type
+     * @param  int|null  $order_id
+     * @param  string|null  $search
+     * @param  int|null  $transaction_type
+     * @param  string|null  $source
+     * @param  int|null  $project_id
+     * @param  string|null  $start_date
+     * @param  string|null  $end_date
+     * @param  bool|null  $is_debt
+     * @param  array|null  $category_ids
+     * @param  int|null  $contract_id
+     * @param  array|null  $ids
+     * @param  int  $limit
+     * @return array
+     */
+    public function getItemsForExport($userUuid, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null, ?array $ids = null, int $limit = 10000): array
+    {
+        $result = $this->getItemsWithPagination($userUuid, 10, 1, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $contract_id, $ids, $limit);
+
+        return $result->items ?? [];
+    }
+
+    /**
+     * Преобразовать транзакцию в объект для списка/экспорта
+     *
+     * @param  \App\Models\Transaction  $transaction
+     * @return object
+     */
+    protected function transformTransactionToListItem($transaction)
+    {
+        return (object) [
+            'id' => $transaction->id,
+            'type' => $transaction->type,
+            'is_transfer' => $this->isTransfer($transaction),
+            'is_sale' => $this->isSale($transaction),
+            'is_receipt' => $this->isReceipt($transaction),
+            'is_debt' => $transaction->is_debt,
+            'cash_id' => $transaction->cash_id,
+            'cash_name' => $transaction->cashRegister?->name,
+            'cash_amount' => $transaction->amount,
+            'cash_currency_id' => $transaction->cashRegister?->currency?->id,
+            'cash_currency_name' => $transaction->cashRegister?->currency?->name,
+            'cash_currency_symbol' => $transaction->cashRegister?->currency?->symbol,
+            'orig_amount' => $transaction->orig_amount,
+            'orig_currency_id' => $transaction->currency?->id,
+            'orig_currency_name' => $transaction->currency?->name,
+            'orig_currency_symbol' => $transaction->currency?->symbol,
+            'exchange_rate' => $transaction->exchange_rate,
+            'creator_id' => $transaction->creator_id,
+            'user_name' => $transaction->creator?->name,
+            'category_id' => $transaction->category_id,
+            'category_name' => $transaction->category?->name,
+            'category_type' => $transaction->category?->type,
+            'project_id' => $transaction->project_id,
+            'project_name' => $transaction->project?->name,
+            'client_id' => $transaction->client_id,
+            'client' => $transaction->client ? [
+                'id' => $transaction->client->id,
+                'first_name' => $transaction->client->first_name,
+                'last_name' => $transaction->client->last_name,
+                'client_type' => $transaction->client->client_type,
+                'is_supplier' => $transaction->client->is_supplier,
+                'is_conflict' => $transaction->client->is_conflict,
+                'address' => $transaction->client->address,
+                'note' => $transaction->client->note,
+                'status' => $transaction->client->status,
+                'discount_type' => $transaction->client->discount_type,
+                'discount' => $transaction->client->discount,
+                'created_at' => $transaction->client->created_at,
+                'updated_at' => $transaction->client->updated_at,
+                'phones' => $transaction->client->phones ? $transaction->client->phones->toArray() : [],
+                'emails' => $transaction->client->emails ? $transaction->client->emails->toArray() : [],
+                'balance' => $transaction->client_balance ?? 0,
+            ] : null,
+            'note' => $transaction->note,
+            'date' => $transaction->date,
+            'created_at' => $transaction->created_at,
+            'updated_at' => $transaction->updated_at,
+            'source_type' => $transaction->source_type,
+            'source_id' => $transaction->source_id,
+            'is_deleted' => $transaction->is_deleted ?? false,
+        ];
     }
 
     /**

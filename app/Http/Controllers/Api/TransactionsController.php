@@ -8,9 +8,12 @@ use App\Http\Requests\UpdateTransactionRequest;
 use App\Models\Transaction;
 use App\Models\Order;
 use App\Models\ProjectContract;
+use App\Exports\GenericExport;
 use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Контроллер для работы с транзакциями
@@ -37,49 +40,24 @@ class TransactionsController extends BaseController
      */
     public function index(Request $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $page = $request->input('page', 1);
-        $per_page = $request->input('per_page', 20);
-        $cash_register_id = $request->query('cash_id');
-        $date_filter_type = $request->query('date_filter_type');
-        $order_id = $request->query('order_id');
-        $contract_id = $request->query('contract_id');
-        $search = $request->query('search');
-        $transaction_type = $request->query('transaction_type');
-        $source = $request->query('source');
-        $project_id = $request->query('project_id');
-        $start_date = $request->query('start_date');
-        $end_date = $request->query('end_date');
-        $is_debt = $request->query('is_debt');
-        $category_ids = $request->query('category_ids');
-
-        if ($category_ids) {
-            if (is_string($category_ids)) {
-                $category_ids = explode(',', $category_ids);
-            }
-            $category_ids = array_filter(array_map('intval', (array)$category_ids));
-            $category_ids = !empty($category_ids) ? $category_ids : null;
-        } else {
-            $category_ids = null;
-        }
+        $params = $this->getTransactionListParams($request);
 
         $items = $this->itemsRepository->getItemsWithPagination(
-            $userUuid,
-            $per_page,
-            $page,
-            $cash_register_id,
-            $date_filter_type,
-            $order_id,
-            $search,
-            $transaction_type,
-            $source,
-            $project_id,
-            $start_date,
-            $end_date,
-            $is_debt,
-            $category_ids,
-            $contract_id
+            $params['user_uuid'],
+            $params['per_page'],
+            $params['page'],
+            $params['cash_id'],
+            $params['date_filter_type'],
+            $params['order_id'],
+            $params['search'],
+            $params['transaction_type'],
+            $params['source'],
+            $params['project_id'],
+            $params['start_date'],
+            $params['end_date'],
+            $params['is_debt'],
+            $params['category_ids'],
+            $params['contract_id']
         );
 
         $response = [
@@ -95,6 +73,96 @@ class TransactionsController extends BaseController
 
 
         return response()->json($response);
+    }
+
+    /**
+     * Экспорт транзакций в Excel (по фильтру или по выбранным id).
+     *
+     * @param Request $request
+     * @return BinaryFileResponse
+     */
+    public function export(Request $request): BinaryFileResponse
+    {
+        $params = $this->getTransactionListParams($request);
+        $ids = $request->input('ids', []);
+        if (! is_array($ids)) {
+            $ids = $ids ? [$ids] : [];
+        }
+        $ids = array_filter(array_map('intval', $ids));
+
+        $items = $this->itemsRepository->getItemsForExport(
+            $params['user_uuid'],
+            $params['cash_id'],
+            $params['date_filter_type'],
+            $params['order_id'],
+            $params['search'],
+            $params['transaction_type'],
+            $params['source'],
+            $params['project_id'],
+            $params['start_date'],
+            $params['end_date'],
+            $params['is_debt'],
+            $params['category_ids'],
+            $params['contract_id'],
+            $ids ?: null,
+            10000
+        );
+        $headings = ['№', 'Дата', 'Тип', 'Сумма', 'Клиент', 'Категория', 'Касса', 'Примечание'];
+        $rows = array_map(function ($t) {
+            $clientName = $t->client
+                ? trim(($t->client['first_name'] ?? '') . ' ' . ($t->client['last_name'] ?? ''))
+                : '';
+            return [
+                $t->id,
+                $t->date ? (is_string($t->date) ? $t->date : $t->date->format('Y-m-d H:i')) : '',
+                $t->type === 1 ? 'Приход' : 'Расход',
+                (float) ($t->cash_amount ?? 0),
+                $clientName,
+                $t->category_name ?? '',
+                $t->cash_name ?? '',
+                $t->note ?? '',
+            ];
+        }, $items);
+        $filename = 'transactions_' . date('Y-m-d_His') . '.xlsx';
+        return Excel::download(new GenericExport($rows, $headings), $filename, \Maatwebsite\Excel\Excel::XLSX);
+    }
+
+    /**
+     * Параметры списка транзакций из Request
+     *
+     * @param Request $request
+     * @return array
+     */
+    protected function getTransactionListParams(Request $request): array
+    {
+        $category_ids = $request->query('category_ids');
+        if ($category_ids) {
+            if (is_string($category_ids)) {
+                $category_ids = explode(',', $category_ids);
+            }
+            $category_ids = array_filter(array_map('intval', (array) $category_ids));
+            $category_ids = ! empty($category_ids) ? $category_ids : null;
+        } else {
+            $category_ids = null;
+        }
+
+        return [
+            'user_uuid' => $this->getAuthenticatedUserIdOrFail(),
+            'page' => (int) $request->input('page', 1),
+            'per_page' => (int) $request->input('per_page', 20),
+            'cash_id' => $request->query('cash_id'),
+            'date_filter_type' => $request->query('date_filter_type'),
+            'order_id' => $request->query('order_id'),
+            'contract_id' => $request->query('contract_id'),
+            'search' => $request->query('search'),
+            'transaction_type' => $request->query('transaction_type'),
+            'source' => $request->query('source'),
+            'project_id' => $request->query('project_id'),
+            'start_date' => $request->query('start_date'),
+            'end_date' => $request->query('end_date'),
+            'is_debt' => $request->query('is_debt'),
+            'category_ids' => $category_ids,
+        ];
     }
 
     /**

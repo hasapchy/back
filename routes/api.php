@@ -149,6 +149,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::get('clients', [ClientController::class, 'index']);
     Route::get('clients/all', [ClientController::class, 'all']);
     Route::get('clients/search', [ClientController::class, 'search']);
+    Route::middleware('permission:clients_export')->get('clients/export', [ClientController::class, 'export']);
     Route::middleware('permission.scope:clients_view_all,clients_view,settings_client_balance_view_own')->get('clients/{id}', [ClientController::class, 'show']);
     Route::middleware('permission:clients_create')->post('clients', [ClientController::class, 'store']);
     Route::middleware('permission.scope:clients_update_all,clients_update')->put('clients/{id}', [ClientController::class, 'update']);
@@ -199,9 +200,10 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware(['permission.scope:transactions_update_all,transactions_update', 'time.restriction:Transaction'])->put('transactions/{id}', [TransactionsController::class, 'update']);
     Route::middleware(['permission.scope:transactions_delete_all,transactions_delete', 'time.restriction:Transaction'])->delete('transactions/{id}', [TransactionsController::class, 'destroy']);
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
+    Route::middleware('permission:transactions_export')->get('transactions/export', [TransactionsController::class, 'export']);
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions/{id}', [TransactionsController::class, 'show']);
 
-    Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('reports/by-categories', [ReportsController::class, 'byCategories']);
+    Route::middleware('permission:reports_view_by_categories')->get('reports/by-categories', [ReportsController::class, 'byCategories']);
 
     Route::middleware('permission.scope:transaction_templates_view_all,transaction_templates_view_own')->get('transaction-templates', [TransactionTemplateController::class, 'index']);
     Route::middleware('permission.scope:transaction_templates_view_all,transaction_templates_view_own')->get('transaction-templates/all', [TransactionTemplateController::class, 'all']);
@@ -229,6 +231,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:sales_view_all,sales_view')->get('sales/{id}', [SaleController::class, 'show']);
 
     Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders', [OrderController::class, 'index']);
+    Route::middleware('permission:orders_export,orders_simple_export')->get('orders/export', [OrderController::class, 'export']);
     Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders/first-stage-count', [OrderController::class, 'firstStageCount']);
     Route::middleware('permission:orders_create,orders_simple_create')->post('orders', [OrderController::class, 'store']);
     Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->put('orders/{id}', [OrderController::class, 'update']);

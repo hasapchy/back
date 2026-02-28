@@ -13,8 +13,11 @@ use App\Models\Category;
 use App\Models\CategoryUser;
 use Illuminate\Http\Request;
 use App\Events\OrderFirstStageCountUpdated;
+use App\Exports\GenericExport;
 use App\Http\Resources\OrderCollection;
 use App\Http\Resources\OrderResource;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Контроллер для работы с заказами
@@ -67,6 +70,68 @@ class OrderController extends BaseController
         $unpaidOrdersTotal = $items->unpaid_orders_total ?? null;
 
         return new OrderCollection($items, $unpaidOrdersTotal);
+    }
+
+    /**
+     * Экспорт заказов в Excel (по фильтру или по выбранным id).
+     *
+     * @param Request $request
+     * @return BinaryFileResponse
+     */
+    public function export(Request $request): BinaryFileResponse
+    {
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $search = $request->input('search');
+        $dateFilter = $request->input('date_filter_type', 'all_time');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        $statusFilter = $request->input('status_id');
+        $projectFilter = $request->input('project_id');
+        $clientFilter = $request->input('client_id');
+        $unpaidOnly = $request->boolean('unpaid_only', false);
+        $ids = $request->input('ids', []);
+        if (!is_array($ids)) {
+            $ids = $ids ? [$ids] : [];
+        }
+        $ids = array_filter(array_map('intval', $ids));
+        $orders = $this->itemRepository->getItemsForExport(
+            $userUuid,
+            $search,
+            $dateFilter,
+            $startDate,
+            $endDate,
+            $statusFilter,
+            $projectFilter,
+            $clientFilter,
+            $unpaidOnly,
+            $ids ?: null,
+            10000
+        );
+        $exportColumns = [
+            'id' => ['№', fn ($o) => $o->id],
+            'date' => ['Дата', fn ($o) => $o->date ? (is_string($o->date) ? $o->date : $o->date->format('Y-m-d H:i')) : ''],
+            'status_name' => ['Статус', fn ($o) => $o->status_name ?? ''],
+            'cash_name' => ['Касса', fn ($o) => $o->cash_name ?? ''],
+            'warehouse_name' => ['Склад', fn ($o) => $o->warehouse_name ?? ''],
+            'client' => ['Клиент', fn ($o) => trim(($o->client_first_name ?? '') . ' ' . ($o->client_last_name ?? ''))],
+            'project_name' => ['Проект', fn ($o) => $o->project_name ?? ''],
+            'total_price' => ['Сумма', fn ($o) => (float) ($o->total_price ?? 0)],
+            'payment_status_text' => ['Оплата', fn ($o) => $o->getAttribute('payment_status_text') ?? ''],
+            'note' => ['Примечание', fn ($o) => $o->note ?? ''],
+        ];
+        $requestColumns = $request->input('columns');
+        $columnKeys = is_array($requestColumns) && !empty($requestColumns)
+            ? array_values(array_intersect($requestColumns, array_keys($exportColumns)))
+            : array_keys($exportColumns);
+        if (empty($columnKeys)) {
+            $columnKeys = array_keys($exportColumns);
+        }
+        $headings = array_map(fn ($key) => $exportColumns[$key][0], $columnKeys);
+        $rows = $orders->map(function ($order) use ($exportColumns, $columnKeys) {
+            return array_map(fn ($key) => $exportColumns[$key][1]($order), $columnKeys);
+        })->all();
+        $filename = 'orders_' . date('Y-m-d_His') . '.xlsx';
+        return Excel::download(new GenericExport($rows, $headings), $filename, \Maatwebsite\Excel\Excel::XLSX);
     }
 
     /**

@@ -37,51 +37,84 @@ class ClientsRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('clients_paginated', [$perPage, $search, $includeInactive, $statusFilter, $typeFilterKey, $currentUser?->id, $companyId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter, $currentUser) {
-            $query = Client::with([
-                'phones:id,client_id,phone',
-                'emails:id,client_id,email',
-                'creator:id,name,photo',
-                'employee:id,name,surname,position,photo',
-                'balances.currency',
-                'balances.users',
-                'defaultBalance.currency',
-            ]);
-
-            $query = $this->addCompanyFilterDirect($query, 'clients');
-
-            $this->applyOwnFilter($query, 'clients', 'clients', 'creator_id', $currentUser, 'employee_id');
-
-            if ($statusFilter) {
-                $query->where('clients.status', $statusFilter === 'active');
-            } elseif (! $includeInactive) {
-                $query->where('clients.status', true);
-            }
-
-            if (! empty($typeFilter)) {
-                $query->whereIn('clients.client_type', $typeFilter);
-            }
-
-            if ($search) {
-                $searchTerm = "%{$search}%";
-                $query->where(function ($q) use ($searchTerm) {
-                    $q->where('clients.id', 'like', $searchTerm)
-                        ->orWhere('clients.first_name', 'like', $searchTerm)
-                        ->orWhere('clients.last_name', 'like', $searchTerm)
-                        ->orWhere('clients.position', 'like', $searchTerm)
-                        ->orWhere('clients.address', 'like', $searchTerm)
-                        ->orWhereHas('phones', function ($phoneQuery) use ($searchTerm) {
-                            $phoneQuery->where('phone', 'like', $searchTerm);
-                        })
-                        ->orWhereHas('emails', function ($emailQuery) use ($searchTerm) {
-                            $emailQuery->where('email', 'like', $searchTerm);
-                        });
-                });
-            }
-
+            $query = $this->buildClientListQuery($search, $includeInactive, $statusFilter, $typeFilter);
             $query->orderBy('clients.created_at', 'desc');
 
             return $query->paginate($perPage, ['*'], 'page', (int) $page);
         }, (int) $page);
+    }
+
+    /**
+     * Базовый запрос списка клиентов с фильтрами
+     *
+     * @param  string|null  $search
+     * @param  bool  $includeInactive
+     * @param  string|null  $statusFilter
+     * @param  array  $typeFilter
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function buildClientListQuery($search = null, $includeInactive = false, $statusFilter = null, $typeFilter = [])
+    {
+        $typeFilter = $this->normalizeTypeFilter($typeFilter);
+        /** @var User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $query = Client::with([
+            'phones:id,client_id,phone',
+            'emails:id,client_id,email',
+            'creator:id,name,photo',
+            'employee:id,name,surname,position,photo',
+            'balances.currency',
+            'balances.users',
+            'defaultBalance.currency',
+        ]);
+        $query = $this->addCompanyFilterDirect($query, 'clients');
+        $this->applyOwnFilter($query, 'clients', 'clients', 'creator_id', $currentUser, 'employee_id');
+        if ($statusFilter) {
+            $query->where('clients.status', $statusFilter === 'active');
+        } elseif (! $includeInactive) {
+            $query->where('clients.status', true);
+        }
+        if (! empty($typeFilter)) {
+            $query->whereIn('clients.client_type', $typeFilter);
+        }
+        if ($search) {
+            $searchTerm = "%{$search}%";
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('clients.id', 'like', $searchTerm)
+                    ->orWhere('clients.first_name', 'like', $searchTerm)
+                    ->orWhere('clients.last_name', 'like', $searchTerm)
+                    ->orWhere('clients.position', 'like', $searchTerm)
+                    ->orWhere('clients.address', 'like', $searchTerm)
+                    ->orWhereHas('phones', function ($phoneQuery) use ($searchTerm) {
+                        $phoneQuery->where('phone', 'like', $searchTerm);
+                    })
+                    ->orWhereHas('emails', function ($emailQuery) use ($searchTerm) {
+                        $emailQuery->where('email', 'like', $searchTerm);
+                    });
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Получить клиентов для экспорта
+     *
+     * @param  string|null  $search
+     * @param  bool  $includeInactive
+     * @param  string|null  $statusFilter
+     * @param  array  $typeFilter
+     * @param  array|null  $ids
+     * @param  int  $limit
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getItemsForExport($search = null, $includeInactive = false, $statusFilter = null, $typeFilter = [], ?array $ids = null, int $limit = 10000)
+    {
+        $query = $this->buildClientListQuery($search, $includeInactive, $statusFilter, $typeFilter);
+        $query->when($ids !== null && $ids !== [], fn ($q) => $q->whereIn('clients.id', $ids));
+        $query->orderBy('clients.created_at', 'desc');
+
+        return $query->limit($limit)->get();
     }
 
     /**

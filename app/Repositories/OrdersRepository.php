@@ -53,131 +53,12 @@ class OrdersRepository extends BaseRepository
         $loadProducts = $perPage <= 50;
 
         $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser, $hasSearch, $loadProducts) {
-            $transactionsRepository = new \App\Repositories\TransactionsRepository();
-
-            $loadProducts = true;
-
-            $withRelations = [
-                'client:id,first_name,last_name,client_type,is_supplier,is_conflict',
-                'client.phones:id,client_id,phone',
-                'creator:id,name,photo',
-                'status:id,name',
-                'status.category:id,name,color',
-                'warehouse:id,name',
-                'cash:id,name,currency_id',
-                'cash.currency:id,name,symbol',
-                'project:id,name',
-                'category:id,name',
-            ];
-
-            if ($loadProducts) {
-                $withRelations = array_merge($withRelations, [
-                    'orderProducts:id,order_id,product_id,quantity,price,width,height',
-                    'orderProducts.product:id,name,image,unit_id',
-                    'orderProducts.product.unit:id,name,short_name',
-                    'tempProducts:id,order_id,name,description,quantity,price,unit_id,width,height',
-                    'tempProducts.unit:id,name,short_name'
-                ]);
-            }
-
             $orderResource = $this->getOrderResourceForUser($currentUser);
             $isSimpleWorker = $currentUser instanceof User &&
                 ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
-
-            $query = Order::select([
-                'orders.*',
-                DB::raw('(orders.price - orders.discount) as total_price')
-            ])->with($withRelations);
-
-            if (!$isSimpleWorker || $currentUser->is_admin) {
-                $query->where(function ($q) use ($userUuid) {
-                    if ($this->shouldApplyUserFilter('cash_registers')) {
-                        $q->whereNull('orders.cash_id');
-                        $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
-                        $q->orWhereExists(function ($subQuery) use ($filterUserId) {
-                            $subQuery->select(DB::raw(1))
-                                ->from('cash_register_users')
-                                ->whereColumn('cash_register_users.cash_register_id', 'orders.cash_id')
-                                ->where('cash_register_users.user_id', $filterUserId);
-                        });
-                    }
-                });
-            }
-
-            $this->applyOwnFilter($query, $orderResource, 'orders', 'creator_id', $currentUser);
-
-            if ($hasSearch) {
-                $searchLower = mb_strtolower($searchTrimmed);
-                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
-                    $q->where('orders.id', 'like', "%{$searchTrimmed}%")
-                        ->orWhereRaw('LOWER(orders.note) LIKE ?', ["%{$searchLower}%"])
-                        ->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
-                            $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
-                        })
-                        ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
-                            $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
-                        })
-                        ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
-                            $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
-                        });
-                });
-            }
-
-            if ($dateFilter && $dateFilter !== 'all_time') {
-                $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'orders.date');
-            }
-
-            if ($statusFilter) {
-                $query->where('orders.status_id', $statusFilter);
-            }
-
-            if ($projectFilter) {
-                $query->where('orders.project_id', $projectFilter);
-            }
-
-            if ($clientFilter) {
-                $query->where('orders.client_id', $clientFilter);
-            }
-
-            if ($unpaidOnly) {
-                $query->whereNull('orders.project_id')
-                    ->leftJoinSub(
-                        Transaction::select('source_id', DB::raw('SUM(orig_amount) as total_paid'))
-                            ->where('source_type', Order::class)
-                            ->where('is_debt', 0)
-                            ->where('is_deleted', 0)
-                            ->groupBy('source_id'),
-                        'paid_transactions',
-                        function ($join) {
-                            $join->on('orders.id', '=', 'paid_transactions.source_id');
-                        }
-                    )
-                    ->whereRaw('(orders.price - orders.discount) > COALESCE(paid_transactions.total_paid, 0)')
-                    ->select('orders.*', DB::raw('(orders.price - orders.discount) as total_price'));
-            }
-
-            $isSimpleWorker = $currentUser instanceof User &&
-                ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
-
-            if ($isSimpleWorker && !$currentUser->is_admin) {
-                $userCategoryIds = $this->getUserCategoryIds($userUuid);
-
-                if (empty($userCategoryIds)) {
-                    $query->whereNull('orders.category_id');
-                } else {
-                    $query->where(function ($q) use ($userCategoryIds) {
-                        $q->whereIn('orders.category_id', $userCategoryIds)
-                            ->orWhereNull('orders.category_id');
-                    });
-                }
-            }
-
-            $query = $this->addCompanyFilterThroughRelation($query, 'cash');
-
+            $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, null);
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
-
             $transactionsRepository = new \App\Repositories\TransactionsRepository();
-
             $orders->getCollection()->transform(function ($order) use ($transactionsRepository) {
                 if ($order->client) {
                     $order->client_first_name = $order->client->first_name;
@@ -350,6 +231,226 @@ class OrdersRepository extends BaseRepository
 
         $result = CacheService::getPaginatedData($cacheKey, $buildResult, (int)$page);
         return $result;
+    }
+
+    /**
+     * Построить запрос списка заказов с фильтрами и scope прав.
+     *
+     * @param int $userUuid
+     * @param string|null $searchTrimmed
+     * @param string $dateFilter
+     * @param string|null $startDate
+     * @param string|null $endDate
+     * @param int|null $statusFilter
+     * @param int|null $projectFilter
+     * @param int|null $clientFilter
+     * @param bool $unpaidOnly
+     * @param array|null $ids
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $projectFilter = null, $clientFilter = null, $unpaidOnly = false, ?array $ids = null)
+    {
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
+        $withRelations = [
+            'client:id,first_name,last_name,client_type,is_supplier,is_conflict',
+            'client.phones:id,client_id,phone',
+            'creator:id,name,photo',
+            'status:id,name',
+            'status.category:id,name,color',
+            'warehouse:id,name',
+            'cash:id,name,currency_id',
+            'cash.currency:id,name,symbol',
+            'project:id,name',
+            'category:id,name',
+            'orderProducts:id,order_id,product_id,quantity,price,width,height',
+            'orderProducts.product:id,name,image,unit_id',
+            'orderProducts.product.unit:id,name,short_name',
+            'tempProducts:id,order_id,name,description,quantity,price,unit_id,width,height',
+            'tempProducts.unit:id,name,short_name',
+        ];
+        $orderResource = $this->getOrderResourceForUser($currentUser);
+        $isSimpleWorker = $currentUser instanceof User &&
+            ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
+        $query = Order::select([
+            'orders.*',
+            DB::raw('(orders.price - orders.discount) as total_price')
+        ])->with($withRelations);
+        if (!$isSimpleWorker || $currentUser->is_admin) {
+            $query->where(function ($q) use ($userUuid) {
+                if ($this->shouldApplyUserFilter('cash_registers')) {
+                    $q->whereNull('orders.cash_id');
+                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                    $q->orWhereExists(function ($subQuery) use ($filterUserId) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('cash_register_users')
+                            ->whereColumn('cash_register_users.cash_register_id', 'orders.cash_id')
+                            ->where('cash_register_users.user_id', $filterUserId);
+                    });
+                }
+            });
+        }
+        $this->applyOwnFilter($query, $orderResource, 'orders', 'creator_id', $currentUser);
+        if ($hasSearch) {
+            $searchLower = mb_strtolower($searchTrimmed);
+            $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                $q->where('orders.id', 'like', "%{$searchTrimmed}%")
+                    ->orWhereRaw('LOWER(orders.note) LIKE ?', ["%{$searchLower}%"])
+                    ->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
+                        $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
+                    })
+                    ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
+                        $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                    })
+                    ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
+                        $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                    });
+            });
+        }
+        if ($dateFilter && $dateFilter !== 'all_time') {
+            $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'orders.date');
+        }
+        if ($statusFilter) {
+            $query->where('orders.status_id', $statusFilter);
+        }
+        if ($projectFilter) {
+            $query->where('orders.project_id', $projectFilter);
+        }
+        if ($clientFilter) {
+            $query->where('orders.client_id', $clientFilter);
+        }
+        if ($unpaidOnly) {
+            $query->whereNull('orders.project_id')
+                ->leftJoinSub(
+                    Transaction::select('source_id', DB::raw('SUM(orig_amount) as total_paid'))
+                        ->where('source_type', Order::class)
+                        ->where('is_debt', 0)
+                        ->where('is_deleted', 0)
+                        ->groupBy('source_id'),
+                    'paid_transactions',
+                    function ($join) {
+                        $join->on('orders.id', '=', 'paid_transactions.source_id');
+                    }
+                )
+                ->whereRaw('(orders.price - orders.discount) > COALESCE(paid_transactions.total_paid, 0)')
+                ->select('orders.*', DB::raw('(orders.price - orders.discount) as total_price'));
+        }
+        if ($isSimpleWorker && !$currentUser->is_admin) {
+            $userCategoryIds = $this->getUserCategoryIds($userUuid);
+            if (empty($userCategoryIds)) {
+                $query->whereNull('orders.category_id');
+            } else {
+                $query->where(function ($q) use ($userCategoryIds) {
+                    $q->whereIn('orders.category_id', $userCategoryIds)
+                        ->orWhereNull('orders.category_id');
+                });
+            }
+        }
+        if ($ids !== null && $ids !== []) {
+            $query->whereIn('orders.id', $ids);
+        }
+        $query = $this->addCompanyFilterThroughRelation($query, 'cash');
+        return $query;
+    }
+
+    /**
+     * Получить заказы для экспорта (по фильтрам или по списку id).
+     *
+     * @param int $userUuid
+     * @param string|null $search
+     * @param string $dateFilter
+     * @param string|null $startDate
+     * @param string|null $endDate
+     * @param int|null $statusFilter
+     * @param int|null $projectFilter
+     * @param int|null $clientFilter
+     * @param bool $unpaidOnly
+     * @param array|null $ids
+     * @param int $limit
+     * @return \Illuminate\Support\Collection
+     */
+    public function getItemsForExport($userUuid, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $projectFilter = null, $clientFilter = null, $unpaidOnly = false, ?array $ids = null, int $limit = 10000)
+    {
+        $searchTrimmed = is_string($search) ? trim($search) : '';
+        $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, $ids);
+        $orders = $query->orderBy('orders.created_at', 'desc')->limit($limit)->get();
+        $transactionsRepository = new \App\Repositories\TransactionsRepository();
+        $orders->transform(function ($order) use ($transactionsRepository) {
+            if ($order->client) {
+                $order->client_first_name = $order->client->first_name;
+                $order->client_last_name = $order->client->last_name;
+            }
+            if ($order->creator) {
+                $order->user_name = $order->creator->name;
+                $order->user_photo = $order->creator->photo;
+            }
+            if ($order->status) {
+                $order->status_name = $order->status->name;
+                if ($order->status->category) {
+                    $order->status_category_name = $order->status->category->name;
+                    $order->status_category_color = $order->status->category->color;
+                }
+            }
+            if ($order->warehouse) {
+                $order->warehouse_name = $order->warehouse->name;
+            }
+            if ($order->cash) {
+                $order->cash_name = $order->cash->name;
+                if ($order->cash->currency) {
+                    $order->currency_name = $order->cash->currency->name;
+                    $order->currency_symbol = $order->cash->currency->symbol;
+                }
+            }
+            if ($order->project) {
+                $order->project_name = $order->project->name;
+            }
+            if ($order->category) {
+                $order->category_name = $order->category->name;
+            }
+            $allProducts = collect();
+            if ($order->orderProducts) {
+                foreach ($order->orderProducts as $orderProduct) {
+                    $product = $orderProduct->product;
+                    $allProducts->push([
+                        'id' => $orderProduct->id,
+                        'order_id' => $orderProduct->order_id,
+                        'product_id' => $orderProduct->product_id,
+                        'product_name' => $product?->name ?? null,
+                        'quantity' => $orderProduct->quantity,
+                        'price' => $orderProduct->price,
+                        'product_type' => 'regular'
+                    ]);
+                }
+            }
+            if ($order->tempProducts) {
+                foreach ($order->tempProducts as $tempProduct) {
+                    $allProducts->push([
+                        'id' => $tempProduct->id,
+                        'order_id' => $tempProduct->order_id,
+                        'product_id' => null,
+                        'product_name' => $tempProduct->name,
+                        'quantity' => $tempProduct->quantity,
+                        'price' => $tempProduct->price,
+                        'product_type' => 'temp'
+                    ]);
+                }
+            }
+            $order->products = $allProducts;
+            $paidAmount = (float) $transactionsRepository->getTotalByOrderId($order->creator_id ?? 1, $order->id);
+            $totalPrice = (float) ($order->total_price ?? 0);
+            $order->setAttribute('paid_amount', $paidAmount);
+            if ($paidAmount <= 0) {
+                $order->setAttribute('payment_status', 'unpaid');
+            } elseif ($paidAmount < $totalPrice) {
+                $order->setAttribute('payment_status', 'partially_paid');
+            } else {
+                $order->setAttribute('payment_status', 'paid');
+            }
+            $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
+            return $order;
+        });
+        return $orders;
     }
 
     /**
