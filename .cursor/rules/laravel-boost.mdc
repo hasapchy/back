@@ -17,7 +17,6 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - laravel/sanctum (SANCTUM) - v3
 - laravel/mcp (MCP) - v0
 - laravel/pint (PINT) - v1
-- laravel/telescope (TELESCOPE) - v5
 - phpunit/phpunit (PHPUNIT) - v10
 - alpinejs (ALPINEJS) - v3
 - tailwindcss (TAILWINDCSS) - v3

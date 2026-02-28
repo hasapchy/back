@@ -24,7 +24,7 @@ return [
         'http://localhost:5173',
         'http://localhost:8080',
         'http://localhost',
-        'http://192.168.50.70',
+        'http://192.168.0.119',
         'http://127.0.0.1:6002',
         'http://127.0.0.1:8080',
         'http://127.0.0.1',

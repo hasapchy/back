@@ -8,6 +8,7 @@ use App\Models\ProductCategory;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Services\CacheService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Models\WhUser;
@@ -191,73 +192,74 @@ class ProductsRepository extends BaseRepository
      */
     public function createItem($data)
     {
-        $product = new Product();
-        $product->type = $data['type'];
-        $product->image = $data['image'] ?? null;
-        $product->name = $data['name'];
-        $product->description = $data['description'];
-        $product->sku = $data['sku'];
-        $product->barcode = $data['barcode'];
-        $product->unit_id = $data['unit_id'];
-        $product->date = $data['date'] ?? now();
-        $product->creator_id = $data['creator_id'] ?? auth()->id();
-        $product->save();
+        return DB::transaction(function () use ($data) {
+            $product = new Product();
+            $product->type = $data['type'];
+            $product->image = $data['image'] ?? null;
+            $product->name = $data['name'];
+            $product->description = $data['description'];
+            $product->sku = $data['sku'];
+            $product->barcode = $data['barcode'];
+            $product->unit_id = $data['unit_id'];
+            $product->date = $data['date'] ?? now();
+            $product->creator_id = $data['creator_id'] ?? auth()->id();
+            $product->save();
 
-        if (isset($data['categories']) && !empty($data['categories'])) {
-            $product->categories()->sync($data['categories']);
-        } elseif (isset($data['category_id'])) {
-            $product->categories()->sync([$data['category_id']]);
-        }
-
-        ProductPrice::updateOrCreate([
-            'product_id' => $product->id
-        ], [
-            'retail_price' => $data['retail_price'] ?? 0.0,
-            'wholesale_price' => $data['wholesale_price'] ?? 0.0,
-            'purchase_price' => $data['purchase_price'] ?? 0.0,
-        ]);
-
-        if ($this->isProductTypeValue($product->type)) {
-            $companyId = $this->getCurrentCompanyId();
-
-            if ($companyId) {
-                $warehouseIds = Warehouse::where('company_id', $companyId)
-                    ->pluck('id')
-                    ->toArray();
-
-                foreach ($warehouseIds as $warehouseId) {
-                    WarehouseStock::firstOrCreate(
-                        [
-                            'warehouse_id' => $warehouseId,
-                            'product_id' => $product->id,
-                        ],
-                        [
-                            'quantity' => 0,
-                        ]
-                    );
-                }
+            if (isset($data['categories']) && !empty($data['categories'])) {
+                $product->categories()->sync($data['categories']);
+            } elseif (isset($data['category_id'])) {
+                $product->categories()->sync([$data['category_id']]);
             }
 
-            CacheService::invalidateWarehouseStocksCache();
-        }
+            ProductPrice::updateOrCreate(
+                ['product_id' => $product->id],
+                [
+                    'retail_price' => $data['retail_price'] ?? 0.0,
+                    'wholesale_price' => $data['wholesale_price'] ?? 0.0,
+                    'purchase_price' => $data['purchase_price'] ?? 0.0,
+                ]
+            );
 
-        CacheService::invalidateProductsCache();
+            if ($this->isProductTypeValue($product->type)) {
+                $companyId = $this->getCurrentCompanyId();
 
-        return Product::select([
-            'products.*',
-            'primary_categories.name as category_name',
-            'units.name as unit_name',
-            'units.short_name as unit_short_name',
-            'product_prices.retail_price',
-            'product_prices.wholesale_price',
-            'product_prices.purchase_price'
-        ])
-            ->join('product_categories', 'products.id', '=', 'product_categories.product_id')
-            ->join('categories as primary_categories', 'product_categories.category_id', '=', 'primary_categories.id')
-            ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-            ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
-            ->where('products.id', $product->id)
-            ->first();
+                if ($companyId) {
+                    $warehouseIds = Warehouse::where('company_id', $companyId)
+                        ->pluck('id')
+                        ->toArray();
+
+                    foreach ($warehouseIds as $warehouseId) {
+                        WarehouseStock::firstOrCreate(
+                            [
+                                'warehouse_id' => $warehouseId,
+                                'product_id' => $product->id,
+                            ],
+                            ['quantity' => 0]
+                        );
+                    }
+                }
+
+                CacheService::invalidateWarehouseStocksCache();
+            }
+
+            CacheService::invalidateProductsCache();
+
+            return Product::select([
+                'products.*',
+                'primary_categories.name as category_name',
+                'units.name as unit_name',
+                'units.short_name as unit_short_name',
+                'product_prices.retail_price',
+                'product_prices.wholesale_price',
+                'product_prices.purchase_price'
+            ])
+                ->join('product_categories', 'products.id', '=', 'product_categories.product_id')
+                ->join('categories as primary_categories', 'product_categories.category_id', '=', 'primary_categories.id')
+                ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+                ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
+                ->where('products.id', $product->id)
+                ->first();
+        });
     }
 
     /**
@@ -269,93 +271,91 @@ class ProductsRepository extends BaseRepository
      */
     public function updateItem($id, $data)
     {
-        $product = Product::findOrFail($id);
-        $originalType = $product->type;
-        if (isset($data['type'])) {
-            $product->type = $data['type'];
-        }
-        if (array_key_exists('image', $data)) {
-            $product->image = $data['image'];
-        }
-        if (isset($data['name'])) {
-            $product->name = $data['name'];
-        }
-        if (isset($data['description'])) {
-            $product->description = $data['description'];
-        }
-        if (isset($data['sku'])) {
-            $product->sku = $data['sku'];
-        }
-        if (isset($data['barcode'])) {
-            $product->barcode = $data['barcode'];
-        }
-        if (isset($data['categories']) && !empty($data['categories'])) {
-            $product->categories()->sync($data['categories']);
-        } elseif (isset($data['category_id'])) {
-            $product->categories()->sync([$data['category_id']]);
-        }
-        if (isset($data['unit_id'])) {
-            $product->unit_id = $data['unit_id'];
-        }
-        $product->save();
-        $updatedType = $product->type;
-        if ($originalType !== $updatedType) {
-            if ($this->isProductTypeValue($updatedType)) {
-                $companyId = $this->getCurrentCompanyId();
-                if ($companyId) {
-                    $warehouseIds = Warehouse::where('company_id', $companyId)->pluck('id')->toArray();
-                    foreach ($warehouseIds as $warehouseId) {
-                        WarehouseStock::firstOrCreate(
-                            [
-                                'warehouse_id' => $warehouseId,
-                                'product_id' => $product->id,
-                            ],
-                            [
-                                'quantity' => 0,
-                            ]
-                        );
-                    }
-                }
-            } else {
-                WarehouseStock::where('product_id', $product->id)->delete();
+        return DB::transaction(function () use ($id, $data) {
+            $product = Product::findOrFail($id);
+            $originalType = $product->type;
+            if (isset($data['type'])) {
+                $product->type = $data['type'];
             }
-            CacheService::invalidateWarehouseStocksCache();
-        }
+            if (array_key_exists('image', $data)) {
+                $product->image = $data['image'];
+            }
+            if (isset($data['name'])) {
+                $product->name = $data['name'];
+            }
+            if (isset($data['description'])) {
+                $product->description = $data['description'];
+            }
+            if (isset($data['sku'])) {
+                $product->sku = $data['sku'];
+            }
+            if (isset($data['barcode'])) {
+                $product->barcode = $data['barcode'];
+            }
+            if (isset($data['categories']) && !empty($data['categories'])) {
+                $product->categories()->sync($data['categories']);
+            } elseif (isset($data['category_id'])) {
+                $product->categories()->sync([$data['category_id']]);
+            }
+            if (isset($data['unit_id'])) {
+                $product->unit_id = $data['unit_id'];
+            }
+            $product->save();
+            $updatedType = $product->type;
+            if ($originalType !== $updatedType) {
+                if ($this->isProductTypeValue($updatedType)) {
+                    $companyId = $this->getCurrentCompanyId();
+                    if ($companyId) {
+                        $warehouseIds = Warehouse::where('company_id', $companyId)->pluck('id')->toArray();
+                        foreach ($warehouseIds as $warehouseId) {
+                            WarehouseStock::firstOrCreate(
+                                [
+                                    'warehouse_id' => $warehouseId,
+                                    'product_id' => $product->id,
+                                ],
+                                ['quantity' => 0]
+                            );
+                        }
+                    }
+                } else {
+                    WarehouseStock::where('product_id', $product->id)->delete();
+                }
+                CacheService::invalidateWarehouseStocksCache();
+            }
 
-        $prices_data = [];
-        if (isset($data['retail_price']) && $data['retail_price'] !== null) {
-            $prices_data['retail_price'] = $data['retail_price'];
-        }
-        if (isset($data['wholesale_price']) && $data['wholesale_price'] !== null) {
-            $prices_data['wholesale_price'] = $data['wholesale_price'];
-        }
-        if (isset($data['purchase_price']) && $data['purchase_price'] !== null) {
-            $prices_data['purchase_price'] = $data['purchase_price'];
-        }
-        ProductPrice::updateOrCreate(
-            ['product_id' => $product->id],
-            $prices_data
-        );
+            $prices_data = [];
+            if (isset($data['retail_price']) && $data['retail_price'] !== null) {
+                $prices_data['retail_price'] = $data['retail_price'];
+            }
+            if (isset($data['wholesale_price']) && $data['wholesale_price'] !== null) {
+                $prices_data['wholesale_price'] = $data['wholesale_price'];
+            }
+            if (isset($data['purchase_price']) && $data['purchase_price'] !== null) {
+                $prices_data['purchase_price'] = $data['purchase_price'];
+            }
+            ProductPrice::updateOrCreate(
+                ['product_id' => $product->id],
+                $prices_data
+            );
 
-        // Инвалидируем кэш продуктов
-        CacheService::invalidateProductsCache();
+            CacheService::invalidateProductsCache();
 
-        // Возвращаем товар с полными данными через JOIN (как в других методах)
-        return Product::select([
-            'products.*',
-            'primary_categories.name as category_name', // Основная категория
-            'units.name as unit_name',
-            'units.short_name as unit_short_name',
-            'product_prices.retail_price',
-            'product_prices.wholesale_price',
-            'product_prices.purchase_price'
-        ])
-            ->join('product_categories', 'products.id', '=', 'product_categories.product_id')
-            ->join('categories as primary_categories', 'product_categories.category_id', '=', 'primary_categories.id')
-            ->leftJoin('units', 'products.unit_id', '=', 'units.id')
-            ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
-            ->where('products.id', $product->id)
-            ->first();
+            return Product::select([
+                'products.*',
+                'primary_categories.name as category_name',
+                'units.name as unit_name',
+                'units.short_name as unit_short_name',
+                'product_prices.retail_price',
+                'product_prices.wholesale_price',
+                'product_prices.purchase_price'
+            ])
+                ->join('product_categories', 'products.id', '=', 'product_categories.product_id')
+                ->join('categories as primary_categories', 'product_categories.category_id', '=', 'primary_categories.id')
+                ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+                ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
+                ->where('products.id', $product->id)
+                ->first();
+        });
     }
 
     /**

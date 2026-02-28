@@ -31,7 +31,6 @@ class UpdateClientRequest extends FormRequest
             'is_supplier'      => 'sometimes|nullable|boolean',
             'last_name'        => 'nullable|string',
             'patronymic'       => 'nullable|string',
-            'contact_person'   => 'nullable|string',
             'position'         => 'nullable|string',
             'client_type'      => 'required|string|in:company,individual,employee,investor',
             'employee_id'      => 'nullable|exists:users,id',
@@ -43,7 +42,7 @@ class UpdateClientRequest extends FormRequest
             'note'             => 'nullable|string',
             'status'           => 'nullable|boolean',
             'discount'         => 'nullable|numeric|min:0',
-            'discount_type'    => 'nullable|in:fixed,percent',
+            'discount_type'    => 'required|in:fixed,percent',
         ];
     }
 
@@ -70,7 +69,7 @@ class UpdateClientRequest extends FormRequest
         }
 
         // Нормализация пустых строк в null
-        $nullableFields = ['last_name', 'patronymic', 'contact_person', 'position', 'address', 'note', 'discount_type'];
+        $nullableFields = ['last_name', 'patronymic', 'position', 'address', 'note'];
         foreach ($nullableFields as $field) {
             if (isset($data[$field]) && ($data[$field] === '' || (is_string($data[$field]) && trim($data[$field]) === ''))) {
                 $data[$field] = null;

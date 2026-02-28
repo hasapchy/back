@@ -21,7 +21,6 @@ use App\Models\Currency;
  * @property string $first_name Имя
  * @property string|null $last_name Фамилия
  * @property string|null $patronymic Отчество
- * @property string|null $contact_person Контактное лицо
  * @property string|null $position Должность
  * @property string|null $address Адрес
  * @property string|null $note Примечание
@@ -55,7 +54,6 @@ class Client extends Model
         'first_name',
         'last_name',
         'patronymic',
-        'contact_person',
         'position',
         'address',
         'note',

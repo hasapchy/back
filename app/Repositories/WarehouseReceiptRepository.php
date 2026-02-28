@@ -24,16 +24,19 @@ class WarehouseReceiptRepository extends BaseRepository
      * @param int $page Номер страницы
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, $clientId = null)
     {
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('warehouse_receipts_paginated', [$userUuid, $perPage, $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('warehouse_receipts_paginated', [$userUuid, $perPage, $clientId, $currentUser?->id, $companyId]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
-            return $this->buildBaseQuery($userUuid)
-                ->orderBy('wh_receipts.created_at', 'desc')
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $clientId) {
+            $query = $this->buildBaseQuery($userUuid);
+            if ((int) $clientId > 0) {
+                $query->where('wh_receipts.supplier_id', (int) $clientId);
+            }
+            return $query->orderBy('wh_receipts.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
         }, (int)$page);
     }
@@ -77,8 +80,7 @@ class WarehouseReceiptRepository extends BaseRepository
             'wh_receipts.created_at',
             'wh_receipts.updated_at',
             'clients.first_name as client_first_name',
-            'clients.last_name as client_last_name',
-            'clients.contact_person as client_contact_person'
+            'clients.last_name as client_last_name'
         ])
             ->leftJoin('clients', 'wh_receipts.supplier_id', '=', 'clients.id')
             ->with([
@@ -87,7 +89,7 @@ class WarehouseReceiptRepository extends BaseRepository
                 'cashRegister.currency:id,name,symbol',
                 'creator:id,name',
                 'project:id,name',
-                'supplier:id,first_name,last_name,contact_person,status,balance',
+                'supplier:id,first_name,last_name,status,balance',
                 'supplier.phones:id,client_id,phone',
                 'supplier.emails:id,client_id,email',
                 'products:id,receipt_id,product_id,quantity,price',
@@ -345,6 +347,7 @@ class WarehouseReceiptRepository extends BaseRepository
 
         $existingStock = WarehouseStock::where('warehouse_id', $warehouse_id)
             ->where('product_id', $product_id)
+            ->lockForUpdate()
             ->first();
 
         if ($existingStock) {

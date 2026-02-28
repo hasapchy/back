@@ -97,6 +97,7 @@ class CompanyHolidayController extends BaseController
         $data = [
             'name' => $validatedData['name'],
             'date' => $validatedData['date'],
+            'end_date' => $validatedData['end_date'] ?? null,
             'is_recurring' => $validatedData['is_recurring'] ?? true,
             'color' => $validatedData['color'] ?? '#FF5733',
             'company_id' => $validatedData['company_id'],
@@ -128,6 +129,7 @@ class CompanyHolidayController extends BaseController
             $data = array_filter([
                 'name' => $request->input('name'),
                 'date' => $request->input('date'),
+                'end_date' => $request->input('end_date'),
                 'is_recurring' => $request->has('is_recurring') ? $request->input('is_recurring') : null,
                 'color' => $request->input('color'),
             ], fn ($value) => $value !== null);

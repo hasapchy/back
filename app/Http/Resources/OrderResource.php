@@ -20,13 +20,14 @@ class OrderResource extends JsonResource
         } else {
             $orderProducts = ($this->relationLoaded('orderProducts') || isset($this->orderProducts)) ? ($this->orderProducts ?? []) : [];
             foreach ($orderProducts as $orderProduct) {
+                $product = $orderProduct->product ?? null;
                 $allProducts->push([
                     'id' => $orderProduct->id,
                     'product_id' => $orderProduct->product_id,
-                    'product_name' => $orderProduct->product->name ?? null,
-                    'product_image' => $orderProduct->product->image ?? null,
-                    'unit_id' => $orderProduct->product->unit_id ?? null,
-                    'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
+                    'product_name' => $product?->name ?? null,
+                    'product_image' => $product?->image ?? null,
+                    'unit_id' => $product?->unit_id ?? null,
+                    'unit_short_name' => $product?->unit?->short_name ?? null,
                     'quantity' => $orderProduct->quantity,
                     'price' => $orderProduct->price,
                     'width' => $orderProduct->width,
@@ -43,7 +44,7 @@ class OrderResource extends JsonResource
                     'product_name' => $tempProduct->name,
                     'product_image' => null,
                     'unit_id' => $tempProduct->unit_id,
-                    'unit_short_name' => $tempProduct->unit->short_name ?? null,
+                    'unit_short_name' => $tempProduct->unit?->short_name ?? null,
                     'quantity' => $tempProduct->quantity,
                     'price' => $tempProduct->price,
                     'width' => $tempProduct->width,
@@ -104,7 +105,6 @@ class OrderResource extends JsonResource
                 'id' => data_get($client, 'id'),
                 'first_name' => data_get($client, 'first_name'),
                 'last_name' => data_get($client, 'last_name'),
-                'contact_person' => data_get($client, 'contact_person'),
                 'client_type' => data_get($client, 'client_type'),
                 'is_supplier' => (bool)data_get($client, 'is_supplier'),
                 'is_conflict' => (bool)data_get($client, 'is_conflict'),

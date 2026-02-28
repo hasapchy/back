@@ -92,7 +92,7 @@ class InvoicesRepository extends BaseRepository
      */
     public function getItemById($id)
     {
-        $invoice = Invoice::with([
+        $query = Invoice::with([
             'client.phones',
             'client.emails',
             'creator',
@@ -101,8 +101,14 @@ class InvoicesRepository extends BaseRepository
             'orders.tempProducts.unit',
             'products.unit',
             'products.order'
-        ])
-            ->findOrFail($id);
+        ])->where('invoices.id', $id);
+
+        $this->addCompanyFilterThroughRelation($query, 'client', 'clients');
+
+        $invoice = $query->first();
+        if (!$invoice) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Invoice not found');
+        }
 
         $this->attachCurrencyToOrders($invoice->orders);
 

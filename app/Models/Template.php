@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -104,5 +105,27 @@ class Template extends Model
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');
+    }
+
+    /**
+     * @param Carbon $date
+     * @return array<string, mixed>
+     */
+    public function toTransactionData(Carbon $date): array
+    {
+        return [
+            'type' => (bool) $this->type,
+            'creator_id' => $this->creator_id,
+            'orig_amount' => (float) $this->amount,
+            'currency_id' => $this->currency_id,
+            'cash_id' => $this->cash_id,
+            'category_id' => $this->category_id,
+            'project_id' => $this->project_id,
+            'client_id' => $this->client_id,
+            'note' => $this->note,
+            'date' => $date,
+            'is_debt' => false,
+            'exchange_rate' => null,
+        ];
     }
 }

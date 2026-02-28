@@ -21,7 +21,6 @@ class ClientSearchResource extends JsonResource
             'is_conflict' => (bool)$this->is_conflict,
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
-            'contact_person' => $this->contact_person,
             'position' => $this->position,
             'primary_phone' => $primaryPhone ? $primaryPhone->phone : null,
         ];

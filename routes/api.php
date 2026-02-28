@@ -31,6 +31,8 @@ use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\TasksController;
 use App\Http\Controllers\Api\TaskStatusController;
 use App\Http\Controllers\Api\TransactionCategoryController;
+use App\Http\Controllers\Api\RecurringTransactionsController;
+use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\TransactionTemplateController;
 use App\Http\Controllers\Api\TransactionsController;
 use App\Http\Controllers\Api\TransfersController;
@@ -170,9 +172,9 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}', [ProjectsController::class, 'show']);
     Route::middleware('permission:projects_create')->post('projects', [ProjectsController::class, 'store']);
     Route::middleware('permission.scope:projects_update_all,projects_update')->put('projects/{id}', [ProjectsController::class, 'update']);
-    Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);
-    Route::middleware('permission.scope:projects_view_all,projects_view')->post('projects/{id}/download-files', [ProjectsController::class, 'downloadFiles']);
-    Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/{id}/delete-file', [ProjectsController::class, 'deleteFile']);
+    Route::middleware(['permission.scope:projects_update_all,projects_update', 'throttle:20,1'])->post('projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);
+    Route::middleware(['permission.scope:projects_view_all,projects_view', 'throttle:20,1'])->post('projects/{id}/download-files', [ProjectsController::class, 'downloadFiles']);
+    Route::middleware(['permission.scope:projects_update_all,projects_update', 'throttle:20,1'])->post('projects/{id}/delete-file', [ProjectsController::class, 'deleteFile']);
     Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/batch-status', [ProjectsController::class, 'batchUpdateStatus']);
     Route::middleware('permission.scope:projects_delete_all,projects_delete')->delete('projects/{id}', [ProjectsController::class, 'destroy']);
     Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}/balance-history', [ProjectsController::class, 'getBalanceHistory']);
@@ -199,6 +201,8 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions/total', [TransactionsController::class, 'getTotalByOrderId']);
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions/{id}', [TransactionsController::class, 'show']);
 
+    Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('reports/by-categories', [ReportsController::class, 'byCategories']);
+
     Route::middleware('permission.scope:transaction_templates_view_all,transaction_templates_view_own')->get('transaction-templates', [TransactionTemplateController::class, 'index']);
     Route::middleware('permission.scope:transaction_templates_view_all,transaction_templates_view_own')->get('transaction-templates/all', [TransactionTemplateController::class, 'all']);
     Route::middleware('permission.scope:transaction_templates_view_all,transaction_templates_view_own')->get('transaction-templates/{id}/apply', [TransactionTemplateController::class, 'apply']);
@@ -207,6 +211,12 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:transaction_templates_update_all,transaction_templates_update_own')->put('transaction-templates/{id}', [TransactionTemplateController::class, 'update']);
     Route::middleware('permission.scope:transaction_templates_delete_all,transaction_templates_delete_own')->delete('transaction-templates/{id}', [TransactionTemplateController::class, 'destroy']);
 
+    Route::get('recurring-transactions', [RecurringTransactionsController::class, 'index']);
+    Route::get('recurring-transactions/{id}', [RecurringTransactionsController::class, 'show']);
+    Route::post('recurring-transactions', [RecurringTransactionsController::class, 'store']);
+    Route::put('recurring-transactions/{id}', [RecurringTransactionsController::class, 'update']);
+    Route::delete('recurring-transactions/{id}', [RecurringTransactionsController::class, 'destroy']);
+
     Route::middleware('permission.scope:transfers_view_all,transfers_view')->get('transfers', [TransfersController::class, 'index']);
     Route::middleware('permission:transfers_create')->post('transfers', [TransfersController::class, 'store']);
     Route::middleware(['permission:transfers_update', 'time.restriction:CashTransfer'])->put('transfers/{id}', [TransfersController::class, 'update']);
@@ -214,6 +224,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
 
     Route::middleware('permission.scope:sales_view_all,sales_view')->get('sales', [SaleController::class, 'index']);
     Route::middleware(['permission:sales_create'])->post('sales', [SaleController::class, 'store']);
+    Route::middleware(['permission:sales_update', 'time.restriction:Sale'])->put('sales/{id}', [SaleController::class, 'update']);
     Route::middleware(['permission.scope:sales_delete_all,sales_delete', 'time.restriction:Sale'])->delete('sales/{id}', [SaleController::class, 'destroy']);
     Route::middleware('permission.scope:sales_view_all,sales_view')->get('sales/{id}', [SaleController::class, 'show']);
 
@@ -300,8 +311,8 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/return', [TasksController::class, 'return']);
 
     // Task files
-    Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/files', [TasksController::class, 'uploadFiles']);
-    Route::middleware('permission.scope:tasks_update_all,tasks_update')->post('tasks/{id}/delete-file', [TasksController::class, 'deleteFile']);
+    Route::middleware(['permission.scope:tasks_update_all,tasks_update', 'throttle:20,1'])->post('tasks/{id}/files', [TasksController::class, 'uploadFiles']);
+    Route::middleware(['permission.scope:tasks_update_all,tasks_update', 'throttle:20,1'])->post('tasks/{id}/delete-file', [TasksController::class, 'deleteFile']);
 
     // Task statuses
     Route::get('task-statuses', [TaskStatusController::class, 'index']);

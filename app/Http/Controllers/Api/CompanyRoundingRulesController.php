@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\BaseController;
 use App\Models\CompanyRoundingRule;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 /**
@@ -48,17 +49,19 @@ class CompanyRoundingRulesController extends BaseController
 
         $data = $validator->validated();
 
-        $rule = CompanyRoundingRule::updateOrCreate(
-            [
-                'company_id' => $companyId,
-                'context' => $data['context'],
-            ],
-            [
-                'decimals' => $data['decimals'],
-                'direction' => $data['direction'],
-                'custom_threshold' => $data['direction'] === 'custom' ? ($data['custom_threshold'] ?? 0.5) : null,
-            ]
-        );
+        $rule = DB::transaction(function () use ($companyId, $data) {
+            return CompanyRoundingRule::updateOrCreate(
+                [
+                    'company_id' => $companyId,
+                    'context' => $data['context'],
+                ],
+                [
+                    'decimals' => $data['decimals'],
+                    'direction' => $data['direction'],
+                    'custom_threshold' => $data['direction'] === 'custom' ? ($data['custom_threshold'] ?? 0.5) : null,
+                ]
+            );
+        });
 
         return response()->json(['rule' => $rule]);
     }

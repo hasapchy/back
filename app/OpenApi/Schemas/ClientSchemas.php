@@ -16,7 +16,6 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'first_name', type: 'string', example: 'John'),
         new OA\Property(property: 'last_name', type: 'string', nullable: true, example: 'Doe'),
         new OA\Property(property: 'patronymic', type: 'string', nullable: true),
-        new OA\Property(property: 'contact_person', type: 'string', nullable: true),
         new OA\Property(property: 'position', type: 'string', nullable: true),
         new OA\Property(property: 'address', type: 'string', nullable: true),
         new OA\Property(property: 'note', type: 'string', nullable: true),

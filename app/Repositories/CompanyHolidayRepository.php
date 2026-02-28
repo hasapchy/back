@@ -86,7 +86,13 @@ class CompanyHolidayRepository extends BaseRepository
      */
     public function getItemById($id)
     {
-        return CompanyHoliday::with($this->getBaseRelations())->findOrFail($id);
+        $query = CompanyHoliday::with($this->getBaseRelations())->where('id', $id);
+        $this->applyCompanyFilter($query);
+        $item = $query->first();
+        if (!$item) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('CompanyHoliday not found');
+        }
+        return $item;
     }
 
     /**
@@ -119,7 +125,7 @@ class CompanyHolidayRepository extends BaseRepository
      */
     public function updateItem($id, $data)
     {
-        $item = CompanyHoliday::findOrFail($id);
+        $item = $this->getItemById($id);
         $item->update($data);
         CacheService::invalidateCompanyHolidaysCache();
 
@@ -134,7 +140,7 @@ class CompanyHolidayRepository extends BaseRepository
      */
     public function deleteItem($id)
     {
-        $item = CompanyHoliday::findOrFail($id);
+        $item = $this->getItemById($id);
         $item->delete();
         CacheService::invalidateCompanyHolidaysCache();
 
@@ -151,9 +157,12 @@ class CompanyHolidayRepository extends BaseRepository
     public function getHolidaysForDateRange(Carbon $dateFrom, Carbon $dateTo)
     {
         $companyId = $this->getCurrentCompanyId();
+        $dateFromStr = $dateFrom->toDateString();
+        $dateToStr = $dateTo->toDateString();
 
         return CompanyHoliday::where('company_id', $companyId)
-            ->whereBetween('date', [$dateFrom, $dateTo])
+            ->where('date', '<=', $dateToStr)
+            ->whereRaw('COALESCE(end_date, date) >= ?', [$dateFromStr])
             ->orderBy('date', 'asc')
             ->get();
     }
@@ -171,7 +180,7 @@ class CompanyHolidayRepository extends BaseRepository
     private function applyFilters($query, array $filters)
     {
         $query->when(isset($filters['year']), fn ($q) => $q->whereYear('date', $filters['year']))
-            ->when(isset($filters['date_from']), fn ($q) => $q->where('date', '>=', $filters['date_from']))
+            ->when(isset($filters['date_from']), fn ($q) => $q->whereRaw('COALESCE(end_date, date) >= ?', [$filters['date_from']]))
             ->when(isset($filters['date_to']), fn ($q) => $q->where('date', '<=', $filters['date_to']));
     }
 }

@@ -67,7 +67,6 @@ class ClientsRepository extends BaseRepository
                     $q->where('clients.id', 'like', $searchTerm)
                         ->orWhere('clients.first_name', 'like', $searchTerm)
                         ->orWhere('clients.last_name', 'like', $searchTerm)
-                        ->orWhere('clients.contact_person', 'like', $searchTerm)
                         ->orWhere('clients.position', 'like', $searchTerm)
                         ->orWhere('clients.address', 'like', $searchTerm)
                         ->orWhereHas('phones', function ($phoneQuery) use ($searchTerm) {
@@ -91,7 +90,7 @@ class ClientsRepository extends BaseRepository
      * @param  bool  $forMutualSettlements  Применять фильтр по правам доступа к взаиморасчетам
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getAllItems(array $typeFilter = [], bool $forMutualSettlements = false)
+    public function getAllItems(array $typeFilter = [], bool $forMutualSettlements = false, ?string $search = null, bool $onlyWithBalance = false, $currencyId = null)
     {
         $typeFilter = $this->normalizeTypeFilter($typeFilter);
 
@@ -111,9 +110,9 @@ class ClientsRepository extends BaseRepository
             }
         }
 
-        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter), $forMutualSettlements]);
+        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter), $forMutualSettlements, $search, $onlyWithBalance, $currencyId]);
 
-        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter) {
+        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter, $search, $onlyWithBalance, $currencyId) {
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
@@ -131,6 +130,27 @@ class ClientsRepository extends BaseRepository
 
             if (! empty($typeFilter)) {
                 $query->whereIn('clients.client_type', $typeFilter);
+            }
+
+            $searchTrimmed = $search !== null ? trim((string) $search) : '';
+            if ($searchTrimmed !== '') {
+                $searchLower = mb_strtolower($searchTrimmed);
+                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                    $q->whereRaw('LOWER(clients.first_name) LIKE ?', ['%'.$searchLower.'%'])
+                        ->orWhereRaw('LOWER(clients.last_name) LIKE ?', ['%'.$searchLower.'%'])
+                        ->orWhereHas('phones', function ($pq) use ($searchTrimmed) {
+                            $pq->where('phone', 'like', '%'.$searchTrimmed.'%');
+                        });
+                });
+            }
+
+            if ($onlyWithBalance) {
+                $query->whereHas('balances', function ($bq) use ($currencyId) {
+                    $bq->where('balance', '!=', 0);
+                    if ((int) $currencyId > 0) {
+                        $bq->where('currency_id', (int) $currencyId);
+                    }
+                });
             }
 
             $query->orderBy('clients.created_at', 'desc');
@@ -212,7 +232,6 @@ class ClientsRepository extends BaseRepository
                     $q->orWhere(function ($subQuery) use ($term) {
                         $subQuery->where('clients.first_name', 'like', "%{$term}%")
                             ->orWhere('clients.last_name', 'like', "%{$term}%")
-                            ->orWhere('clients.contact_person', 'like', "%{$term}%")
                             ->orWhere('clients.position', 'like', "%{$term}%")
                             ->orWhereHas('phones', function ($phoneQuery) use ($term) {
                                 $phoneQuery->where('phone', 'like', "%{$term}%");
@@ -278,7 +297,6 @@ class ClientsRepository extends BaseRepository
                 'is_supplier' => $data['is_supplier'] ?? false,
                 'last_name' => $data['last_name'] ?? null,
                 'patronymic' => $data['patronymic'] ?? null,
-                'contact_person' => $data['contact_person'] ?? null,
                 'position' => $data['position'] ?? null,
                 'client_type' => $data['client_type'],
                 'address' => $data['address'] ?? null,
@@ -327,7 +345,7 @@ class ClientsRepository extends BaseRepository
                 'discount' => $data['discount'] ?? 0,
             ];
 
-            $nullableFields = ['last_name', 'patronymic', 'contact_person', 'position', 'address', 'note', 'discount_type'];
+            $nullableFields = ['last_name', 'patronymic', 'position', 'address', 'note', 'discount_type'];
             foreach ($nullableFields as $field) {
                 if (array_key_exists($field, $data)) {
                     $updateData[$field] = $data[$field];
@@ -376,7 +394,6 @@ class ClientsRepository extends BaseRepository
                 'first_name' => $client->first_name,
                 'last_name' => $client->last_name,
                 'patronymic' => $client->patronymic,
-                'contact_person' => $client->contact_person,
                 'position' => $client->position,
                 'address' => $client->address,
                 'note' => $client->note,
@@ -403,14 +420,17 @@ class ClientsRepository extends BaseRepository
      * @param  int|null  $cashRegisterId  ID кассы для фильтрации
      * @param  string|null  $dateFrom  Дата начала периода (формат: Y-m-d)
      * @param  string|null  $dateTo  Дата окончания периода (формат: Y-m-d)
-     * @return array Массив транзакций с описаниями
+     * @param  int|null  $balanceId  ID баланса клиента
+     * @param  int  $page  Номер страницы
+     * @param  int  $perPage  Записей на странице
+     * @return array{history: array, current_page: int, last_page: int, total: int, per_page: int}
      */
-    public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null, $balanceId = null)
+    public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null, $balanceId = null, $page = 1, $perPage = 20)
     {
         $currentUser = auth('api')->user();
-        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $currentUser?->id]);
+        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $currentUser?->id]);
 
-        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $currentUser) {
+        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $currentUser) {
             try {
                 $defaultCurrency = Currency::where('is_default', true)->first();
                 $defaultCurrencySymbol = $defaultCurrency?->symbol;
@@ -509,8 +529,10 @@ class ClientsRepository extends BaseRepository
 
                 $transactionsRepository = app(\App\Repositories\TransactionsRepository::class);
                 $transactionsQuery = $transactionsRepository->applySourceTypeFilter($transactionsQuery);
+                $transactionsQuery->orderBy('created_at', 'desc');
 
-                $transactions = $transactionsQuery->get();
+                $total = $transactionsQuery->count();
+                $transactions = $transactionsQuery->skip(($page - 1) * $perPage)->take($perPage)->get();
 
                 $transactions = $transactions->flatMap(function ($item) use ($defaultCurrencySymbol) {
                         $source = 'transaction';
@@ -665,13 +687,19 @@ class ClientsRepository extends BaseRepository
 
                 $orders = collect([]);
 
-                $result = $transactions
+                $history = $transactions
                     ->concat($orders)
-                    ->sortBy('date')
+                    ->sortByDesc('date')
                     ->values()
                     ->all();
 
-                return $result;
+                return [
+                    'history' => $history,
+                    'current_page' => $page,
+                    'last_page' => $perPage > 0 ? (int) ceil($total / $perPage) : 1,
+                    'total' => $total,
+                    'per_page' => $perPage,
+                ];
             } catch (\Exception $e) {
                 Log::error('Error in getBalanceHistory: '.$e->getMessage(), [
                     'client_id' => $clientId,

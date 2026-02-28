@@ -12,6 +12,7 @@ use App\Repositories\ProjectContractsRepository;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Services\CacheService;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Модель транзакции
@@ -263,15 +264,11 @@ class Transaction extends Model
             BalanceService::updateClientBalanceOnDelete($transaction);
 
             if ($transaction->cash_id && !$transaction->is_debt && !$transaction->getSkipCashBalanceUpdate()) {
-                $cash = CashRegister::find($transaction->cash_id);
-                if ($cash) {
-                    if ($transaction->type == 1) {
-                        $cash->balance -= $transaction->amount;
-                    } else {
-                        $cash->balance += $transaction->amount;
-                    }
-                    $cash->save();
-                }
+                $delta = $transaction->type == 1 ? -$transaction->amount : $transaction->amount;
+                $balanceExpr = 'balance + ' . (float) $delta;
+                DB::table('cash_registers')
+                    ->where('id', $transaction->cash_id)
+                    ->update(['balance' => DB::raw($balanceExpr)]);
             }
 
             CacheService::invalidateTransactionsCache();
@@ -452,10 +449,7 @@ class Transaction extends Model
     }
 
     /**
-     * Обновить баланс кассы
-     *
-     * ВНИМАНИЕ: Операция не атомарна и может привести к race conditions при параллельных запросах.
-     * Рекомендуется обернуть вызов этого метода в DB::transaction() с блокировкой строки.
+     * Обновить баланс кассы (атомарно)
      *
      * @return void
      */
@@ -465,15 +459,11 @@ class Transaction extends Model
             return;
         }
 
-        $cash = CashRegister::find($this->cash_id);
-        if ($cash) {
-            if ($this->type == 1) {
-                $cash->balance += $this->amount;
-            } else {
-                $cash->balance -= $this->amount;
-            }
-            $cash->save();
-        }
+        $delta = $this->type == 1 ? $this->amount : -$this->amount;
+        $balanceExpr = 'balance + ' . (float) $delta;
+        DB::table('cash_registers')
+            ->where('id', $this->cash_id)
+            ->update(['balance' => DB::raw($balanceExpr)]);
     }
 
     /**

@@ -58,7 +58,7 @@ class OrdersRepository extends BaseRepository
             $loadProducts = true;
 
             $withRelations = [
-                'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict',
+                'client:id,first_name,last_name,client_type,is_supplier,is_conflict',
                 'client.phones:id,client_id,phone',
                 'creator:id,name,photo',
                 'status:id,name',
@@ -182,7 +182,6 @@ class OrdersRepository extends BaseRepository
                 if ($order->client) {
                     $order->client_first_name = $order->client->first_name;
                     $order->client_last_name = $order->client->last_name;
-                    $order->client_contact_person = $order->client->contact_person;
                 }
 
                 if ($order->creator) {
@@ -222,14 +221,15 @@ class OrdersRepository extends BaseRepository
 
                 if ($order->orderProducts) {
                     foreach ($order->orderProducts as $orderProduct) {
+                        $product = $orderProduct->product;
                         $allProducts->push([
                             'id' => $orderProduct->id,
                             'order_id' => $orderProduct->order_id,
                             'product_id' => $orderProduct->product_id,
-                            'product_name' => $orderProduct->product->name ?? null,
-                            'product_image' => $orderProduct->product->image ?? null,
-                            'unit_id' => $orderProduct->product->unit_id ?? null,
-                            'unit_short_name' => $orderProduct->product->unit->short_name ?? null,
+                            'product_name' => $product?->name ?? null,
+                            'product_image' => $product?->image ?? null,
+                            'unit_id' => $product?->unit_id ?? null,
+                            'unit_short_name' => $product?->unit?->short_name ?? null,
                             'quantity' => $orderProduct->quantity,
                             'price' => $orderProduct->price,
                             'width' => $orderProduct->width,
@@ -248,7 +248,7 @@ class OrdersRepository extends BaseRepository
                             'product_name' => $tempProduct->name,
                             'product_image' => null,
                             'unit_id' => $tempProduct->unit_id,
-                            'unit_short_name' => $tempProduct->unit->short_name ?? null,
+                            'unit_short_name' => $tempProduct->unit?->short_name ?? null,
                             'quantity' => $tempProduct->quantity,
                             'price' => $tempProduct->price,
                             'width' => $tempProduct->width,
@@ -467,7 +467,7 @@ class OrdersRepository extends BaseRepository
                 'status:id,name,category_id',
                 'status.category:id,name,color',
                 'category:id,name',
-                'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict',
+                'client:id,first_name,last_name,client_type,is_supplier,is_conflict',
                 'client.phones:id,client_id,phone',
                 'orderProducts:id,order_id,product_id,quantity,price,width,height',
                 'orderProducts.product:id,name,image,unit_id',
@@ -484,6 +484,8 @@ class OrdersRepository extends BaseRepository
         $paidAmountsMap = $this->getPaidAmountsMap($order_ids);
 
         $items = $orders->map(function ($order) use ($products, $clients, $paidAmountsMap) {
+            $orderProducts = $products->get($order->id, collect());
+
             $item = (object) [
                 'id' => $order->id,
                 'note' => $order->note,
@@ -513,7 +515,7 @@ class OrdersRepository extends BaseRepository
                 'user_name' => $order->creator->name,
                 'user_photo' => $order->creator->photo,
                 'category_name' => $order->category->name ?? null,
-                'products' => $products->get($order->id, collect()),
+                'products' => $orderProducts,
                 'client' => $clients->get($order->client_id),
                 'status' => [
                     'id' => $order->status_id,
@@ -552,14 +554,15 @@ class OrdersRepository extends BaseRepository
             ->with(['product.unit:id,name,short_name'])
             ->get()
             ->map(function ($item) {
+                $product = $item->product;
                 return (object) [
                     'id' => $item->id,
                     'order_id' => $item->order_id,
                     'product_id' => $item->product_id,
-                    'product_name' => $item->product->name ?? null,
-                    'product_image' => $item->product->image ?? null,
-                    'unit_id' => $item->product->unit_id ?? null,
-                    'unit_short_name' => $item->product->unit->short_name ?? null,
+                    'product_name' => $product?->name ?? null,
+                    'product_image' => $product?->image ?? null,
+                    'unit_id' => $product?->unit_id ?? null,
+                    'unit_short_name' => $product?->unit?->short_name ?? null,
                     'quantity' => $item->quantity,
                     'price' => $item->price,
                     'width' => $item->width,
@@ -579,7 +582,7 @@ class OrdersRepository extends BaseRepository
                     'product_name' => $item->name,
                     'product_image' => null,
                     'unit_id' => $item->unit_id,
-                    'unit_short_name' => $item->unit->short_name ?? null,
+                    'unit_short_name' => $item->unit?->short_name ?? null,
                     'quantity' => $item->quantity,
                     'price' => $item->price,
                     'width' => $item->width,
@@ -655,10 +658,13 @@ class OrdersRepository extends BaseRepository
                 ];
 
                 if ($product_object->type == 1) {
-                    $warehouseStocksToUpdate[$p_id] = [
-                        'quantity' => $q,
-                        'product_name' => $product_object->name
-                    ];
+                    if (!isset($warehouseStocksToUpdate[$p_id])) {
+                        $warehouseStocksToUpdate[$p_id] = [
+                            'quantity' => 0,
+                            'product_name' => $product_object->name
+                        ];
+                    }
+                    $warehouseStocksToUpdate[$p_id]['quantity'] += $q;
                 }
 
                 $price += $q * $p;
@@ -837,10 +843,13 @@ class OrdersRepository extends BaseRepository
                 ];
 
                 if ($product_object->type == 1) {
-                    $warehouseStocksToUpdate[$p_id] = [
-                        'quantity' => $q,
-                        'product_name' => $product_object->name
-                    ];
+                    if (!isset($warehouseStocksToUpdate[$p_id])) {
+                        $warehouseStocksToUpdate[$p_id] = [
+                            'quantity' => 0,
+                            'product_name' => $product_object->name
+                        ];
+                    }
+                    $warehouseStocksToUpdate[$p_id]['quantity'] += $q;
                 }
 
                 $price += $q * $p;
@@ -1199,19 +1208,21 @@ class OrdersRepository extends BaseRepository
             $order = $orders->get($id);
 
             if (in_array($statusId, [5], true) && !$order->project_id) {
-                $orderTotal = $order->price - $order->discount;
+                $orderTotal = (float) ($order->price - $order->discount);
                 $paidTotal = (float) ($paidTotals->get($order->id) ?? 0);
+                $remainingAmount = $orderTotal - $paidTotal;
 
-                if ($paidTotal <= 0) {
-                    $remainingAmount = $orderTotal - $paidTotal;
+                if ($remainingAmount > 0.0001) {
                     return [
                         'success' => false,
                         'needs_payment' => true,
                         'order_id' => $order->id,
                         'paid_total' => $paidTotal,
                         'order_total' => $orderTotal,
-                        'remaining_amount' => $remainingAmount,
-                        'message' => "Заказ не оплачен. Необходимо создать транзакцию оплаты"
+                        'remaining_amount' => round($remainingAmount, 2),
+                        'message' => $paidTotal > 0
+                            ? "Заказ оплачен частично. Необходимо доплатить оставшуюся сумму"
+                            : "Заказ не оплачен. Необходимо создать транзакцию оплаты"
                     ];
                 }
             }
@@ -1276,7 +1287,7 @@ class OrdersRepository extends BaseRepository
         foreach ($quantitiesByProduct as $productId => $totalQuantity) {
             WarehouseStock::where('product_id', $productId)
                 ->where('warehouse_id', $warehouseId)
-                ->update(['quantity' => DB::raw('quantity + ' . $totalQuantity)]);
+                ->update(['quantity' => DB::raw('quantity + ' . (float) $totalQuantity)]);
         }
     }
 
@@ -1313,7 +1324,7 @@ class OrdersRepository extends BaseRepository
         foreach ($warehouseStocksToUpdate as $p_id => $stockData) {
             WarehouseStock::where('product_id', $p_id)
                 ->where('warehouse_id', $warehouseId)
-                ->update(['quantity' => DB::raw('quantity - ' . $stockData['quantity'])]);
+                ->update(['quantity' => DB::raw('quantity - ' . (float) $stockData['quantity'])]);
         }
     }
 
@@ -1624,6 +1635,8 @@ class OrdersRepository extends BaseRepository
      */
     public function updateOrderPaidAmount($orderId): void
     {
+        Order::lockForUpdate()->findOrFail($orderId);
+
         $paidAmount = Transaction::where('source_type', 'App\Models\Order')
             ->where('source_id', $orderId)
             ->where('is_debt', 0)

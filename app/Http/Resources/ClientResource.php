@@ -29,7 +29,6 @@ class ClientResource extends JsonResource
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
             'patronymic' => $this->patronymic,
-            'contact_person' => $this->contact_person,
             'position' => $this->position,
             'address' => $this->address,
             'note' => $this->note,

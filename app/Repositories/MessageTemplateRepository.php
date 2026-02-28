@@ -106,7 +106,13 @@ class MessageTemplateRepository extends BaseRepository
      */
     public function getItemById($id)
     {
-        return MessageTemplate::with($this->getBaseRelations())->findOrFail($id);
+        $query = MessageTemplate::with($this->getBaseRelations())->where('id', $id);
+        $this->applyCompanyFilter($query);
+        $item = $query->first();
+        if (!$item) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('MessageTemplate not found');
+        }
+        return $item;
     }
 
     /**
@@ -138,7 +144,7 @@ class MessageTemplateRepository extends BaseRepository
      */
     public function updateItem($id, $data)
     {
-        $item = MessageTemplate::findOrFail($id);
+        $item = $this->getItemById($id);
         $item->update($data);
         CacheService::invalidateMessageTemplatesCache();
 
@@ -153,10 +159,11 @@ class MessageTemplateRepository extends BaseRepository
      */
     public function findItemWithRelations($id)
     {
-        $cacheKey = $this->generateCacheKey('message_template_item', [$id]);
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('message_template_item', [$id, $companyId]);
 
         return CacheService::remember($cacheKey, function () use ($id) {
-            return MessageTemplate::select([
+            $query = MessageTemplate::select([
                 'message_templates.id',
                 'message_templates.type',
                 'message_templates.name',
@@ -168,8 +175,9 @@ class MessageTemplateRepository extends BaseRepository
                 'message_templates.updated_at',
             ])
                 ->with($this->getBaseRelations())
-                ->where('message_templates.id', $id)
-                ->first();
+                ->where('message_templates.id', $id);
+            $this->applyCompanyFilter($query);
+            return $query->first();
         }, $this->getCacheTTL('reference'));
     }
 
@@ -181,7 +189,7 @@ class MessageTemplateRepository extends BaseRepository
      */
     public function deleteItem($id)
     {
-        $item = MessageTemplate::findOrFail($id);
+        $item = $this->getItemById($id);
         $item->delete();
         CacheService::invalidateMessageTemplatesCache();
 

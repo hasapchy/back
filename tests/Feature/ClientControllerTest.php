@@ -120,7 +120,6 @@ class ClientControllerTest extends TestCase
             'phones' => ['1234567890'],
             'last_name' => '',
             'patronymic' => '',
-            'contact_person' => '',
             'position' => '',
             'address' => '',
             'note' => '',
@@ -138,7 +137,6 @@ class ClientControllerTest extends TestCase
         $client = Client::where('first_name', 'Test Client')->first();
         $this->assertNull($client->last_name);
         $this->assertNull($client->patronymic);
-        $this->assertNull($client->contact_person);
         $this->assertNull($client->position);
         $this->assertNull($client->address);
         $this->assertNull($client->note);
@@ -248,7 +246,6 @@ class ClientControllerTest extends TestCase
             'phones' => ['1234567890'],
             'last_name' => '',
             'patronymic' => '',
-            'contact_person' => '',
             'position' => '',
             'address' => '',
             'note' => '',
@@ -262,7 +259,6 @@ class ClientControllerTest extends TestCase
         $client->refresh();
         $this->assertNull($client->last_name);
         $this->assertNull($client->patronymic);
-        $this->assertNull($client->contact_person);
         $this->assertNull($client->position);
         $this->assertNull($client->address);
         $this->assertNull($client->note);

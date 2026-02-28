@@ -210,10 +210,17 @@ class TasksController extends BaseController
             return response()->json(['error' => 'No files uploaded'], 400);
         }
 
+        if (count($files) > 8) {
+            return response()->json(['error' => 'Максимум 8 файлов за раз'], 400);
+        }
+
         try {
             $task = $this->taskRepository->findById($id);
 
             $storedFiles = $task->files ?? [];
+            if (count($storedFiles) + count($files) > 50) {
+                return response()->json(['error' => 'Максимум 50 файлов в задаче'], 400);
+            }
 
             foreach ($files as $file) {
                 $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
@@ -245,8 +252,8 @@ class TasksController extends BaseController
             $task = $this->taskRepository->findById($id);
 
             $filePath = $request->input('path');
-            if (!$filePath) {
-                return response()->json(['error' => 'Путь файла не указан'], 400);
+            if (!$filePath || str_contains($filePath, '..') || !str_starts_with($filePath, 'tasks/' . $id . '/')) {
+                return response()->json(['error' => 'Некорректный путь файла'], 400);
             }
 
             $files = $task->files ?? [];

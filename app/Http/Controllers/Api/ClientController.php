@@ -130,10 +130,12 @@ class ClientController extends BaseController
         $dateTo = $request->input('date_to');
         $balanceIdRaw = $request->input('balance_id');
         $balanceId = $balanceIdRaw ? intval($balanceIdRaw) : null;
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = min(100, max(1, (int) $request->input('per_page', 20)));
 
-        $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId);
+        $result = $this->itemsRepository->getBalanceHistory($id, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage);
 
-        return response()->json(['history' => $history]);
+        return response()->json($result);
     }
 
     /**
@@ -154,6 +156,9 @@ class ClientController extends BaseController
             }
 
             $forMutualSettlements = $request->input('for_mutual_settlements', false);
+            $search = $request->input('search');
+            $onlyWithBalance = $request->input('only_with_balance', false);
+            $currencyId = $request->input('currency_id');
 
             if ($forMutualSettlements) {
                 $user = $this->requireAuthenticatedUser();
@@ -170,7 +175,7 @@ class ClientController extends BaseController
                 }
             }
 
-            $items = $this->itemsRepository->getAllItems($typeFilter, $forMutualSettlements);
+            $items = $this->itemsRepository->getAllItems($typeFilter, $forMutualSettlements, $search, $onlyWithBalance, $currencyId);
 
             return ClientResource::collection($items);
         } catch (\Throwable $e) {
@@ -285,7 +290,6 @@ class ClientController extends BaseController
         $fields = [
             'last_name',
             'patronymic',
-            'contact_person',
             'position',
             'address',
             'note',
