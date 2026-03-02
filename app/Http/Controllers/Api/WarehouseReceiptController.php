@@ -33,8 +33,9 @@ class WarehouseReceiptController extends BaseController
 
         $perPage = $request->input('per_page', 20);
         $page = $request->input('page', 1);
+        $clientId = $request->input('client_id');
 
-        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage, $page, $clientId);
 
         return $this->paginatedResponse($warehouses);
     }

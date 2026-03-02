@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreTransactionTemplateRequest;
 use App\Http\Requests\UpdateTransactionTemplateRequest;
+use App\Http\Resources\ClientResource;
 use App\Models\Client;
 use App\Models\Project;
 use App\Repositories\TransactionTemplateRepository;
@@ -110,10 +111,10 @@ class TransactionTemplateController extends BaseController
         }
 
         if ($template->client_id) {
-            $client = Client::find($template->client_id);
+            $client = Client::with(['phones', 'emails', 'balances.currency', 'balances.users'])->find($template->client_id);
             if ($client && $this->canPerformAction('clients', 'view', $client)) {
                 $item['client_id'] = $template->client_id;
-                $item['client'] = $client;
+                $item['client'] = (new ClientResource($client))->toArray(request());
             }
         }
 

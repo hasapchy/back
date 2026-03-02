@@ -6,6 +6,7 @@ use App\Models\Currency;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SalesProduct;
+use App\Models\Transaction;
 use App\Models\WarehouseStock;
 use App\Models\CashRegister;
 use App\Services\CurrencyConverter;
@@ -27,15 +28,15 @@ class SalesRepository extends BaseRepository
      * @param int $page Номер страницы
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $page = 1)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $page = 1, $clientId = null)
     {
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('sales_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $currentUser?->id, $companyId]);
-        $ttl = $this->getCacheTTL('paginated', $search || $dateFilter !== 'all_time');
+        $cacheKey = $this->generateCacheKey('sales_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $clientId, $currentUser?->id, $companyId]);
+        $ttl = $this->getCacheTTL('paginated', $search || $dateFilter !== 'all_time' || $clientId);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page, $currentUser) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page, $currentUser, $clientId) {
             $query = Sale::select([
                 'sales.id',
                 'sales.client_id',
@@ -49,12 +50,11 @@ class SalesRepository extends BaseRepository
                 'sales.note',
                 'sales.created_at',
                 'clients.first_name as client_first_name',
-                'clients.last_name as client_last_name',
-                'clients.contact_person as client_contact_person'
+                'clients.last_name as client_last_name'
             ])
                 ->leftJoin('clients', 'sales.client_id', '=', 'clients.id')
                 ->with([
-                    'client:id,first_name,last_name,contact_person,status,balance',
+                    'client:id,first_name,last_name,status,balance',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
                     'warehouse:id,name',
@@ -75,6 +75,10 @@ class SalesRepository extends BaseRepository
                 $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'sales.date');
             }
 
+            if ((int) $clientId > 0) {
+                $query->where('sales.client_id', (int) $clientId);
+            }
+
             $this->applyOwnFilter($query, 'sales', 'sales', 'creator_id', $currentUser);
 
             $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
@@ -93,11 +97,12 @@ class SalesRepository extends BaseRepository
      */
     public function getItemById($id)
     {
-        $cacheKey = $this->generateCacheKey('sales_item', [$id]);
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('sales_item', [$id, $companyId]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($id) {
-            return Sale::with([
-                'client:id,first_name,last_name,contact_person,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
+            $query = Sale::with([
+                'client:id,first_name,last_name,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
                 'client.phones:id,client_id,phone',
                 'client.emails:id,client_id,email',
                 'warehouse:id,name',
@@ -108,7 +113,9 @@ class SalesRepository extends BaseRepository
                 'products:id,sale_id,product_id,quantity,price',
                 'products.product:id,name,image,unit_id,type',
                 'products.product.unit:id,name,short_name'
-            ])->find($id);
+            ])->where('sales.id', $id);
+            $this->addCompanyFilterThroughRelation($query, 'warehouse', 'warehouses');
+            return $query->first();
         });
     }
 
@@ -290,6 +297,154 @@ class SalesRepository extends BaseRepository
     }
 
     /**
+     * Обновить продажу
+     *
+     * @param int $id ID продажи
+     * @param array $data Данные продажи (аналогично createItem)
+     * @return bool
+     * @throws \Exception
+     */
+    public function updateItem(int $id, array $data): bool
+    {
+        return DB::transaction(function () use ($id, $data) {
+            $sale = Sale::findOrFail($id);
+            $userId = $data['creator_id'];
+            $clientId = $data['client_id'];
+            $projectId = $data['project_id'] ?? null;
+            $warehouseId = $data['warehouse_id'];
+            $cashId = $data['cash_id'] ?? null;
+            $isDebt = ($data['type'] === 'balance');
+            $discount = $data['discount'] ?? 0;
+            $discountType = $data['discount_type'] ?? 'percent';
+            $date = $data['date'] ?? now();
+            $note = $data['note'] ?? null;
+            $products = $data['products'];
+
+            $oldProducts = SalesProduct::where('sale_id', $id)->get();
+            foreach ($oldProducts as $p) {
+                $prod = Product::find($p->product_id);
+                if ($prod && $prod->type == 1) {
+                    $stock = WarehouseStock::where('warehouse_id', $sale->warehouse_id)
+                        ->where('product_id', $p->product_id)
+                        ->lockForUpdate()
+                        ->first();
+                    if ($stock) {
+                        $stock->increment('quantity', $p->quantity);
+                    } else {
+                        WarehouseStock::create([
+                            'warehouse_id' => $sale->warehouse_id,
+                            'product_id' => $p->product_id,
+                            'quantity' => $p->quantity,
+                        ]);
+                    }
+                }
+                $p->delete();
+            }
+
+            $transactions = Transaction::where('source_type', Sale::class)
+                ->where('source_id', $id)
+                ->where('is_deleted', false)
+                ->get();
+            foreach ($transactions as $tx) {
+                $tx->delete();
+            }
+
+            $defaultCurrency = Currency::firstWhere('is_default', true);
+            $fromCurrency = $defaultCurrency;
+            if ($cashId) {
+                $cash = CashRegister::find($cashId);
+                if ($cash) {
+                    $fromCurrency = Currency::find($cash->currency_id) ?? $defaultCurrency;
+                }
+            } elseif (!empty($data['currency_id'])) {
+                $fromCurrency = Currency::find($data['currency_id']) ?? $defaultCurrency;
+            }
+
+            $price = 0;
+            $roundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
+            foreach ($products as &$prod) {
+                $prod['rounded_quantity'] = $roundingService->roundQuantityForCompany($companyId, (float) ($prod['quantity']));
+                $orig = $prod['price'] * $prod['rounded_quantity'];
+                $price += CurrencyConverter::convert($orig, $fromCurrency, $defaultCurrency);
+                $p = Product::findOrFail($prod['product_id']);
+                if ($p->type == 1) {
+                    WarehouseStock::where('product_id', $p->id)
+                        ->where('warehouse_id', $warehouseId)
+                        ->decrement('quantity', $prod['rounded_quantity']);
+                }
+            }
+            unset($prod);
+
+            $discountCalc = $discountType === 'percent'
+                ? $price * $discount / 100
+                : CurrencyConverter::convert($discount, $fromCurrency, $defaultCurrency);
+
+            $price = $roundingService->roundForCompany($companyId, (float) $price);
+            $discountCalc = $roundingService->roundForCompany($companyId, (float) $discountCalc);
+
+            if ($discountCalc > $price) {
+                throw new \Exception('Скидка не может превышать сумму продажи');
+            }
+
+            $totalPrice = $price - $discountCalc;
+            $totalPrice = $roundingService->roundForCompany($companyId, (float) $totalPrice);
+
+            $sale->update([
+                'client_id' => $clientId,
+                'project_id' => $projectId,
+                'cash_id' => $cashId,
+                'warehouse_id' => $warehouseId,
+                'price' => $price,
+                'discount' => $discountCalc,
+                'date' => $date,
+                'note' => $note,
+            ]);
+
+            $transactionData = $this->buildSaleTransactionData([
+                'client_id' => $clientId,
+                'amount' => $totalPrice,
+                'cash_id' => $cashId,
+                'category_id' => 1,
+                'date' => $date,
+                'note' => $note,
+                'creator_id' => $userId,
+                'project_id' => $projectId,
+                'currency_id' => $defaultCurrency->id,
+            ]);
+
+            $this->createTransactionForSource($transactionData, Sale::class, $sale->id, true);
+
+            if (!$isDebt) {
+                $transactionData['is_debt'] = false;
+                $this->createTransactionForSource($transactionData, Sale::class, $sale->id, true);
+            }
+
+            foreach ($products as $prod) {
+                SalesProduct::create([
+                    'sale_id' => $sale->id,
+                    'product_id' => $prod['product_id'],
+                    'quantity' => $prod['rounded_quantity'],
+                    'price' => $roundingService->roundForCompany(
+                        $companyId,
+                        (float) CurrencyConverter::convert(
+                            $prod['price'],
+                            $fromCurrency,
+                            $defaultCurrency
+                        )
+                    ),
+                ]);
+            }
+
+            $this->clearSalesCache();
+            CacheService::invalidateClientsCache();
+            $this->invalidateClientBalanceCache($clientId);
+
+            return true;
+        });
+    }
+
+    /**
      * Удалить продажу
      *
      * @param int $id ID продажи
@@ -307,6 +462,7 @@ class SalesRepository extends BaseRepository
                 if ($prod && $prod->type == 1) {
                     $stock = WarehouseStock::where('warehouse_id', $sale->warehouse_id)
                         ->where('product_id', $p->product_id)
+                        ->lockForUpdate()
                         ->first();
 
                     if ($stock) {

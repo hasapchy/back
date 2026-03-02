@@ -27,6 +27,7 @@ class StoreCompanyHolidayRequest extends FormRequest
             'company_id' => 'required|integer|exists:companies,id',
             'name' => 'required|string|max:255',
             'date' => 'required|date',
+            'end_date' => 'nullable|date|after_or_equal:date',
             'is_recurring' => 'nullable|boolean',
             'color' => 'nullable|string|max:7',
         ];

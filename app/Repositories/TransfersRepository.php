@@ -208,6 +208,21 @@ class TransfersRepository extends BaseRepository
     }
 
     /**
+     * Получить перевод по ID с проверкой компании (обе кассы — текущая компания)
+     *
+     * @param int $id ID перевода
+     * @return \App\Models\CashTransfer|null
+     */
+    public function getItemById($id)
+    {
+        $query = CashTransfer::with(['fromCashRegister', 'toCashRegister'])
+            ->where('cash_transfers.id', $id);
+        $this->addCompanyFilterThroughRelation($query, 'fromCashRegister', 'cash_registers');
+        $this->addCompanyFilterThroughRelation($query, 'toCashRegister', 'cash_registers');
+        return $query->first();
+    }
+
+    /**
      * Обновить перемещение
      *
      * @param int $id ID перемещения
@@ -234,7 +249,10 @@ class TransfersRepository extends BaseRepository
     public function deleteItem($id)
     {
         return DB::transaction(function () use ($id) {
-            $transfer = CashTransfer::findOrFail($id);
+            $transfer = $this->getItemById($id);
+            if (!$transfer) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Transfer not found');
+            }
 
             $fromTransactionId = $transfer->tr_id_from;
             $toTransactionId = $transfer->tr_id_to;

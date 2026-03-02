@@ -23,7 +23,7 @@ class ProjectsRepository extends BaseRepository
     private function getBaseRelations(): array
     {
         return [
-            'client:id,first_name,last_name,contact_person,balance',
+            'client:id,first_name,last_name,balance',
             'client.phones:id,client_id,phone',
             'client.emails:id,client_id,email',
             'currency:id,name,symbol',
@@ -259,7 +259,7 @@ class ProjectsRepository extends BaseRepository
                 'projects.updated_at'
             ])
                 ->with([
-                    'client:id,first_name,last_name,contact_person,balance',
+                    'client:id,first_name,last_name,balance',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
                     'creator:id,name,photo',
@@ -310,13 +310,15 @@ class ProjectsRepository extends BaseRepository
      * Получить историю баланса проекта
      *
      * @param int $projectId ID проекта
-     * @return array
+     * @param int|null $page Номер страницы (null — вернуть все, для getTotalBalance)
+     * @param int $perPage Записей на странице
+     * @return array|array{history: array, current_page: int, last_page: int, total: int, per_page: int}
      */
-    public function getBalanceHistory($projectId)
+    public function getBalanceHistory($projectId, $page = null, $perPage = 20)
     {
-        $cacheKey = $this->generateCacheKey('project_balance_history', [$projectId]);
+        $cacheKey = $this->generateCacheKey('project_balance_history', [$projectId, $page, $perPage]);
 
-        return CacheService::remember($cacheKey, function () use ($projectId) {
+        return CacheService::remember($cacheKey, function () use ($projectId, $page, $perPage) {
             $project = Project::find($projectId);
             $projectCurrency = $project && $project->currency_id ? Currency::find($project->currency_id) : null;
             $companyId = $project ? $project->company_id : null;
@@ -334,8 +336,9 @@ class ProjectsRepository extends BaseRepository
             $isProjectReportCurrency = $projectCurrency && $reportCurrency && $projectCurrency->id === $reportCurrency->id;
             $isProjectDefaultCurrency = $projectCurrency && $defaultCurrency && $projectCurrency->id === $defaultCurrency->id;
 
-            $transactions = Transaction::where('project_id', $projectId)
+            $query = Transaction::where('project_id', $projectId)
                 ->where('is_deleted', false)
+                ->orderBy('created_at', 'desc')
                 ->with([
                     'cashRegister.currency:id,symbol',
                     'currency:id,symbol,name,is_default',
@@ -359,13 +362,20 @@ class ProjectsRepository extends BaseRepository
                     'category_id'
                 );
 
+            if ($page !== null && $page >= 1) {
+                $total = $query->count();
+                $transactions = $query->skip(($page - 1) * $perPage)->take($perPage)->get();
+            } else {
+                $transactions = $query->get();
+            }
+
             $sourceMap = [
                 'App\\Models\\Sale' => 'sale',
                 'App\\Models\\Order' => 'order',
                 'App\\Models\\WhReceipt' => 'receipt',
             ];
 
-            $transactionsResult = $transactions->get()->map(function ($item) use ($isProjectReportCurrency, $isProjectDefaultCurrency, $sourceMap) {
+            $transactionsResult = $transactions->map(function ($item) use ($isProjectReportCurrency, $isProjectDefaultCurrency, $sourceMap) {
                 $source = $sourceMap[$item->source_type] ?? 'transaction';
 
                 if ($isProjectReportCurrency) {
@@ -399,12 +409,19 @@ class ProjectsRepository extends BaseRepository
                     'cash_currency_symbol' => $item->cashRegister?->currency?->symbol ?? $item->currency?->symbol,
                     'category_name' => $item->category?->name ?? null
                 ];
-            });
+            })->values()->all();
 
-            return $transactionsResult
-                ->sortBy('date')
-                ->values()
-                ->all();
+            if ($page !== null && $page >= 1) {
+                return [
+                    'history' => $transactionsResult,
+                    'current_page' => $page,
+                    'last_page' => $perPage > 0 ? (int) ceil($total / $perPage) : 1,
+                    'total' => $total,
+                    'per_page' => $perPage,
+                ];
+            }
+
+            return $transactionsResult;
         }, 900);
     }
 

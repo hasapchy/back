@@ -219,7 +219,7 @@ class CommentController extends BaseController
                 // Для Order, Transaction, Sale и других
                 $selectFields = array_merge($selectFields, ['client_id', 'creator_id', 'status_id', 'category_id']);
                 $withRelations = [
-                    'client:id,first_name,last_name,contact_person',
+                    'client:id,first_name,last_name',
                     'user:id,name',
                     'status:id,name',
                     'category:id,name'
@@ -486,10 +486,10 @@ class CommentController extends BaseController
                 if ($relatedModel && class_exists($relatedModel)) {
                     try {
                         if ($relatedModel === Client::class) {
-                            $relatedRecord = $relatedModel::select('id,first_name,last_name,contact_person')->find($value);
+                            $relatedRecord = $relatedModel::select('id,first_name,last_name')->find($value);
                             $relatedName = $relatedRecord ? ($relatedRecord->first_name . ' ' . $relatedRecord->last_name) : $value;
 
-                            $oldRelatedRecord = $old && isset($old[$key]) ? $relatedModel::select('id,first_name,last_name,contact_person')->find($old[$key]) : null;
+                            $oldRelatedRecord = $old && isset($old[$key]) ? $relatedModel::select('id,first_name,last_name')->find($old[$key]) : null;
                             $oldRelatedName = $oldRelatedRecord ? ($oldRelatedRecord->first_name . ' ' . $oldRelatedRecord->last_name) : ($old && isset($old[$key]) ? $old[$key] : null);
                         } else {
                             $relatedName = $relatedModel::select('id,name')->find($value)?->name ?? $value;

@@ -14,8 +14,7 @@ class NewsRepository extends BaseRepository
     private function getBaseRelations(): array
     {
         return [
-            'user:id,name,email',
-            'author:id,name,email', // Алиас для обратной совместимости
+            'author:id,name,surname,email,photo',
             'company:id,name',
         ];
     }

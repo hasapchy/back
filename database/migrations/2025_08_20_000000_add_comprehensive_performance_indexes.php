@@ -73,7 +73,6 @@ return new class extends Migration
         Schema::table('clients', function (Blueprint $table) {
             $this->addIndexIfNotExists($table, 'clients_first_name_index', 'first_name');
             $this->addIndexIfNotExists($table, 'clients_last_name_index', 'last_name');
-            $this->addIndexIfNotExists($table, 'clients_contact_person_index', 'contact_person');
             $this->addIndexIfNotExists($table, 'clients_client_type_index', 'client_type');
             $this->addIndexIfNotExists($table, 'clients_status_index', 'status');
             $this->addIndexIfNotExists($table, 'clients_created_at_index', 'created_at');
@@ -426,7 +425,6 @@ return new class extends Migration
         Schema::table('clients', function (Blueprint $table) {
             $table->dropIndexIfExists('clients_first_name_index');
             $table->dropIndexIfExists('clients_last_name_index');
-            $table->dropIndexIfExists('clients_contact_person_index');
             $table->dropIndexIfExists('clients_client_type_index');
             $table->dropIndexIfExists('clients_status_index');
             $table->dropIndexIfExists('clients_created_at_index');

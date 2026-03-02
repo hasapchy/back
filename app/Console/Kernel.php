@@ -15,6 +15,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('templates:publish-all')
             ->dailyAt('00:00')
             ->timezone('Asia/Ashgabat');
+
+        $schedule->command('recurring-transactions:run')
+            ->dailyAt('00:05')
+            ->timezone('Asia/Ashgabat');
     }
 
     /**

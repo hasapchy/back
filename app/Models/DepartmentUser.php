@@ -10,6 +10,8 @@ class DepartmentUser extends Model
     use HasFactory;
 
     protected $table = 'department_user';
+
     public $timestamps = true;
-    protected $guarded = [];
+
+    protected $fillable = ['department_id', 'creator_id'];
 }

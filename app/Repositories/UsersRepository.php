@@ -713,13 +713,14 @@ class UsersRepository extends BaseRepository
      *
      * @param int $userId ID пользователя
      * @param array $data Данные зарплаты
+     * @param bool $isClose Закрыть пересекающуюся зарплату (дата окончания = дата начала новой − 1 день)
      * @return EmployeeSalary
      */
-    public function createSalary($userId, array $data)
+    public function createSalary($userId, array $data, bool $isClose = false)
     {
         $companyId = $this->getCurrentCompanyId();
 
-        return DB::transaction(function () use ($userId, $data, $companyId) {
+        return DB::transaction(function () use ($userId, $data, $companyId, $isClose) {
             $startDate = $data['start_date'];
             $endDate = $data['end_date'] ?? null;
             $paymentType = $data['payment_type'] ?? false;
@@ -732,7 +733,13 @@ class UsersRepository extends BaseRepository
                     ->first();
 
                 if ($activeSalary) {
-                    throw new \Exception('У сотрудника уже есть активная зарплата данного типа. Сначала закройте текущую зарплату.');
+                    if ($isClose) {
+                        $activeSalary->update([
+                            'end_date' => Carbon::parse($startDate)->subDay()->format('Y-m-d'),
+                        ]);
+                    } else {
+                        throw new \Exception('У сотрудника уже есть активная зарплата данного типа. Сначала закройте текущую зарплату.');
+                    }
                 }
             }
 
@@ -753,7 +760,13 @@ class UsersRepository extends BaseRepository
                 ->first();
 
             if ($conflictingSalary) {
-                throw new \Exception('Зарплата пересекается по датам с существующей зарплатой данного типа. Проверьте даты начала и окончания.');
+                if ($isClose) {
+                    $conflictingSalary->update([
+                        'end_date' => Carbon::parse($startDate)->subDay()->format('Y-m-d'),
+                    ]);
+                } else {
+                    throw new \Exception('Зарплата пересекается по датам с существующей зарплатой данного типа. Проверьте даты начала и окончания.');
+                }
             }
 
             $salary = EmployeeSalary::create([

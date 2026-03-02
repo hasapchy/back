@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $company_id
  * @property string $name
  * @property \Carbon\Carbon $date
+ * @property \Carbon\Carbon|null $end_date
  * @property bool $is_recurring
  * @property string $color
  * @property \Carbon\Carbon $created_at
@@ -27,12 +28,14 @@ class CompanyHoliday extends Model
         'company_id',
         'name',
         'date',
+        'end_date',
         'is_recurring',
         'color',
     ];
 
     protected $casts = [
         'date' => 'date',
+        'end_date' => 'date',
         'is_recurring' => 'boolean',
     ];
 

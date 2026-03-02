@@ -249,6 +249,10 @@ class ProjectsController extends BaseController
             return $this->errorResponse('No files uploaded', 400);
         }
 
+        if (count($files) > 8) {
+            return $this->errorResponse('Максимум 8 файлов за раз', 400);
+        }
+
         try {
             $project = Project::findOrFail($id);
 
@@ -257,6 +261,9 @@ class ProjectsController extends BaseController
             }
 
             $storedFiles = $project->files ?? [];
+            if (count($storedFiles) + count($files) > 100) {
+                return $this->errorResponse('Максимум 100 файлов в проекте', 400);
+            }
 
             foreach ($files as $file) {
                 $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
@@ -310,7 +317,9 @@ class ProjectsController extends BaseController
         }
 
         foreach ($files as $file) {
-            $zip->addFile(storage_path('app/public/' . $file['path']), $file['name']);
+            $safeName = basename(str_replace(["\0", '..', '/', '\\'], '', $file['name'] ?? 'file'));
+            $safeName = $safeName ?: 'file';
+            $zip->addFile(storage_path('app/public/' . $file['path']), $safeName);
         }
 
         $zip->close();
@@ -337,8 +346,8 @@ class ProjectsController extends BaseController
             }
 
             $filePath = $request->input('path');
-            if (!$filePath) {
-                return $this->errorResponse('Путь файла не указан', 400);
+            if (!$filePath || str_contains($filePath, '..') || !str_starts_with($filePath, 'projects/' . $id . '/')) {
+                return $this->errorResponse('Некорректный путь файла', 400);
             }
 
             $files = $project->files ?? [];
@@ -390,14 +399,26 @@ class ProjectsController extends BaseController
                 $this->itemsRepository->invalidateProjectCache($id);
             }
 
-            $history = $this->itemsRepository->getBalanceHistory($id);
-            $balance = collect($history)->sum('amount');
+            $page = $request->input('page') ? max(1, (int) $request->input('page')) : null;
+            $perPage = min(100, max(1, (int) $request->input('per_page', 20)));
+            $result = $this->itemsRepository->getBalanceHistory($id, $page, $perPage);
 
-            return response()->json([
-                'history' => $history,
+            $balance = $this->itemsRepository->getTotalBalance($id);
+            $response = [
                 'balance' => $balance,
                 'budget' => (float) $project->budget,
-            ]);
+            ];
+            if (isset($result['history'])) {
+                $response['history'] = $result['history'];
+                $response['current_page'] = $result['current_page'];
+                $response['last_page'] = $result['last_page'];
+                $response['total'] = $result['total'];
+                $response['per_page'] = $result['per_page'];
+            } else {
+                $response['history'] = $result;
+            }
+
+            return response()->json($response);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении истории баланса проекта: ' . $e->getMessage(), 500);
         }

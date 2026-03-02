@@ -81,7 +81,10 @@ class TransfersController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $transfer = \App\Models\CashTransfer::findOrFail($id);
+        $transfer = $this->itemsRepository->getItemById($id);
+        if (!$transfer) {
+            return $this->notFoundResponse('Перевод не найден');
+        }
 
         $cashFromAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id_from']);
         if ($cashFromAccessCheck) {
@@ -117,7 +120,11 @@ class TransfersController extends BaseController
      */
     public function destroy($id)
     {
-        $deleted = $this->itemsRepository->deleteItem($id);
+        try {
+            $deleted = $this->itemsRepository->deleteItem($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->notFoundResponse('Перевод не найден');
+        }
 
         if (! $deleted) {
             return $this->errorResponse('Ошибка удаления', 400);

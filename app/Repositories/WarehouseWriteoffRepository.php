@@ -214,11 +214,11 @@ class WarehouseWriteoffRepository extends BaseRepository
     {
         $stock = WarehouseStock::where('warehouse_id', $warehouse_id)
             ->where('product_id', $product_id)
+            ->lockForUpdate()
             ->first();
 
         if ($stock) {
-            $stock->quantity = $stock->quantity - $remove_quantity;
-            $stock->save();
+            $stock->decrement('quantity', $remove_quantity);
         } else {
             WarehouseStock::create([
                 'warehouse_id' => $warehouse_id,

@@ -165,7 +165,11 @@ class InvoiceController extends BaseController
      */
     public function show($id)
     {
-        $item = $this->itemRepository->getItemById($id);
+        try {
+            $item = $this->itemRepository->getItemById($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->notFoundResponse('Счёт не найден');
+        }
         return response()->json(['item' => $item]);
     }
 

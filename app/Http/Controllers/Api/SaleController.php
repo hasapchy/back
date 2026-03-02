@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreSaleRequest;
+use App\Http\Requests\UpdateSaleRequest;
 use App\Repositories\SalesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -41,8 +42,9 @@ class SaleController extends BaseController
         $dateFilter = $request->input('date_filter_type', 'all_time');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+        $clientId = $request->input('client_id');
 
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $page);
+        $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $page, $clientId);
 
         return $this->paginatedResponse($items);
     }
@@ -98,6 +100,72 @@ class SaleController extends BaseController
             }
 
             return response()->json(['message' => 'Продажа добавлена'], 201);
+        } catch (\Throwable $e) {
+            return $this->errorResponse($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * Обновить продажу
+     *
+     * @param UpdateSaleRequest $request
+     * @param int $id ID продажи
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function update(UpdateSaleRequest $request, $id)
+    {
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+
+        $sale = $this->itemRepository->getItemById($id);
+        if (!$sale) {
+            return $this->notFoundResponse('Продажа не найдена');
+        }
+
+        if (!$this->canPerformAction('sales', 'update', $sale)) {
+            return $this->forbiddenResponse('У вас нет прав на редактирование этой продажи');
+        }
+
+        $validatedData = $request->validated();
+
+        $cashAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id'] ?? null);
+        if ($cashAccessCheck) {
+            return $cashAccessCheck;
+        }
+
+        $warehouseAccessCheck = $this->checkWarehouseAccess($validatedData['warehouse_id']);
+        if ($warehouseAccessCheck) {
+            return $warehouseAccessCheck;
+        }
+
+        $data = [
+            'creator_id'       => $userUuid,
+            'client_id'     => $validatedData['client_id'],
+            'project_id'    => $validatedData['project_id'] ?? null,
+            'type'          => $validatedData['type'],
+            'cash_id'       => $validatedData['cash_id'] ?? null,
+            'warehouse_id'  => $validatedData['warehouse_id'],
+            'currency_id'   => $validatedData['currency_id'] ?? null,
+            'discount'      => $validatedData['discount'] ?? 0,
+            'discount_type' => $validatedData['discount_type'] ?? 'percent',
+            'date'          => $validatedData['date'] ?? now(),
+            'note'          => $validatedData['note'] ?? '',
+            'products'      => array_map(fn($p) => [
+                'product_id' => $p['product_id'],
+                'quantity'   => $p['quantity'],
+                'price'      => $p['price'],
+            ], $validatedData['products']),
+        ];
+
+        try {
+            $this->itemRepository->updateItem((int) $id, $data);
+
+            CacheService::invalidateSalesCache();
+            CacheService::invalidateClientsCache();
+            if (!empty($validatedData['project_id'])) {
+                CacheService::invalidateProjectsCache();
+            }
+
+            return response()->json(['message' => 'Продажа обновлена']);
         } catch (\Throwable $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }

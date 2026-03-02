@@ -7,9 +7,12 @@ use App\Http\Requests\UpdateClientRequest;
 use App\Http\Resources\ClientCollection;
 use App\Http\Resources\ClientResource;
 use App\Models\Client;
+use App\Exports\GenericExport;
 use App\Repositories\ClientsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -37,15 +40,83 @@ class ClientController extends BaseController
      */
     public function index(Request $request)
     {
-        $perPage = $request->input('per_page', 10);
-        $page = $request->input('page', 1);
-        $search = $request->input('search');
-        $includeInactive = $request->input('include_inactive', false);
-        $statusFilter = $request->input('status_filter');
-        $typeFilter = $request->input('type_filter');
-        $items = $this->itemsRepository->getItemsWithPagination($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter);
+        $params = $this->getClientListParams($request);
+        $items = $this->itemsRepository->getItemsWithPagination(
+            $params['per_page'],
+            $params['search'],
+            $params['include_inactive'],
+            $params['page'],
+            $params['status_filter'],
+            $params['type_filter']
+        );
 
         return new ClientCollection($items);
+    }
+
+    /**
+     * Экспорт клиентов в Excel (по фильтру или по выбранным id).
+     *
+     * @param  Request  $request
+     * @return BinaryFileResponse
+     */
+    public function export(Request $request): BinaryFileResponse
+    {
+        $params = $this->getClientListParams($request);
+        $ids = $request->input('ids', []);
+        if (! is_array($ids)) {
+            $ids = $ids ? [$ids] : [];
+        }
+        $ids = array_filter(array_map('intval', $ids));
+
+        $items = $this->itemsRepository->getItemsForExport(
+            $params['search'],
+            $params['include_inactive'],
+            $params['status_filter'],
+            $params['type_filter'],
+            $ids ?: null,
+            10000
+        );
+        $headings = ['№', 'Имя', 'Тип', 'Статус', 'Телефоны', 'Email', 'Адрес', 'Примечание'];
+        $rows = $items->map(function ($client) {
+            $phones = $client->phones->pluck('phone')->implode(', ');
+            $emails = $client->emails->pluck('email')->implode(', ');
+
+            return [
+                $client->id,
+                trim($client->first_name . ' ' . $client->last_name),
+                $client->client_type ?? '',
+                $client->status ? 'Активен' : 'Неактивен',
+                $phones,
+                $emails,
+                $client->address ?? '',
+                $client->note ?? '',
+            ];
+        })->all();
+        $filename = 'clients_' . date('Y-m-d_His') . '.xlsx';
+        return Excel::download(new GenericExport($rows, $headings), $filename, \Maatwebsite\Excel\Excel::XLSX);
+    }
+
+    /**
+     * Параметры списка клиентов из Request
+     *
+     * @param  Request  $request
+     * @return array
+     */
+    protected function getClientListParams(Request $request): array
+    {
+        $typeFilter = $request->input('type_filter', []);
+        if (! is_array($typeFilter)) {
+            $typeFilter = $typeFilter !== null ? [$typeFilter] : [];
+        }
+
+        return [
+            'per_page' => (int) $request->input('per_page', 10),
+            'page' => (int) $request->input('page', 1),
+            'search' => $request->input('search'),
+            'include_inactive' => $request->boolean('include_inactive', false),
+            'status_filter' => $request->input('status_filter'),
+            'type_filter' => $typeFilter,
+        ];
     }
 
     /**
@@ -130,10 +201,12 @@ class ClientController extends BaseController
         $dateTo = $request->input('date_to');
         $balanceIdRaw = $request->input('balance_id');
         $balanceId = $balanceIdRaw ? intval($balanceIdRaw) : null;
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = min(100, max(1, (int) $request->input('per_page', 20)));
 
-        $history = $this->itemsRepository->getBalanceHistory($id, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId);
+        $result = $this->itemsRepository->getBalanceHistory($id, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage);
 
-        return response()->json(['history' => $history]);
+        return response()->json($result);
     }
 
     /**
@@ -154,6 +227,9 @@ class ClientController extends BaseController
             }
 
             $forMutualSettlements = $request->input('for_mutual_settlements', false);
+            $search = $request->input('search');
+            $onlyWithBalance = $request->input('only_with_balance', false);
+            $currencyId = $request->input('currency_id');
 
             if ($forMutualSettlements) {
                 $user = $this->requireAuthenticatedUser();
@@ -170,7 +246,7 @@ class ClientController extends BaseController
                 }
             }
 
-            $items = $this->itemsRepository->getAllItems($typeFilter, $forMutualSettlements);
+            $items = $this->itemsRepository->getAllItems($typeFilter, $forMutualSettlements, $search, $onlyWithBalance, $currencyId);
 
             return ClientResource::collection($items);
         } catch (\Throwable $e) {
@@ -285,7 +361,6 @@ class ClientController extends BaseController
         $fields = [
             'last_name',
             'patronymic',
-            'contact_person',
             'position',
             'address',
             'note',

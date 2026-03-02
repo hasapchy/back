@@ -27,6 +27,7 @@ class UpdateCompanyHolidayRequest extends FormRequest
             'company_id' => 'sometimes|integer|exists:companies,id',
             'name' => 'nullable|string|max:255',
             'date' => 'nullable|date',
+            'end_date' => 'nullable|date',
             'is_recurring' => 'nullable|boolean',
             'color' => 'nullable|string|max:7',
         ];

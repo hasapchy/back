@@ -119,6 +119,8 @@ class ProjectContractsRepository extends BaseRepository
      */
     public function updateContractPaidAmount(int $contractId): void
     {
+        ProjectContract::lockForUpdate()->findOrFail($contractId);
+
         $paidAmount = Transaction::where('source_type', ProjectContract::class)
             ->where('source_id', $contractId)
             ->where('is_debt', 0)

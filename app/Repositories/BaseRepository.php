@@ -338,7 +338,6 @@ abstract class BaseRepository
         $query->whereRaw("LOWER({$tablePrefix}first_name) LIKE ?", ["%{$searchLower}%"])
             ->orWhereRaw("LOWER({$tablePrefix}last_name) LIKE ?", ["%{$searchLower}%"])
             ->orWhereRaw("LOWER({$tablePrefix}patronymic) LIKE ?", ["%{$searchLower}%"])
-            ->orWhereRaw("LOWER({$tablePrefix}contact_person) LIKE ?", ["%{$searchLower}%"])
             ->orWhereRaw("LOWER({$tablePrefix}position) LIKE ?", ["%{$searchLower}%"])
             ->orWhereRaw("LOWER(CONCAT(COALESCE({$tablePrefix}first_name, ''), ' ', COALESCE({$tablePrefix}last_name, ''), ' ', COALESCE({$tablePrefix}patronymic, ''))) LIKE ?", ["%{$searchLower}%"]);
 

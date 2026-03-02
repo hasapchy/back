@@ -432,9 +432,13 @@ class UsersController extends BaseController
                 'currency_id' => 'required|exists:currencies,id',
                 'payment_type' => 'required|boolean',
                 'note' => 'nullable|string|max:120',
+                'is_close' => 'nullable|boolean',
             ]);
 
-            $salary = $this->itemsRepository->createSalary($id, $validatedData);
+            $isClose = (bool) ($validatedData['is_close'] ?? false);
+            unset($validatedData['is_close']);
+
+            $salary = $this->itemsRepository->createSalary($id, $validatedData, $isClose);
 
             return response()->json(['salary' => $salary, 'message' => 'Зарплата создана успешно']);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
