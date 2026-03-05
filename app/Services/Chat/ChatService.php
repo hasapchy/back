@@ -96,7 +96,6 @@ class ChatService
 
             $participantsList = $parts->map(fn ($p) => [
                 'id' => (int) $p->user_id,
-                'role' => $p->role,
             ])->values()->toArray();
 
             // Creator info for group chats
