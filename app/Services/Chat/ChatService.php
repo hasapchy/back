@@ -84,14 +84,20 @@ class ChatService
 
             $myLastReadId = null;
             $peerLastReadId = null;
+            $parts = $participantsByChatId->get($chat->id, collect());
+
             if ($chat->type === 'direct') {
-                $parts = $participantsByChatId->get($chat->id, collect());
                 $my = $parts->firstWhere('user_id', $userId);
                 $peer = $parts->firstWhere('user_id', '!=', $userId);
 
                 $myLastReadId = $my?->last_read_message_id ? (int) $my->last_read_message_id : 0;
                 $peerLastReadId = $peer?->last_read_message_id ? (int) $peer->last_read_message_id : 0;
             }
+
+            $participantsList = $parts->map(fn ($p) => [
+                'id' => (int) $p->user_id,
+                'role' => $p->role,
+            ])->values()->toArray();
 
             // Creator info for group chats
             $creator = null;
@@ -120,6 +126,7 @@ class ChatService
                 'avatar' => $chat->avatar,
                 'created_at' => $chat->created_at?->toDateTimeString(),
                 'updated_at' => $chat->updated_at?->toDateTimeString(),
+                'participants' => $participantsList,
                 'last_message' => $lastMessage ? [
                     'id' => (int) $lastMessage->id,
                     'chat_id' => (int) $lastMessage->chat_id,
