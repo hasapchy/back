@@ -598,15 +598,8 @@ class TransactionsRepository extends BaseRepository
             }
 
             if (! ($data['is_debt'] ?? false) && $cashRegister) {
-                if ((int) $data['type'] === 1) {
-                    DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance + ' . ($convertedAmount + 0)),
-                    ]);
-                } else {
-                    DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance - ' . ($convertedAmount + 0)),
-                    ]);
-                }
+                $delta = (int) $data['type'] === 1 ? $convertedAmount : -$convertedAmount;
+                $this->changeCashBalance($cashRegister, $delta);
             }
 
             DB::commit();
@@ -735,15 +728,8 @@ class TransactionsRepository extends BaseRepository
             $oldExchangeRate = $transaction->exchange_rate;
 
             if (! $oldIsDebt) {
-                if ($oldType == 1) {
-                    DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance - ' . ($oldAmount + 0)),
-                    ]);
-                } else {
-                    DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance + ' . ($oldAmount + 0)),
-                    ]);
-                }
+                $revertDelta = $oldType == 1 ? -$oldAmount : $oldAmount;
+                $this->changeCashBalance($cashRegister, $revertDelta);
             }
 
             $transaction->client_id = $data['client_id'];
@@ -883,15 +869,8 @@ class TransactionsRepository extends BaseRepository
             }
 
             if (! $transaction->is_debt) {
-                if ($transaction->type == 1) {
-                    DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance + ' . ($newConvertedAmount + 0)),
-                    ]);
-                } else {
-                    DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance - ' . ($newConvertedAmount + 0)),
-                    ]);
-                }
+                $applyDelta = $transaction->type == 1 ? $newConvertedAmount : -$newConvertedAmount;
+                $this->changeCashBalance($cashRegister, $applyDelta);
             }
 
             $companyId = $this->getCurrentCompanyId();
@@ -1012,15 +991,8 @@ class TransactionsRepository extends BaseRepository
             $convertedAmount = $transaction->amount;
 
             if (! $transaction->is_debt) {
-                if ($transaction->type == 1) {
-                    DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance - ' . ($convertedAmount + 0)),
-                    ]);
-                } else {
-                    DB::table('cash_registers')->where('id', $cashRegister->id)->update([
-                        'balance' => DB::raw('balance + ' . ($convertedAmount + 0)),
-                    ]);
-                }
+                $delta = $transaction->type == 1 ? -$convertedAmount : $convertedAmount;
+                $this->changeCashBalance($cashRegister, $delta);
             }
 
             $transaction->setSkipClientBalanceUpdate(true);
@@ -1436,6 +1408,28 @@ class TransactionsRepository extends BaseRepository
         $roundingService = new RoundingService;
 
         return $roundingService->roundForCompany($companyId, (float) $amount);
+    }
+
+    /**
+     * Обновить баланс кассы с учетом запрета ухода в минус
+     *
+     * @param CashRegister $cashRegister Касса
+     * @param float $delta Изменение баланса
+     * @return void
+     *
+     * @throws \Exception
+     */
+    private function changeCashBalance(CashRegister $cashRegister, float $delta): void
+    {
+        $lockedCashRegister = CashRegister::where('id', $cashRegister->id)->lockForUpdate()->firstOrFail();
+        $newBalance = (float) $lockedCashRegister->balance + (float) $delta;
+
+        if ($newBalance < 0 && ! $lockedCashRegister->is_working_minus) {
+            throw new \Exception('Операция запрещена: касса не может уходить в минус');
+        }
+
+        $lockedCashRegister->balance = $newBalance;
+        $lockedCashRegister->save();
     }
 
     /**

@@ -61,6 +61,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::post('cache/clear', [ApiCacheController::class, 'clear']);
 
     Route::get('currency-history/currencies', [CurrencyHistoryController::class, 'getCurrenciesWithRates']);
+    Route::get('currency-history', [CurrencyHistoryController::class, 'indexAll']);
     Route::get('currency-history/{currencyId}', [CurrencyHistoryController::class, 'index']);
     Route::middleware('permission:currency_history_create')->post('currency-history/{currencyId}', [CurrencyHistoryController::class, 'store']);
     Route::middleware('permission:currency_history_update')->put('currency-history/{currencyId}/{historyId}', [CurrencyHistoryController::class, 'update']);
@@ -189,8 +190,8 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission.scope:contracts_update_all,contracts_update_own')->put('contracts/{id}', [ProjectContractsController::class, 'update']);
     Route::middleware('permission.scope:contracts_delete_all,contracts_delete_own')->delete('contracts/{id}', [ProjectContractsController::class, 'destroy']);
 
-    Route::middleware('permission.scope:project_statuses_view_all,project_statuses_view')->get('project-statuses', [ProjectStatusController::class, 'index']);
-    Route::middleware('permission.scope:project_statuses_view_all,project_statuses_view')->get('project-statuses/all', [ProjectStatusController::class, 'all']);
+    Route::get('project-statuses', [ProjectStatusController::class, 'index']);
+    Route::get('project-statuses/all', [ProjectStatusController::class, 'all']);
     Route::middleware('permission:project_statuses_create')->post('project-statuses', [ProjectStatusController::class, 'store']);
     Route::middleware('permission.scope:project_statuses_update_all,project_statuses_update')->put('project-statuses/{id}', [ProjectStatusController::class, 'update']);
     Route::middleware('permission.scope:project_statuses_delete_all,project_statuses_delete')->delete('project-statuses/{id}', [ProjectStatusController::class, 'destroy']);

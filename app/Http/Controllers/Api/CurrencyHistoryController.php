@@ -74,6 +74,49 @@ class CurrencyHistoryController extends BaseController
     }
 
     /**
+     * Получить историю курсов всех доступных валют с пагинацией
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function indexAll(Request $request)
+    {
+        try {
+            $user = $this->requireAuthenticatedUser();
+            $companyId = $this->getCurrentCompanyId();
+
+            $userPermissions = $this->getUserPermissions($user);
+            $hasAccessToCurrencyHistory = in_array('currency_history_view', $userPermissions);
+            $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
+
+            $page = max((int)$request->get('page', 1), 1);
+            $perPage = max((int)$request->get('per_page', 20), 1);
+
+            $query = CurrencyHistory::with('currency')
+                ->forCompany($companyId)
+                ->orderBy('start_date', 'desc');
+
+            if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies) {
+                $query->whereHas('currency', function ($currencyQuery) {
+                    $currencyQuery->where('is_default', true);
+                });
+            }
+
+            $paginator = $query->paginate($perPage, ['*'], 'page', $page);
+
+            return response()->json([
+                'history' => $paginator->items(),
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage()
+            ]);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при получении истории курсов: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
      * Создать новую запись в истории курсов валюты
      *
      * @param StoreCurrencyHistoryRequest $request

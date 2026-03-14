@@ -459,11 +459,20 @@ class Transaction extends Model
             return;
         }
 
+        $cashRegister = CashRegister::find($this->cash_id);
+        if (! $cashRegister) {
+            return;
+        }
+
         $delta = $this->type == 1 ? $this->amount : -$this->amount;
-        $balanceExpr = 'balance + ' . (float) $delta;
-        DB::table('cash_registers')
-            ->where('id', $this->cash_id)
-            ->update(['balance' => DB::raw($balanceExpr)]);
+        $newBalance = (float) $cashRegister->balance + (float) $delta;
+
+        if ($newBalance < 0 && ! $cashRegister->is_working_minus) {
+            throw new \Exception('Операция запрещена: касса не может уходить в минус');
+        }
+
+        $cashRegister->balance = $newBalance;
+        $cashRegister->save();
     }
 
     /**

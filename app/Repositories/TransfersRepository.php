@@ -122,9 +122,9 @@ class TransfersRepository extends BaseRepository
         $fromCashRegister = CashRegister::findOrFail($cash_from_id);
         $toCashRegister = CashRegister::findOrFail($cash_to_id);
 
-        if ($fromCashRegister->balance < $amount) {
-            throw new \Exception('Недостаточно средств на кассе отправителя');
-        }
+        // if ($fromCashRegister->balance < $amount) {
+        //     throw new \Exception('Недостаточно средств на кассе отправителя');
+        // }
 
         $fromCurrency = $fromCashRegister->currency;
         $toCurrency = $toCashRegister->currency;
