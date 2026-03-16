@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\Department;
 use App\Models\DepartmentUser;
 use App\Services\CacheService;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class DepartmentRepository extends BaseRepository
 {
@@ -33,7 +34,7 @@ class DepartmentRepository extends BaseRepository
                     ->toArray();
 
                 if (empty($departmentIds)) {
-                    return collect([])->paginate($perPage);
+                    return new LengthAwarePaginator([], 0, $perPage);
                 }
 
                 $query->whereIn('id', $departmentIds);
@@ -94,7 +95,7 @@ class DepartmentRepository extends BaseRepository
             'parent_id' => $data['parent_id'] ?? null,
             'head_id' => $data['head_id'] ?? null,
             'deputy_head_id' => $data['deputy_head_id'] ?? null,
-            'company_id' => $this->getCurrentCompanyId(),
+            'company_id' => $this->getCurrentCompanyId() !== null ? (int) $this->getCurrentCompanyId() : null,
         ]);
 
         if (array_key_exists('users', $data)) {

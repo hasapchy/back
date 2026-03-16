@@ -76,7 +76,7 @@ class CommentController extends BaseController
     /**
      * Создать новый комментарий
      *
-     * @param Request $request
+     * @param StoreCommentRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreCommentRequest $request)
@@ -101,7 +101,7 @@ class CommentController extends BaseController
     /**
      * Обновить комментарий
      *
-     * @param Request $request
+     * @param UpdateCommentRequest $request
      * @param int $id ID комментария
      * @return \Illuminate\Http\JsonResponse
      */
@@ -264,7 +264,7 @@ class CommentController extends BaseController
     /**
      * Получить оптимизированные комментарии для модели
      *
-     * @param \Illuminate\Database\Eloquent\Model $model
+     * @param \App\Models\Order|\App\Models\Sale|\App\Models\Transaction|\App\Models\Client|\App\Models\Product|\App\Models\Project|\App\Models\Task $model
      * @return \Illuminate\Support\Collection
      */
     private function getOptimizedComments($model)
@@ -290,7 +290,7 @@ class CommentController extends BaseController
     /**
      * Получить оптимизированные активности для модели
      *
-     * @param \Illuminate\Database\Eloquent\Model $model
+     * @param \App\Models\Order|\App\Models\Sale|\App\Models\Transaction|\App\Models\Client|\App\Models\Product|\App\Models\Project|\App\Models\Task|\App\Models\Invoice $model
      * @param string $modelClass Класс модели
      * @return \Illuminate\Support\Collection
      */
@@ -637,7 +637,6 @@ class CommentController extends BaseController
     {
         $baseFieldToModelMap = [
             'client_id' => Client::class,
-            'creator_id' => User::class,
             'creator_id' => User::class,
             'supervisor_id' => User::class,
             'executor_id' => User::class,

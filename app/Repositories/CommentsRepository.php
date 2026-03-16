@@ -32,7 +32,7 @@ class CommentsRepository extends BaseRepository
                 'comments.updated_at'
             ])
                 ->with([
-                    'user:id,name,email',
+                    'creator:id,name,email',
                     'commentable:id,name'
                 ])
                 ->where('commentable_type', $modelClass)

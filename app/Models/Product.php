@@ -31,15 +31,16 @@ use App\Models\Unit;
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
+ * @property-read float|null $quantity
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Category[] $categories
- * @property-read \App\Models\Unit $unit
+ * @property-read \App\Models\Unit|null $unit
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\ProductPrice[] $prices
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WarehouseStock[] $stocks
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhReceiptProduct[] $receiptProducts
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhWriteoffProduct[] $writeOffProducts
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhMovementProduct[] $movementProducts
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\SalesProduct[] $salesProducts
- * @property-read \App\Models\User $creator
+ * @property-read \App\Models\User|null $creator
  * @property-read \App\Models\Company|null $company
  */
 class Product extends Model

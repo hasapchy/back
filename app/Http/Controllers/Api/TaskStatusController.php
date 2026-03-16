@@ -57,7 +57,7 @@ class TaskStatusController extends BaseController
     /**
      * Создать новый статус задачи
      *
-     * @param  Request  $request
+     * @param StoreTaskStatusRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreTaskStatusRequest $request)
@@ -80,7 +80,7 @@ class TaskStatusController extends BaseController
     /**
      * Обновить статус задачи
      *
-     * @param  Request  $request
+     * @param UpdateTaskStatusRequest $request
      * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse
      */

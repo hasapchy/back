@@ -59,7 +59,7 @@ class CacheService
      * @param  string  $baseKey  Base cache key (without paginated_ prefix and page suffix)
      * @param  int|null  $companyId  Company ID
      */
-    public static function invalidatePaginatedData(string $baseKey, ?int $companyId = null): void
+    public static function invalidatePaginatedData(string $baseKey, int|string|null $companyId = null): void
     {
         $pattern = "paginated_{$baseKey}_page_%";
         self::invalidateByLike($pattern, $companyId);
@@ -72,12 +72,12 @@ class CacheService
      * @param  callable  $callback  Callback to generate data if not cached
      * @return mixed
      */
-    public static function getReferenceData(string $cacheKey, callable $callback)
+    public static function getReferenceData(string $cacheKey, callable $callback, ?int $ttl = null)
     {
         return self::remember(
             "reference_{$cacheKey}",
             $callback,
-            self::CACHE_TTL['reference_data']
+            $ttl ?? self::CACHE_TTL['reference_data']
         );
     }
 
@@ -137,7 +137,7 @@ class CacheService
      * @param  string  $like  Pattern to match cache keys
      * @param  int|null  $companyId  Company ID
      */
-    public static function invalidateByLike(string $like, ?int $companyId = null): void
+    public static function invalidateByLike(string $like, int|string|null $companyId = null): void
     {
         $driver = config('cache.default');
         $currentCompanyId = self::getCompanyId($companyId);
@@ -152,12 +152,12 @@ class CacheService
     /**
      * Get company ID from parameter or request
      *
-     * @param  int|null  $companyId  Company ID from parameter
+     * @param  int|string|null  $companyId  Company ID from parameter
      */
-    protected static function getCompanyId(?int $companyId): ?int
+    protected static function getCompanyId(int|string|null $companyId): ?int
     {
-        if ($companyId !== null) {
-            return $companyId;
+        if ($companyId !== null && $companyId !== '') {
+            return is_numeric($companyId) ? (int) $companyId : null;
         }
 
         if (request()->hasHeader('X-Company-ID')) {

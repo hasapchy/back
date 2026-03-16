@@ -18,8 +18,9 @@ class CheckUserActive
         $user = $request->user();
 
         if ($user && !$user->is_active) {
-            if ($user->currentAccessToken()) {
-                $user->currentAccessToken()->delete();
+            $token = $user->currentAccessToken();
+            if ($token instanceof \Laravel\Sanctum\PersonalAccessToken) {
+                $token->delete();
             }
 
             return response()->json([

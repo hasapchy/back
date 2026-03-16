@@ -22,7 +22,7 @@ use Spatie\Activitylog\Models\Activity;
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
- * @property-read \App\Models\Order $order
+ * @property-read \App\Models\Order|null $order
  * @property-read \App\Models\Product $product
  */
 class OrderProduct extends Model

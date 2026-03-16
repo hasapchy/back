@@ -28,7 +28,7 @@ class InvoicesRepository extends BaseRepository
     {
         $cacheKey = $this->generateCacheKey('invoices_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page) {
             $query = Invoice::with([
                 'client.phones',
                 'client.emails',

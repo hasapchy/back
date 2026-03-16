@@ -73,9 +73,8 @@ class UsersController extends BaseController
     }
 
     /**
-     * Обновить пользователя
+     * Получить пользователя по ID
      *
-     * @param UpdateUserRequest $request
      * @param int $id ID пользователя
      * @return \Illuminate\Http\JsonResponse
      */
@@ -90,6 +89,13 @@ class UsersController extends BaseController
         return $this->userResponse($user);
     }
 
+    /**
+     * Обновить пользователя
+     *
+     * @param UpdateUserRequest $request
+     * @param int $id ID пользователя
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(UpdateUserRequest $request, $id)
     {
         $targetUser = User::findOrFail($id);
@@ -230,7 +236,7 @@ class UsersController extends BaseController
     {
         $search_request = $request->input('search_request');
 
-        if (!$search_request || empty($search_request)) {
+        if ($search_request === null || $search_request === '') {
             return response()->json([]);
         }
 
@@ -448,7 +454,7 @@ class UsersController extends BaseController
         } catch (\Exception $e) {
             $message = $e->getMessage();
             if (str_contains($message, 'активная зарплата') || str_contains($message, 'пересекается по датам')) {
-                return $this->errorResponse($message, 422);
+                return response()->json(['error' => $message, 'code' => 'salary_overlap'], 422);
             }
             return $this->errorResponse('Ошибка при создании зарплаты: ' . $message, 500);
         }

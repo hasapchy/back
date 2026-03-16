@@ -32,7 +32,7 @@ use App\Services\CacheService;
  * @property \Carbon\Carbon $updated_at
  *
  * @property-read \App\Models\Client $client
- * @property-read \App\Models\User $creator
+ * @property-read \App\Models\User|null $creator
  * @property-read \App\Models\OrderStatus $status
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\OrderProduct[] $orderProducts
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\OrderProduct[] $products

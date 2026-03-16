@@ -14,7 +14,7 @@ use App\Repositories\ClientsRepository;
 use App\Repositories\ProductsRepository;
 use App\Repositories\TransactionsRepository;
 use App\Repositories\TransfersRepository;
-use App\Repositories\CahRegistersRepository;
+use App\Repositories\CashRegistersRepository;
 use App\Repositories\WarehouseRepository;
 use App\Repositories\WarehouseMovementRepository;
 use App\Repositories\WarehouseWriteoffRepository;
@@ -462,7 +462,7 @@ class RepositoryCacheCrudTest extends TestCase
 
     public function test_cash_registers_cache_invalidation_on_crud()
     {
-        $repo = new CahRegistersRepository();
+        $repo = new CashRegistersRepository();
         $cacheKey = $repo->generateCacheKey('cash_registers_all', ['test_user']);
         $fullKey = "reference_{$cacheKey}";
 

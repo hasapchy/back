@@ -120,6 +120,7 @@ class TransfersController extends BaseController
      */
     public function destroy($id)
     {
+        $deleted = false;
         try {
             $deleted = $this->itemsRepository->deleteItem($id);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

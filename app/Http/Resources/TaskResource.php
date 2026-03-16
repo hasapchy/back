@@ -2,75 +2,81 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class TaskResource extends JsonResource
 {
     /**
-     * Transform the resource into an array.
-     *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
+        $task = $this->resource;
+        if (!$task instanceof Task) {
+            return [];
+        }
         return [
-            'id' => $this->id,
-            'title' => $this->title,
-            'description' => $this->description,
-            'status_id' => $this->status_id,
-            'priority' => $this->priority?->value,
-            'priority_label' => $this->priority?->label(),
-            'priority_icons' => $this->priority?->icons(),
-            'complexity' => $this->complexity?->value,
-            'complexity_label' => $this->complexity?->label(),
-            'complexity_icons' => $this->complexity?->icons(),
-            'deadline' => $this->deadline?->toDateTimeString(),
-            'files' => $this->files,
-            'comments' => $this->comments,
-            'checklist' => $this->checklist,
-            'created_at' => $this->created_at?->toDateTimeString(),
-            'updated_at' => $this->updated_at?->toDateTimeString(),
-
-            // Связи
-            'status' => $this->whenLoaded('status', function () {
+            'id' => $task->id,
+            'title' => $task->title,
+            'description' => $task->description,
+            'status_id' => $task->status_id,
+            'priority' => $task->priority !== null ? $task->priority->value : null,
+            'priority_label' => $task->priority !== null ? $task->priority->label() : null,
+            'priority_icons' => $task->priority !== null ? $task->priority->icons() : null,
+            'complexity' => $task->complexity !== null ? $task->complexity->value : null,
+            'complexity_label' => $task->complexity !== null ? $task->complexity->label() : null,
+            'complexity_icons' => $task->complexity !== null ? $task->complexity->icons() : null,
+            'deadline' => $task->deadline?->toDateTimeString(),
+            'files' => $task->files,
+            'comments' => $task->comments,
+            'checklist' => $task->checklist,
+            'created_at' => $task->created_at?->toDateTimeString(),
+            'updated_at' => $task->updated_at?->toDateTimeString(),
+            'status' => $this->whenLoaded('status', function () use ($task) {
+                $status = $task->getRelation('status');
                 return [
-                    'id' => $this->status->id,
-                    'name' => $this->status->name,
-                    'color' => $this->status->color,
+                    'id' => $status->id,
+                    'name' => $status->name,
+                    'color' => $status->color,
                 ];
             }),
-            'creator' => $this->whenLoaded('creator', function () {
+            'creator' => $this->whenLoaded('creator', function () use ($task) {
+                $creator = $task->getRelation('creator');
                 return [
-                    'id' => $this->creator->id,
-                    'name' => $this->creator->name,
-                    'email' => $this->creator->email,
+                    'id' => $creator->id,
+                    'name' => $creator->name,
+                    'email' => $creator->email,
                 ];
             }),
-            'supervisor' => $this->whenLoaded('supervisor', function () {
+            'supervisor' => $this->whenLoaded('supervisor', function () use ($task) {
+                $supervisor = $task->getRelation('supervisor');
                 return [
-                    'id' => $this->supervisor->id,
-                    'name' => $this->supervisor->name,
-                    'surname' => $this->supervisor->surname,
-                    'email' => $this->supervisor->email,
-                    'position' => $this->supervisor->position,
-                    'photo' => $this->supervisor->photo,
+                    'id' => $supervisor->id,
+                    'name' => $supervisor->name,
+                    'surname' => $supervisor->surname,
+                    'email' => $supervisor->email,
+                    'position' => $supervisor->position,
+                    'photo' => $supervisor->photo,
                 ];
             }),
-            'executor' => $this->whenLoaded('executor', function () {
+            'executor' => $this->whenLoaded('executor', function () use ($task) {
+                $executor = $task->getRelation('executor');
                 return [
-                    'id' => $this->executor->id,
-                    'name' => $this->executor->name,
-                    'surname' => $this->executor->surname,
-                    'email' => $this->executor->email,
-                    'position' => $this->executor->position,
-                    'photo' => $this->executor->photo,
+                    'id' => $executor->id,
+                    'name' => $executor->name,
+                    'surname' => $executor->surname,
+                    'email' => $executor->email,
+                    'position' => $executor->position,
+                    'photo' => $executor->photo,
                 ];
             }),
-            'project' => $this->whenLoaded('project', function () {
+            'project' => $this->whenLoaded('project', function () use ($task) {
+                $project = $task->getRelation('project');
                 return [
-                    'id' => $this->project->id,
-                    'name' => $this->project->name,
+                    'id' => $project->id,
+                    'name' => $project->name,
                 ];
             }),
         ];

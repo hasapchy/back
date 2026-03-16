@@ -144,7 +144,8 @@ class WarehouseReceiptRepository extends BaseRepository
 
             $total_amount = 0;
             $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
+            $companyIdRaw = $this->getCurrentCompanyId();
+            $companyId = $companyIdRaw !== null ? (int) $companyIdRaw : null;
             foreach ($products as $idx => $product) {
                 $q = $roundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
                 $products[$idx]['quantity'] = $q;
@@ -237,12 +238,14 @@ class WarehouseReceiptRepository extends BaseRepository
             $receipt->save();
 
             $total_amount = 0;
+            $companyIdRaw = $this->getCurrentCompanyId();
+            $companyId = $companyIdRaw !== null ? (int) $companyIdRaw : null;
             $existingProducts = WhReceiptProduct::where('receipt_id', $receipt_id)->get();
             $existingProductIds = $existingProducts->pluck('product_id')->toArray();
 
             foreach ($products as $product) {
                 $product_id = $product['product_id'];
-                $quantity = (new RoundingService())->roundQuantityForCompany($this->getCurrentCompanyId(), (float) ($product['quantity']));
+                $quantity = (new RoundingService())->roundQuantityForCompany($companyId, (float) ($product['quantity']));
                 $price = $product['price'];
 
                 $receiptProduct = WhReceiptProduct::updateOrCreate(
@@ -262,7 +265,6 @@ class WarehouseReceiptRepository extends BaseRepository
             }
 
             $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
             $total_amount = $roundingService->roundForCompany($companyId, (float) $total_amount);
 
             $receipt->amount = $total_amount;

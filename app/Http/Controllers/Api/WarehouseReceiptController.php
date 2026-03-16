@@ -60,7 +60,7 @@ class WarehouseReceiptController extends BaseController
     /**
      * Создать оприходование на склад
      *
-     * @param  Request  $request
+     * @param StoreWarehouseReceiptRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreWarehouseReceiptRequest $request)
@@ -111,7 +111,7 @@ class WarehouseReceiptController extends BaseController
     /**
      * Обновить оприходование на склад
      *
-     * @param  Request  $request
+     * @param UpdateWarehouseReceiptRequest $request
      * @param  int  $id  ID оприходования
      * @return \Illuminate\Http\JsonResponse
      */
@@ -141,7 +141,7 @@ class WarehouseReceiptController extends BaseController
                 return $this->errorResponse('Ошибка обновления приходования', 400);
             }
 
-            return response()->json(['message' => 'Приходование обновлено']);
+            return response()->json(['message' => 'Оприходование обновлено']);
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка обновления приходования: '.$th->getMessage(), 400);
         }
@@ -155,6 +155,14 @@ class WarehouseReceiptController extends BaseController
      */
     public function destroy($id)
     {
+        $receipt = $this->warehouseRepository->getItemById($id, $this->getAuthenticatedUserIdOrFail());
+        if (!$receipt) {
+            return $this->notFoundResponse('Оприходование не найдено');
+        }
+        if (!$this->canPerformAction('warehouse_receipts', 'delete', $receipt)) {
+            return $this->forbiddenResponse('У вас нет прав на удаление этого оприходования');
+        }
+
         try {
             $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
 

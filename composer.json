@@ -19,6 +19,7 @@
         "pusher/pusher-php-server": "^7.2",
         "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-permission": "^6.20",
+        "stancl/tenancy": "^3.9",
         "symfony/css-selector": "^6.0",
         "symfony/event-dispatcher": "^6.0",
         "symfony/string": "^6.0",
@@ -27,6 +28,7 @@
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
         "knuckleswtf/scribe": "^5.6",
+        "larastan/larastan": "^2.11",
         "laravel/boost": "^1.8",
         "laravel/pint": "^1.0",
         "mockery/mockery": "^1.4.4",
@@ -59,7 +61,9 @@
         ],
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi"
-        ]
+        ],
+        "phpstan": "phpstan analyse --memory-limit=1G",
+        "phpstan:report": "phpstan analyse --memory-limit=1G --error-format=table > phpstan-report.txt 2>&1"
     },
     "extra": {
         "laravel": {

@@ -46,6 +46,10 @@ class CompaniesController extends BaseController
      */
     public function store(StoreCompanyRequest $request)
     {
+        if (!$this->hasPermission('companies_create')) {
+            return $this->forbiddenResponse('Нет прав на создание компании');
+        }
+
         $data = $request->validated();
 
         if ($request->hasFile('logo')) {
@@ -70,6 +74,10 @@ class CompaniesController extends BaseController
     public function update(UpdateCompanyRequest $request, $id)
     {
         $company = Company::findOrFail($id);
+
+        if (!$this->canPerformAction('companies', 'update', $company)) {
+            return $this->forbiddenResponse('У вас нет прав на редактирование этой компании');
+        }
 
         $data = $request->validated();
 
@@ -96,6 +104,11 @@ class CompaniesController extends BaseController
     public function destroy($id)
     {
         $company = Company::findOrFail($id);
+
+        if (!$this->canPerformAction('companies', 'delete', $company)) {
+            return $this->forbiddenResponse('У вас нет прав на удаление этой компании');
+        }
+
         $company->delete();
 
         return response()->json(['message' => 'Company deleted']);

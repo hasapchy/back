@@ -25,7 +25,7 @@ use App\Services\TransactionDeletionService;
  * @property-read \App\Models\Client|null $supplier
  * @property-read \App\Models\Warehouse $warehouse
  * @property-read \App\Models\CashRegister|null $cashRegister
- * @property-read \App\Models\User $creator
+ * @property-read \App\Models\User|null $creator
  * @property-read \App\Models\Currency|null $currency
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhReceiptProduct[] $products
  * @property-read \App\Models\Project|null $project

@@ -178,7 +178,7 @@ class WarehouseStockRepository extends BaseRepository
 
             if ($warehouse_id) {
                 $productsQuery->selectRaw('? as warehouse_id', [$warehouse_id]);
-                $productsQuery->selectRaw('? as warehouse_name', [$warehouseName ?? '']);
+                $productsQuery->selectRaw('? as warehouse_name', [$warehouseName !== null ? $warehouseName : '']);
             } else {
                 $productsQuery->selectRaw('NULL as warehouse_id');
                 $productsQuery->selectRaw('? as warehouse_name', ['Все склады']);
@@ -195,7 +195,7 @@ class WarehouseStockRepository extends BaseRepository
             $paginated = $productsQuery->paginate($perPage, ['*'], 'page', (int)$page);
 
             foreach ($paginated as $item) {
-                $item->quantity = (float)($item->quantity ?? 0);
+                $item->setAttribute('quantity', (float)($item->quantity ?? 0));
             }
 
             return $paginated;

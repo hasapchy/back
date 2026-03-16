@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Order;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class OrderResource extends JsonResource
@@ -11,14 +12,15 @@ class OrderResource extends JsonResource
      */
     public function toArray($request): array
     {
-        $resource = $this->resource;
-
-        // Продукты: приоритет — готовое поле products, иначе — загруженные связи.
+        $order = $this->resource;
+        if (!$order instanceof Order) {
+            return [];
+        }
         $allProducts = collect();
-        if (isset($this->products)) {
-            $allProducts = collect($this->products);
+        if (isset($order->products)) {
+            $allProducts = collect($order->products);
         } else {
-            $orderProducts = ($this->relationLoaded('orderProducts') || isset($this->orderProducts)) ? ($this->orderProducts ?? []) : [];
+            $orderProducts = ($order->relationLoaded('orderProducts') || isset($order->orderProducts)) ? ($order->orderProducts ?? []) : [];
             foreach ($orderProducts as $orderProduct) {
                 $product = $orderProduct->product ?? null;
                 $allProducts->push([
@@ -36,7 +38,7 @@ class OrderResource extends JsonResource
                 ]);
             }
 
-            $tempProducts = ($this->relationLoaded('tempProducts') || isset($this->tempProducts)) ? ($this->tempProducts ?? []) : [];
+            $tempProducts = ($order->relationLoaded('tempProducts') || isset($order->tempProducts)) ? ($order->tempProducts ?? []) : [];
             foreach ($tempProducts as $tempProduct) {
                 $allProducts->push([
                     'id' => $tempProduct->id,
@@ -54,49 +56,48 @@ class OrderResource extends JsonResource
             }
         }
 
-        $price = (float)(data_get($resource, 'price', 0));
-        $discount = (float)(data_get($resource, 'discount', 0));
+        $price = (float) (data_get($order, 'price', 0));
+        $discount = (float) (data_get($order, 'discount', 0));
         $totalPrice = $price - $discount;
-        $paidAmount = (float)(data_get($resource, 'paid_amount', 0));
-
+        $paidAmount = (float) (data_get($order, 'paid_amount', 0));
         $paymentStatusText = $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $totalPrice ? 'Частично оплачено' : 'Оплачено');
 
-        $status = data_get($resource, 'status');
-        $category = data_get($resource, 'category');
-        $client = data_get($resource, 'client');
-        $user = data_get($resource, 'creator') ?? data_get($resource, 'user');
-        $cash = data_get($resource, 'cash');
-        $warehouse = data_get($resource, 'warehouse');
-        $project = data_get($resource, 'project');
+        $status = data_get($order, 'status');
+        $category = data_get($order, 'category');
+        $client = data_get($order, 'client');
+        $user = data_get($order, 'creator') ?? data_get($order, 'user');
+        $cash = data_get($order, 'cash');
+        $warehouse = data_get($order, 'warehouse');
+        $project = data_get($order, 'project');
 
         return [
-            'id' => data_get($resource, 'id'),
-            'note' => data_get($resource, 'note'),
-            'description' => data_get($resource, 'description'),
-            'status_id' => data_get($resource, 'status_id'),
-            'category_id' => data_get($resource, 'category_id'),
-            'client_id' => data_get($resource, 'client_id'),
-            'creator_id' => data_get($resource, 'creator_id'),
-            'cash_id' => data_get($resource, 'cash_id'),
-            'warehouse_id' => data_get($resource, 'warehouse_id'),
-            'project_id' => data_get($resource, 'project_id'),
+            'id' => data_get($order, 'id'),
+            'note' => data_get($order, 'note'),
+            'description' => data_get($order, 'description'),
+            'status_id' => data_get($order, 'status_id'),
+            'category_id' => data_get($order, 'category_id'),
+            'client_id' => data_get($order, 'client_id'),
+            'creator_id' => data_get($order, 'creator_id'),
+            'cash_id' => data_get($order, 'cash_id'),
+            'warehouse_id' => data_get($order, 'warehouse_id'),
+            'project_id' => data_get($order, 'project_id'),
             'price' => $price,
             'discount' => $discount,
             'total_price' => $totalPrice,
             'paid_amount' => $paidAmount,
             'payment_status_text' => $paymentStatusText,
-            'date' => $this->date ? (is_string($this->date) ? $this->date : $this->date->toIso8601String()) : null,
-            'created_at' => $this->created_at ? (is_string($this->created_at) ? $this->created_at : $this->created_at->toIso8601String()) : null,
-            'updated_at' => $this->updated_at ? (is_string($this->updated_at) ? $this->updated_at : $this->updated_at->toIso8601String()) : null,
+            'date' => $order->date ? (is_string($order->date) ? $order->date : $order->date->toIso8601String()) : null,
+            'created_at' => $order->created_at ? (is_string($order->created_at) ? $order->created_at : $order->created_at->toIso8601String()) : null,
+            'updated_at' => $order->updated_at ? (is_string($order->updated_at) ? $order->updated_at : $order->updated_at->toIso8601String()) : null,
             'status' => $status ? array_filter([
-                'id' => data_get($resource, 'status_id'),
+                'id' => data_get($order, 'status_id'),
                 'name' => data_get($status, 'name'),
                 'category' => data_get($status, 'category') ? [
                     'id' => data_get($status, 'category.id'),
                     'name' => data_get($status, 'category.name'),
                     'color' => data_get($status, 'category.color'),
                 ] : null,
-            ], fn($value) => $value !== null) : null,
+            ], fn ($value) => $value !== null) : null,
             'category' => $category ? [
                 'id' => data_get($category, 'id'),
                 'name' => data_get($category, 'name'),
@@ -106,9 +107,9 @@ class OrderResource extends JsonResource
                 'first_name' => data_get($client, 'first_name'),
                 'last_name' => data_get($client, 'last_name'),
                 'client_type' => data_get($client, 'client_type'),
-                'is_supplier' => (bool)data_get($client, 'is_supplier'),
-                'is_conflict' => (bool)data_get($client, 'is_conflict'),
-                'phones' => collect(data_get($client, 'phones', []))->map(fn($phone) => [
+                'is_supplier' => (bool) data_get($client, 'is_supplier'),
+                'is_conflict' => (bool) data_get($client, 'is_conflict'),
+                'phones' => collect(data_get($client, 'phones', []))->map(fn ($phone) => [
                     'id' => data_get($phone, 'id'),
                     'phone' => data_get($phone, 'phone'),
                 ])->all(),

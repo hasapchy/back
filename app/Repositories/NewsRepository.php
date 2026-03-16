@@ -91,13 +91,12 @@ class NewsRepository extends BaseRepository
     public function createItem(array $data)
     {
         return DB::transaction(function () use ($data) {
-            $companyId = $this->getCurrentCompanyId();
-
+            $companyIdRaw = $this->getCurrentCompanyId();
             $item = new News;
             $item->title = $data['title'];
             $item->content = $data['content'];
-            $item->creator_id = $data['creator_id'] ?? $data['author_id'] ?? null; // Поддержка старого ключа для обратной совместимости
-            $item->company_id = $companyId;
+            $item->creator_id = $data['creator_id'];
+            $item->company_id = $companyIdRaw !== null ? (int) $companyIdRaw : null;
             $item->save();
 
             CacheService::invalidateByLike('%news%');

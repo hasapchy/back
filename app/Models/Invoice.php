@@ -156,6 +156,6 @@ class Invoice extends Model
     {
         $lastInvoice = self::orderBy('id', 'desc')->first();
         $number = $lastInvoice ? $lastInvoice->id + 1 : 1;
-        return 'INV-' . str_pad($number, 6, '0', STR_PAD_LEFT);
+        return 'INV-' . str_pad((string) $number, 6, '0', STR_PAD_LEFT);
     }
 }

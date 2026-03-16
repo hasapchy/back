@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
- * @property-read \App\Models\Sale $sale
+ * @property-read \App\Models\Sale|null $sale
  * @property-read \App\Models\Product $product
  */
 class SalesProduct extends Model

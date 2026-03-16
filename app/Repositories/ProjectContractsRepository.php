@@ -332,11 +332,11 @@ class ProjectContractsRepository extends BaseRepository
     /**
      * Получить все контракты с пагинацией для конкретного пользователя (own)
      *
+     * @param int $userId ID пользователя
      * @param int $perPage Количество записей на страницу
      * @param int $page Номер страницы
      * @param string|null $search Поисковый запрос
      * @param int|null $projectId Фильтр по проекту (опционально)
-     * @param int $userId ID пользователя
      * @param string|null $paymentStatus Фильтр по статусу оплаты: unpaid, partially_paid, paid
      * @param bool|null $returned Фильтр по статусу возврата (опционально)
      * @param int|null $cashId Фильтр по кассе (опционально)
@@ -345,7 +345,7 @@ class ProjectContractsRepository extends BaseRepository
      * @param int|null $projectStatusId Фильтр по статусу проекта
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getAllContractsWithPaginationForUser($perPage = 20, $page = 1, $search = null, $projectId = null, $userId, $paymentStatus = null, $returned = null, $cashId = null, $type = null, $activeProjectsOnly = false, $projectStatusId = null)
+    public function getAllContractsWithPaginationForUser($userId, $perPage = 20, $page = 1, $search = null, $projectId = null, $paymentStatus = null, $returned = null, $cashId = null, $type = null, $activeProjectsOnly = false, $projectStatusId = null)
     {
         $returnedKey = $returned === true ? 'ret1' : ($returned === false ? 'ret0' : 'retn');
         $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';

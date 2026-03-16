@@ -66,6 +66,16 @@ class ChatService
         $participantsByChatId = $this->participants->getParticipantsByChatIds($chatIds);
         $this->backfillMissingDirectKeys($companyId, $chats, $participantsByChatId);
 
+        $allParticipantUserIds = $participantsByChatId->flatten(1)->pluck('user_id')->unique()->filter()->values()->toArray();
+        $usersById = collect();
+        if (!empty($allParticipantUserIds)) {
+            $usersById = User::query()
+                ->select(['id', 'name', 'surname', 'photo'])
+                ->whereIn('id', $allParticipantUserIds)
+                ->get()
+                ->keyBy('id');
+        }
+
         $lastMessageIds = $this->messages->getLastMessageIdsByChatIds($chatIds);
         $lastMessages = $this->messages
             ->getMessagesByIds($lastMessageIds->values()->filter()->toArray())
@@ -78,22 +88,33 @@ class ChatService
             ? $this->messages->getMessagesByIds($pinnedIds)->keyBy('id')
             : collect();
 
-        $result = $chats->map(function (Chat $chat) use ($lastMessages, $unreadCounts, $participantsByChatId, $userId, $pinnedMessages) {
+        $result = $chats->map(function (Chat $chat) use ($lastMessages, $unreadCounts, $participantsByChatId, $userId, $pinnedMessages, $usersById) {
             $lastMessage = $lastMessages->get($chat->id);
             $unreadCount = (int) ($unreadCounts[(int) $chat->id] ?? 0);
 
             $myLastReadId = null;
             $peerLastReadId = null;
-            if ($chat->type === 'direct') {
-                $parts = $participantsByChatId->get($chat->id, collect());
-                $my = $parts->firstWhere('user_id', $userId);
-                $peer = $parts->firstWhere('user_id', '!=', $userId);
-
-                $myLastReadId = $my?->last_read_message_id ? (int) $my->last_read_message_id : 0;
-                $peerLastReadId = $peer?->last_read_message_id ? (int) $peer->last_read_message_id : 0;
+            $participantsPayload = [];
+            $parts = $participantsByChatId->get($chat->id, collect());
+            foreach ($parts as $p) {
+                $uid = (int) $p->user_id;
+                $user = $usersById->get($uid);
+                $participantsPayload[] = [
+                    'id' => $uid,
+                    'name' => $user?->name ?? null,
+                    'surname' => $user?->surname ?? null,
+                    'photo' => $user?->photo ?? null,
+                    'is_online' => null,
+                ];
+                if ($chat->type === 'direct') {
+                    if ($uid === $userId) {
+                        $myLastReadId = isset($p->last_read_message_id) ? (int) $p->last_read_message_id : 0;
+                    } else {
+                        $peerLastReadId = isset($p->last_read_message_id) ? (int) $p->last_read_message_id : 0;
+                    }
+                }
             }
 
-            // Creator info for group chats
             $creator = null;
             if ($chat->type === 'group' && $chat->created_by && $chat->relationLoaded('creator')) {
                 $creatorUser = $chat->creator;
@@ -120,6 +141,7 @@ class ChatService
                 'avatar' => $chat->avatar,
                 'created_at' => $chat->created_at?->toDateTimeString(),
                 'updated_at' => $chat->updated_at?->toDateTimeString(),
+                'participants' => $participantsPayload,
                 'last_message' => $lastMessage ? [
                     'id' => (int) $lastMessage->id,
                     'chat_id' => (int) $lastMessage->chat_id,

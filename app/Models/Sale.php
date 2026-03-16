@@ -35,7 +35,7 @@ use App\Services\CacheService;
  * @property-read \App\Models\Warehouse $warehouse
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\SalesProduct[] $products
  * @property-read \App\Models\CashRegister $cashRegister
- * @property-read \App\Models\User $creator
+ * @property-read \App\Models\User|null $creator
  * @property-read \App\Models\Project $project
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
  */

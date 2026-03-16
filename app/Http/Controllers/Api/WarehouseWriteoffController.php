@@ -42,7 +42,7 @@ class WarehouseWriteoffController extends BaseController
     /**
      * Создать списание со склада
      *
-     * @param  Request  $request
+     * @param StoreWarehouseWriteoffRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreWarehouseWriteoffRequest $request)
@@ -80,7 +80,7 @@ class WarehouseWriteoffController extends BaseController
     /**
      * Обновить списание со склада
      *
-     * @param  Request  $request
+     * @param UpdateWarehouseWriteoffRequest $request
      * @param  int  $id  ID списания
      * @return \Illuminate\Http\JsonResponse
      */
@@ -125,6 +125,10 @@ class WarehouseWriteoffController extends BaseController
     public function destroy($id)
     {
         $writeoff = \App\Models\WhWriteoff::findOrFail($id);
+
+        if (!$this->canPerformAction('warehouse_writeoffs', 'delete', $writeoff)) {
+            return $this->forbiddenResponse('У вас нет прав на удаление этого списания');
+        }
 
         if ($writeoff->warehouse_id) {
             $warehouseAccessCheck = $this->checkWarehouseAccess($writeoff->warehouse_id);

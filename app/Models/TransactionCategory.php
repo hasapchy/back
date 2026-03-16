@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\Carbon $updated_at
  *
  * @property-read \App\Models\User $creator
+ * @property-read string|null $user_name
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
  */
 class TransactionCategory extends Model
@@ -32,6 +33,8 @@ class TransactionCategory extends Model
         'type' => 'integer',
     ];
 
+    protected $appends = ['user_name'];
+
     protected static $protectedCategoryIds = [1, 2, 3, 4, 5, 6, 7, 14, 17];
 
     /**
@@ -40,6 +43,16 @@ class TransactionCategory extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'creator_id');
+    }
+
+    /**
+     * Имя создателя для JSON (ожидается фронтом в списке категорий)
+     *
+     * @return string|null
+     */
+    public function getUserNameAttribute(): ?string
+    {
+        return $this->creator?->name;
     }
 
     /**

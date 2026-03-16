@@ -2,21 +2,24 @@
 
 namespace App\Http\Resources\Chat;
 
+use App\Models\ChatMessage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ChatMessageResource extends JsonResource
 {
     /**
-     * Keep compatible with legacy "messages" endpoint (it returned full model arrays).
-     *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
+        $message = $this->resource;
+        if (!$message instanceof ChatMessage) {
+            return [];
+        }
         $parent = null;
-        if ($this->parent_id && $this->relationLoaded('parent')) {
-            $parentMessage = $this->parent;
+        if ($message->parent_id && $message->relationLoaded('parent')) {
+            $parentMessage = $message->parent;
             $parent = [
                 'id' => (int) $parentMessage->id,
                 'body' => $parentMessage->body,
@@ -34,8 +37,8 @@ class ChatMessageResource extends JsonResource
         }
 
         $forwardedFrom = null;
-        if ($this->forwarded_from_message_id && $this->relationLoaded('forwardedFrom')) {
-            $forwardedMessage = $this->forwardedFrom;
+        if ($message->forwarded_from_message_id && $message->relationLoaded('forwardedFrom')) {
+            $forwardedMessage = $message->forwardedFrom;
             $forwardedFrom = [
                 'id' => (int) $forwardedMessage->id,
                 'body' => $forwardedMessage->body,
@@ -54,33 +57,33 @@ class ChatMessageResource extends JsonResource
         }
 
         return [
-            'id' => (int) $this->id,
-            'chat_id' => (int) $this->chat_id,
-            'creator_id' => (int) $this->creator_id,
-            'body' => $this->body,
-            'files' => $this->files,
-            'parent_id' => $this->parent_id,
+            'id' => (int) $message->id,
+            'chat_id' => (int) $message->chat_id,
+            'creator_id' => (int) $message->creator_id,
+            'body' => $message->body,
+            'files' => $message->files,
+            'parent_id' => $message->parent_id,
             'parent' => $parent,
-            'forwarded_from_message_id' => $this->forwarded_from_message_id,
+            'forwarded_from_message_id' => $message->forwarded_from_message_id,
             'forwarded_from' => $forwardedFrom,
             'user' => $this->when(
-                $this->relationLoaded('user'),
+                $message->relationLoaded('user'),
                 fn () => [
-                    'id' => (int) $this->user->id,
-                    'name' => $this->user->name,
-                    'surname' => $this->user->surname ?? null,
-                    'photo' => $this->user->photo ?? null,
+                    'id' => (int) $message->user->id,
+                    'name' => $message->user->name,
+                    'surname' => $message->user->surname ?? null,
+                    'photo' => $message->user->photo ?? null,
                 ]
             ),
-            'is_edited' => (bool) ($this->is_edited ?? false),
-            'edited_at' => $this->edited_at?->toDateTimeString(),
-            'is_system' => (bool) ($this->is_system ?? false),
-            'created_at' => $this->created_at?->toDateTimeString(),
-            'updated_at' => $this->updated_at?->toDateTimeString(),
-            'deleted_at' => $this->deleted_at?->toDateTimeString(),
+            'is_edited' => (bool) ($message->is_edited ?? false),
+            'edited_at' => $message->edited_at?->toDateTimeString(),
+            'is_system' => (bool) ($message->is_system ?? false),
+            'created_at' => $message->created_at?->toDateTimeString(),
+            'updated_at' => $message->updated_at?->toDateTimeString(),
+            'deleted_at' => $message->deleted_at?->toDateTimeString(),
             'reactions' => $this->when(
-                $this->relationLoaded('reactions'),
-                fn () => $this->reactions->map(fn ($r) => [
+                $message->relationLoaded('reactions'),
+                fn () => $message->reactions->map(fn ($r) => [
                     'emoji' => $r->emoji,
                     'creator_id' => (int) ($r->user_id ?? $r->creator_id ?? 0),
                     'user' => $r->relationLoaded('user') ? [

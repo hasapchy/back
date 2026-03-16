@@ -6,6 +6,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Routing\Controller as BaseRoutingController;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\PermissionCheckService;
@@ -322,8 +323,25 @@ class BaseController extends BaseRoutingController
             'current_page' => $items->currentPage(),
             'next_page' => $items->nextPageUrl(),
             'last_page' => $items->lastPage(),
-            'total' => $items->total()
+            'total' => $items->total(),
+            'per_page' => $items->perPage(),
         ]);
+    }
+
+    /**
+     * Унифицированный ответ для index справочников с пагинацией
+     *
+     * @param Request $request
+     * @param callable $getPaginated Коллбэк (int $perPage, int $page) => LengthAwarePaginator
+     * @return \Illuminate\Http\JsonResponse
+     */
+    protected function indexPaginated(Request $request, callable $getPaginated)
+    {
+        $this->getAuthenticatedUserIdOrFail();
+        $perPage = (int) $request->input('per_page', 20);
+        $page = max((int) $request->input('page', 1), 1);
+        $items = $getPaginated($perPage, $page);
+        return $this->paginatedResponse($items);
     }
 
     /**

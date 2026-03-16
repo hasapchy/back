@@ -352,8 +352,10 @@ abstract class BaseRepository
      */
     protected function roundAmount(float $amount): float
     {
+        $companyIdRaw = $this->getCurrentCompanyId();
+        $companyId = $companyIdRaw !== null ? (int) $companyIdRaw : null;
         return app(RoundingService::class)->roundForCompany(
-            $this->getCurrentCompanyId(),
+            $companyId,
             $amount
         );
     }

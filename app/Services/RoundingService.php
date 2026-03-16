@@ -18,11 +18,11 @@ class RoundingService
      * If rounding_enabled = false: truncates to rounding_decimals (no rounding)
      * If rounding_enabled = true: rounds to rounding_decimals according to rounding_direction
      *
-     * @param int|null $companyId Company ID
+     * @param int|string|null $companyId Company ID
      * @param float $value Value to round
      * @return float Rounded value
      */
-    public function roundForCompany(?int $companyId, float $value): float
+    public function roundForCompany(int|string|null $companyId, float $value): float
     {
         return $this->roundWithSettings(
             $companyId,
@@ -42,11 +42,11 @@ class RoundingService
      * If rounding_quantity_enabled = false: truncates to rounding_quantity_decimals (no rounding)
      * If rounding_quantity_enabled = true: rounds to rounding_quantity_decimals according to rounding_quantity_direction
      *
-     * @param int|null $companyId Company ID
+     * @param int|string|null $companyId Company ID
      * @param float $value Value to round
      * @return float Rounded value
      */
-    public function roundQuantityForCompany(?int $companyId, float $value): float
+    public function roundQuantityForCompany(int|string|null $companyId, float $value): float
     {
         return $this->roundWithSettings(
             $companyId,
@@ -62,7 +62,7 @@ class RoundingService
     /**
      * Apply rounding with company settings
      *
-     * @param int|null $companyId Company ID
+     * @param int|string|null $companyId Company ID
      * @param float $value Value to round
      * @param string $decimalsField Field name for decimals setting
      * @param string $enabledField Field name for enabled setting
@@ -72,7 +72,7 @@ class RoundingService
      * @return float Rounded value
      */
     protected function roundWithSettings(
-        ?int $companyId,
+        int|string|null $companyId,
         float $value,
         string $decimalsField,
         string $enabledField,
@@ -84,8 +84,13 @@ class RoundingService
             return $value;
         }
 
+        $companyIdInt = is_numeric($companyId) ? (int) $companyId : null;
+        if ($companyIdInt === null) {
+            return $value;
+        }
+
         /** @var Company|null $company */
-        $company = Company::find($companyId);
+        $company = Company::find($companyIdInt);
 
         if (!$company) {
             return $value;
@@ -161,17 +166,22 @@ class RoundingService
     /**
      * Get decimals for company
      *
-     * @param int|null $companyId Company ID
+     * @param int|string|null $companyId Company ID
      * @return int Number of decimals
      */
-    public function getDecimalsForCompany(?int $companyId): int
+    public function getDecimalsForCompany(int|string|null $companyId): int
     {
         if (!$companyId) {
             return 2;
         }
 
+        $companyIdInt = is_numeric($companyId) ? (int) $companyId : null;
+        if ($companyIdInt === null) {
+            return 2;
+        }
+
         /** @var Company|null $company */
-        $company = Company::find($companyId);
+        $company = Company::find($companyIdInt);
 
         if (!$company) {
             return 2;

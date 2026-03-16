@@ -198,7 +198,7 @@ class Transaction extends Model
 
     protected static function booted()
     {
-        static::creating(function ($transaction) {
+        static::creating(function (\App\Models\Transaction $transaction) {
             if (!empty($transaction->no_balance_update)) {
                 $transaction->setSkipClientBalanceUpdate(true);
             }

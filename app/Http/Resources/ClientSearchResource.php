@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Client;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ClientSearchResource extends JsonResource
@@ -11,17 +12,21 @@ class ClientSearchResource extends JsonResource
      */
     public function toArray($request): array
     {
-        $primaryPhone = $this->phones->first();
+        $client = $this->resource;
+        if (!$client instanceof Client) {
+            return [];
+        }
+        $primaryPhone = $client->phones->first();
 
         return [
-            'id' => $this->id,
-            'client_type' => $this->client_type,
-            'balance' => $this->balance,
-            'is_supplier' => (bool)$this->is_supplier,
-            'is_conflict' => (bool)$this->is_conflict,
-            'first_name' => $this->first_name,
-            'last_name' => $this->last_name,
-            'position' => $this->position,
+            'id' => $client->id,
+            'client_type' => $client->client_type,
+            'balance' => $client->balance,
+            'is_supplier' => (bool) $client->is_supplier,
+            'is_conflict' => (bool) $client->is_conflict,
+            'first_name' => $client->first_name,
+            'last_name' => $client->last_name,
+            'position' => $client->position,
             'primary_phone' => $primaryPhone ? $primaryPhone->phone : null,
         ];
     }

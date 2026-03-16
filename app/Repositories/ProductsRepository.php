@@ -7,6 +7,7 @@ use App\Models\ProductPrice;
 use App\Models\ProductCategory;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
+use App\Models\User;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -29,13 +30,13 @@ class ProductsRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $warehouseId = null, $search = null, $categoryId = null)
     {
-        /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
+        $filterUser = $currentUser instanceof User ? $currentUser : null;
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $filterUser?->id, $companyId]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $currentUser) {
-            $userCategoryIds = $this->getUserCategoryIds($userUuid);
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $filterUser) {
+            $userCategoryIds = $this->getUserCategoryIds((int) $userUuid);
 
             if ($categoryId) {
                 $userCategoryIds = array_intersect($userCategoryIds, [$categoryId]);
@@ -70,7 +71,7 @@ class ProductsRepository extends BaseRepository
                 ->whereIn('id', $userProductIds)
                 ->where('type', $type);
 
-            $this->applyOwnFilter($query, 'products', 'products', 'creator_id', $currentUser);
+            $this->applyOwnFilter($query, 'products', 'products', 'creator_id', $filterUser);
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -367,7 +368,7 @@ class ProductsRepository extends BaseRepository
      */
     public function getItemById($id, $userUuid)
     {
-        $userCategoryIds = $this->getUserCategoryIds($userUuid);
+        $userCategoryIds = $this->getUserCategoryIds((int) $userUuid);
 
         if (empty($userCategoryIds)) {
             return null;
@@ -388,24 +389,23 @@ class ProductsRepository extends BaseRepository
             return null;
         }
 
-        $productArray = $product->toArray();
-        $productArray['category_name'] = $product->categories->first()?->name;
-        $productArray['category_id'] = $product->categories->first()?->id;
-        $productArray['categories'] = $product->categories->map(function ($category) {
+        $product->setAttribute('category_name', $product->categories->first()?->name);
+        $product->setAttribute('category_id', $product->categories->first()?->id);
+        $product->setAttribute('categories', $product->categories->map(function ($category) {
             return [
                 'id' => $category->id,
                 'name' => $category->name,
             ];
-        })->toArray();
-        $productArray['unit_name'] = $product->unit?->name;
-        $productArray['unit_short_name'] = $product->unit?->short_name;
+        })->toArray());
+        $product->setAttribute('unit_name', $product->unit?->name);
+        $product->setAttribute('unit_short_name', $product->unit?->short_name);
         $price = $product->prices->first();
-        $productArray['retail_price'] = $price?->retail_price ?? 0;
-        $productArray['wholesale_price'] = $price?->wholesale_price ?? 0;
-        $productArray['purchase_price'] = $price?->purchase_price ?? 0;
-        $productArray['stock_quantity'] = 0;
+        $product->setAttribute('retail_price', $price?->retail_price ?? 0);
+        $product->setAttribute('wholesale_price', $price?->wholesale_price ?? 0);
+        $product->setAttribute('purchase_price', $price?->purchase_price ?? 0);
+        $product->setAttribute('stock_quantity', 0);
 
-        return $productArray;
+        return $product;
     }
 
     /**
@@ -418,16 +418,13 @@ class ProductsRepository extends BaseRepository
     {
         $product = Product::find($id);
         if (!$product) {
-            return ['success' => false, 'message' => 'Товар/услуга не найдена'];
+            return false;
         }
 
         $usedInSales = $product->salesProducts()->exists();
 
         if ($usedInSales) {
-            return [
-                'success' => false,
-                'message' => 'Товар/услуга используется в продажах или заказах и не может быть удалён(а).'
-            ];
+            return false;
         }
 
         if ($product->image) {
@@ -440,7 +437,7 @@ class ProductsRepository extends BaseRepository
 
         CacheService::invalidateProductsCache();
 
-        return ['success' => true];
+        return true;
     }
 
     /**
@@ -509,13 +506,13 @@ class ProductsRepository extends BaseRepository
      */
     private function enrichProduct($product, array $stocksMap)
     {
-        $product->category_name = $product->categories->first()?->name;
-        $product->unit_name = $product->unit?->name;
-        $product->unit_short_name = $product->unit?->short_name;
+        $product->setAttribute('category_name', $product->categories->first()?->name);
+        $product->setAttribute('unit_name', $product->unit?->name);
+        $product->setAttribute('unit_short_name', $product->unit?->short_name);
         $price = $product->prices->first();
-        $product->retail_price = $price?->retail_price;
-        $product->wholesale_price = $price?->wholesale_price;
-        $product->purchase_price = $price?->purchase_price;
-        $product->stock_quantity = (float) ($stocksMap[$product->id] ?? 0);
+        $product->setAttribute('retail_price', $price?->retail_price);
+        $product->setAttribute('wholesale_price', $price?->wholesale_price);
+        $product->setAttribute('purchase_price', $price?->purchase_price);
+        $product->setAttribute('stock_quantity', (float) ($stocksMap[$product->id] ?? 0));
     }
 }

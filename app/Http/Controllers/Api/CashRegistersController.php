@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreCashRegisterRequest;
 use App\Http\Requests\UpdateCashRegisterRequest;
-use App\Repositories\CahRegistersRepository;
+use App\Repositories\CashRegistersRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
 
@@ -19,9 +19,9 @@ class CashRegistersController extends BaseController
     /**
      * Конструктор контроллера
      *
-     * @param CahRegistersRepository $itemsRepository Репозиторий касс
+     * @param CashRegistersRepository $itemsRepository Репозиторий касс
      */
-    public function __construct(CahRegistersRepository $itemsRepository)
+    public function __construct(CashRegistersRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
     }
@@ -125,11 +125,15 @@ class CashRegistersController extends BaseController
     /**
      * Создать новую кассу
      *
-     * @param Request $request
+     * @param StoreCashRegisterRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreCashRegisterRequest $request)
     {
+        if (!$this->hasPermission('cash_registers_create')) {
+            return $this->forbiddenResponse('У вас нет прав на создание кассы');
+        }
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
@@ -152,7 +156,7 @@ class CashRegistersController extends BaseController
     /**
      * Обновить кассу
      *
-     * @param Request $request
+     * @param UpdateCashRegisterRequest $request
      * @param int $id ID кассы
      * @return \Illuminate\Http\JsonResponse
      */
@@ -181,9 +185,9 @@ class CashRegistersController extends BaseController
             $payload['icon'] = $validatedData['icon'];
         }
 
-        $category_updated = $this->itemsRepository->updateItem($id, $payload);
+        $item_updated = $this->itemsRepository->updateItem($id, $payload);
 
-        if (!$category_updated) {
+        if (!$item_updated) {
             return $this->errorResponse('Ошибка обновления кассы', 400);
         }
 
@@ -205,9 +209,9 @@ class CashRegistersController extends BaseController
                 return $this->forbiddenResponse('У вас нет прав на удаление этой кассы');
             }
 
-            $category_deleted = $this->itemsRepository->deleteItem($id);
+            $item_deleted = $this->itemsRepository->deleteItem($id);
 
-            if (!$category_deleted) {
+            if (!$item_deleted) {
                 return $this->errorResponse('Ошибка удаления кассы', 400);
             }
 

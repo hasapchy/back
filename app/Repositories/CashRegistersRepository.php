@@ -8,7 +8,7 @@ use App\Models\Transaction;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
-class CahRegistersRepository extends BaseRepository
+class CashRegistersRepository extends BaseRepository
 {
     /**
      * Получить кассы с пагинацией
@@ -127,6 +127,7 @@ class CahRegistersRepository extends BaseRepository
             ->keyBy('cash_id');
 
         return $cashRegisters->map(function ($cashRegister) use ($transactionsStats) {
+            assert($cashRegister instanceof CashRegister);
             $stats = $transactionsStats->get($cashRegister->id);
 
             $income = (float) ($stats->income_total ?? 0);
@@ -160,7 +161,8 @@ class CahRegistersRepository extends BaseRepository
     public function createItem($data)
     {
         return DB::transaction(function () use ($data) {
-            $companyId = $this->getCurrentCompanyId();
+            $companyIdRaw = $this->getCurrentCompanyId();
+            $companyId = $companyIdRaw !== null ? (int) $companyIdRaw : null;
 
             $item = new CashRegister();
             $item->name = $data['name'];
@@ -218,7 +220,8 @@ class CahRegistersRepository extends BaseRepository
             }
 
             CacheService::invalidateCashRegistersCache();
-            CacheService::invalidatePaginatedData('cash_registers_paginated', $this->getCurrentCompanyId());
+            $companyIdRaw = $this->getCurrentCompanyId();
+            CacheService::invalidatePaginatedData('cash_registers_paginated', $companyIdRaw !== null ? (int) $companyIdRaw : null);
 
             return true;
         });
@@ -258,7 +261,8 @@ class CahRegistersRepository extends BaseRepository
             $item->delete();
 
             CacheService::invalidateCashRegistersCache();
-            CacheService::invalidatePaginatedData('cash_registers_paginated', $this->getCurrentCompanyId());
+            $companyIdRaw = $this->getCurrentCompanyId();
+            CacheService::invalidatePaginatedData('cash_registers_paginated', $companyIdRaw !== null ? (int) $companyIdRaw : null);
 
             return true;
         });

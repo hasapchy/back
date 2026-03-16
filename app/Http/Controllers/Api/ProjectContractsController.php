@@ -109,7 +109,7 @@ class ProjectContractsController extends BaseController
             $hasViewAll = $user && ($user->is_admin || $this->hasPermission('contracts_view_all', $user));
 
             if (!$hasViewAll && $this->hasPermission('contracts_view_own', $user)) {
-                $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $user->id, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
+                $result = $this->repository->getAllContractsWithPaginationForUser($user->id, $perPage, $page, $search, $projectId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
             } else {
                 $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
             }

@@ -148,7 +148,7 @@ class CurrencyHistoryController extends BaseController
                 ->first();
 
             if (!$history) {
-                return response()->json(['error' => 'Запись в истории не найдена'], 404);
+                return $this->notFoundResponse('Запись в истории не найдена');
             }
 
             $validatedData = $request->validated();

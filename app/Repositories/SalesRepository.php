@@ -36,7 +36,7 @@ class SalesRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('sales_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $clientId, $currentUser?->id, $companyId]);
         $ttl = $this->getCacheTTL('paginated', $search || $dateFilter !== 'all_time' || $clientId);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $page, $currentUser, $clientId) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $dateFilter, $startDate, $endDate, $page, $currentUser, $clientId) {
             $query = Sale::select([
                 'sales.id',
                 'sales.client_id',

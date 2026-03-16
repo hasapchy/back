@@ -93,7 +93,7 @@ class NewsImageService
             return false;
         }
 
-        $actualMime = $imageInfo['mime'] ?? '';
+        $actualMime = $imageInfo['mime'];
 
         // Маппинг заявленных типов на MIME-типы
         $mimeMapping = [
@@ -236,17 +236,19 @@ class NewsImageService
             }
 
             // Если изображение в общей папке news/images, перемещаем в папку новости
-            if (str_starts_with($path, 'news/images/') && ! str_starts_with($path, 'news/images/'.$newsId.'/')) {
-                $fileName = basename($path);
-                $newPath = 'news/images/'.$newsId.'/'.$fileName;
+            if (str_starts_with($path, 'news/images/')) {
+                $rest = substr($path, strlen('news/images/'));
+                $firstSegment = explode('/', $rest)[0] ?? '';
+                if ($firstSegment !== (string) $newsId) {
+                    $fileName = basename($path);
+                    $newPath = 'news/images/'.$newsId.'/'.$fileName;
 
-                // Перемещаем файл
-                if (Storage::disk('public')->exists($path)) {
-                    Storage::disk('public')->move($path, $newPath);
-                    $newUrl = Storage::disk('public')->url($newPath);
+                    if (Storage::disk('public')->exists($path)) {
+                        Storage::disk('public')->move($path, $newPath);
+                        $newUrl = Storage::disk('public')->url($newPath);
 
-                    // Заменяем URL в теге
-                    return str_replace($url, $newUrl, $fullMatch);
+                        return str_replace($url, $newUrl, $fullMatch);
+                    }
                 }
             }
 

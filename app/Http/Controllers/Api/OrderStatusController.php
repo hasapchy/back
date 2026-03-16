@@ -57,7 +57,7 @@ class OrderStatusController extends BaseController
     /**
      * Создать новый статус заказа
      *
-     * @param  Request  $request
+     * @param StoreOrderStatusRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreOrderStatusRequest $request)
@@ -80,7 +80,7 @@ class OrderStatusController extends BaseController
     /**
      * Обновить статус заказа
      *
-     * @param  Request  $request
+     * @param UpdateOrderStatusRequest $request
      * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse
      */

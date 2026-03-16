@@ -17,9 +17,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
- * @property-read \App\Models\WhReceipt $receipt
+ * @property-read \App\Models\WhReceipt|null $receipt
  * @property-read \App\Models\Product $product
- * @property-read \Illuminate\Database\Eloquent\Collection|mixed[] $serialNumbers
  */
 class WhReceiptProduct extends Model
 {
@@ -56,15 +55,5 @@ class WhReceiptProduct extends Model
     public function product()
     {
         return $this->belongsTo(Product::class, 'product_id');
-    }
-
-    /**
-     * Связь с серийными номерами
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function serialNumbers()
-    {
-        return $this->hasMany(\App\Models\ProductSerialNumber::class, 'sn_id');
     }
 }

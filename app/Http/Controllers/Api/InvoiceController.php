@@ -149,6 +149,11 @@ class InvoiceController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         try {
+            $item = $this->itemRepository->getItemById($id);
+            if (!$this->canPerformAction('invoices', 'delete', $item)) {
+                return $this->forbiddenResponse('У вас нет прав на удаление этого счёта');
+            }
+
             $deleted = $this->itemRepository->deleteItem($id);
 
             return response()->json(['invoice' => $deleted, 'message' => 'Счет успешно удалён']);

@@ -11,6 +11,12 @@ use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Support\Facades\DB;
 use App\Models\Leave;
 
+/**
+ * @property mixed $company_roles
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Company> $companies
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Department> $departments
+ * @property mixed $last_salary
+ */
 class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasRoles, HasApiTokens;
@@ -92,6 +98,8 @@ class User extends Authenticatable
 
     /**
      * Компании, к которым принадлежит пользователь
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
      */
     public function companies()
     {
@@ -100,22 +108,33 @@ class User extends Authenticatable
 
     /**
      * Склады, к которым принадлежит пользователь
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
      */
     public function warehouses()
     {
         return $this->belongsToMany(\App\Models\Warehouse::class, 'wh_users', 'user_id', 'warehouse_id');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
     public function departments()
     {
         return $this->belongsToMany(Department::class)->withTimestamps();
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function headedDepartments()
     {
         return $this->hasMany(Department::class, 'head_id');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function deputyDepartments()
     {
         return $this->hasMany(Department::class, 'deputy_head_id');

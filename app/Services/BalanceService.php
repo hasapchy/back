@@ -98,6 +98,12 @@ class BalanceService
         $oldCashRegisterId = $transaction->getOriginal('cash_register_id');
         $oldCashCurrency = $oldCashRegisterId ? \App\Models\CashRegister::find($oldCashRegisterId)?->currency : null;
 
+        $client = $transaction->client_id ? Client::find($transaction->client_id) : null;
+        $currency = $transaction->currency;
+        $companyId = $client?->company_id;
+        $transactionDate = $transaction->created_at ? $transaction->created_at->toDateString() : null;
+        $cashCurrency = $transaction->cashRegister ? $transaction->cashRegister->currency : null;
+
         if ($oldClientId && $oldClientId != $transaction->client_id) {
             $oldClient = Client::find($oldClientId);
             if ($oldClient && $originalCurrency) {
@@ -134,21 +140,23 @@ class BalanceService
                 $transaction->save();
             }
         } elseif (!$oldClientId) {
-            $balanceId = ClientBalanceService::updateBalance(
-                $client,
-                $currency,
-                $transaction->orig_amount,
-                $transaction->type,
-                $transaction->is_debt,
-                $companyId,
-                $transactionDate,
-                $transaction->exchange_rate,
-                $cashCurrency
-            );
+            if ($client && $currency) {
+                $balanceId = ClientBalanceService::updateBalance(
+                    $client,
+                    $currency,
+                    $transaction->orig_amount,
+                    $transaction->type,
+                    $transaction->is_debt,
+                    $companyId,
+                    $transactionDate,
+                    $transaction->exchange_rate,
+                    $cashCurrency
+                );
 
-            if ($balanceId) {
-                $transaction->client_balance_id = $balanceId;
-                $transaction->save();
+                if ($balanceId) {
+                    $transaction->client_balance_id = $balanceId;
+                    $transaction->save();
+                }
             }
         } else {
             if ($originalCurrency) {
@@ -238,9 +246,7 @@ class BalanceService
                     $balanceCurrency,
                     $defaultCurrency,
                     $companyId,
-                    $transactionDate,
-                    $transaction->exchange_rate,
-                    $cashCurrency
+                    $transactionDate
                 );
                 $roundingService = new \App\Services\RoundingService;
                 $amountToUse = $roundingService->roundForCompany($companyId, $convertedAmount);

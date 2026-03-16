@@ -31,7 +31,7 @@ class TransfersRepository extends BaseRepository
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('transfers_paginated', [$userUuid, $perPage, $currentUser?->id, $companyId]);
 
-        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page, $currentUser) {
+        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
             $query = CashTransfer::query()
                 ->with([
                     'fromCashRegister' => function ($q) {
@@ -73,32 +73,34 @@ class TransfersRepository extends BaseRepository
                 ->orderByDesc('cash_transfers.id')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
 
-            $items->getCollection()->transform(function ($transfer) {
+            $collection = $items->getCollection()->map(function ($transfer) {
+                assert($transfer instanceof CashTransfer);
                 $fromCash = $transfer->fromCashRegister;
                 $toCash = $transfer->toCashRegister;
 
                 return (object)[
                     'id' => $transfer->id,
                     'cash_from_id' => $transfer->cash_id_from,
-                    'cash_from_name' => $fromCash?->name,
-                    'currency_from_id' => $fromCash?->currency?->id,
-                    'currency_from_name' => $fromCash?->currency?->name,
-                    'currency_from_symbol' => $fromCash?->currency?->symbol,
+                    'cash_from_name' => $fromCash !== null ? $fromCash->name : null,
+                    'currency_from_id' => $fromCash !== null && $fromCash->currency !== null ? $fromCash->currency->id : null,
+                    'currency_from_name' => $fromCash !== null && $fromCash->currency !== null ? $fromCash->currency->name : null,
+                    'currency_from_symbol' => $fromCash !== null && $fromCash->currency !== null ? $fromCash->currency->symbol : null,
                     'cash_to_id' => $transfer->cash_id_to,
-                    'cash_to_name' => $toCash?->name,
-                    'currency_to_id' => $toCash?->currency?->id,
-                    'currency_to_name' => $toCash?->currency?->name,
-                    'currency_to_symbol' => $toCash?->currency?->symbol,
+                    'cash_to_name' => $toCash !== null ? $toCash->name : null,
+                    'currency_to_id' => $toCash !== null && $toCash->currency !== null ? $toCash->currency->id : null,
+                    'currency_to_name' => $toCash !== null && $toCash->currency !== null ? $toCash->currency->name : null,
+                    'currency_to_symbol' => $toCash !== null && $toCash->currency !== null ? $toCash->currency->symbol : null,
                     'amount' => $transfer->amount,
                     'exchange_rate' => $transfer->exchange_rate,
-                    'creator_id' => $transfer->creator?->id,
-                    'user_name' => $transfer->creator?->name,
+                    'creator_id' => $transfer->creator !== null ? $transfer->creator->id : null,
+                    'user_name' => $transfer->creator !== null ? $transfer->creator->name : null,
                     'date' => $transfer->date,
                     'note' => $transfer->note,
                     'category_id' => self::TRANSFER_OUTCOME_CATEGORY_ID,
                     'category_name' => 'Перемещение',
                 ];
             });
+            $items->setCollection($collection);
 
             return $items;
         }, (int)$page);
@@ -129,7 +131,8 @@ class TransfersRepository extends BaseRepository
         $fromCurrency = $fromCashRegister->currency;
         $toCurrency = $toCashRegister->currency;
         $defaultCurrency = Currency::where('is_default', true)->first();
-        $companyId = $this->getCurrentCompanyId();
+        $companyIdRaw = $this->getCurrentCompanyId();
+        $companyId = $companyIdRaw !== null ? (int) $companyIdRaw : null;
 
         if ($fromCurrency->id !== $toCurrency->id) {
             if (!empty($data['exchange_rate'])) {

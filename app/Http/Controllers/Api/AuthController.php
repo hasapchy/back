@@ -49,7 +49,7 @@ class AuthController extends BaseController
         }
 
         if (!Hash::check($request->password, $user->password)) {
-            Log::warning('Login attempt: invalid password', ['email' => $request->email, 'creator_id' => $user->id]);
+            Log::warning('Login attempt: invalid password', ['email' => $request->email, 'user_id' => $user->id]);
             return $this->unauthorizedResponse('Неверный логин или пароль');
         }
 
@@ -147,8 +147,11 @@ class AuthController extends BaseController
     {
         $user = $request->user();
 
-        if ($user && $user->currentAccessToken()) {
-            $user->currentAccessToken()->delete();
+        if ($user) {
+            $token = $user->currentAccessToken();
+            if ($token instanceof \Laravel\Sanctum\PersonalAccessToken) {
+                $token->delete();
+            }
         }
 
         return response()->json(['message' => 'Successfully logged out']);
@@ -182,10 +185,8 @@ class AuthController extends BaseController
         /** @var User $user */
         $user = $token->tokenable;
 
-        if (!$user || !$user->is_active) {
-            if ($token) {
-                $token->delete();
-            }
+        if (!$user->is_active) {
+            $token->delete();
             return $this->forbiddenResponse('User account is deactivated');
         }
 
@@ -204,6 +205,10 @@ class AuthController extends BaseController
         $this->setDeviceOnToken($newAccessToken->accessToken, $token->device_fingerprint, $token->device_name);
         $this->setDeviceOnToken($newRefreshToken->accessToken, $token->device_fingerprint, $token->device_name);
 
+        $companyId = $request->header('X-Company-ID') ? (int) $request->header('X-Company-ID') : $user->companies()->value('companies.id');
+        $companyId = $companyId ? (int) $companyId : null;
+        $permissions = $this->getUserPermissions($user, $companyId);
+
         return response()->json([
             'access_token'  => $newAccessToken->plainTextToken,
             'refresh_token' => $newRefreshToken->plainTextToken,
@@ -219,7 +224,7 @@ class AuthController extends BaseController
                 'birthday' => $user->birthday?->format('Y-m-d'),
                 'is_admin' => $user->is_admin,
                 'roles' => $resolvedRoles,
-                'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
+                'permissions' => $permissions
             ]
         ]);
     }

@@ -50,8 +50,6 @@ Route::middleware(['throttle:auth'])->group(function () {
     Route::post('user/refresh', [AuthController::class, 'refresh']);
 });
 
-Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
-
 // Main API routes - accessible to all authenticated users with appropriate permissions
 Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
@@ -279,6 +277,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission:company_holidays_delete_all')->post('company-holidays/batch-delete', [CompanyHolidayController::class, 'batchDelete']);
 
     Route::get('transaction_categories', [TransactionCategoryController::class, 'index']);
+    Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
     Route::middleware('permission:transaction_categories_create')->post('transaction_categories', [TransactionCategoryController::class, 'store']);
     Route::middleware('permission:transaction_categories_update')->put('transaction_categories/{id}', [TransactionCategoryController::class, 'update']);
     Route::middleware('permission:transaction_categories_delete')->delete('transaction_categories/{id}', [TransactionCategoryController::class, 'destroy']);

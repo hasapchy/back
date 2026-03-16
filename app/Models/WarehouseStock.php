@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
- * @property-read \App\Models\Warehouse $warehouse
+ * @property-read \App\Models\Warehouse|null $warehouse
  * @property-read \App\Models\Product $product
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhWriteoff[] $writeOffs
  */

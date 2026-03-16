@@ -86,7 +86,8 @@ class CategoriesRepository extends BaseRepository
      */
     public function createItem($data)
     {
-        $companyId = $this->getCurrentCompanyId();
+        $companyIdRaw = $this->getCurrentCompanyId();
+        $companyId = $companyIdRaw !== null ? (int) $companyIdRaw : null;
 
         $item = new Category();
         $item->name = $data['name'];
@@ -111,7 +112,8 @@ class CategoriesRepository extends BaseRepository
      */
     public function updateItem($id, $data)
     {
-        $companyId = $this->getCurrentCompanyId();
+        $companyIdRaw = $this->getCurrentCompanyId();
+        $companyId = $companyIdRaw !== null ? (int) $companyIdRaw : null;
 
         $item = Category::findOrFail($id);
         $item->name = $data['name'];

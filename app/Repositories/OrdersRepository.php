@@ -52,14 +52,17 @@ class OrdersRepository extends BaseRepository
         $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
         $loadProducts = $perPage <= 50;
 
-        $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser, $hasSearch, $loadProducts) {
+        $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser, $hasSearch) {
             $orderResource = $this->getOrderResourceForUser($currentUser);
             $isSimpleWorker = $currentUser instanceof User &&
                 ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
-            $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, null);
+            $query = $this->buildOrdersListQuery((int) $userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, null);
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
             $transactionsRepository = new \App\Repositories\TransactionsRepository();
             $orders->getCollection()->transform(function ($order) use ($transactionsRepository) {
+                if (!$order instanceof Order) {
+                    return $order;
+                }
                 if ($order->client) {
                     $order->client_first_name = $order->client->first_name;
                     $order->client_last_name = $order->client->last_name;
@@ -187,7 +190,7 @@ class OrdersRepository extends BaseRepository
                 $unpaidQuery->where(function ($q) use ($userUuid) {
                     if ($this->shouldApplyUserFilter('cash_registers')) {
                         $q->whereNull('orders.cash_id');
-                        $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                        $filterUserId = $this->getFilterUserIdForPermission('cash_registers', (int) $userUuid);
                         $q->orWhereExists(function ($subQuery) use ($filterUserId) {
                             $subQuery->select(DB::raw(1))
                                 ->from('cash_register_users')
@@ -203,7 +206,7 @@ class OrdersRepository extends BaseRepository
             $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cash');
 
             if ($isSimpleWorker && !$currentUser->is_admin) {
-                $userCategoryIds = $this->getUserCategoryIds($userUuid);
+                $userCategoryIds = $this->getUserCategoryIds((int) $userUuid);
 
                 if (empty($userCategoryIds)) {
                     $unpaidQuery->whereNull('orders.category_id');
@@ -281,7 +284,7 @@ class OrdersRepository extends BaseRepository
             $query->where(function ($q) use ($userUuid) {
                 if ($this->shouldApplyUserFilter('cash_registers')) {
                     $q->whereNull('orders.cash_id');
-                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers', (int) $userUuid);
                     $q->orWhereExists(function ($subQuery) use ($filterUserId) {
                         $subQuery->select(DB::raw(1))
                             ->from('cash_register_users')
@@ -337,7 +340,7 @@ class OrdersRepository extends BaseRepository
                 ->select('orders.*', DB::raw('(orders.price - orders.discount) as total_price'));
         }
         if ($isSimpleWorker && !$currentUser->is_admin) {
-            $userCategoryIds = $this->getUserCategoryIds($userUuid);
+            $userCategoryIds = $this->getUserCategoryIds((int) $userUuid);
             if (empty($userCategoryIds)) {
                 $query->whereNull('orders.category_id');
             } else {
@@ -478,7 +481,7 @@ class OrdersRepository extends BaseRepository
             $query->where(function ($q) use ($userUuid) {
                 if ($this->shouldApplyUserFilter('cash_registers')) {
                     $q->whereNull('orders.cash_id');
-                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers', (int) $userUuid);
                     $q->orWhereExists(function ($subQuery) use ($filterUserId) {
                         $subQuery->select(DB::raw(1))
                             ->from('cash_register_users')
@@ -492,7 +495,7 @@ class OrdersRepository extends BaseRepository
         $this->applyOwnFilter($query, $orderResource, 'orders', 'creator_id', $currentUser);
 
         if ($isSimpleWorker && !$currentUser->is_admin) {
-            $userCategoryIds = $this->getUserCategoryIds($userUuid);
+            $userCategoryIds = $this->getUserCategoryIds((int) $userUuid);
             if (empty($userCategoryIds)) {
                 $query->whereNull('orders.category_id');
             } else {
@@ -729,7 +732,8 @@ class OrdersRepository extends BaseRepository
         DB::beginTransaction();
         try {
             $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
+            $companyIdRaw = $this->getCurrentCompanyId();
+            $companyId = $companyIdRaw !== null ? (int) $companyIdRaw : 0;
 
             $productsCache = [];
             $warehouseStocksToUpdate = [];
@@ -905,7 +909,8 @@ class OrdersRepository extends BaseRepository
             $total_price = 0;
 
             $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
+            $companyIdRaw = $this->getCurrentCompanyId();
+            $companyId = $companyIdRaw !== null ? (int) $companyIdRaw : 0;
             $clientChanged = (int) $oldClientId !== (int) $client_id;
 
             $newProductIds = array_filter(array_column($products, 'product_id'));

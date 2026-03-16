@@ -63,15 +63,11 @@ class StoreUserRequest extends FormRequest
         }
 
         if (isset($data['is_admin'])) {
-            try {
-                $currentUser = auth('api')->user();
-                if (!$currentUser || !$currentUser->is_admin) {
-                    unset($data['is_admin']);
-                } else {
-                    $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
-                }
-            } catch (\Exception $e) {
+            $currentUser = auth('api')->user();
+            if (!$currentUser || !$currentUser->is_admin) {
                 unset($data['is_admin']);
+            } else {
+                $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
             }
         }
 
@@ -91,11 +87,8 @@ class StoreUserRequest extends FormRequest
         }
 
         if (isset($data['company_roles']) && is_string($data['company_roles'])) {
-            try {
-                $data['company_roles'] = json_decode($data['company_roles'], true);
-            } catch (\Exception $e) {
-                $data['company_roles'] = [];
-            }
+            $decoded = json_decode($data['company_roles'], true);
+            $data['company_roles'] = is_array($decoded) ? $decoded : [];
         }
 
         if (isset($data['departments'])) {

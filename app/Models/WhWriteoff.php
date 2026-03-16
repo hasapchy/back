@@ -18,8 +18,10 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @property-read \App\Models\Warehouse $warehouse
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhWriteoffProduct[] $writeOffProducts
+ * @property \Illuminate\Support\Collection|null $products
  * @property-read \App\Models\Product|null $product
  * @property-read \App\Models\WarehouseStock|null $warehouseStock
+ * @property-read \App\Models\User|null $creator
  */
 class WhWriteoff extends Model
 {

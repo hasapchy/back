@@ -36,7 +36,7 @@ class ClientsRepository extends BaseRepository
         $typeFilterKey = implode(',', $typeFilter);
         $cacheKey = $this->generateCacheKey('clients_paginated', [$perPage, $search, $includeInactive, $statusFilter, $typeFilterKey, $currentUser?->id, $companyId]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter, $currentUser) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $includeInactive, $page, $statusFilter, $typeFilter) {
             $query = $this->buildClientListQuery($search, $includeInactive, $statusFilter, $typeFilter);
             $query->orderBy('clients.created_at', 'desc');
 

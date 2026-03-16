@@ -25,13 +25,15 @@ class PreventRequestsDuringMaintenance extends Middleware
             return $next($request);
         }
 
+        $data = null;
         try {
             $data = $this->app->maintenanceMode()->data();
         } catch (ErrorException $e) {
-            if (!$this->app->maintenanceMode()->active()) {
-                return $next($request);
-            }
-            throw $e;
+            return $next($request);
+        }
+
+        if ($data === null) {
+            return $next($request);
         }
 
         if ($this->canBypass($request, $data)) {

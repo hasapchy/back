@@ -36,9 +36,9 @@ class ClientController extends BaseController
     /**
      * Получить список клиентов с пагинацией
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return \App\Http\Resources\ClientCollection
      */
-    public function index(Request $request)
+    public function index(Request $request): \Illuminate\Http\JsonResponse|ClientCollection
     {
         $params = $this->getClientListParams($request);
         $items = $this->itemsRepository->getItemsWithPagination(
@@ -128,7 +128,7 @@ class ClientController extends BaseController
     {
         $search_request = $request->input('search_request');
 
-        if (! $search_request || empty($search_request)) {
+        if ($search_request === null || $search_request === '') {
             return response()->json([]);
         }
 
@@ -151,9 +151,9 @@ class ClientController extends BaseController
      * Получить клиента по ID
      *
      * @param  int  $id  ID клиента
-     * @return \Illuminate\Http\JsonResponse
+     * @return \App\Http\Resources\ClientResource
      */
-    public function show($id)
+    public function show($id): \Illuminate\Http\JsonResponse|ClientResource
     {
         try {
             $client = $this->itemsRepository->getItemById($id);
@@ -212,9 +212,9 @@ class ClientController extends BaseController
     /**
      * Получить всех клиентов
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
-    public function all(Request $request)
+    public function all(Request $request): \Illuminate\Http\JsonResponse|\Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
         try {
             $typeFilterInput = $request->input('type_filter');
@@ -257,10 +257,10 @@ class ClientController extends BaseController
     /**
      * Создать нового клиента
      *
-     * @param  Request  $request
-     * @return \Illuminate\Http\JsonResponse
+     * @param StoreClientRequest $request
+     * @return \App\Http\Resources\ClientResource
      */
-    public function store(StoreClientRequest $request)
+    public function store(StoreClientRequest $request): \Illuminate\Http\JsonResponse|ClientResource
     {
         $validatedData = $this->normalizeNullableFields($request->validated());
 
@@ -305,11 +305,11 @@ class ClientController extends BaseController
     /**
      * Обновить клиента
      *
-     * @param  Request  $request
+     * @param UpdateClientRequest $request
      * @param  int  $id  ID клиента
-     * @return \Illuminate\Http\JsonResponse
+     * @return \App\Http\Resources\ClientResource
      */
-    public function update(UpdateClientRequest $request, $id)
+    public function update(UpdateClientRequest $request, $id): \Illuminate\Http\JsonResponse|ClientResource
     {
         $validatedData = $this->normalizeNullableFields($request->validated());
 
@@ -328,13 +328,6 @@ class ClientController extends BaseController
         if ($phoneCheck) {
             return $phoneCheck;
         }
-
-        $client = $this->itemsRepository->updateItem($id, $validatedData);
-
-        CacheService::invalidateClientsCache();
-        CacheService::invalidateOrdersCache();
-        CacheService::invalidateSalesCache();
-        CacheService::invalidateTransactionsCache();
 
         try {
             $client = $this->itemsRepository->updateItem($id, $validatedData);

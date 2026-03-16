@@ -41,9 +41,9 @@ class OrderController extends BaseController
      * Получить список заказов с пагинацией
      *
      * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return \App\Http\Resources\OrderCollection
      */
-    public function index(Request $request)
+    public function index(Request $request): \Illuminate\Http\JsonResponse|OrderCollection
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $user = $this->requireAuthenticatedUser();
@@ -156,9 +156,9 @@ class OrderController extends BaseController
      * Создать новый заказ
      *
      * @param StoreOrderRequest $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return \App\Http\Resources\OrderResource
      */
-    public function store(StoreOrderRequest $request)
+    public function store(StoreOrderRequest $request): \Illuminate\Http\JsonResponse|OrderResource
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $user = $this->requireAuthenticatedUser();
@@ -243,9 +243,9 @@ class OrderController extends BaseController
      *
      * @param UpdateOrderRequest $request
      * @param int $id ID заказа
-     * @return \Illuminate\Http\JsonResponse
+     * @return \App\Http\Resources\OrderResource
      */
-    public function update(UpdateOrderRequest $request, $id)
+    public function update(UpdateOrderRequest $request, $id): \Illuminate\Http\JsonResponse|OrderResource
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
@@ -422,9 +422,9 @@ class OrderController extends BaseController
      * Получить заказ по ID
      *
      * @param int $id ID заказа
-     * @return \Illuminate\Http\JsonResponse
+     * @return \App\Http\Resources\OrderResource
      */
-    public function show($id)
+    public function show($id): \Illuminate\Http\JsonResponse|OrderResource
     {
         $item = $this->itemRepository->getItemById($id);
         if (!$item) {

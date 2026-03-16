@@ -42,7 +42,7 @@ class WarehouseMovementController extends BaseController
     /**
      * Создать перемещение между складами
      *
-     * @param  Request  $request
+     * @param StoreWarehouseMovementRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreWarehouseMovementRequest $request)
@@ -82,7 +82,7 @@ class WarehouseMovementController extends BaseController
     /**
      * Обновить перемещение между складами
      *
-     * @param  Request  $request
+     * @param UpdateWarehouseMovementRequest $request
      * @param  int  $id  ID перемещения
      * @return \Illuminate\Http\JsonResponse
      */

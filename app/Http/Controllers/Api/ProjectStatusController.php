@@ -58,7 +58,7 @@ class ProjectStatusController extends BaseController
     /**
      * Создать новый статус проекта
      *
-     * @param  Request  $request
+     * @param StoreProjectStatusRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreProjectStatusRequest $request)
@@ -84,7 +84,7 @@ class ProjectStatusController extends BaseController
     /**
      * Обновить статус проекта
      *
-     * @param  Request  $request
+     * @param UpdateProjectStatusRequest $request
      * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse
      */

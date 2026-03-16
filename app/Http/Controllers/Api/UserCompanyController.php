@@ -62,6 +62,10 @@ class UserCompanyController extends BaseController
             return $this->unauthorizedResponse();
         }
 
+        $request->validate([
+            'company_id' => 'nullable|integer',
+        ]);
+
         $companyId = $request->company_id;
 
         if (!$companyId) {

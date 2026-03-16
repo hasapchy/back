@@ -69,6 +69,8 @@ class RolesController extends BaseController
                 throw $e;
             }
         }
+
+        return $this->errorResponse('Ошибка при получении ролей.', 500);
     }
 
     /**

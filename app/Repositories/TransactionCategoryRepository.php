@@ -20,7 +20,7 @@ class TransactionCategoryRepository extends BaseRepository
 
         return CacheService::getPaginatedData($cacheKey, function() use ($perPage, $page) {
             return TransactionCategory::with('creator')->paginate($perPage, ['*'], 'page', (int) $page);
-        }, 1);
+        }, (int) $page);
     }
 
     /**
@@ -32,7 +32,7 @@ class TransactionCategoryRepository extends BaseRepository
     {
         $cacheKey = $this->generateCacheKey('transaction_categories_all', []);
 
-        return CacheService::getReferenceData($cacheKey, function() {
+        return CacheService::getReferenceData($cacheKey, function () {
             return TransactionCategory::with('creator')->get();
         });
     }

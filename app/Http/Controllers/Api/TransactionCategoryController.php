@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreTransactionCategoryRequest;
 use App\Http\Requests\UpdateTransactionCategoryRequest;
 use App\Repositories\TransactionCategoryRepository;
-use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 /**
@@ -41,20 +40,8 @@ class TransactionCategoryController extends BaseController
 
         $items = $this->transactionCategoryRepository->getItemsWithPagination($perPage, $page);
 
-        $mappedItems = collect($items->items())->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'type' => $item->type,
-                'creator_id' => $item->creator_id,
-                'user_name' => $item->creator ? $item->creator->name : null,
-                'created_at' => $item->created_at,
-                'updated_at' => $item->updated_at,
-            ];
-        });
-
         return response()->json([
-            'items' => $mappedItems,
+            'items' => $items->items(),
             'current_page' => $items->currentPage(),
             'next_page' => $items->nextPageUrl(),
             'last_page' => $items->lastPage(),
@@ -72,23 +59,13 @@ class TransactionCategoryController extends BaseController
     {
         $items = $this->transactionCategoryRepository->getAllItems();
 
-        return response()->json($items->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'type' => $item->type,
-                'creator_id' => $item->creator_id,
-                'user_name' => $item->creator ? $item->creator->name : null,
-                'created_at' => $item->created_at,
-                'updated_at' => $item->updated_at,
-            ];
-        }));
+        return response()->json($items);
     }
 
     /**
      * Создать новую категорию транзакций
      *
-     * @param Request $request
+     * @param StoreTransactionCategoryRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreTransactionCategoryRequest $request)
@@ -110,7 +87,7 @@ class TransactionCategoryController extends BaseController
     /**
      * Обновить категорию транзакций
      *
-     * @param Request $request
+     * @param UpdateTransactionCategoryRequest $request
      * @param int $id ID категории
      * @return \Illuminate\Http\JsonResponse
      */

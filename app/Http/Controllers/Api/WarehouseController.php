@@ -61,11 +61,15 @@ class WarehouseController extends BaseController
     /**
      * Создать новый склад
      *
-     * @param Request $request
+     * @param StoreWarehouseRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreWarehouseRequest $request)
     {
+        if (!$this->hasPermission('warehouses_create')) {
+            return $this->forbiddenResponse('У вас нет прав на создание склада');
+        }
+
         $validatedData = $request->validated();
 
         $warehouse_created = $this->warehouseRepository->createItem($validatedData['name'], $validatedData['users']);
@@ -80,7 +84,7 @@ class WarehouseController extends BaseController
     /**
      * Обновить склад
      *
-     * @param Request $request
+     * @param UpdateWarehouseRequest $request
      * @param int $id ID склада
      * @return \Illuminate\Http\JsonResponse
      */

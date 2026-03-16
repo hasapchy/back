@@ -98,6 +98,7 @@ class Currency extends Model
      */
     public function getExchangeRateForCompany($companyId = null, $date = null)
     {
+        $companyId = $companyId !== null ? (int) $companyId : null;
         $date = $date ?? now()->toDateString();
 
         $baseQuery = $this->exchangeRateHistories();

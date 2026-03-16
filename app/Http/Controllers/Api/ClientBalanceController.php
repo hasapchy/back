@@ -33,7 +33,7 @@ class ClientBalanceController extends BaseController
 
             $user = $this->getAuthenticatedUser();
             $balances = $client->balances()->with(['currency', 'users:id,name,surname'])->get();
-            if (!$user->is_admin) {
+            if ($user instanceof \App\Models\User && !$user->is_admin) {
                 $balances = $balances->filter(fn ($b) => $b->canUserAccess($user->id));
             }
             $balancesData = $balances->values()->map(fn ($balance) => $this->formatBalanceResponse($balance))->all();
@@ -134,7 +134,7 @@ class ClientBalanceController extends BaseController
                 return $this->forbiddenResponse('У вас нет прав на редактирование баланса клиента');
             }
 
-            if (!empty($validated['is_default']) && $validated['is_default'] && !$balance->is_default) {
+            if (!empty($validated['is_default']) && !$balance->is_default) {
                 $existingDefault = ClientBalance::where('client_id', $clientId)
                     ->where('id', '!=', $balance->id)
                     ->where('is_default', true)
@@ -157,7 +157,7 @@ class ClientBalanceController extends BaseController
             }
 
             DB::transaction(function () use ($balance, $validated) {
-                if (!empty($validated['is_default']) && $validated['is_default']) {
+                if (!empty($validated['is_default'])) {
                     ClientBalanceService::clearDefaultFlags($balance->client_id, $balance->id);
                 }
 

@@ -183,7 +183,7 @@ class MessageTemplateController extends BaseController
             $template = $this->repository->findItemWithRelations($id);
 
             return response()->json(['item' => $template, 'message' => 'Шаблон обновлен']);
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->notFoundResponse('Шаблон не найден');
         }
     }

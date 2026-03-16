@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\Warehouse;
 use App\Models\WhUser;
 use App\Services\CacheService;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class WarehouseRepository extends BaseRepository
 {
@@ -32,7 +33,7 @@ class WarehouseRepository extends BaseRepository
                     ->toArray();
 
                 if (empty($warehouseIds)) {
-                    return collect([])->paginate($perPage);
+                    return new LengthAwarePaginator([], 0, $perPage);
                 }
 
                 $query->whereIn('id', $warehouseIds);
@@ -92,7 +93,8 @@ class WarehouseRepository extends BaseRepository
     {
         $warehouse = new Warehouse();
         $warehouse->name = $name;
-        $warehouse->company_id = $this->getCurrentCompanyId();
+        $companyIdRaw = $this->getCurrentCompanyId();
+        $warehouse->company_id = $companyIdRaw !== null ? (int) $companyIdRaw : null;
         $warehouse->save();
 
         $this->syncUsers($warehouse->id, $users);
@@ -114,8 +116,9 @@ class WarehouseRepository extends BaseRepository
     {
         $warehouse = Warehouse::findOrFail($id);
         $warehouse->name = $name;
-        $currentCompanyId = $this->getCurrentCompanyId();
-        if ($currentCompanyId && $warehouse->company_id !== $currentCompanyId) {
+        $currentCompanyIdRaw = $this->getCurrentCompanyId();
+        $currentCompanyId = $currentCompanyIdRaw !== null ? (int) $currentCompanyIdRaw : null;
+        if ($currentCompanyId !== null && $warehouse->company_id !== $currentCompanyId) {
             $warehouse->company_id = $currentCompanyId;
         }
         $warehouse->save();

@@ -100,16 +100,13 @@ class PublishTemplatesCommand extends Command
             $items->load('companies');
         }
 
-        // Собираем все уникальные company_id
         $companies = collect();
         foreach ($items as $item) {
-            if ($isUserModel) {
-                // Для пользователей берем компании из связи
+            if ($isUserModel && $item instanceof \App\Models\User) {
                 foreach ($item->companies as $company) {
                     $companies->push($company->id);
                 }
-            } else {
-                // Для других моделей (CompanyHoliday) берем напрямую
+            } elseif (!$isUserModel && $item instanceof \App\Models\CompanyHoliday) {
                 if ($item->company_id) {
                     $companies->push($item->company_id);
                 }
@@ -132,11 +129,13 @@ class PublishTemplatesCommand extends Command
 
             // Фильтруем элементы для текущей компании
             $companyItems = $items->filter(function ($item) use ($companyId, $isUserModel) {
-                if ($isUserModel) {
+                if ($isUserModel && $item instanceof \App\Models\User) {
                     return $item->companies->contains('id', $companyId);
                 }
-
-                return $item->company_id === $companyId;
+                if (!$isUserModel && $item instanceof \App\Models\CompanyHoliday) {
+                    return $item->company_id === $companyId;
+                }
+                return false;
             });
 
             foreach ($companyItems as $item) {
@@ -182,12 +181,14 @@ class PublishTemplatesCommand extends Command
      * @param  string  $modelClass  Класс модели (User, CompanyHoliday, и т.д.)
      * @param  string  $dateField  Название поля с датой
      * @param  Carbon  $today  Сегодняшняя дата
+     * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\User|\App\Models\CompanyHoliday>
      */
     private function getItemsForToday(
         string $modelClass,
         string $dateField,
         Carbon $today
-    ): Collection {
+    ): \Illuminate\Database\Eloquent\Collection {
+
         $query = $modelClass::query()->whereNotNull($dateField);
 
         if ($dateField === 'birthday') {

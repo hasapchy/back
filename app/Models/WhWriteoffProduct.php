@@ -16,9 +16,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
- * @property-read \App\Models\WhWriteoff $writeOff
+ * @property-read \App\Models\WhWriteoff|null $writeOff
  * @property-read \App\Models\Product $product
- * @property-read mixed|null $serialNumber
  */
 class WhWriteoffProduct extends Model
 {
