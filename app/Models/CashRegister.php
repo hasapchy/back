@@ -16,6 +16,7 @@ use App\Models\Traits\HasManyToManyUsers;
  * @property int $currency_id ID валюты
  * @property int|null $company_id ID компании
  * @property bool $is_cash Наличная касса
+ * @property bool $is_working_minus Разрешено ли уходить в минус
  * @property string|null $icon CSS класс иконки кассы
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -37,6 +38,7 @@ class CashRegister extends Model
         'currency_id',
         'company_id',
         'is_cash',
+        'is_working_minus',
         'icon',
     ];
 
@@ -45,6 +47,7 @@ class CashRegister extends Model
     protected $casts = [
         'balance' => 'decimal:5',
         'is_cash' => 'boolean',
+        'is_working_minus' => 'boolean',
     ];
 
     protected static function booted()

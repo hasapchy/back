@@ -18,7 +18,7 @@ use App\Models\User;
  * @property int $currency_id ID валюты
  * @property int|null $cash_id ID кассы
  * @property \Carbon\Carbon $date Дата контракта
- * @property bool $returned Возвращен ли контракт
+ * @property bool $returned Подписан ли контракт
  * @property float $paid_amount Оплаченная сумма
  * @property array|null $files Массив файлов
  * @property string|null $note Примечание
@@ -31,7 +31,7 @@ use App\Models\User;
  * @property-read \App\Models\CashRegister|null $cashRegister
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
  * @property-read string $formatted_amount Отформатированная сумма с валютой
- * @property-read string $returned_status Статус возврата контракта
+ * @property-read string $returned_status Статус подписания контракта
  */
 class ProjectContract extends Model
 {
@@ -129,6 +129,6 @@ class ProjectContract extends Model
      */
     public function getReturnedStatusAttribute()
     {
-        return $this->returned ? 'Возвращен' : 'Не возвращен';
+        return $this->returned ? 'Подписан' : 'Не подписан';
     }
 }

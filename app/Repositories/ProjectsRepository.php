@@ -23,7 +23,7 @@ class ProjectsRepository extends BaseRepository
     private function getBaseRelations(): array
     {
         return [
-            'client:id,first_name,last_name,balance',
+            'client:id,first_name,last_name,balance,client_type',
             'client.phones:id,client_id,phone',
             'client.emails:id,client_id,email',
             'currency:id,name,symbol',
@@ -259,7 +259,7 @@ class ProjectsRepository extends BaseRepository
                 'projects.updated_at'
             ])
                 ->with([
-                    'client:id,first_name,last_name,balance',
+                    'client:id,first_name,last_name,balance,client_type',
                     'client.phones:id,client_id,phone',
                     'client.emails:id,client_id,email',
                     'creator:id,name,photo',
@@ -437,7 +437,9 @@ class ProjectsRepository extends BaseRepository
 
         return CacheService::remember($cacheKey, function () use ($projectId) {
             $history = $this->getBalanceHistory($projectId);
-            return collect($history)->sum('amount');
+            $stats = $this->calculateBalanceStats($history);
+
+            return $stats['balance'];
         }, $this->getCacheTTL('reference', true));
     }
 
@@ -452,12 +454,46 @@ class ProjectsRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('project_detailed_balance', [$projectId]);
 
         return CacheService::remember($cacheKey, function () use ($projectId) {
-            $balance = $this->getTotalBalance($projectId);
+            $history = $this->getBalanceHistory($projectId);
+            $stats = $this->calculateBalanceStats($history);
+
             return [
-                'total_balance' => $balance,
-                'real_balance' => $balance
+                'total_balance' => $stats['balance'],
+                'real_balance' => $stats['balance'],
+                'total_income' => $stats['income'],
+                'total_expense' => $stats['expense'],
             ];
         }, $this->getCacheTTL('reference', true));
+    }
+
+    /**
+     * Рассчитать агрегированные показатели баланса проекта
+     *
+     * @param array $history История баланса проекта
+     * @return array{balance: float, income: float, expense: float}
+     */
+    private function calculateBalanceStats(array $history): array
+    {
+        $balance = 0.0;
+        $income = 0.0;
+        $expense = 0.0;
+
+        foreach ($history as $item) {
+            $amount = (float) ($item['amount'] ?? 0);
+            $balance += $amount;
+
+            if ($amount > 0) {
+                $income += $amount;
+            } elseif ($amount < 0) {
+                $expense += abs($amount);
+            }
+        }
+
+        return [
+            'balance' => $balance,
+            'income' => $income,
+            'expense' => $expense,
+        ];
     }
 
     /**
