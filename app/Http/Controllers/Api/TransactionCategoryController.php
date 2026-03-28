@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreTransactionCategoryRequest;
 use App\Http\Requests\UpdateTransactionCategoryRequest;
+use App\Http\Resources\TransactionCategoryResource;
 use App\Repositories\TransactionCategoryRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -14,16 +14,16 @@ use Illuminate\Http\Request;
  */
 class TransactionCategoryController extends BaseController
 {
-    protected $transactionCategoryRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      *
-     * @param TransactionCategoryRepository $transactionCategoryRepository
+     * @param TransactionCategoryRepository $itemsRepository
      */
-    public function __construct(TransactionCategoryRepository $transactionCategoryRepository)
+    public function __construct(TransactionCategoryRepository $itemsRepository)
     {
-        $this->transactionCategoryRepository = $transactionCategoryRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -39,26 +39,17 @@ class TransactionCategoryController extends BaseController
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 20);
 
-        $items = $this->transactionCategoryRepository->getItemsWithPagination($perPage, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($perPage, $page);
 
-        $mappedItems = collect($items->items())->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'type' => $item->type,
-                'creator_id' => $item->creator_id,
-                'user_name' => $item->creator ? $item->creator->name : null,
-                'created_at' => $item->created_at,
-                'updated_at' => $item->updated_at,
-            ];
-        });
-
-        return response()->json([
-            'items' => $mappedItems,
-            'current_page' => $items->currentPage(),
-            'next_page' => $items->nextPageUrl(),
-            'last_page' => $items->lastPage(),
-            'total' => $items->total()
+        return $this->successResponse([
+            'items' => TransactionCategoryResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
         ]);
     }
 
@@ -70,19 +61,9 @@ class TransactionCategoryController extends BaseController
      */
     public function all(Request $request)
     {
-        $items = $this->transactionCategoryRepository->getAllItems();
+        $items = $this->itemsRepository->getAllItems();
 
-        return response()->json($items->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'type' => $item->type,
-                'creator_id' => $item->creator_id,
-                'user_name' => $item->creator ? $item->creator->name : null,
-                'created_at' => $item->created_at,
-                'updated_at' => $item->updated_at,
-            ];
-        }));
+        return $this->successResponse(TransactionCategoryResource::collection($items)->resolve());
     }
 
     /**
@@ -96,7 +77,7 @@ class TransactionCategoryController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $created = $this->transactionCategoryRepository->createItem([
+        $created = $this->itemsRepository->createItem([
             'name' => $validatedData['name'],
             'type' => $validatedData['type'],
             'creator_id' => $userUuid,
@@ -104,7 +85,7 @@ class TransactionCategoryController extends BaseController
 
         if (!$created) return $this->errorResponse('Ошибка создания категории транзакции', 400);
 
-        return response()->json(['message' => 'Категория транзакции создана']);
+        return $this->successResponse(null, 'Категория транзакции создана');
     }
 
     /**
@@ -120,15 +101,15 @@ class TransactionCategoryController extends BaseController
         $validatedData = $request->validated();
 
         try {
-            $updated = $this->transactionCategoryRepository->updateItem($id, [
+            $updated = $this->itemsRepository->updateItem($id, [
                 'name' => $validatedData['name'],
                 'type' => $validatedData['type'],
                 'creator_id' => $userUuid,
             ]);
 
-            if (!$updated) return $this->notFoundResponse('Категория транзакции не найдена');
+            if (!$updated) return $this->errorResponse('Категория транзакции не найдена', 404);
 
-            return response()->json(['message' => 'Категория транзакции обновлена']);
+            return $this->successResponse(null, 'Категория транзакции обновлена');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -145,10 +126,10 @@ class TransactionCategoryController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         try {
-            $deleted = $this->transactionCategoryRepository->deleteItem($id);
-            if (!$deleted) return $this->notFoundResponse('Категория транзакции не найдена');
+            $deleted = $this->itemsRepository->deleteItem($id);
+            if (!$deleted) return $this->errorResponse('Категория транзакции не найдена', 404);
 
-            return response()->json(['message' => 'Категория транзакции удалена']);
+            return $this->successResponse(null, 'Категория транзакции удалена');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }

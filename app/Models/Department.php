@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
+use App\Models\Traits\HasManyToManyUsers;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Traits\HasManyToManyUsers;
 
 class Department extends Model
 {
+    use BelongsToCompany;
     use HasFactory, HasManyToManyUsers;
 
     protected $fillable = [
@@ -44,8 +46,4 @@ class Department extends Model
         return $this->hasMany(Department::class, 'parent_id');
     }
 
-    public function company()
-    {
-        return $this->belongsTo(Company::class);
-    }
 }

@@ -38,7 +38,11 @@ class ClientResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
             'creator_id' => $this->creator_id,
-            'user_name' => $this->creator?->name,
+            'creator' => $this->creator ? [
+                'id' => $this->creator->id,
+                'name' => $this->creator->name,
+                'photo' => $this->creator->photo,
+            ] : null,
             'employee_id' => $this->employee_id,
             'employee' => $this->employee ? [
                 'id' => $this->employee->id,
@@ -57,6 +61,7 @@ class ClientResource extends JsonResource
             'balances' => $balances->map(fn($balance) => [
                 'id' => $balance->id,
                 'currency_id' => $balance->currency_id,
+                'type' => (int) $balance->type,
                 'currency' => [
                     'id' => $balance->currency->id,
                     'code' => $balance->currency->code,

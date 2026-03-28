@@ -21,11 +21,16 @@ class WarehouseWriteoffRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $cacheKey = $this->generateCacheKey('warehouse_writeoffs_paginated', [$userUuid, $perPage]);
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('warehouse_writeoffs_paginated', [$userUuid, $perPage, $companyId]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $companyId) {
             $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
                 ->leftJoin('users', 'wh_write_offs.creator_id', '=', 'users.id');
+
+            if ($companyId) {
+                $items->where('warehouses.company_id', $companyId);
+            }
 
             if ($this->shouldApplyUserFilter('warehouses')) {
                 $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
@@ -46,7 +51,7 @@ class WarehouseWriteoffRepository extends BaseRepository
                 'warehouses.name as warehouse_name',
                 'wh_write_offs.note as note',
                 'wh_write_offs.creator_id as creator_id',
-                'users.name as user_name',
+                'users.name as creator_name',
                 'wh_write_offs.created_at as created_at',
                 'wh_write_offs.updated_at as updated_at'
             )
@@ -58,6 +63,11 @@ class WarehouseWriteoffRepository extends BaseRepository
 
             foreach ($items as $item) {
                 $item->products = $products->get($item->id, collect());
+                $item->creator = $item->creator_id ? [
+                    'id' => (int) $item->creator_id,
+                    'name' => $item->creator_name,
+                ] : null;
+                unset($item->creator_name);
             }
 
             return $items;
@@ -249,8 +259,7 @@ class WarehouseWriteoffRepository extends BaseRepository
                 'products.unit_id as unit_id',
                 'units.name as unit_name',
                 'units.short_name as unit_short_name',
-                'wh_write_off_products.quantity as quantity',
-                'wh_write_off_products.sn_id as sn_id'
+                'wh_write_off_products.quantity as quantity'
             )
             ->get()
             ->groupBy('write_off_id');

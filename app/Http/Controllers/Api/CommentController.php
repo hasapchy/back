@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
+use App\Http\Resources\CommentResource;
 use App\Http\Requests\StoreCommentRequest;
 use App\Http\Requests\UpdateCommentRequest;
 use App\Repositories\CommentsRepository;
@@ -61,7 +61,7 @@ class CommentController extends BaseController
     {
         $user = $this->getAuthenticatedUser();
         if (! $user) {
-            return $this->unauthorizedResponse();
+            return $this->errorResponse(null, 401);
         }
 
         $request->validate([
@@ -70,7 +70,7 @@ class CommentController extends BaseController
         ]);
 
         $comments = $this->itemsRepository->getCommentsFor($request->type, $request->id);
-        return response()->json($comments);
+        return $this->successResponse(CommentResource::collection($comments)->resolve());
     }
 
     /**
@@ -83,7 +83,7 @@ class CommentController extends BaseController
     {
         $user = $this->getAuthenticatedUser();
         if (! $user) {
-            return $this->unauthorizedResponse();
+            return $this->errorResponse(null, 401);
         }
 
         $validatedData = $request->validated();
@@ -92,9 +92,9 @@ class CommentController extends BaseController
 
         $this->invalidateTimelineCache($validatedData['type'], $validatedData['id']);
 
-        return response()->json([
+        return $this->successResponse([
             'message' => 'Комментарий добавлен',
-            'comment' => $comment,
+            'comment' => (new CommentResource($comment))->resolve(),
         ]);
     }
 
@@ -109,7 +109,7 @@ class CommentController extends BaseController
     {
         $user = $this->getAuthenticatedUser();
         if (! $user) {
-            return $this->unauthorizedResponse();
+            return $this->errorResponse(null, 401);
         }
 
         $validatedData = $request->validated();
@@ -117,15 +117,12 @@ class CommentController extends BaseController
         $updatedComment = $this->itemsRepository->updateItem($id, $user->id, $validatedData['body']);
 
         if (! $updatedComment) {
-            return response()->json(['message' => 'Комментарий не найден или нет прав'], 403);
+            return $this->errorResponse('Комментарий не найден или нет прав', 403);
         }
 
         $this->invalidateTimelineCache($updatedComment->commentable_type, $updatedComment->commentable_id);
 
-        return response()->json([
-            'message' => 'Комментарий обновлён',
-            'comment' => $updatedComment,
-        ]);
+        return $this->successResponse(new CommentResource($updatedComment), 'Комментарий обновлён');
     }
 
     /**
@@ -138,7 +135,7 @@ class CommentController extends BaseController
     {
         $user = $this->getAuthenticatedUser();
         if (!$user) {
-            return $this->unauthorizedResponse();
+            return $this->errorResponse(null, 401);
         }
 
         $comment = Comment::where('id', $id)
@@ -146,18 +143,18 @@ class CommentController extends BaseController
             ->first();
 
         if (!$comment) {
-            return $this->forbiddenResponse('Комментарий не найден или нет прав');
+            return $this->errorResponse('Комментарий не найден или нет прав', 404);
         }
 
         $deleted = $this->itemsRepository->deleteItem($id, $user->id);
 
         if (!$deleted) {
-            return $this->forbiddenResponse('Комментарий не найден или нет прав');
+            return $this->errorResponse('Комментарий не найден или нет прав', 404);
         }
 
         $this->invalidateTimelineCache($comment->commentable_type, $comment->commentable_id);
 
-        return response()->json(['message' => 'Комментарий удалён']);
+        return $this->successResponse(null, 'Комментарий удалён');
     }
 
     /**
@@ -170,7 +167,7 @@ class CommentController extends BaseController
     {
         $user = $this->getAuthenticatedUser();
         if (!$user) {
-            return $this->unauthorizedResponse();
+            return $this->errorResponse(null, 401);
         }
 
         $request->validate([

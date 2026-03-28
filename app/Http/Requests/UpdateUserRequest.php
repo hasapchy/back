@@ -33,6 +33,7 @@ class UpdateUserRequest extends FormRequest
             'phone'    => 'nullable|string|max:20',
             'password' => 'nullable|string|min:6|confirmed',
             'hire_date' => 'nullable|date',
+            'dismissal_date' => 'nullable|date',
             'birthday' => 'nullable|date',
             'position' => 'nullable|string|max:255',
             'is_active'   => 'nullable|boolean',
@@ -112,6 +113,9 @@ class UpdateUserRequest extends FormRequest
         }
         if (isset($data['hire_date']) && trim($data['hire_date']) === '') {
             $data['hire_date'] = null;
+        }
+        if (isset($data['dismissal_date']) && trim($data['dismissal_date']) === '') {
+            $data['dismissal_date'] = null;
         }
         if (isset($data['birthday']) && trim($data['birthday']) === '') {
             $data['birthday'] = null;

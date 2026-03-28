@@ -2,141 +2,197 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Order;
+use App\Models\OrderProduct;
+use App\Models\OrderTempProduct;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Collection;
 
 class OrderResource extends JsonResource
 {
     /**
+     * @param  Request  $request
      * @return array<string, mixed>
      */
     public function toArray($request): array
     {
-        $resource = $this->resource;
-
-        // Продукты: приоритет — готовое поле products, иначе — загруженные связи.
-        $allProducts = collect();
-        if (isset($this->products)) {
-            $allProducts = collect($this->products);
-        } else {
-            $orderProducts = ($this->relationLoaded('orderProducts') || isset($this->orderProducts)) ? ($this->orderProducts ?? []) : [];
-            foreach ($orderProducts as $orderProduct) {
-                $product = $orderProduct->product ?? null;
-                $allProducts->push([
-                    'id' => $orderProduct->id,
-                    'product_id' => $orderProduct->product_id,
-                    'product_name' => $product?->name ?? null,
-                    'product_image' => $product?->image ?? null,
-                    'unit_id' => $product?->unit_id ?? null,
-                    'unit_short_name' => $product?->unit?->short_name ?? null,
-                    'quantity' => $orderProduct->quantity,
-                    'price' => $orderProduct->price,
-                    'width' => $orderProduct->width,
-                    'height' => $orderProduct->height,
-                    'product_type' => 'regular'
-                ]);
-            }
-
-            $tempProducts = ($this->relationLoaded('tempProducts') || isset($this->tempProducts)) ? ($this->tempProducts ?? []) : [];
-            foreach ($tempProducts as $tempProduct) {
-                $allProducts->push([
-                    'id' => $tempProduct->id,
-                    'product_id' => null,
-                    'product_name' => $tempProduct->name,
-                    'product_image' => null,
-                    'unit_id' => $tempProduct->unit_id,
-                    'unit_short_name' => $tempProduct->unit?->short_name ?? null,
-                    'quantity' => $tempProduct->quantity,
-                    'price' => $tempProduct->price,
-                    'width' => $tempProduct->width,
-                    'height' => $tempProduct->height,
-                    'product_type' => 'temp'
-                ]);
-            }
+        if (! $this->resource instanceof Order) {
+            return parent::toArray($request);
         }
 
-        $price = (float)(data_get($resource, 'price', 0));
-        $discount = (float)(data_get($resource, 'discount', 0));
+        /** @var Order $order */
+        $order = $this->resource;
+
+        $allProducts = $this->collectProductsForResponse($order);
+
+        $price = (float) ($order->price ?? 0);
+        $discount = (float) ($order->discount ?? 0);
         $totalPrice = $price - $discount;
-        $paidAmount = (float)(data_get($resource, 'paid_amount', 0));
+        $paidAmount = (float) ($order->paid_amount ?? 0);
 
-        $paymentStatusText = $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $totalPrice ? 'Частично оплачено' : 'Оплачено');
+        $paymentStatusText = $paidAmount <= 0
+            ? 'Не оплачено'
+            : ($paidAmount < $totalPrice ? 'Частично оплачено' : 'Оплачено');
 
-        $status = data_get($resource, 'status');
-        $category = data_get($resource, 'category');
-        $client = data_get($resource, 'client');
-        $user = data_get($resource, 'creator') ?? data_get($resource, 'user');
-        $cash = data_get($resource, 'cash');
-        $warehouse = data_get($resource, 'warehouse');
-        $project = data_get($resource, 'project');
+        $status = $order->status;
+        $category = $order->category;
+        $client = $order->client;
+        $creator = $order->creator;
+        $cashRegister = $order->cashRegister;
+        $warehouse = $order->warehouse;
+        $project = $order->project;
 
         return [
-            'id' => data_get($resource, 'id'),
-            'note' => data_get($resource, 'note'),
-            'description' => data_get($resource, 'description'),
-            'status_id' => data_get($resource, 'status_id'),
-            'category_id' => data_get($resource, 'category_id'),
-            'client_id' => data_get($resource, 'client_id'),
-            'creator_id' => data_get($resource, 'creator_id'),
-            'cash_id' => data_get($resource, 'cash_id'),
-            'warehouse_id' => data_get($resource, 'warehouse_id'),
-            'project_id' => data_get($resource, 'project_id'),
+            'id' => $order->id,
+            'note' => $order->note,
+            'description' => $order->description,
+            'status_id' => $order->status_id,
+            'category_id' => $order->category_id,
+            'client_id' => $order->client_id,
+            'creator_id' => $order->creator_id,
+            'cash_id' => $order->cash_id,
+            'warehouse_id' => $order->warehouse_id,
+            'project_id' => $order->project_id,
             'price' => $price,
             'discount' => $discount,
             'total_price' => $totalPrice,
             'paid_amount' => $paidAmount,
             'payment_status_text' => $paymentStatusText,
-            'date' => $this->date ? (is_string($this->date) ? $this->date : $this->date->toIso8601String()) : null,
-            'created_at' => $this->created_at ? (is_string($this->created_at) ? $this->created_at : $this->created_at->toIso8601String()) : null,
-            'updated_at' => $this->updated_at ? (is_string($this->updated_at) ? $this->updated_at : $this->updated_at->toIso8601String()) : null,
+            'date' => $this->serializeDateValue($order->date),
+            'created_at' => $this->serializeDateValue($order->created_at),
+            'updated_at' => $this->serializeDateValue($order->updated_at),
             'status' => $status ? array_filter([
-                'id' => data_get($resource, 'status_id'),
-                'name' => data_get($status, 'name'),
-                'category' => data_get($status, 'category') ? [
-                    'id' => data_get($status, 'category.id'),
-                    'name' => data_get($status, 'category.name'),
-                    'color' => data_get($status, 'category.color'),
+                'id' => $order->status_id,
+                'name' => $status->name,
+                'category' => $status->category ? [
+                    'id' => $status->category->id,
+                    'name' => $status->category->name,
+                    'color' => $status->category->color,
                 ] : null,
-            ], fn($value) => $value !== null) : null,
+            ], fn ($value) => $value !== null) : null,
             'category' => $category ? [
-                'id' => data_get($category, 'id'),
-                'name' => data_get($category, 'name'),
+                'id' => $category->id,
+                'name' => $category->name,
             ] : null,
             'client' => $client ? [
-                'id' => data_get($client, 'id'),
-                'first_name' => data_get($client, 'first_name'),
-                'last_name' => data_get($client, 'last_name'),
-                'client_type' => data_get($client, 'client_type'),
-                'is_supplier' => (bool)data_get($client, 'is_supplier'),
-                'is_conflict' => (bool)data_get($client, 'is_conflict'),
-                'phones' => collect(data_get($client, 'phones', []))->map(fn($phone) => [
-                    'id' => data_get($phone, 'id'),
-                    'phone' => data_get($phone, 'phone'),
-                ])->all(),
+                'id' => $client->id,
+                'first_name' => $client->first_name,
+                'last_name' => $client->last_name,
+                'client_type' => $client->client_type,
+                'is_supplier' => (bool) $client->is_supplier,
+                'is_conflict' => (bool) $client->is_conflict,
+                'phones' => $client->phones
+                    ? $client->phones->map(fn ($phone) => [
+                        'id' => $phone->id,
+                        'phone' => $phone->phone,
+                    ])->all()
+                    : [],
             ] : null,
-            'user' => $user ? [
-                'id' => data_get($user, 'id'),
-                'name' => data_get($user, 'name'),
-                'photo' => data_get($user, 'photo'),
+            'creator' => $creator ? [
+                'id' => $creator->id,
+                'name' => $creator->name,
+                'photo' => $creator->photo,
             ] : null,
-            'cash' => $cash ? [
-                'id' => data_get($cash, 'id'),
-                'name' => data_get($cash, 'name'),
-                'currency' => data_get($cash, 'currency') ? [
-                    'id' => data_get($cash, 'currency.id'),
-                    'name' => data_get($cash, 'currency.name'),
-                    'symbol' => data_get($cash, 'currency.symbol'),
+            'cash_register' => $cashRegister ? [
+                'id' => $cashRegister->id,
+                'name' => $cashRegister->name,
+                'is_cash' => $cashRegister->is_cash,
+                'currency' => $cashRegister->currency ? [
+                    'id' => $cashRegister->currency->id,
+                    'name' => $cashRegister->currency->name,
+                    'symbol' => $cashRegister->currency->symbol,
                 ] : null,
             ] : null,
             'warehouse' => $warehouse ? [
-                'id' => data_get($warehouse, 'id'),
-                'name' => data_get($warehouse, 'name'),
+                'id' => $warehouse->id,
+                'name' => $warehouse->name,
             ] : null,
             'project' => $project ? [
-                'id' => data_get($project, 'id'),
-                'name' => data_get($project, 'name'),
+                'id' => $project->id,
+                'name' => $project->name,
             ] : null,
             'products' => $allProducts->all(),
         ];
     }
-}
 
+    /**
+     * @return Collection<int, mixed>
+     */
+    private function collectProductsForResponse(Order $order): Collection
+    {
+        $attributes = $order->getAttributes();
+        if (array_key_exists('products', $attributes) && $attributes['products'] !== null) {
+            return collect($attributes['products']);
+        }
+
+        $all = collect();
+
+        $orderProducts = $order->relationLoaded('orderProducts')
+            ? $order->orderProducts
+            : collect();
+
+        foreach ($orderProducts as $orderProduct) {
+            if (! $orderProduct instanceof OrderProduct) {
+                continue;
+            }
+            $product = $orderProduct->product;
+            $all->push([
+                'id' => $orderProduct->id,
+                'product_id' => $orderProduct->product_id,
+                'product_name' => $product?->name,
+                'product_image' => $product?->image,
+                'unit_id' => $product?->unit_id,
+                'unit_short_name' => $product?->unit?->short_name,
+                'quantity' => $orderProduct->quantity,
+                'price' => $orderProduct->price,
+                'width' => $orderProduct->width,
+                'height' => $orderProduct->height,
+                'product_type' => 'regular',
+            ]);
+        }
+
+        $tempProducts = $order->relationLoaded('tempProducts')
+            ? $order->tempProducts
+            : collect();
+
+        foreach ($tempProducts as $tempProduct) {
+            if (! $tempProduct instanceof OrderTempProduct) {
+                continue;
+            }
+            $all->push([
+                'id' => $tempProduct->id,
+                'product_id' => null,
+                'product_name' => $tempProduct->name,
+                'product_image' => null,
+                'unit_id' => $tempProduct->unit_id,
+                'unit_short_name' => $tempProduct->unit?->short_name,
+                'quantity' => $tempProduct->quantity,
+                'price' => $tempProduct->price,
+                'width' => $tempProduct->width,
+                'height' => $tempProduct->height,
+                'product_type' => 'temp',
+            ]);
+        }
+
+        return $all;
+    }
+
+    private function serializeDateValue(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            return $value;
+        }
+
+        if ($value instanceof Carbon) {
+            return $value->toIso8601String();
+        }
+
+        return null;
+    }
+}

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
+use App\Http\Resources\WarehouseStockResource;
 use App\Repositories\WarehouseStockRepository;
 use Illuminate\Http\Request;
 
@@ -11,16 +11,16 @@ use Illuminate\Http\Request;
  */
 class WarehouseStockController extends BaseController
 {
-    protected $warehouseRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      *
-     * @param WarehouseStockRepository $warehouseRepository
+     * @param WarehouseStockRepository $itemsRepository
      */
-    public function __construct(WarehouseStockRepository $warehouseRepository)
+    public function __construct(WarehouseStockRepository $itemsRepository)
     {
-        $this->warehouseRepository = $warehouseRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -40,7 +40,7 @@ class WarehouseStockController extends BaseController
         $search = $request->query('search');
         $availability = $request->query('availability');
 
-        $warehouses = $this->warehouseRepository->getItemsWithPagination(
+        $warehouses = $this->itemsRepository->getItemsWithPagination(
             $userUuid,
             $perPage,
             $warehouse_id,
@@ -50,6 +50,15 @@ class WarehouseStockController extends BaseController
             $availability
         );
 
-        return $this->paginatedResponse($warehouses);
+        return $this->successResponse([
+            'items' => WarehouseStockResource::collection($warehouses->items())->resolve(),
+            'meta' => [
+                'current_page' => $warehouses->currentPage(),
+                'next_page' => $warehouses->nextPageUrl(),
+                'last_page' => $warehouses->lastPage(),
+                'per_page' => $warehouses->perPage(),
+                'total' => $warehouses->total(),
+            ],
+        ]);
     }
 }

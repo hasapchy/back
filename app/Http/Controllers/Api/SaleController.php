@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreSaleRequest;
 use App\Http\Requests\UpdateSaleRequest;
+use App\Http\Resources\SaleResource;
 use App\Repositories\SalesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -14,16 +14,16 @@ use Illuminate\Http\Request;
  */
 class SaleController extends BaseController
 {
-    protected $itemRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      *
-     * @param SalesRepository $itemRepository Репозиторий продаж
+     * @param SalesRepository $itemsRepository Репозиторий продаж
      */
-    public function __construct(SalesRepository $itemRepository)
+    public function __construct(SalesRepository $itemsRepository)
     {
-        $this->itemRepository = $itemRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -44,9 +44,17 @@ class SaleController extends BaseController
         $endDate = $request->input('end_date');
         $clientId = $request->input('client_id');
 
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $page, $clientId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $page, $clientId);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => SaleResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -91,7 +99,7 @@ class SaleController extends BaseController
         ];
 
         try {
-            $this->itemRepository->createItem($data);
+            $this->itemsRepository->createItem($data);
 
             CacheService::invalidateSalesCache();
             CacheService::invalidateClientsCache();
@@ -99,7 +107,7 @@ class SaleController extends BaseController
                 CacheService::invalidateProjectsCache();
             }
 
-            return response()->json(['message' => 'Продажа добавлена'], 201);
+            return $this->successResponse(null, 'Продажа добавлена', 201);
         } catch (\Throwable $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -116,13 +124,13 @@ class SaleController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $sale = $this->itemRepository->getItemById($id);
+        $sale = $this->itemsRepository->getItemById($id);
         if (!$sale) {
-            return $this->notFoundResponse('Продажа не найдена');
+            return $this->errorResponse('Продажа не найдена', 404);
         }
 
         if (!$this->canPerformAction('sales', 'update', $sale)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этой продажи');
+            return $this->errorResponse('У вас нет прав на редактирование этой продажи', 403);
         }
 
         $validatedData = $request->validated();
@@ -157,7 +165,7 @@ class SaleController extends BaseController
         ];
 
         try {
-            $this->itemRepository->updateItem((int) $id, $data);
+            $this->itemsRepository->updateItem((int) $id, $data);
 
             CacheService::invalidateSalesCache();
             CacheService::invalidateClientsCache();
@@ -165,7 +173,7 @@ class SaleController extends BaseController
                 CacheService::invalidateProjectsCache();
             }
 
-            return response()->json(['message' => 'Продажа обновлена']);
+            return $this->successResponse(null, 'Продажа обновлена');
         } catch (\Throwable $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -179,16 +187,16 @@ class SaleController extends BaseController
      */
     public function show($id)
     {
-        $item = $this->itemRepository->getItemById($id);
+        $item = $this->itemsRepository->getItemById($id);
         if (!$item) {
-            return $this->notFoundResponse('Not found');
+            return $this->errorResponse('Not found', 404);
         }
 
         if (!$this->canPerformAction('sales', 'view', $item)) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр этой продажи');
+            return $this->errorResponse('У вас нет прав на просмотр этой продажи', 403);
         }
 
-        return response()->json(['item' => $item]);
+        return $this->successResponse(new SaleResource($item));
     }
 
     /**
@@ -201,13 +209,13 @@ class SaleController extends BaseController
     {
         $this->getAuthenticatedUserIdOrFail();
 
-        $sale = $this->itemRepository->getItemById($id);
+        $sale = $this->itemsRepository->getItemById($id);
         if (!$sale) {
-            return $this->notFoundResponse('Продажа не найдена');
+            return $this->errorResponse('Продажа не найдена', 404);
         }
 
         if (!$this->canPerformAction('sales', 'delete', $sale)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этой продажи');
+            return $this->errorResponse('У вас нет прав на удаление этой продажи', 403);
         }
 
         try {
@@ -218,7 +226,7 @@ class SaleController extends BaseController
                 'project_id' => $projectId,
             ];
 
-            $result = $this->itemRepository->deleteItem($id);
+            $result = $this->itemsRepository->deleteItem($id);
 
             CacheService::invalidateSalesCache();
             CacheService::invalidateClientsCache();
@@ -226,7 +234,7 @@ class SaleController extends BaseController
                 CacheService::invalidateProjectsCache();
             }
 
-            return response()->json(['sale' => $saleData, 'message' => 'Продажа удалена успешно']);
+            return $this->successResponse($saleData, 'Продажа удалена успешно');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка при удалении продажи: ' . $th->getMessage(), 400);
         }

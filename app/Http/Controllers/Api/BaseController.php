@@ -9,7 +9,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\PermissionCheckService;
-use App\Services\PermissionParser;
 
 class BaseController extends BaseRoutingController
 {
@@ -27,10 +26,22 @@ class BaseController extends BaseRoutingController
 
     /**
      * Получить текущую компанию пользователя из заголовка запроса
+     *
+     * @return int|null
      */
-    protected function getCurrentCompanyId()
+    protected function getCurrentCompanyId(): ?int
     {
-        return request()->header('X-Company-ID');
+        $companyId = request()->header('X-Company-ID');
+
+        if ($companyId === null || $companyId === '') {
+            return null;
+        }
+
+        if (!is_numeric($companyId)) {
+            return null;
+        }
+
+        return (int) $companyId;
     }
 
     /**
@@ -69,23 +80,6 @@ class BaseController extends BaseRoutingController
     protected function getAuthenticatedUserIdOrFail(): int
     {
         return $this->requireAuthenticatedUser()->id;
-    }
-
-    /**
-     * Получить ID авторизованного пользователя
-     *
-     * @deprecated Используйте getAuthenticatedUserIdOrFail() для избежания проверки instanceof JsonResponse
-     * @return int|\Illuminate\Http\JsonResponse
-     */
-    protected function requireAuthenticatedUserId()
-    {
-        $user = $this->getAuthenticatedUser();
-
-        if (!$user) {
-            return $this->unauthorizedResponse();
-        }
-
-        return $user->id;
     }
 
     /**
@@ -242,87 +236,29 @@ class BaseController extends BaseRoutingController
     }
 
     /**
-     * Вернуть ответ с ошибкой
-     *
-     * @param int $status HTTP статус код
-     * @param string|null $message Сообщение об ошибке
-     * @param string $key Ключ для сообщения (по умолчанию 'error')
-     * @return \Illuminate\Http\JsonResponse
+     * @param mixed $data
+     * @return JsonResponse
      */
-    protected function errorResponseByStatus(int $status, $message = null, string $key = 'error'): JsonResponse
+    protected function successResponse($data = null, ?string $message = null, int $status = 200): JsonResponse
     {
-        $defaultMessages = [
-            401 => 'Unauthorized',
-            403 => 'Forbidden',
-            404 => 'Not Found',
-            500 => 'Internal Server Error',
-        ];
-
-        return response()->json([
-            $key => $message ?? $defaultMessages[$status] ?? 'Error'
-        ], $status);
+        return $this->messageResponse($status, $message, $data);
     }
 
     /**
-     * Вернуть ответ с ошибкой 401 (Unauthorized)
-     *
-     * @param string|null $message
-     * @return \Illuminate\Http\JsonResponse
+     * @param \Illuminate\Contracts\Pagination\LengthAwarePaginator $items
+     * @return JsonResponse
      */
-    protected function unauthorizedResponse($message = null)
-    {
-        return $this->errorResponseByStatus(401, $message);
-    }
-
-    /**
-     * Вернуть ответ с ошибкой 403 (Forbidden)
-     *
-     * @param string|null $message
-     * @return \Illuminate\Http\JsonResponse
-     */
-    protected function forbiddenResponse($message = null)
-    {
-        return $this->errorResponseByStatus(403, $message);
-    }
-
-    /**
-     * Вернуть ответ с ошибкой 404 (Not Found)
-     *
-     * @param string|null $message
-     * @return \Illuminate\Http\JsonResponse
-     */
-    protected function notFoundResponse($message = null)
-    {
-        return $this->errorResponseByStatus(404, $message);
-    }
-
-    protected function successResponse($data = null, $message = null, $status = 200)
-    {
-        $response = [];
-
-        if ($message !== null) {
-            $response['message'] = $message;
-        }
-
-        if ($data !== null) {
-            if (is_array($data) && isset($data['message'])) {
-                $response = array_merge($response, $data);
-            } else {
-                $response['data'] = $data;
-            }
-        }
-
-        return response()->json($response, $status);
-    }
-
-    protected function paginatedResponse($items)
+    protected function paginatedResponse($items): JsonResponse
     {
         return response()->json([
-            'items' => $items->items(),
-            'current_page' => $items->currentPage(),
-            'next_page' => $items->nextPageUrl(),
-            'last_page' => $items->lastPage(),
-            'total' => $items->total()
+            'data' => $items->items(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
         ]);
     }
 
@@ -378,12 +314,9 @@ class BaseController extends BaseRoutingController
      * @param \Illuminate\Contracts\Validation\Validator $validator
      * @return \Illuminate\Http\JsonResponse
      */
-    protected function validationErrorResponse($validator)
+    protected function validationErrorResponse($validator): JsonResponse
     {
-        return response()->json([
-            'message' => 'Ошибка валидации',
-            'errors' => $validator->errors()
-        ], 422);
+        return $this->messageResponse(422, 'Ошибка валидации', null, 'message', $validator->errors()->toArray());
     }
 
     /**
@@ -393,9 +326,45 @@ class BaseController extends BaseRoutingController
      * @param int $status
      * @return \Illuminate\Http\JsonResponse
      */
-    protected function errorResponse($message = null, $status = 500)
+    protected function errorResponse(?string $message = null, int $status = 500): JsonResponse
     {
-        return $this->errorResponseByStatus($status, $message);
+        $defaultMessages = [
+            401 => 'Unauthorized',
+            403 => 'Forbidden',
+            404 => 'Not Found',
+            500 => 'Internal Server Error',
+        ];
+
+        return $this->messageResponse($status, $message ?? $defaultMessages[$status] ?? 'Error', null, 'error');
+    }
+
+    /**
+     * @param mixed $data
+     * @param array<string, mixed>|null $errors
+     * @return JsonResponse
+     */
+    private function messageResponse(
+        int $status,
+        ?string $message = null,
+        $data = null,
+        string $messageKey = 'message',
+        ?array $errors = null
+    ): JsonResponse {
+        $response = [];
+
+        if ($message !== null) {
+            $response[$messageKey] = $message;
+        }
+
+        if ($data !== null) {
+            $response['data'] = $data;
+        }
+
+        if ($errors !== null) {
+            $response['errors'] = $errors;
+        }
+
+        return response()->json($response, $status);
     }
 
     /**
@@ -404,7 +373,7 @@ class BaseController extends BaseRoutingController
      * @param int|null $cashId ID кассы
      * @return \Illuminate\Http\JsonResponse|null Возвращает ответ с ошибкой, если нет прав, иначе null
      */
-    protected function checkCashRegisterAccess(?int $cashId)
+    protected function checkCashRegisterAccess(?int $cashId): ?JsonResponse
     {
         if ($cashId) {
             $cashRegister = \App\Models\CashRegister::find($cashId);
@@ -433,7 +402,7 @@ class BaseController extends BaseRoutingController
                 }
 
                 if (!$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
-                    return $this->forbiddenResponse('У вас нет прав на эту кассу');
+                    return $this->errorResponse('У вас нет прав на эту кассу', 403);
                 }
             }
         }
@@ -446,12 +415,12 @@ class BaseController extends BaseRoutingController
      * @param int|null $warehouseId ID склада
      * @return \Illuminate\Http\JsonResponse|null Возвращает ответ с ошибкой, если нет прав, иначе null
      */
-    protected function checkWarehouseAccess(?int $warehouseId)
+    protected function checkWarehouseAccess(?int $warehouseId): ?JsonResponse
     {
         if ($warehouseId) {
             $warehouse = \App\Models\Warehouse::find($warehouseId);
             if ($warehouse && !$this->canPerformAction('warehouses', 'view', $warehouse)) {
-                return $this->forbiddenResponse('У вас нет прав на этот склад');
+                return $this->errorResponse('У вас нет прав на этот склад', 403);
             }
         }
         return null;

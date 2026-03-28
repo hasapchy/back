@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreCompanyHolidayRequest;
 use App\Http\Requests\UpdateCompanyHolidayRequest;
+use App\Http\Resources\CompanyHolidayResource;
 use App\Models\CompanyHoliday;
 use App\Repositories\CompanyHolidayRepository;
 use Illuminate\Http\Request;
@@ -40,7 +41,15 @@ class CompanyHolidayController extends BaseController
 
         $items = $this->repository->getItemsWithPagination($userUuid, $perPage, $filters);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => CompanyHolidayResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -61,7 +70,7 @@ class CompanyHolidayController extends BaseController
 
         $items = $this->repository->getAllItems($userUuid, $filters);
 
-        return response()->json($items);
+        return $this->successResponse(CompanyHolidayResource::collection($items)->resolve());
     }
 
     /**
@@ -77,9 +86,9 @@ class CompanyHolidayController extends BaseController
         try {
             $holiday = $this->repository->getItemById($id);
 
-            return response()->json(['item' => $holiday]);
+            return $this->successResponse(new CompanyHolidayResource($holiday));
         } catch (\Exception $e) {
-            return $this->notFoundResponse('Праздник не найден');
+            return $this->errorResponse('Праздник не найден', 404);
         }
     }
 
@@ -108,7 +117,7 @@ class CompanyHolidayController extends BaseController
             return $this->errorResponse('Ошибка создания праздника', 400);
         }
 
-        return response()->json(['item' => $created, 'message' => 'Праздник создан']);
+        return $this->successResponse(new CompanyHolidayResource($created), 'Праздник создан');
     }
 
     /**
@@ -139,9 +148,9 @@ class CompanyHolidayController extends BaseController
                 return $this->errorResponse('Ошибка обновления', 400);
             }
 
-            return response()->json(['item' => $updated, 'message' => 'Праздник обновлен']);
+            return $this->successResponse(new CompanyHolidayResource($updated), 'Праздник обновлен');
         } catch (\Exception $e) {
-            return $this->notFoundResponse('Праздник не найден');
+            return $this->errorResponse('Праздник не найден', 404);
         }
     }
 
@@ -163,9 +172,9 @@ class CompanyHolidayController extends BaseController
                 return $this->errorResponse('Ошибка удаления', 400);
             }
 
-            return response()->json(['message' => 'Праздник удален']);
+            return $this->successResponse(null, 'Праздник удален');
         } catch (\Exception $e) {
-            return $this->notFoundResponse('Праздник не найден');
+            return $this->errorResponse('Праздник не найден', 404);
         }
     }
 
@@ -197,7 +206,7 @@ class CompanyHolidayController extends BaseController
                 }
             }
 
-            return response()->json([
+            return $this->successResponse([
                 'message' => "Удалено праздников: $deleted",
                 'deleted' => $deleted,
             ]);

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
 
@@ -17,7 +16,7 @@ class CacheController extends BaseController
     {
         CacheService::flushAll();
 
-        return response()->json([
+        return $this->successResponse([
             'success' => true,
             'message' => 'Cache cleared',
             'backend_cleared' => true,

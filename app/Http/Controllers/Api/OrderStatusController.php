@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreOrderStatusRequest;
 use App\Http\Requests\UpdateOrderStatusRequest;
+use App\Http\Resources\OrderStatusResource;
 use App\Models\Order;
 use App\Repositories\OrderStatusRepository;
 use Illuminate\Http\Request;
@@ -13,14 +14,14 @@ use Illuminate\Http\Request;
  */
 class OrderStatusController extends BaseController
 {
-    protected $orderStatusRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      */
-    public function __construct(OrderStatusRepository $orderStatusRepository)
+    public function __construct(OrderStatusRepository $itemsRepository)
     {
-        $this->orderStatusRepository = $orderStatusRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -35,9 +36,18 @@ class OrderStatusController extends BaseController
         $perPage = $request->input('per_page', 20);
         $page = $request->input('page', 1);
 
-        $items = $this->orderStatusRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => OrderStatusResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -49,9 +59,9 @@ class OrderStatusController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->orderStatusRepository->getAllItems($userUuid);
+        $items = $this->itemsRepository->getAllItems($userUuid);
 
-        return response()->json($items);
+        return $this->successResponse(OrderStatusResource::collection($items)->resolve());
     }
 
     /**
@@ -65,7 +75,7 @@ class OrderStatusController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $created = $this->orderStatusRepository->createItem([
+        $created = $this->itemsRepository->createItem([
             'name' => $validatedData['name'],
             'category_id' => $validatedData['category_id'],
             'is_active' => $validatedData['is_active'] ?? true,
@@ -74,7 +84,7 @@ class OrderStatusController extends BaseController
             return $this->errorResponse('Ошибка создания статуса', 400);
         }
 
-        return response()->json(['message' => 'Статус создан']);
+        return $this->successResponse(null, 'Статус создан');
     }
 
     /**
@@ -110,12 +120,12 @@ class OrderStatusController extends BaseController
             $updateData['is_active'] = $validatedData['is_active'];
         }
 
-        $updated = $this->orderStatusRepository->updateItem($id, $updateData);
+        $updated = $this->itemsRepository->updateItem($id, $updateData);
         if (! $updated) {
             return $this->errorResponse('Ошибка обновления статуса', 400);
         }
 
-        return response()->json(['message' => 'Статус обновлен']);
+        return $this->successResponse(null, 'Статус обновлен');
     }
 
     /**
@@ -133,11 +143,11 @@ class OrderStatusController extends BaseController
             return $this->errorResponse('Системный статус нельзя удалить', 400);
         }
 
-        $deleted = $this->orderStatusRepository->deleteItem($id);
+        $deleted = $this->itemsRepository->deleteItem($id);
         if (! $deleted) {
             return $this->errorResponse('Ошибка удаления статуса', 400);
         }
 
-        return response()->json(['message' => 'Статус удален']);
+        return $this->successResponse(null, 'Статус удален');
     }
 }

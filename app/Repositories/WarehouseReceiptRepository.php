@@ -85,7 +85,7 @@ class WarehouseReceiptRepository extends BaseRepository
             ->leftJoin('clients', 'wh_receipts.supplier_id', '=', 'clients.id')
             ->with([
                 'warehouse:id,name',
-                'cashRegister:id,name,currency_id',
+                'cashRegister:id,name,currency_id,is_cash',
                 'cashRegister.currency:id,name,symbol',
                 'creator:id,name',
                 'project:id,name',

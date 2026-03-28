@@ -12,13 +12,11 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $write_off_id ID списания
  * @property int $product_id ID продукта
  * @property float $quantity Количество
- * @property int|null $sn_id ID серийного номера
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
  * @property-read \App\Models\WhWriteoff $writeOff
  * @property-read \App\Models\Product $product
- * @property-read mixed|null $serialNumber
  */
 class WhWriteoffProduct extends Model
 {
@@ -26,15 +24,13 @@ class WhWriteoffProduct extends Model
 
     protected $table = 'wh_write_off_products';
 
-    protected $fillable = ['write_off_id', 'product_id', 'quantity', 'sn_id'];
+    protected $fillable = ['write_off_id', 'product_id', 'quantity'];
 
     protected $casts = [
         'quantity' => 'decimal:5',
     ];
 
     /**
-     * Связь со списанием
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function writeOff()
@@ -43,13 +39,10 @@ class WhWriteoffProduct extends Model
     }
 
     /**
-     * Связь с продуктом
-     *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function product()
     {
         return $this->belongsTo(Product::class, 'product_id');
     }
-
 }

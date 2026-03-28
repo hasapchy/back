@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
+use App\Http\Resources\CompanyResource;
 use App\Models\Company;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -23,7 +23,7 @@ class UserCompanyController extends BaseController
     {
         $user = $this->getAuthenticatedUser();
         if (!$user) {
-            return $this->unauthorizedResponse();
+            return $this->errorResponse(null, 401);
         }
 
         $selectedCompanyId = $this->getCurrentCompanyId() ?? $request->input('company_id');
@@ -36,17 +36,17 @@ class UserCompanyController extends BaseController
                 ->first();
 
             if ($company) {
-                return response()->json(['company' => $company]);
+                return $this->successResponse(new CompanyResource($company));
             }
         }
 
         $company = $user->companies()->first();
 
         if (!$company) {
-            return $this->notFoundResponse('No companies available for user');
+            return $this->errorResponse('No companies available for user', 404);
         }
 
-        return response()->json(['company' => $company]);
+        return $this->successResponse(new CompanyResource($company));
     }
 
     /**
@@ -59,7 +59,7 @@ class UserCompanyController extends BaseController
     {
         $user = $this->getAuthenticatedUser();
         if (!$user) {
-            return $this->unauthorizedResponse();
+            return $this->errorResponse(null, 401);
         }
 
         $companyId = $request->company_id;
@@ -67,20 +67,20 @@ class UserCompanyController extends BaseController
         if (!$companyId) {
             $company = $user->companies()->first();
             if (!$company) {
-                return $this->notFoundResponse('No companies available');
+                return $this->errorResponse('No companies available', 404);
             }
             $companyId = $company->id;
         } else {
             $company = $user->companies()->where('companies.id', $companyId)->first();
 
             if (!$company) {
-                return $this->notFoundResponse('Company not found or access denied');
+                return $this->errorResponse('Company not found or access denied', 404);
             }
         }
 
         CacheService::invalidateCurrenciesCache();
 
-        return response()->json(['company' => $company, 'message' => 'Company selected successfully']);
+        return $this->successResponse(new CompanyResource($company), 'Company selected successfully');
     }
 
     /**
@@ -92,7 +92,7 @@ class UserCompanyController extends BaseController
     {
         $user = $this->getAuthenticatedUser();
         if (!$user) {
-            return $this->unauthorizedResponse();
+            return $this->errorResponse(null, 401);
         }
 
         $companies = $user->companies()->select(
@@ -114,6 +114,6 @@ class UserCompanyController extends BaseController
             'companies.updated_at'
         )->get();
 
-        return response()->json($companies);
+        return $this->successResponse(CompanyResource::collection($companies)->resolve());
     }
 }

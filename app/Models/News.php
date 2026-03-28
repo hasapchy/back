@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class News extends Model
 {
+    use BelongsToCompany;
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
@@ -21,11 +23,6 @@ class News extends Model
     protected $casts = [
         'meta' => 'array',
     ];
-
-    public function company()
-    {
-        return $this->belongsTo(Company::class);
-    }
 
     public function creator()
     {

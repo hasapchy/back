@@ -120,10 +120,22 @@ class ClientsRepository extends BaseRepository
     /**
      * Получить всех активных клиентов
      *
-     * @param  bool  $forMutualSettlements  Применять фильтр по правам доступа к взаиморасчетам
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @param  array  $typeFilter
+     * @param  bool  $forMutualSettlements
+     * @param  string|null  $search
+     * @param  bool  $onlyWithBalance
+     * @param  int|string|null  $currencyId
+     * @param  string|null  $balanceDirection  positive|negative|null
+     * @return \Illuminate\Support\Collection
      */
-    public function getAllItems(array $typeFilter = [], bool $forMutualSettlements = false, ?string $search = null, bool $onlyWithBalance = false, $currencyId = null)
+    public function getAllItems(
+        array $typeFilter = [],
+        bool $forMutualSettlements = false,
+        ?string $search = null,
+        bool $onlyWithBalance = false,
+        $currencyId = null,
+        ?string $balanceDirection = null
+    )
     {
         $typeFilter = $this->normalizeTypeFilter($typeFilter);
 
@@ -143,9 +155,18 @@ class ClientsRepository extends BaseRepository
             }
         }
 
-        $cacheKey = $this->generateCacheKey('clients_all', [$currentUser?->id, $companyId, implode(',', $typeFilter), $forMutualSettlements, $search, $onlyWithBalance, $currencyId]);
+        $cacheKey = $this->generateCacheKey('clients_all', [
+            $currentUser?->id,
+            $companyId,
+            implode(',', $typeFilter),
+            $forMutualSettlements,
+            $search,
+            $onlyWithBalance,
+            $currencyId,
+            $balanceDirection
+        ]);
 
-        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter, $search, $onlyWithBalance, $currencyId) {
+        return CacheService::remember($cacheKey, function () use ($currentUser, $typeFilter, $search, $onlyWithBalance, $currencyId, $balanceDirection) {
             $query = Client::with([
                 'phones:id,client_id,phone',
                 'emails:id,client_id,email',
@@ -177,9 +198,16 @@ class ClientsRepository extends BaseRepository
                 });
             }
 
-            if ($onlyWithBalance) {
-                $query->whereHas('balances', function ($bq) use ($currencyId) {
-                    $bq->where('balance', '!=', 0);
+            $direction = in_array($balanceDirection, ['positive', 'negative'], true) ? $balanceDirection : null;
+            if ($onlyWithBalance || $direction !== null) {
+                $query->whereHas('balances', function ($bq) use ($currencyId, $direction, $onlyWithBalance) {
+                    if ($direction === 'positive') {
+                        $bq->where('balance', '>', 0);
+                    } elseif ($direction === 'negative') {
+                        $bq->where('balance', '<', 0);
+                    } elseif ($onlyWithBalance) {
+                        $bq->where('balance', '!=', 0);
+                    }
                     if ((int) $currencyId > 0) {
                         $bq->where('currency_id', (int) $currencyId);
                     }
@@ -456,14 +484,16 @@ class ClientsRepository extends BaseRepository
      * @param  int|null  $balanceId  ID баланса клиента
      * @param  int  $page  Номер страницы
      * @param  int  $perPage  Записей на странице
+     * @param  string|null  $source  Фильтр по источнику транзакции
+     * @param  bool|null  $isDebt  Фильтр по долговым транзакциям (true - только долги)
      * @return array{history: array, current_page: int, last_page: int, total: int, per_page: int}
      */
-    public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null, $balanceId = null, $page = 1, $perPage = 20)
+    public function getBalanceHistory($clientId, $excludeDebt = null, $cashRegisterId = null, $dateFrom = null, $dateTo = null, $balanceId = null, $page = 1, $perPage = 20, $source = null, $isDebt = null)
     {
         $currentUser = auth('api')->user();
-        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $currentUser?->id]);
+        $cacheKey = $this->generateCacheKey('client_balance_history', [$clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $source, $isDebt, $currentUser?->id]);
 
-        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $currentUser) {
+        return CacheService::remember($cacheKey, function () use ($clientId, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $source, $isDebt, $currentUser) {
             try {
                 $defaultCurrency = Currency::where('is_default', true)->first();
                 $defaultCurrencySymbol = $defaultCurrency?->symbol;
@@ -483,6 +513,9 @@ class ClientsRepository extends BaseRepository
 
                 if ($excludeDebt === true) {
                     $transactionsQuery->where('is_debt', false);
+                }
+                if ($isDebt === true) {
+                    $transactionsQuery->where('is_debt', true);
                 }
 
                 $permissions = $this->getUserPermissionsForCompany($currentUser);
@@ -532,6 +565,24 @@ class ClientsRepository extends BaseRepository
 
                 if ($dateTo) {
                     $transactionsQuery->whereDate('created_at', '<=', $dateTo);
+                }
+                if ($source) {
+                    if ($source === 'sale') {
+                        $transactionsQuery->where('source_type', 'App\\Models\\Sale');
+                    } elseif ($source === 'order') {
+                        $transactionsQuery->where('source_type', 'App\\Models\\Order');
+                    } elseif ($source === 'receipt') {
+                        $transactionsQuery->where('source_type', 'App\\Models\\WhReceipt');
+                    } elseif ($source === 'transaction') {
+                        $transactionsQuery->where(function ($q) {
+                            $q->whereNull('source_type')
+                                ->orWhereNotIn('source_type', [
+                                    'App\\Models\\Sale',
+                                    'App\\Models\\Order',
+                                    'App\\Models\\WhReceipt',
+                                ]);
+                        });
+                    }
                 }
 
                 $transactionsQuery->with([
@@ -605,7 +656,10 @@ class ClientsRepository extends BaseRepository
                                 'note' => $item->note,
                                 'description' => $description,
                                 'creator_id' => $item->creator_id,
-                                'user_name' => $item->creator->name,
+                                'creator' => $item->creator ? [
+                                    'id' => $item->creator->id,
+                                    'name' => $item->creator->name,
+                                ] : null,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
@@ -638,7 +692,10 @@ class ClientsRepository extends BaseRepository
                                 'note' => $item->note,
                                 'description' => $description,
                                 'creator_id' => $item->creator_id,
-                                'user_name' => $item->creator->name,
+                                'creator' => $item->creator ? [
+                                    'id' => $item->creator->id,
+                                    'name' => $item->creator->name,
+                                ] : null,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
@@ -659,7 +716,10 @@ class ClientsRepository extends BaseRepository
                                 'note' => $item->note,
                                 'description' => '🛒 Продажа #'.$saleId.($item->is_debt ? ' (в кредит)' : ''),
                                 'creator_id' => $item->creator_id,
-                                'user_name' => $item->creator->name,
+                                'creator' => $item->creator ? [
+                                    'id' => $item->creator->id,
+                                    'name' => $item->creator->name,
+                                ] : null,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
@@ -686,7 +746,10 @@ class ClientsRepository extends BaseRepository
                                 'note' => $item->note,
                                 'description' => $description,
                                 'creator_id' => $item->creator_id,
-                                'user_name' => $item->creator->name,
+                                'creator' => $item->creator ? [
+                                    'id' => $item->creator->id,
+                                    'name' => $item->creator->name,
+                                ] : null,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,
@@ -707,7 +770,10 @@ class ClientsRepository extends BaseRepository
                                 'note' => $item->note,
                                 'description' => $description,
                                 'creator_id' => $item->creator_id,
-                                'user_name' => $item->creator->name,
+                                'creator' => $item->creator ? [
+                                    'id' => $item->creator->id,
+                                    'name' => $item->creator->name,
+                                ] : null,
                                 'currency_symbol' => $item->cashRegister->currency->symbol ?? $defaultCurrencySymbol,
                                 'cash_name' => $item->cashRegister->name ?? null,
                                 'category_name' => $item->category->name ?? null,

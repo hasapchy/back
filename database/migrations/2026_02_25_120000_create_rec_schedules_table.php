@@ -7,10 +7,14 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * @return void
      */
     public function up(): void
     {
+        if (Schema::hasTable('rec_schedules')) {
+            return;
+        }
+
         Schema::create('rec_schedules', function (Blueprint $table) {
             $table->id();
             $table->foreignId('creator_id')->constrained('users')->onDelete('cascade');
@@ -42,7 +46,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * @return void
      */
     public function down(): void
     {

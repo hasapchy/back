@@ -100,7 +100,11 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission:companies_update_all')->post('companies/{id}', [CompaniesController::class, 'update']);
     Route::middleware('permission:companies_delete_all')->delete('companies/{id}', [CompaniesController::class, 'destroy']);
     Route::middleware('permission:employee_salaries_accrue')->post('companies/{id}/salaries/accrue', [CompaniesController::class, 'accrueSalaries']);
+    Route::middleware('permission:employee_salaries_accrue')->post('companies/{id}/salaries/pay', [CompaniesController::class, 'paySalaries']);
     Route::middleware('permission:employee_salaries_accrue')->get('companies/{id}/salaries/check', [CompaniesController::class, 'checkExistingSalaries']);
+    Route::middleware('permission:employee_salaries_accrue')->get('companies/{id}/salaries/preview', [CompaniesController::class, 'salaryAccrualPreview']);
+    Route::middleware('permission:employee_salaries_accrue')->get('companies/{id}/salaries/monthly-report', [CompaniesController::class, 'salaryMonthlyReport']);
+    Route::middleware('permission:employee_salaries_accrue')->delete('companies/{id}/salaries/batch/{batchId}', [CompaniesController::class, 'deleteSalaryMonthlyReportBatch']);
 
     Route::middleware('permission.scope:warehouses_view_all,warehouses_view')->get('warehouses', [WarehouseController::class, 'index']);
     Route::get('warehouses/all', [WarehouseController::class, 'all']);

@@ -7,6 +7,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class TaskRepository extends BaseRepository
 {
+    private const OVERDUE_STATUS_IDS = [1, 2];
+
     public function getFilteredTasks($request): LengthAwarePaginator
     {
         $companyId = $this->getCurrentCompanyId();
@@ -139,7 +141,8 @@ class TaskRepository extends BaseRepository
         $query = Task::query()
             ->where('company_id', $companyId)
             ->whereNotNull('deadline')
-            ->where('deadline', '<', now());
+            ->where('deadline', '<', now())
+            ->whereIn('status_id', self::OVERDUE_STATUS_IDS);
 
         $user = auth('api')->user();
         if ($user && !$user->is_admin) {

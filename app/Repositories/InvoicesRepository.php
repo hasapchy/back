@@ -26,7 +26,8 @@ class InvoicesRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $typeFilter = null, $statusFilter = null, $page = 1)
     {
-        $cacheKey = $this->generateCacheKey('invoices_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter]);
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('invoices_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $companyId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page) {
             $query = Invoice::with([
@@ -40,6 +41,7 @@ class InvoicesRepository extends BaseRepository
                 'products.order'
             ]);
 
+            $this->addCompanyFilterThroughRelation($query, 'client', 'clients');
             $this->applyOwnFilter($query, 'invoices', 'invoices', 'creator_id');
 
             if ($search) {
@@ -251,18 +253,25 @@ class InvoicesRepository extends BaseRepository
             'orders.updated_at',
             'warehouses.name as warehouse_name',
             'cash_registers.name as cash_name',
+            'cash_registers.is_cash as cash_is_cash',
             'cash_currency.id as currency_id',
             'cash_currency.name as currency_name',
             'cash_currency.symbol as currency_symbol',
             'projects.name as project_name',
-            'users.name as user_name',
-            'users.photo as user_photo',
+            'users.name as creator_name',
+            'users.photo as creator_photo',
             'categories.name as category_name'
         );
 
         $orders = $query->get();
 
         foreach ($orders as $order) {
+            $order->creator = $order->creator_id ? [
+                'id' => (int) $order->creator_id,
+                'name' => $order->creator_name,
+                'photo' => $order->creator_photo,
+            ] : null;
+            unset($order->creator_name, $order->creator_photo);
             $order->setRelation('client', $order->client()->with(['phones', 'emails'])->first());
             $order->setRelation('orderProducts', $order->orderProducts()->with('product')->get());
             $order->setRelation('tempProducts', $order->tempProducts()->with('unit')->get());

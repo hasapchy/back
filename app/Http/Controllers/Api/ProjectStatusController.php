@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreProjectStatusRequest;
 use App\Http\Requests\UpdateProjectStatusRequest;
+use App\Http\Resources\ProjectStatusResource;
 use App\Models\ProjectStatus;
 use App\Repositories\ProjectStatusRepository;
 use App\Services\CacheService;
@@ -14,14 +15,14 @@ use Illuminate\Http\Request;
  */
 class ProjectStatusController extends BaseController
 {
-    protected $projectStatusRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      */
-    public function __construct(ProjectStatusRepository $projectStatusRepository)
+    public function __construct(ProjectStatusRepository $itemsRepository)
     {
-        $this->projectStatusRepository = $projectStatusRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -36,9 +37,18 @@ class ProjectStatusController extends BaseController
         $perPage = $request->input('per_page', 20);
         $page = $request->input('page', 1);
 
-        $items = $this->projectStatusRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => ProjectStatusResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -50,9 +60,9 @@ class ProjectStatusController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->projectStatusRepository->getAllItems($userUuid);
+        $items = $this->itemsRepository->getAllItems($userUuid);
 
-        return response()->json($items);
+        return $this->successResponse(ProjectStatusResource::collection($items)->resolve());
     }
 
     /**
@@ -66,7 +76,7 @@ class ProjectStatusController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $created = $this->projectStatusRepository->createItem([
+        $created = $this->itemsRepository->createItem([
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
             'is_tr_visible' => $validatedData['is_tr_visible'] ?? true,
@@ -78,7 +88,7 @@ class ProjectStatusController extends BaseController
 
         CacheService::invalidateProjectsCache();
 
-        return response()->json(['message' => 'Статус создан']);
+        return $this->successResponse(null, 'Статус создан');
     }
 
     /**
@@ -93,7 +103,7 @@ class ProjectStatusController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $updated = $this->projectStatusRepository->updateItem($id, [
+        $updated = $this->itemsRepository->updateItem($id, [
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
             'is_tr_visible' => $validatedData['is_tr_visible'] ?? true,
@@ -104,7 +114,7 @@ class ProjectStatusController extends BaseController
 
         CacheService::invalidateProjectsCache();
 
-        return response()->json(['message' => 'Статус обновлен']);
+        return $this->successResponse(null, 'Статус обновлен');
     }
 
     /**
@@ -122,11 +132,11 @@ class ProjectStatusController extends BaseController
             return $this->errorResponse('Нельзя удалить статус, который используется в проектах', 400);
         }
 
-        $deleted = $this->projectStatusRepository->deleteItem($id);
+        $deleted = $this->itemsRepository->deleteItem($id);
         if (! $deleted) {
             return $this->errorResponse('Ошибка удаления статуса', 400);
         }
 
-        return response()->json(['message' => 'Статус удален']);
+        return $this->successResponse(null, 'Статус удален');
     }
 }

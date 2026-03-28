@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Resources\ClientBalanceResource;
 use App\Models\Client;
 use App\Models\ClientBalance;
+use App\Models\CashRegister;
 use App\Models\Currency;
 use App\Models\Transaction;
+use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
 use App\Services\ClientBalanceService;
 use Illuminate\Http\Request;
@@ -25,10 +28,10 @@ class ClientBalanceController extends BaseController
             $client = Client::findOrFail($clientId);
 
             if (!$this->canPerformAction('clients', 'view', $client)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этого клиента');
+                return $this->errorResponse('У вас нет прав на просмотр этого клиента', 403);
             }
             if (!$this->hasPermission('client_balances_view_all')) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр балансов клиента');
+                return $this->errorResponse('У вас нет прав на просмотр балансов клиента', 403);
             }
 
             $user = $this->getAuthenticatedUser();
@@ -38,7 +41,7 @@ class ClientBalanceController extends BaseController
             }
             $balancesData = $balances->values()->map(fn ($balance) => $this->formatBalanceResponse($balance))->all();
 
-            return $this->successResponse($balancesData);
+            return $this->successResponse(ClientBalanceResource::collection($balancesData)->resolve());
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении балансов клиента: ' . $e->getMessage(), 500);
         }
@@ -56,6 +59,7 @@ class ClientBalanceController extends BaseController
         try {
             $validated = $request->validate([
                 'currency_id' => 'required|exists:currencies,id',
+                'type' => 'nullable|integer|in:0,1',
                 'is_default' => 'boolean',
                 'balance' => 'nullable|numeric',
                 'note' => 'nullable|string',
@@ -66,10 +70,10 @@ class ClientBalanceController extends BaseController
             $client = Client::findOrFail($clientId);
 
             if (!$this->canPerformAction('clients', 'update', $client)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
+                return $this->errorResponse('У вас нет прав на редактирование этого клиента', 403);
             }
             if (!$this->hasPermission('client_balances_create')) {
-                return $this->forbiddenResponse('У вас нет прав на создание баланса клиента');
+                return $this->errorResponse('У вас нет прав на создание баланса клиента', 403);
             }
 
             $currency = Currency::findOrFail($validated['currency_id']);
@@ -77,9 +81,12 @@ class ClientBalanceController extends BaseController
             $isDefault = $validated['is_default'] ?? false;
             $initialBalance = $validated['balance'] ?? 0;
             $note = $validated['note'] ?? null;
+            $type = array_key_exists('type', $validated) ? (int) $validated['type'] : 1;
+            $creatorId = $this->getAuthenticatedUserIdOrFail();
 
-            DB::transaction(function () use ($client, $currency, $isDefault, $initialBalance, $note) {
-                ClientBalanceService::createBalance($client, $currency, $isDefault, $initialBalance, $note);
+            DB::transaction(function () use ($client, $currency, $isDefault, $initialBalance, $note, $type, $creatorId) {
+                $balance = ClientBalanceService::createBalance($client, $currency, $isDefault, $initialBalance, $note, $type);
+                $this->createInitialBalanceTransactionIfNeeded($client, $balance, (float) $initialBalance, $creatorId, $note);
             });
 
             CacheService::invalidateClientsCache();
@@ -95,7 +102,7 @@ class ClientBalanceController extends BaseController
             $balance->users()->sync($userIds);
             $balance->load('users:id,name,surname');
 
-            return $this->successResponse($this->formatBalanceResponse($balance), 'Баланс создан успешно', 201);
+            return $this->successResponse(new ClientBalanceResource($this->formatBalanceResponse($balance)), 'Баланс создан успешно', 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse($e->getMessage(), 422);
         } catch (\Exception $e) {
@@ -115,6 +122,7 @@ class ClientBalanceController extends BaseController
     {
         try {
             $validated = $request->validate([
+                'type' => 'nullable|integer|in:0,1',
                 'is_default' => 'boolean',
                 'skip_confirmation' => 'boolean',
                 'note' => 'nullable|string',
@@ -128,10 +136,10 @@ class ClientBalanceController extends BaseController
 
             $client = $balance->client;
             if (!$this->canPerformAction('clients', 'update', $client)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
+                return $this->errorResponse('У вас нет прав на редактирование этого клиента', 403);
             }
             if (!$this->hasPermission('client_balances_update_all')) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование баланса клиента');
+                return $this->errorResponse('У вас нет прав на редактирование баланса клиента', 403);
             }
 
             if (!empty($validated['is_default']) && $validated['is_default'] && !$balance->is_default) {
@@ -142,7 +150,7 @@ class ClientBalanceController extends BaseController
                     ->first();
 
                 if ($existingDefault && empty($validated['skip_confirmation'])) {
-            return response()->json([
+            return $this->successResponse([
                 'requires_confirmation' => true,
                 'message' => 'У клиента уже установлен дефолтный баланс в валюте ' . $existingDefault->currency->symbol . '. Вы уверены, что хотите изменить дефолтный баланс?',
                 'current_default' => [
@@ -173,7 +181,7 @@ class ClientBalanceController extends BaseController
             $balance->refresh();
             $balance->load(['currency', 'users:id,name,surname']);
 
-            return $this->successResponse($this->formatBalanceResponse($balance), 'Баланс обновлен успешно');
+            return $this->successResponse(new ClientBalanceResource($this->formatBalanceResponse($balance)), 'Баланс обновлен успешно');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse($e->getMessage(), 422);
         } catch (\Exception $e) {
@@ -194,10 +202,10 @@ class ClientBalanceController extends BaseController
             $balance = ClientBalance::where('client_id', $clientId)->findOrFail($id);
             $client = $balance->client;
             if (!$this->canPerformAction('clients', 'update', $client)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
+                return $this->errorResponse('У вас нет прав на редактирование этого клиента', 403);
             }
             if (!$this->hasPermission('client_balances_delete_all')) {
-                return $this->forbiddenResponse('У вас нет прав на удаление баланса клиента');
+                return $this->errorResponse('У вас нет прав на удаление баланса клиента', 403);
             }
 
             if ($balance->is_default) {
@@ -209,12 +217,12 @@ class ClientBalanceController extends BaseController
             }
 
             $hasTransactions = Transaction::where('client_id', $clientId)
-                ->where('currency_id', $balance->currency_id)
+                ->where('client_balance_id', $balance->id)
                 ->where('is_deleted', false)
                 ->exists();
 
             if ($hasTransactions) {
-                return $this->errorResponse('Нельзя удалить баланс, если есть транзакции в этой валюте. Удалите сначала все транзакции.', 422);
+                return $this->errorResponse('Нельзя удалить баланс, если по нему есть транзакции. Удалите сначала все транзакции этого баланса.', 422);
             }
 
             DB::transaction(function () use ($balance) {
@@ -246,6 +254,7 @@ class ClientBalanceController extends BaseController
         return [
             'id' => $balance->id,
             'currency_id' => $balance->currency_id,
+                'type' => (int) $balance->type,
             'currency' => $balance->currency ? [
                 'id' => $balance->currency->id,
                 'code' => $balance->currency->code,
@@ -257,6 +266,95 @@ class ClientBalanceController extends BaseController
             'note' => $balance->note,
             'users' => $users,
         ];
+    }
+
+    /**
+     * Создать долговую транзакцию-основание для начального баланса, если он ненулевой.
+     *
+     * @param Client $client
+     * @param ClientBalance $balance
+     * @param float $initialBalance
+     * @param int $creatorId
+     * @param string|null $note
+     * @return void
+     * @throws \Exception
+     */
+    private function createInitialBalanceTransactionIfNeeded(
+        Client $client,
+        ClientBalance $balance,
+        float $initialBalance,
+        int $creatorId,
+        ?string $note
+    ): void {
+        if ((float) $initialBalance == 0.0) {
+            return;
+        }
+
+        $cashRegister = $this->resolveCashRegisterForInitialBalance((int) $balance->type);
+        if (!$cashRegister) {
+            return;
+        }
+
+        $amount = abs((float) $initialBalance);
+        $type = $initialBalance > 0 ? 1 : 0;
+        $categoryId = $type === 1 ? 22 : 21;
+        $systemNote = 'Начальный баланс клиента';
+        if (!empty($note)) {
+            $systemNote .= ': ' . $note;
+        }
+
+        /** @var TransactionsRepository $transactionsRepository */
+        $transactionsRepository = app(TransactionsRepository::class);
+        $transactionId = $transactionsRepository->createItem([
+            'type' => $type,
+            'creator_id' => $creatorId,
+            'orig_amount' => $amount,
+            'currency_id' => (int) $balance->currency_id,
+            'cash_id' => (int) $cashRegister->id,
+            'category_id' => $categoryId,
+            'project_id' => null,
+            'client_id' => (int) $client->id,
+            'client_balance_id' => (int) $balance->id,
+            'source_type' => null,
+            'source_id' => null,
+            'note' => $systemNote,
+            'date' => now(),
+            'is_debt' => true,
+            'exchange_rate' => null,
+        ], true, true);
+
+        if ($transactionId) {
+            Transaction::where('id', (int) $transactionId)
+                ->update(['client_balance_id' => (int) $balance->id]);
+        }
+    }
+
+    /**
+     * Подобрать кассу для системной начальной транзакции баланса.
+     *
+     * @param int $balanceType
+     * @return CashRegister|null
+     */
+    private function resolveCashRegisterForInitialBalance(int $balanceType): ?CashRegister
+    {
+        $companyId = $this->getCurrentCompanyId();
+        $isCash = $balanceType === 1;
+
+        $query = CashRegister::query();
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+
+        $byType = (clone $query)
+            ->where('is_cash', $isCash)
+            ->orderBy('id')
+            ->first();
+
+        if ($byType) {
+            return $byType;
+        }
+
+        return (clone $query)->orderBy('id')->first();
     }
 
 }

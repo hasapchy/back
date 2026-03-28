@@ -23,7 +23,6 @@ use App\Repositories\ProjectsRepository;
 use App\Repositories\ProjectContractsRepository;
 use App\Repositories\CommentsRepository;
 use App\Repositories\UsersRepository;
-use App\Repositories\OrderAfRepository;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
@@ -756,39 +755,6 @@ class RepositoryCacheCrudTest extends TestCase
             $this->assertFalse(Cache::has($fullKey), 'Users cache should be invalidated after delete');
         } catch (\Exception $e) {
             $this->markTestSkipped('Cannot test users CRUD: ' . $e->getMessage());
-        }
-    }
-
-    public function test_order_af_cache_invalidation_on_crud()
-    {
-        $repo = new OrderAfRepository();
-        $cacheKey = $repo->generateCacheKey('order_af_paginated', ['test_user', 20, md5('')]);
-        $fullKey = "paginated_{$cacheKey}_page_1";
-
-        Cache::put($fullKey, ['test'], 3600);
-        $this->assertTrue(Cache::has($fullKey));
-
-        try {
-            $field = $repo->createItem([
-                'name' => 'Test Field',
-                'type' => 'string',
-                'creator_id' => 1,
-            ]);
-
-            CacheService::invalidateByLike('%order_af%');
-            $this->assertFalse(Cache::has($fullKey), 'Order AF cache should be invalidated after create');
-
-            Cache::put($fullKey, ['test'], 3600);
-            $repo->updateItem($field->id, ['name' => 'Updated Field'], 1);
-            CacheService::invalidateByLike('%order_af%');
-            $this->assertFalse(Cache::has($fullKey), 'Order AF cache should be invalidated after update');
-
-            Cache::put($fullKey, ['test'], 3600);
-            $repo->deleteItem($field->id, 1);
-            CacheService::invalidateByLike('%order_af%');
-            $this->assertFalse(Cache::has($fullKey), 'Order AF cache should be invalidated after delete');
-        } catch (\Exception $e) {
-            $this->markTestSkipped('Cannot test order AF CRUD: ' . $e->getMessage());
         }
     }
 }

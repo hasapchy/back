@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
+use App\Http\Resources\CategoryResource;
 use App\Repositories\CategoriesRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
@@ -38,7 +38,16 @@ class CategoriesController extends BaseController
         $perPage = $request->input('per_page', 20);
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => CategoryResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -51,7 +60,7 @@ class CategoriesController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $items = $this->itemsRepository->getAllItems($userUuid);
-        return response()->json($items);
+        return $this->successResponse(CategoryResource::collection($items)->resolve());
     }
 
     /**
@@ -64,7 +73,7 @@ class CategoriesController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $items = $this->itemsRepository->getParentCategories($userUuid);
-        return response()->json($items);
+        return $this->successResponse(CategoryResource::collection($items)->resolve());
     }
 
     /**
@@ -90,7 +99,7 @@ class CategoriesController extends BaseController
         }
 
         CacheService::invalidateCategoriesCache();
-        return response()->json(['message' => 'Категория создана']);
+        return $this->successResponse(null, 'Категория создана');
     }
 
     /**
@@ -117,7 +126,7 @@ class CategoriesController extends BaseController
         }
 
         CacheService::invalidateCategoriesCache();
-        return response()->json(['message' => 'Категория обновлена']);
+        return $this->successResponse(null, 'Категория обновлена');
     }
 
     /**
@@ -137,6 +146,6 @@ class CategoriesController extends BaseController
         }
 
         CacheService::invalidateCategoriesCache();
-        return response()->json(['message' => 'Категория удалена']);
+        return $this->successResponse(null, 'Категория удалена');
     }
 }

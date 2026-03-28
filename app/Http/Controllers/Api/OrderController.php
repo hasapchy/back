@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\UpdateOrderRequest;
 use App\Repositories\OrdersRepository;
@@ -14,7 +13,6 @@ use App\Models\CategoryUser;
 use Illuminate\Http\Request;
 use App\Events\OrderFirstStageCountUpdated;
 use App\Exports\GenericExport;
-use App\Http\Resources\OrderCollection;
 use App\Http\Resources\OrderResource;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -25,16 +23,16 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class OrderController extends BaseController
 {
 
-    protected $itemRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      *
-     * @param OrdersRepository $itemRepository Репозиторий заказов
+     * @param OrdersRepository $itemsRepository Репозиторий заказов
      */
-    public function __construct(OrdersRepository $itemRepository)
+    public function __construct(OrdersRepository $itemsRepository)
     {
-        $this->itemRepository = $itemRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -51,7 +49,7 @@ class OrderController extends BaseController
         $resource = $this->getOrderResourceForUser($user);
 
         if (!$this->canPerformAction($resource, 'view')) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр заказов');
+            return $this->errorResponse('У вас нет прав на просмотр заказов', 403);
         }
 
         $page = $request->input('page', 1);
@@ -65,11 +63,25 @@ class OrderController extends BaseController
         $clientFilter = $request->input('client_id');
         $unpaidOnly = $request->boolean('unpaid_only', false);
 
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly);
 
-        $unpaidOrdersTotal = $items->unpaid_orders_total ?? null;
+        $meta = [
+            'current_page' => $items->currentPage(),
+            'last_page' => $items->lastPage(),
+            'per_page' => $items->perPage(),
+            'total' => $items->total(),
+            'next_page' => $items->nextPageUrl(),
+            'prev_page' => $items->previousPageUrl(),
+        ];
 
-        return new OrderCollection($items, $unpaidOrdersTotal);
+        if (isset($items->unpaid_orders_total)) {
+            $meta['unpaid_orders_total'] = $items->unpaid_orders_total;
+        }
+
+        return $this->successResponse([
+            'items' => OrderResource::collection($items->items())->resolve(),
+            'meta' => $meta,
+        ]);
     }
 
     /**
@@ -94,7 +106,7 @@ class OrderController extends BaseController
             $ids = $ids ? [$ids] : [];
         }
         $ids = array_filter(array_map('intval', $ids));
-        $orders = $this->itemRepository->getItemsForExport(
+        $orders = $this->itemsRepository->getItemsForExport(
             $userUuid,
             $search,
             $dateFilter,
@@ -144,12 +156,12 @@ class OrderController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $resource = $this->getOrderResourceForUser($user);
         if (! $this->canPerformAction($resource, 'view')) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр заказов');
+            return $this->errorResponse('У вас нет прав на просмотр заказов', 403);
         }
 
-        $count = $this->itemRepository->getFirstStageOrdersCount();
+        $count = $this->itemsRepository->getFirstStageOrdersCount();
 
-        return response()->json(['data' => ['count' => $count]]);
+        return $this->successResponse(['count' => $count]);
     }
 
     /**
@@ -166,7 +178,7 @@ class OrderController extends BaseController
         // Проверка прав на создание заказов
         $resource = $this->getOrderResourceForUser($user);
         if (!$this->canPerformAction($resource, 'create')) {
-            return $this->forbiddenResponse('У вас нет прав на создание заказов');
+            return $this->errorResponse('У вас нет прав на создание заказов', 403);
         }
 
         $validatedData = $request->validated();
@@ -220,7 +232,7 @@ class OrderController extends BaseController
         }
 
         try {
-            $order = $this->itemRepository->createItem($data);
+            $order = $this->itemsRepository->createItem($data);
 
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
@@ -230,7 +242,7 @@ class OrderController extends BaseController
                 CacheService::invalidateProjectsCache();
             }
 
-            $order = $this->itemRepository->getItemById($order->id);
+            $order = $this->itemsRepository->getItemById($order->id);
             event(new OrderFirstStageCountUpdated((int) $this->getCurrentCompanyId()));
             return (new OrderResource($order))->additional(['message' => 'Заказ успешно создан']);
         } catch (\Throwable $th) {
@@ -249,15 +261,15 @@ class OrderController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $order = $this->itemRepository->getItemById($id);
+        $order = $this->itemsRepository->getItemById($id);
         if (!$order) {
-            return $this->notFoundResponse('Заказ не найден');
+            return $this->errorResponse('Заказ не найден', 404);
         }
 
         $user = $this->requireAuthenticatedUser();
         $resource = $this->getOrderResourceForUser($user);
         if (!$this->canPerformAction($resource, 'update', $order)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этого заказа');
+            return $this->errorResponse('У вас нет прав на редактирование этого заказа', 403);
         }
 
         $validatedData = $request->validated();
@@ -313,7 +325,7 @@ class OrderController extends BaseController
         }
 
         try {
-            $this->itemRepository->updateItem($id, $data);
+            $this->itemsRepository->updateItem($id, $data);
 
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
@@ -323,7 +335,7 @@ class OrderController extends BaseController
                 CacheService::invalidateProjectsCache();
             }
 
-            $updatedOrder = $this->itemRepository->getItemById($id);
+            $updatedOrder = $this->itemsRepository->getItemById($id);
             event(new OrderFirstStageCountUpdated((int) $this->getCurrentCompanyId()));
             return (new OrderResource($updatedOrder))->additional(['message' => 'Заказ сохранён']);
         } catch (\Throwable $th) {
@@ -339,15 +351,15 @@ class OrderController extends BaseController
      */
     public function destroy($id)
     {
-        $order = $this->itemRepository->getItemById($id);
+        $order = $this->itemsRepository->getItemById($id);
         if (!$order) {
-            return $this->notFoundResponse('Заказ не найден');
+            return $this->errorResponse('Заказ не найден', 404);
         }
 
         $user = $this->requireAuthenticatedUser();
         $resource = $this->getOrderResourceForUser($user);
         if (!$this->canPerformAction($resource, 'delete', $order)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этого заказа');
+            return $this->errorResponse('У вас нет прав на удаление этого заказа', 403);
         }
 
         $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
@@ -356,7 +368,7 @@ class OrderController extends BaseController
         }
 
         try {
-            $deleted = $this->itemRepository->deleteItem($id);
+            $deleted = $this->itemsRepository->deleteItem($id);
 
             CacheService::invalidateOrdersCache();
             CacheService::invalidateWarehouseStocksCache();
@@ -367,7 +379,7 @@ class OrderController extends BaseController
             }
 
             event(new OrderFirstStageCountUpdated((int) $this->getCurrentCompanyId()));
-            return response()->json(['order' => $deleted, 'message' => 'Заказ успешно удалён']);
+            return $this->successResponse($deleted, 'Заказ успешно удалён');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка при удалении заказа: ' . $th->getMessage(), 400);
         }
@@ -394,24 +406,31 @@ class OrderController extends BaseController
         $orders = Order::whereIn('id', $request->ids)->get();
         foreach ($orders as $order) {
             if (!$this->canPerformAction($resource, 'update', $order)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование одного или нескольких заказов');
+                return $this->errorResponse('У вас нет прав на редактирование одного или нескольких заказов', 403);
             }
         }
 
         try {
-            $result = $this->itemRepository
+            $result = $this->itemsRepository
                 ->updateStatusByIds($request->ids, $request->status_id, $userUuid);
 
             if (is_array($result) && isset($result['needs_payment']) && $result['needs_payment']) {
-                return response()->json($result, 422);
+                return response()->json([
+                    'error' => $result['message'] ?? 'Требуется оплата',
+                    'needs_payment' => true,
+                    'order_id' => $result['order_id'] ?? null,
+                    'remaining_amount' => $result['remaining_amount'] ?? null,
+                    'paid_total' => $result['paid_total'] ?? null,
+                    'order_total' => $result['order_total'] ?? null,
+                ], 422);
             }
 
             if ($result > 0) {
                 CacheService::invalidateOrdersCache();
                 event(new OrderFirstStageCountUpdated((int) $this->getCurrentCompanyId()));
-                return response()->json(['message' => "Статус обновлён у {$result} заказ(ов)"]);
+                return $this->successResponse(null, "Статус обновлён у {$result} заказ(ов)");
             } else {
-                return response()->json(['message' => "Статус не изменился"]);
+                return $this->successResponse(null, "Статус не изменился");
             }
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage() ?: 'Ошибка смены статуса', 400);
@@ -426,15 +445,15 @@ class OrderController extends BaseController
      */
     public function show($id)
     {
-        $item = $this->itemRepository->getItemById($id);
+        $item = $this->itemsRepository->getItemById($id);
         if (!$item) {
-            return $this->notFoundResponse('Not found');
+            return $this->errorResponse('Not found', 404);
         }
 
         $user = $this->requireAuthenticatedUser();
         $resource = $this->getOrderResourceForUser($user);
         if (!$this->canPerformAction($resource, 'view', $item)) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр этого заказа');
+            return $this->errorResponse('У вас нет прав на просмотр этого заказа', 403);
         }
 
         $cashAccessCheck = $this->checkCashRegisterAccess($item->cash_id);
@@ -452,7 +471,7 @@ class OrderController extends BaseController
      */
     public function getServerTime()
     {
-        return response()->json([
+        return $this->successResponse([
             'success' => true,
             'server_time' => now()->toISOString(),
             'timestamp' => now()->timestamp
@@ -480,7 +499,7 @@ class OrderController extends BaseController
             if (!$categoryId) {
                 $categoryId = $mappedCategoryId;
             } elseif ($categoryId != $mappedCategoryId) {
-                return $this->forbiddenResponse('У вас нет доступа к указанной категории');
+                return $this->errorResponse('У вас нет доступа к указанной категории', 403);
             }
             return $categoryId;
         }
@@ -504,7 +523,7 @@ class OrderController extends BaseController
                 return $this->errorResponse('У вас нет доступных категорий. Обратитесь к администратору для назначения категории.', 400);
             }
         } elseif (!in_array($categoryId, $userCategoryIds)) {
-            return $this->forbiddenResponse('У вас нет доступа к указанной категории');
+            return $this->errorResponse('У вас нет доступа к указанной категории', 403);
         }
 
         return $categoryId;

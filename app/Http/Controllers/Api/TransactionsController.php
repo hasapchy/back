@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreTransactionRequest;
 use App\Http\Requests\UpdateTransactionRequest;
+use App\Http\Resources\TransactionResource;
 use App\Models\Transaction;
 use App\Models\Order;
 use App\Models\ProjectContract;
@@ -61,18 +61,21 @@ class TransactionsController extends BaseController
         );
 
         $response = [
-            'items' => $items->items(),
-            'current_page' => $items->currentPage(),
-            'next_page' => $items->nextPageUrl(),
-            'last_page' => $items->lastPage(),
-            'total' => $items->total(),
+            'items' => TransactionResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
             'total_debt_positive' => $items->total_debt_positive ?? 0,
             'total_debt_negative' => $items->total_debt_negative ?? 0,
             'total_debt_balance' => $items->total_debt_balance ?? 0
         ];
 
 
-        return response()->json($response);
+        return $this->successResponse($response);
     }
 
     /**
@@ -179,7 +182,7 @@ class TransactionsController extends BaseController
 
         if (isset($validatedData['is_adjustment']) && $validatedData['is_adjustment']) {
             if (!$this->hasPermission('settings_client_balance_adjustment')) {
-                return $this->forbiddenResponse('У вас нет прав на корректировку баланса');
+                return $this->errorResponse('У вас нет прав на корректировку баланса', 403);
             }
         }
 
@@ -237,7 +240,7 @@ class TransactionsController extends BaseController
         }
         CacheService::invalidateCashRegistersCache();
 
-        return response()->json(['message' => 'Транзакция создана']);
+        return $this->successResponse(null, 'Транзакция создана');
     }
 
     /**
@@ -260,17 +263,17 @@ class TransactionsController extends BaseController
 
         if ($isAdjustmentCategory) {
             if (!$this->hasPermission('settings_client_balance_adjustment')) {
-                return $this->forbiddenResponse('У вас нет прав на корректировку баланса');
+                return $this->errorResponse('У вас нет прав на корректировку баланса', 403);
             }
         }
 
         if (!$this->canPerformAction('transactions', 'update', $transaction_exist)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этой транзакции');
+            return $this->errorResponse('У вас нет прав на редактирование этой транзакции', 403);
         }
 
         if ($this->isRestrictedTransaction($transaction_exist)) {
             $message = $this->getRestrictedTransactionMessage($transaction_exist);
-            return $this->forbiddenResponse($message);
+            return $this->errorResponse($message, 403);
         }
 
         $cashAccessCheck = $this->checkCashRegisterAccess($transaction_exist->cash_id);
@@ -342,7 +345,7 @@ class TransactionsController extends BaseController
         }
         CacheService::invalidateCashRegistersCache();
 
-        return response()->json(['message' => 'Транзакция обновлена']);
+        return $this->successResponse(null, 'Транзакция обновлена');
     }
 
     /**
@@ -358,12 +361,12 @@ class TransactionsController extends BaseController
         $transaction_exist = Transaction::findOrFail($id);
 
         if (!$this->canPerformAction('transactions', 'delete', $transaction_exist)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этой транзакции');
+            return $this->errorResponse('У вас нет прав на удаление этой транзакции', 403);
         }
 
         if ($this->isRestrictedTransaction($transaction_exist)) {
             $message = $this->getRestrictedTransactionMessage($transaction_exist);
-            return $this->forbiddenResponse($message);
+            return $this->errorResponse($message, 403);
         }
 
         $transaction_deleted = $this->itemsRepository->deleteItem($id);
@@ -381,7 +384,7 @@ class TransactionsController extends BaseController
         }
         CacheService::invalidateCashRegistersCache();
 
-        return response()->json(['message' => 'Транзакция удалена']);
+        return $this->successResponse(null, 'Транзакция удалена');
     }
 
     /**
@@ -401,7 +404,9 @@ class TransactionsController extends BaseController
 
         $total = $this->itemsRepository->getTotalByOrderId($userUuid, $orderId);
 
-        return response()->json(['total' => $total]);
+        return $this->successResponse([
+            'total' => (float) $total,
+        ]);
     }
 
     /**
@@ -417,14 +422,14 @@ class TransactionsController extends BaseController
         $transaction = Transaction::findOrFail($id);
 
         if (!$this->canPerformAction('transactions', 'view', $transaction)) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр этой транзакции');
+            return $this->errorResponse('У вас нет прав на просмотр этой транзакции', 403);
         }
 
         $item = $this->itemsRepository->getItemById($id);
         if (!$item) {
-            return $this->notFoundResponse('Not found');
+            return $this->errorResponse('Not found', 404);
         }
-        return response()->json(['item' => $item]);
+        return $this->successResponse(new TransactionResource($item));
     }
 
     /**

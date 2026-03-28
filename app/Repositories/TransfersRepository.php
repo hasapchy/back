@@ -73,7 +73,7 @@ class TransfersRepository extends BaseRepository
                 ->orderByDesc('cash_transfers.id')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
 
-            $items->getCollection()->transform(function ($transfer) {
+            $items->setCollection($items->getCollection()->map(function ($transfer) {
                 $fromCash = $transfer->fromCashRegister;
                 $toCash = $transfer->toCashRegister;
 
@@ -92,13 +92,16 @@ class TransfersRepository extends BaseRepository
                     'amount' => $transfer->amount,
                     'exchange_rate' => $transfer->exchange_rate,
                     'creator_id' => $transfer->creator?->id,
-                    'user_name' => $transfer->creator?->name,
+                    'creator' => $transfer->creator ? [
+                        'id' => $transfer->creator->id,
+                        'name' => $transfer->creator->name,
+                    ] : null,
                     'date' => $transfer->date,
                     'note' => $transfer->note,
                     'category_id' => self::TRANSFER_OUTCOME_CATEGORY_ID,
                     'category_name' => 'Перемещение',
                 ];
-            });
+            }));
 
             return $items;
         }, (int)$page);

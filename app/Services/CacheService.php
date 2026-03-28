@@ -306,14 +306,6 @@ class CacheService
     }
 
     /**
-     * Invalidate product statuses cache
-     */
-    public static function invalidateProductStatusesCache(): void
-    {
-        self::invalidateByLike('%productStatus%');
-    }
-
-    /**
      * Invalidate units cache
      */
     public static function invalidateUnitsCache(): void

@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreInvoiceRequest;
 use App\Http\Requests\UpdateInvoiceRequest;
+use App\Http\Resources\InvoiceResource;
 use App\Repositories\InvoicesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -14,16 +14,16 @@ use Illuminate\Http\Request;
  */
 class InvoiceController extends BaseController
 {
-    protected $itemRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      *
-     * @param InvoicesRepository $itemRepository
+     * @param InvoicesRepository $itemsRepository
      */
-    public function __construct(InvoicesRepository $itemRepository)
+    public function __construct(InvoicesRepository $itemsRepository)
     {
-        $this->itemRepository = $itemRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -45,9 +45,18 @@ class InvoiceController extends BaseController
         $statusFilter = $request->input('status');
         $perPage = $request->input('per_page', 20);
 
-        $items = $this->itemRepository->getItemsWithPagination($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => InvoiceResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -63,7 +72,7 @@ class InvoiceController extends BaseController
         $validatedData = $request->validated();
 
         try {
-            $orders = $this->itemRepository->getOrdersForInvoice($validatedData['order_ids']);
+            $orders = $this->itemsRepository->getOrdersForInvoice($validatedData['order_ids']);
 
             if ($orders->isEmpty()) {
                 return $this->errorResponse('Заказы не найдены', 400);
@@ -74,7 +83,7 @@ class InvoiceController extends BaseController
                 return $this->errorResponse('Все заказы должны принадлежать одному клиенту', 400);
             }
 
-            $productsData = $this->itemRepository->prepareProductsFromOrders($orders);
+            $productsData = $this->itemsRepository->prepareProductsFromOrders($orders);
             $products = $productsData['products'];
 
             $totalAmount = collect($products)->sum('total_price');
@@ -89,13 +98,13 @@ class InvoiceController extends BaseController
                 'total_amount' => $totalAmount,
             ];
 
-            $created = $this->itemRepository->createItem($data);
+            $created = $this->itemsRepository->createItem($data);
 
             if (!$created) {
                 return $this->errorResponse('Ошибка создания счета', 400);
             }
 
-            return response()->json(['invoice' => $created, 'message' => 'Счет успешно создан']);
+            return $this->successResponse(new InvoiceResource($created), 'Счет успешно создан');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка создания счета: ' . $th->getMessage(), 400);
         }
@@ -127,12 +136,12 @@ class InvoiceController extends BaseController
                 ], fn($value) => $value !== null)
             );
 
-            $updated = $this->itemRepository->updateItem($id, $data);
+            $updated = $this->itemsRepository->updateItem($id, $data);
             if (!$updated) {
                 return $this->errorResponse('Ошибка обновления счета', 400);
             }
 
-            return response()->json(['message' => 'Счет сохранён']);
+            return $this->successResponse(null, 'Счет сохранён');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка: ' . $th->getMessage(), 400);
         }
@@ -149,9 +158,9 @@ class InvoiceController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         try {
-            $deleted = $this->itemRepository->deleteItem($id);
+            $deleted = $this->itemsRepository->deleteItem($id);
 
-            return response()->json(['invoice' => $deleted, 'message' => 'Счет успешно удалён']);
+            return $this->successResponse(new InvoiceResource($deleted), 'Счет успешно удалён');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка при удалении счета: ' . $th->getMessage(), 400);
         }
@@ -166,11 +175,11 @@ class InvoiceController extends BaseController
     public function show($id)
     {
         try {
-            $item = $this->itemRepository->getItemById($id);
+            $item = $this->itemsRepository->getItemById($id);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->notFoundResponse('Счёт не найден');
+            return $this->errorResponse('Счёт не найден', 404);
         }
-        return response()->json(['item' => $item]);
+        return $this->successResponse(new InvoiceResource($item));
     }
 
     /**
@@ -189,12 +198,12 @@ class InvoiceController extends BaseController
         ]);
 
         try {
-            $orders = $this->itemRepository->getOrdersForInvoice($request->order_ids);
-            $productsData = $this->itemRepository->prepareProductsFromOrders($orders);
+            $orders = $this->itemsRepository->getOrdersForInvoice($request->order_ids);
+            $productsData = $this->itemsRepository->prepareProductsFromOrders($orders);
             $products = $productsData['products'];
             $orderDate = $productsData['order_date'];
 
-            return response()->json([
+            return $this->successResponse([
                 'orders' => $orders,
                 'products' => $products,
                 'order_date' => $orderDate,

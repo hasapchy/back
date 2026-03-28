@@ -28,7 +28,7 @@ class OrdersRepository extends BaseRepository
     /**
      * Получить заказы с пагинацией и фильтрацией
      *
-     * @param string $userUuid UUID пользователя
+     * @param int $userUuid ID пользователя
      * @param int $perPage Количество записей на страницу
      * @param string|null $search Поисковый запрос
      * @param string $dateFilter Фильтр по дате
@@ -42,11 +42,12 @@ class OrdersRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null, $unpaidOnly = false)
     {
+        $userUuid = (int) $userUuid;
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
 
-        $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, 'single', $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, 'single_v2', $currentUser?->id, $companyId]);
 
         $searchTrimmed = is_string($search) ? trim($search) : '';
         $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
@@ -58,16 +59,11 @@ class OrdersRepository extends BaseRepository
                 ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
             $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, null);
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
-            $transactionsRepository = new \App\Repositories\TransactionsRepository();
-            $orders->getCollection()->transform(function ($order) use ($transactionsRepository) {
+            $paidAmountsMap = $this->getPaidAmountsMap($orders->pluck('id')->toArray());
+            $orders->getCollection()->transform(function ($order) use ($paidAmountsMap) {
                 if ($order->client) {
                     $order->client_first_name = $order->client->first_name;
                     $order->client_last_name = $order->client->last_name;
-                }
-
-                if ($order->creator) {
-                    $order->user_name = $order->creator->name;
-                    $order->user_photo = $order->creator->photo;
                 }
 
                 if ($order->status) {
@@ -82,11 +78,12 @@ class OrdersRepository extends BaseRepository
                     $order->warehouse_name = $order->warehouse->name;
                 }
 
-                if ($order->cash) {
-                    $order->cash_name = $order->cash->name;
-                    if ($order->cash->currency) {
-                        $order->currency_name = $order->cash->currency->name;
-                        $order->currency_symbol = $order->cash->currency->symbol;
+                if ($order->cashRegister) {
+                    $order->cash_name = $order->cashRegister->name;
+                    $order->cash_is_cash = $order->cashRegister->is_cash;
+                    if ($order->cashRegister->currency) {
+                        $order->currency_name = $order->cashRegister->currency->name;
+                        $order->currency_symbol = $order->cashRegister->currency->symbol;
                     }
                 }
 
@@ -141,7 +138,7 @@ class OrdersRepository extends BaseRepository
 
                 $order->products = $allProducts;
 
-                $paidAmount = (float) $transactionsRepository->getTotalByOrderId($order->creator_id ?? 1, $order->id);
+                $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
                 $totalPrice = (float) ($order->total_price ?? 0);
 
                 $order->setAttribute('paid_amount', $paidAmount);
@@ -200,7 +197,7 @@ class OrdersRepository extends BaseRepository
             }
 
             $this->applyOwnFilter($unpaidQuery, $orderResource, 'orders', 'creator_id', $currentUser);
-            $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cash');
+            $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cashRegister');
 
             if ($isSimpleWorker && !$currentUser->is_admin) {
                 $userCategoryIds = $this->getUserCategoryIds($userUuid);
@@ -250,6 +247,7 @@ class OrdersRepository extends BaseRepository
      */
     protected function buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $projectFilter = null, $clientFilter = null, $unpaidOnly = false, ?array $ids = null)
     {
+        $userUuid = (int) $userUuid;
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
@@ -260,8 +258,8 @@ class OrdersRepository extends BaseRepository
             'status:id,name',
             'status.category:id,name,color',
             'warehouse:id,name',
-            'cash:id,name,currency_id',
-            'cash.currency:id,name,symbol',
+            'cashRegister:id,name,currency_id,is_cash',
+            'cashRegister.currency:id,name,symbol',
             'project:id,name',
             'category:id,name',
             'orderProducts:id,order_id,product_id,quantity,price,width,height',
@@ -350,7 +348,7 @@ class OrdersRepository extends BaseRepository
         if ($ids !== null && $ids !== []) {
             $query->whereIn('orders.id', $ids);
         }
-        $query = $this->addCompanyFilterThroughRelation($query, 'cash');
+        $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
         return $query;
     }
 
@@ -375,15 +373,11 @@ class OrdersRepository extends BaseRepository
         $searchTrimmed = is_string($search) ? trim($search) : '';
         $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, $ids);
         $orders = $query->orderBy('orders.created_at', 'desc')->limit($limit)->get();
-        $transactionsRepository = new \App\Repositories\TransactionsRepository();
-        $orders->transform(function ($order) use ($transactionsRepository) {
+        $paidAmountsMap = $this->getPaidAmountsMap($orders->pluck('id')->toArray());
+        $orders->transform(function ($order) use ($paidAmountsMap) {
             if ($order->client) {
                 $order->client_first_name = $order->client->first_name;
                 $order->client_last_name = $order->client->last_name;
-            }
-            if ($order->creator) {
-                $order->user_name = $order->creator->name;
-                $order->user_photo = $order->creator->photo;
             }
             if ($order->status) {
                 $order->status_name = $order->status->name;
@@ -395,11 +389,12 @@ class OrdersRepository extends BaseRepository
             if ($order->warehouse) {
                 $order->warehouse_name = $order->warehouse->name;
             }
-            if ($order->cash) {
-                $order->cash_name = $order->cash->name;
-                if ($order->cash->currency) {
-                    $order->currency_name = $order->cash->currency->name;
-                    $order->currency_symbol = $order->cash->currency->symbol;
+            if ($order->cashRegister) {
+                $order->cash_name = $order->cashRegister->name;
+                $order->cash_is_cash = $order->cashRegister->is_cash;
+                if ($order->cashRegister->currency) {
+                    $order->currency_name = $order->cashRegister->currency->name;
+                    $order->currency_symbol = $order->cashRegister->currency->symbol;
                 }
             }
             if ($order->project) {
@@ -437,7 +432,7 @@ class OrdersRepository extends BaseRepository
                 }
             }
             $order->products = $allProducts;
-            $paidAmount = (float) $transactionsRepository->getTotalByOrderId($order->creator_id ?? 1, $order->id);
+            $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
             $totalPrice = (float) ($order->total_price ?? 0);
             $order->setAttribute('paid_amount', $paidAmount);
             if ($paidAmount <= 0) {
@@ -503,7 +498,7 @@ class OrdersRepository extends BaseRepository
             }
         }
 
-        $query = $this->addCompanyFilterThroughRelation($query, 'cash');
+        $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
 
         return (int) $query->count();
     }
@@ -512,12 +507,65 @@ class OrdersRepository extends BaseRepository
      * Получить заказ по ID
      *
      * @param int $id ID заказа
-     * @return object|null
+     * @return Order|null
      */
     public function getItemById($id)
     {
-        $items = $this->getItems([$id]);
-        return $items->first();
+        $order = Order::query()
+            ->select([
+                'orders.*',
+                DB::raw('(orders.price - orders.discount) as total_price'),
+            ])
+            ->where('orders.id', (int) $id)
+            ->with([
+                'warehouse:id,name',
+                'cashRegister:id,name,currency_id,is_cash',
+                'cashRegister.currency:id,name,symbol',
+                'project:id,name',
+                'creator:id,name,photo',
+                'status:id,name,category_id',
+                'status.category:id,name,color',
+                'category:id,name',
+                'client:id,first_name,last_name,client_type,is_supplier,is_conflict',
+                'client.phones:id,client_id,phone',
+                'orderProducts:id,order_id,product_id,quantity,price,width,height',
+                'orderProducts.product:id,name,image,unit_id',
+                'orderProducts.product.unit:id,name,short_name',
+                'tempProducts:id,order_id,name,description,quantity,price,unit_id,width,height',
+                'tempProducts.unit:id,name,short_name',
+            ])
+            ->first();
+
+        if (! $order instanceof Order) {
+            return null;
+        }
+
+        $order->setAttribute(
+            'products',
+            $this->getProducts([(int) $order->id])->get($order->id, collect())
+        );
+
+        $paidAmountsMap = $this->getPaidAmountsMap([(int) $order->id]);
+        $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
+        $totalPrice = (float) ($order->getAttribute('total_price') ?? 0);
+
+        $order->setAttribute('paid_amount', $paidAmount);
+
+        if ($paidAmount <= 0) {
+            $order->setAttribute('payment_status', 'unpaid');
+        } elseif ($paidAmount < $totalPrice) {
+            $order->setAttribute('payment_status', 'partially_paid');
+        } else {
+            $order->setAttribute('payment_status', 'paid');
+        }
+
+        $order->setAttribute(
+            'payment_status_text',
+            $paidAmount <= 0 ? 'Не оплачено' : ($paidAmount < $totalPrice ? 'Частично оплачено' : 'Оплачено')
+        );
+        $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
+
+        return $order;
     }
 
 
@@ -526,7 +574,7 @@ class OrdersRepository extends BaseRepository
      * Получить заказы по массиву ID
      *
      * @param array $order_ids Массив ID заказов
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @return \Illuminate\Support\Collection
      */
     public function getItemsByIds(array $order_ids)
     {
@@ -561,8 +609,8 @@ class OrdersRepository extends BaseRepository
             ->whereIn('orders.id', $order_ids)
             ->with([
                 'warehouse:id,name',
-                'cash:id,name,currency_id',
-                'cash.currency:id,name,symbol',
+                'cashRegister:id,name,currency_id,is_cash',
+                'cashRegister.currency:id,name,symbol',
                 'project:id,name',
                 'creator:id,name,photo',
                 'status:id,name,category_id',
@@ -608,13 +656,12 @@ class OrdersRepository extends BaseRepository
                 'created_at' => $order->created_at,
                 'updated_at' => $order->updated_at,
                 'warehouse_name' => $order->warehouse->name ?? null,
-                'cash_name' => $order->cash->name ?? null,
-                'currency_id' => $order->cash?->currency->id,
-                'currency_name' => $order->cash?->currency->name,
-                'currency_symbol' => $order->cash?->currency->symbol,
+                'cash_name' => $order->cashRegister->name ?? null,
+                'cash_is_cash' => $order->cashRegister->is_cash ?? null,
+                'currency_id' => $order->cashRegister?->currency->id,
+                'currency_name' => $order->cashRegister?->currency->name,
+                'currency_symbol' => $order->cashRegister?->currency->symbol,
                 'project_name' => $order->project->name ?? null,
-                'user_name' => $order->creator->name,
-                'user_photo' => $order->creator->photo,
                 'category_name' => $order->category->name ?? null,
                 'products' => $orderProducts,
                 'client' => $clients->get($order->client_id),
@@ -1576,7 +1623,7 @@ class OrdersRepository extends BaseRepository
      * @param mixed|null $height
      * @return string
      */
-    private function buildOrderProductComparisonKey($productId, $quantity, $price, $width, $height): string
+    protected function buildOrderProductComparisonKey($productId, $quantity, $price, $width, $height): string
     {
         return implode('|', [
             (string) $productId,
@@ -1639,18 +1686,16 @@ class OrdersRepository extends BaseRepository
         }
 
         $order->warehouse_name = $order->warehouse->name ?? null;
-        $order->cash_name = $order->cash->name ?? null;
+        $order->cash_name = $order->cashRegister->name ?? null;
+        $order->cash_is_cash = $order->cashRegister->is_cash ?? null;
 
-        if ($order->cash && $order->cash->currency) {
-            $order->currency_name = $order->cash->currency->name;
-            $order->currency_symbol = $order->cash->currency->symbol;
+        if ($order->cashRegister && $order->cashRegister->currency) {
+            $order->currency_name = $order->cashRegister->currency->name;
+            $order->currency_symbol = $order->cashRegister->currency->symbol;
         }
 
         $order->project_name = $order->project->name ?? null;
         $order->category_name = $order->category->name ?? null;
-        $order->user_name = $order->creator->name ?? null;
-        $order->user_photo = $order->creator->photo ?? null;
-
         if ($loadProducts) {
             $regularProducts = $order->orderProducts ? $order->orderProducts->map(function ($orderProduct) {
                 return [

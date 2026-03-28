@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class CompanyHoliday extends Model
 {
+    use BelongsToCompany;
     use HasFactory;
 
     protected $fillable = [
@@ -43,9 +45,4 @@ class CompanyHoliday extends Model
         'color' => '#FF5733',
         'is_recurring' => true,
     ];
-
-    public function company()
-    {
-        return $this->belongsTo(Company::class);
-    }
 }

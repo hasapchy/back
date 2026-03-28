@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreWarehouseMovementRequest;
 use App\Http\Requests\UpdateWarehouseMovementRequest;
+use App\Http\Resources\WarehouseMovementResource;
 use App\Repositories\WarehouseMovementRepository;
 use Illuminate\Http\Request;
 
@@ -12,14 +13,14 @@ use Illuminate\Http\Request;
  */
 class WarehouseMovementController extends BaseController
 {
-    protected $warehouseRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      */
-    public function __construct(WarehouseMovementRepository $warehouseRepository)
+    public function __construct(WarehouseMovementRepository $itemsRepository)
     {
-        $this->warehouseRepository = $warehouseRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -34,9 +35,18 @@ class WarehouseMovementController extends BaseController
         $perPage = $request->input('per_page', 20);
         $page = $request->input('page', 1);
 
-        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
-        return $this->paginatedResponse($warehouses);
+        return $this->successResponse([
+            'items' => WarehouseMovementResource::collection($warehouses->items())->resolve(),
+            'meta' => [
+                'current_page' => $warehouses->currentPage(),
+                'next_page' => $warehouses->nextPageUrl(),
+                'last_page' => $warehouses->lastPage(),
+                'per_page' => $warehouses->perPage(),
+                'total' => $warehouses->total(),
+            ],
+        ]);
     }
 
     /**
@@ -68,12 +78,12 @@ class WarehouseMovementController extends BaseController
         ];
 
         try {
-            $warehouse_created = $this->warehouseRepository->createItem($data);
+            $warehouse_created = $this->itemsRepository->createItem($data);
             if (! $warehouse_created) {
                 return $this->errorResponse('Ошибка перемещения', 400);
             }
 
-            return response()->json(['message' => 'Перемещение создано']);
+            return $this->successResponse(null, 'Перемещение создано');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка перемещения: '.$th->getMessage(), 400);
         }
@@ -109,12 +119,12 @@ class WarehouseMovementController extends BaseController
         ];
 
         try {
-            $warehouse_created = $this->warehouseRepository->updateItem($id, $data);
+            $warehouse_created = $this->itemsRepository->updateItem($id, $data);
             if (! $warehouse_created) {
                 return $this->errorResponse('Ошибка обновления перемещения', 400);
             }
 
-            return response()->json(['message' => 'Перемещение обновлено']);
+            return $this->successResponse(null, 'Перемещение обновлено');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка обновления перемещения: '.$th->getMessage(), 400);
         }
@@ -144,13 +154,13 @@ class WarehouseMovementController extends BaseController
             }
         }
 
-        $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
+        $warehouse_deleted = $this->itemsRepository->deleteItem($id);
 
         if (! $warehouse_deleted) {
             return $this->errorResponse('Ошибка удаления перемещения', 400);
         }
 
-        return response()->json(['message' => 'Перемещение удалено']);
+        return $this->successResponse(null, 'Перемещение удалено');
     }
 
     /**

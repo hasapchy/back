@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Resources\LeaveTypeResource;
 use App\Repositories\LeaveTypeRepository;
 use Illuminate\Http\Request;
 
@@ -10,14 +11,14 @@ use Illuminate\Http\Request;
  */
 class LeaveTypeController extends BaseController
 {
-    protected $leaveTypeRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      */
-    public function __construct(LeaveTypeRepository $leaveTypeRepository)
+    public function __construct(LeaveTypeRepository $itemsRepository)
     {
-        $this->leaveTypeRepository = $leaveTypeRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -31,9 +32,18 @@ class LeaveTypeController extends BaseController
 
         $perPage = $request->input('per_page', 20);
         $page = $request->input('page', 1);
-        $items = $this->leaveTypeRepository->getItemsWithPagination($perPage, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($perPage, $page);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => LeaveTypeResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -45,9 +55,9 @@ class LeaveTypeController extends BaseController
     {
         $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->leaveTypeRepository->getAllItems();
+        $items = $this->itemsRepository->getAllItems();
 
-        return response()->json($items);
+        return $this->successResponse(LeaveTypeResource::collection($items)->resolve());
     }
 
     /**
@@ -65,7 +75,7 @@ class LeaveTypeController extends BaseController
             'is_penalty' => 'nullable|boolean',
         ]);
 
-        $created = $this->leaveTypeRepository->createItem([
+        $created = $this->itemsRepository->createItem([
             'name' => $request->name,
             'color' => $request->color,
             'is_penalty' => (bool) $request->boolean('is_penalty'),
@@ -74,7 +84,7 @@ class LeaveTypeController extends BaseController
             return $this->errorResponse('Ошибка создания типа отпуска', 400);
         }
 
-        return response()->json(['item' => $created, 'message' => 'Тип отпуска создан']);
+        return $this->successResponse(new LeaveTypeResource($created), 'Тип отпуска создан');
     }
 
     /**
@@ -93,7 +103,7 @@ class LeaveTypeController extends BaseController
             'is_penalty' => 'nullable|boolean',
         ]);
 
-        $updated = $this->leaveTypeRepository->updateItem($id, [
+        $updated = $this->itemsRepository->updateItem($id, [
             'name' => $request->name,
             'color' => $request->color,
             'is_penalty' => (bool) $request->boolean('is_penalty'),
@@ -102,7 +112,7 @@ class LeaveTypeController extends BaseController
             return $this->errorResponse('Ошибка обновления', 400);
         }
 
-        return response()->json(['item' => $updated, 'message' => 'Тип отпуска обновлен']);
+        return $this->successResponse(new LeaveTypeResource($updated), 'Тип отпуска обновлен');
     }
 
     /**
@@ -116,12 +126,12 @@ class LeaveTypeController extends BaseController
         $this->getAuthenticatedUserIdOrFail();
 
         try {
-            $deleted = $this->leaveTypeRepository->deleteItem($id);
+            $deleted = $this->itemsRepository->deleteItem($id);
             if (! $deleted) {
                 return $this->errorResponse('Ошибка удаления', 400);
             }
 
-            return response()->json(['message' => 'Тип отпуска удален']);
+            return $this->successResponse(null, 'Тип отпуска удален');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 422);
         }

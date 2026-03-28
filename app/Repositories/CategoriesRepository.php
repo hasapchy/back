@@ -24,12 +24,22 @@ class CategoriesRepository extends BaseRepository
         return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
             $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
                 ->leftJoin('users as users', 'categories.creator_id', '=', 'users.id')
-                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
+                ->select('categories.*', 'parents.name as parent_name', 'users.name as creator_name');
 
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            return $query->with(['users:id,name,surname,email,position'])->paginate($perPage, ['*'], 'page', (int)$page);
+            $items = $query->with(['users:id,name,surname,email,position'])->paginate($perPage, ['*'], 'page', (int)$page);
+            $items->getCollection()->transform(function ($item) {
+                $item->creator = $item->creator_id ? [
+                    'id' => (int) $item->creator_id,
+                    'name' => $item->creator_name,
+                ] : null;
+                unset($item->creator_name);
+                return $item;
+            });
+
+            return $items;
         }, (int)$page);
     }
 
@@ -46,12 +56,19 @@ class CategoriesRepository extends BaseRepository
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
             $query = Category::leftJoin('categories as parents', 'categories.parent_id', '=', 'parents.id')
                 ->leftJoin('users as users', 'categories.creator_id', '=', 'users.id')
-                ->select('categories.*', 'parents.name as parent_name', 'users.name as user_name');
+                ->select('categories.*', 'parents.name as parent_name', 'users.name as creator_name');
 
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            return $query->with(['users:id,name,surname,email,position'])->get();
+            return $query->with(['users:id,name,surname,email,position'])->get()->map(function ($item) {
+                $item->creator = $item->creator_id ? [
+                    'id' => (int) $item->creator_id,
+                    'name' => $item->creator_name,
+                ] : null;
+                unset($item->creator_name);
+                return $item;
+            });
         });
     }
 
@@ -67,14 +84,21 @@ class CategoriesRepository extends BaseRepository
 
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
             $query = Category::leftJoin('users as users', 'categories.creator_id', '=', 'users.id')
-                ->select('categories.*', 'users.name as user_name')
+                ->select('categories.*', 'users.name as creator_name')
                 ->whereNull('categories.parent_id')
                 ->whereHas('children');
 
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
-            return $query->with(['users:id,name,surname,email,position'])->get();
+            return $query->with(['users:id,name,surname,email,position'])->get()->map(function ($item) {
+                $item->creator = $item->creator_id ? [
+                    'id' => (int) $item->creator_id,
+                    'name' => $item->creator_name,
+                ] : null;
+                unset($item->creator_name);
+                return $item;
+            });
         });
     }
 

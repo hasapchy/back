@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\TaskRequest;
 use App\Repositories\TaskRepository;
 use App\Http\Resources\TaskResource;
@@ -13,11 +12,11 @@ use Illuminate\Support\Str;
 
 class TasksController extends BaseController
 {
-    protected $taskRepository;
+    protected $itemsRepository;
 
-    public function __construct(TaskRepository $taskRepository)
+    public function __construct(TaskRepository $itemsRepository)
     {
-        $this->taskRepository = $taskRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -25,10 +24,10 @@ class TasksController extends BaseController
      */
     public function index(Request $request)
     {
-        $tasks = $this->taskRepository->getFilteredTasks($request);
+        $tasks = $this->itemsRepository->getFilteredTasks($request);
 
-        return response()->json([
-            'data' => TaskResource::collection($tasks->items()),
+        return $this->successResponse([
+            'items' => TaskResource::collection($tasks->items())->resolve(),
             'meta' => [
                 'current_page' => $tasks->currentPage(),
                 'per_page' => $tasks->perPage(),
@@ -46,12 +45,12 @@ class TasksController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $permissions = $this->getUserPermissions($user);
         if (!in_array('tasks_view_all', $permissions) && !in_array('tasks_view_own', $permissions)) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр задач');
+            return $this->errorResponse('У вас нет прав на просмотр задач', 403);
         }
 
-        $count = $this->taskRepository->getOverdueCount();
+        $count = $this->itemsRepository->getOverdueCount();
 
-        return response()->json(['data' => ['count' => $count]]);
+        return $this->successResponse(['count' => $count]);
     }
 
     /**
@@ -66,13 +65,13 @@ class TasksController extends BaseController
             return $this->errorResponse('Company ID is required', 400);
         }
 
-        $task = $this->taskRepository->create($data);
+        $task = $this->itemsRepository->create($data);
         $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
-        return response()->json([
+        return $this->successResponse([
             'data' => new TaskResource($task),
             'message' => 'Задача успешно создана'
-        ], 201);
+        ], null, 201);
     }
 
     /**
@@ -80,10 +79,10 @@ class TasksController extends BaseController
      */
     public function show($id)
     {
-        $task = $this->taskRepository->findById($id);
+        $task = $this->itemsRepository->findById($id);
         $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
-        return response()->json([
+        return $this->successResponse([
             'data' => new TaskResource($task)
         ]);
     }
@@ -93,10 +92,10 @@ class TasksController extends BaseController
      */
     public function update(TaskRequest $request, $id)
     {
-        $task = $this->taskRepository->update($id, $request->validated());
+        $task = $this->itemsRepository->update($id, $request->validated());
         $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
-        return response()->json([
+        return $this->successResponse([
             'data' => new TaskResource($task),
             'message' => 'Задача успешно обновлена'
         ]);
@@ -107,9 +106,9 @@ class TasksController extends BaseController
      */
     public function destroy($id)
     {
-        $this->taskRepository->delete($id);
+        $this->itemsRepository->delete($id);
 
-        return response()->json([
+        return $this->successResponse([
             'message' => 'Задача успешно удалена'
         ], 204);
     }
@@ -129,10 +128,10 @@ class TasksController extends BaseController
             return $this->errorResponse('Статус "Завершена" не найден', 404);
         }
 
-        $task = $this->taskRepository->changeStatus($id, $completedStatus->id);
+        $task = $this->itemsRepository->changeStatus($id, $completedStatus->id);
         $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
-        return response()->json([
+        return $this->successResponse([
             'data' => new TaskResource($task),
             'message' => 'Задача отмечена как выполненная'
         ]);
@@ -153,10 +152,10 @@ class TasksController extends BaseController
             return $this->errorResponse('Статус "Принята" не найден', 404);
         }
 
-        $task = $this->taskRepository->changeStatus($id, $acceptedStatus->id);
+        $task = $this->itemsRepository->changeStatus($id, $acceptedStatus->id);
         $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
-        return response()->json([
+        return $this->successResponse([
             'data' => new TaskResource($task),
             'message' => 'Задача принята'
         ]);
@@ -177,10 +176,10 @@ class TasksController extends BaseController
             return $this->errorResponse('Статус "В работе" не найден', 404);
         }
 
-        $task = $this->taskRepository->changeStatus($id, $inProgressStatus->id);
+        $task = $this->itemsRepository->changeStatus($id, $inProgressStatus->id);
         $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
 
-        return response()->json([
+        return $this->successResponse([
             'data' => new TaskResource($task),
             'message' => 'Задача возвращена на доработку'
         ]);
@@ -207,19 +206,19 @@ class TasksController extends BaseController
         }
 
         if (count($files) == 0) {
-            return response()->json(['error' => 'No files uploaded'], 400);
+            return $this->errorResponse('No files uploaded', 400);
         }
 
         if (count($files) > 8) {
-            return response()->json(['error' => 'Максимум 8 файлов за раз'], 400);
+            return $this->errorResponse('Максимум 8 файлов за раз', 400);
         }
 
         try {
-            $task = $this->taskRepository->findById($id);
+            $task = $this->itemsRepository->findById($id);
 
             $storedFiles = $task->files ?? [];
             if (count($storedFiles) + count($files) > 50) {
-                return response()->json(['error' => 'Максимум 50 файлов в задаче'], 400);
+                return $this->errorResponse('Максимум 50 файлов в задаче', 400);
             }
 
             foreach ($files as $file) {
@@ -237,9 +236,9 @@ class TasksController extends BaseController
 
             $task->update(['files' => $storedFiles]);
 
-            return response()->json(['files' => $storedFiles, 'message' => 'Files uploaded successfully']);
+            return $this->successResponse($storedFiles, 'Files uploaded successfully');
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Ошибка при загрузке файлов: ' . $e->getMessage()], 500);
+            return $this->errorResponse('Ошибка при загрузке файлов: ' . $e->getMessage(), 500);
         }
     }
 
@@ -249,11 +248,11 @@ class TasksController extends BaseController
     public function deleteFile(Request $request, $id)
     {
         try {
-            $task = $this->taskRepository->findById($id);
+            $task = $this->itemsRepository->findById($id);
 
             $filePath = $request->input('path');
             if (!$filePath || str_contains($filePath, '..') || !str_starts_with($filePath, 'tasks/' . $id . '/')) {
-                return response()->json(['error' => 'Некорректный путь файла'], 400);
+                return $this->errorResponse('Некорректный путь файла', 400);
             }
 
             $files = $task->files ?? [];
@@ -272,15 +271,15 @@ class TasksController extends BaseController
             }
 
             if (!$deletedFile) {
-                return response()->json(['error' => 'Файл не найден в задаче'], 404);
+                return $this->errorResponse('Файл не найден в задаче', 404);
             }
 
             $task->files = $updatedFiles;
             $task->save();
 
-            return response()->json(['files' => $updatedFiles, 'message' => 'File deleted successfully']);
+            return $this->successResponse($updatedFiles, 'File deleted successfully');
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Ошибка при удалении файла: ' . $e->getMessage()], 500);
+            return $this->errorResponse('Ошибка при удалении файла: ' . $e->getMessage(), 500);
         }
     }
 }

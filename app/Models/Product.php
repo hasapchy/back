@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Category;
@@ -44,7 +45,9 @@ use App\Models\Unit;
  */
 class Product extends Model
 {
+    use BelongsToCompany;
     use HasFactory;
+
     protected $table = 'products';
     protected $fillable = [
         'name',
@@ -155,16 +158,6 @@ class Product extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'creator_id');
-    }
-
-    /**
-     * Связь с компанией
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function company()
-    {
-        return $this->belongsTo(Company::class, 'company_id');
     }
 
     /**

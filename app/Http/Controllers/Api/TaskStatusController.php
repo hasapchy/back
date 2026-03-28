@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreTaskStatusRequest;
 use App\Http\Requests\UpdateTaskStatusRequest;
+use App\Http\Resources\TaskStatusResource;
 use App\Models\TaskStatus;
 use App\Repositories\TaskStatusRepository;
 use Illuminate\Http\Request;
@@ -13,14 +14,14 @@ use Illuminate\Http\Request;
  */
 class TaskStatusController extends BaseController
 {
-    protected $taskStatusRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      */
-    public function __construct(TaskStatusRepository $taskStatusRepository)
+    public function __construct(TaskStatusRepository $itemsRepository)
     {
-        $this->taskStatusRepository = $taskStatusRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -35,9 +36,18 @@ class TaskStatusController extends BaseController
         $perPage = $request->input('per_page', 20);
         $page = $request->input('page', 1);
 
-        $items = $this->taskStatusRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => TaskStatusResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -49,9 +59,9 @@ class TaskStatusController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->taskStatusRepository->getAllItems($userUuid);
+        $items = $this->itemsRepository->getAllItems($userUuid);
 
-        return response()->json($items);
+        return $this->successResponse(TaskStatusResource::collection($items)->resolve());
     }
 
     /**
@@ -65,7 +75,7 @@ class TaskStatusController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $created = $this->taskStatusRepository->createItem([
+        $created = $this->itemsRepository->createItem([
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
             'creator_id' => $userUuid,
@@ -74,7 +84,7 @@ class TaskStatusController extends BaseController
             return $this->errorResponse('Ошибка создания статуса', 400);
         }
 
-        return response()->json(['message' => 'Статус создан']);
+        return $this->successResponse(null, 'Статус создан');
     }
 
     /**
@@ -89,7 +99,7 @@ class TaskStatusController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $updated = $this->taskStatusRepository->updateItem($id, [
+        $updated = $this->itemsRepository->updateItem($id, [
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
         ]);
@@ -97,7 +107,7 @@ class TaskStatusController extends BaseController
             return $this->errorResponse('Ошибка обновления статуса', 400);
         }
 
-        return response()->json(['message' => 'Статус обновлен']);
+        return $this->successResponse(null, 'Статус обновлен');
     }
 
     /**
@@ -120,11 +130,11 @@ class TaskStatusController extends BaseController
             return $this->errorResponse('Нельзя удалить статус, который используется в задачах', 400);
         }
 
-        $deleted = $this->taskStatusRepository->deleteItem($id);
+        $deleted = $this->itemsRepository->deleteItem($id);
         if (! $deleted) {
             return $this->errorResponse('Ошибка удаления статуса', 400);
         }
 
-        return response()->json(['message' => 'Статус удален']);
+        return $this->successResponse(null, 'Статус удален');
     }
 }

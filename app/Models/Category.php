@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
+use App\Models\Traits\HasManyToManyUsers;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Traits\HasManyToManyUsers;
 
 /**
  * Модель категории
@@ -25,6 +26,7 @@ use App\Models\Traits\HasManyToManyUsers;
  */
 class Category extends Model
 {
+    use BelongsToCompany;
     use HasFactory, HasManyToManyUsers;
 
     protected $fillable = ['name', 'parent_id', 'creator_id', 'company_id'];
@@ -74,13 +76,4 @@ class Category extends Model
         return $this->users()->wherePivot('user_id', $userId)->exists();
     }
 
-    /**
-     * Связь с компанией
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function company()
-    {
-        return $this->belongsTo(Company::class, 'company_id');
-    }
 }

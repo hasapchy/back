@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
+use App\Http\Resources\CompanyResource;
 use App\Models\Company;
 use App\Repositories\RolesRepository;
 use App\Services\CacheService;
@@ -35,7 +35,15 @@ class CompaniesController extends BaseController
             ->orderBy('name')
             ->paginate($perPage);
 
-        return $this->paginatedResponse($companies);
+        return $this->successResponse([
+            'items' => CompanyResource::collection($companies->items())->resolve(),
+            'meta' => [
+                'current_page' => $companies->currentPage(),
+                'last_page' => $companies->lastPage(),
+                'per_page' => $companies->perPage(),
+                'total' => $companies->total(),
+            ],
+        ]);
     }
 
     /**
@@ -57,7 +65,7 @@ class CompaniesController extends BaseController
         $rolesRepository = app(RolesRepository::class);
         $rolesRepository->createDefaultRolesForCompany($company->id);
 
-        return response()->json(['company' => $company]);
+        return $this->successResponse(new CompanyResource($company));
     }
 
     /**
@@ -84,7 +92,7 @@ class CompaniesController extends BaseController
 
         $company = $company->fresh();
 
-        return response()->json(['company' => $company]);
+        return $this->successResponse(new CompanyResource($company));
     }
 
     /**
@@ -98,7 +106,7 @@ class CompaniesController extends BaseController
         $company = Company::findOrFail($id);
         $company->delete();
 
-        return response()->json(['message' => 'Company deleted']);
+        return $this->successResponse(null, 'Company deleted');
     }
 
     /**
@@ -113,30 +121,33 @@ class CompaniesController extends BaseController
         try {
             $company = Company::findOrFail($id);
 
-            if (!$this->hasPermission('employee_salaries_accrue')) {
-                return $this->forbiddenResponse('Нет прав на массовое начисление зарплат');
-            }
-
             $validatedData = $request->validated();
             $date = $validatedData['date'];
             $cashId = $validatedData['cash_id'];
             $note = $validatedData['note'] ?? null;
             $userIds = $validatedData['creator_ids'];
             $paymentType = (bool)$validatedData['payment_type'];
+            $items = $validatedData['items'] ?? null;
 
-            $transactionsRepository = app(TransactionsRepository::class);
-            $salaryAccrualService = new SalaryAccrualService($transactionsRepository);
+            if (is_array($items) && !$this->hasPermission('settings_client_balance_view')) {
+                $items = array_map(static function ($row) {
+                    unset($row['client_balance_id']);
 
-            $results = $salaryAccrualService->accrueSalariesForCompany(
+                    return $row;
+                }, $items);
+            }
+
+            $results = $this->salaryAccrualService()->accrueSalariesForCompany(
                 $company->id,
                 $date,
                 $cashId,
                 $note,
                 $userIds,
-                $paymentType
+                $paymentType,
+                $items
             );
 
-            return response()->json([
+            return $this->successResponse([
                 'message' => 'Начисление зарплат завершено',
                 'results' => $results,
                 'summary' => [
@@ -149,6 +160,60 @@ class CompaniesController extends BaseController
             return $this->errorResponse('Компания не найдена', 404);
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при начислении зарплат: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Массовая выплата зарплат с записью батча в отчёт (salary_monthly_reports).
+     *
+     * @param  AccrueSalariesRequest  $request
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function paySalaries(AccrueSalariesRequest $request, $id)
+    {
+        try {
+            $company = Company::findOrFail($id);
+
+            $validatedData = $request->validated();
+            $date = $validatedData['date'];
+            $cashId = $validatedData['cash_id'];
+            $note = $validatedData['note'] ?? null;
+            $userIds = $validatedData['creator_ids'];
+            $paymentType = (bool) $validatedData['payment_type'];
+            $items = $validatedData['items'] ?? null;
+
+            if (is_array($items) && ! $this->hasPermission('settings_client_balance_view')) {
+                $items = array_map(static function ($row) {
+                    unset($row['client_balance_id']);
+
+                    return $row;
+                }, $items);
+            }
+
+            $results = $this->salaryAccrualService()->paySalariesForCompany(
+                $company->id,
+                $date,
+                $cashId,
+                $note,
+                $userIds,
+                $paymentType,
+                $items
+            );
+
+            return $this->successResponse([
+                'message' => 'Выплата зарплат завершена',
+                'results' => $results,
+                'summary' => [
+                    'success' => count($results['success']),
+                    'skipped' => count($results['skipped']),
+                    'errors' => count($results['errors']),
+                ],
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Компания не найдена', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при выплате зарплат: ' . $e->getMessage(), 500);
         }
     }
 
@@ -173,12 +238,9 @@ class CompaniesController extends BaseController
             $date = $request->input('date');
             $userIds = $request->input('creator_ids');
 
-            $transactionsRepository = app(TransactionsRepository::class);
-            $salaryAccrualService = new SalaryAccrualService($transactionsRepository);
+            $checkResult = $this->salaryAccrualService()->checkExistingAccruals($company->id, $date, $userIds);
 
-            $checkResult = $salaryAccrualService->checkExistingAccruals($company->id, $date, $userIds);
-
-            return response()->json($checkResult);
+            return $this->successResponse($checkResult);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Компания не найдена', 404);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -186,5 +248,120 @@ class CompaniesController extends BaseController
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при проверке начислений: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * Предпросмотр начисления зарплаты за месяц
+     *
+     * @param Request $request
+     * @param int $id ID компании
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function salaryAccrualPreview(Request $request, $id)
+    {
+        try {
+            $company = Company::findOrFail($id);
+
+            $request->validate([
+                'date' => 'required|date',
+                'creator_ids' => 'required|array|min:1',
+                'creator_ids.*' => 'integer|exists:users,id',
+                'payment_type' => 'nullable|boolean',
+                'currency_id' => 'nullable|integer|exists:currencies,id',
+            ]);
+
+            $date = $request->input('date');
+            $userIds = $request->input('creator_ids');
+            $paymentType = (bool) $request->input('payment_type', true);
+            $currencyId = $request->filled('currency_id') ? (int) $request->input('currency_id') : null;
+
+            $includeBalances = $this->hasPermission('settings_client_balance_view');
+            $preview = $this->salaryAccrualService()->getAccrualPreview($company->id, $date, $userIds, $paymentType, $includeBalances, $currencyId);
+
+            return $this->successResponse($preview);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Компания не найдена', 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при получении предпросмотра начисления: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Зарплаты за месяц: без batch_id — список батчей (salary_monthly_reports); с batch_id — батч и строки (lines).
+     *
+     * @param Request $request
+     * @param int|string $id
+     * @return JsonResponse
+     */
+    public function salaryMonthlyReport(Request $request, $id)
+    {
+        try {
+            $company = Company::findOrFail($id);
+
+            $request->validate([
+                'batch_id' => 'nullable|integer|min:1',
+                'month' => 'required_without:batch_id|date_format:Y-m',
+                'refresh' => 'nullable|boolean',
+            ]);
+
+            $companyId = (int) $company->id;
+
+            if ($request->filled('batch_id')) {
+                $batchId = (int) $request->input('batch_id');
+                $data = $this->salaryAccrualService()->getSalaryReportBatch($companyId, $batchId);
+
+                return $this->successResponse($data);
+            }
+
+            $month = (string) $request->input('month');
+            $items = $this->salaryAccrualService()->listSalaryReportBatches($companyId, $month);
+
+            return $this->successResponse([
+                'month' => $month,
+                'items' => $items,
+                'synced_at' => null,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Компания не найдена', 404);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка при загрузке данных по зарплатам: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Удалить батч зарплаты (отчёт) и связанные проводки.
+     *
+     * @param  int|string  $id
+     * @param  int|string  $batchId
+     * @return JsonResponse
+     */
+    public function deleteSalaryMonthlyReportBatch($id, $batchId)
+    {
+        if (! $this->hasPermission('transactions_delete_all') && ! $this->hasPermission('transactions_delete')) {
+            return $this->errorResponse('Нет права удалять проводки', 403);
+        }
+
+        try {
+            $company = Company::findOrFail($id);
+            $this->salaryAccrualService()->deleteSalaryMonthlyReportBatch((int) $company->id, (int) $batchId);
+
+            return $this->successResponse(null, 'Операция удалена');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Не найдено', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Ошибка удаления: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * @return SalaryAccrualService
+     */
+    private function salaryAccrualService(): SalaryAccrualService
+    {
+        return new SalaryAccrualService(app(TransactionsRepository::class));
     }
 }

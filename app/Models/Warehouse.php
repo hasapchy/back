@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
+use App\Models\Traits\HasManyToManyUsers;
+use App\Models\WarehouseStock;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\WarehouseStock;
-use App\Models\Traits\HasManyToManyUsers;
 
 /**
  * Модель склада
@@ -23,6 +24,7 @@ use App\Models\Traits\HasManyToManyUsers;
  */
 class Warehouse extends Model
 {
+    use BelongsToCompany;
     use HasFactory, HasManyToManyUsers;
 
     protected $fillable = ['name', 'company_id'];
@@ -62,13 +64,4 @@ class Warehouse extends Model
         return $this->users()->wherePivot('user_id', $userId)->exists();
     }
 
-    /**
-     * Связь с компанией
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function company()
-    {
-        return $this->belongsTo(Company::class, 'company_id');
-    }
 }

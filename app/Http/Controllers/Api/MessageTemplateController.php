@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreMessageTemplateRequest;
 use App\Http\Requests\UpdateMessageTemplateRequest;
+use App\Http\Resources\MessageTemplateResource;
 use App\Models\MessageTemplate;
 use App\Repositories\MessageTemplateRepository;
 use Illuminate\Http\Request;
@@ -42,7 +43,15 @@ class MessageTemplateController extends BaseController
 
         $items = $this->repository->getItemsWithPagination($perPage, $page, $filters);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => MessageTemplateResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -61,7 +70,7 @@ class MessageTemplateController extends BaseController
 
         $items = $this->repository->getAllItems($filters);
 
-        return response()->json($items);
+        return $this->successResponse(MessageTemplateResource::collection($items)->resolve());
     }
 
     /**
@@ -99,7 +108,7 @@ class MessageTemplateController extends BaseController
             ];
         }
 
-        return response()->json(['types' => $result]);
+        return $this->successResponse($result);
     }
 
     /**
@@ -116,12 +125,12 @@ class MessageTemplateController extends BaseController
             $template = $this->repository->findItemWithRelations($id);
 
             if (! $template) {
-                return $this->notFoundResponse('Шаблон не найден');
+                return $this->errorResponse('Шаблон не найден', 404);
             }
 
-            return response()->json(['item' => $template]);
+            return $this->successResponse(new MessageTemplateResource($template));
         } catch (\Exception $e) {
-            return $this->notFoundResponse('Шаблон не найден');
+            return $this->errorResponse('Шаблон не найден', 404);
         }
     }
 
@@ -135,7 +144,7 @@ class MessageTemplateController extends BaseController
         $userId = $this->getAuthenticatedUserIdOrFail();
 
         if (! $this->hasPermission('templates_create')) {
-            return $this->forbiddenResponse('У вас нет прав на создание шаблонов');
+            return $this->errorResponse('У вас нет прав на создание шаблонов', 403);
         }
 
         $validatedData = $request->validated();
@@ -150,7 +159,7 @@ class MessageTemplateController extends BaseController
 
         $created = $this->repository->createItem($data);
 
-        return response()->json(['item' => $created, 'message' => 'Шаблон создан']);
+        return $this->successResponse(new MessageTemplateResource($created), 'Шаблон создан');
     }
 
     /**
@@ -167,7 +176,7 @@ class MessageTemplateController extends BaseController
             $template = MessageTemplate::findOrFail($id);
 
             if (! $this->canPerformAction('templates', 'update', $template)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого шаблона');
+                return $this->errorResponse('У вас нет прав на редактирование этого шаблона', 403);
             }
 
             $validatedData = $request->validated();
@@ -182,9 +191,9 @@ class MessageTemplateController extends BaseController
             $this->repository->updateItem($id, $data);
             $template = $this->repository->findItemWithRelations($id);
 
-            return response()->json(['item' => $template, 'message' => 'Шаблон обновлен']);
+            return $this->successResponse(new MessageTemplateResource($template), 'Шаблон обновлен');
         } catch (\Exception $e) {
-            return $this->notFoundResponse('Шаблон не найден');
+            return $this->errorResponse('Шаблон не найден', 404);
         }
     }
 
@@ -202,14 +211,14 @@ class MessageTemplateController extends BaseController
             $template = MessageTemplate::findOrFail($id);
 
             if (! $this->canPerformAction('templates', 'delete', $template)) {
-                return $this->forbiddenResponse('У вас нет прав на удаление этого шаблона');
+                return $this->errorResponse('У вас нет прав на удаление этого шаблона', 403);
             }
 
             $this->repository->deleteItem($id);
 
-            return response()->json(['message' => 'Шаблон удален']);
+            return $this->successResponse(null, 'Шаблон удален');
         } catch (\Exception $e) {
-            return $this->notFoundResponse('Шаблон не найден');
+            return $this->errorResponse('Шаблон не найден', 404);
         }
     }
 
@@ -243,7 +252,7 @@ class MessageTemplateController extends BaseController
                 }
             }
 
-            return response()->json([
+            return $this->successResponse([
                 'message' => "Удалено шаблонов: $deleted",
                 'deleted' => $deleted,
             ]);

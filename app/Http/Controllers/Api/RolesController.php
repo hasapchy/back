@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreRoleRequest;
 use App\Http\Requests\UpdateRoleRequest;
+use App\Http\Resources\RoleResource;
 use App\Repositories\RolesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -52,7 +52,17 @@ class RolesController extends BaseController
                 $perPage = $request->input('per_page', 20);
                 $search = $request->input('search');
                 $companyId = $this->getCurrentCompanyId();
-                return $this->paginatedResponse($this->itemsRepository->getItemsWithPagination($page, $perPage, $search, $companyId));
+                $items = $this->itemsRepository->getItemsWithPagination($page, $perPage, $search, $companyId);
+                return $this->successResponse([
+                    'items' => RoleResource::collection($items->items())->resolve(),
+                    'meta' => [
+                        'current_page' => $items->currentPage(),
+                        'next_page' => $items->nextPageUrl(),
+                        'last_page' => $items->lastPage(),
+                        'per_page' => $items->perPage(),
+                        'total' => $items->total(),
+                    ],
+                ]);
             } catch (\Illuminate\Database\QueryException $e) {
                 $attempt++;
 
@@ -82,11 +92,11 @@ class RolesController extends BaseController
         $allCompanies = $request->boolean('all_companies', false);
         
         if ($allCompanies) {
-            return response()->json($this->itemsRepository->getAllItemsForAllCompanies());
+            return $this->successResponse(RoleResource::collection($this->itemsRepository->getAllItemsForAllCompanies())->resolve());
         }
         
         $companyId = $this->getCurrentCompanyId();
-        return response()->json($this->itemsRepository->getAllItems($companyId));
+        return $this->successResponse(RoleResource::collection($this->itemsRepository->getAllItems($companyId))->resolve());
     }
 
     /**
@@ -100,7 +110,7 @@ class RolesController extends BaseController
         try {
             $companyId = $this->getCurrentCompanyId();
             $role = $this->itemsRepository->getItem($id, $companyId);
-            return response()->json($role);
+            return $this->successResponse(new RoleResource($role));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Роль не найдена', 404);
         } catch (\Exception $e) {
@@ -122,10 +132,7 @@ class RolesController extends BaseController
 
             $role = $this->itemsRepository->createItem($validatedData, $companyId);
 
-            return response()->json([
-                'message' => 'Роль создана успешно',
-                'role' => $role
-            ], 201);
+            return $this->successResponse(new RoleResource($role), 'Роль создана успешно', 201);
         } catch (\Illuminate\Database\QueryException $e) {
             return $this->errorResponse('Ошибка при создании роли: ' . $e->getMessage(), 500);
         } catch (\Exception $e) {
@@ -148,10 +155,7 @@ class RolesController extends BaseController
 
             $role = $this->itemsRepository->updateItem($id, $validatedData, $companyId);
 
-            return response()->json([
-                'message' => 'Роль обновлена успешно',
-                'role' => $role
-            ]);
+            return $this->successResponse(new RoleResource($role), 'Роль обновлена успешно');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Роль не найдена', 404);
         } catch (\Illuminate\Database\QueryException $e) {
@@ -172,7 +176,7 @@ class RolesController extends BaseController
         try {
             $companyId = $this->getCurrentCompanyId();
             $this->itemsRepository->deleteItem($id, $companyId);
-            return response()->json(['message' => 'Роль удалена успешно']);
+            return $this->successResponse(null, 'Роль удалена успешно');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Роль не найдена', 404);
         } catch (\Exception $e) {

@@ -1,6 +1,8 @@
 <?php
+
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -19,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class CurrencyHistory extends Model
 {
+    use BelongsToCompany;
     use HasFactory;
 
     protected $fillable = [
@@ -43,16 +46,6 @@ class CurrencyHistory extends Model
     public function currency()
     {
         return $this->belongsTo(Currency::class);
-    }
-
-    /**
-     * Связь с компанией
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function company()
-    {
-        return $this->belongsTo(Company::class);
     }
 
     /**

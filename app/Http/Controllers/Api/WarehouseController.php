@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreWarehouseRequest;
 use App\Http\Requests\UpdateWarehouseRequest;
+use App\Http\Resources\WarehouseResource;
 use App\Repositories\WarehouseRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
@@ -14,16 +14,16 @@ use App\Services\CacheService;
  */
 class WarehouseController extends BaseController
 {
-    protected $warehouseRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      *
-     * @param WarehouseRepository $warehouseRepository
+     * @param WarehouseRepository $itemsRepository
      */
-    public function __construct(WarehouseRepository $warehouseRepository)
+    public function __construct(WarehouseRepository $itemsRepository)
     {
-        $this->warehouseRepository = $warehouseRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -38,9 +38,18 @@ class WarehouseController extends BaseController
 
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 20);
-        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
-        return $this->paginatedResponse($warehouses);
+        return $this->successResponse([
+            'items' => WarehouseResource::collection($warehouses->items())->resolve(),
+            'meta' => [
+                'current_page' => $warehouses->currentPage(),
+                'next_page' => $warehouses->nextPageUrl(),
+                'last_page' => $warehouses->lastPage(),
+                'per_page' => $warehouses->perPage(),
+                'total' => $warehouses->total(),
+            ],
+        ]);
     }
 
     /**
@@ -53,9 +62,9 @@ class WarehouseController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $warehouses = $this->warehouseRepository->getAllItems($userUuid);
+        $warehouses = $this->itemsRepository->getAllItems($userUuid);
 
-        return response()->json($warehouses);
+        return $this->successResponse(WarehouseResource::collection($warehouses)->resolve());
     }
 
     /**
@@ -68,13 +77,13 @@ class WarehouseController extends BaseController
     {
         $validatedData = $request->validated();
 
-        $warehouse_created = $this->warehouseRepository->createItem($validatedData['name'], $validatedData['users']);
+        $warehouse_created = $this->itemsRepository->createItem($validatedData['name'], $validatedData['users']);
 
         if (!$warehouse_created) {
             return $this->errorResponse('Ошибка создания склада', 400);
         }
 
-        return response()->json(['warehouse' => $warehouse_created, 'message' => 'Склад создан']);
+        return $this->successResponse(new WarehouseResource($warehouse_created), 'Склад создан');
     }
 
     /**
@@ -89,18 +98,18 @@ class WarehouseController extends BaseController
         $warehouse = \App\Models\Warehouse::findOrFail($id);
 
         if (!$this->canPerformAction('warehouses', 'update', $warehouse)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этого склада');
+            return $this->errorResponse('У вас нет прав на редактирование этого склада', 403);
         }
 
         $validatedData = $request->validated();
 
-        $warehouse_updated = $this->warehouseRepository->updateItem($id, $validatedData['name'], $validatedData['users']);
+        $warehouse_updated = $this->itemsRepository->updateItem($id, $validatedData['name'], $validatedData['users']);
 
         if (!$warehouse_updated) {
             return $this->errorResponse('Ошибка обновления склада', 400);
         }
 
-        return response()->json(['warehouse' => $warehouse_updated, 'message' => 'Склад обновлен']);
+        return $this->successResponse(new WarehouseResource($warehouse_updated), 'Склад обновлен');
     }
 
     /**
@@ -114,15 +123,15 @@ class WarehouseController extends BaseController
         $warehouse = \App\Models\Warehouse::findOrFail($id);
 
         if (!$this->canPerformAction('warehouses', 'delete', $warehouse)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этого склада');
+            return $this->errorResponse('У вас нет прав на удаление этого склада', 403);
         }
 
-        $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
+        $warehouse_deleted = $this->itemsRepository->deleteItem($id);
 
         if (!$warehouse_deleted) {
             return $this->errorResponse('Ошибка удаления склада', 400);
         }
 
-        return response()->json(['message' => 'Склад удален']);
+        return $this->successResponse(null, 'Склад удален');
     }
 }

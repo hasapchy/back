@@ -2,41 +2,77 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * @return void
+     */
     public function up(): void
     {
-        Schema::table('rec_schedules', function (Blueprint $table) {
-            if (!Schema::hasColumn('rec_schedules', 'template_id')) {
-                $table->unsignedBigInteger('template_id')->nullable()->after('company_id');
-            }
-            $table->foreign('template_id')->references('id')->on('templates')->onDelete('cascade');
-        });
+        if (! Schema::hasTable('rec_schedules')) {
+            return;
+        }
+
+        if (! Schema::hasColumn('rec_schedules', 'cash_id')) {
+            return;
+        }
 
         Schema::table('rec_schedules', function (Blueprint $table) {
-            $table->dropForeign(['category_id']);
-            $table->dropForeign(['project_id']);
-            $table->dropForeign(['client_id']);
-            $table->dropForeign(['cash_id']);
-            $table->dropForeign(['currency_id']);
-            $table->dropColumn([
-                'name',
-                'type',
-                'orig_amount',
-                'cash_id',
-                'category_id',
-                'currency_id',
-                'project_id',
-                'client_id',
-                'note',
-                'is_debt',
-                'exchange_rate',
-            ]);
+            if (! Schema::hasColumn('rec_schedules', 'template_id')) {
+                $table->unsignedBigInteger('template_id')->nullable()->after('company_id');
+            }
+        });
+
+        $fkName = 'rec_schedules_template_id_foreign';
+        $fkExists = DB::table('information_schema.TABLE_CONSTRAINTS')
+            ->where('TABLE_SCHEMA', DB::connection()->getDatabaseName())
+            ->where('TABLE_NAME', 'rec_schedules')
+            ->where('CONSTRAINT_NAME', $fkName)
+            ->where('CONSTRAINT_TYPE', 'FOREIGN KEY')
+            ->exists();
+
+        if (! $fkExists) {
+            Schema::table('rec_schedules', function (Blueprint $table) {
+                $table->foreign('template_id')->references('id')->on('templates')->onDelete('cascade');
+            });
+        }
+
+        Schema::table('rec_schedules', function (Blueprint $table) {
+            foreach (['category_id', 'project_id', 'client_id', 'cash_id', 'currency_id'] as $column) {
+                if (Schema::hasColumn('rec_schedules', $column)) {
+                    $table->dropForeign([$column]);
+                }
+            }
+
+            $columnsToDrop = array_values(array_filter(
+                [
+                    'name',
+                    'type',
+                    'orig_amount',
+                    'cash_id',
+                    'category_id',
+                    'currency_id',
+                    'project_id',
+                    'client_id',
+                    'note',
+                    'is_debt',
+                    'exchange_rate',
+                ],
+                fn (string $column): bool => Schema::hasColumn('rec_schedules', $column)
+            ));
+
+            if ($columnsToDrop !== []) {
+                $table->dropColumn($columnsToDrop);
+            }
         });
     }
 
+    /**
+     * @return void
+     */
     public function down(): void
     {
         Schema::table('rec_schedules', function (Blueprint $table) {

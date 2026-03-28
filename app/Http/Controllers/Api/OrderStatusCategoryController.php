@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreOrderStatusCategoryRequest;
 use App\Http\Requests\UpdateOrderStatusCategoryRequest;
+use App\Http\Resources\OrderStatusCategoryResource;
 use App\Repositories\OrderStatusCategoryRepository;
 use Illuminate\Http\Request;
 
@@ -12,14 +13,14 @@ use Illuminate\Http\Request;
  */
 class OrderStatusCategoryController extends BaseController
 {
-    protected $orderStatusCategoryRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      */
-    public function __construct(OrderStatusCategoryRepository $orderStatusCategoryRepository)
+    public function __construct(OrderStatusCategoryRepository $itemsRepository)
     {
-        $this->orderStatusCategoryRepository = $orderStatusCategoryRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -33,9 +34,18 @@ class OrderStatusCategoryController extends BaseController
 
         $perPage = $request->input('per_page', 20);
         $page = $request->input('page', 1);
-        $items = $this->orderStatusCategoryRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => OrderStatusCategoryResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -47,9 +57,9 @@ class OrderStatusCategoryController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $items = $this->orderStatusCategoryRepository->getAllItems($userUuid);
+        $items = $this->itemsRepository->getAllItems($userUuid);
 
-        return response()->json($items);
+        return $this->successResponse(OrderStatusCategoryResource::collection($items)->resolve());
     }
 
     /**
@@ -62,7 +72,7 @@ class OrderStatusCategoryController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $created = $this->orderStatusCategoryRepository->createItem([
+        $created = $this->itemsRepository->createItem([
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
             'creator_id' => $userUuid,
@@ -71,7 +81,7 @@ class OrderStatusCategoryController extends BaseController
             return $this->errorResponse('Ошибка создания категории статусов', 400);
         }
 
-        return response()->json(['message' => 'Категория статусов создана']);
+        return $this->successResponse(null, 'Категория статусов создана');
     }
 
     /**
@@ -90,9 +100,9 @@ class OrderStatusCategoryController extends BaseController
             $updateData['color'] = $validatedData['color'];
         }
 
-        $this->orderStatusCategoryRepository->updateItem($id, $updateData);
+        $this->itemsRepository->updateItem($id, $updateData);
 
-        return response()->json(['message' => 'Категория статусов обновлена']);
+        return $this->successResponse(null, 'Категория статусов обновлена');
     }
 
     /**
@@ -105,11 +115,11 @@ class OrderStatusCategoryController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $deleted = $this->orderStatusCategoryRepository->deleteItem($id);
+        $deleted = $this->itemsRepository->deleteItem($id);
         if (! $deleted) {
             return $this->errorResponse('Ошибка удаления', 400);
         }
 
-        return response()->json(['message' => 'Категория статусов удалена']);
+        return $this->successResponse(null, 'Категория статусов удалена');
     }
 }

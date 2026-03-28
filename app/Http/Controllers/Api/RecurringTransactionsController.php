@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreRecurringTransactionRequest;
 use App\Http\Requests\UpdateRecurringTransactionRequest;
+use App\Http\Resources\RecScheduleResource;
 use App\Models\RecSchedule;
 use App\Repositories\RecSchedulesRepository;
 use App\Services\CacheService;
@@ -37,12 +38,14 @@ class RecurringTransactionsController extends BaseController
             $templateId
         );
 
-        return response()->json([
-            'items' => $items->items(),
-            'current_page' => $items->currentPage(),
-            'last_page' => $items->lastPage(),
-            'per_page' => $items->perPage(),
-            'total' => $items->total(),
+        return $this->successResponse([
+            'items' => RecScheduleResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
         ]);
     }
 
@@ -56,14 +59,14 @@ class RecurringTransactionsController extends BaseController
         $schedule = $this->repository->getItemById($id);
 
         if (!$schedule) {
-            return $this->notFoundResponse('Расписание не найдено');
+            return $this->errorResponse('Расписание не найдено', 404);
         }
 
         if (!$this->canView($schedule, $userId)) {
-            return $this->forbiddenResponse('Нет прав на просмотр этого расписания');
+            return $this->errorResponse('Нет прав на просмотр этого расписания', 403);
         }
 
-        return response()->json(['item' => $schedule]);
+        return $this->successResponse(new RecScheduleResource($schedule));
     }
 
     /**
@@ -73,7 +76,7 @@ class RecurringTransactionsController extends BaseController
     public function store(StoreRecurringTransactionRequest $request)
     {
         if (!$this->hasPermission('rec_schedules_create')) {
-            return $this->forbiddenResponse('Нет прав на создание повторяющихся транзакций');
+            return $this->errorResponse('Нет прав на создание повторяющихся транзакций', 403);
         }
 
         $userId = $this->getAuthenticatedUserIdOrFail();
@@ -85,7 +88,7 @@ class RecurringTransactionsController extends BaseController
 
         CacheService::invalidateTransactionsCache();
 
-        return response()->json(['item' => $schedule, 'message' => 'Расписание создано']);
+        return $this->successResponse(new RecScheduleResource($schedule), 'Расписание создано');
     }
 
     /**
@@ -99,11 +102,11 @@ class RecurringTransactionsController extends BaseController
         $schedule = $this->repository->getItemById($id);
 
         if (!$schedule) {
-            return $this->notFoundResponse('Расписание не найдено');
+            return $this->errorResponse('Расписание не найдено', 404);
         }
 
         if (!$this->canUpdate($schedule, $userId)) {
-            return $this->forbiddenResponse('Нет прав на редактирование этого расписания');
+            return $this->errorResponse('Нет прав на редактирование этого расписания', 403);
         }
 
         $data = $request->validated();
@@ -112,7 +115,7 @@ class RecurringTransactionsController extends BaseController
 
         CacheService::invalidateTransactionsCache();
 
-        return response()->json(['item' => $schedule, 'message' => 'Расписание обновлено']);
+        return $this->successResponse(new RecScheduleResource($schedule), 'Расписание обновлено');
     }
 
     /**
@@ -125,17 +128,17 @@ class RecurringTransactionsController extends BaseController
         $schedule = $this->repository->getItemById($id);
 
         if (!$schedule) {
-            return $this->notFoundResponse('Расписание не найдено');
+            return $this->errorResponse('Расписание не найдено', 404);
         }
 
         if (!$this->canDelete($schedule, $userId)) {
-            return $this->forbiddenResponse('Нет прав на удаление этого расписания');
+            return $this->errorResponse('Нет прав на удаление этого расписания', 403);
         }
 
         $this->repository->deleteItem($schedule);
         CacheService::invalidateTransactionsCache();
 
-        return response()->json(['message' => 'Расписание удалено']);
+        return $this->successResponse(null, 'Расписание удалено');
     }
 
     /**

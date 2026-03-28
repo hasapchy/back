@@ -59,7 +59,6 @@ class ChatMessageRepository
 
     public function getLatestMessages(int $chatId, int $limit): Collection
     {
-        // Get newest first, then reverse to chronological asc for UI
         $items = ChatMessage::query()
             ->with(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo', 'reactions.user:id,name,surname'])
             ->where('chat_id', $chatId)

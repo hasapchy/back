@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreProjectContractRequest;
 use App\Http\Requests\UpdateProjectContractRequest;
+use App\Http\Resources\ProjectContractResource;
 use App\Models\Project;
 use App\Models\ProjectContract;
 use App\Repositories\ProjectContractsRepository;
@@ -50,7 +50,15 @@ class ProjectContractsController extends BaseController
 
             $result = $this->repository->getItemsWithPagination($projectId, $perPage, $page, $search);
 
-            return $this->paginatedResponse($result);
+            return $this->successResponse([
+                'items' => ProjectContractResource::collection($result->items())->resolve(),
+                'meta' => [
+                    'current_page' => $result->currentPage(),
+                    'last_page' => $result->lastPage(),
+                    'per_page' => $result->perPage(),
+                    'total' => $result->total(),
+                ],
+            ]);
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении контрактов проекта: ' . $e->getMessage(), 500);
         }
@@ -73,7 +81,7 @@ class ProjectContractsController extends BaseController
 
             $contracts = $this->repository->getAllItems($projectId);
 
-            return response()->json($contracts);
+            return $this->successResponse(ProjectContractResource::collection($contracts)->resolve());
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении контрактов проекта: ' . $e->getMessage(), 500);
         }
@@ -89,7 +97,7 @@ class ProjectContractsController extends BaseController
     {
         try {
             if (!$this->hasAnyPermission(['contracts_view', 'contracts_view_all', 'contracts_view_own'])) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр контрактов');
+                return $this->errorResponse('У вас нет прав на просмотр контрактов', 403);
             }
 
             $perPage = (int) $request->get('per_page', 20);
@@ -114,7 +122,15 @@ class ProjectContractsController extends BaseController
                 $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
             }
 
-            return $this->paginatedResponse($result);
+            return $this->successResponse([
+                'items' => ProjectContractResource::collection($result->items())->resolve(),
+                'meta' => [
+                    'current_page' => $result->currentPage(),
+                    'last_page' => $result->lastPage(),
+                    'per_page' => $result->perPage(),
+                    'total' => $result->total(),
+                ],
+            ]);
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении контрактов: ' . $e->getMessage(), 500);
         }
@@ -133,20 +149,20 @@ class ProjectContractsController extends BaseController
 
             $project = Project::find($validatedData['project_id']);
             if (!$project) {
-                return $this->notFoundResponse('Проект не найден');
+                return $this->errorResponse('Проект не найден', 404);
             }
 
             if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
+                return $this->errorResponse('У вас нет прав на редактирование этого проекта', 403);
             }
 
             $data = $validatedData;
 
             $contract = $this->repository->createContract($data);
 
-            return response()->json([
+            return $this->successResponse([
                 'message' => 'Контракт успешно создан',
-                'item' => $contract->load(['currency', 'project', 'cashRegister'])
+                'item' => (new ProjectContractResource($contract->load(['currency', 'project', 'cashRegister'])))->resolve()
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
@@ -167,14 +183,14 @@ class ProjectContractsController extends BaseController
             $contract = $this->repository->findContract($id);
 
             if (!$contract) {
-                return $this->notFoundResponse('Контракт не найден');
+                return $this->errorResponse('Контракт не найден', 404);
             }
 
             if (!$this->canPerformAction('contracts', 'view', $contract->project)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этого контракта');
+                return $this->errorResponse('У вас нет прав на просмотр этого контракта', 403);
             }
 
-            return response()->json(['item' => $contract]);
+            return $this->successResponse(new ProjectContractResource($contract));
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении контракта: ' . $e->getMessage(), 500);
         }
@@ -193,7 +209,7 @@ class ProjectContractsController extends BaseController
             $contract = ProjectContract::findOrFail($id);
 
             if (!$this->canPerformAction('contracts', 'update', $contract->project)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого контракта');
+                return $this->errorResponse('У вас нет прав на редактирование этого контракта', 403);
             }
 
             $validatedData = $request->validated();
@@ -202,9 +218,9 @@ class ProjectContractsController extends BaseController
 
             $contract = $this->repository->updateContract($id, $data);
 
-            return response()->json([
+            return $this->successResponse([
                 'message' => 'Контракт успешно обновлен',
-                'item' => $contract->load(['currency', 'project', 'cashRegister'])
+                'item' => (new ProjectContractResource($contract->load(['currency', 'project', 'cashRegister'])))->resolve()
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
@@ -227,16 +243,16 @@ class ProjectContractsController extends BaseController
             $contract = ProjectContract::findOrFail($id);
 
             if (!$this->canPerformAction('contracts', 'delete', $contract->project)) {
-                return $this->forbiddenResponse('У вас нет прав на удаление этого контракта');
+                return $this->errorResponse('У вас нет прав на удаление этого контракта', 403);
             }
 
             $result = $this->repository->deleteContract($id);
 
             if (!$result) {
-                return $this->notFoundResponse('Контракт не найден');
+                return $this->errorResponse('Контракт не найден', 404);
             }
 
-            return response()->json(['message' => 'Контракт успешно удален']);
+            return $this->successResponse(null, 'Контракт успешно удален');
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при удалении контракта: ' . $e->getMessage(), 500);
         }
@@ -253,7 +269,7 @@ class ProjectContractsController extends BaseController
     {
         $project = Project::find($projectId);
         if (!$project) {
-            return $this->notFoundResponse('Проект не найден');
+            return $this->errorResponse('Проект не найден', 404);
         }
 
         $actionMessages = [
@@ -263,7 +279,7 @@ class ProjectContractsController extends BaseController
         ];
 
         if (!$this->canPerformAction('projects', $action, $project)) {
-            return $this->forbiddenResponse($actionMessages[$action] ?? 'У вас нет прав на это действие');
+            return $this->errorResponse($actionMessages[$action] ?? 'У вас нет прав на это действие', 403);
         }
 
         return $project;

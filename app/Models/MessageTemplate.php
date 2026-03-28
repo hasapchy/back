@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class MessageTemplate extends Model
 {
+    use BelongsToCompany;
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
@@ -33,16 +35,6 @@ class MessageTemplate extends Model
         'creator_id',
         'is_active',
     ];
-
-    /**
-     * Связь с компанией
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function company()
-    {
-        return $this->belongsTo(Company::class);
-    }
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo

@@ -60,6 +60,7 @@ class UsersRepository extends BaseRepository
                 'users.phone',
                 'users.is_active',
                 'users.hire_date',
+                'users.dismissal_date',
                 'users.birthday',
                 'users.position',
                 'users.is_admin',
@@ -106,7 +107,7 @@ class UsersRepository extends BaseRepository
 
             $paginated = $query->orderBy('users.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
-            $users = $paginated->getCollection();
+            $users = new \Illuminate\Database\Eloquent\Collection($paginated->getCollection()->all());
             if ($users->isEmpty()) {
                 return $paginated;
             }
@@ -189,6 +190,7 @@ class UsersRepository extends BaseRepository
             'users.phone',
             'users.is_active',
             'users.hire_date',
+            'users.dismissal_date',
             'users.birthday',
             'users.position',
             'users.is_admin',
@@ -418,7 +420,8 @@ class UsersRepository extends BaseRepository
             $user->phone    = !empty($data['phone']) ? $data['phone'] : null;
             $user->password = $data['password'];
             $user->hire_date = $data['hire_date'] ?? null;
-            $user->birthday = !empty($data['birthday']) ? Carbon::parse($data['birthday'])->format('Y-m-d') : null;
+            $user->dismissal_date = $data['dismissal_date'] ?? null;
+            $user->birthday = !empty($data['birthday']) ? Carbon::parse($data['birthday']) : null;
             $user->is_active = $data['is_active'] ?? true;
             $user->position = $data['position'] ?? null;
             $user->is_admin = $data['is_admin'] ?? false;
@@ -471,6 +474,7 @@ class UsersRepository extends BaseRepository
             $user->email = $data['email'] ?? $user->email;
             $user->phone = array_key_exists('phone', $data) ? ($data['phone'] ?: null) : $user->phone;
             $user->hire_date = array_key_exists('hire_date', $data) ? $data['hire_date'] : $user->hire_date;
+            $user->dismissal_date = array_key_exists('dismissal_date', $data) ? $data['dismissal_date'] : $user->dismissal_date;
             $user->birthday = array_key_exists('birthday', $data) && $data['birthday']
                 ? Carbon::parse($data['birthday'])->format('Y-m-d')
                 : (array_key_exists('birthday', $data) ? null : $user->birthday);
@@ -949,6 +953,7 @@ class UsersRepository extends BaseRepository
                 'users.phone',
                 'users.is_active',
                 'users.hire_date',
+                'users.dismissal_date',
                 'users.birthday',
                 'users.position',
                 'users.is_admin',

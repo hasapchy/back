@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Template;
+use App\Models\Traits\BelongsToCompany;
 use App\Models\Traits\HasManyToManyUsers;
 
 /**
@@ -30,6 +31,7 @@ use App\Models\Traits\HasManyToManyUsers;
  */
 class CashRegister extends Model
 {
+    use BelongsToCompany;
     use HasFactory, HasManyToManyUsers;
 
     protected $fillable = [
@@ -67,16 +69,6 @@ class CashRegister extends Model
     public function currency()
     {
         return $this->belongsTo(Currency::class, 'currency_id');
-    }
-
-    /**
-     * Связь с компанией
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function company()
-    {
-        return $this->belongsTo(Company::class, 'company_id');
     }
 
     /**

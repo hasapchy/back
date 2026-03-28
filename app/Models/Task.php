@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,6 +13,7 @@ use App\Enums\TaskComplexity;
 
 class Task extends Model
 {
+    use BelongsToCompany;
     use HasFactory, SoftDeletes, LogsActivity;
 
      protected $fillable = [
@@ -45,7 +47,6 @@ class Task extends Model
         'complexity' => 'normal',
     ];
 
-    // Связи
     public function creator()
     {
         return $this->belongsTo(User::class, 'creator_id');
@@ -64,11 +65,6 @@ class Task extends Model
     public function project()
     {
         return $this->belongsTo(Project::class);
-    }
-
-    public function company()
-    {
-        return $this->belongsTo(Company::class);
     }
 
     /**

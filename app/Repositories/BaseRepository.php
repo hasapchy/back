@@ -15,11 +15,21 @@ abstract class BaseRepository
     /**
      * Получить ID текущей компании из заголовка запроса
      *
-     * @return string|null
+     * @return int|null
      */
-    protected function getCurrentCompanyId()
+    protected function getCurrentCompanyId(): ?int
     {
-        return request()->header('X-Company-ID');
+        $companyId = request()->header('X-Company-ID');
+
+        if ($companyId === null || $companyId === '') {
+            return null;
+        }
+
+        if (!is_numeric($companyId)) {
+            return null;
+        }
+
+        return (int) $companyId;
     }
 
     /**
@@ -582,7 +592,6 @@ abstract class BaseRepository
             return false;
         }
 
-        // Для касс: только админ видит всё, обычные пользователи всегда фильтруются по своим кассам
         if ($resource === 'cash_registers') {
             return true;
         }
