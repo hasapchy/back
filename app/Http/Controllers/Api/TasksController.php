@@ -110,7 +110,7 @@ class TasksController extends BaseController
 
         return $this->successResponse([
             'message' => 'Задача успешно удалена'
-        ], 204);
+        ], null, 204);
     }
 
     /**

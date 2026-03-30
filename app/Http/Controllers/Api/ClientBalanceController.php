@@ -142,7 +142,7 @@ class ClientBalanceController extends BaseController
                 return $this->errorResponse('У вас нет прав на редактирование баланса клиента', 403);
             }
 
-            if (!empty($validated['is_default']) && $validated['is_default'] && !$balance->is_default) {
+            if (($validated['is_default'] ?? false) && !$balance->is_default) {
                 $existingDefault = ClientBalance::where('client_id', $clientId)
                     ->where('id', '!=', $balance->id)
                     ->where('is_default', true)
@@ -160,12 +160,12 @@ class ClientBalanceController extends BaseController
                         'symbol' => $existingDefault->currency->symbol,
                     ],
                 ],
-            ], 200);
+            ]);
                 }
             }
 
             DB::transaction(function () use ($balance, $validated) {
-                if (!empty($validated['is_default']) && $validated['is_default']) {
+                if ($validated['is_default'] ?? false) {
                     ClientBalanceService::clearDefaultFlags($balance->client_id, $balance->id);
                 }
 

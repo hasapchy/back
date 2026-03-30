@@ -26,11 +26,11 @@ class RecSchedulesRepository extends BaseRepository
      * @param int $page
      * @param int|null $userId
      * @param bool $viewAll
-     * @param string|null $companyId
+     * @param int|null $companyId
      * @param int|null $templateId
      * @return LengthAwarePaginator
      */
-    public function getItemsWithPagination(int $perPage = 20, int $page = 1, ?int $userId = null, bool $viewAll = false, ?string $companyId = null, ?int $templateId = null): LengthAwarePaginator
+    public function getItemsWithPagination(int $perPage = 20, int $page = 1, ?int $userId = null, bool $viewAll = false, ?int $companyId = null, ?int $templateId = null): LengthAwarePaginator
     {
         $companyId = $companyId ?? $this->getCurrentCompanyId();
 

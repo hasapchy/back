@@ -538,7 +538,7 @@ class ProductsRepository extends BaseRepository
             return;
         }
 
-        if ($productsOnly !== null && $productsOnly) {
+        if ($productsOnly === true) {
             $query->whereHas('stocks', $this->warehouseStockRowScope($warehouseId));
 
             return;

@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Models\User;
 use App\Models\WarehouseStock;
 use App\Models\WhUser;
 use App\Models\WhWriteoff;
@@ -63,10 +64,14 @@ class WarehouseWriteoffRepository extends BaseRepository
 
             foreach ($items as $item) {
                 $item->products = $products->get($item->id, collect());
-                $item->creator = $item->creator_id ? [
-                    'id' => (int) $item->creator_id,
-                    'name' => $item->creator_name,
-                ] : null;
+                if ($item->creator_id) {
+                    $creator = new User;
+                    $creator->id = (int) $item->creator_id;
+                    $creator->name = (string) $item->creator_name;
+                    $item->setRelation('creator', $creator);
+                } else {
+                    $item->setRelation('creator', null);
+                }
                 unset($item->creator_name);
             }
 

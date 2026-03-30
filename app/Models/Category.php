@@ -23,6 +23,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\CategoryUser[] $categoryUsers
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\User[] $users
  * @property-read \App\Models\Company|null $company
+ *
+ * @property string|null $creator_name
  */
 class Category extends Model
 {

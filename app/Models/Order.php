@@ -46,6 +46,22 @@ use App\Services\CacheService;
  * @property-read \App\Models\Company|null $company
  * @property-read \App\Models\Category|null $category
  * @property-read string $payment_status_text Текст статуса оплаты на русском языке
+ *
+ * @property string|null $creator_name
+ * @property string|null $creator_photo
+ * @property string|null $client_first_name
+ * @property string|null $client_last_name
+ * @property string|null $status_name
+ * @property string|null $status_category_name
+ * @property string|null $status_category_color
+ * @property string|null $warehouse_name
+ * @property string|null $cash_name
+ * @property bool|null $cash_is_cash
+ * @property string|null $currency_name
+ * @property string|null $currency_symbol
+ * @property string|null $project_name
+ * @property string|null $category_name
+ * @property float|null $total_price
  */
 class Order extends Model
 {

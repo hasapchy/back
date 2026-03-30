@@ -375,12 +375,11 @@ class ProjectsRepository extends BaseRepository
                     $amount = $item->orig_amount;
                 }
 
-                $amount = match($source) {
+                $amount = match ($source) {
                     'receipt' => -$amount,
                     'transaction' => $item->type == 1 ? +$amount : -$amount,
                     'sale' => +$amount,
                     'order' => -$amount,
-                    default => $amount
                 };
 
                 return [
@@ -510,11 +509,10 @@ class ProjectsRepository extends BaseRepository
      *
      * @param array $ids Массив ID проектов
      * @param int $statusId ID нового статуса
-     * @param string $userId ID пользователя
      * @return int Количество обновленных проектов
      * @throws \Exception
      */
-    public function updateStatusByIds(array $ids, int $statusId, string $userId): int
+    public function updateStatusByIds(array $ids, int $statusId): int
     {
         $targetStatus = ProjectStatus::findOrFail($statusId);
 

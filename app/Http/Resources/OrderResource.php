@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Client;
 use App\Models\Order;
 use App\Models\OrderProduct;
 use App\Models\OrderTempProduct;
@@ -38,7 +39,7 @@ class OrderResource extends JsonResource
 
         $status = $order->status;
         $category = $order->category;
-        $client = $order->client;
+        $client = $this->shouldEmbedClient() ? $order->client : null;
         $creator = $order->creator;
         $cashRegister = $order->cashRegister;
         $warehouse = $order->warehouse;
@@ -76,20 +77,9 @@ class OrderResource extends JsonResource
                 'id' => $category->id,
                 'name' => $category->name,
             ] : null,
-            'client' => $client ? [
-                'id' => $client->id,
-                'first_name' => $client->first_name,
-                'last_name' => $client->last_name,
-                'client_type' => $client->client_type,
-                'is_supplier' => (bool) $client->is_supplier,
-                'is_conflict' => (bool) $client->is_conflict,
-                'phones' => $client->phones
-                    ? $client->phones->map(fn ($phone) => [
-                        'id' => $phone->id,
-                        'phone' => $phone->phone,
-                    ])->all()
-                    : [],
-            ] : null,
+            'client' => $client instanceof Client
+                ? (new ClientResource($client))->toArray($request)
+                : null,
             'creator' => $creator ? [
                 'id' => $creator->id,
                 'name' => $creator->name,
@@ -138,18 +128,23 @@ class OrderResource extends JsonResource
                 continue;
             }
             $product = $orderProduct->product;
+            if ($product === null) {
+                continue;
+            }
             $all->push([
                 'id' => $orderProduct->id,
+                'order_id' => $order->id,
                 'product_id' => $orderProduct->product_id,
-                'product_name' => $product?->name,
-                'product_image' => $product?->image,
-                'unit_id' => $product?->unit_id,
-                'unit_short_name' => $product?->unit?->short_name,
+                'product_name' => $product->name,
+                'product_image' => $product->image,
+                'unit_id' => $product->unit_id,
+                'unit_short_name' => $product->unit->short_name,
                 'quantity' => $orderProduct->quantity,
                 'price' => $orderProduct->price,
                 'width' => $orderProduct->width,
                 'height' => $orderProduct->height,
                 'product_type' => 'regular',
+                'type' => (int) (bool) $product->type,
             ]);
         }
 
@@ -163,6 +158,7 @@ class OrderResource extends JsonResource
             }
             $all->push([
                 'id' => $tempProduct->id,
+                'order_id' => $order->id,
                 'product_id' => null,
                 'product_name' => $tempProduct->name,
                 'product_image' => null,
@@ -173,10 +169,16 @@ class OrderResource extends JsonResource
                 'width' => $tempProduct->width,
                 'height' => $tempProduct->height,
                 'product_type' => 'temp',
+                'type' => null,
             ]);
         }
 
         return $all;
+    }
+
+    protected function shouldEmbedClient(): bool
+    {
+        return true;
     }
 
     private function serializeDateValue(mixed $value): ?string
@@ -194,5 +196,66 @@ class OrderResource extends JsonResource
         }
 
         return null;
+    }
+
+    /**
+     * @return array<int|string, mixed>
+     */
+    /**
+     * @return array<int|string, mixed>
+     */
+    public static function eagerLoadRelationsForOrderDetailWithoutClient(): array
+    {
+        return [
+            'warehouse:id,name',
+            'cashRegister:id,name,currency_id,is_cash',
+            'cashRegister.currency:id,name,symbol',
+            'project:id,name',
+            'creator:id,name,photo',
+            'status:id,name,category_id',
+            'status.category:id,name,color',
+            'category:id,name',
+            'orderProducts:id,order_id,product_id,quantity,price,width,height',
+            'orderProducts.product:id,name,image,unit_id',
+            'orderProducts.product.unit:id,name,short_name',
+            'tempProducts:id,order_id,name,description,quantity,price,unit_id,width,height',
+            'tempProducts.unit:id,name,short_name',
+        ];
+    }
+
+    public static function eagerLoadRelationsForOrderDetail(): array
+    {
+        return array_merge(
+            self::eagerLoadRelationsForOrderDetailWithoutClient(),
+            [
+                'client' => function ($query) {
+                    $query->with([
+                        'phones:id,client_id,phone',
+                        'emails:id,client_id,email',
+                        'creator:id,name,photo',
+                        'employee:id,name,surname,position,photo',
+                        'balances.currency',
+                        'balances.users',
+                    ]);
+                },
+            ]
+        );
+    }
+
+    /**
+     * @return array<int|string, mixed>
+     */
+    public static function eagerLoadRelationsForInvoiceNestedOrders(): array
+    {
+        $prefixed = [];
+        foreach (self::eagerLoadRelationsForOrderDetailWithoutClient() as $key => $value) {
+            if (is_string($key)) {
+                $prefixed['orders.'.$key] = $value;
+            } else {
+                $prefixed[] = 'orders.'.$value;
+            }
+        }
+
+        return $prefixed;
     }
 }

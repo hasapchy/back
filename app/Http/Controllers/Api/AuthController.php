@@ -182,9 +182,7 @@ class AuthController extends BaseController
         $user = $token->tokenable;
 
         if (!$user || !$user->is_active) {
-            if ($token) {
-                $token->delete();
-            }
+            $token->delete();
             return $this->errorResponse('User account is deactivated', 403);
         }
 

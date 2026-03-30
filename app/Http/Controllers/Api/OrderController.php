@@ -244,7 +244,7 @@ class OrderController extends BaseController
 
             $order = $this->itemsRepository->getItemById($order->id);
             event(new OrderFirstStageCountUpdated((int) $this->getCurrentCompanyId()));
-            return (new OrderResource($order))->additional(['message' => 'Заказ успешно создан']);
+            return (new OrderResource($order))->additional(['message' => 'Заказ успешно создан'])->response();
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage(), 400);
         }
@@ -337,7 +337,7 @@ class OrderController extends BaseController
 
             $updatedOrder = $this->itemsRepository->getItemById($id);
             event(new OrderFirstStageCountUpdated((int) $this->getCurrentCompanyId()));
-            return (new OrderResource($updatedOrder))->additional(['message' => 'Заказ сохранён']);
+            return (new OrderResource($updatedOrder))->additional(['message' => 'Заказ сохранён'])->response();
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage(), 400);
         }
@@ -393,7 +393,7 @@ class OrderController extends BaseController
      */
     public function batchUpdateStatus(Request $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
             'ids'       => 'required|array|min:1',
@@ -412,7 +412,7 @@ class OrderController extends BaseController
 
         try {
             $result = $this->itemsRepository
-                ->updateStatusByIds($request->ids, $request->status_id, $userUuid);
+                ->updateStatusByIds($request->ids, $request->status_id);
 
             if (is_array($result) && isset($result['needs_payment']) && $result['needs_payment']) {
                 return response()->json([
@@ -461,7 +461,7 @@ class OrderController extends BaseController
             return $cashAccessCheck;
         }
 
-        return new OrderResource($item);
+        return (new OrderResource($item))->response();
     }
 
     /**

@@ -104,7 +104,9 @@ class InvoiceController extends BaseController
                 return $this->errorResponse('Ошибка создания счета', 400);
             }
 
-            return $this->successResponse(new InvoiceResource($created), 'Счет успешно создан');
+            $invoice = $this->itemsRepository->getItemById($created->id);
+
+            return $this->successResponse(new InvoiceResource($invoice), 'Счет успешно создан');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка создания счета: ' . $th->getMessage(), 400);
         }
@@ -160,7 +162,7 @@ class InvoiceController extends BaseController
         try {
             $deleted = $this->itemsRepository->deleteItem($id);
 
-            return $this->successResponse(new InvoiceResource($deleted), 'Счет успешно удалён');
+            return $this->successResponse(null, 'Счет успешно удалён');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка при удалении счета: ' . $th->getMessage(), 400);
         }

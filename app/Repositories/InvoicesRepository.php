@@ -3,8 +3,10 @@
 namespace App\Repositories;
 
 use App\Models\Invoice;
+use App\Http\Resources\OrderResource;
 use App\Models\InvoiceProduct;
 use App\Models\Order;
+use App\Models\User;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
@@ -30,16 +32,13 @@ class InvoicesRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('invoices_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $companyId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $typeFilter, $statusFilter, $page) {
-            $query = Invoice::with([
+            $query = Invoice::with(array_merge([
                 'client.phones',
                 'client.emails',
                 'creator',
-                'orders.cash.currency',
-                'orders.orderProducts.product.unit',
-                'orders.tempProducts.unit',
                 'products.unit',
-                'products.order'
-            ]);
+                'products.order',
+            ], OrderResource::eagerLoadRelationsForInvoiceNestedOrders()));
 
             $this->addCompanyFilterThroughRelation($query, 'client', 'clients');
             $this->applyOwnFilter($query, 'invoices', 'invoices', 'creator_id');
@@ -77,10 +76,6 @@ class InvoicesRepository extends BaseRepository
 
             $invoices = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
-            foreach ($invoices->items() as $invoice) {
-                $this->attachCurrencyToOrders($invoice->orders);
-            }
-
             return $invoices;
         }, (int)$page);
     }
@@ -94,16 +89,13 @@ class InvoicesRepository extends BaseRepository
      */
     public function getItemById($id)
     {
-        $query = Invoice::with([
+        $query = Invoice::with(array_merge([
             'client.phones',
             'client.emails',
             'creator',
-            'orders.cash.currency',
-            'orders.orderProducts.product.unit',
-            'orders.tempProducts.unit',
             'products.unit',
-            'products.order'
-        ])->where('invoices.id', $id);
+            'products.order',
+        ], OrderResource::eagerLoadRelationsForInvoiceNestedOrders()))->where('invoices.id', $id);
 
         $this->addCompanyFilterThroughRelation($query, 'client', 'clients');
 
@@ -111,8 +103,6 @@ class InvoicesRepository extends BaseRepository
         if (!$invoice) {
             throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Invoice not found');
         }
-
-        $this->attachCurrencyToOrders($invoice->orders);
 
         return $invoice;
     }
@@ -266,11 +256,15 @@ class InvoicesRepository extends BaseRepository
         $orders = $query->get();
 
         foreach ($orders as $order) {
-            $order->creator = $order->creator_id ? [
-                'id' => (int) $order->creator_id,
-                'name' => $order->creator_name,
-                'photo' => $order->creator_photo,
-            ] : null;
+            if ($order->creator_id) {
+                $creator = new User;
+                $creator->id = (int) $order->creator_id;
+                $creator->name = (string) $order->creator_name;
+                $creator->photo = $order->creator_photo;
+                $order->setRelation('creator', $creator);
+            } else {
+                $order->setRelation('creator', null);
+            }
             unset($order->creator_name, $order->creator_photo);
             $order->setRelation('client', $order->client()->with(['phones', 'emails'])->first());
             $order->setRelation('orderProducts', $order->orderProducts()->with('product')->get());
@@ -405,19 +399,4 @@ class InvoicesRepository extends BaseRepository
         return $productsData;
     }
 
-    protected function attachCurrencyToOrders($orders)
-    {
-        if (!$orders) {
-            return;
-        }
-
-        foreach ($orders as $order) {
-            $currency = optional($order->cash)->currency;
-            if ($currency) {
-                $order->currency_id = $currency->id;
-                $order->currency_name = $currency->name;
-                $order->currency_symbol = $currency->symbol;
-            }
-        }
-    }
 }

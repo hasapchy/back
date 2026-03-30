@@ -93,7 +93,7 @@ class NewsImageService
             return false;
         }
 
-        $actualMime = $imageInfo['mime'] ?? '';
+        $actualMime = $imageInfo['mime'];
 
         // Маппинг заявленных типов на MIME-типы
         $mimeMapping = [
@@ -236,7 +236,7 @@ class NewsImageService
             }
 
             // Если изображение в общей папке news/images, перемещаем в папку новости
-            if (str_starts_with($path, 'news/images/') && ! str_starts_with($path, 'news/images/'.$newsId.'/')) {
+            if (str_starts_with($path, 'news/images/')) {
                 $fileName = basename($path);
                 $newPath = 'news/images/'.$newsId.'/'.$fileName;
 

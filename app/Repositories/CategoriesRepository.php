@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Category;
 use App\Models\CategoryUser;
+use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\CacheService;
 
@@ -31,11 +32,9 @@ class CategoriesRepository extends BaseRepository
 
             $items = $query->with(['users:id,name,surname,email,position'])->paginate($perPage, ['*'], 'page', (int)$page);
             $items->getCollection()->transform(function ($item) {
-                $item->creator = $item->creator_id ? [
-                    'id' => (int) $item->creator_id,
-                    'name' => $item->creator_name,
-                ] : null;
-                unset($item->creator_name);
+                assert($item instanceof Category);
+                $this->hydrateCategoryCreatorPreview($item);
+
                 return $item;
             });
 
@@ -62,11 +61,9 @@ class CategoriesRepository extends BaseRepository
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
             return $query->with(['users:id,name,surname,email,position'])->get()->map(function ($item) {
-                $item->creator = $item->creator_id ? [
-                    'id' => (int) $item->creator_id,
-                    'name' => $item->creator_name,
-                ] : null;
-                unset($item->creator_name);
+                assert($item instanceof Category);
+                $this->hydrateCategoryCreatorPreview($item);
+
                 return $item;
             });
         });
@@ -92,14 +89,25 @@ class CategoriesRepository extends BaseRepository
             $query = $this->addCompanyFilterDirect($query, 'categories');
 
             return $query->with(['users:id,name,surname,email,position'])->get()->map(function ($item) {
-                $item->creator = $item->creator_id ? [
-                    'id' => (int) $item->creator_id,
-                    'name' => $item->creator_name,
-                ] : null;
-                unset($item->creator_name);
+                assert($item instanceof Category);
+                $this->hydrateCategoryCreatorPreview($item);
+
                 return $item;
             });
         });
+    }
+
+    private function hydrateCategoryCreatorPreview(Category $category): void
+    {
+        if ($category->creator_id) {
+            $creator = new User;
+            $creator->id = (int) $category->creator_id;
+            $creator->name = (string) $category->creator_name;
+            $category->setRelation('creator', $creator);
+        } else {
+            $category->setRelation('creator', null);
+        }
+        unset($category->creator_name);
     }
 
     /**

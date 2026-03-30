@@ -8,7 +8,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 class GenericExport implements FromArray, WithHeadings
 {
     /**
-     * @param array<int, array<string, mixed>> $rows
+     * @param array<int, array<int|string, mixed>> $rows
      * @param array<int, string> $headings
      */
     public function __construct(
@@ -18,7 +18,7 @@ class GenericExport implements FromArray, WithHeadings
     }
 
     /**
-     * @return array<int, array<int, mixed>>
+     * @return array<int, array<int|string, mixed>>
      */
     public function array(): array
     {

@@ -2,7 +2,7 @@
 
 namespace App\Http\Resources;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\MessageTemplate;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class MessageTemplateResource extends JsonResource
@@ -37,19 +37,22 @@ class MessageTemplateResource extends JsonResource
             ];
         }
 
-        if ($this->resource instanceof Model) {
+        if ($this->resource instanceof MessageTemplate) {
+            /** @var MessageTemplate $template */
+            $template = $this->resource;
+
             return [
-                'id' => $this->resource->id,
-                'type' => $this->resource->type,
-                'name' => $this->resource->name,
-                'content' => $this->resource->content,
-                'company_id' => $this->resource->company_id,
+                'id' => $template->id,
+                'type' => $template->type,
+                'name' => $template->name,
+                'content' => $template->content,
+                'company_id' => $template->company_id,
                 'company' => $this->whenLoaded('company'),
-                'creator_id' => $this->resource->creator_id,
+                'creator_id' => $template->creator_id,
                 'creator' => $this->whenLoaded('creator'),
-                'is_active' => $this->resource->is_active,
-                'created_at' => $this->resource->created_at,
-                'updated_at' => $this->resource->updated_at,
+                'is_active' => $template->is_active,
+                'created_at' => $template->created_at,
+                'updated_at' => $template->updated_at,
             ];
         }
 

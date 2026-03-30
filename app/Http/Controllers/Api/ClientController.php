@@ -179,7 +179,7 @@ class ClientController extends BaseController
                 return $this->errorResponse('У вас нет прав на просмотр этого клиента', 403);
             }
 
-            return new ClientResource($client);
+            return (new ClientResource($client))->response();
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении клиента: '.$e->getMessage(), 500);
         }
@@ -269,7 +269,7 @@ class ClientController extends BaseController
                 $balanceDirection
             );
 
-            return ClientResource::collection($items);
+            return ClientResource::collection($items)->response();
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении всех клиентов: '.$e->getMessage(), 500);
         }
@@ -311,7 +311,7 @@ class ClientController extends BaseController
 
             return (new ClientResource($client))->additional([
                 'message' => 'Client created successfully',
-            ]);
+            ])->response();
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -350,13 +350,6 @@ class ClientController extends BaseController
             return $phoneCheck;
         }
 
-        $client = $this->itemsRepository->updateItem($id, $validatedData);
-
-        CacheService::invalidateClientsCache();
-        CacheService::invalidateOrdersCache();
-        CacheService::invalidateSalesCache();
-        CacheService::invalidateTransactionsCache();
-
         try {
             $client = $this->itemsRepository->updateItem($id, $validatedData);
 
@@ -367,7 +360,7 @@ class ClientController extends BaseController
 
             return (new ClientResource($client))->additional([
                 'message' => 'Client updated successfully',
-            ]);
+            ])->response();
         } catch (\Throwable $e) {
             if (str_contains($e->getMessage(), 'clients_emails_email_unique')) {
                 return $this->errorResponse('Email уже используется другим клиентом', 422);

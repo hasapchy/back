@@ -33,31 +33,6 @@ class ProjectsController extends BaseController
     }
 
     /**
-     * Получить правила валидации для проекта
-     *
-     * @param Request $request
-     * @return array
-     */
-    private function getValidationRules(Request $request): array
-    {
-        $rules = [
-            'name' => 'required|string',
-            'date' => 'nullable|sometimes|date',
-            'client_id' => 'required|exists:clients,id',
-            'users' => 'nullable|array',
-            'users.*' => 'exists:users,id',
-            'description' => 'nullable|string',
-        ];
-
-        if ($request->has('budget') || $request->has('currency_id')) {
-            $rules['budget'] = 'required|numeric';
-            $rules['currency_id'] = 'nullable|exists:currencies,id';
-        }
-
-        return $rules;
-    }
-
-    /**
      * Подготовить данные проекта из запроса
      *
      * @param Request $request
@@ -300,7 +275,7 @@ class ProjectsController extends BaseController
      *
      * @param Request $request
      * @param int $id ID проекта
-     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
+     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\JsonResponse
      */
     public function downloadFiles(Request $request, $id)
     {
@@ -495,7 +470,7 @@ class ProjectsController extends BaseController
      */
     public function batchUpdateStatus(Request $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
             'ids'       => 'required|array|min:1',
@@ -512,7 +487,7 @@ class ProjectsController extends BaseController
 
         try {
             $affected = $this->itemsRepository
-                ->updateStatusByIds($request->ids, $request->status_id, $userUuid);
+                ->updateStatusByIds($request->ids, $request->status_id);
 
             if ($affected > 0) {
                 return $this->successResponse(null, "Статус обновлён у {$affected} проект(ов)");

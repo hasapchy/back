@@ -90,11 +90,8 @@ class UpdateUserRequest extends FormRequest
         }
 
         if (isset($data['company_roles']) && is_string($data['company_roles'])) {
-            try {
-                $data['company_roles'] = json_decode($data['company_roles'], true);
-            } catch (\Exception $e) {
-                $data['company_roles'] = [];
-            }
+            $decoded = json_decode($data['company_roles'], true);
+            $data['company_roles'] = is_array($decoded) ? $decoded : [];
         }
 
         if (isset($data['departments'])) {

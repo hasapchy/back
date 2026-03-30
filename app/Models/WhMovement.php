@@ -20,6 +20,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \App\Models\Warehouse $warehouseFrom
  * @property-read \App\Models\Warehouse $warehouseTo
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhMovementProduct[] $products
+ *
+ * @property string|null $creator_name
  */
 class WhMovement extends Model
 {

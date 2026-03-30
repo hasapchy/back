@@ -17,6 +17,7 @@ use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
+use App\Http\Resources\OrderResource;
 
 class OrdersRepository extends BaseRepository
 {
@@ -61,6 +62,7 @@ class OrdersRepository extends BaseRepository
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
             $paidAmountsMap = $this->getPaidAmountsMap($orders->pluck('id')->toArray());
             $orders->getCollection()->transform(function ($order) use ($paidAmountsMap) {
+                assert($order instanceof Order);
                 if ($order->client) {
                     $order->client_first_name = $order->client->first_name;
                     $order->client_last_name = $order->client->last_name;
@@ -136,7 +138,7 @@ class OrdersRepository extends BaseRepository
                     }
                 }
 
-                $order->products = $allProducts;
+                $order->setAttribute('products', $allProducts);
 
                 $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
                 $totalPrice = (float) ($order->total_price ?? 0);
@@ -375,6 +377,7 @@ class OrdersRepository extends BaseRepository
         $orders = $query->orderBy('orders.created_at', 'desc')->limit($limit)->get();
         $paidAmountsMap = $this->getPaidAmountsMap($orders->pluck('id')->toArray());
         $orders->transform(function ($order) use ($paidAmountsMap) {
+            assert($order instanceof Order);
             if ($order->client) {
                 $order->client_first_name = $order->client->first_name;
                 $order->client_last_name = $order->client->last_name;
@@ -431,7 +434,7 @@ class OrdersRepository extends BaseRepository
                     ]);
                 }
             }
-            $order->products = $allProducts;
+            $order->setAttribute('products', $allProducts);
             $paidAmount = (float) ($paidAmountsMap[$order->id] ?? 0);
             $totalPrice = (float) ($order->total_price ?? 0);
             $order->setAttribute('paid_amount', $paidAmount);
@@ -517,23 +520,7 @@ class OrdersRepository extends BaseRepository
                 DB::raw('(orders.price - orders.discount) as total_price'),
             ])
             ->where('orders.id', (int) $id)
-            ->with([
-                'warehouse:id,name',
-                'cashRegister:id,name,currency_id,is_cash',
-                'cashRegister.currency:id,name,symbol',
-                'project:id,name',
-                'creator:id,name,photo',
-                'status:id,name,category_id',
-                'status.category:id,name,color',
-                'category:id,name',
-                'client:id,first_name,last_name,client_type,is_supplier,is_conflict',
-                'client.phones:id,client_id,phone',
-                'orderProducts:id,order_id,product_id,quantity,price,width,height',
-                'orderProducts.product:id,name,image,unit_id',
-                'orderProducts.product.unit:id,name,short_name',
-                'tempProducts:id,order_id,name,description,quantity,price,unit_id,width,height',
-                'tempProducts.unit:id,name,short_name',
-            ])
+            ->with(OrderResource::eagerLoadRelationsForOrderDetail())
             ->first();
 
         if (! $order instanceof Order) {
@@ -1321,11 +1308,10 @@ class OrdersRepository extends BaseRepository
      *
      * @param array $ids Массив ID заказов
      * @param int $statusId ID нового статуса
-     * @param string $userId UUID пользователя
      * @return int|array Количество обновленных заказов или массив с ошибкой
      * @throws \Exception
      */
-    public function updateStatusByIds(array $ids, int $statusId, string $userId)
+    public function updateStatusByIds(array $ids, int $statusId)
     {
         $targetStatus = OrderStatus::findOrFail($statusId);
 
@@ -1731,9 +1717,9 @@ class OrdersRepository extends BaseRepository
                 ];
             }) : collect();
 
-            $order->products = $regularProducts->merge($tempProducts);
+            $order->setAttribute('products', $regularProducts->merge($tempProducts));
         } else {
-            $order->products = collect();
+            $order->setAttribute('products', collect());
         }
     }
 

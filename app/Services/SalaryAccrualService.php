@@ -584,27 +584,12 @@ class SalaryAccrualService
     {
         return $rows->map(fn (Transaction $t) => [
             'id' => (int) $t->id,
-            'date' => $t->date?->format('Y-m-d'),
+            'date' => $t->date->format('Y-m-d'),
             'orig_amount' => round((float) $t->orig_amount, 2),
             'note' => (string) ($t->note ?? ''),
-            'created_at' => $t->created_at?->toIso8601String(),
+            'created_at' => $t->created_at->toIso8601String(),
             'type' => (int) $t->type,
         ])->values()->all();
-    }
-
-    /**
-     * @return Builder<Transaction>
-     */
-    private function employeeMonthTransactionsBase(int $companyId, Carbon $start, Carbon $end): Builder
-    {
-        return Transaction::query()
-            ->join('clients', 'transactions.client_id', '=', 'clients.id')
-            ->join('cash_registers', 'transactions.cash_id', '=', 'cash_registers.id')
-            ->where('clients.company_id', $companyId)
-            ->where('cash_registers.company_id', $companyId)
-            ->where('clients.client_type', 'employee')
-            ->where('transactions.is_deleted', false)
-            ->whereBetween('transactions.date', [$start->toDateString(), $end->toDateString()]);
     }
 
     /**
@@ -741,8 +726,8 @@ class SalaryAccrualService
             $out[] = [
                 'id' => $r->id,
                 'type' => $r->type,
-                'date' => $r->date?->format('Y-m-d'),
-                'created_at' => $r->created_at?->toIso8601String(),
+                'date' => $r->date->format('Y-m-d'),
+                'created_at' => $r->created_at->toIso8601String(),
                 'line_count' => $r->lines_count,
                 'totals_display' => implode(' · ', $totalParts),
             ];
@@ -789,8 +774,8 @@ class SalaryAccrualService
         return [
             'id' => $report->id,
             'type' => $report->type,
-            'date' => $report->date?->format('Y-m-d'),
-            'created_at' => $report->created_at?->toIso8601String(),
+            'date' => $report->date->format('Y-m-d'),
+            'created_at' => $report->created_at->toIso8601String(),
             'line_count' => $report->lines_count,
             'totals_display' => implode(' · ', $totalParts),
             'lines' => $linesOut,

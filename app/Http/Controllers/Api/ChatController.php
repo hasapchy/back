@@ -192,7 +192,7 @@ class ChatController extends BaseController
         [$user, $companyId] = $this->requireChatAccess($chat);
 
         if ($chat->type === 'general' && ! $this->hasPermission('chats_write_general', $user)) {
-            return $this->successResponse(['message' => 'Forbidden'], 403);
+            return $this->successResponse(['message' => 'Forbidden'], null, 403);
         }
 
         $data = $request->validated();
@@ -201,7 +201,7 @@ class ChatController extends BaseController
         $parentId = isset($data['parent_id']) ? (int) $data['parent_id'] : null;
 
         if ($body === '' && empty($files)) {
-            return $this->successResponse(['message' => 'Message body or files are required'], 422);
+            return $this->successResponse(['message' => 'Message body or files are required'], null, 422);
         }
 
         $message = $this->chatService->storeMessage(
@@ -286,7 +286,7 @@ class ChatController extends BaseController
         $targetChat = Chat::query()->findOrFail($targetChatId);
 
         if ((int) $targetChat->company_id !== $companyId) {
-            return $this->successResponse(['message' => 'Target chat does not belong to this company'], 403);
+            return $this->successResponse(['message' => 'Target chat does not belong to this company'], null, 403);
         }
 
         $hideSenderName = $request->boolean('hide_sender_name');
