@@ -106,9 +106,15 @@ class User extends Authenticatable
         return $this->belongsToMany(\App\Models\Warehouse::class, 'wh_users', 'user_id', 'warehouse_id');
     }
 
+    // public function departments()
+    // {
+    //     return $this->belongsToMany(Department::class)->withTimestamps();
+    // }
+
     public function departments()
     {
-        return $this->belongsToMany(Department::class)->withTimestamps();
+        return $this->belongsToMany(Department::class, 'department_user', 'creator_id', 'department_id')
+                    ->withTimestamps();
     }
 
     public function headedDepartments()
