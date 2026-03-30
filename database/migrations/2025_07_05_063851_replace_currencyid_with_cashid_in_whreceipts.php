@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::table('wh_receipts', function (Blueprint $table) {
             if (Schema::hasColumn('wh_receipts', 'currency_id')) {
-                $table->dropForeign(['currency_id']); 
+                $table->dropForeign(['currency_id']);
                 $table->dropColumn('currency_id');
             }
 

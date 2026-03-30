@@ -5,6 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 use App\Models\Currency;
+use Illuminate\Support\Facades\Artisan;
 
 return new class extends Migration
 {
@@ -13,6 +14,12 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Сначала запускаем сидер чтобы заполнить валюты
+        Artisan::call('db:seed', [
+            '--class' => 'CurrencySeeder', // имя твоего сидера
+            '--force' => true,
+        ]);
+
         $defaultCurrency = Currency::where('is_default', true)->first();
 
         if (!$defaultCurrency) {

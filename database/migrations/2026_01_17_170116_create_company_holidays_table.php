@@ -19,7 +19,7 @@ return new class extends Migration
             $table->boolean('is_recurring')->default(true);
             $table->string('color')->default('#FF5733');
             $table->timestamps();
-            
+
             $table->index(['company_id', 'date']);
         });
     }

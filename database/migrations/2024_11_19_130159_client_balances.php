@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('client_balances', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('client_id')->constrained('clients')->onDelete('cascade'); 
-            $table->decimal('balance', 15, 2)->default(0.00); 
+            $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
+            $table->decimal('balance', 15, 2)->default(0.00);
             $table->timestamps();
         });
-        
+
     }
 
     /**

@@ -12,7 +12,7 @@ class DatabaseSeeder extends Seeder
             RolesSeeder::class,
             AdminSeeder::class,
             CompanySeeder::class,
-            CurrencySeeder::class,
+            // CurrencySeeder::class,   // wziwayetsa nutry etogo imigrate_client_balances_from_clients
             TransactionCategorySeeder::class,
             OrderStatusSeeder::class,
             ProjectStatusSeeder::class,
