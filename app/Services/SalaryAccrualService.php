@@ -324,7 +324,7 @@ class SalaryAccrualService
         if ($applyTransactionAdjustmentsToTotal && $clientIds->isNotEmpty()) {
             $adjustmentsByClient = Transaction::query()
                 ->whereIn('client_id', $clientIds)
-                ->whereBetween('date', [$startOfMonth->toDateString(), $endOfMonth->toDateString()])
+                    ->whereBetween('date', [$startOfMonth->toDateTimeString(), $endOfMonth->toDateTimeString()])
                 ->where('is_deleted', false)
                 ->whereIn('category_id', [
                     self::CATEGORY_ADVANCE,
