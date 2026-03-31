@@ -168,6 +168,7 @@ class CahRegistersRepository extends BaseRepository
             $item->currency_id = $data['currency_id'];
             $item->company_id = $companyId;
             $item->is_cash = (bool) ($data['is_cash'] ?? true);
+            $item->is_working_minus = (bool) ($data['is_working_minus'] ?? false);
             $item->icon = $data['icon'] ?? null;
             $item->save();
 
@@ -205,6 +206,10 @@ class CahRegistersRepository extends BaseRepository
 
             if (array_key_exists('is_cash', $data)) {
                 $item->is_cash = (bool) $data['is_cash'];
+            }
+
+            if (array_key_exists('is_working_minus', $data)) {
+                $item->is_working_minus = (bool) $data['is_working_minus'];
             }
 
             if (array_key_exists('icon', $data)) {

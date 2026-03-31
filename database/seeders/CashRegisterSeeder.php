@@ -31,6 +31,7 @@ class CashRegisterSeeder extends Seeder
                 'balance' => $existingCashRegister->balance,
                 'currency_id' => 1,
                 'is_cash' => true,
+                'is_working_minus' => false,
             ]);
             $cashRegister = $existingCashRegister;
         } else {
@@ -40,6 +41,7 @@ class CashRegisterSeeder extends Seeder
                 'balance' => 0,
                 'currency_id' => 1,
                 'is_cash' => true,
+                'is_working_minus' => false,
             ]);
         }
 

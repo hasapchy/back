@@ -139,6 +139,7 @@ class CashRegistersController extends BaseController
             'currency_id' => $validatedData['currency_id'] ?? null,
             'users' => $validatedData['users'],
             'is_cash' => $validatedData['is_cash'] ?? true,
+            'is_working_minus' => $validatedData['is_working_minus'] ?? false,
             'icon' => $validatedData['icon'] ?? null,
         ]);
 
@@ -175,6 +176,10 @@ class CashRegistersController extends BaseController
 
         if (array_key_exists('is_cash', $validatedData)) {
             $payload['is_cash'] = $validatedData['is_cash'];
+        }
+
+        if (array_key_exists('is_working_minus', $validatedData)) {
+            $payload['is_working_minus'] = $validatedData['is_working_minus'];
         }
 
         if (array_key_exists('icon', $validatedData)) {

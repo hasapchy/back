@@ -31,6 +31,7 @@ class UpdateCashRegisterRequest extends FormRequest
             'users' => 'required|array|min:1',
             'users.*' => 'exists:users,id',
             'is_cash' => 'nullable|boolean',
+            'is_working_minus' => 'nullable|boolean',
             'icon' => ['nullable', 'string', 'max:100', Rule::in($this->allowedIcons())],
         ];
     }
