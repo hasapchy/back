@@ -10,7 +10,6 @@ use App\Http\Requests\StoreCompanyRequest;
 use App\Http\Requests\UpdateCompanyRequest;
 use App\Http\Requests\AccrueSalariesRequest;
 use App\Services\SalaryAccrualService;
-use App\Repositories\TransactionsRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -268,15 +267,25 @@ class CompaniesController extends BaseController
                 'creator_ids.*' => 'integer|exists:users,id',
                 'payment_type' => 'nullable|boolean',
                 'currency_id' => 'nullable|integer|exists:currencies,id',
+                'apply_transaction_adjustments' => 'nullable|boolean',
             ]);
 
             $date = $request->input('date');
             $userIds = $request->input('creator_ids');
             $paymentType = (bool) $request->input('payment_type', true);
             $currencyId = $request->filled('currency_id') ? (int) $request->input('currency_id') : null;
+            $applyTransactionAdjustments = $request->boolean('apply_transaction_adjustments', true);
 
             $includeBalances = $this->hasPermission('settings_client_balance_view');
-            $preview = $this->salaryAccrualService()->getAccrualPreview($company->id, $date, $userIds, $paymentType, $includeBalances, $currencyId);
+            $preview = $this->salaryAccrualService()->getAccrualPreview(
+                $company->id,
+                $date,
+                $userIds,
+                $paymentType,
+                $includeBalances,
+                $currencyId,
+                $applyTransactionAdjustments
+            );
 
             return $this->successResponse($preview);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -362,6 +371,6 @@ class CompaniesController extends BaseController
      */
     private function salaryAccrualService(): SalaryAccrualService
     {
-        return new SalaryAccrualService(app(TransactionsRepository::class));
+        return app(SalaryAccrualService::class);
     }
 }

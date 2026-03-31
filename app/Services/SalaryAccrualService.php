@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Client;
 use App\Models\ClientBalance;
+use App\Models\Company;
 use App\Models\EmployeeSalary;
 use App\Models\Transaction;
 use App\Models\CashRegister;
@@ -26,7 +27,8 @@ class SalaryAccrualService
     private const CATEGORY_PENALTY = 27;
 
     public function __construct(
-        private TransactionsRepository $transactionsRepository
+        private TransactionsRepository $transactionsRepository,
+        private PayrollOfficialWorkingDaysCalculator $payrollOfficialWorkingDaysCalculator
     ) {
     }
 
@@ -44,142 +46,21 @@ class SalaryAccrualService
      */
     public function accrueSalariesForCompany(int $companyId, string $date, int $cashId, ?string $note = null, array $userIds = [], bool $paymentType = false, ?array $items = null): array
     {
-        if (empty($userIds)) {
-            throw new \Exception('Необходимо выбрать хотя бы одного сотрудника для начисления зарплаты');
-        }
-
-        $results = [
-            'success' => [],
-            'skipped' => [],
-            'errors' => []
-        ];
-
-        $employees = Client::where('company_id', $companyId)
-            ->where('client_type', 'employee')
-            ->where('status', true)
-            ->whereNotNull('employee_id')
-            ->whereIn('employee_id', $userIds)
-            ->get();
-
-        if ($employees->isEmpty()) {
-            return $results;
-        }
-
-        $cashRegister = CashRegister::findOrFail($cashId);
-        if ($cashRegister->company_id !== $companyId) {
-            throw new \Exception('Касса не принадлежит указанной компании');
-        }
-
-        $userId = auth('api')->id();
-
-        $itemByUserId = [];
-        if (is_array($items)) {
-            foreach ($items as $row) {
-                $cid = (int) ($row['creator_id'] ?? 0);
-                if ($cid > 0) {
-                    $itemByUserId[$cid] = $row;
-                }
-            }
-        }
-
-        $batchLines = [];
-
-        DB::beginTransaction();
-
-        try {
-            $paymentTypeValue = $paymentType ? 1 : 0;
-
-            foreach ($employees as $employeeClient) {
-                $employeePayload = $this->employeeClientOutcomeBase($employeeClient);
-                try {
-                    $sel = $itemByUserId[$employeeClient->employee_id] ?? null;
-                    $activeSalary = $this->resolveActiveEmployeeSalary(
-                        $companyId,
-                        (int) $employeeClient->employee_id,
-                        $paymentTypeValue,
-                        $sel
-                    );
-
-                    if (!$activeSalary) {
-                        $results['skipped'][] = $employeePayload + ['reason' => 'Нет активной зарплаты'];
-                        continue;
-                    }
-
-                    $activeSalary->loadMissing('currency');
-
-                    $transactionData = [
-                        'type' => 0,
-                        'creator_id' => $userId,
-                        'orig_amount' => $activeSalary->amount,
-                        'currency_id' => $activeSalary->currency_id,
-                        'cash_id' => $cashId,
-                        'category_id' => self::CATEGORY_SALARY_ACCRUAL,
-                        'project_id' => null,
-                        'client_id' => $employeeClient->id,
-                        'source_type' => EmployeeSalary::class,
-                        'source_id' => $activeSalary->id,
-                        'note' => $note ?? "Зарплата за " . date('d.m.Y', strtotime($date)),
-                        'date' => $date,
-                        'is_debt' => true,
-                        'exchange_rate' => null
-                    ];
-
-                    if ($sel && !empty($sel['client_balance_id'])) {
-                        $clientBalance = ClientBalance::where('id', (int) $sel['client_balance_id'])
-                            ->where('client_id', $employeeClient->id)
-                            ->where('currency_id', $activeSalary->currency_id)
-                            ->first();
-                        if ($clientBalance) {
-                            $transactionData['client_balance_id'] = $clientBalance->id;
-                        }
-                    }
-
-                    $txId = (int) $this->transactionsRepository->createItem($transactionData, true);
-
-                    $empUserId = (int) $employeeClient->employee_id;
-                    $empUser = User::query()->find($empUserId);
-                    $batchLines[] = [
-                        'employee_id' => $empUserId,
-                        'currency_id' => (int) $activeSalary->currency_id,
-                        'employee_name' => $this->formatUserDisplayName($empUser, $empUserId),
-                        'amount' => round((float) $activeSalary->amount, 2),
-                        'transaction_id' => $txId,
-                    ];
-
-                    $results['success'][] = $employeePayload + [
-                        'amount' => $activeSalary->amount,
-                        'currency_id' => $activeSalary->currency_id,
-                    ];
-
-                } catch (\Exception $e) {
-                    Log::error('Salary accrual error for employee', [
-                        'employee_id' => $employeeClient->employee_id,
-                        'error' => $e->getMessage()
-                    ]);
-
-                    $results['errors'][] = $employeePayload + ['error' => $e->getMessage()];
-                }
-            }
-
-            if ($batchLines !== []) {
-                $parsed = Carbon::parse($date);
-                $report = SalaryMonthlyReport::query()->create([
-                    'company_id' => $companyId,
-                    'type' => SalaryMonthlyReport::TYPE_ACCRUAL,
-                    'date' => $parsed->toDateString(),
-                ]);
-                foreach ($batchLines as $line) {
-                    $report->lines()->create($line);
-                }
-            }
-
-            DB::commit();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-
-        return $results;
+        return $this->executeMassSalaryOperation(
+            $companyId,
+            $date,
+            $cashId,
+            $note,
+            $userIds,
+            $paymentType,
+            $items,
+            self::CATEGORY_SALARY_ACCRUAL,
+            true,
+            SalaryMonthlyReport::TYPE_ACCRUAL,
+            'Зарплата за ' . Carbon::parse($date)->format('d.m.Y'),
+            'Необходимо выбрать хотя бы одного сотрудника для начисления зарплаты',
+            'Salary accrual error for employee'
+        );
     }
 
     /**
@@ -190,8 +71,44 @@ class SalaryAccrualService
      */
     public function paySalariesForCompany(int $companyId, string $date, int $cashId, ?string $note = null, array $userIds = [], bool $paymentType = false, ?array $items = null): array
     {
-        if (empty($userIds)) {
-            throw new \Exception('Необходимо выбрать хотя бы одного сотрудника для выплаты зарплаты');
+        return $this->executeMassSalaryOperation(
+            $companyId,
+            $date,
+            $cashId,
+            $note,
+            $userIds,
+            $paymentType,
+            $items,
+            self::CATEGORY_SALARY_PAYMENT,
+            false,
+            SalaryMonthlyReport::TYPE_PAYMENT,
+            'Выплата зарплаты ' . Carbon::parse($date)->format('d.m.Y'),
+            'Необходимо выбрать хотя бы одного сотрудника для выплаты зарплаты',
+            'Salary payment error for employee'
+        );
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>|null  $items
+     * @return array{success: list<array<string, mixed>>, skipped: list<array<string, mixed>>, errors: list<array<string, mixed>>}
+     */
+    private function executeMassSalaryOperation(
+        int $companyId,
+        string $date,
+        int $cashId,
+        ?string $note,
+        array $userIds,
+        bool $paymentType,
+        ?array $items,
+        int $categoryId,
+        bool $isDebt,
+        string $reportType,
+        string $defaultNote,
+        string $emptyUserIdsMessage,
+        string $logErrorEventLabel
+    ): array {
+        if ($userIds === []) {
+            throw new \Exception($emptyUserIdsMessage);
         }
 
         $results = [
@@ -216,24 +133,22 @@ class SalaryAccrualService
             throw new \Exception('Касса не принадлежит указанной компании');
         }
 
-        $userId = auth('api')->id();
-
-        $itemByUserId = [];
-        if (is_array($items)) {
-            foreach ($items as $row) {
-                $cid = (int) ($row['creator_id'] ?? 0);
-                if ($cid > 0) {
-                    $itemByUserId[$cid] = $row;
-                }
-            }
-        }
-
+        $actingUserId = (int) auth('api')->id();
+        $itemByUserId = $this->salaryItemsIndexedByCreatorId($items);
         $batchLines = [];
+
+        $payrollUserIds = $employees->pluck('employee_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $payrollUsersById = User::query()
+            ->whereIn('id', $payrollUserIds)
+            ->get(['id', 'name', 'surname', 'hire_date', 'dismissal_date'])
+            ->keyBy('id');
 
         DB::beginTransaction();
 
         try {
             $paymentTypeValue = $paymentType ? 1 : 0;
+            $company = Company::query()->findOrFail($companyId);
+            $monthPayroll = $this->payrollMonthDayBounds($date);
 
             foreach ($employees as $employeeClient) {
                 $employeePayload = $this->employeeClientOutcomeBase($employeeClient);
@@ -252,66 +167,45 @@ class SalaryAccrualService
                     }
 
                     $activeSalary->loadMissing('currency');
-
-                    $transactionData = [
-                        'type' => 0,
-                        'creator_id' => $userId,
-                        'orig_amount' => $activeSalary->amount,
-                        'currency_id' => $activeSalary->currency_id,
-                        'cash_id' => $cashId,
-                        'category_id' => self::CATEGORY_SALARY_PAYMENT,
-                        'project_id' => null,
-                        'client_id' => $employeeClient->id,
-                        'source_type' => EmployeeSalary::class,
-                        'source_id' => $activeSalary->id,
-                        'note' => $note ?? ('Выплата зарплаты ' . date('d.m.Y', strtotime($date))),
-                        'date' => $date,
-                        'is_debt' => false,
-                        'exchange_rate' => null,
-                    ];
-
-                    if ($sel && ! empty($sel['client_balance_id'])) {
-                        $clientBalance = ClientBalance::where('id', (int) $sel['client_balance_id'])
-                            ->where('client_id', $employeeClient->id)
-                            ->where('currency_id', $activeSalary->currency_id)
-                            ->first();
-                        if ($clientBalance) {
-                            $transactionData['client_balance_id'] = $clientBalance->id;
-                        }
-                    }
-
-                    $txId = (int) $this->transactionsRepository->createItem($transactionData, true);
-
                     $empUserId = (int) $employeeClient->employee_id;
-                    $empUser = User::query()->find($empUserId);
-                    $batchLines[] = [
-                        'employee_id' => $empUserId,
-                        'currency_id' => (int) $activeSalary->currency_id,
-                        'employee_name' => $this->formatUserDisplayName($empUser, $empUserId),
-                        'amount' => round((float) $activeSalary->amount, 2),
-                        'transaction_id' => $txId,
-                    ];
-
-                    $results['success'][] = $employeePayload + [
-                        'amount' => $activeSalary->amount,
-                        'currency_id' => $activeSalary->currency_id,
-                    ];
-                } catch (\Exception $e) {
-                    Log::error('Salary payment error for employee', [
+                    $payrollUser = $payrollUsersById->get($empUserId);
+                    $row = $this->createProRataSalaryTransaction(
+                        $company,
+                        $monthPayroll,
+                        $employeeClient,
+                        $activeSalary,
+                        $sel,
+                        $cashId,
+                        $actingUserId,
+                        $categoryId,
+                        $note,
+                        $date,
+                        $isDebt,
+                        $defaultNote,
+                        $payrollUser instanceof User ? $payrollUser : null
+                    );
+                    $batchLines[] = $row['batch_line'];
+                    $results['success'][] = $employeePayload + $row['success_payload'];
+                } catch (\Throwable $e) {
+                    Log::error($logErrorEventLabel, [
                         'employee_id' => $employeeClient->employee_id,
                         'error' => $e->getMessage(),
                     ]);
 
-                    $results['errors'][] = $employeePayload + ['error' => $e->getMessage()];
+                    $id = (int) $employeeClient->employee_id;
+                    $hint = trim((string) ($employeePayload['employee_name'] ?? '')) !== ''
+                        ? $employeePayload['employee_name'].' (ID '.$id.')'
+                        : 'ID '.$id;
+
+                    throw new \Exception('Ошибка: '.$hint.' — '.$e->getMessage(), 0, $e);
                 }
             }
 
             if ($batchLines !== []) {
-                $parsed = Carbon::parse($date);
                 $report = SalaryMonthlyReport::query()->create([
                     'company_id' => $companyId,
-                    'type' => SalaryMonthlyReport::TYPE_PAYMENT,
-                    'date' => $parsed->toDateString(),
+                    'type' => $reportType,
+                    'date' => $monthPayroll['start']->toDateString(),
                 ]);
                 foreach ($batchLines as $line) {
                     $report->lines()->create($line);
@@ -319,7 +213,7 @@ class SalaryAccrualService
             }
 
             DB::commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             throw $e;
         }
@@ -377,15 +271,18 @@ class SalaryAccrualService
      * @param bool $paymentType
      * @param  bool  $includeBalanceOptions  Показывать варианты балансов (при отсутствии права просмотра балансов — только дефолт на бэкенде)
      * @param  int|null  $currencyId  Если задано — только оклады и балансы в этой валюте; остальные сотрудники в превью не попадают
+     * @param  bool  $applyTransactionAdjustmentsToTotal  Учитывать аванс/штраф/премию в поле total (для выплаты), для начисления — false
      * @return array
      */
-    public function getAccrualPreview(int $companyId, string $date, array $userIds, bool $paymentType = true, bool $includeBalanceOptions = true, ?int $currencyId = null): array
+    public function getAccrualPreview(int $companyId, string $date, array $userIds, bool $paymentType = true, bool $includeBalanceOptions = true, ?int $currencyId = null, bool $applyTransactionAdjustmentsToTotal = true): array
     {
         $userIds = array_values(array_unique(array_map('intval', $userIds)));
 
         $bounds = $this->monthBoundsFromDate($date);
         $startOfMonth = $bounds['start'];
         $endOfMonth = $bounds['end'];
+        $monthPayroll = $this->payrollMonthDayBounds($date);
+        $company = Company::query()->findOrFail($companyId);
         $paymentTypeValue = $paymentType ? 1 : 0;
 
         $employeeClientsQuery = Client::where('company_id', $companyId)
@@ -419,12 +316,12 @@ class SalaryAccrualService
             ->groupBy('user_id');
 
         $users = User::whereIn('id', $userIds)
-            ->get(['id', 'name', 'surname'])
+            ->get(['id', 'name', 'surname', 'hire_date', 'dismissal_date'])
             ->keyBy('id');
 
         $clientIds = $employeeClients->pluck('id')->values();
         $adjustmentsByClient = collect();
-        if ($clientIds->isNotEmpty()) {
+        if ($applyTransactionAdjustmentsToTotal && $clientIds->isNotEmpty()) {
             $adjustmentsByClient = Transaction::query()
                 ->whereIn('client_id', $clientIds)
                 ->whereBetween('date', [$startOfMonth->toDateString(), $endOfMonth->toDateString()])
@@ -454,11 +351,35 @@ class SalaryAccrualService
                 continue;
             }
 
+            $defaultSalary = $userSalaryCollection->first(function ($s) {
+                return $s->end_date === null;
+            }) ?? $userSalaryCollection->first();
+
+            $shares = $this->payrollOfficialWorkingDaysCalculator->prorationSharesForUser(
+                $company,
+                $user,
+                $monthPayroll['start'],
+                $monthPayroll['end']
+            );
+            $monthYm = $monthPayroll['start']->format('Y-m');
+            $this->payrollOfficialWorkingDaysCalculator->warnIfOfficialNormZeroWithPositiveSalary(
+                (int) $company->id,
+                $monthYm,
+                $shares['official_working_days_norm'],
+                $userSalaryCollection->contains(fn ($s) => (float) $s->amount > 0),
+                'accrual_preview'
+            );
+
             $salaryOptions = [];
             foreach ($userSalaryCollection as $salaryRow) {
+                $optRow = $this->payrollOfficialWorkingDaysCalculator->prorationRowForAmount(
+                    $shares,
+                    (float) $salaryRow->amount
+                );
                 $salaryOptions[] = [
                     'id' => $salaryRow->id,
                     'amount' => (float) $salaryRow->amount,
+                    'prorated_amount' => $optRow['prorated_salary_amount'],
                     'currency_id' => $salaryRow->currency_id,
                     'currency_symbol' => $salaryRow->currency?->symbol,
                     'start_date' => $salaryRow->start_date?->toDateString(),
@@ -467,75 +388,97 @@ class SalaryAccrualService
                 ];
             }
 
-            $defaultSalary = $userSalaryCollection->first(function ($s) {
-                return $s->end_date === null;
-            }) ?? $userSalaryCollection->first();
-
             $client = $employeeClients->get($userId);
             $balanceOptions = [];
             $defaultClientBalanceId = null;
             if ($includeBalanceOptions && $client && $client->relationLoaded('balances') && $client->balances->isNotEmpty()) {
-                foreach ($client->balances as $balanceRow) {
+                $balancesMatchingPayment = $client->balances->filter(
+                    fn ($b) => (int) $b->type === $paymentTypeValue
+                );
+                foreach ($balancesMatchingPayment as $balanceRow) {
                     if ($currencyId !== null && (int) $balanceRow->currency_id !== (int) $currencyId) {
                         continue;
                     }
                     $sym = $balanceRow->currency?->symbol ?? '';
-                    $suffix = $balanceRow->is_default ? ' *' : '';
                     $balanceOptions[] = [
                         'id' => $balanceRow->id,
                         'currency_id' => $balanceRow->currency_id,
                         'currency_symbol' => $sym,
+                        'type' => (int) $balanceRow->type,
                         'is_default' => (bool) $balanceRow->is_default,
-                        'label' => trim($sym . $suffix),
+                        'label' => trim($sym) !== '' ? trim($sym) : ('#' . $balanceRow->id),
                     ];
                 }
-                $balancesForDefault = $currencyId === null
-                    ? $client->balances
-                    : $client->balances->filter(fn ($b) => (int) $b->currency_id === (int) $currencyId);
+                $balancesForDefault = $balancesMatchingPayment;
+                if ($currencyId !== null) {
+                    $balancesForDefault = $balancesForDefault->filter(
+                        fn ($b) => (int) $b->currency_id === (int) $currencyId
+                    );
+                }
                 $defaultClientBalanceId = $balancesForDefault->firstWhere('is_default', true)?->id
                     ?? $balancesForDefault->first()?->id;
             }
 
-            $byCategory = $client
-                ? ($adjustmentsByClient->get((int) $client->id) ?? collect())->groupBy(fn (Transaction $t) => (int) $t->category_id)
-                : collect();
-            $advanceRows = $byCategory->get(self::CATEGORY_ADVANCE, collect());
-            $penaltyRows = $byCategory->get(self::CATEGORY_PENALTY, collect());
-            $bonusRows = $byCategory->get(self::CATEGORY_BONUS, collect());
-            $advance = (float) $advanceRows->sum(fn (Transaction $t) => (float) $t->orig_amount);
-            $penalty = (float) $penaltyRows->sum(fn (Transaction $t) => (float) $t->orig_amount);
-            $bonus = (float) $bonusRows->sum(fn (Transaction $t) => (float) $t->orig_amount);
             $salaryAmount = (float) ($defaultSalary?->amount ?? 0);
-            $total = $salaryAmount + $bonus - $penalty - $advance;
+            $officialNorm = $shares['official_working_days_norm'];
+            $officialWorked = $shares['official_working_days_worked'];
+            $defaultOpt = $defaultSalary
+                ? collect($salaryOptions)->firstWhere('id', $defaultSalary->id)
+                : null;
+            $proratedSalary = (float) ($defaultOpt['prorated_amount'] ?? 0);
 
-            $rows[] = [
+            $row = [
                 'creator_id' => $userId,
                 'creator' => [
                     'id' => $userId,
                     'name' => $this->formatUserDisplayName($user, (int) $userId),
                 ],
                 'salary' => $salaryAmount,
+                'prorated_salary' => $proratedSalary,
+                'official_working_days_norm' => $officialNorm,
+                'official_working_days_worked' => $officialWorked,
+                'official_worked_breakdown' => $shares['official_worked_breakdown'] ?? null,
                 'currency_id' => $defaultSalary?->currency_id,
                 'currency_symbol' => $defaultSalary?->currency?->symbol,
-                'advance' => $advance,
-                'penalty' => $penalty,
-                'bonus' => $bonus,
-                'total' => $total,
-                'advance_transactions' => $this->salaryPreviewTransactionSummaries($advanceRows),
-                'penalty_transactions' => $this->salaryPreviewTransactionSummaries($penaltyRows),
-                'bonus_transactions' => $this->salaryPreviewTransactionSummaries($bonusRows),
+                'total' => $proratedSalary,
                 'has_salary' => (bool) $defaultSalary,
                 'salary_options' => $salaryOptions,
                 'selected_employee_salary_id' => $defaultSalary?->id,
                 'balance_options' => $balanceOptions,
                 'selected_client_balance_id' => $includeBalanceOptions ? $defaultClientBalanceId : null,
             ];
+
+            if ($applyTransactionAdjustmentsToTotal) {
+                $byCategory = $client
+                    ? ($adjustmentsByClient->get((int) $client->id) ?? collect())->groupBy(fn (Transaction $t) => (int) $t->category_id)
+                    : collect();
+                $advanceRows = $byCategory->get(self::CATEGORY_ADVANCE, collect());
+                $penaltyRows = $byCategory->get(self::CATEGORY_PENALTY, collect());
+                $bonusRows = $byCategory->get(self::CATEGORY_BONUS, collect());
+                $advance = (float) $advanceRows->sum(fn (Transaction $t) => (float) $t->orig_amount);
+                $penalty = (float) $penaltyRows->sum(fn (Transaction $t) => (float) $t->orig_amount);
+                $bonus = (float) $bonusRows->sum(fn (Transaction $t) => (float) $t->orig_amount);
+                $row['advance'] = $advance;
+                $row['penalty'] = $penalty;
+                $row['bonus'] = $bonus;
+                $row['total'] = $proratedSalary + $bonus - $penalty - $advance;
+                $row['advance_transactions'] = $this->salaryPreviewTransactionSummaries($advanceRows);
+                $row['penalty_transactions'] = $this->salaryPreviewTransactionSummaries($penaltyRows);
+                $row['bonus_transactions'] = $this->salaryPreviewTransactionSummaries($bonusRows);
+            }
+
+            $rows[] = $row;
         }
 
         return [
             'items' => $rows,
             'month' => $startOfMonth->format('Y-m'),
             'payment_type' => $paymentTypeValue,
+            'official_norm_non_working' => $this->payrollOfficialWorkingDaysCalculator->monthNormNonWorkingDatesSplit(
+                $company,
+                $monthPayroll['start'],
+                $monthPayroll['end']
+            ),
         ];
     }
 
@@ -549,6 +492,123 @@ class SalaryAccrualService
         return [
             'start' => $parsed->copy()->startOfMonth(),
             'end' => $parsed->copy()->endOfMonth()->endOfDay(),
+        ];
+    }
+
+    /**
+     * @return array{start: Carbon, end: Carbon}
+     */
+    private function payrollMonthDayBounds(string $date): array
+    {
+        $parsed = Carbon::parse($date);
+
+        return [
+            'start' => $parsed->copy()->startOfMonth()->startOfDay(),
+            'end' => $parsed->copy()->endOfMonth()->startOfDay(),
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>|null  $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function salaryItemsIndexedByCreatorId(?array $items): array
+    {
+        if (! is_array($items)) {
+            return [];
+        }
+        $map = [];
+        foreach ($items as $row) {
+            $cid = (int) ($row['creator_id'] ?? 0);
+            if ($cid > 0) {
+                $map[$cid] = $row;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  array{start: Carbon, end: Carbon}  $monthPayroll
+     * @param  array<string, mixed>|null  $sel
+     * @return array{batch_line: array<string, mixed>, success_payload: array<string, mixed>}
+     */
+    private function createProRataSalaryTransaction(
+        Company $company,
+        array $monthPayroll,
+        Client $employeeClient,
+        EmployeeSalary $activeSalary,
+        ?array $sel,
+        int $cashId,
+        int $actingUserId,
+        int $categoryId,
+        ?string $note,
+        string $transactionDate,
+        bool $isDebt,
+        string $defaultNote,
+        ?User $payrollUser = null
+    ): array {
+        $empUserId = (int) $employeeClient->employee_id;
+        $empUser = $payrollUser ?? User::query()->find($empUserId, ['id', 'name', 'surname', 'hire_date', 'dismissal_date']);
+        $proration = $this->payrollOfficialWorkingDaysCalculator->getProrationForUser(
+            $company,
+            $empUser,
+            $monthPayroll['start'],
+            $monthPayroll['end'],
+            (float) $activeSalary->amount
+        );
+        $origAmount = (float) $proration['prorated_salary_amount'];
+
+        $transactionData = [
+            'type' => 0,
+            'creator_id' => $actingUserId,
+            'orig_amount' => $origAmount,
+            'currency_id' => $activeSalary->currency_id,
+            'cash_id' => $cashId,
+            'category_id' => $categoryId,
+            'project_id' => null,
+            'client_id' => $employeeClient->id,
+            'source_type' => EmployeeSalary::class,
+            'source_id' => $activeSalary->id,
+            'note' => $note ?? $defaultNote,
+            'date' => $transactionDate,
+            'is_debt' => $isDebt,
+            'exchange_rate' => null,
+        ];
+
+        if ($sel && ! empty($sel['client_balance_id'])) {
+            $clientBalance = ClientBalance::query()
+                ->where('id', (int) $sel['client_balance_id'])
+                ->where('client_id', $employeeClient->id)
+                ->where('currency_id', $activeSalary->currency_id)
+                ->where('type', (int) $activeSalary->payment_type)
+                ->first();
+            if ($clientBalance) {
+                $transactionData['client_balance_id'] = $clientBalance->id;
+            }
+        }
+
+        $txId = (int) $this->transactionsRepository->createItem($transactionData, true);
+
+        return [
+            'batch_line' => [
+                'employee_id' => $empUserId,
+                'currency_id' => (int) $activeSalary->currency_id,
+                'employee_name' => $this->formatUserDisplayName($empUser, $empUserId),
+                'amount' => $origAmount,
+                'transaction_id' => $txId,
+                'official_working_days_norm' => $proration['official_working_days_norm'],
+                'official_working_days_worked' => $proration['official_working_days_worked'],
+                'monthly_salary_base' => $proration['monthly_salary_base'],
+                'prorated_salary_amount' => $proration['prorated_salary_amount'],
+            ],
+            'success_payload' => [
+                'amount' => $origAmount,
+                'currency_id' => $activeSalary->currency_id,
+                'monthly_salary_base' => $proration['monthly_salary_base'],
+                'official_working_days_norm' => $proration['official_working_days_norm'],
+                'official_working_days_worked' => $proration['official_working_days_worked'],
+            ],
         ];
     }
 
@@ -639,62 +699,6 @@ class SalaryAccrualService
     }
 
     /**
-     * @return array{month: string, items: list<array<string, mixed>>, synced_at: string|null}
-     */
-    public function getMonthlySalaryReport(int $companyId, string $yearMonth, bool $refresh = false): array
-    {
-        $monthStart = Carbon::parse($yearMonth . '-01')->startOfMonth();
-        $monthEnd = $monthStart->copy()->endOfMonth();
-
-        $reports = SalaryMonthlyReport::query()
-            ->where('company_id', $companyId)
-            ->where('date', '>=', $monthStart->toDateString())
-            ->where('date', '<=', $monthEnd->toDateString())
-            ->with(['lines' => fn ($q) => $q->orderBy('employee_name')->with('currency:id,symbol')])
-            ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->get();
-
-        $aggregates = [];
-        foreach ($reports as $report) {
-            foreach ($report->lines as $l) {
-                $key = $l->employee_id . ':' . $l->currency_id;
-                if (! isset($aggregates[$key])) {
-                    $aggregates[$key] = [
-                        'employee_id' => (int) $l->employee_id,
-                        'name' => $l->employee_name,
-                        'currency_id' => (int) $l->currency_id,
-                        'currency_symbol' => (string) ($l->currency?->symbol ?? ''),
-                        'accrued' => 0.0,
-                        'paid' => 0.0,
-                    ];
-                }
-                $amt = (float) $l->amount;
-                if ($report->type === SalaryMonthlyReport::TYPE_ACCRUAL) {
-                    $aggregates[$key]['accrued'] = round($aggregates[$key]['accrued'] + $amt, 2);
-                } elseif ($report->type === SalaryMonthlyReport::TYPE_PAYMENT) {
-                    $aggregates[$key]['paid'] = round($aggregates[$key]['paid'] + $amt, 2);
-                }
-            }
-        }
-
-        $items = [];
-        foreach ($aggregates as $row) {
-            $row['balance'] = round($row['accrued'] - $row['paid'], 2);
-            $items[] = $row;
-        }
-        usort($items, fn ($a, $b) => strcmp((string) $a['name'], (string) $b['name']));
-
-        $lastReport = $reports->first();
-
-        return [
-            'month' => $monthStart->format('Y-m'),
-            'items' => $items,
-            'synced_at' => $lastReport?->updated_at?->toIso8601String(),
-        ];
-    }
-
-    /**
      * @return list<array<string, mixed>>
      */
     public function listSalaryReportBatches(int $companyId, string $yearMonth): array
@@ -714,22 +718,13 @@ class SalaryAccrualService
 
         $out = [];
         foreach ($reports as $r) {
-            $totalsBySym = [];
-            foreach ($r->lines as $l) {
-                $sym = $l->currency?->symbol ?? '';
-                $totalsBySym[$sym] = ($totalsBySym[$sym] ?? 0) + (float) $l->amount;
-            }
-            $totalParts = [];
-            foreach ($totalsBySym as $sym => $amt) {
-                $totalParts[] = trim(number_format($amt, 2, '.', '') . ($sym !== '' ? ' ' . $sym : ''));
-            }
             $out[] = [
                 'id' => $r->id,
                 'type' => $r->type,
                 'date' => $r->date->format('Y-m-d'),
                 'created_at' => $r->created_at->toIso8601String(),
                 'line_count' => $r->lines_count,
-                'totals_display' => implode(' · ', $totalParts),
+                'totals_display' => $this->salaryLinesTotalsDisplay($r->lines),
             ];
         }
 
@@ -748,27 +743,9 @@ class SalaryAccrualService
             ->with(['lines' => fn ($q) => $q->orderBy('employee_name')->with('currency:id,symbol')])
             ->firstOrFail();
 
-        $totalsBySym = [];
-        foreach ($report->lines as $l) {
-            $sym = $l->currency?->symbol ?? '';
-            $totalsBySym[$sym] = ($totalsBySym[$sym] ?? 0) + (float) $l->amount;
-        }
-        $totalParts = [];
-        foreach ($totalsBySym as $sym => $amt) {
-            $totalParts[] = trim(number_format($amt, 2, '.', '') . ($sym !== '' ? ' ' . $sym : ''));
-        }
-
         $linesOut = [];
         foreach ($report->lines as $l) {
-            $linesOut[] = [
-                'id' => $l->id,
-                'employee_id' => (int) $l->employee_id,
-                'employee_name' => $l->employee_name,
-                'amount' => round((float) $l->amount, 2),
-                'currency_id' => (int) $l->currency_id,
-                'currency_symbol' => (string) ($l->currency?->symbol ?? ''),
-                'transaction_id' => $l->transaction_id ? (int) $l->transaction_id : null,
-            ];
+            $linesOut[] = $this->salaryMonthlyReportLineApiRow($l);
         }
 
         return [
@@ -777,8 +754,46 @@ class SalaryAccrualService
             'date' => $report->date->format('Y-m-d'),
             'created_at' => $report->created_at->toIso8601String(),
             'line_count' => $report->lines_count,
-            'totals_display' => implode(' · ', $totalParts),
+            'totals_display' => $this->salaryLinesTotalsDisplay($report->lines),
             'lines' => $linesOut,
+        ];
+    }
+
+    /**
+     * @param  iterable<int, SalaryMonthlyReportLine>  $lines
+     */
+    private function salaryLinesTotalsDisplay(iterable $lines): string
+    {
+        $totalsBySym = [];
+        foreach ($lines as $l) {
+            $sym = $l->currency?->symbol ?? '';
+            $totalsBySym[$sym] = ($totalsBySym[$sym] ?? 0) + (float) $l->amount;
+        }
+        $parts = [];
+        foreach ($totalsBySym as $sym => $amt) {
+            $parts[] = trim(number_format($amt, 2, '.', '') . ($sym !== '' ? ' ' . $sym : ''));
+        }
+
+        return implode(' · ', $parts);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function salaryMonthlyReportLineApiRow(SalaryMonthlyReportLine $l): array
+    {
+        return [
+            'id' => $l->id,
+            'employee_id' => (int) $l->employee_id,
+            'employee_name' => $l->employee_name,
+            'amount' => round((float) $l->amount, 2),
+            'currency_id' => (int) $l->currency_id,
+            'currency_symbol' => (string) ($l->currency?->symbol ?? ''),
+            'transaction_id' => $l->transaction_id ? (int) $l->transaction_id : null,
+            'official_working_days_norm' => $l->official_working_days_norm !== null ? (int) $l->official_working_days_norm : null,
+            'official_working_days_worked' => $l->official_working_days_worked !== null ? (int) $l->official_working_days_worked : null,
+            'monthly_salary_base' => $l->monthly_salary_base !== null ? round((float) $l->monthly_salary_base, 2) : null,
+            'prorated_salary_amount' => $l->prorated_salary_amount !== null ? round((float) $l->prorated_salary_amount, 2) : null,
         ];
     }
 

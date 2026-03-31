@@ -15,7 +15,9 @@ use Spatie\Activitylog\Models\Activity;
  * @property int $order_id ID заказа
  * @property int $product_id ID продукта
  * @property float $quantity Количество
- * @property float $price Цена
+ * @property float $price Цена в валюте учёта (дефолт)
+ * @property float|null $orig_unit_price Цена в валюте ввода
+ * @property int|null $orig_currency_id ID валюты ввода
  * @property float $discount Скидка
  * @property float|null $width Ширина
  * @property float|null $height Высота
@@ -24,6 +26,7 @@ use Spatie\Activitylog\Models\Activity;
  *
  * @property-read \App\Models\Order $order
  * @property-read \App\Models\Product $product
+ * @property-read \App\Models\Currency|null $origCurrency
  */
 class OrderProduct extends Model
 {
@@ -34,6 +37,8 @@ class OrderProduct extends Model
         'product_id',
         'quantity',
         'price',
+        'orig_unit_price',
+        'orig_currency_id',
         'discount',
         'width',
         'height',
@@ -42,6 +47,7 @@ class OrderProduct extends Model
     protected $casts = [
         'quantity' => 'decimal:5',
         'price' => 'decimal:5',
+        'orig_unit_price' => 'decimal:5',
         'discount' => 'decimal:5',
     ];
 
@@ -128,6 +134,11 @@ class OrderProduct extends Model
     public function product()
     {
         return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    public function origCurrency()
+    {
+        return $this->belongsTo(Currency::class, 'orig_currency_id');
     }
 
 }

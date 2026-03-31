@@ -406,8 +406,8 @@ class ProductsRepository extends BaseRepository
                 'name' => $category->name,
             ];
         })->toArray();
-        $productArray['unit_name'] = $product->unit?->name;
-        $productArray['unit_short_name'] = $product->unit?->short_name;
+        $productArray['unit_name'] = $product->unit->name;
+        $productArray['unit_short_name'] = $product->unit->short_name;
         $price = $product->prices->first();
         $productArray['retail_price'] = $price?->retail_price ?? 0;
         $productArray['wholesale_price'] = $price?->wholesale_price ?? 0;
@@ -519,8 +519,8 @@ class ProductsRepository extends BaseRepository
     private function enrichProduct($product, array $stocksMap)
     {
         $product->category_name = $product->categories->first()?->name;
-        $product->unit_name = $product->unit?->name;
-        $product->unit_short_name = $product->unit?->short_name;
+        $product->unit_name = $product->unit->name;
+        $product->unit_short_name = $product->unit->short_name;
         $price = $product->prices->first();
         $product->retail_price = $price?->retail_price;
         $product->wholesale_price = $price?->wholesale_price;

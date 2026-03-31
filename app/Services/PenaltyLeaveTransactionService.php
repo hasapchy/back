@@ -20,6 +20,20 @@ class PenaltyLeaveTransactionService
     ) {
     }
 
+    private function shouldCreateAutomaticFine(Leave $leave): bool
+    {
+        $type = $leave->leaveType;
+        if (! $type || ! $type->is_penalty) {
+            return false;
+        }
+
+        if ($type->name === 'TIME_OFF') {
+            return false;
+        }
+
+        return true;
+    }
+
     /**
      * @return int|null ID созданной транзакции или null
      */
@@ -30,10 +44,11 @@ class PenaltyLeaveTransactionService
             ->where('category_id', self::FINE_CATEGORY_ID)
             ->get();
 
-        if (! $leave->leaveType?->is_penalty) {
+        if (! $this->shouldCreateAutomaticFine($leave)) {
             foreach ($existing as $tx) {
                 $this->transactionsRepository->deleteItem($tx->id);
             }
+
             return null;
         }
 

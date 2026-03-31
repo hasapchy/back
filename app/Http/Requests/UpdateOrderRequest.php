@@ -6,6 +6,8 @@ use App\Rules\CashRegisterAccessRule;
 use App\Rules\WarehouseAccessRule;
 use App\Rules\ProjectAccessRule;
 use App\Rules\ClientAccessRule;
+use App\Models\CashRegister;
+use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -44,7 +46,20 @@ class UpdateOrderRequest extends FormRequest
                 ? ['nullable', 'integer', 'exists:cash_registers,id']
                 : ['nullable', 'integer', new CashRegisterAccessRule()],
             'warehouse_id'         => ['required', 'integer', new WarehouseAccessRule()],
-            'currency_id'          => 'nullable|integer|exists:currencies,id',
+            'currency_id'          => [
+                'nullable',
+                'integer',
+                'exists:currencies,id',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! $value || ! $this->input('cash_id')) {
+                        return;
+                    }
+                    $cash = CashRegister::query()->find($this->input('cash_id'));
+                    if ($cash && (int) $cash->currency_id !== (int) $value) {
+                        $fail('Валюта запроса должна совпадать с валютой выбранной кассы.');
+                    }
+                },
+            ],
             'category_id'          => 'nullable|integer|exists:categories,id',
             'discount'             => 'nullable|numeric|min:0',
             'discount_type'        => 'nullable|in:fixed,percent|required_with:discount',
@@ -91,6 +106,30 @@ class UpdateOrderRequest extends FormRequest
         }
 
         $this->merge($data);
+    }
+
+    /**
+     * @param Validator $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $orderId = $this->route('id');
+            if (! $orderId || ! $this->exists('cash_id')) {
+                return;
+            }
+            $order = Order::query()->find($orderId);
+            if (! $order) {
+                return;
+            }
+            $incoming = $this->input('cash_id');
+            $newId = $incoming === null || $incoming === '' ? null : (int) $incoming;
+            $oldId = $order->cash_id === null ? null : (int) $order->cash_id;
+            if ($newId !== $oldId) {
+                $validator->errors()->add('cash_id', 'Нельзя изменить кассу у сохранённого заказа.');
+            }
+        });
     }
 
     /**

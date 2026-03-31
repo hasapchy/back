@@ -6,6 +6,7 @@ use App\Rules\CashRegisterAccessRule;
 use App\Rules\WarehouseAccessRule;
 use App\Rules\ProjectAccessRule;
 use App\Rules\ClientAccessRule;
+use App\Models\CashRegister;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -44,7 +45,20 @@ class StoreOrderRequest extends FormRequest
                 ? ['nullable', 'integer', 'exists:cash_registers,id']
                 : ['nullable', 'integer', new CashRegisterAccessRule()],
             'warehouse_id'         => ['required', 'integer', new WarehouseAccessRule()],
-            'currency_id'          => 'nullable|integer|exists:currencies,id',
+            'currency_id'          => [
+                'nullable',
+                'integer',
+                'exists:currencies,id',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! $value || ! $this->input('cash_id')) {
+                        return;
+                    }
+                    $cash = CashRegister::query()->find($this->input('cash_id'));
+                    if ($cash && (int) $cash->currency_id !== (int) $value) {
+                        $fail('Валюта запроса должна совпадать с валютой выбранной кассы.');
+                    }
+                },
+            ],
             'category_id'          => $isSimpleWorker
                 ? 'nullable|integer|exists:categories,id'
                 : 'required|integer|exists:categories,id',

@@ -14,10 +14,16 @@ class SalaryMonthlyReportLine extends Model
         'employee_name',
         'amount',
         'transaction_id',
+        'official_working_days_norm',
+        'official_working_days_worked',
+        'monthly_salary_base',
+        'prorated_salary_amount',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'monthly_salary_base' => 'decimal:2',
+        'prorated_salary_amount' => 'decimal:2',
     ];
 
     /**

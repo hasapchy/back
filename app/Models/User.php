@@ -66,6 +66,7 @@ class User extends Authenticatable
         'last_login_at' => 'datetime',
         'password' => 'hashed',
         'dismissal_date' => 'date:Y-m-d',
+        'hire_date' => 'date:Y-m-d',
         'birthday' => 'date:Y-m-d',
         'is_active' => 'boolean',
         'is_admin' => 'boolean',

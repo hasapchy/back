@@ -189,6 +189,12 @@ return [
             'actions' => ['view', 'create', 'update', 'delete', 'export'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
+        'company_production_calendar' => [
+            'has_creator_id' => false,
+            'check_strategy' => 'default',
+            'actions' => ['view', 'create', 'update', 'delete', 'export'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
         'currency_history' => [
             'has_creator_id' => false,
             'check_strategy' => 'default',
@@ -314,7 +320,7 @@ return [
         ],
         'companies' => [
             'label' => 'companies',
-            'resources' => ['companies', 'company_holidays'],
+            'resources' => ['companies', 'company_holidays', 'company_production_calendar'],
         ],
         'currency_history' => [
             'label' => 'currency_history',
