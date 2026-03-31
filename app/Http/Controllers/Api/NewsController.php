@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreNewsRequest;
 use App\Http\Requests\UpdateNewsRequest;
+use App\Http\Resources\NewsResource;
 use App\Models\News;
 use App\Repositories\NewsRepository;
 use App\Services\NewsImageService;
@@ -37,7 +38,15 @@ class NewsController extends BaseController
 
         $items = $this->itemsRepository->getItemsWithPagination($perPage, $page, $search, $dateFrom, $dateTo, $authorId);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => NewsResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -48,7 +57,7 @@ class NewsController extends BaseController
         $userId = $this->getAuthenticatedUserIdOrFail();
         $items = $this->itemsRepository->getAllItems();
 
-        return response()->json($items);
+        return $this->successResponse(NewsResource::collection($items)->resolve());
     }
 
     /**
@@ -59,7 +68,7 @@ class NewsController extends BaseController
         $userId = $this->getAuthenticatedUserIdOrFail();
 
         if (! $this->hasPermission('news_create')) {
-            return $this->forbiddenResponse('У вас нет прав на создание новостей');
+            return $this->errorResponse('У вас нет прав на создание новостей', 403);
         }
 
         $validatedData = $request->validated();
@@ -88,7 +97,7 @@ class NewsController extends BaseController
                 $this->itemsRepository->updateItem($itemCreated->id, ['content' => $organizedContent]);
             }
 
-            return response()->json(['message' => 'Новость создана']);
+            return $this->successResponse(null, 'Новость создана');
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка создания новости: '.$e->getMessage(), 500);
         }
@@ -103,7 +112,7 @@ class NewsController extends BaseController
         $news = News::findOrFail($id);
 
         if (! $this->canPerformAction('news', 'update', $news)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этой новости');
+            return $this->errorResponse('У вас нет прав на редактирование этой новости', 403);
         }
 
         $validatedData = $request->validated();
@@ -131,7 +140,7 @@ class NewsController extends BaseController
                 return $this->errorResponse('Ошибка обновления новости', 400);
             }
 
-            return response()->json(['message' => 'Новость обновлена']);
+            return $this->successResponse(null, 'Новость обновлена');
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка обновления новости: '.$e->getMessage(), 500);
         }
@@ -147,10 +156,10 @@ class NewsController extends BaseController
             $news = $this->itemsRepository->findItemWithRelations($id);
 
             if (! $news) {
-                return $this->notFoundResponse('Новость не найдена или доступ запрещен');
+                return $this->errorResponse('Новость не найдена или доступ запрещен', 404);
             }
 
-            return response()->json(['item' => $news]);
+            return $this->successResponse(new NewsResource($news));
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении новости: '.$e->getMessage(), 500);
         }
@@ -165,7 +174,7 @@ class NewsController extends BaseController
         $news = News::findOrFail($id);
 
         if (! $this->canPerformAction('news', 'delete', $news)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этой новости');
+            return $this->errorResponse('У вас нет прав на удаление этой новости', 403);
         }
 
         try {
@@ -178,7 +187,7 @@ class NewsController extends BaseController
                 return $this->errorResponse('Ошибка удаления новости', 400);
             }
 
-            return response()->json(['message' => 'Новость удалена']);
+            return $this->successResponse(null, 'Новость удалена');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Repositories\TransactionsRepository;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -54,6 +53,6 @@ class ReportsController extends BaseController
             $categoryIds
         );
 
-        return response()->json($data);
+        return $this->successResponse($data);
     }
 }

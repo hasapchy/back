@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
+use App\Http\Resources\RoleResource;
+use App\Http\Resources\UserResource;
 use App\Repositories\UsersRepository;
 use App\Models\User;
 use App\Models\EmployeeSalary;
@@ -47,7 +48,18 @@ class UsersController extends BaseController
         $activeOnly = $request->boolean('active_only', true);
         $statusFilter = $activeOnly ? true : null;
 
-        return $this->paginatedResponse($this->itemsRepository->getItemsWithPagination($page, $perPage, null, $statusFilter));
+        $items = $this->itemsRepository->getItemsWithPagination($page, $perPage, null, $statusFilter);
+
+        return $this->successResponse([
+            'items' => UserResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -84,7 +96,7 @@ class UsersController extends BaseController
         $user = User::findOrFail($id);
 
         if (!$this->canPerformAction('users', 'view', $user)) {
-            return $this->forbiddenResponse('Нет прав на просмотр этого пользователя');
+            return $this->errorResponse('Нет прав на просмотр этого пользователя', 403);
         }
 
         return $this->userResponse($user);
@@ -95,7 +107,7 @@ class UsersController extends BaseController
         $targetUser = User::findOrFail($id);
 
         if (!$this->canPerformAction('users', 'update', $targetUser)) {
-            return $this->forbiddenResponse('Нет прав на редактирование этого пользователя');
+            return $this->errorResponse('Нет прав на редактирование этого пользователя', 403);
         }
 
         $data = $request->validated();
@@ -106,10 +118,12 @@ class UsersController extends BaseController
         $companyRoles = $data['company_roles'] ?? null;
         $position = $data['position'] ?? null;
         $hireDate = $data['hire_date'] ?? null;
+        $dismissalDate = $data['dismissal_date'] ?? null;
         $birthday = $data['birthday'] ?? null;
 
         $hasPosition = array_key_exists('position', $request->all());
         $hasHireDate = array_key_exists('hire_date', $request->all());
+        $hasDismissalDate = array_key_exists('dismissal_date', $request->all());
         $hasBirthday = array_key_exists('birthday', $request->all());
 
         $data = array_filter($data, function ($value) {
@@ -130,6 +144,9 @@ class UsersController extends BaseController
         }
         if ($hasHireDate) {
             $data['hire_date'] = $hireDate;
+        }
+        if ($hasDismissalDate) {
+            $data['dismissal_date'] = $dismissalDate;
         }
         if ($hasBirthday) {
             $data['birthday'] = $birthday;
@@ -162,12 +179,12 @@ class UsersController extends BaseController
             $targetUser = User::findOrFail($id);
 
             if (!$this->canPerformAction('users', 'delete', $targetUser)) {
-                return $this->forbiddenResponse('Нет прав на удаление этого пользователя');
+                return $this->errorResponse('Нет прав на удаление этого пользователя', 403);
             }
 
             $this->itemsRepository->deleteItem($id);
 
-            return response()->json(['message' => 'User deleted']);
+            return $this->successResponse(null, 'User deleted');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Пользователь не найден', 404);
         } catch (\Exception $e) {
@@ -187,7 +204,7 @@ class UsersController extends BaseController
         $companyId = $this->getCurrentCompanyId();
         $permissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId) : $user->getAllPermissions();
 
-        return response()->json([
+        return $this->successResponse([
             'creator_id' => $user->id,
             'user_email' => $user->email,
             'permissions' => $permissions->pluck('name')->toArray(),
@@ -202,7 +219,7 @@ class UsersController extends BaseController
      */
     public function permissions()
     {
-        return response()->json(Permission::where('guard_name', 'api')->get());
+        return $this->successResponse(Permission::where('guard_name', 'api')->get());
     }
 
     /**
@@ -212,7 +229,7 @@ class UsersController extends BaseController
      */
     public function roles()
     {
-        return response()->json(Role::where('guard_name', 'api')->with('permissions:id,name')->get());
+        return $this->successResponse(RoleResource::collection(Role::where('guard_name', 'api')->with('permissions:id,name')->get())->resolve());
     }
 
     /**
@@ -223,7 +240,7 @@ class UsersController extends BaseController
     public function getAllUsers()
     {
         $items = $this->itemsRepository->getAllItems();
-        return response()->json($items);
+        return $this->successResponse(UserResource::collection($items)->resolve());
     }
 
     public function search(Request $request)
@@ -231,12 +248,12 @@ class UsersController extends BaseController
         $search_request = $request->input('search_request');
 
         if (!$search_request || empty($search_request)) {
-            return response()->json([]);
+            return $this->successResponse([]);
         }
 
         $items = $this->itemsRepository->searchUser($search_request);
 
-        return response()->json($items);
+        return $this->successResponse(UserResource::collection($items)->resolve());
     }
 
     /**
@@ -252,8 +269,8 @@ class UsersController extends BaseController
         $roles = $companyId ? $user->getRolesForCompany((int)$companyId)->pluck('name')->toArray() : $user->roles->pluck('name')->toArray();
         $user->company_roles = $user->getAllCompanyRoles();
 
-        return response()->json([
-            'user' => $user,
+        return $this->successResponse([
+            'user' => new UserResource($user),
             'permissions' => $permissions,
             'roles' => $roles,
             'company_roles' => $user->company_roles
@@ -273,7 +290,7 @@ class UsersController extends BaseController
                 ->select('id', 'employee_id', 'client_type', 'first_name', 'balance', 'status', 'company_id');
         }]);
 
-        return response()->json(['user' => $user]);
+        return $this->successResponse(new UserResource($user));
     }
 
     /**
@@ -352,7 +369,7 @@ class UsersController extends BaseController
 
         $user = $user->fresh(['permissions', 'roles', 'companies']);
 
-        return response()->json(['user' => $user]);
+        return $this->successResponse(new UserResource($user));
     }
 
     /**
@@ -396,12 +413,12 @@ class UsersController extends BaseController
             $currentUser = $this->getAuthenticatedUser();
 
             if (!$this->hasPermission('employee_salaries_view_all') && $user->id !== $currentUser->id) {
-                return $this->forbiddenResponse('Нет прав на просмотр зарплат');
+                return $this->errorResponse('Нет прав на просмотр зарплат', 403);
             }
 
             $salaries = $this->itemsRepository->getSalaries($id);
 
-            return response()->json(['salaries' => $salaries]);
+            return $this->successResponse($salaries);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Пользователь не найден', 404);
         } catch (\Exception $e) {
@@ -422,7 +439,7 @@ class UsersController extends BaseController
             $user = User::findOrFail($id);
 
             if (!$this->hasPermission('employee_salaries_create')) {
-                return $this->forbiddenResponse('Нет прав на создание зарплат');
+                return $this->errorResponse('Нет прав на создание зарплат', 403);
             }
 
             $validatedData = $request->validate([
@@ -440,7 +457,7 @@ class UsersController extends BaseController
 
             $salary = $this->itemsRepository->createSalary($id, $validatedData, $isClose);
 
-            return response()->json(['salary' => $salary, 'message' => 'Зарплата создана успешно']);
+            return $this->successResponse($salary, 'Зарплата создана успешно');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Пользователь не найден', 404);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -468,7 +485,7 @@ class UsersController extends BaseController
             $salary = EmployeeSalary::findOrFail($salaryId);
 
             if (!$this->canPerformAction('employee_salaries', 'update', $salary)) {
-                return $this->forbiddenResponse('Нет прав на обновление этой зарплаты');
+                return $this->errorResponse('Нет прав на обновление этой зарплаты', 403);
             }
 
             $validatedData = $request->validate([
@@ -482,7 +499,7 @@ class UsersController extends BaseController
 
             $updatedSalary = $this->itemsRepository->updateSalary($salaryId, $validatedData);
 
-            return response()->json(['salary' => $updatedSalary, 'message' => 'Зарплата обновлена успешно']);
+            return $this->successResponse($updatedSalary, 'Зарплата обновлена успешно');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Пользователь или зарплата не найдены', 404);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -514,12 +531,12 @@ class UsersController extends BaseController
             $salary = EmployeeSalary::findOrFail($salaryId);
 
             if (!$this->canPerformAction('employee_salaries', 'delete', $salary)) {
-                return $this->forbiddenResponse('Нет прав на удаление этой зарплаты');
+                return $this->errorResponse('Нет прав на удаление этой зарплаты', 403);
             }
 
             $this->itemsRepository->deleteSalary($salaryId);
 
-            return response()->json(['message' => 'Зарплата удалена успешно']);
+            return $this->successResponse(null, 'Зарплата удалена успешно');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Пользователь или зарплата не найдены', 404);
         } catch (\Exception $e) {
@@ -542,12 +559,12 @@ class UsersController extends BaseController
 
             if (!$this->hasPermission('settings_client_balance_view', $currentUser) &&
                 (!$this->hasPermission('settings_client_balance_view_own', $currentUser) || $user->id !== $currentUser->id)) {
-                return $this->forbiddenResponse('Нет доступа к просмотру баланса');
+                return $this->errorResponse('Нет доступа к просмотру баланса', 403);
             }
 
             $balance = $this->itemsRepository->getEmployeeBalance($id);
 
-            return response()->json(['balance' => $balance]);
+            return $this->successResponse($balance);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Пользователь не найден', 404);
         } catch (\Exception $e) {
@@ -570,12 +587,12 @@ class UsersController extends BaseController
 
             if (!$this->hasPermission('settings_client_balance_view', $currentUser) &&
                 (!$this->hasPermission('settings_client_balance_view_own', $currentUser) || $targetUser->id !== $currentUser->id)) {
-                return $this->forbiddenResponse('Нет доступа к просмотру баланса');
+                return $this->errorResponse('Нет доступа к просмотру баланса', 403);
             }
 
             $history = $this->itemsRepository->getEmployeeBalanceHistory($id);
 
-            return response()->json(['history' => $history]);
+            return $this->successResponse($history);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Пользователь не найден', 404);
         } catch (\Exception $e) {

@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreCurrencyHistoryRequest;
 use App\Http\Requests\UpdateCurrencyHistoryRequest;
+use App\Http\Resources\CurrencyHistoryResource;
 use App\Models\Currency;
 use App\Models\CurrencyHistory;
 use App\Services\CacheService;
@@ -60,9 +60,9 @@ class CurrencyHistoryController extends BaseController
                 ['path' => $request->url(), 'pageName' => 'page']
             );
 
-            return response()->json([
+            return $this->successResponse([
                 'currency' => $currency,
-                'history' => $items,
+                'history' => CurrencyHistoryResource::collection($items)->resolve(),
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
                 'total' => $paginator->total(),
@@ -104,8 +104,8 @@ class CurrencyHistoryController extends BaseController
 
             $paginator = $query->paginate($perPage, ['*'], 'page', $page);
 
-            return response()->json([
-                'history' => $paginator->items(),
+            return $this->successResponse([
+                'history' => CurrencyHistoryResource::collection($paginator->items())->resolve(),
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
                 'total' => $paginator->total(),
@@ -157,7 +157,7 @@ class CurrencyHistoryController extends BaseController
 
             CacheService::invalidateCurrenciesCache();
 
-            return response()->json(['history' => $history, 'message' => 'Курс валюты успешно добавлен']);
+            return $this->successResponse(new CurrencyHistoryResource($history), 'Курс валюты успешно добавлен');
         } catch (\Exception $e) {
             DB::rollback();
             return $this->errorResponse('Ошибка при создании записи курса: ' . $e->getMessage(), 500);
@@ -191,7 +191,7 @@ class CurrencyHistoryController extends BaseController
                 ->first();
 
             if (!$history) {
-                return response()->json(['error' => 'Запись в истории не найдена'], 404);
+                return $this->errorResponse('Запись в истории не найдена', 404);
             }
 
             $validatedData = $request->validated();
@@ -216,7 +216,7 @@ class CurrencyHistoryController extends BaseController
 
             CacheService::invalidateCurrenciesCache();
 
-            return response()->json(['history' => $history, 'message' => 'Курс валюты успешно обновлен']);
+            return $this->successResponse(new CurrencyHistoryResource($history), 'Курс валюты успешно обновлен');
         } catch (\Exception $e) {
             DB::rollback();
             return $this->errorResponse('Ошибка при обновлении записи курса: ' . $e->getMessage(), 500);
@@ -250,7 +250,7 @@ class CurrencyHistoryController extends BaseController
                 ->first();
 
             if (!$history) {
-                return $this->notFoundResponse('Запись в истории не найдена');
+                return $this->errorResponse('Запись в истории не найдена', 404);
             }
 
             DB::beginTransaction();
@@ -261,7 +261,7 @@ class CurrencyHistoryController extends BaseController
 
             CacheService::invalidateCurrenciesCache();
 
-            return response()->json(['message' => 'Запись курса успешно удалена']);
+            return $this->successResponse(null, 'Запись курса успешно удалена');
         } catch (\Exception $e) {
             DB::rollback();
             return $this->errorResponse('Ошибка при удалении записи курса: ' . $e->getMessage(), 500);
@@ -322,7 +322,7 @@ class CurrencyHistoryController extends BaseController
                 });
             });
 
-            return response()->json($result);
+            return $this->successResponse($result);
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении валют с курсами: ' . $e->getMessage(), 500);
         }
@@ -342,7 +342,7 @@ class CurrencyHistoryController extends BaseController
         $hasAccessToNonDefaultCurrencies = in_array('settings_currencies_view', $userPermissions);
 
         if (!$hasAccessToCurrencyHistory && !$hasAccessToNonDefaultCurrencies && !$currency->is_default) {
-            return $this->forbiddenResponse('Нет доступа к этой валюте');
+            return $this->errorResponse('Нет доступа к этой валюте', 403);
         }
 
         return null;

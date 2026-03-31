@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ClientBalanceController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\CompaniesController;
 use App\Http\Controllers\Api\CompanyHolidayController;
+use App\Http\Controllers\Api\CompanyProductionCalendarController;
 use App\Http\Controllers\Api\CurrencyHistoryController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\InvoiceController;
@@ -100,7 +101,11 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission:companies_update_all')->post('companies/{id}', [CompaniesController::class, 'update']);
     Route::middleware('permission:companies_delete_all')->delete('companies/{id}', [CompaniesController::class, 'destroy']);
     Route::middleware('permission:employee_salaries_accrue')->post('companies/{id}/salaries/accrue', [CompaniesController::class, 'accrueSalaries']);
+    Route::middleware('permission:employee_salaries_accrue')->post('companies/{id}/salaries/pay', [CompaniesController::class, 'paySalaries']);
     Route::middleware('permission:employee_salaries_accrue')->get('companies/{id}/salaries/check', [CompaniesController::class, 'checkExistingSalaries']);
+    Route::middleware('permission:employee_salaries_accrue')->get('companies/{id}/salaries/preview', [CompaniesController::class, 'salaryAccrualPreview']);
+    Route::middleware('permission:employee_salaries_accrue')->get('companies/{id}/salaries/monthly-report', [CompaniesController::class, 'salaryMonthlyReport']);
+    Route::middleware('permission:employee_salaries_accrue')->delete('companies/{id}/salaries/batch/{batchId}', [CompaniesController::class, 'deleteSalaryMonthlyReportBatch']);
 
     Route::middleware('permission.scope:warehouses_view_all,warehouses_view')->get('warehouses', [WarehouseController::class, 'index']);
     Route::get('warehouses/all', [WarehouseController::class, 'all']);
@@ -278,6 +283,11 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware('permission:company_holidays_update_all')->put('company-holidays/{id}', [CompanyHolidayController::class, 'update']);
     Route::middleware('permission:company_holidays_delete_all')->delete('company-holidays/{id}', [CompanyHolidayController::class, 'destroy']);
     Route::middleware('permission:company_holidays_delete_all')->post('company-holidays/batch-delete', [CompanyHolidayController::class, 'batchDelete']);
+
+    Route::get('company-production-calendar-days/all', [CompanyProductionCalendarController::class, 'all']);
+    Route::middleware('permission:company_production_calendar_create')->post('company-production-calendar-days', [CompanyProductionCalendarController::class, 'store']);
+    Route::middleware('permission:company_production_calendar_delete_all')->post('company-production-calendar-days/batch-delete', [CompanyProductionCalendarController::class, 'batchDelete']);
+    Route::middleware('permission:company_production_calendar_delete_all')->delete('company-production-calendar-days/{id}', [CompanyProductionCalendarController::class, 'destroy']);
 
     Route::get('transaction_categories', [TransactionCategoryController::class, 'index']);
     Route::middleware('permission:transaction_categories_create')->post('transaction_categories', [TransactionCategoryController::class, 'store']);

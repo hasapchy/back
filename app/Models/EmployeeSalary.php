@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -11,8 +12,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property int $user_id ID пользователя (сотрудника)
  * @property int $company_id ID компании
- * @property string $start_date Дата начала действия зарплаты
- * @property string|null $end_date Дата окончания действия зарплаты
+ * @property \Illuminate\Support\Carbon $start_date Дата начала действия зарплаты
+ * @property \Illuminate\Support\Carbon|null $end_date Дата окончания действия зарплаты
  * @property float $amount Сумма зарплаты
  * @property int $currency_id ID валюты
  * @property bool $payment_type Тип оплаты (0 - безналичный, 1 - наличный)
@@ -26,6 +27,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class EmployeeSalary extends Model
 {
+    use BelongsToCompany;
     use HasFactory;
 
     protected $fillable = [
@@ -54,16 +56,6 @@ class EmployeeSalary extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
-    }
-
-    /**
-     * Связь с компанией
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function company()
-    {
-        return $this->belongsTo(Company::class, 'company_id');
     }
 
     /**

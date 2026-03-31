@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
+use App\Http\Resources\ProductResource;
 use App\Models\OrderProduct;
 use App\Models\Product;
 use App\Models\SalesProduct;
@@ -48,10 +48,20 @@ class ProductController extends BaseController
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
         $categoryId = $this->normalizeCategoryIdForSimpleWorker($request->query('category_id'));
+        $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
 
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, true, $page, $warehouseId, $search, $categoryId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, true, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => ProductResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -68,10 +78,11 @@ class ProductController extends BaseController
         $productsOnly = $request->query('products_only');
         $warehouseId = $request->query('warehouse_id');
         $categoryId = $this->normalizeCategoryIdForSimpleWorker($request->query('category_id'));
+        $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
 
-        $items = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId);
+        $items = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy);
 
-        return response()->json($items);
+        return $this->successResponse(ProductResource::collection($items)->resolve());
     }
 
     /**
@@ -88,12 +99,12 @@ class ProductController extends BaseController
         $product = Product::findOrFail($id);
 
         if (!$this->canPerformAction('products', 'view', $product)) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр этого товара');
+            return $this->errorResponse('У вас нет прав на просмотр этого товара', 403);
         }
 
         $product = $this->itemsRepository->getItemById($id, $userUuid);
 
-        return response()->json(['item' => $product]);
+        return $this->successResponse(new ProductResource($product));
     }
 
     /**
@@ -111,10 +122,20 @@ class ProductController extends BaseController
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
         $categoryId = $this->normalizeCategoryIdForSimpleWorker($request->query('category_id'));
+        $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
 
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, false, $page, $warehouseId, $search, $categoryId);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, false, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => ProductResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -134,7 +155,7 @@ class ProductController extends BaseController
 
         $product = $this->itemsRepository->createItem($data);
 
-        return response()->json(['item' => $product, 'message' => 'Product successfully created']);
+        return $this->successResponse(new ProductResource($product), 'Product successfully created');
     }
 
     /**
@@ -151,7 +172,7 @@ class ProductController extends BaseController
         $product_exist = Product::findOrFail($id);
 
         if (!$this->canPerformAction('products', 'update', $product_exist)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этого товара');
+            return $this->errorResponse('У вас нет прав на редактирование этого товара', 403);
         }
 
         $data = $request->validated();
@@ -169,7 +190,7 @@ class ProductController extends BaseController
             $product = $this->itemsRepository->updateItem($id, $data);
         }
 
-        return response()->json(['item' => $product, 'message' => 'Product successfully updated']);
+        return $this->successResponse(new ProductResource($product), 'Product successfully updated');
     }
 
     /**
@@ -185,7 +206,7 @@ class ProductController extends BaseController
         $product = Product::findOrFail($id);
 
         if (!$this->canPerformAction('products', 'delete', $product)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этого товара');
+            return $this->errorResponse('У вас нет прав на удаление этого товара', 403);
         }
 
         $result = $this->itemsRepository->deleteItem($id);
@@ -194,7 +215,7 @@ class ProductController extends BaseController
             return $this->errorResponse($result['message'], 400);
         }
 
-        return response()->json(['message' => 'Товар/услуга успешно удалена']);
+        return $this->successResponse(null, 'Товар/услуга успешно удалена');
     }
 
     /**
@@ -210,7 +231,7 @@ class ProductController extends BaseController
         $product = Product::with('unit')->findOrFail($id);
 
         if (! $this->canPerformAction('products', 'view', $product)) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр этого товара');
+            return $this->errorResponse('У вас нет прав на просмотр этого товара', 403);
         }
 
         $unitShortName = $product->unit ? $product->unit->short_name : '';
@@ -227,7 +248,10 @@ class ProductController extends BaseController
                     'quantity' => (float) $rp->quantity,
                     'unit_short_name' => $unitShortName,
                     'date' => $r->date,
-                    'user_name' => $u ? trim($u->name . ' ' . $u->surname) : '-',
+                    'creator' => $u ? [
+                        'id' => (int) $u->id,
+                        'name' => trim($u->name . ' ' . ($u->surname ?? '')),
+                    ] : null,
                 ]);
             }
         }
@@ -242,7 +266,10 @@ class ProductController extends BaseController
                     'quantity' => -(float) $wp->quantity,
                     'unit_short_name' => $unitShortName,
                     'date' => $w->date,
-                    'user_name' => $u ? trim($u->name . ' ' . $u->surname) : '-',
+                    'creator' => $u ? [
+                        'id' => (int) $u->id,
+                        'name' => trim($u->name . ' ' . ($u->surname ?? '')),
+                    ] : null,
                 ]);
             }
             foreach (SalesProduct::where('product_id', $id)->with(['sale.creator'])->get() as $sp) {
@@ -254,7 +281,10 @@ class ProductController extends BaseController
                     'quantity' => -(float) $sp->quantity,
                     'unit_short_name' => $unitShortName,
                     'date' => $s->date,
-                    'user_name' => $u ? trim($u->name . ' ' . $u->surname) : '-',
+                    'creator' => $u ? [
+                        'id' => (int) $u->id,
+                        'name' => trim($u->name . ' ' . ($u->surname ?? '')),
+                    ] : null,
                 ]);
             }
             foreach (OrderProduct::where('product_id', $id)->with(['order.creator'])->get() as $op) {
@@ -266,7 +296,10 @@ class ProductController extends BaseController
                     'quantity' => -(float) $op->quantity,
                     'unit_short_name' => $unitShortName,
                     'date' => $o->date,
-                    'user_name' => $u ? trim($u->name . ' ' . $u->surname) : '-',
+                    'creator' => $u ? [
+                        'id' => (int) $u->id,
+                        'name' => trim($u->name . ' ' . ($u->surname ?? '')),
+                    ] : null,
                 ]);
             }
         }
@@ -284,7 +317,7 @@ class ProductController extends BaseController
             }
         }
 
-        return response()->json([
+        return $this->successResponse([
             'items' => $history,
             'warehouse_stocks' => $warehouseStocks,
         ]);
@@ -304,5 +337,18 @@ class ProductController extends BaseController
         $isSimpleWorker = $user instanceof User && $user->hasRole(config('simple.worker_role'));
 
         return $isSimpleWorker ? null : $categoryId;
+    }
+
+    /**
+     * @param Request $request
+     * @return string
+     */
+    protected function resolveWarehouseStockPolicy(Request $request)
+    {
+        if (!$request->query('warehouse_id')) {
+            return 'all';
+        }
+
+        return $request->query('warehouse_stock_policy') === 'all' ? 'all' : 'in_stock';
     }
 }

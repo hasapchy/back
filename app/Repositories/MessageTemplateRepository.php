@@ -15,7 +15,7 @@ class MessageTemplateRepository extends BaseRepository
     private function getBaseRelations(): array
     {
         return [
-            'user:id,name,surname,email',
+            'creator:id,name,surname,email,photo',
             'company:id,name',
         ];
     }

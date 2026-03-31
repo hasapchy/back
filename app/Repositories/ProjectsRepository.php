@@ -62,19 +62,18 @@ class ProjectsRepository extends BaseRepository
      * @param string|null $endDate Конечная дата
      * @param int|null $statusId ID статуса
      * @param int|null $clientId ID клиента
-     * @param string|null $contractType Тип контракта
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null, $clientId = null, $contractType = null)
+    public function getItemsWithPagination($perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null, $clientId = null)
     {
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('projects_paginated', [$perPage, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, $contractType, $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('projects_paginated', [$perPage, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, $currentUser?->id, $companyId]);
 
-        $ttl = (!$search && $dateFilter === 'all_time' && !$statusId && !$clientId && $contractType === null) ? 1800 : 600;
+        $ttl = (!$search && $dateFilter === 'all_time' && !$statusId && !$clientId) ? 1800 : 600;
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId, $clientId, $contractType, $currentUser) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId, $clientId, $currentUser) {
             $query = Project::select(['projects.*'])
                 ->with(array_merge($this->getBaseRelations(), [
                     'projectUsers:id,project_id,user_id'
@@ -117,10 +116,6 @@ class ProjectsRepository extends BaseRepository
 
             $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
-            $paginated->getCollection()->transform(function ($project) {
-                return $this->transformProject($project);
-            });
-
             return $paginated;
         }, (int)$page);
     }
@@ -154,10 +149,6 @@ class ProjectsRepository extends BaseRepository
             $this->applyOwnFilter($query, 'projects', 'projects', 'creator_id', $currentUser);
 
             $items = $query->orderBy('created_at', 'desc')->get();
-
-            $items->transform(function ($project) {
-                return $this->transformProject($project);
-            });
 
             return $items;
         }, $this->getCacheTTL('reference'));
@@ -270,8 +261,6 @@ class ProjectsRepository extends BaseRepository
                 ->where('id', $id);
 
             $result = $query->first();
-
-            $result = $this->transformProject($result);
 
             return $result;
         }, $this->getCacheTTL('reference'));
@@ -386,12 +375,11 @@ class ProjectsRepository extends BaseRepository
                     $amount = $item->orig_amount;
                 }
 
-                $amount = match($source) {
+                $amount = match ($source) {
                     'receipt' => -$amount,
                     'transaction' => $item->type == 1 ? +$amount : -$amount,
                     'sale' => +$amount,
                     'order' => -$amount,
-                    default => $amount
                 };
 
                 return [
@@ -405,8 +393,11 @@ class ProjectsRepository extends BaseRepository
                     'is_debt' => $item->is_debt,
                     'note' => $item->note,
                     'creator_id' => $item->creator_id,
-                    'user_name' => $item->creator?->name ?? null,
-                    'cash_currency_symbol' => $item->cashRegister?->currency?->symbol ?? $item->currency?->symbol,
+                    'creator' => $item->creator ? [
+                        'id' => $item->creator->id,
+                        'name' => $item->creator->name,
+                    ] : null,
+                    'cash_currency_symbol' => $item->cashRegister->currency->symbol ?? $item->currency->symbol,
                     'category_name' => $item->category?->name ?? null
                 ];
             })->values()->all();
@@ -518,11 +509,10 @@ class ProjectsRepository extends BaseRepository
      *
      * @param array $ids Массив ID проектов
      * @param int $statusId ID нового статуса
-     * @param string $userId ID пользователя
      * @return int Количество обновленных проектов
      * @throws \Exception
      */
-    public function updateStatusByIds(array $ids, int $statusId, string $userId): int
+    public function updateStatusByIds(array $ids, int $statusId): int
     {
         $targetStatus = ProjectStatus::findOrFail($statusId);
 
@@ -554,20 +544,4 @@ class ProjectsRepository extends BaseRepository
         return $updatedCount;
     }
 
-    /**
-     * Трансформировать проект, добавив данные создателя
-     *
-     * Добавляет к проекту поля user_name и user_photo из связанного пользователя-создателя
-     *
-     * @param \App\Models\Project|null $project Проект для трансформации
-     * @return \App\Models\Project|null Трансформированный проект или null
-     */
-    private function transformProject($project)
-    {
-        if (optional($project)->creator) {
-            $project->user_name = $project->creator->name;
-            $project->user_photo = $project->creator->photo;
-        }
-        return $project;
-    }
 }

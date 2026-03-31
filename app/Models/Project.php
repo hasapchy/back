@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
+use App\Models\Traits\HasManyToManyUsers;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Traits\HasManyToManyUsers;
 
 /**
  * Модель проекта
@@ -35,6 +36,7 @@ use App\Models\Traits\HasManyToManyUsers;
  */
 class Project extends Model
 {
+    use BelongsToCompany;
     use HasFactory, HasManyToManyUsers;
 
     protected $fillable = ['name', 'creator_id', 'client_id', 'files', 'budget', 'currency_id', 'date', 'description', 'status_id', 'company_id'];
@@ -178,16 +180,6 @@ class Project extends Model
         }
 
         return $currentRate;
-    }
-
-    /**
-     * Связь с компанией
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function company()
-    {
-        return $this->belongsTo(Company::class, 'company_id');
     }
 
     /**

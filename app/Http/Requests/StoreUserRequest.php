@@ -31,6 +31,7 @@ class StoreUserRequest extends FormRequest
             'phone'    => 'nullable|string|max:20',
             'password' => 'required|string|min:6|confirmed',
             'hire_date' => 'nullable|date',
+            'dismissal_date' => 'nullable|date',
             'birthday' => 'nullable|date',
             'position' => 'nullable|string|max:255',
             'is_active'   => 'nullable|boolean',
@@ -91,11 +92,8 @@ class StoreUserRequest extends FormRequest
         }
 
         if (isset($data['company_roles']) && is_string($data['company_roles'])) {
-            try {
-                $data['company_roles'] = json_decode($data['company_roles'], true);
-            } catch (\Exception $e) {
-                $data['company_roles'] = [];
-            }
+            $decoded = json_decode($data['company_roles'], true);
+            $data['company_roles'] = is_array($decoded) ? $decoded : [];
         }
 
         if (isset($data['departments'])) {
@@ -114,6 +112,9 @@ class StoreUserRequest extends FormRequest
         }
         if (isset($data['hire_date']) && is_string($data['hire_date']) && trim($data['hire_date']) === '') {
             $data['hire_date'] = null;
+        }
+        if (isset($data['dismissal_date']) && is_string($data['dismissal_date']) && trim($data['dismissal_date']) === '') {
+            $data['dismissal_date'] = null;
         }
         if (isset($data['birthday']) && is_string($data['birthday']) && trim($data['birthday']) === '') {
             $data['birthday'] = null;

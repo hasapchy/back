@@ -17,7 +17,7 @@ class LeaveTypeSeeder extends Seeder
             ['name' => 'VACATION', 'color' => '#10B981', 'is_penalty' => false],
             ['name' => 'SICK_LEAVE', 'color' => '#F59E0B', 'is_penalty' => true],
             ['name' => 'ABSENCE', 'color' => '#EF4444', 'is_penalty' => true],
-            ['name' => 'UNPAID_LEAVE', 'color' => '#8B5CF6', 'is_penalty' => true]
+            ['name' => 'UNPAID_LEAVE', 'color' => '#8B5CF6', 'is_penalty' => true],
         ];
 
         foreach ($leaveTypes as $leaveType) {

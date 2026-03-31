@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Models\Currency;
 use App\Models\Unit;
 use App\Services\CacheService;
@@ -24,7 +23,7 @@ class AppController extends BaseController
         $user = $this->getAuthenticatedUser();
 
         if (!$user) {
-            return $this->unauthorizedResponse();
+            return $this->errorResponse(null, 401);
         }
 
         $userPermissions = $this->getUserPermissions($user);
@@ -53,7 +52,7 @@ class AppController extends BaseController
             return $query->get();
         });
 
-        return response()->json($items);
+        return $this->successResponse($items);
     }
 
     /**
@@ -67,7 +66,7 @@ class AppController extends BaseController
             return Unit::all();
         });
 
-        return response()->json($items);
+        return $this->successResponse($items);
     }
 
     /**
@@ -81,7 +80,7 @@ class AppController extends BaseController
             return (array) config('app_versions.versions', []);
         });
 
-        return response()->json($items);
+        return $this->successResponse($items);
     }
 
     /**
@@ -95,12 +94,12 @@ class AppController extends BaseController
         $user = $this->getAuthenticatedUser();
 
         if (!$user) {
-            return $this->unauthorizedResponse();
+            return $this->errorResponse(null, 401);
         }
 
         $currency = Currency::find($currencyId);
         if (!$currency) {
-            return $this->notFoundResponse('Валюта не найдена');
+            return $this->errorResponse('Валюта не найдена', 404);
         }
 
         $companyId = $this->getCurrentCompanyId();
@@ -112,7 +111,7 @@ class AppController extends BaseController
             return $rateHistory ? $rateHistory->exchange_rate : 1;
         });
 
-        return response()->json([
+        return $this->successResponse([
             'currency_id' => $currencyId,
             'exchange_rate' => $exchangeRate,
             'currency_name' => $currency->name,

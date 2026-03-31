@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Resources\LeaveResource;
 use App\Models\Leave;
 use App\Repositories\LeaveRepository;
 use Illuminate\Http\Request;
@@ -11,14 +12,14 @@ use Illuminate\Http\Request;
  */
 class LeaveController extends BaseController
 {
-    protected $leaveRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      */
-    public function __construct(LeaveRepository $leaveRepository)
+    public function __construct(LeaveRepository $itemsRepository)
     {
-        $this->leaveRepository = $leaveRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -35,9 +36,17 @@ class LeaveController extends BaseController
 
         $filters = $this->buildLeaveFilters($request);
 
-        $items = $this->leaveRepository->getItemsWithPagination($userUuid, $perPage, $filters, $page);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $filters, $page);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => LeaveResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -51,9 +60,9 @@ class LeaveController extends BaseController
 
         $filters = $this->buildLeaveFilters($request);
 
-        $items = $this->leaveRepository->getAllItems($userUuid, $filters);
+        $items = $this->itemsRepository->getAllItems($userUuid, $filters);
 
-        return response()->json($items);
+        return $this->successResponse(LeaveResource::collection($items)->resolve());
     }
 
     /**
@@ -67,11 +76,11 @@ class LeaveController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         try {
-            $leave = $this->leaveRepository->getItemById($id);
+            $leave = $this->itemsRepository->getItemById($id);
 
-            return response()->json(['item' => $leave]);
+            return $this->successResponse(new LeaveResource($leave));
         } catch (\Exception $e) {
-            return $this->notFoundResponse('Запись отпуска не найдена');
+            return $this->errorResponse('Запись отпуска не найдена', 404);
         }
     }
 
@@ -100,12 +109,12 @@ class LeaveController extends BaseController
             'date_to' => $request->date_to,
         ];
 
-        $created = $this->leaveRepository->createItem($data);
+        $created = $this->itemsRepository->createItem($data);
         if (! $created) {
             return $this->errorResponse('Ошибка создания записи отпуска', 400);
         }
 
-        return response()->json(['item' => $created, 'message' => 'Запись отпуска создана']);
+        return $this->successResponse(new LeaveResource($created), 'Запись отпуска создана');
     }
 
     /**
@@ -144,14 +153,14 @@ class LeaveController extends BaseController
                 'date_to' => $request->input('date_to'),
             ], fn ($value) => $value !== null);
 
-            $updated = $this->leaveRepository->updateItem($id, $data);
+            $updated = $this->itemsRepository->updateItem($id, $data);
             if (! $updated) {
                 return $this->errorResponse('Ошибка обновления', 400);
             }
 
-            return response()->json(['item' => $updated, 'message' => 'Запись отпуска обновлена']);
+            return $this->successResponse(new LeaveResource($updated), 'Запись отпуска обновлена');
         } catch (\Exception $e) {
-            return $this->notFoundResponse('Запись отпуска не найдена');
+            return $this->errorResponse('Запись отпуска не найдена', 404);
         }
     }
 
@@ -168,14 +177,14 @@ class LeaveController extends BaseController
         try {
             $leave = Leave::findOrFail($id);
 
-            $deleted = $this->leaveRepository->deleteItem($id);
+            $deleted = $this->itemsRepository->deleteItem($id);
             if (! $deleted) {
                 return $this->errorResponse('Ошибка удаления', 400);
             }
 
-            return response()->json(['message' => 'Запись отпуска удалена']);
+            return $this->successResponse(null, 'Запись отпуска удалена');
         } catch (\Exception $e) {
-            return $this->notFoundResponse('Запись отпуска не найдена');
+            return $this->errorResponse('Запись отпуска не найдена', 404);
         }
     }
 

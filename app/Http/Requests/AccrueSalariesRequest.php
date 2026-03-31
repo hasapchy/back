@@ -30,6 +30,10 @@ class AccrueSalariesRequest extends FormRequest
             'creator_ids' => 'required|array|min:1',
             'creator_ids.*' => 'integer|exists:users,id',
             'payment_type' => 'required|boolean',
+            'items' => 'nullable|array',
+            'items.*.creator_id' => 'required_with:items|integer|exists:users,id',
+            'items.*.employee_salary_id' => 'nullable|integer|exists:employee_salaries,id',
+            'items.*.client_balance_id' => 'nullable|integer|exists:client_balances,id',
         ];
     }
 }

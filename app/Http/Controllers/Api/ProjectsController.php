@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
+use App\Http\Resources\ProjectResource;
 use App\Repositories\ProjectsRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
@@ -30,31 +30,6 @@ class ProjectsController extends BaseController
     public function __construct(ProjectsRepository $itemsRepository)
     {
         $this->itemsRepository = $itemsRepository;
-    }
-
-    /**
-     * Получить правила валидации для проекта
-     *
-     * @param Request $request
-     * @return array
-     */
-    private function getValidationRules(Request $request): array
-    {
-        $rules = [
-            'name' => 'required|string',
-            'date' => 'nullable|sometimes|date',
-            'client_id' => 'required|exists:clients,id',
-            'users' => 'nullable|array',
-            'users.*' => 'exists:users,id',
-            'description' => 'nullable|string',
-        ];
-
-        if ($request->has('budget') || $request->has('currency_id')) {
-            $rules['budget'] = 'required|numeric';
-            $rules['currency_id'] = 'nullable|exists:currencies,id';
-        }
-
-        return $rules;
     }
 
     /**
@@ -106,7 +81,16 @@ class ProjectsController extends BaseController
 
         $items = $this->itemsRepository->getItemsWithPagination($perPage, $page, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, null);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => ProjectResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -122,7 +106,7 @@ class ProjectsController extends BaseController
         $activeOnly = (bool) $request->input('active_only', false);
         $items = $this->itemsRepository->getAllItems($activeOnly);
 
-        return response()->json($items);
+        return $this->successResponse(ProjectResource::collection($items)->resolve());
     }
 
     /**
@@ -136,7 +120,7 @@ class ProjectsController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         if (!$this->hasPermission('projects_create')) {
-            return $this->forbiddenResponse('У вас нет прав на создание проектов');
+            return $this->errorResponse('У вас нет прав на создание проектов', 403);
         }
 
         $validatedData = $request->validated();
@@ -153,7 +137,7 @@ class ProjectsController extends BaseController
 
             CacheService::invalidateProjectsCache();
 
-            return response()->json(['message' => 'Проект создан']);
+            return $this->successResponse(null, 'Проект создан');
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка создания проекта: ' . $e->getMessage(), 500);
         }
@@ -173,7 +157,7 @@ class ProjectsController extends BaseController
         $project = Project::findOrFail($id);
 
         if (!$this->canPerformAction('projects', 'update', $project)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
+            return $this->errorResponse('У вас нет прав на редактирование этого проекта', 403);
         }
 
         $validatedData = $request->validated();
@@ -190,7 +174,7 @@ class ProjectsController extends BaseController
 
             CacheService::invalidateProjectsCache();
 
-            return response()->json(['message' => 'Проект обновлен']);
+            return $this->successResponse(null, 'Проект обновлен');
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка обновления проекта: ' . $e->getMessage(), 500);
         }
@@ -209,16 +193,16 @@ class ProjectsController extends BaseController
         $project = Project::findOrFail($id);
 
         if (!$this->canPerformAction('projects', 'view', $project)) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
+            return $this->errorResponse('У вас нет прав на просмотр этого проекта', 403);
         }
 
         $project = $this->itemsRepository->findItemWithRelations($id);
 
         if (!$project) {
-            return $this->notFoundResponse('Проект не найден или доступ запрещен');
+            return $this->errorResponse('Проект не найден или доступ запрещен', 404);
         }
 
-        return response()->json(['item' => $project]);
+        return $this->successResponse(new ProjectResource($project));
     }
 
     /**
@@ -257,7 +241,7 @@ class ProjectsController extends BaseController
             $project = Project::findOrFail($id);
 
             if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
+                return $this->errorResponse('У вас нет прав на редактирование этого проекта', 403);
             }
 
             $storedFiles = $project->files ?? [];
@@ -280,7 +264,7 @@ class ProjectsController extends BaseController
 
             $project->update(['files' => $storedFiles]);
 
-            return response()->json(['files' => $storedFiles, 'message' => 'Files uploaded successfully']);
+            return $this->successResponse($storedFiles, 'Files uploaded successfully');
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при загрузке файлов: Internal server error', 500);
         }
@@ -291,14 +275,14 @@ class ProjectsController extends BaseController
      *
      * @param Request $request
      * @param int $id ID проекта
-     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
+     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\JsonResponse
      */
     public function downloadFiles(Request $request, $id)
     {
         $project = Project::findOrFail($id);
 
         if (!$this->canPerformAction('projects', 'view', $project)) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
+            return $this->errorResponse('У вас нет прав на просмотр этого проекта', 403);
         }
 
         $files = collect($project->files ?? [])
@@ -342,7 +326,7 @@ class ProjectsController extends BaseController
             $project = Project::findOrFail($id);
 
             if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование этого проекта');
+                return $this->errorResponse('У вас нет прав на редактирование этого проекта', 403);
             }
 
             $filePath = $request->input('path');
@@ -366,14 +350,14 @@ class ProjectsController extends BaseController
             }
 
             if (!$deletedFile) {
-                return $this->notFoundResponse('Файл не найден в проекте');
+                return $this->errorResponse('Файл не найден в проекте', 404);
             }
 
             $project->files = $updatedFiles;
             $project->save();
 
 
-            return response()->json(['files' => $updatedFiles, 'message' => 'Файл успешно удалён']);
+            return $this->successResponse($updatedFiles, 'Файл успешно удалён');
         } catch (\Exception $e) {
             return $this->errorResponse('Внутренняя ошибка сервера', 500);
         }
@@ -392,7 +376,7 @@ class ProjectsController extends BaseController
             $project = Project::findOrFail($id);
 
             if (!$this->canPerformAction('projects', 'view', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
+                return $this->errorResponse('У вас нет прав на просмотр этого проекта', 403);
             }
 
             if ($request->has('t')) {
@@ -418,7 +402,7 @@ class ProjectsController extends BaseController
                 $response['history'] = $result;
             }
 
-            return response()->json($response);
+            return $this->successResponse($response);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении истории баланса проекта: ' . $e->getMessage(), 500);
         }
@@ -436,12 +420,12 @@ class ProjectsController extends BaseController
             $project = Project::findOrFail($id);
 
             if (!$this->canPerformAction('projects', 'view', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этого проекта');
+                return $this->errorResponse('У вас нет прав на просмотр этого проекта', 403);
             }
 
             $detailedBalance = $this->itemsRepository->getDetailedBalance($id);
 
-            return response()->json($detailedBalance);
+            return $this->successResponse($detailedBalance);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении детального баланса проекта: ' . $e->getMessage(), 500);
         }
@@ -460,7 +444,7 @@ class ProjectsController extends BaseController
         $project = Project::findOrFail($id);
 
         if (!$this->canPerformAction('projects', 'delete', $project)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этого проекта');
+            return $this->errorResponse('У вас нет прав на удаление этого проекта', 403);
         }
 
         try {
@@ -472,7 +456,7 @@ class ProjectsController extends BaseController
 
             CacheService::invalidateProjectsCache();
 
-            return response()->json(['message' => 'Проект удалён']);
+            return $this->successResponse(null, 'Проект удалён');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -486,7 +470,7 @@ class ProjectsController extends BaseController
      */
     public function batchUpdateStatus(Request $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->getAuthenticatedUserIdOrFail();
 
         $request->validate([
             'ids'       => 'required|array|min:1',
@@ -497,18 +481,18 @@ class ProjectsController extends BaseController
         $projects = Project::whereIn('id', $request->ids)->get();
         foreach ($projects as $project) {
             if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->forbiddenResponse('У вас нет прав на редактирование одного или нескольких проектов');
+                return $this->errorResponse('У вас нет прав на редактирование одного или нескольких проектов', 403);
             }
         }
 
         try {
             $affected = $this->itemsRepository
-                ->updateStatusByIds($request->ids, $request->status_id, $userUuid);
+                ->updateStatusByIds($request->ids, $request->status_id);
 
             if ($affected > 0) {
-                return response()->json(['message' => "Статус обновлён у {$affected} проект(ов)"]);
+                return $this->successResponse(null, "Статус обновлён у {$affected} проект(ов)");
             } else {
-                return response()->json(['message' => "Статус не изменился"]);
+                return $this->successResponse(null, "Статус не изменился");
             }
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage() ?: 'Ошибка смены статуса', 400);

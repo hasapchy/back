@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $note Примечание
  * @property \Carbon\Carbon $date Дата списания
  * @property int $creator_id ID создателя
+ * @property string|null $creator_name
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *

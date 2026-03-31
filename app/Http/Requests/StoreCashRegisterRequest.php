@@ -27,7 +27,7 @@ class StoreCashRegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string',
+            'name' => 'nullable|string',
             'balance' => 'required|numeric',
             'currency_id' => 'nullable|exists:currencies,id',
             'users' => 'required|array|min:1',

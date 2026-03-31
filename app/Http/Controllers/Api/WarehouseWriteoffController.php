@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreWarehouseWriteoffRequest;
 use App\Http\Requests\UpdateWarehouseWriteoffRequest;
+use App\Http\Resources\WarehouseWriteoffResource;
 use App\Repositories\WarehouseWriteoffRepository;
 use Illuminate\Http\Request;
 
@@ -12,14 +13,14 @@ use Illuminate\Http\Request;
  */
 class WarehouseWriteoffController extends BaseController
 {
-    protected $warehouseRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      */
-    public function __construct(WarehouseWriteoffRepository $warehouseRepository)
+    public function __construct(WarehouseWriteoffRepository $itemsRepository)
     {
-        $this->warehouseRepository = $warehouseRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -34,9 +35,18 @@ class WarehouseWriteoffController extends BaseController
         $perPage = $request->input('per_page', 20);
         $page = $request->input('page', 1);
 
-        $warehouses = $this->warehouseRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
-        return $this->paginatedResponse($warehouses);
+        return $this->successResponse([
+            'items' => WarehouseWriteoffResource::collection($warehouses->items())->resolve(),
+            'meta' => [
+                'current_page' => $warehouses->currentPage(),
+                'next_page' => $warehouses->nextPageUrl(),
+                'last_page' => $warehouses->lastPage(),
+                'per_page' => $warehouses->perPage(),
+                'total' => $warehouses->total(),
+            ],
+        ]);
     }
 
     /**
@@ -66,12 +76,12 @@ class WarehouseWriteoffController extends BaseController
         ];
 
         try {
-            $warehouse_created = $this->warehouseRepository->createItem($data);
+            $warehouse_created = $this->itemsRepository->createItem($data);
             if (! $warehouse_created) {
                 return $this->errorResponse('Ошибка списания', 400);
             }
 
-            return response()->json(['message' => 'Списание создано']);
+            return $this->successResponse(null, 'Списание создано');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка списания: '.$th->getMessage(), 400);
         }
@@ -105,12 +115,12 @@ class WarehouseWriteoffController extends BaseController
         ];
 
         try {
-            $warehouse_created = $this->warehouseRepository->updateItem($id, $data);
+            $warehouse_created = $this->itemsRepository->updateItem($id, $data);
             if (! $warehouse_created) {
                 return $this->errorResponse('Ошибка списания', 400);
             }
 
-            return response()->json(['message' => 'Списание обновлено']);
+            return $this->successResponse(null, 'Списание обновлено');
         } catch (\Throwable $th) {
             return $this->errorResponse('Ошибка списания: '.$th->getMessage(), 400);
         }
@@ -133,12 +143,12 @@ class WarehouseWriteoffController extends BaseController
             }
         }
 
-        $warehouse_deleted = $this->warehouseRepository->deleteItem($id);
+        $warehouse_deleted = $this->itemsRepository->deleteItem($id);
 
         if (! $warehouse_deleted) {
             return $this->errorResponse('Ошибка удаления списания', 400);
         }
 
-        return response()->json(['message' => 'Списание удалено']);
+        return $this->successResponse(null, 'Списание удалено');
     }
 }

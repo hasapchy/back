@@ -30,7 +30,7 @@ class ChatParticipantRepository
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, \Illuminate\Support\Collection<int, object>>
+     * @return \Illuminate\Support\Collection<int|string, \Illuminate\Support\Collection<int, \stdClass>>
      */
     public function getParticipantsByChatIds(array $chatIds): Collection
     {

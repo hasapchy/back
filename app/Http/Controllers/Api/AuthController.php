@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Models\User;
 use App\Repositories\UsersRepository;
 use Illuminate\Http\Request;
@@ -45,16 +44,16 @@ class AuthController extends BaseController
 
         if (!$user) {
             Log::warning('Login attempt: user not found', ['email' => $request->email]);
-            return $this->unauthorizedResponse('Неверный логин или пароль');
+            return $this->errorResponse('Неверный логин или пароль', 401);
         }
 
         if (!Hash::check($request->password, $user->password)) {
             Log::warning('Login attempt: invalid password', ['email' => $request->email, 'creator_id' => $user->id]);
-            return $this->unauthorizedResponse('Неверный логин или пароль');
+            return $this->errorResponse('Неверный логин или пароль', 401);
         }
 
         if (!$user->is_active) {
-            return $this->forbiddenResponse('Account is disabled');
+            return $this->errorResponse('Account is disabled', 403);
         }
 
         $user->load('roles', 'permissions');
@@ -86,7 +85,7 @@ class AuthController extends BaseController
         $companyId = $user->companies()->value('companies.id');
         $permissions = $this->getUserPermissions($user, $companyId ? (int) $companyId : null);
 
-        return response()->json([
+        return $this->successResponse([
             'access_token' => $accessToken->plainTextToken,
             'refresh_token' => $refreshToken->plainTextToken,
             'token_type'   => 'bearer',
@@ -122,7 +121,7 @@ class AuthController extends BaseController
         $permissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray() : $user->getAllPermissions()->pluck('name')->toArray();
         $roles = $user->getAllRoleNames();
 
-        return response()->json([
+        return $this->successResponse([
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -151,7 +150,7 @@ class AuthController extends BaseController
             $user->currentAccessToken()->delete();
         }
 
-        return response()->json(['message' => 'Successfully logged out']);
+        return $this->successResponse(null, 'Successfully logged out');
     }
 
     /**
@@ -171,22 +170,20 @@ class AuthController extends BaseController
         $token = PersonalAccessToken::findToken($refreshToken);
 
         if (!$token) {
-            return $this->unauthorizedResponse('Invalid refresh token');
+            return $this->errorResponse('Invalid refresh token', 401);
         }
 
         if (!$token->can('refresh')) {
             $token->delete();
-            return $this->unauthorizedResponse('Invalid refresh token');
+            return $this->errorResponse('Invalid refresh token', 401);
         }
 
         /** @var User $user */
         $user = $token->tokenable;
 
         if (!$user || !$user->is_active) {
-            if ($token) {
-                $token->delete();
-            }
-            return $this->forbiddenResponse('User account is deactivated');
+            $token->delete();
+            return $this->errorResponse('User account is deactivated', 403);
         }
 
         $user->load('roles', 'permissions');
@@ -204,7 +201,7 @@ class AuthController extends BaseController
         $this->setDeviceOnToken($newAccessToken->accessToken, $token->device_fingerprint, $token->device_name);
         $this->setDeviceOnToken($newRefreshToken->accessToken, $token->device_fingerprint, $token->device_name);
 
-        return response()->json([
+        return $this->successResponse([
             'access_token'  => $newAccessToken->plainTextToken,
             'refresh_token' => $newRefreshToken->plainTextToken,
             'token_type'    => 'bearer',

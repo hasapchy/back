@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
-use App\Http\Resources\ClientCollection;
 use App\Http\Resources\ClientResource;
 use App\Models\Client;
 use App\Exports\GenericExport;
@@ -50,7 +49,17 @@ class ClientController extends BaseController
             $params['type_filter']
         );
 
-        return new ClientCollection($items);
+        return $this->successResponse([
+            'items' => ClientResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+                'next_page' => $items->nextPageUrl(),
+                'prev_page' => $items->previousPageUrl(),
+            ],
+        ]);
     }
 
     /**
@@ -129,7 +138,7 @@ class ClientController extends BaseController
         $search_request = $request->input('search_request');
 
         if (! $search_request || empty($search_request)) {
-            return response()->json([]);
+            return $this->successResponse([]);
         }
 
         $typeFilterInput = $request->input('type_filter');
@@ -144,7 +153,7 @@ class ClientController extends BaseController
 
         $resource = \App\Http\Resources\ClientSearchResource::collection($items);
 
-        return response()->json($resource->toArray($request));
+        return $this->successResponse($resource->toArray($request));
     }
 
     /**
@@ -159,7 +168,7 @@ class ClientController extends BaseController
             $client = $this->itemsRepository->getItemById($id);
 
             if (! $client) {
-                return $this->notFoundResponse('Client not found');
+                return $this->errorResponse('Client not found', 404);
             }
 
             $currentUser = $this->getAuthenticatedUser();
@@ -167,10 +176,10 @@ class ClientController extends BaseController
                 && (int) $client->employee_id === (int) $currentUser->id;
 
             if (!$canViewOwnBalance && ! $this->canPerformAction('clients', 'view', $client)) {
-                return $this->forbiddenResponse('У вас нет прав на просмотр этого клиента');
+                return $this->errorResponse('У вас нет прав на просмотр этого клиента', 403);
             }
 
-            return new ClientResource($client);
+            return (new ClientResource($client))->response();
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении клиента: '.$e->getMessage(), 500);
         }
@@ -192,21 +201,24 @@ class ClientController extends BaseController
         $canViewAllBalance = $this->hasPermission('settings_client_balance_view', $user);
 
         if (!$canViewOwnBalance && !$canViewAllBalance) {
-            return $this->forbiddenResponse('Нет доступа к просмотру баланса клиента');
+            return $this->errorResponse('Нет доступа к просмотру баланса клиента', 403);
         }
 
         $excludeDebt = $request->boolean('exclude_debt');
         $cashRegisterId = $request->input('cash_register_id') ? intval($request->input('cash_register_id')) : null;
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
+        $source = $request->input('source');
+        $isDebt = $request->input('is_debt');
+        $isDebt = is_null($isDebt) ? null : filter_var($isDebt, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
         $balanceIdRaw = $request->input('balance_id');
         $balanceId = $balanceIdRaw ? intval($balanceIdRaw) : null;
         $page = max(1, (int) $request->input('page', 1));
         $perPage = min(100, max(1, (int) $request->input('per_page', 20)));
 
-        $result = $this->itemsRepository->getBalanceHistory($id, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage);
+        $result = $this->itemsRepository->getBalanceHistory($id, $excludeDebt, $cashRegisterId, $dateFrom, $dateTo, $balanceId, $page, $perPage, $source, $isDebt);
 
-        return response()->json($result);
+        return $this->successResponse($result);
     }
 
     /**
@@ -230,13 +242,15 @@ class ClientController extends BaseController
             $search = $request->input('search');
             $onlyWithBalance = $request->input('only_with_balance', false);
             $currencyId = $request->input('currency_id');
+            $balanceDirection = $request->input('balance_direction');
+            $balanceDirection = in_array($balanceDirection, ['positive', 'negative'], true) ? $balanceDirection : null;
 
             if ($forMutualSettlements) {
                 $user = $this->requireAuthenticatedUser();
                 $allowedTypes = $this->getAllowedMutualSettlementsClientTypes($user);
 
                 if (empty($allowedTypes)) {
-                    return response()->json([]);
+                    return $this->successResponse([]);
                 }
 
                 if (empty($typeFilter)) {
@@ -246,9 +260,16 @@ class ClientController extends BaseController
                 }
             }
 
-            $items = $this->itemsRepository->getAllItems($typeFilter, $forMutualSettlements, $search, $onlyWithBalance, $currencyId);
+            $items = $this->itemsRepository->getAllItems(
+                $typeFilter,
+                $forMutualSettlements,
+                $search,
+                (bool) $onlyWithBalance,
+                $currencyId,
+                $balanceDirection
+            );
 
-            return ClientResource::collection($items);
+            return ClientResource::collection($items)->response();
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении всех клиентов: '.$e->getMessage(), 500);
         }
@@ -290,7 +311,7 @@ class ClientController extends BaseController
 
             return (new ClientResource($client))->additional([
                 'message' => 'Client created successfully',
-            ]);
+            ])->response();
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -316,7 +337,7 @@ class ClientController extends BaseController
         $existingClient = Client::findOrFail($id);
 
         if (! $this->canPerformAction('clients', 'update', $existingClient)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этого клиента');
+            return $this->errorResponse('У вас нет прав на редактирование этого клиента', 403);
         }
 
         $employeeCheck = $this->checkEmployeeIdDuplicate($validatedData['employee_id'] ?? null, $id);
@@ -329,13 +350,6 @@ class ClientController extends BaseController
             return $phoneCheck;
         }
 
-        $client = $this->itemsRepository->updateItem($id, $validatedData);
-
-        CacheService::invalidateClientsCache();
-        CacheService::invalidateOrdersCache();
-        CacheService::invalidateSalesCache();
-        CacheService::invalidateTransactionsCache();
-
         try {
             $client = $this->itemsRepository->updateItem($id, $validatedData);
 
@@ -346,7 +360,7 @@ class ClientController extends BaseController
 
             return (new ClientResource($client))->additional([
                 'message' => 'Client updated successfully',
-            ]);
+            ])->response();
         } catch (\Throwable $e) {
             if (str_contains($e->getMessage(), 'clients_emails_email_unique')) {
                 return $this->errorResponse('Email уже используется другим клиентом', 422);
@@ -387,11 +401,11 @@ class ClientController extends BaseController
             $client = Client::find($id);
 
             if (! $client) {
-                return $this->notFoundResponse('Клиент не найден');
+                return $this->errorResponse('Клиент не найден', 404);
             }
 
             if (! $this->canPerformAction('clients', 'delete', $client)) {
-                return $this->forbiddenResponse('У вас нет прав на удаление этого клиента');
+                return $this->errorResponse('У вас нет прав на удаление этого клиента', 403);
             }
 
             $hasTransactions = DB::table('transactions')->where('client_id', $id)->exists();
@@ -420,9 +434,9 @@ class ClientController extends BaseController
                 CacheService::invalidateSalesCache();
                 CacheService::invalidateTransactionsCache();
 
-                return response()->json(['message' => 'Клиент успешно удалён']);
+                return $this->successResponse(null, 'Клиент успешно удалён');
             } else {
-                return $this->notFoundResponse('Клиент не найден');
+                return $this->errorResponse('Клиент не найден', 404);
             }
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при удалении клиента: '.$e->getMessage(), 500);

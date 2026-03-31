@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Models\WhUser;
+use App\Models\User;
 
 class ProductsRepository extends BaseRepository
 {
@@ -25,16 +26,17 @@ class ProductsRepository extends BaseRepository
      * @param int|null $warehouseId ID склада
      * @param string|null $search Поисковый запрос
      * @param int|null $categoryId ID категории
+     * @param string $warehouseStockPolicy all|in_stock
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $warehouseId = null, $search = null, $categoryId = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $warehouseId = null, $search = null, $categoryId = null, $warehouseStockPolicy = 'all')
     {
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $currentUser?->id, $companyId, $warehouseStockPolicy]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $currentUser) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $currentUser, $warehouseStockPolicy) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             if ($categoryId) {
@@ -80,6 +82,10 @@ class ProductsRepository extends BaseRepository
                 });
             }
 
+            if ($warehouseId && $warehouseStockPolicy === 'in_stock' && $type) {
+                $query->whereHas('stocks', $this->warehouseStockRowScope($warehouseId));
+            }
+
             $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
 
             $productIds = $products->getCollection()->pluck('id');
@@ -100,15 +106,16 @@ class ProductsRepository extends BaseRepository
      * @param string $search Поисковый запрос
      * @param bool|null $productsOnly Только товары (true) или включая услуги (null/false)
      * @param int|null $warehouseId ID склада
+     * @param string $warehouseStockPolicy all|in_stock
      * @return \Illuminate\Support\Collection
      */
-    public function searchItems($userUuid, $search, $productsOnly = null, $warehouseId = null, $categoryId = null)
+    public function searchItems($userUuid, $search, $productsOnly = null, $warehouseId = null, $categoryId = null, $warehouseStockPolicy = 'all')
     {
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $currentUser?->id, $companyId, $warehouseStockPolicy]);
 
-        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId, $categoryId) {
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             if ($categoryId) {
@@ -140,6 +147,8 @@ class ProductsRepository extends BaseRepository
                 $typeValue = $productsOnly ? 1 : 0;
                 $query->where('type', $typeValue);
             }
+
+            $this->applyWarehouseRowScopeForSearch($query, $warehouseId, $warehouseStockPolicy, $productsOnly);
 
             $products = $query->limit(50)->get();
 
@@ -363,7 +372,7 @@ class ProductsRepository extends BaseRepository
      *
      * @param int $id ID товара
      * @param int $userUuid ID пользователя
-     * @return Product|null
+     * @return array<string, mixed>|null
      */
     public function getItemById($id, $userUuid)
     {
@@ -397,8 +406,8 @@ class ProductsRepository extends BaseRepository
                 'name' => $category->name,
             ];
         })->toArray();
-        $productArray['unit_name'] = $product->unit?->name;
-        $productArray['unit_short_name'] = $product->unit?->short_name;
+        $productArray['unit_name'] = $product->unit->name;
+        $productArray['unit_short_name'] = $product->unit->short_name;
         $price = $product->prices->first();
         $productArray['retail_price'] = $price?->retail_price ?? 0;
         $productArray['wholesale_price'] = $price?->wholesale_price ?? 0;
@@ -412,7 +421,7 @@ class ProductsRepository extends BaseRepository
      * Удалить товар
      *
      * @param int $id ID товара
-     * @return bool
+     * @return array{success: bool, message?: string}
      */
     public function deleteItem($id)
     {
@@ -510,12 +519,42 @@ class ProductsRepository extends BaseRepository
     private function enrichProduct($product, array $stocksMap)
     {
         $product->category_name = $product->categories->first()?->name;
-        $product->unit_name = $product->unit?->name;
-        $product->unit_short_name = $product->unit?->short_name;
+        $product->unit_name = $product->unit->name;
+        $product->unit_short_name = $product->unit->short_name;
         $price = $product->prices->first();
         $product->retail_price = $price?->retail_price;
         $product->wholesale_price = $price?->wholesale_price;
         $product->purchase_price = $price?->purchase_price;
         $product->stock_quantity = (float) ($stocksMap[$product->id] ?? 0);
+    }
+
+    private function applyWarehouseRowScopeForSearch($query, $warehouseId, $warehouseStockPolicy, $productsOnly)
+    {
+        if (!$warehouseId || $warehouseStockPolicy !== 'in_stock') {
+            return;
+        }
+
+        if ($productsOnly !== null && !$productsOnly) {
+            return;
+        }
+
+        if ($productsOnly === true) {
+            $query->whereHas('stocks', $this->warehouseStockRowScope($warehouseId));
+
+            return;
+        }
+
+        $scope = $this->warehouseStockRowScope($warehouseId);
+        $query->where(function ($q) use ($scope) {
+            $q->where('products.type', false)
+                ->orWhereHas('stocks', $scope);
+        });
+    }
+
+    private function warehouseStockRowScope($warehouseId): \Closure
+    {
+        return function ($q) use ($warehouseId) {
+            $q->where('warehouse_id', $warehouseId);
+        };
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
+use App\Http\Resources\TransactionResource;
 use App\Models\Order;
 use App\Models\Transaction;
 use App\Models\User;
@@ -14,16 +14,16 @@ use Illuminate\Http\Request;
  */
 class OrderTransactionController extends BaseController
 {
-    protected $ordersRepository;
+    protected $itemsRepository;
 
     /**
      * Конструктор контроллера
      *
-     * @param OrdersRepository $ordersRepository
+     * @param OrdersRepository $itemsRepository
      */
-    public function __construct(OrdersRepository $ordersRepository)
+    public function __construct(OrdersRepository $itemsRepository)
     {
-        $this->ordersRepository = $ordersRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     /**
@@ -47,7 +47,7 @@ class OrderTransactionController extends BaseController
         // Проверка прав на обновление заказа
         $resource = $this->getOrderResourceForUser($user);
         if (!$this->canPerformAction($resource, 'update', $order)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этого заказа');
+            return $this->errorResponse('У вас нет прав на редактирование этого заказа', 403);
         }
 
         $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
@@ -58,14 +58,14 @@ class OrderTransactionController extends BaseController
         $transaction = Transaction::findOrFail($request->transaction_id);
 
         if ($transaction->creator_id != $userId) {
-            return $this->forbiddenResponse('Нет доступа к транзакции');
+            return $this->errorResponse('Нет доступа к транзакции', 403);
         }
 
         $transaction->source_type = Order::class;
         $transaction->source_id = $orderId;
         $transaction->save();
 
-        return response()->json(['message' => 'Транзакция успешно связана с заказом']);
+        return $this->successResponse(null, 'Транзакция успешно связана с заказом');
     }
 
     /**
@@ -85,7 +85,7 @@ class OrderTransactionController extends BaseController
         // Проверка прав на обновление заказа
         $resource = $this->getOrderResourceForUser($user);
         if (!$this->canPerformAction($resource, 'update', $order)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этого заказа');
+            return $this->errorResponse('У вас нет прав на редактирование этого заказа', 403);
         }
 
         $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
@@ -100,7 +100,7 @@ class OrderTransactionController extends BaseController
             $trx->save();
         }
 
-        return response()->json(['message' => 'Транзакция успешно отвязана от заказа']);
+        return $this->successResponse(null, 'Транзакция успешно отвязана от заказа');
     }
 
     /**
@@ -119,7 +119,7 @@ class OrderTransactionController extends BaseController
         // Проверка прав на просмотр заказа
         $resource = $this->getOrderResourceForUser($user);
         if (!$this->canPerformAction($resource, 'view', $order)) {
-            return $this->forbiddenResponse('У вас нет прав на просмотр этого заказа');
+            return $this->errorResponse('У вас нет прав на просмотр этого заказа', 403);
         }
 
         $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
@@ -131,7 +131,7 @@ class OrderTransactionController extends BaseController
             ->where('source_id', $orderId)
             ->get();
 
-        return response()->json(['transactions' => $transactions]);
+        return $this->successResponse(TransactionResource::collection($transactions)->resolve());
     }
 
     /**

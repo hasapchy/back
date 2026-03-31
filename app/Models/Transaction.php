@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\CurrencyConverter;
@@ -58,6 +59,7 @@ class Transaction extends Model
     use HasFactory, LogsActivity {
         LogsActivity::shouldLogEvent as protected traitShouldLogEvent;
     }
+    use BelongsToCompany;
 
     public const SALARY_CATEGORY_IDS = [7, 23, 24, 26, 27];
 
@@ -138,6 +140,7 @@ class Transaction extends Model
     }
 
     protected $casts = [
+        'date' => 'datetime',
         'is_debt' => 'boolean',
         'is_deleted' => 'boolean',
         'amount' => 'decimal:5',
@@ -436,16 +439,6 @@ class Transaction extends Model
     public function comments()
     {
         return $this->morphMany(\App\Models\Comment::class, 'commentable');
-    }
-
-    /**
-     * Связь с компанией
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function company()
-    {
-        return $this->belongsTo(Company::class, 'company_id');
     }
 
     /**

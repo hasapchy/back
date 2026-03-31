@@ -29,12 +29,14 @@ class ClientBalance extends Model
     protected $fillable = [
         'client_id',
         'currency_id',
+        'type',
         'balance',
         'is_default',
         'note',
     ];
 
     protected $casts = [
+        'type' => 'integer',
         'balance' => 'decimal:5',
         'is_default' => 'boolean',
     ];

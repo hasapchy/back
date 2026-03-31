@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -21,6 +22,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class CompanyRoundingRule extends Model
 {
+    use BelongsToCompany;
     use HasFactory;
 
     protected $fillable = [
@@ -36,13 +38,4 @@ class CompanyRoundingRule extends Model
         'custom_threshold' => 'decimal:2',
     ];
 
-    /**
-     * Связь с компанией
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function company()
-    {
-        return $this->belongsTo(Company::class, 'company_id');
-    }
 }

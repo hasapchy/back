@@ -89,7 +89,9 @@ class TransactionTemplateRepository extends BaseRepository
         $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister', 'cash_registers');
         $this->applyOwnFilter($query, 'transaction_templates', 'templates', 'creator_id');
 
-        return $query->first();
+        $item = $query->first();
+
+        return $item instanceof Template ? $item : null;
     }
 
     /**

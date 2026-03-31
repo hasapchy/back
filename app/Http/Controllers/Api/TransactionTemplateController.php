@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\StoreTransactionTemplateRequest;
 use App\Http\Requests\UpdateTransactionTemplateRequest;
 use App\Http\Resources\ClientResource;
+use App\Http\Resources\TransactionTemplateResource;
 use App\Models\Client;
 use App\Models\Project;
 use App\Repositories\TransactionTemplateRepository;
@@ -41,7 +42,15 @@ class TransactionTemplateController extends BaseController
         }
 
         $items = $this->repository->getItemsWithPagination($perPage, $page, $filters);
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => TransactionTemplateResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -61,7 +70,7 @@ class TransactionTemplateController extends BaseController
         }
 
         $items = $this->repository->getAllItems($filters);
-        return response()->json($items);
+        return $this->successResponse(TransactionTemplateResource::collection($items)->resolve());
     }
 
     /**
@@ -74,9 +83,9 @@ class TransactionTemplateController extends BaseController
 
         $template = $this->repository->getItemById((int) $id);
         if (!$template) {
-            return $this->notFoundResponse('Шаблон не найден');
+            return $this->errorResponse('Шаблон не найден', 404);
         }
-        return response()->json(['item' => $template]);
+        return $this->successResponse(new TransactionTemplateResource($template));
     }
 
     /**
@@ -89,7 +98,7 @@ class TransactionTemplateController extends BaseController
 
         $template = $this->repository->getItemById((int) $id);
         if (!$template) {
-            return $this->notFoundResponse('Шаблон не найден');
+            return $this->errorResponse('Шаблон не найден', 404);
         }
 
         $item = [
@@ -126,7 +135,7 @@ class TransactionTemplateController extends BaseController
             }
         }
 
-        return response()->json(['item' => $item]);
+        return $this->successResponse($item);
     }
 
     /**
@@ -138,7 +147,7 @@ class TransactionTemplateController extends BaseController
         $userId = $this->getAuthenticatedUserIdOrFail();
 
         if (!$this->hasPermission('transaction_templates_create')) {
-            return $this->forbiddenResponse('У вас нет прав на создание шаблонов транзакций');
+            return $this->errorResponse('У вас нет прав на создание шаблонов транзакций', 403);
         }
 
         $validated = $request->validated();
@@ -163,7 +172,7 @@ class TransactionTemplateController extends BaseController
         ];
 
         $created = $this->repository->createItem($data);
-        return response()->json(['item' => $created, 'message' => 'Шаблон создан']);
+        return $this->successResponse(new TransactionTemplateResource($created), 'Шаблон создан');
     }
 
     /**
@@ -177,10 +186,10 @@ class TransactionTemplateController extends BaseController
 
         $template = $this->repository->getItemById((int) $id);
         if (!$template) {
-            return $this->notFoundResponse('Шаблон не найден');
+            return $this->errorResponse('Шаблон не найден', 404);
         }
         if (!$this->canPerformAction('transaction_templates', 'update', $template)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этого шаблона');
+            return $this->errorResponse('У вас нет прав на редактирование этого шаблона', 403);
         }
 
         $validated = $request->validated();
@@ -206,7 +215,7 @@ class TransactionTemplateController extends BaseController
         ], fn ($v) => $v !== null);
 
         $updated = $this->repository->updateItem((int) $id, $data);
-        return response()->json(['item' => $updated, 'message' => 'Шаблон обновлен']);
+        return $this->successResponse(new TransactionTemplateResource($updated), 'Шаблон обновлен');
     }
 
     /**
@@ -219,13 +228,13 @@ class TransactionTemplateController extends BaseController
 
         $template = $this->repository->getItemById((int) $id);
         if (!$template) {
-            return $this->notFoundResponse('Шаблон не найден');
+            return $this->errorResponse('Шаблон не найден', 404);
         }
         if (!$this->canPerformAction('transaction_templates', 'delete', $template)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этого шаблона');
+            return $this->errorResponse('У вас нет прав на удаление этого шаблона', 403);
         }
 
         $this->repository->deleteItem($template->id);
-        return response()->json(['message' => 'Шаблон удален']);
+        return $this->successResponse(null, 'Шаблон удален');
     }
 }

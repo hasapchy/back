@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\StoreDepartmentRequest;
 use App\Http\Requests\UpdateDepartmentRequest;
+use App\Http\Resources\DepartmentResource;
 use App\Repositories\DepartmentRepository;
 use Illuminate\Http\Request;
 
 class DepartmentController extends BaseController
 {
-    protected $departmentRepository;
+    protected $itemsRepository;
 
-    public function __construct(DepartmentRepository $departmentRepository)
+    public function __construct(DepartmentRepository $itemsRepository)
     {
-        $this->departmentRepository = $departmentRepository;
+        $this->itemsRepository = $itemsRepository;
     }
 
     public function index(Request $request)
@@ -23,29 +23,38 @@ class DepartmentController extends BaseController
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 20);
 
-        $departments = $this->departmentRepository->getItemsWithPagination($userId, $perPage, $page);
+        $departments = $this->itemsRepository->getItemsWithPagination($userId, $perPage, $page);
 
-        return $this->paginatedResponse($departments);
+        return $this->successResponse([
+            'items' => DepartmentResource::collection($departments->items())->resolve(),
+            'meta' => [
+                'current_page' => $departments->currentPage(),
+                'next_page' => $departments->nextPageUrl(),
+                'last_page' => $departments->lastPage(),
+                'per_page' => $departments->perPage(),
+                'total' => $departments->total(),
+            ],
+        ]);
     }
 
     public function all(Request $request)
     {
         $userId = $this->getAuthenticatedUserIdOrFail();
-        $departments = $this->departmentRepository->getAllItems($userId);
+        $departments = $this->itemsRepository->getAllItems($userId);
 
-        return response()->json($departments);
+        return $this->successResponse(DepartmentResource::collection($departments)->resolve());
     }
 
     public function store(StoreDepartmentRequest $request)
     {
         if (!$this->hasPermission('departments_create')) {
-            return $this->forbiddenResponse('У вас нет прав на создание департамента');
+            return $this->errorResponse('У вас нет прав на создание департамента', 403);
         }
 
         $validatedData = $request->validated();
-        $department = $this->departmentRepository->createItem($validatedData);
+        $department = $this->itemsRepository->createItem($validatedData);
 
-        return response()->json(['department' => $department, 'message' => 'Департамент создан']);
+        return $this->successResponse(new DepartmentResource($department), 'Департамент создан');
     }
 
     public function update(UpdateDepartmentRequest $request, $id)
@@ -53,13 +62,13 @@ class DepartmentController extends BaseController
         $department = \App\Models\Department::findOrFail($id);
 
         if (!$this->canPerformAction('departments', 'update', $department)) {
-            return $this->forbiddenResponse('У вас нет прав на редактирование этого департамента');
+            return $this->errorResponse('У вас нет прав на редактирование этого департамента', 403);
         }
 
         $validatedData = $request->validated();
-        $department = $this->departmentRepository->updateItem($id, $validatedData);
+        $department = $this->itemsRepository->updateItem($id, $validatedData);
 
-        return response()->json(['department' => $department, 'message' => 'Департамент обновлён']);
+        return $this->successResponse(new DepartmentResource($department), 'Департамент обновлён');
     }
 
     public function destroy($id)
@@ -67,11 +76,11 @@ class DepartmentController extends BaseController
         $department = \App\Models\Department::findOrFail($id);
 
         if (!$this->canPerformAction('departments', 'delete', $department)) {
-            return $this->forbiddenResponse('У вас нет прав на удаление этого департамента');
+            return $this->errorResponse('У вас нет прав на удаление этого департамента', 403);
         }
 
-        $this->departmentRepository->deleteItem($id);
+        $this->itemsRepository->deleteItem($id);
 
-        return response()->json(['message' => 'Департамент удалён']);
+        return $this->successResponse(null, 'Департамент удалён');
     }
 }

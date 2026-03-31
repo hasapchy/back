@@ -2,11 +2,13 @@
 
 namespace App\Repositories;
 
+use App\Models\User;
 use App\Models\WarehouseStock;
 use App\Models\WhMovement;
 use App\Models\WhMovementProduct;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class WarehouseMovementRepository extends BaseRepository
 {
@@ -20,14 +22,41 @@ class WarehouseMovementRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $cacheKey = $this->generateCacheKey('warehouse_movements_paginated', [$userUuid, $perPage]);
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = $this->generateCacheKey('warehouse_movements_paginated', [$userUuid, $perPage, $companyId]);
+        $headerCompanyId = request()->header('X-Company-ID');
 
-        return CacheService::getPaginatedData($cacheKey, function() use ($userUuid, $perPage, $page) {
+        Log::channel('warehouse_movements')->info('getItemsWithPagination.enter', [
+            'user_uuid' => $userUuid,
+            'page' => $page,
+            'per_page' => $perPage,
+            'company_id_resolved' => $companyId,
+            'x_company_id_header_raw' => $headerCompanyId,
+            'cache_key' => $cacheKey,
+        ]);
+
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $cacheKey) {
+            $companyId = $this->getCurrentCompanyId();
+            $applyWarehouseUserFilter = $this->shouldApplyUserFilter('warehouses');
+
+            Log::channel('warehouse_movements')->info('getItemsWithPagination.closure', [
+                'cache_key' => $cacheKey,
+                'company_id_in_closure' => $companyId,
+                'apply_warehouse_user_filter' => $applyWarehouseUserFilter,
+                'user_uuid' => $userUuid,
+                'page' => $page,
+            ]);
+
             $items = WhMovement::leftJoin('warehouses as warehouses_from', 'wh_movements.wh_from', '=', 'warehouses_from.id')
                 ->leftJoin('users', 'wh_movements.creator_id', '=', 'users.id')
                 ->leftJoin('warehouses as warehouses_to', 'wh_movements.wh_to', '=', 'warehouses_to.id')
                 ->leftJoin('wh_users as wh_users_from', 'warehouses_from.id', '=', 'wh_users_from.warehouse_id')
                 ->leftJoin('wh_users as wh_users_to', 'warehouses_to.id', '=', 'wh_users_to.warehouse_id');
+
+            if ($companyId) {
+                $items->where('warehouses_from.company_id', $companyId)
+                    ->where('warehouses_to.company_id', $companyId);
+            }
 
             if ($this->shouldApplyUserFilter('warehouses')) {
                 $items->where('wh_users_from.user_id', $userUuid)
@@ -42,7 +71,7 @@ class WarehouseMovementRepository extends BaseRepository
                     'warehouses_to.name as warehouse_to_name',
                     'wh_movements.note as note',
                     'wh_movements.creator_id as creator_id',
-                    'users.name as user_name',
+                'users.name as creator_name',
                     'wh_movements.date as date',
                     'wh_movements.created_at as created_at',
                     'wh_movements.updated_at as updated_at'
@@ -50,11 +79,26 @@ class WarehouseMovementRepository extends BaseRepository
                 ->orderBy('wh_movements.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
 
+            Log::channel('warehouse_movements')->info('getItemsWithPagination.paginated', [
+                'cache_key' => $cacheKey,
+                'total' => $items->total(),
+                'current_page_count' => $items->count(),
+            ]);
+
             $wh_writeoffs_ids = $items->pluck('id')->toArray();
             $products = $this->getProducts($wh_writeoffs_ids);
 
             foreach ($items as $item) {
                 $item->products = $products->get($item->id, collect());
+                if ($item->creator_id) {
+                    $creator = new User;
+                    $creator->id = (int) $item->creator_id;
+                    $creator->name = (string) $item->creator_name;
+                    $item->setRelation('creator', $creator);
+                } else {
+                    $item->setRelation('creator', null);
+                }
+                unset($item->creator_name);
             }
 
             return $items;
@@ -252,8 +296,7 @@ class WarehouseMovementRepository extends BaseRepository
                 'products.unit_id as unit_id',
                 'units.name as unit_name',
                 'units.short_name as unit_short_name',
-                'wh_movement_products.quantity as quantity',
-                'wh_movement_products.sn_id as sn_id'
+                'wh_movement_products.quantity as quantity'
             )
             ->get()
             ->groupBy('movement_id');

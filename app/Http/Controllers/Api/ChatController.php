@@ -81,7 +81,7 @@ class ChatController extends BaseController
 
         $otherUserId = (int) $request->validated()['creator_id'];
         if ($otherUserId === (int) $user->id) {
-            return response()->json(['message' => 'Cannot create direct chat with yourself'], 422);
+            return $this->errorResponse('Cannot create direct chat with yourself', 422);
         }
 
         $isOtherInCompany = DB::table('company_user')
@@ -90,7 +90,7 @@ class ChatController extends BaseController
             ->exists();
 
         if (! $isOtherInCompany) {
-            return response()->json(['message' => 'User is not in this company'], 403);
+            return $this->errorResponse('User is not in this company', 403);
         }
 
         $chat = $this->chatService->startDirectChat($companyId, $user, $otherUserId);
@@ -120,7 +120,7 @@ class ChatController extends BaseController
 
         $missing = array_values(array_diff($userIds, $companyUserIds));
         if (! empty($missing)) {
-            return response()->json(['message' => 'Some users are not in this company', 'creator_ids' => $missing], 403);
+            return $this->errorResponse('Some users are not in this company', 403);
         }
 
         $chat = $this->chatService->createGroupChat($companyId, $user, (string) $data['title'], $userIds);
@@ -175,7 +175,7 @@ class ChatController extends BaseController
 
         $this->chatService->markAsRead($companyId, $user, $chat, $lastMessageId);
 
-        return response()->json(['data' => ['ok' => true]]);
+        return $this->successResponse(['ok' => true]);
     }
 
     public function typing(Chat $chat): JsonResponse
@@ -184,7 +184,7 @@ class ChatController extends BaseController
 
         $this->chatService->sendTyping($companyId, $user, $chat);
 
-        return response()->json(['data' => ['ok' => true]]);
+        return $this->successResponse(['ok' => true]);
     }
 
     public function storeMessage(StoreChatMessageRequest $request, Chat $chat): JsonResponse
@@ -192,7 +192,7 @@ class ChatController extends BaseController
         [$user, $companyId] = $this->requireChatAccess($chat);
 
         if ($chat->type === 'general' && ! $this->hasPermission('chats_write_general', $user)) {
-            return response()->json(['message' => 'Forbidden'], 403);
+            return $this->successResponse(['message' => 'Forbidden'], null, 403);
         }
 
         $data = $request->validated();
@@ -201,7 +201,7 @@ class ChatController extends BaseController
         $parentId = isset($data['parent_id']) ? (int) $data['parent_id'] : null;
 
         if ($body === '' && empty($files)) {
-            return response()->json(['message' => 'Message body or files are required'], 422);
+            return $this->successResponse(['message' => 'Message body or files are required'], null, 422);
         }
 
         $message = $this->chatService->storeMessage(
@@ -243,7 +243,7 @@ class ChatController extends BaseController
 
         $this->chatService->deleteMessage($companyId, $user, $chat, $message);
 
-        return response()->json(['data' => ['ok' => true]]);
+        return $this->successResponse(['ok' => true]);
     }
 
     public function setReaction(Request $request, Chat $chat, ChatMessage $message): JsonResponse
@@ -258,7 +258,7 @@ class ChatController extends BaseController
 
         $reactions = $this->chatService->setReaction($companyId, $user, $chat, $message, $emoji);
 
-        return response()->json(['data' => ['reactions' => $reactions]]);
+        return $this->successResponse(['reactions' => $reactions]);
     }
 
     public function pinMessage(Chat $chat, ChatMessage $message): JsonResponse
@@ -286,7 +286,7 @@ class ChatController extends BaseController
         $targetChat = Chat::query()->findOrFail($targetChatId);
 
         if ((int) $targetChat->company_id !== $companyId) {
-            return response()->json(['message' => 'Target chat does not belong to this company'], 403);
+            return $this->successResponse(['message' => 'Target chat does not belong to this company'], null, 403);
         }
 
         $hideSenderName = $request->boolean('hide_sender_name');
@@ -309,6 +309,6 @@ class ChatController extends BaseController
 
         $this->chatService->deleteChat($companyId, $user, $chat);
 
-        return response()->json(['data' => ['ok' => true]]);
+        return $this->successResponse(['ok' => true]);
     }
 }

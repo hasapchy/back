@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreTransferRequest;
 use App\Http\Requests\UpdateTransferRequest;
+use App\Http\Resources\TransferResource;
 use App\Repositories\TransfersRepository;
 use Illuminate\Http\Request;
 
@@ -36,7 +37,16 @@ class TransfersController extends BaseController
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
-        return $this->paginatedResponse($items);
+        return $this->successResponse([
+            'items' => TransferResource::collection($items->items())->resolve(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'next_page' => $items->nextPageUrl(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
     }
 
     /**
@@ -67,7 +77,7 @@ class TransfersController extends BaseController
             return $this->errorResponse('Ошибка создания трансфера', 400);
         }
 
-        return response()->json(['message' => 'Трансфер создан']);
+        return $this->successResponse(null, 'Трансфер создан');
     }
 
     /**
@@ -83,7 +93,7 @@ class TransfersController extends BaseController
 
         $transfer = $this->itemsRepository->getItemById($id);
         if (!$transfer) {
-            return $this->notFoundResponse('Перевод не найден');
+            return $this->errorResponse('Перевод не найден', 404);
         }
 
         $cashFromAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id_from']);
@@ -109,7 +119,7 @@ class TransfersController extends BaseController
             return $this->errorResponse('Ошибка обновления', 400);
         }
 
-        return response()->json(['message' => 'Трансфер обновлён']);
+        return $this->successResponse(null, 'Трансфер обновлён');
     }
 
     /**
@@ -123,14 +133,14 @@ class TransfersController extends BaseController
         try {
             $deleted = $this->itemsRepository->deleteItem($id);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->notFoundResponse('Перевод не найден');
+            return $this->errorResponse('Перевод не найден', 404);
         }
 
         if (! $deleted) {
             return $this->errorResponse('Ошибка удаления', 400);
         }
 
-        return response()->json(['message' => 'Трансфер удалён']);
+        return $this->successResponse(null, 'Трансфер удалён');
     }
 
     /**

@@ -23,9 +23,10 @@ class ClientBalanceService
      * @param bool $isDefault Установить как дефолтный баланс
      * @param float $initialBalance Начальное значение баланса
      * @param string|null $note Примечание
+     * @param int $type Тип баланса (0 - безналичный, 1 - наличный)
      * @return ClientBalance
      */
-    public static function createBalance(Client $client, ?Currency $currency = null, bool $isDefault = false, float $initialBalance = 0, ?string $note = null): ClientBalance
+    public static function createBalance(Client $client, ?Currency $currency = null, bool $isDefault = false, float $initialBalance = 0, ?string $note = null, int $type = 1): ClientBalance
     {
         if (!$currency) {
             $currency = Currency::where('is_default', true)->first();
@@ -42,6 +43,7 @@ class ClientBalanceService
         return ClientBalance::create([
             'client_id' => $client->id,
             'currency_id' => $currency->id,
+            'type' => $type,
             'balance' => $initialBalance,
             'is_default' => $isDefault,
             'note' => $note,

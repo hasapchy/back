@@ -84,6 +84,11 @@ class Company extends Model
         return $this->hasMany(CompanyHoliday::class);
     }
 
+    public function productionCalendarDays()
+    {
+        return $this->hasMany(CompanyProductionCalendarDay::class);
+    }
+
      /**
      * Получить рабочий график с дефолтными значениями
      * Работает с raw значением из БД, так как cast 'array' применяется после accessor

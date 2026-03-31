@@ -27,7 +27,7 @@ class UpdateCashRegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string',
+            'name' => 'nullable|string',
             'users' => 'required|array|min:1',
             'users.*' => 'exists:users,id',
             'is_cash' => 'nullable|boolean',

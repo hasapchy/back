@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Currency extends Model
 {
+    use BelongsToCompany;
     use HasFactory;
 
     protected $fillable = [
@@ -156,16 +158,6 @@ class Currency extends Model
                     ->update(['is_report' => false]);
             }
         });
-    }
-
-    /**
-     * Связь с компанией
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function company()
-    {
-        return $this->belongsTo(Company::class, 'company_id');
     }
 
 }

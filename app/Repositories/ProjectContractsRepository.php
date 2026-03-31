@@ -90,6 +90,25 @@ class ProjectContractsRepository extends BaseRepository
     }
 
     /**
+     * @param \Illuminate\Support\Collection|iterable $contracts
+     * @return \Illuminate\Support\Collection|iterable
+     */
+    private function normalizeContractCreators($contracts)
+    {
+        $collection = collect($contracts);
+
+        foreach ($collection as $contract) {
+            $contract->creator = $contract->creator_id ? [
+                'id' => (int) $contract->creator_id,
+                'name' => $contract->creator_name,
+            ] : null;
+            unset($contract->creator_name);
+        }
+
+        return $contracts;
+    }
+
+    /**
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @param string|null $paymentStatus unpaid|partially_paid|paid
      * @return \Illuminate\Database\Eloquent\Builder
@@ -207,6 +226,7 @@ class ProjectContractsRepository extends BaseRepository
             $paginator = $query->orderBy('project_contracts.id', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
             $this->enrichContractsWithPaymentStatus($paginator->getCollection());
+            $this->normalizeContractCreators($paginator->getCollection());
             return $paginator;
         }, (int)$page);
     }
@@ -230,6 +250,7 @@ class ProjectContractsRepository extends BaseRepository
             $items = $query->orderBy('project_contracts.id', 'desc')
                 ->get();
             $this->enrichContractsWithPaymentStatus($items);
+            $this->normalizeContractCreators($items);
             return $items;
         });
     }
@@ -325,6 +346,7 @@ class ProjectContractsRepository extends BaseRepository
             $paginator = $query->orderBy('project_contracts.id', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
             $this->enrichContractsWithPaymentStatus($paginator->getCollection());
+            $this->normalizeContractCreators($paginator->getCollection());
             return $paginator;
         }, (int)$page);
     }
@@ -421,6 +443,7 @@ class ProjectContractsRepository extends BaseRepository
             $paginator = $query->orderBy('project_contracts.id', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int)$page);
             $this->enrichContractsWithPaymentStatus($paginator->getCollection());
+            $this->normalizeContractCreators($paginator->getCollection());
             return $paginator;
         }, (int)$page);
     }

@@ -1,0 +1,1241 @@
+parameters:
+	ignoreErrors:
+		-
+			message: "#^Call to an undefined method Illuminate\\\\Support\\\\Collection\\:\\:load\\(\\)\\.$#"
+			count: 1
+			path: app/Console/Commands/PublishTemplatesCommand.php
+
+		-
+			message: "#^Call to an undefined method Laravel\\\\Sanctum\\\\Contracts\\\\HasAbilities\\:\\:delete\\(\\)\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/AuthController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\StoreCashRegisterRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/CashRegistersController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\UpdateCashRegisterRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/CashRegistersController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\StoreClientRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/ClientController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\UpdateClientRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/ClientController.php
+
+		-
+			message: "#^Variable \\$search_request in empty\\(\\) always exists and is not falsy\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/ClientController.php
+
+		-
+			message: "#^Array has 2 duplicate keys with value 'creator_id' \\('creator_id', 'creator_id'\\)\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/CommentController.php
+
+		-
+			message: "#^Call to an undefined method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:activities\\(\\)\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/CommentController.php
+
+		-
+			message: "#^Call to an undefined method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:comments\\(\\)\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/CommentController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\StoreCommentRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/CommentController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\UpdateCommentRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/CommentController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\StoreOrderStatusRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/OrderStatusController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\UpdateOrderStatusRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/OrderStatusController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\StoreProjectStatusRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/ProjectStatusController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\UpdateProjectStatusRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/ProjectStatusController.php
+
+		-
+			message: "#^Method App\\\\Repositories\\\\ProjectsRepository\\:\\:getItemsWithPagination\\(\\) invoked with 9 parameters, 0\\-8 required\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/ProjectsController.php
+
+		-
+			message: "#^PHPDoc tag @param references unknown parameter\\: \\$request$#"
+			count: 1
+			path: app/Http/Controllers/Api/ProjectsController.php
+
+		-
+			message: "#^Method App\\\\Http\\\\Controllers\\\\Api\\\\RolesController\\:\\:index\\(\\) should return Illuminate\\\\Http\\\\JsonResponse but return statement is missing\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/RolesController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\StoreTaskStatusRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/TaskStatusController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\UpdateTaskStatusRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/TaskStatusController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\StoreTransactionCategoryRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/TransactionCategoryController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\UpdateTransactionCategoryRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/TransactionCategoryController.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\User\\:\\:\\$company_roles\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/UsersController.php
+
+		-
+			message: "#^PHPDoc tag @param references unknown parameter\\: \\$request$#"
+			count: 1
+			path: app/Http/Controllers/Api/UsersController.php
+
+		-
+			message: "#^Variable \\$search_request in empty\\(\\) always exists and is not falsy\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/UsersController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\StoreWarehouseRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/WarehouseController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\UpdateWarehouseRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/WarehouseController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\StoreWarehouseMovementRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/WarehouseMovementController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\UpdateWarehouseMovementRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/WarehouseMovementController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\StoreWarehouseReceiptRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/WarehouseReceiptController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\UpdateWarehouseReceiptRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/WarehouseReceiptController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\StoreWarehouseWriteoffRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/WarehouseWriteoffController.php
+
+		-
+			message: "#^PHPDoc tag @param for parameter \\$request with type Illuminate\\\\Http\\\\Request is not subtype of native type App\\\\Http\\\\Requests\\\\UpdateWarehouseWriteoffRequest\\.$#"
+			count: 1
+			path: app/Http/Controllers/Api/WarehouseWriteoffController.php
+
+		-
+			message: "#^Call to an undefined method Laravel\\\\Sanctum\\\\Contracts\\\\HasAbilities\\:\\:delete\\(\\)\\.$#"
+			count: 1
+			path: app/Http/Middleware/CheckUserActive.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$body\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$chat_id\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$created_at\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$creator_id\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$deleted_at\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$edited_at\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$files\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$forwardedFrom\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$forwarded_from_message_id\\.$#"
+			count: 2
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$id\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$parent\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$parent_id\\.$#"
+			count: 2
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$reactions\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$updated_at\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:\\$user\\.$#"
+			count: 2
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Call to an undefined method App\\\\Http\\\\Resources\\\\Chat\\\\ChatMessageResource\\:\\:relationLoaded\\(\\)\\.$#"
+			count: 4
+			path: app/Http/Resources/Chat/ChatMessageResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$avatar\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$company_id\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$created_at\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$created_by\\.$#"
+			count: 2
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$creator\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$direct_key\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$id\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$is_archived\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$last_message_at\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$pinnedMessage\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$title\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$type\\.$#"
+			count: 2
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:\\$updated_at\\.$#"
+			count: 1
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Call to an undefined method App\\\\Http\\\\Resources\\\\Chat\\\\ChatResource\\:\\:relationLoaded\\(\\)\\.$#"
+			count: 2
+			path: app/Http/Resources/Chat/ChatResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$address\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$client_type\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$created_at\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$creator\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$creator_id\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$discount\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$discount_type\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$emails\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$employee\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$employee_id\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$first_name\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$id\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$is_conflict\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$is_supplier\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$last_name\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$note\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$patronymic\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$phones\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$position\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$status\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientResource\\:\\:\\$updated_at\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientSearchResource\\:\\:\\$balance\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientSearchResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientSearchResource\\:\\:\\$client_type\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientSearchResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientSearchResource\\:\\:\\$first_name\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientSearchResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientSearchResource\\:\\:\\$id\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientSearchResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientSearchResource\\:\\:\\$is_conflict\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientSearchResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientSearchResource\\:\\:\\$is_supplier\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientSearchResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientSearchResource\\:\\:\\$last_name\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientSearchResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientSearchResource\\:\\:\\$phones\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientSearchResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\ClientSearchResource\\:\\:\\$position\\.$#"
+			count: 1
+			path: app/Http/Resources/ClientSearchResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\OrderResource\\:\\:\\$created_at\\.$#"
+			count: 1
+			path: app/Http/Resources/OrderResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\OrderResource\\:\\:\\$date\\.$#"
+			count: 1
+			path: app/Http/Resources/OrderResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\OrderResource\\:\\:\\$updated_at\\.$#"
+			count: 1
+			path: app/Http/Resources/OrderResource.php
+
+		-
+			message: "#^Call to an undefined method App\\\\Http\\\\Resources\\\\OrderResource\\:\\:relationLoaded\\(\\)\\.$#"
+			count: 2
+			path: app/Http/Resources/OrderResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$checklist\\.$#"
+			count: 1
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$comments\\.$#"
+			count: 1
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$complexity\\.$#"
+			count: 3
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$created_at\\.$#"
+			count: 1
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$creator\\.$#"
+			count: 3
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$deadline\\.$#"
+			count: 1
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$description\\.$#"
+			count: 1
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$executor\\.$#"
+			count: 6
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$files\\.$#"
+			count: 1
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$id\\.$#"
+			count: 1
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$priority\\.$#"
+			count: 3
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$project\\.$#"
+			count: 2
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$status\\.$#"
+			count: 3
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$status_id\\.$#"
+			count: 1
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$supervisor\\.$#"
+			count: 6
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$title\\.$#"
+			count: 1
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Http\\\\Resources\\\\TaskResource\\:\\:\\$updated_at\\.$#"
+			count: 1
+			path: app/Http/Resources/TaskResource.php
+
+		-
+			message: "#^Variable \\$value on left side of \\?\\? always exists and is not nullable\\.$#"
+			count: 1
+			path: app/Models/MessageTemplate.php
+
+		-
+			message: "#^Call to an undefined method object\\:\\:setSkipClientBalanceUpdate\\(\\)\\.$#"
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$balance\\.$#"
+			count: 1
+			path: app/Repositories/CashRegistersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$currency\\.$#"
+			count: 1
+			path: app/Repositories/CashRegistersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$currency_id\\.$#"
+			count: 1
+			path: app/Repositories/CashRegistersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$icon\\.$#"
+			count: 1
+			path: app/Repositories/CashRegistersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$id\\.$#"
+			count: 2
+			path: app/Repositories/CashRegistersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$is_cash\\.$#"
+			count: 1
+			path: app/Repositories/CashRegistersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$name\\.$#"
+			count: 1
+			path: app/Repositories/CashRegistersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$amount\\.$#"
+			count: 1
+			path: app/Repositories/ClientsRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$created_at\\.$#"
+			count: 5
+			path: app/Repositories/ClientsRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$creator\\.$#"
+			count: 5
+			path: app/Repositories/ClientsRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$creator_id\\.$#"
+			count: 5
+			path: app/Repositories/ClientsRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$id\\.$#"
+			count: 6
+			path: app/Repositories/ClientsRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$is_debt\\.$#"
+			count: 7
+			path: app/Repositories/ClientsRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$note\\.$#"
+			count: 5
+			path: app/Repositories/ClientsRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$orig_amount\\.$#"
+			count: 5
+			path: app/Repositories/ClientsRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$source_id\\.$#"
+			count: 8
+			path: app/Repositories/ClientsRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$source_type\\.$#"
+			count: 1
+			path: app/Repositories/ClientsRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$type\\.$#"
+			count: 6
+			path: app/Repositories/ClientsRepository.php
+
+		-
+			message: "#^Anonymous function has an unused use \\$currentUser\\.$#"
+			count: 1
+			path: app/Repositories/ClientsRepository.php
+
+		-
+			message: "#^Relation 'user' is not found in App\\\\Models\\\\Comment model\\.$#"
+			count: 1
+			path: app/Repositories/CommentsRepository.php
+
+		-
+			message: "#^Call to an undefined method Illuminate\\\\Support\\\\Collection\\<\\(int\\|string\\), mixed\\>\\:\\:paginate\\(\\)\\.$#"
+			count: 1
+			path: app/Repositories/DepartmentRepository.php
+
+		-
+			message: "#^Relation 'deputyHead' is not found in App\\\\Models\\\\Department model\\.$#"
+			count: 2
+			path: app/Repositories/DepartmentRepository.php
+
+		-
+			message: "#^Relation 'head' is not found in App\\\\Models\\\\Department model\\.$#"
+			count: 2
+			path: app/Repositories/DepartmentRepository.php
+
+		-
+			message: "#^Relation 'users' is not found in App\\\\Models\\\\Department model\\.$#"
+			count: 2
+			path: app/Repositories/DepartmentRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$date\\.$#"
+			count: 2
+			path: app/Repositories/InvoicesRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$discount\\.$#"
+			count: 1
+			path: app/Repositories/InvoicesRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$id\\.$#"
+			count: 2
+			path: app/Repositories/InvoicesRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$orderProducts\\.$#"
+			count: 1
+			path: app/Repositories/InvoicesRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$price\\.$#"
+			count: 1
+			path: app/Repositories/InvoicesRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$tempProducts\\.$#"
+			count: 1
+			path: app/Repositories/InvoicesRepository.php
+
+		-
+			message: "#^Anonymous function has an unused use \\$userUuid\\.$#"
+			count: 1
+			path: app/Repositories/InvoicesRepository.php
+
+		-
+			message: "#^Relation 'leaveType' is not found in App\\\\Models\\\\Leave model\\.$#"
+			count: 2
+			path: app/Repositories/LeaveRepository.php
+
+		-
+			message: "#^Relation 'user' is not found in App\\\\Models\\\\Leave model\\.$#"
+			count: 2
+			path: app/Repositories/LeaveRepository.php
+
+		-
+			message: "#^Static method App\\\\Services\\\\CacheService\\:\\:getReferenceData\\(\\) invoked with 3 parameters, 2 required\\.$#"
+			count: 1
+			path: app/Repositories/NewsRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$cash\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$cash_name\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$category\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$category_name\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$client\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$client_first_name\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$client_last_name\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$creator\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$currency_name\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$currency_symbol\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$id\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$orderProducts\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$products\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$project\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$project_name\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$status\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$status_category_color\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$status_category_name\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$status_name\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$tempProducts\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$unpaid_total\\.$#"
+			count: 1
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$user_name\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$user_photo\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$warehouse\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$warehouse_name\\.$#"
+			count: 2
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Pagination\\\\LengthAwarePaginator\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:\\$unpaid_orders_total\\.$#"
+			count: 1
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Anonymous function has an unused use \\$hasSearch\\.$#"
+			count: 1
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Anonymous function has an unused use \\$loadProducts\\.$#"
+			count: 1
+			path: app/Repositories/OrdersRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Product\\:\\:\\$category_name\\.$#"
+			count: 1
+			path: app/Repositories/ProductsRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Product\\:\\:\\$purchase_price\\.$#"
+			count: 1
+			path: app/Repositories/ProductsRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Product\\:\\:\\$retail_price\\.$#"
+			count: 1
+			path: app/Repositories/ProductsRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Product\\:\\:\\$stock_quantity\\.$#"
+			count: 1
+			path: app/Repositories/ProductsRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Product\\:\\:\\$unit_name\\.$#"
+			count: 1
+			path: app/Repositories/ProductsRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Product\\:\\:\\$unit_short_name\\.$#"
+			count: 1
+			path: app/Repositories/ProductsRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Product\\:\\:\\$wholesale_price\\.$#"
+			count: 1
+			path: app/Repositories/ProductsRepository.php
+
+		-
+			message: "#^Access to property \\$id on an unknown class App\\\\Repositories\\\\User\\.$#"
+			count: 1
+			path: app/Repositories/ProductsRepository.php
+
+		-
+			message: "#^PHPDoc tag @var for variable \\$currentUser contains unknown class App\\\\Repositories\\\\User\\.$#"
+			count: 1
+			path: app/Repositories/ProductsRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\ProjectContract\\:\\:\\$payment_status\\.$#"
+			count: 1
+			path: app/Repositories/ProjectContractsRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\ProjectContract\\:\\:\\$payment_status_text\\.$#"
+			count: 1
+			path: app/Repositories/ProjectContractsRepository.php
+
+		-
+			message: "#^Deprecated in PHP 8\\.0\\: Required parameter \\$userId follows optional parameter \\$projectId\\.$#"
+			count: 1
+			path: app/Repositories/ProjectContractsRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Project\\:\\:\\$user_name\\.$#"
+			count: 1
+			path: app/Repositories/ProjectsRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Project\\:\\:\\$user_photo\\.$#"
+			count: 1
+			path: app/Repositories/ProjectsRepository.php
+
+		-
+			message: "#^Static method App\\\\Services\\\\CacheService\\:\\:getReferenceData\\(\\) invoked with 3 parameters, 2 required\\.$#"
+			count: 1
+			path: app/Repositories/ProjectsRepository.php
+
+		-
+			message: "#^Access to an undefined property Spatie\\\\Permission\\\\Models\\\\Role\\:\\:\\$company_id\\.$#"
+			count: 1
+			path: app/Repositories/RolesRepository.php
+
+		-
+			message: "#^Anonymous function has an unused use \\$userUuid\\.$#"
+			count: 1
+			path: app/Repositories/SalesRepository.php
+
+		-
+			message: "#^Relation 'creator' is not found in App\\\\Models\\\\Task model\\.$#"
+			count: 2
+			path: app/Repositories/TaskRepository.php
+
+		-
+			message: "#^Relation 'executor' is not found in App\\\\Models\\\\Task model\\.$#"
+			count: 2
+			path: app/Repositories/TaskRepository.php
+
+		-
+			message: "#^Relation 'project' is not found in App\\\\Models\\\\Task model\\.$#"
+			count: 2
+			path: app/Repositories/TaskRepository.php
+
+		-
+			message: "#^Relation 'supervisor' is not found in App\\\\Models\\\\Task model\\.$#"
+			count: 2
+			path: app/Repositories/TaskRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Transaction\\:\\:\\$category_type\\.$#"
+			count: 1
+			path: app/Repositories/TransactionsRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Transaction\\:\\:\\$total\\.$#"
+			count: 1
+			path: app/Repositories/TransactionsRepository.php
+
+		-
+			message: "#^Static method App\\\\Services\\\\CurrencyConverter\\:\\:convert\\(\\) invoked with 8 parameters, 3\\-6 required\\.$#"
+			count: 2
+			path: app/Repositories/TransactionsRepository.php
+
+		-
+			message: "#^Variable \\$userUuid on left side of \\?\\? always exists and is not nullable\\.$#"
+			count: 1
+			path: app/Repositories/TransactionsRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$amount\\.$#"
+			count: 1
+			path: app/Repositories/TransfersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$cash_id_from\\.$#"
+			count: 1
+			path: app/Repositories/TransfersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$cash_id_to\\.$#"
+			count: 1
+			path: app/Repositories/TransfersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$creator\\.$#"
+			count: 2
+			path: app/Repositories/TransfersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$date\\.$#"
+			count: 1
+			path: app/Repositories/TransfersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$exchange_rate\\.$#"
+			count: 1
+			path: app/Repositories/TransfersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$fromCashRegister\\.$#"
+			count: 1
+			path: app/Repositories/TransfersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$id\\.$#"
+			count: 1
+			path: app/Repositories/TransfersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$note\\.$#"
+			count: 1
+			path: app/Repositories/TransfersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$toCashRegister\\.$#"
+			count: 1
+			path: app/Repositories/TransfersRepository.php
+
+		-
+			message: "#^Anonymous function has an unused use \\$currentUser\\.$#"
+			count: 1
+			path: app/Repositories/TransfersRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\User\\:\\:\\$company_roles\\.$#"
+			count: 4
+			path: app/Repositories/UsersRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\User\\:\\:\\$last_salary\\.$#"
+			count: 2
+			path: app/Repositories/UsersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$company_roles\\.$#"
+			count: 1
+			path: app/Repositories/UsersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$id\\.$#"
+			count: 9
+			path: app/Repositories/UsersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$is_admin\\.$#"
+			count: 4
+			path: app/Repositories/UsersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$last_salary\\.$#"
+			count: 1
+			path: app/Repositories/UsersRepository.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$roles\\.$#"
+			count: 1
+			path: app/Repositories/UsersRepository.php
+
+		-
+			message: "#^Access to an undefined property Spatie\\\\Permission\\\\Models\\\\Role\\:\\:\\$company_id\\.$#"
+			count: 1
+			path: app/Repositories/UsersRepository.php
+
+		-
+			message: "#^Call to an undefined method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:getDirectPermissions\\(\\)\\.$#"
+			count: 1
+			path: app/Repositories/UsersRepository.php
+
+		-
+			message: "#^Call to an undefined method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:getPermissionsViaRoles\\(\\)\\.$#"
+			count: 1
+			path: app/Repositories/UsersRepository.php
+
+		-
+			message: "#^Relation 'companies' is not found in App\\\\Models\\\\User model\\.$#"
+			count: 3
+			path: app/Repositories/UsersRepository.php
+
+		-
+			message: "#^Relation 'departments' is not found in App\\\\Models\\\\User model\\.$#"
+			count: 2
+			path: app/Repositories/UsersRepository.php
+
+		-
+			message: "#^Property App\\\\Models\\\\WhMovement\\:\\:\\$products is not writable\\.$#"
+			count: 1
+			path: app/Repositories/WarehouseMovementRepository.php
+
+		-
+			message: "#^Undefined variable\\: \\$companyId$#"
+			count: 1
+			path: app/Repositories/WarehouseMovementRepository.php
+
+		-
+			message: "#^Call to an undefined method Illuminate\\\\Support\\\\Collection\\<\\(int\\|string\\), mixed\\>\\:\\:paginate\\(\\)\\.$#"
+			count: 1
+			path: app/Repositories/WarehouseRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Product\\:\\:\\$quantity\\.$#"
+			count: 1
+			path: app/Repositories/WarehouseStockRepository.php
+
+		-
+			message: "#^Variable \\$warehouseName on left side of \\?\\? always exists and is not nullable\\.$#"
+			count: 1
+			path: app/Repositories/WarehouseStockRepository.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\WhWriteoff\\:\\:\\$products\\.$#"
+			count: 1
+			path: app/Repositories/WarehouseWriteoffRepository.php
+
+		-
+			message: "#^Undefined variable\\: \\$companyId$#"
+			count: 1
+			path: app/Repositories/WarehouseWriteoffRepository.php
+
+		-
+			message: "#^Static method App\\\\Services\\\\CurrencyConverter\\:\\:convert\\(\\) invoked with 8 parameters, 3\\-6 required\\.$#"
+			count: 1
+			path: app/Services/BalanceService.php
+
+		-
+			message: "#^Undefined variable\\: \\$cashCurrency$#"
+			count: 3
+			path: app/Services/BalanceService.php
+
+		-
+			message: "#^Undefined variable\\: \\$client$#"
+			count: 4
+			path: app/Services/BalanceService.php
+
+		-
+			message: "#^Undefined variable\\: \\$companyId$#"
+			count: 4
+			path: app/Services/BalanceService.php
+
+		-
+			message: "#^Undefined variable\\: \\$currency$#"
+			count: 3
+			path: app/Services/BalanceService.php
+
+		-
+			message: "#^Undefined variable\\: \\$transactionDate$#"
+			count: 4
+			path: app/Services/BalanceService.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$body\\.$#"
+			count: 1
+			path: app/Services/Chat/ChatService.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$chat_id\\.$#"
+			count: 1
+			path: app/Services/Chat/ChatService.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$created_at\\.$#"
+			count: 1
+			path: app/Services/Chat/ChatService.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$creator_id\\.$#"
+			count: 1
+			path: app/Services/Chat/ChatService.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$files\\.$#"
+			count: 1
+			path: app/Services/Chat/ChatService.php
+
+		-
+			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$id\\.$#"
+			count: 3
+			path: app/Services/Chat/ChatService.php
+
+		-
+			message: "#^Access to an undefined property App\\\\Models\\\\Leave\\:\\:\\$leaveType\\.$#"
+			count: 1
+			path: app/Services/PenaltyLeaveTransactionService.php

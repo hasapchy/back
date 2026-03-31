@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\BaseController;
+use App\Http\Resources\CompanyRoundingRuleResource;
 use App\Models\CompanyRoundingRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +23,7 @@ class CompanyRoundingRulesController extends BaseController
     {
         $companyId = $this->getCurrentCompanyId();
         $rules = CompanyRoundingRule::where('company_id', $companyId)->get();
-        return response()->json($rules);
+        return $this->successResponse(CompanyRoundingRuleResource::collection($rules)->resolve());
     }
 
     /**
@@ -63,7 +63,7 @@ class CompanyRoundingRulesController extends BaseController
             );
         });
 
-        return response()->json(['rule' => $rule]);
+        return $this->successResponse(new CompanyRoundingRuleResource($rule));
     }
 }
 

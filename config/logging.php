@@ -65,6 +65,13 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'warehouse_movements' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/warehouse_movements.log'),
+            'level' => 'debug',
+            'replace_placeholders' => true,
+        ],
+
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),

@@ -48,10 +48,10 @@ class TransactionsRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null, ?array $exportIds = null, ?int $exportLimit = null)
     {
-        $companyId = $this->getCurrentCompanyId() ?? 'default';
+        $companyId = $this->getCurrentCompanyId();
 
         $showDeleted = false;
-        if ($companyId && $companyId !== 'default') {
+        if ($companyId !== null) {
             $company = Company::findOrFail($companyId);
             $showDeleted = $company->show_deleted_transactions ?? false;
         }
@@ -74,7 +74,7 @@ class TransactionsRepository extends BaseRepository
                 'client.phones:id,client_id,phone',
                 'client.emails:id,client_id,email',
                 'currency:id,name,symbol',
-                'cashRegister:id,name,currency_id',
+                'cashRegister:id,name,currency_id,is_cash',
                 'cashRegister.currency:id,name,symbol',
                 'category:id,name,type',
                 'project:id,name',
@@ -237,20 +237,6 @@ class TransactionsRepository extends BaseRepository
             /** @var \Illuminate\Pagination\LengthAwarePaginator $paginatedResults */
             $paginatedResults = $query->paginate($perPage, ['*'], 'page', (int) $page);
 
-            $paginatedResults->getCollection()->load([
-                'client:id,first_name,last_name,client_type,is_supplier,is_conflict,address,note,status,discount_type,discount,created_at,updated_at',
-                'client.phones:id,client_id,phone',
-                'client.emails:id,client_id,email',
-                'currency:id,name,symbol',
-                'cashRegister:id,name,currency_id',
-                'cashRegister.currency:id,name,symbol',
-                'category:id,name,type',
-                'project:id,name',
-                'creator:id,name',
-                'cashTransfersFrom:id,tr_id_from',
-                'cashTransfersTo:id,tr_id_to',
-            ]);
-
             $debtStats = DB::table('clients')
                 ->select([
                     DB::raw('SUM(CASE WHEN balance > 0 THEN balance ELSE 0 END) as positive'),
@@ -308,11 +294,15 @@ class TransactionsRepository extends BaseRepository
     /**
      * Преобразовать транзакцию в объект для списка/экспорта
      *
-     * @param  \App\Models\Transaction  $transaction
+     * @param  mixed  $transaction
      * @return object
      */
     protected function transformTransactionToListItem($transaction)
     {
+        if (!$transaction instanceof Transaction) {
+            return (object) [];
+        }
+
         return (object) [
             'id' => $transaction->id,
             'type' => $transaction->type,
@@ -321,21 +311,25 @@ class TransactionsRepository extends BaseRepository
             'is_receipt' => $this->isReceipt($transaction),
             'is_debt' => $transaction->is_debt,
             'cash_id' => $transaction->cash_id,
-            'cash_name' => $transaction->cashRegister?->name,
+            'cash_name' => $transaction->cashRegister->name,
+            'cash_is_cash' => $transaction->cashRegister->is_cash,
             'cash_amount' => $transaction->amount,
-            'cash_currency_id' => $transaction->cashRegister?->currency?->id,
-            'cash_currency_name' => $transaction->cashRegister?->currency?->name,
-            'cash_currency_symbol' => $transaction->cashRegister?->currency?->symbol,
+            'cash_currency_id' => $transaction->cashRegister->currency->id,
+            'cash_currency_name' => $transaction->cashRegister->currency->name,
+            'cash_currency_symbol' => $transaction->cashRegister->currency->symbol,
             'orig_amount' => $transaction->orig_amount,
-            'orig_currency_id' => $transaction->currency?->id,
-            'orig_currency_name' => $transaction->currency?->name,
-            'orig_currency_symbol' => $transaction->currency?->symbol,
+            'orig_currency_id' => $transaction->currency->id,
+            'orig_currency_name' => $transaction->currency->name,
+            'orig_currency_symbol' => $transaction->currency->symbol,
             'exchange_rate' => $transaction->exchange_rate,
             'creator_id' => $transaction->creator_id,
-            'user_name' => $transaction->creator?->name,
+            'creator' => $transaction->creator ? [
+                'id' => $transaction->creator->id,
+                'name' => $transaction->creator->name,
+            ] : null,
             'category_id' => $transaction->category_id,
-            'category_name' => $transaction->category?->name,
-            'category_type' => $transaction->category?->type,
+            'category_name' => $transaction->category->name,
+            'category_type' => $transaction->category->type,
             'project_id' => $transaction->project_id,
             'project_name' => $transaction->project?->name,
             'client_id' => $transaction->client_id,
@@ -1205,6 +1199,7 @@ class TransactionsRepository extends BaseRepository
             END as is_transfer'),
             'transactions.cash_id as cash_id',
             'cash_registers.name as cash_name',
+            'cash_registers.is_cash as cash_is_cash',
             'transactions.amount as cash_amount',
             'cash_register_currencies.id as cash_currency_id',
             'cash_register_currencies.name as cash_currency_name',
@@ -1215,7 +1210,7 @@ class TransactionsRepository extends BaseRepository
             'currencies.symbol as orig_currency_symbol',
             'transactions.exchange_rate as exchange_rate',
             'transactions.creator_id as creator_id',
-            'users.name as user_name',
+            'users.name as creator_name',
             'transactions.category_id as category_id',
             'transaction_categories.name as category_name',
             'transaction_categories.type as category_type',
@@ -1257,12 +1252,17 @@ class TransactionsRepository extends BaseRepository
                 ->keyBy('id');
         }
 
-        foreach ($items as $item) {
-            $item = (object) $item->toArray();
-            $item->client = $clients->get($item->client_id);
-        }
+        return $items->map(function ($item) use ($clients) {
+            $mappedItem = (object) $item->toArray();
+            $mappedItem->client = $clients->get($mappedItem->client_id);
+            $mappedItem->creator = $mappedItem->creator_id ? [
+                'id' => (int) $mappedItem->creator_id,
+                'name' => $mappedItem->creator_name,
+            ] : null;
+            unset($mappedItem->creator_name);
 
-        return $items;
+            return $mappedItem;
+        });
     }
 
     /**
@@ -1386,7 +1386,7 @@ class TransactionsRepository extends BaseRepository
      * @param  string|\DateTime|null  $date  Дата для конвертации (опционально)
      * @return float Сумма в валюте по умолчанию
      */
-    private function convertAmountToDefaultCurrency(float $amount, \App\Models\Currency $fromCurrency, \App\Models\Currency $defaultCurrency, ?int $companyId, $date = null, ?float $exchangeRate = null, ?\App\Models\Currency $cashCurrency = null): float
+    protected function convertAmountToDefaultCurrency(float $amount, \App\Models\Currency $fromCurrency, \App\Models\Currency $defaultCurrency, ?int $companyId, $date = null, ?float $exchangeRate = null, ?\App\Models\Currency $cashCurrency = null): float
     {
         // Если передан ручной курс и известна валюта кассы, используем его для конвертации
         if ($exchangeRate !== null && $exchangeRate > 0 && $cashCurrency) {

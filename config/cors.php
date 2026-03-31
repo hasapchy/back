@@ -20,7 +20,7 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        env('API_ALLOWED_ORIGINS', 'https://testnew.hassap.online'),
+        env('API_ALLOWED_ORIGINS', 'https://test.hasapp.online'),
         'http://localhost:5173',
         'http://localhost:8080',
         'http://localhost',
