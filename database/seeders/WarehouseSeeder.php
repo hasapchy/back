@@ -31,10 +31,10 @@ class WarehouseSeeder extends Seeder
         // Добавляем пользователя с ID 1 в основной склад
         WhUser::updateOrCreate([
             'warehouse_id' => $warehouse->id,
-            'creator_id' => 1
+            'user_id' => 1
         ], [
             'warehouse_id' => $warehouse->id,
-            'creator_id' => 1
+            'user_id' => 1
         ]);
     }
 }
