@@ -15,10 +15,10 @@ return new class extends Migration
             UPDATE leaves
             INNER JOIN company_user ON leaves.user_id = company_user.user_id
             SET leaves.company_id = (
-                SELECT company_id 
-                FROM company_user 
-                WHERE company_user.user_id = leaves.user_id 
-                ORDER BY company_user.id ASC 
+                SELECT company_id
+                FROM company_user
+                WHERE company_user.user_id = leaves.user_id
+                ORDER BY company_user.id ASC
                 LIMIT 1
             )
             WHERE leaves.company_id IS NULL

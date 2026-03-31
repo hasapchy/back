@@ -21,9 +21,15 @@ class Department extends Model
         'company_id',
     ];
 
+    // public function users()
+    // {
+    //     return $this->belongsToMany(User::class)->withTimestamps();
+    // }
+
     public function users()
     {
-        return $this->belongsToMany(User::class)->withTimestamps();
+        return $this->belongsToMany(User::class, 'department_user', 'department_id', 'creator_id')
+                    ->withTimestamps();
     }
 
     public function head()

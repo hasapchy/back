@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('clients', function (Blueprint $table) {
-            $table->enum('discount_type', ['fixed', 'percent'])->nullable()->after('status');
-            $table->decimal('discount', 8, 2)->nullable()->after('discount_type');
+        Schema::table('activity_log', function (Blueprint $table) {
+            $table->unsignedBigInteger('cacreator_id')->nullable()->after('id');
         });
     }
 
@@ -22,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('clients', function (Blueprint $table) {
-            $table->dropColumn(['discount_type', 'discount']);
+        Schema::table('activity_log', function (Blueprint $table) {
+            $table->dropColumn('cacreator_id');
         });
     }
 };
