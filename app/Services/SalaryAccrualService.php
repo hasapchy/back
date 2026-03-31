@@ -331,9 +331,13 @@ class SalaryAccrualService
                     self::CATEGORY_BONUS,
                     self::CATEGORY_PENALTY,
                 ])
+                ->whereNotNull('client_balance_id')
+                ->whereHas('clientBalance', function (Builder $q) use ($paymentTypeValue) {
+                    $q->where('type', $paymentTypeValue);
+                })
                 ->orderBy('date')
                 ->orderBy('id')
-                ->get(['id', 'client_id', 'category_id', 'date', 'orig_amount', 'note', 'type', 'created_at'])
+                ->get(['id', 'client_id', 'client_balance_id', 'category_id', 'date', 'orig_amount', 'note', 'type', 'created_at'])
                 ->groupBy(fn (Transaction $t) => (int) $t->client_id);
         }
 
