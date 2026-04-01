@@ -563,6 +563,15 @@ class SalaryAccrualService
             (float) $activeSalary->amount
         );
         $origAmount = (float) $proration['prorated_salary_amount'];
+        if ($categoryId === self::CATEGORY_SALARY_PAYMENT) {
+            $adjustments = $this->salaryMonthAdjustmentsForClient(
+                (int) $employeeClient->id,
+                (int) $activeSalary->payment_type,
+                $monthPayroll['start'],
+                $monthPayroll['end']->copy()->endOfDay()
+            );
+            $origAmount = $origAmount + $adjustments['bonus'] - $adjustments['penalty'] - $adjustments['advance'];
+        }
 
         $transactionData = [
             'type' => 0,
@@ -655,6 +664,37 @@ class SalaryAccrualService
             'created_at' => $t->created_at->toIso8601String(),
             'type' => (int) $t->type,
         ])->values()->all();
+    }
+
+    /**
+     * @return array{advance: float, penalty: float, bonus: float}
+     */
+    private function salaryMonthAdjustmentsForClient(int $clientId, int $paymentTypeValue, Carbon $start, Carbon $end): array
+    {
+        $rows = Transaction::query()
+            ->where('client_id', $clientId)
+            ->whereBetween('date', [$start->toDateTimeString(), $end->toDateTimeString()])
+            ->where('is_deleted', false)
+            ->whereIn('category_id', [
+                self::CATEGORY_ADVANCE,
+                self::CATEGORY_BONUS,
+                self::CATEGORY_PENALTY,
+            ])
+            ->whereNotNull('client_balance_id')
+            ->whereHas('clientBalance', function (Builder $q) use ($paymentTypeValue) {
+                $q->where('type', $paymentTypeValue);
+            })
+            ->get(['category_id', 'orig_amount']);
+
+        $advance = (float) $rows->where('category_id', self::CATEGORY_ADVANCE)->sum('orig_amount');
+        $penalty = (float) $rows->where('category_id', self::CATEGORY_PENALTY)->sum('orig_amount');
+        $bonus = (float) $rows->where('category_id', self::CATEGORY_BONUS)->sum('orig_amount');
+
+        return [
+            'advance' => $advance,
+            'penalty' => $penalty,
+            'bonus' => $bonus,
+        ];
     }
 
     /**
