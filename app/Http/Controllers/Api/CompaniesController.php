@@ -4,14 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Resources\CompanyResource;
 use App\Models\Company;
+use App\Models\SalaryMonthlyReport;
 use App\Repositories\RolesRepository;
 use App\Services\CacheService;
 use App\Http\Requests\StoreCompanyRequest;
 use App\Http\Requests\UpdateCompanyRequest;
 use App\Http\Requests\AccrueSalariesRequest;
 use App\Services\SalaryAccrualService;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 
@@ -232,12 +236,54 @@ class CompaniesController extends BaseController
                 'date' => 'required|date',
                 'creator_ids' => 'required|array|min:1',
                 'creator_ids.*' => 'integer|exists:users,id',
+                'payment_type' => 'nullable|boolean',
             ]);
 
             $date = $request->input('date');
             $userIds = $request->input('creator_ids');
+            $paymentType = $request->filled('payment_type') ? (int) $request->input('payment_type') : null;
+            $monthStart = Carbon::parse($date)->startOfMonth()->toDateString();
+            $monthEnd = Carbon::parse($date)->endOfMonth()->toDateString();
 
-            $checkResult = $this->salaryAccrualService()->checkExistingAccruals($company->id, $date, $userIds);
+            $linesQuery = DB::table('salary_monthly_report_lines as lines')
+                ->join('salary_monthly_reports as reports', 'reports.id', '=', 'lines.salary_monthly_report_id')
+                ->where('reports.company_id', (int) $company->id)
+                ->where('reports.type', SalaryMonthlyReport::TYPE_ACCRUAL)
+                ->whereBetween('reports.date', [$monthStart, $monthEnd])
+                ->whereIn('lines.employee_id', $userIds);
+
+            if ($paymentType !== null) {
+                $linesQuery
+                    ->join('transactions', 'transactions.id', '=', 'lines.transaction_id')
+                    ->join('client_balances', 'client_balances.id', '=', 'transactions.client_balance_id')
+                    ->where('client_balances.type', $paymentType);
+            }
+
+            $affectedUserIds = $linesQuery
+                ->distinct()
+                ->pluck('lines.employee_id')
+                ->map(static fn ($id) => (int) $id)
+                ->values()
+                ->all();
+
+            $affectedUsers = User::query()
+                ->whereIn('id', $affectedUserIds)
+                ->get(['id', 'name', 'surname'])
+                ->map(static function (User $user): array {
+                    $fullName = trim(($user->name ?? '') . ' ' . ($user->surname ?? ''));
+
+                    return [
+                        'creator_id' => (int) $user->id,
+                        'name' => $fullName !== '' ? $fullName : ('#' . $user->id),
+                    ];
+                })
+                ->values()
+                ->all();
+
+            $checkResult = [
+                'has_existing' => count($affectedUserIds) > 0,
+                'affected_users' => $affectedUsers,
+            ];
 
             return $this->successResponse($checkResult);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -311,7 +357,8 @@ class CompaniesController extends BaseController
 
             $request->validate([
                 'batch_id' => 'nullable|integer|min:1',
-                'month' => 'required_without:batch_id|date_format:Y-m',
+                'month' => 'required_without_all:batch_id,all|nullable|date_format:Y-m',
+                'all' => 'nullable|boolean',
                 'refresh' => 'nullable|boolean',
             ]);
 
@@ -324,8 +371,11 @@ class CompaniesController extends BaseController
                 return $this->successResponse($data);
             }
 
-            $month = (string) $request->input('month');
-            $items = $this->salaryAccrualService()->listSalaryReportBatches($companyId, $month);
+            $all = $request->boolean('all', false);
+            $month = (string) ($request->input('month') ?? '');
+            $items = $all
+                ? $this->listAllSalaryReportBatches($companyId)
+                : $this->salaryAccrualService()->listSalaryReportBatches($companyId, $month);
 
             return $this->successResponse([
                 'month' => $month,
@@ -364,6 +414,53 @@ class CompaniesController extends BaseController
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка удаления: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function listAllSalaryReportBatches(int $companyId): array
+    {
+        $reports = SalaryMonthlyReport::query()
+            ->where('company_id', $companyId)
+            ->withCount('lines')
+            ->with(['lines' => fn ($q) => $q->select(['id', 'salary_monthly_report_id', 'amount', 'currency_id', 'transaction_id'])->with('currency:id,symbol')])
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->get();
+
+        $out = [];
+        foreach ($reports as $r) {
+            $out[] = [
+                'id' => $r->id,
+                'type' => $r->type,
+                'date' => $r->date->format('Y-m-d'),
+                'created_at' => $r->created_at->toIso8601String(),
+                'line_count' => $r->lines_count,
+                'totals_display' => $this->salaryLinesTotalsDisplay($r->lines),
+                'payment_type' => $r->payment_type !== null ? (int) $r->payment_type : null,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param iterable<int, \App\Models\SalaryMonthlyReportLine> $lines
+     */
+    private function salaryLinesTotalsDisplay(iterable $lines): string
+    {
+        $totalsBySym = [];
+        foreach ($lines as $line) {
+            $sym = $line->currency?->symbol ?? '';
+            $totalsBySym[$sym] = ($totalsBySym[$sym] ?? 0) + (float) $line->amount;
+        }
+        $parts = [];
+        foreach ($totalsBySym as $sym => $amount) {
+            $parts[] = trim(number_format($amount, 2, '.', '') . ($sym !== '' ? ' ' . $sym : ''));
+        }
+
+        return implode(' · ', $parts);
     }
 
     /**

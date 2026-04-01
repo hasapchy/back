@@ -206,6 +206,7 @@ class SalaryAccrualService
                     'company_id' => $companyId,
                     'type' => $reportType,
                     'date' => $monthPayroll['start']->toDateString(),
+                    'payment_type' => $paymentTypeValue,
                 ]);
                 foreach ($batchLines as $line) {
                     $report->lines()->create($line);
@@ -729,6 +730,7 @@ class SalaryAccrualService
                 'created_at' => $r->created_at->toIso8601String(),
                 'line_count' => $r->lines_count,
                 'totals_display' => $this->salaryLinesTotalsDisplay($r->lines),
+                'payment_type' => $r->payment_type !== null ? (int) $r->payment_type : null,
             ];
         }
 
@@ -759,6 +761,7 @@ class SalaryAccrualService
             'created_at' => $report->created_at->toIso8601String(),
             'line_count' => $report->lines_count,
             'totals_display' => $this->salaryLinesTotalsDisplay($report->lines),
+            'payment_type' => $report->payment_type !== null ? (int) $report->payment_type : null,
             'lines' => $linesOut,
         ];
     }
