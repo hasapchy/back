@@ -9,10 +9,11 @@ use App\Models\OrderProduct;
 use App\Models\Product;
 use App\Models\SalesProduct;
 use App\Models\User;
-use App\Models\WhReceiptProduct;
 use App\Models\WarehouseStock;
+use App\Models\WhReceiptProduct;
 use App\Models\WhWriteoffProduct;
 use App\Repositories\ProductsRepository;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -25,8 +26,6 @@ class ProductController extends BaseController
 
     /**
      * Конструктор контроллера
-     *
-     * @param ProductsRepository $itemsRepository
      */
     public function __construct(ProductsRepository $itemsRepository)
     {
@@ -36,8 +35,7 @@ class ProductController extends BaseController
     /**
      * Получить список товаров с пагинацией
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function products(Request $request)
     {
@@ -67,8 +65,7 @@ class ProductController extends BaseController
     /**
      * Поиск товаров и услуг
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function search(Request $request)
     {
@@ -79,18 +76,27 @@ class ProductController extends BaseController
         $warehouseId = $request->query('warehouse_id');
         $categoryId = $this->normalizeCategoryIdForSimpleWorker($request->query('category_id'));
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = min(100, max(1, (int) $request->query('per_page', 20)));
 
-        $items = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy);
+        $result = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage);
 
-        return $this->successResponse(ProductResource::collection($items)->resolve());
+        return $this->successResponse([
+            'items' => ProductResource::collection($result['items'])->resolve(),
+            'meta' => [
+                'current_page' => $result['current_page'],
+                'last_page' => $result['last_page'],
+                'per_page' => $result['per_page'],
+                'total' => $result['total'],
+            ],
+        ]);
     }
 
     /**
      * Получить товар/услугу по ID
      *
-     * @param Request $request
-     * @param int $id ID товара/услуги
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID товара/услуги
+     * @return JsonResponse
      */
     public function show(Request $request, $id)
     {
@@ -98,7 +104,7 @@ class ProductController extends BaseController
 
         $product = Product::findOrFail($id);
 
-        if (!$this->canPerformAction('products', 'view', $product)) {
+        if (! $this->canPerformAction('products', 'view', $product)) {
             return $this->errorResponse('У вас нет прав на просмотр этого товара', 403);
         }
 
@@ -110,8 +116,7 @@ class ProductController extends BaseController
     /**
      * Получить список услуг с пагинацией
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function services(Request $request)
     {
@@ -141,8 +146,7 @@ class ProductController extends BaseController
     /**
      * Создать новый товар/услугу
      *
-     * @param StoreProductRequest $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(StoreProductRequest $request)
     {
@@ -161,9 +165,8 @@ class ProductController extends BaseController
     /**
      * Обновить товар/услугу
      *
-     * @param UpdateProductRequest $request
-     * @param int $id ID товара/услуги
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID товара/услуги
+     * @return JsonResponse
      */
     public function update(UpdateProductRequest $request, $id)
     {
@@ -171,13 +174,13 @@ class ProductController extends BaseController
 
         $product_exist = Product::findOrFail($id);
 
-        if (!$this->canPerformAction('products', 'update', $product_exist)) {
+        if (! $this->canPerformAction('products', 'update', $product_exist)) {
             return $this->errorResponse('У вас нет прав на редактирование этого товара', 403);
         }
 
         $data = $request->validated();
         $data = array_filter($data, function ($value) {
-            return !is_null($value);
+            return ! is_null($value);
         });
 
         $product = $this->itemsRepository->updateItem($id, $data);
@@ -196,8 +199,8 @@ class ProductController extends BaseController
     /**
      * Удалить товар/услугу
      *
-     * @param int $id ID товара/услуги
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID товара/услуги
+     * @return JsonResponse
      */
     public function destroy($id)
     {
@@ -205,13 +208,13 @@ class ProductController extends BaseController
 
         $product = Product::findOrFail($id);
 
-        if (!$this->canPerformAction('products', 'delete', $product)) {
+        if (! $this->canPerformAction('products', 'delete', $product)) {
             return $this->errorResponse('У вас нет прав на удаление этого товара', 403);
         }
 
         $result = $this->itemsRepository->deleteItem($id);
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return $this->errorResponse($result['message'], 400);
         }
 
@@ -221,9 +224,8 @@ class ProductController extends BaseController
     /**
      * Получить историю операций по товару
      *
-     * @param Request $request
-     * @param int $id ID товара
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID товара
+     * @return JsonResponse
      */
     public function history(Request $request, $id)
     {
@@ -241,7 +243,9 @@ class ProductController extends BaseController
         if (in_array($filter, ['all', 'income'])) {
             foreach (WhReceiptProduct::where('product_id', $id)->with(['receipt.creator'])->get() as $rp) {
                 $r = $rp->receipt;
-                if (!$r) continue;
+                if (! $r) {
+                    continue;
+                }
                 $u = $r->creator ?? null;
                 $history->push([
                     'source_label' => 'Оприходование',
@@ -250,7 +254,7 @@ class ProductController extends BaseController
                     'date' => $r->date,
                     'creator' => $u ? [
                         'id' => (int) $u->id,
-                        'name' => trim($u->name . ' ' . ($u->surname ?? '')),
+                        'name' => trim($u->name.' '.($u->surname ?? '')),
                     ] : null,
                 ]);
             }
@@ -259,7 +263,9 @@ class ProductController extends BaseController
         if (in_array($filter, ['all', 'expense'])) {
             foreach (WhWriteoffProduct::where('product_id', $id)->with(['writeOff.creator'])->get() as $wp) {
                 $w = $wp->writeOff;
-                if (!$w) continue;
+                if (! $w) {
+                    continue;
+                }
                 $u = $w->creator ?? null;
                 $history->push([
                     'source_label' => 'Списание',
@@ -268,13 +274,15 @@ class ProductController extends BaseController
                     'date' => $w->date,
                     'creator' => $u ? [
                         'id' => (int) $u->id,
-                        'name' => trim($u->name . ' ' . ($u->surname ?? '')),
+                        'name' => trim($u->name.' '.($u->surname ?? '')),
                     ] : null,
                 ]);
             }
             foreach (SalesProduct::where('product_id', $id)->with(['sale.creator'])->get() as $sp) {
                 $s = $sp->sale;
-                if (!$s) continue;
+                if (! $s) {
+                    continue;
+                }
                 $u = $s->creator ?? null;
                 $history->push([
                     'source_label' => 'Продажа',
@@ -283,13 +291,15 @@ class ProductController extends BaseController
                     'date' => $s->date,
                     'creator' => $u ? [
                         'id' => (int) $u->id,
-                        'name' => trim($u->name . ' ' . ($u->surname ?? '')),
+                        'name' => trim($u->name.' '.($u->surname ?? '')),
                     ] : null,
                 ]);
             }
             foreach (OrderProduct::where('product_id', $id)->with(['order.creator'])->get() as $op) {
                 $o = $op->order;
-                if (!$o) continue;
+                if (! $o) {
+                    continue;
+                }
                 $u = $o->creator ?? null;
                 $history->push([
                     'source_label' => 'Заказ',
@@ -298,7 +308,7 @@ class ProductController extends BaseController
                     'date' => $o->date,
                     'creator' => $u ? [
                         'id' => (int) $u->id,
-                        'name' => trim($u->name . ' ' . ($u->surname ?? '')),
+                        'name' => trim($u->name.' '.($u->surname ?? '')),
                     ] : null,
                 ]);
             }
@@ -328,7 +338,7 @@ class ProductController extends BaseController
      * Для simple workers возвращает null, чтобы фильтрация происходила через getUserCategoryIds
      * который учитывает маппинг из конфига и подкатегории
      *
-     * @param mixed $categoryId
+     * @param  mixed  $categoryId
      * @return int|null
      */
     protected function normalizeCategoryIdForSimpleWorker($categoryId)
@@ -340,12 +350,11 @@ class ProductController extends BaseController
     }
 
     /**
-     * @param Request $request
      * @return string
      */
     protected function resolveWarehouseStockPolicy(Request $request)
     {
-        if (!$request->query('warehouse_id')) {
+        if (! $request->query('warehouse_id')) {
             return 'all';
         }
 

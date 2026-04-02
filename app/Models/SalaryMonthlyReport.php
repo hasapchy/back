@@ -3,11 +3,15 @@
 namespace App\Models;
 
 use App\Models\Traits\BelongsToCompany;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * @property-read \Illuminate\Database\Eloquent\Collection|SalaryMonthlyReportLine[] $lines
+ * @property int|null $creator_id
+ * @property-read Collection|SalaryMonthlyReportLine[] $lines
+ * @property-read User|null $creator
  */
 class SalaryMonthlyReport extends Model
 {
@@ -22,6 +26,7 @@ class SalaryMonthlyReport extends Model
         'type',
         'date',
         'payment_type',
+        'creator_id',
     ];
 
     protected $casts = [
@@ -35,5 +40,13 @@ class SalaryMonthlyReport extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(SalaryMonthlyReportLine::class, 'salary_monthly_report_id');
+    }
+
+    /**
+     * @return BelongsTo<User, SalaryMonthlyReport>
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'creator_id');
     }
 }
