@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\Warehouse;
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\CashRegister;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -126,6 +127,44 @@ class OrderControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson(['message' => 'Заказ удален']);
+    }
+
+    public function test_get_orders_can_filter_by_category(): void
+    {
+        $otherCategory = Category::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+        ]);
+
+        $cashRegister = CashRegister::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+
+        Order::factory()->create([
+            'client_id' => $this->client->id,
+            'creator_id' => $this->adminUser->id,
+            'category_id' => $this->category->id,
+            'cash_id' => $cashRegister->id,
+        ]);
+
+        Order::factory()->create([
+            'client_id' => $this->client->id,
+            'creator_id' => $this->adminUser->id,
+            'category_id' => $otherCategory->id,
+            'cash_id' => $cashRegister->id,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/orders?category_id=' . $this->category->id);
+
+        $response->assertStatus(200);
+
+        $items = $response->json('items');
+        $this->assertIsArray($items);
+
+        foreach ($items as $item) {
+            $this->assertEquals($this->category->id, (int) ($item['category_id'] ?? 0));
+        }
     }
 }
 
