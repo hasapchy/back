@@ -50,6 +50,29 @@ class WarehouseWriteoffController extends BaseController
     }
 
     /**
+     * Получить одно списание по ID
+     *
+     * @param  int  $id  ID списания
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function show($id)
+    {
+        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $item = $this->itemsRepository->getItemByIdForUser((int) $id, $userUuid);
+
+        if (! $item) {
+            return $this->errorResponse('Списание не найдено', 404);
+        }
+
+        $warehouseAccessCheck = $this->checkWarehouseAccess($item['warehouse_id'] ?? null);
+        if ($warehouseAccessCheck) {
+            return $warehouseAccessCheck;
+        }
+
+        return $this->successResponse($item);
+    }
+
+    /**
      * Создать списание со склада
      *
      * @param  Request  $request

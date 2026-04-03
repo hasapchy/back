@@ -2,18 +2,22 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Resources\CompanyResource;
-use App\Models\Company;
-use App\Repositories\RolesRepository;
-use App\Services\CacheService;
+use App\Http\Requests\AccrueSalariesRequest;
 use App\Http\Requests\StoreCompanyRequest;
 use App\Http\Requests\UpdateCompanyRequest;
-use App\Http\Requests\AccrueSalariesRequest;
+use App\Http\Resources\CompanyResource;
+use App\Models\Company;
+use App\Models\SalaryMonthlyReport;
+use App\Models\User;
+use App\Repositories\RolesRepository;
 use App\Services\SalaryAccrualService;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Контроллер для работы с компаниями
@@ -23,8 +27,7 @@ class CompaniesController extends BaseController
     /**
      * Получить список компаний с пагинацией
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -48,8 +51,7 @@ class CompaniesController extends BaseController
     /**
      * Создать новую компанию
      *
-     * @param StoreCompanyRequest $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(StoreCompanyRequest $request)
     {
@@ -70,9 +72,8 @@ class CompaniesController extends BaseController
     /**
      * Обновить компанию
      *
-     * @param UpdateCompanyRequest $request
-     * @param int $id ID компании
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID компании
+     * @return JsonResponse
      */
     public function update(UpdateCompanyRequest $request, $id)
     {
@@ -97,8 +98,8 @@ class CompaniesController extends BaseController
     /**
      * Удалить компанию
      *
-     * @param int $id ID компании
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID компании
+     * @return JsonResponse
      */
     public function destroy($id)
     {
@@ -111,9 +112,8 @@ class CompaniesController extends BaseController
     /**
      * Массовое начисление зарплат для всех сотрудников компании
      *
-     * @param AccrueSalariesRequest $request
-     * @param int $id ID компании
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID компании
+     * @return JsonResponse
      */
     public function accrueSalaries(AccrueSalariesRequest $request, $id)
     {
@@ -125,10 +125,10 @@ class CompaniesController extends BaseController
             $cashId = $validatedData['cash_id'];
             $note = $validatedData['note'] ?? null;
             $userIds = $validatedData['creator_ids'];
-            $paymentType = (bool)$validatedData['payment_type'];
+            $paymentType = (bool) $validatedData['payment_type'];
             $items = $validatedData['items'] ?? null;
 
-            if (is_array($items) && !$this->hasPermission('settings_client_balance_view')) {
+            if (is_array($items) && ! $this->hasPermission('settings_client_balance_view')) {
                 $items = array_map(static function ($row) {
                     unset($row['client_balance_id']);
 
@@ -152,20 +152,19 @@ class CompaniesController extends BaseController
                 'summary' => [
                     'success' => count($results['success']),
                     'skipped' => count($results['skipped']),
-                    'errors' => count($results['errors'])
-                ]
+                    'errors' => count($results['errors']),
+                ],
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return $this->errorResponse('Компания не найдена', 404);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при начислении зарплат: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при начислении зарплат: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Массовая выплата зарплат с записью батча в отчёт (salary_monthly_reports).
      *
-     * @param  AccrueSalariesRequest  $request
      * @param  int  $id
      * @return JsonResponse
      */
@@ -209,19 +208,18 @@ class CompaniesController extends BaseController
                     'errors' => count($results['errors']),
                 ],
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return $this->errorResponse('Компания не найдена', 404);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при выплате зарплат: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при выплате зарплат: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Проверить существующие начисления зарплат за месяц
      *
-     * @param Request $request
-     * @param int $id ID компании
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID компании
+     * @return JsonResponse
      */
     public function checkExistingSalaries(Request $request, $id)
     {
@@ -232,29 +230,70 @@ class CompaniesController extends BaseController
                 'date' => 'required|date',
                 'creator_ids' => 'required|array|min:1',
                 'creator_ids.*' => 'integer|exists:users,id',
+                'payment_type' => 'nullable|boolean',
             ]);
 
             $date = $request->input('date');
             $userIds = $request->input('creator_ids');
+            $paymentType = $request->filled('payment_type') ? (int) $request->input('payment_type') : null;
+            $monthStart = Carbon::parse($date)->startOfMonth()->toDateString();
+            $monthEnd = Carbon::parse($date)->endOfMonth()->toDateString();
 
-            $checkResult = $this->salaryAccrualService()->checkExistingAccruals($company->id, $date, $userIds);
+            $linesQuery = DB::table('salary_monthly_report_lines as lines')
+                ->join('salary_monthly_reports as reports', 'reports.id', '=', 'lines.salary_monthly_report_id')
+                ->where('reports.company_id', (int) $company->id)
+                ->where('reports.type', SalaryMonthlyReport::TYPE_ACCRUAL)
+                ->whereBetween('reports.date', [$monthStart, $monthEnd])
+                ->whereIn('lines.employee_id', $userIds);
+
+            if ($paymentType !== null) {
+                $linesQuery
+                    ->join('transactions', 'transactions.id', '=', 'lines.transaction_id')
+                    ->join('client_balances', 'client_balances.id', '=', 'transactions.client_balance_id')
+                    ->where('client_balances.type', $paymentType);
+            }
+
+            $affectedUserIds = $linesQuery
+                ->distinct()
+                ->pluck('lines.employee_id')
+                ->map(static fn ($id) => (int) $id)
+                ->values()
+                ->all();
+
+            $affectedUsers = User::query()
+                ->whereIn('id', $affectedUserIds)
+                ->get(['id', 'name', 'surname'])
+                ->map(static function (User $user): array {
+                    $fullName = trim(($user->name ?? '').' '.($user->surname ?? ''));
+
+                    return [
+                        'creator_id' => (int) $user->id,
+                        'name' => $fullName !== '' ? $fullName : ('#'.$user->id),
+                    ];
+                })
+                ->values()
+                ->all();
+
+            $checkResult = [
+                'has_existing' => count($affectedUserIds) > 0,
+                'affected_users' => $affectedUsers,
+            ];
 
             return $this->successResponse($checkResult);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return $this->errorResponse('Компания не найдена', 404);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при проверке начислений: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при проверке начислений: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Предпросмотр начисления зарплаты за месяц
      *
-     * @param Request $request
-     * @param int $id ID компании
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID компании
+     * @return JsonResponse
      */
     public function salaryAccrualPreview(Request $request, $id)
     {
@@ -288,20 +327,19 @@ class CompaniesController extends BaseController
             );
 
             return $this->successResponse($preview);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return $this->errorResponse('Компания не найдена', 404);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении предпросмотра начисления: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при получении предпросмотра начисления: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Зарплаты за месяц: без batch_id — список батчей (salary_monthly_reports); с batch_id — батч и строки (lines).
      *
-     * @param Request $request
-     * @param int|string $id
+     * @param  int|string  $id
      * @return JsonResponse
      */
     public function salaryMonthlyReport(Request $request, $id)
@@ -311,7 +349,8 @@ class CompaniesController extends BaseController
 
             $request->validate([
                 'batch_id' => 'nullable|integer|min:1',
-                'month' => 'required_without:batch_id|date_format:Y-m',
+                'month' => 'required_without_all:batch_id,all|nullable|date_format:Y-m',
+                'all' => 'nullable|boolean',
                 'refresh' => 'nullable|boolean',
             ]);
 
@@ -324,20 +363,23 @@ class CompaniesController extends BaseController
                 return $this->successResponse($data);
             }
 
-            $month = (string) $request->input('month');
-            $items = $this->salaryAccrualService()->listSalaryReportBatches($companyId, $month);
+            $all = $request->boolean('all', false);
+            $month = (string) ($request->input('month') ?? '');
+            $items = $all
+                ? $this->salaryAccrualService()->listAllSalaryReportBatches($companyId)
+                : $this->salaryAccrualService()->listSalaryReportBatches($companyId, $month);
 
             return $this->successResponse([
                 'month' => $month,
                 'items' => $items,
                 'synced_at' => null,
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return $this->errorResponse('Компания не найдена', 404);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при загрузке данных по зарплатам: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при загрузке данных по зарплатам: '.$e->getMessage(), 500);
         }
     }
 
@@ -359,16 +401,13 @@ class CompaniesController extends BaseController
             $this->salaryAccrualService()->deleteSalaryMonthlyReportBatch((int) $company->id, (int) $batchId);
 
             return $this->successResponse(null, 'Операция удалена');
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return $this->errorResponse('Не найдено', 404);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка удаления: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка удаления: '.$e->getMessage(), 500);
         }
     }
 
-    /**
-     * @return SalaryAccrualService
-     */
     private function salaryAccrualService(): SalaryAccrualService
     {
         return app(SalaryAccrualService::class);
