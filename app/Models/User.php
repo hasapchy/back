@@ -181,6 +181,14 @@ class User extends Authenticatable
     }
 
     /**
+     * FCM токены пользователя (web/mobile).
+     */
+    public function fcmToken()
+    {
+        return $this->hasOne(UserFcmToken::class, 'user_id');
+    }
+
+    /**
      * Получить все разрешения пользователя (глобальные, через роли)
      *
      * @return \Illuminate\Support\Collection

@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\CompanyHolidayController;
 use App\Http\Controllers\Api\CompanyProductionCalendarController;
 use App\Http\Controllers\Api\CurrencyHistoryController;
 use App\Http\Controllers\Api\DepartmentController;
+use App\Http\Controllers\Api\FcmStorageController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\LeaveTypeController;
@@ -72,6 +73,11 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::get('user/me', [AuthController::class, 'me']);
     Route::get('user/current', [UsersController::class, 'getCurrentUser']);
     Route::post('user/profile', [UsersController::class, 'updateProfile']);
+    Route::get('user/fcm-token', [FcmStorageController::class, 'show']);
+    Route::post('user/fcm-token', [FcmStorageController::class, 'upsert']);
+    Route::put('user/fcm-token', [FcmStorageController::class, 'upsert']);
+    Route::delete('user/fcm-token', [FcmStorageController::class, 'destroy']);
+    Route::post('user/fcm-token/test-send', [FcmStorageController::class, 'testSend']);
 
     Route::middleware('permission.scope:users_view_all,users_view')->get('users', [UsersController::class, 'index']);
     Route::get('users/all', [UsersController::class, 'getAllUsers']);
