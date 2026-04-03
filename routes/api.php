@@ -122,6 +122,7 @@ Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::middleware(['permission:warehouse_receipts_delete', 'time.restriction:WhReceipt'])->delete('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'destroy']);
 
     Route::get('warehouse_writeoffs', [WarehouseWriteoffController::class, 'index']);
+    Route::get('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'show']);
     Route::middleware('permission:warehouse_writeoffs_create')->post('warehouse_writeoffs', [WarehouseWriteoffController::class, 'store']);
     Route::middleware(['permission:warehouse_writeoffs_update', 'time.restriction:WhWriteoff'])->put('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'update']);
     Route::middleware(['permission:warehouse_writeoffs_delete', 'time.restriction:WhWriteoff'])->delete('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'destroy']);

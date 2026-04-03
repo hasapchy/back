@@ -5,12 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
+use App\Models\Order;
 use App\Models\OrderProduct;
 use App\Models\Product;
+use App\Models\Sale;
 use App\Models\SalesProduct;
 use App\Models\User;
 use App\Models\WarehouseStock;
+use App\Models\WhReceipt;
 use App\Models\WhReceiptProduct;
+use App\Models\WhWriteoff;
 use App\Models\WhWriteoffProduct;
 use App\Repositories\ProductsRepository;
 use Illuminate\Http\JsonResponse;
@@ -249,6 +253,8 @@ class ProductController extends BaseController
                 $u = $r->creator ?? null;
                 $history->push([
                     'source_label' => 'Оприходование',
+                    'source_type' => WhReceipt::class,
+                    'source_id' => (int) $r->id,
                     'quantity' => (float) $rp->quantity,
                     'unit_short_name' => $unitShortName,
                     'date' => $r->date,
@@ -269,6 +275,8 @@ class ProductController extends BaseController
                 $u = $w->creator ?? null;
                 $history->push([
                     'source_label' => 'Списание',
+                    'source_type' => WhWriteoff::class,
+                    'source_id' => (int) $w->id,
                     'quantity' => -(float) $wp->quantity,
                     'unit_short_name' => $unitShortName,
                     'date' => $w->date,
@@ -286,6 +294,8 @@ class ProductController extends BaseController
                 $u = $s->creator ?? null;
                 $history->push([
                     'source_label' => 'Продажа',
+                    'source_type' => Sale::class,
+                    'source_id' => (int) $s->id,
                     'quantity' => -(float) $sp->quantity,
                     'unit_short_name' => $unitShortName,
                     'date' => $s->date,
@@ -303,6 +313,8 @@ class ProductController extends BaseController
                 $u = $o->creator ?? null;
                 $history->push([
                     'source_label' => 'Заказ',
+                    'source_type' => Order::class,
+                    'source_id' => (int) $o->id,
                     'quantity' => -(float) $op->quantity,
                     'unit_short_name' => $unitShortName,
                     'date' => $o->date,

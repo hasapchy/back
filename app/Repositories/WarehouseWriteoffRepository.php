@@ -80,6 +80,91 @@ class WarehouseWriteoffRepository extends BaseRepository
     }
 
     /**
+     * Получить одно списание с проверкой доступа (как у пагинированного списка)
+     *
+     * @param  int  $id  ID списания
+     * @param  int  $userUuid  ID пользователя API
+     * @return array<string, mixed>|null
+     */
+    public function getItemByIdForUser(int $id, int $userUuid): ?array
+    {
+        $companyId = $this->getCurrentCompanyId();
+
+        $query = WhWriteoff::query()
+            ->leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
+            ->where('wh_write_offs.id', $id)
+            ->select(
+                'wh_write_offs.id',
+                'wh_write_offs.warehouse_id',
+                'warehouses.name as warehouse_name',
+                'wh_write_offs.note',
+                'wh_write_offs.creator_id',
+                'wh_write_offs.created_at',
+                'wh_write_offs.updated_at'
+            );
+
+        if ($companyId) {
+            $query->where('warehouses.company_id', $companyId);
+        }
+
+        if ($this->shouldApplyUserFilter('warehouses')) {
+            $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+            $warehouseIds = WhUser::where('user_id', $filterUserId)
+                ->pluck('warehouse_id')
+                ->toArray();
+
+            if (empty($warehouseIds)) {
+                return null;
+            }
+            $query->whereIn('wh_write_offs.warehouse_id', $warehouseIds);
+        }
+
+        $row = $query->first();
+        if (! $row) {
+            return null;
+        }
+
+        $productsGrouped = $this->getProducts([$row->id]);
+        $rawProducts = $productsGrouped->get($row->id, collect());
+        $products = $rawProducts->map(function ($p) {
+            return [
+                'id' => (int) $p->id,
+                'write_off_id' => (int) $p->write_off_id,
+                'product_id' => (int) $p->product_id,
+                'product_name' => $p->product_name,
+                'product_image' => $p->product_image,
+                'unit_id' => $p->unit_id !== null ? (int) $p->unit_id : null,
+                'unit_name' => $p->unit_name,
+                'unit_short_name' => $p->unit_short_name,
+                'quantity' => (float) $p->quantity,
+            ];
+        })->values()->all();
+
+        $creator = null;
+        if ($row->creator_id) {
+            $u = User::query()->find($row->creator_id);
+            if ($u) {
+                $creator = [
+                    'id' => (int) $u->id,
+                    'name' => trim($u->name.' '.($u->surname ?? '')),
+                ];
+            }
+        }
+
+        return [
+            'id' => (int) $row->id,
+            'warehouse_id' => (int) $row->warehouse_id,
+            'warehouse_name' => $row->warehouse_name,
+            'note' => $row->note ?? '',
+            'creator_id' => $row->creator_id ? (int) $row->creator_id : null,
+            'creator' => $creator,
+            'created_at' => $row->created_at,
+            'updated_at' => $row->updated_at,
+            'products' => $products,
+        ];
+    }
+
+    /**
      * Создать списание
      *
      * @param array $data Данные списания
