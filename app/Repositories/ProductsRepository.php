@@ -3,30 +3,31 @@
 namespace App\Repositories;
 
 use App\Models\Product;
-use App\Models\ProductPrice;
 use App\Models\ProductCategory;
+use App\Models\ProductPrice;
+use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
-use App\Services\CacheService;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use App\Models\WhUser;
-use App\Models\User;
+use App\Services\CacheService;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ProductsRepository extends BaseRepository
 {
     /**
      * Получить товары с пагинацией
      *
-     * @param int $userUuid ID пользователя
-     * @param int $perPage Количество записей на страницу
-     * @param bool $type Тип товара (true - товар, false - услуга)
-     * @param int $page Номер страницы
-     * @param int|null $warehouseId ID склада
-     * @param string|null $search Поисковый запрос
-     * @param int|null $categoryId ID категории
-     * @param string $warehouseStockPolicy all|in_stock
+     * @param  int  $userUuid  ID пользователя
+     * @param  int  $perPage  Количество записей на страницу
+     * @param  bool  $type  Тип товара (true - товар, false - услуга)
+     * @param  int  $page  Номер страницы
+     * @param  int|null  $warehouseId  ID склада
+     * @param  string|null  $search  Поисковый запрос
+     * @param  int|null  $categoryId  ID категории
+     * @param  string  $warehouseStockPolicy  all|in_stock
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $warehouseId = null, $search = null, $categoryId = null, $warehouseStockPolicy = 'all')
@@ -34,7 +35,7 @@ class ProductsRepository extends BaseRepository
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $currentUser?->id, $companyId, $warehouseStockPolicy]);
+        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $currentUser?->id, $companyId, $warehouseStockPolicy, 'wh_stock_pos_v1']);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $currentUser, $warehouseStockPolicy) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
@@ -44,7 +45,7 @@ class ProductsRepository extends BaseRepository
             }
 
             if (empty($userCategoryIds)) {
-                return new \Illuminate\Pagination\LengthAwarePaginator(
+                return new LengthAwarePaginator(
                     collect([]),
                     0,
                     $perPage,
@@ -59,7 +60,7 @@ class ProductsRepository extends BaseRepository
                 ->toArray();
 
             if (empty($userProductIds)) {
-                return new \Illuminate\Pagination\LengthAwarePaginator(
+                return new LengthAwarePaginator(
                     collect([]),
                     0,
                     $perPage,
@@ -83,10 +84,10 @@ class ProductsRepository extends BaseRepository
             }
 
             if ($warehouseId && $warehouseStockPolicy === 'in_stock' && $type) {
-                $query->whereHas('stocks', $this->warehouseStockRowScope($warehouseId));
+                $query->whereHas('stocks', $this->warehouseStockRowScope($warehouseId, true));
             }
 
-            $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+            $products = $query->orderBy('products.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int) $page);
 
             $productIds = $products->getCollection()->pluck('id');
             $stocksMap = $this->getStocksMap($productIds, $warehouseId, $userUuid);
@@ -96,26 +97,26 @@ class ProductsRepository extends BaseRepository
             });
 
             return $products;
-        }, (int)$page);
+        }, (int) $page);
     }
 
     /**
      * Поиск товаров
      *
-     * @param int $userUuid ID пользователя
-     * @param string $search Поисковый запрос
-     * @param bool|null $productsOnly Только товары (true) или включая услуги (null/false)
-     * @param int|null $warehouseId ID склада
-     * @param string $warehouseStockPolicy all|in_stock
-     * @return \Illuminate\Support\Collection
+     * @param  int  $userUuid  ID пользователя
+     * @param  string  $search  Поисковый запрос
+     * @param  bool|null  $productsOnly  Только товары (true) или включая услуги (null/false)
+     * @param  int|null  $warehouseId  ID склада
+     * @param  string  $warehouseStockPolicy  all|in_stock
+     * @return array{items: Collection, total: int, current_page: int, per_page: int, last_page: int}
      */
-    public function searchItems($userUuid, $search, $productsOnly = null, $warehouseId = null, $categoryId = null, $warehouseStockPolicy = 'all')
+    public function searchItems($userUuid, $search, $productsOnly = null, $warehouseId = null, $categoryId = null, $warehouseStockPolicy = 'all', int $page = 1, int $perPage = 20)
     {
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $currentUser?->id, $companyId, $warehouseStockPolicy]);
+        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $currentUser?->id, $companyId, $warehouseStockPolicy, $page, $perPage, 'wh_stock_pos_v1']);
 
-        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy) {
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             if ($categoryId) {
@@ -123,7 +124,13 @@ class ProductsRepository extends BaseRepository
             }
 
             if (empty($userCategoryIds)) {
-                return collect([]);
+                return [
+                    'items' => collect([]),
+                    'total' => 0,
+                    'current_page' => $page,
+                    'per_page' => $perPage,
+                    'last_page' => 1,
+                ];
             }
 
             $userProductIds = ProductCategory::whereIn('category_id', $userCategoryIds)
@@ -132,15 +139,21 @@ class ProductsRepository extends BaseRepository
                 ->toArray();
 
             if (empty($userProductIds)) {
-                return collect([]);
+                return [
+                    'items' => collect([]),
+                    'total' => 0,
+                    'current_page' => $page,
+                    'per_page' => $perPage,
+                    'last_page' => 1,
+                ];
             }
 
             $query = Product::with(['categories', 'unit', 'prices', 'creator'])
                 ->whereIn('id', $userProductIds)
                 ->where(function ($query) use ($search) {
-                    $query->where('name', 'like', '%' . $search . '%')
-                        ->orWhere('sku', 'like', '%' . $search . '%')
-                        ->orWhere('barcode', 'like', '%' . $search . '%');
+                    $query->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('sku', 'like', '%'.$search.'%')
+                        ->orWhere('barcode', 'like', '%'.$search.'%');
                 });
 
             if ($productsOnly !== null) {
@@ -150,11 +163,15 @@ class ProductsRepository extends BaseRepository
 
             $this->applyWarehouseRowScopeForSearch($query, $warehouseId, $warehouseStockPolicy, $productsOnly);
 
-            $products = $query->limit(50)->get();
+            $total = (int) $query->clone()->count();
+            $lastPage = $total > 0 ? (int) max(1, (int) ceil($total / $perPage)) : 1;
+            $products = $query->orderBy('products.created_at', 'desc')
+                ->forPage($page, $perPage)
+                ->get();
 
             $productIds = $products->pluck('id');
             $warehouseIds = [];
-            if (!$warehouseId && $this->shouldApplyUserFilter('warehouses')) {
+            if (! $warehouseId && $this->shouldApplyUserFilter('warehouses')) {
                 $warehouseIds = WhUser::where('user_id', $userUuid)
                     ->pluck('warehouse_id')
                     ->toArray();
@@ -169,7 +186,7 @@ class ProductsRepository extends BaseRepository
                         ->toArray();
                 } elseif (empty($warehouseIds)) {
                     $stocks = WarehouseStock::whereIn('product_id', $productIds)
-                        ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total'))
+                        ->select('product_id', DB::raw('SUM(quantity) as total'))
                         ->groupBy('product_id')
                         ->pluck('total', 'product_id')
                         ->toArray();
@@ -177,7 +194,7 @@ class ProductsRepository extends BaseRepository
                 } else {
                     $stocks = WarehouseStock::whereIn('warehouse_id', $warehouseIds)
                         ->whereIn('product_id', $productIds)
-                        ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total'))
+                        ->select('product_id', DB::raw('SUM(quantity) as total'))
                         ->groupBy('product_id')
                         ->pluck('total', 'product_id')
                         ->toArray();
@@ -189,20 +206,26 @@ class ProductsRepository extends BaseRepository
                 $this->enrichProduct($product, $stocksMap);
             });
 
-            return $products;
+            return [
+                'items' => $products,
+                'total' => $total,
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'last_page' => $lastPage,
+            ];
         });
     }
 
     /**
      * Создать товар
      *
-     * @param array $data Данные товара
+     * @param  array  $data  Данные товара
      * @return Product|null
      */
     public function createItem($data)
     {
         return DB::transaction(function () use ($data) {
-            $product = new Product();
+            $product = new Product;
             $product->type = $data['type'];
             $product->image = $data['image'] ?? null;
             $product->name = $data['name'];
@@ -214,7 +237,7 @@ class ProductsRepository extends BaseRepository
             $product->creator_id = $data['creator_id'] ?? auth()->id();
             $product->save();
 
-            if (isset($data['categories']) && !empty($data['categories'])) {
+            if (isset($data['categories']) && ! empty($data['categories'])) {
                 $product->categories()->sync($data['categories']);
             } elseif (isset($data['category_id'])) {
                 $product->categories()->sync([$data['category_id']]);
@@ -260,7 +283,7 @@ class ProductsRepository extends BaseRepository
                 'units.short_name as unit_short_name',
                 'product_prices.retail_price',
                 'product_prices.wholesale_price',
-                'product_prices.purchase_price'
+                'product_prices.purchase_price',
             ])
                 ->join('product_categories', 'products.id', '=', 'product_categories.product_id')
                 ->join('categories as primary_categories', 'product_categories.category_id', '=', 'primary_categories.id')
@@ -274,8 +297,8 @@ class ProductsRepository extends BaseRepository
     /**
      * Обновить товар
      *
-     * @param int $id ID товара
-     * @param array $data Данные для обновления
+     * @param  int  $id  ID товара
+     * @param  array  $data  Данные для обновления
      * @return Product|null
      */
     public function updateItem($id, $data)
@@ -301,7 +324,7 @@ class ProductsRepository extends BaseRepository
             if (isset($data['barcode'])) {
                 $product->barcode = $data['barcode'];
             }
-            if (isset($data['categories']) && !empty($data['categories'])) {
+            if (isset($data['categories']) && ! empty($data['categories'])) {
                 $product->categories()->sync($data['categories']);
             } elseif (isset($data['category_id'])) {
                 $product->categories()->sync([$data['category_id']]);
@@ -356,7 +379,7 @@ class ProductsRepository extends BaseRepository
                 'units.short_name as unit_short_name',
                 'product_prices.retail_price',
                 'product_prices.wholesale_price',
-                'product_prices.purchase_price'
+                'product_prices.purchase_price',
             ])
                 ->join('product_categories', 'products.id', '=', 'product_categories.product_id')
                 ->join('categories as primary_categories', 'product_categories.category_id', '=', 'primary_categories.id')
@@ -370,8 +393,8 @@ class ProductsRepository extends BaseRepository
     /**
      * Получить товар по ID
      *
-     * @param int $id ID товара
-     * @param int $userUuid ID пользователя
+     * @param  int  $id  ID товара
+     * @param  int  $userUuid  ID пользователя
      * @return array<string, mixed>|null
      */
     public function getItemById($id, $userUuid)
@@ -387,13 +410,13 @@ class ProductsRepository extends BaseRepository
             ->unique()
             ->toArray();
 
-        if (!in_array($id, $userProductIds)) {
+        if (! in_array($id, $userProductIds)) {
             return null;
         }
 
         $product = Product::with(['categories', 'unit', 'prices', 'creator'])->find($id);
 
-        if (!$product) {
+        if (! $product) {
             return null;
         }
 
@@ -406,8 +429,8 @@ class ProductsRepository extends BaseRepository
                 'name' => $category->name,
             ];
         })->toArray();
-        $productArray['unit_name'] = $product->unit->name;
-        $productArray['unit_short_name'] = $product->unit->short_name;
+        $productArray['unit_name'] = $product->unit?->name;
+        $productArray['unit_short_name'] = $product->unit?->short_name;
         $price = $product->prices->first();
         $productArray['retail_price'] = $price?->retail_price ?? 0;
         $productArray['wholesale_price'] = $price?->wholesale_price ?? 0;
@@ -420,13 +443,13 @@ class ProductsRepository extends BaseRepository
     /**
      * Удалить товар
      *
-     * @param int $id ID товара
+     * @param  int  $id  ID товара
      * @return array{success: bool, message?: string}
      */
     public function deleteItem($id)
     {
         $product = Product::find($id);
-        if (!$product) {
+        if (! $product) {
             return ['success' => false, 'message' => 'Товар/услуга не найдена'];
         }
 
@@ -435,7 +458,7 @@ class ProductsRepository extends BaseRepository
         if ($usedInSales) {
             return [
                 'success' => false,
-                'message' => 'Товар/услуга используется в продажах или заказах и не может быть удалён(а).'
+                'message' => 'Товар/услуга используется в продажах или заказах и не может быть удалён(а).',
             ];
         }
 
@@ -455,7 +478,7 @@ class ProductsRepository extends BaseRepository
     /**
      * Проверить, является ли значение типом продукта
      *
-     * @param mixed $value Значение для проверки
+     * @param  mixed  $value  Значение для проверки
      * @return bool true если значение является типом продукта, false в противном случае
      */
     private function isProductTypeValue($value): bool
@@ -466,9 +489,9 @@ class ProductsRepository extends BaseRepository
     /**
      * Получить карту остатков товаров
      *
-     * @param \Illuminate\Support\Collection<int> $productIds Коллекция ID товаров
-     * @param int|null $warehouseId ID склада (если null, используется фильтр по пользователю)
-     * @param int $userUuid ID пользователя для фильтрации складов
+     * @param  Collection<int>  $productIds  Коллекция ID товаров
+     * @param  int|null  $warehouseId  ID склада (если null, используется фильтр по пользователю)
+     * @param  int  $userUuid  ID пользователя для фильтрации складов
      * @return array<int, float> Массив [product_id => quantity]
      */
     private function getStocksMap($productIds, $warehouseId, $userUuid): array
@@ -478,7 +501,7 @@ class ProductsRepository extends BaseRepository
         }
 
         $warehouseIds = [];
-        if (!$warehouseId && $this->shouldApplyUserFilter('warehouses')) {
+        if (! $warehouseId && $this->shouldApplyUserFilter('warehouses')) {
             $warehouseIds = WhUser::where('user_id', $userUuid)
                 ->pluck('warehouse_id')
                 ->toArray();
@@ -493,7 +516,7 @@ class ProductsRepository extends BaseRepository
 
         if (empty($warehouseIds)) {
             return WarehouseStock::whereIn('product_id', $productIds)
-                ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total'))
+                ->select('product_id', DB::raw('SUM(quantity) as total'))
                 ->groupBy('product_id')
                 ->pluck('total', 'product_id')
                 ->toArray();
@@ -501,7 +524,7 @@ class ProductsRepository extends BaseRepository
 
         return WarehouseStock::whereIn('warehouse_id', $warehouseIds)
             ->whereIn('product_id', $productIds)
-            ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total'))
+            ->select('product_id', DB::raw('SUM(quantity) as total'))
             ->groupBy('product_id')
             ->pluck('total', 'product_id')
             ->toArray();
@@ -512,15 +535,15 @@ class ProductsRepository extends BaseRepository
      *
      * Добавляет к продукту: название категории, единицы измерения, цены и остаток на складе
      *
-     * @param \App\Models\Product $product Продукт для обогащения
-     * @param array<int, float> $stocksMap Карта остатков [product_id => quantity]
+     * @param  Product  $product  Продукт для обогащения
+     * @param  array<int, float>  $stocksMap  Карта остатков [product_id => quantity]
      * @return void
      */
     private function enrichProduct($product, array $stocksMap)
     {
         $product->category_name = $product->categories->first()?->name;
-        $product->unit_name = $product->unit->name;
-        $product->unit_short_name = $product->unit->short_name;
+        $product->unit_name = $product->unit?->name;
+        $product->unit_short_name = $product->unit?->short_name;
         $price = $product->prices->first();
         $product->retail_price = $price?->retail_price;
         $product->wholesale_price = $price?->wholesale_price;
@@ -530,31 +553,34 @@ class ProductsRepository extends BaseRepository
 
     private function applyWarehouseRowScopeForSearch($query, $warehouseId, $warehouseStockPolicy, $productsOnly)
     {
-        if (!$warehouseId || $warehouseStockPolicy !== 'in_stock') {
+        if (! $warehouseId || $warehouseStockPolicy !== 'in_stock') {
             return;
         }
 
-        if ($productsOnly !== null && !$productsOnly) {
+        if ($productsOnly !== null && ! $productsOnly) {
             return;
         }
 
         if ($productsOnly === true) {
-            $query->whereHas('stocks', $this->warehouseStockRowScope($warehouseId));
+            $query->whereHas('stocks', $this->warehouseStockRowScope($warehouseId, true));
 
             return;
         }
 
-        $scope = $this->warehouseStockRowScope($warehouseId);
+        $scope = $this->warehouseStockRowScope($warehouseId, true);
         $query->where(function ($q) use ($scope) {
             $q->where('products.type', false)
                 ->orWhereHas('stocks', $scope);
         });
     }
 
-    private function warehouseStockRowScope($warehouseId): \Closure
+    private function warehouseStockRowScope(int $warehouseId, bool $requirePositiveQuantity = false): \Closure
     {
-        return function ($q) use ($warehouseId) {
+        return function ($q) use ($warehouseId, $requirePositiveQuantity) {
             $q->where('warehouse_id', $warehouseId);
+            if ($requirePositiveQuantity) {
+                $q->where('quantity', '>', 0);
+            }
         };
     }
 }

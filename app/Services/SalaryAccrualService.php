@@ -2,14 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\CashRegister;
 use App\Models\Client;
 use App\Models\ClientBalance;
 use App\Models\Company;
 use App\Models\EmployeeSalary;
-use App\Models\Transaction;
-use App\Models\CashRegister;
 use App\Models\SalaryMonthlyReport;
 use App\Models\SalaryMonthlyReportLine;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Repositories\TransactionsRepository;
 use Carbon\Carbon;
@@ -21,27 +21,30 @@ use Illuminate\Support\Facades\Log;
 class SalaryAccrualService
 {
     private const CATEGORY_ADVANCE = 23;
+
     private const CATEGORY_SALARY_ACCRUAL = 24;
+
     private const CATEGORY_SALARY_PAYMENT = 7;
+
     private const CATEGORY_BONUS = 26;
+
     private const CATEGORY_PENALTY = 27;
 
     public function __construct(
         private TransactionsRepository $transactionsRepository,
         private PayrollOfficialWorkingDaysCalculator $payrollOfficialWorkingDaysCalculator
-    ) {
-    }
+    ) {}
 
     /**
      * Массовое начисление зарплат для выбранных пользователей
      *
-     * @param int $companyId ID компании
-     * @param string $date Дата начисления
-     * @param int $cashId ID кассы
-     * @param string|null $note Примечание
-     * @param array $userIds Список ID пользователей для начисления
-     * @param bool $paymentType Тип оплаты (0 - безналичный, 1 - наличный)
-     * @param array<int, array<string, mixed>>|null $items Выбор зарплаты и баланса по сотрудникам
+     * @param  int  $companyId  ID компании
+     * @param  string  $date  Дата начисления
+     * @param  int  $cashId  ID кассы
+     * @param  string|null  $note  Примечание
+     * @param  array  $userIds  Список ID пользователей для начисления
+     * @param  bool  $paymentType  Тип оплаты (0 - безналичный, 1 - наличный)
+     * @param  array<int, array<string, mixed>>|null  $items  Выбор зарплаты и баланса по сотрудникам
      * @return array Результат начисления
      */
     public function accrueSalariesForCompany(int $companyId, string $date, int $cashId, ?string $note = null, array $userIds = [], bool $paymentType = false, ?array $items = null): array
@@ -57,7 +60,7 @@ class SalaryAccrualService
             self::CATEGORY_SALARY_ACCRUAL,
             true,
             SalaryMonthlyReport::TYPE_ACCRUAL,
-            'Зарплата за ' . Carbon::parse($date)->format('d.m.Y'),
+            'Зарплата за '.Carbon::parse($date)->format('d.m.Y'),
             'Необходимо выбрать хотя бы одного сотрудника для начисления зарплаты',
             'Salary accrual error for employee'
         );
@@ -82,7 +85,7 @@ class SalaryAccrualService
             self::CATEGORY_SALARY_PAYMENT,
             false,
             SalaryMonthlyReport::TYPE_PAYMENT,
-            'Выплата зарплаты ' . Carbon::parse($date)->format('d.m.Y'),
+            'Выплата зарплаты '.Carbon::parse($date)->format('d.m.Y'),
             'Необходимо выбрать хотя бы одного сотрудника для выплаты зарплаты',
             'Salary payment error for employee'
         );
@@ -163,6 +166,7 @@ class SalaryAccrualService
 
                     if (! $activeSalary) {
                         $results['skipped'][] = $employeePayload + ['reason' => 'Нет активной зарплаты'];
+
                         continue;
                     }
 
@@ -207,6 +211,7 @@ class SalaryAccrualService
                     'type' => $reportType,
                     'date' => $monthPayroll['start']->toDateString(),
                     'payment_type' => $paymentTypeValue,
+                    'creator_id' => $actingUserId > 0 ? $actingUserId : null,
                 ]);
                 foreach ($batchLines as $line) {
                     $report->lines()->create($line);
@@ -266,14 +271,9 @@ class SalaryAccrualService
     /**
      * Получить предпросмотр начисления зарплаты по сотрудникам за месяц
      *
-     * @param int $companyId
-     * @param string $date
-     * @param array $userIds
-     * @param bool $paymentType
      * @param  bool  $includeBalanceOptions  Показывать варианты балансов (при отсутствии права просмотра балансов — только дефолт на бэкенде)
      * @param  int|null  $currencyId  Если задано — только оклады и балансы в этой валюте; остальные сотрудники в превью не попадают
      * @param  bool  $applyTransactionAdjustmentsToTotal  Учитывать аванс/штраф/премию в поле total (для выплаты), для начисления — false
-     * @return array
      */
     public function getAccrualPreview(int $companyId, string $date, array $userIds, bool $paymentType = true, bool $includeBalanceOptions = true, ?int $currencyId = null, bool $applyTransactionAdjustmentsToTotal = true): array
     {
@@ -325,7 +325,7 @@ class SalaryAccrualService
         if ($applyTransactionAdjustmentsToTotal && $clientIds->isNotEmpty()) {
             $adjustmentsByClient = Transaction::query()
                 ->whereIn('client_id', $clientIds)
-                    ->whereBetween('date', [$startOfMonth->toDateTimeString(), $endOfMonth->toDateTimeString()])
+                ->whereBetween('date', [$startOfMonth->toDateTimeString(), $endOfMonth->toDateTimeString()])
                 ->where('is_deleted', false)
                 ->whereIn('category_id', [
                     self::CATEGORY_ADVANCE,
@@ -411,7 +411,7 @@ class SalaryAccrualService
                         'currency_symbol' => $sym,
                         'type' => (int) $balanceRow->type,
                         'is_default' => (bool) $balanceRow->is_default,
-                        'label' => trim($sym) !== '' ? trim($sym) : ('#' . $balanceRow->id),
+                        'label' => trim($sym) !== '' ? trim($sym) : ('#'.$balanceRow->id),
                     ];
                 }
                 $balancesForDefault = $balancesMatchingPayment;
@@ -626,15 +626,12 @@ class SalaryAccrualService
         ];
     }
 
-    /**
-     * @return string
-     */
     private function formatUserDisplayName(?User $user, int $id): string
     {
         if ($user === null) {
             return "ID: {$id}";
         }
-        $name = trim(($user->name ?? '') . ' ' . ($user->surname ?? ''));
+        $name = trim(($user->name ?? '').' '.($user->surname ?? ''));
 
         return $name !== '' ? $name : "ID: {$id}";
     }
@@ -646,12 +643,12 @@ class SalaryAccrualService
     {
         return [
             'employee_id' => $employeeClient->employee_id,
-            'employee_name' => trim(($employeeClient->first_name ?? '') . ' ' . ($employeeClient->last_name ?? '')),
+            'employee_name' => trim(($employeeClient->first_name ?? '').' '.($employeeClient->last_name ?? '')),
         ];
     }
 
     /**
-     * @param Collection<int, Transaction> $rows
+     * @param  Collection<int, Transaction>  $rows
      * @return list<array{id: int, date: string|null, orig_amount: float, note: string, created_at: string|null, type: int}>
      */
     private function salaryPreviewTransactionSummaries(Collection $rows): array
@@ -708,10 +705,6 @@ class SalaryAccrualService
             ->where('payment_type', $paymentTypeValue);
     }
 
-    /**
-     * @param EmployeeSalary $salary
-     * @return string
-     */
     private function buildEmployeeSalaryOptionLabel(EmployeeSalary $salary): string
     {
         $amount = number_format((float) $salary->amount, 2, '.', '');
@@ -721,11 +714,11 @@ class SalaryAccrualService
     }
 
     /**
-     * @param array<string, mixed>|null $sel
+     * @param  array<string, mixed>|null  $sel
      */
     private function resolveActiveEmployeeSalary(int $companyId, int $userId, int $paymentTypeValue, ?array $sel): ?EmployeeSalary
     {
-        if ($sel && !empty($sel['employee_salary_id'])) {
+        if ($sel && ! empty($sel['employee_salary_id'])) {
             $picked = $this->employeeSalaryBaseQuery($companyId, $userId, $paymentTypeValue)
                 ->where('id', (int) $sel['employee_salary_id'])
                 ->first();
@@ -746,35 +739,40 @@ class SalaryAccrualService
     /**
      * @return list<array<string, mixed>>
      */
+    public function listAllSalaryReportBatches(int $companyId): array
+    {
+        return SalaryMonthlyReport::query()
+            ->where('company_id', $companyId)
+            ->withCount('lines')
+            ->with($this->salaryReportBatchRelations())
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (SalaryMonthlyReport $r) => $this->mapSalaryReportToListItem($r))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
     public function listSalaryReportBatches(int $companyId, string $yearMonth): array
     {
-        $monthStart = Carbon::parse($yearMonth . '-01')->startOfMonth();
+        $monthStart = Carbon::parse($yearMonth.'-01')->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        $reports = SalaryMonthlyReport::query()
+        return SalaryMonthlyReport::query()
             ->where('company_id', $companyId)
             ->where('date', '>=', $monthStart->toDateString())
             ->where('date', '<=', $monthEnd->toDateString())
             ->withCount('lines')
-            ->with(['lines' => fn ($q) => $q->select(['id', 'salary_monthly_report_id', 'amount', 'currency_id'])->with('currency:id,symbol')])
+            ->with($this->salaryReportBatchRelations())
             ->orderByDesc('date')
             ->orderByDesc('id')
-            ->get();
-
-        $out = [];
-        foreach ($reports as $r) {
-            $out[] = [
-                'id' => $r->id,
-                'type' => $r->type,
-                'date' => $r->date->format('Y-m-d'),
-                'created_at' => $r->created_at->toIso8601String(),
-                'line_count' => $r->lines_count,
-                'totals_display' => $this->salaryLinesTotalsDisplay($r->lines),
-                'payment_type' => $r->payment_type !== null ? (int) $r->payment_type : null,
-            ];
-        }
-
-        return $out;
+            ->get()
+            ->map(fn (SalaryMonthlyReport $r) => $this->mapSalaryReportToListItem($r))
+            ->values()
+            ->all();
     }
 
     /**
@@ -786,7 +784,10 @@ class SalaryAccrualService
             ->where('company_id', $companyId)
             ->whereKey($batchId)
             ->withCount('lines')
-            ->with(['lines' => fn ($q) => $q->orderBy('employee_name')->with('currency:id,symbol')])
+            ->with([
+                'creator' => fn ($q) => $q->select(['id', 'name', 'surname']),
+                'lines' => fn ($q) => $q->orderBy('employee_name')->with('currency:id,symbol'),
+            ])
             ->firstOrFail();
 
         $linesOut = [];
@@ -794,16 +795,7 @@ class SalaryAccrualService
             $linesOut[] = $this->salaryMonthlyReportLineApiRow($l);
         }
 
-        return [
-            'id' => $report->id,
-            'type' => $report->type,
-            'date' => $report->date->format('Y-m-d'),
-            'created_at' => $report->created_at->toIso8601String(),
-            'line_count' => $report->lines_count,
-            'totals_display' => $this->salaryLinesTotalsDisplay($report->lines),
-            'payment_type' => $report->payment_type !== null ? (int) $report->payment_type : null,
-            'lines' => $linesOut,
-        ];
+        return $this->mapSalaryReportToListItem($report) + ['lines' => $linesOut];
     }
 
     /**
@@ -818,10 +810,41 @@ class SalaryAccrualService
         }
         $parts = [];
         foreach ($totalsBySym as $sym => $amt) {
-            $parts[] = trim(number_format($amt, 2, '.', '') . ($sym !== '' ? ' ' . $sym : ''));
+            $parts[] = trim(number_format($amt, 2, '.', '').($sym !== '' ? ' '.$sym : ''));
         }
 
         return implode(' · ', $parts);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function salaryReportBatchRelations(): array
+    {
+        return [
+            'creator' => fn ($q) => $q->select(['id', 'name', 'surname']),
+            'lines' => fn ($q) => $q->select(['id', 'salary_monthly_report_id', 'amount', 'currency_id'])->with('currency:id,symbol'),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mapSalaryReportToListItem(SalaryMonthlyReport $r): array
+    {
+        return [
+            'id' => $r->id,
+            'type' => $r->type,
+            'date' => $r->date->format('Y-m-d'),
+            'created_at' => $r->created_at->toIso8601String(),
+            'line_count' => $r->lines_count,
+            'totals_display' => $this->salaryLinesTotalsDisplay($r->lines),
+            'payment_type' => $r->payment_type !== null ? (int) $r->payment_type : null,
+            'creator_id' => $r->creator_id,
+            'creator_name' => $r->creator
+                ? $this->formatUserDisplayName($r->creator, (int) $r->creator->id)
+                : null,
+        ];
     }
 
     /**
@@ -904,4 +927,3 @@ class SalaryAccrualService
             ->all();
     }
 }
-

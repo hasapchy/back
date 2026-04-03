@@ -42,24 +42,24 @@ class OrdersRepository extends BaseRepository
      * @param int|null $clientFilter Фильтр по клиенту
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null, $unpaidOnly = false)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $page = 1, $projectFilter = null, $clientFilter = null, $categoryFilter = null, $unpaidOnly = false)
     {
         $userUuid = (int) $userUuid;
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
 
-        $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, 'single_v2', $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('orders_paginated', [$userUuid, $perPage, $search, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $categoryFilter, $unpaidOnly, 'single_v2', $currentUser?->id, $companyId]);
 
         $searchTrimmed = is_string($search) ? trim($search) : '';
         $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
         $loadProducts = $perPage <= 50;
 
-        $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly, $currentUser, $hasSearch, $loadProducts) {
+        $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $categoryFilter, $unpaidOnly, $currentUser, $hasSearch, $loadProducts) {
             $orderResource = $this->getOrderResourceForUser($currentUser);
             $isSimpleWorker = $currentUser instanceof User &&
                 ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
-            $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, null);
+            $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $categoryFilter, $unpaidOnly, null);
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
             $paidAmountsMap = $this->getPaidAmountsMap($orders->pluck('id')->toArray());
             $orders->getCollection()->transform(function ($order) use ($paidAmountsMap) {
@@ -219,6 +219,10 @@ class OrdersRepository extends BaseRepository
             $this->applyOwnFilter($unpaidQuery, $orderResource, 'orders', 'creator_id', $currentUser);
             $unpaidQuery = $this->addCompanyFilterThroughRelation($unpaidQuery, 'cashRegister');
 
+            if ($categoryFilter) {
+                $unpaidQuery->where('orders.category_id', $categoryFilter);
+            }
+
             if ($isSimpleWorker && !$currentUser->is_admin) {
                 $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
@@ -265,7 +269,7 @@ class OrdersRepository extends BaseRepository
      * @param array|null $ids
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    protected function buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $projectFilter = null, $clientFilter = null, $unpaidOnly = false, ?array $ids = null)
+    protected function buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $projectFilter = null, $clientFilter = null, $categoryFilter = null, $unpaidOnly = false, ?array $ids = null)
     {
         $userUuid = (int) $userUuid;
         /** @var \App\Models\User|null $currentUser */
@@ -340,6 +344,10 @@ class OrdersRepository extends BaseRepository
         if ($clientFilter) {
             $query->where('orders.client_id', $clientFilter);
         }
+        if ($categoryFilter) {
+            // Фильтр по "категории заказа" (orders.category_id)
+            $query->where('orders.category_id', $categoryFilter);
+        }
         if ($unpaidOnly) {
             $query->whereNull('orders.project_id')
                 ->leftJoinSub(
@@ -385,15 +393,16 @@ class OrdersRepository extends BaseRepository
      * @param int|null $statusFilter
      * @param int|null $projectFilter
      * @param int|null $clientFilter
+     * @param int|null $categoryFilter Фильтр по категории заказа (orders.category_id)
      * @param bool $unpaidOnly
      * @param array|null $ids
      * @param int $limit
      * @return \Illuminate\Support\Collection
      */
-    public function getItemsForExport($userUuid, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $projectFilter = null, $clientFilter = null, $unpaidOnly = false, ?array $ids = null, int $limit = 10000)
+    public function getItemsForExport($userUuid, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusFilter = null, $projectFilter = null, $clientFilter = null, $categoryFilter = null, $unpaidOnly = false, ?array $ids = null, int $limit = 10000)
     {
         $searchTrimmed = is_string($search) ? trim($search) : '';
-        $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $unpaidOnly, $ids);
+        $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $categoryFilter, $unpaidOnly, $ids);
         $orders = $query->orderBy('orders.created_at', 'desc')->limit($limit)->get();
         $paidAmountsMap = $this->getPaidAmountsMap($orders->pluck('id')->toArray());
         $orders->transform(function ($order) use ($paidAmountsMap) {

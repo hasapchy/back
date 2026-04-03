@@ -61,9 +61,23 @@ class OrderController extends BaseController
         $statusFilter = $request->input('status_id');
         $projectFilter = $request->input('project_id');
         $clientFilter = $request->input('client_id');
+        $categoryFilter = $request->input('category_id');
         $unpaidOnly = $request->boolean('unpaid_only', false);
 
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, $search, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $unpaidOnly);
+        $items = $this->itemsRepository->getItemsWithPagination(
+            $userUuid,
+            $per_page,
+            $search,
+            $dateFilter,
+            $startDate,
+            $endDate,
+            $statusFilter,
+            $page,
+            $projectFilter,
+            $clientFilter,
+            $categoryFilter,
+            $unpaidOnly
+        );
 
         $meta = [
             'current_page' => $items->currentPage(),
@@ -100,6 +114,7 @@ class OrderController extends BaseController
         $statusFilter = $request->input('status_id');
         $projectFilter = $request->input('project_id');
         $clientFilter = $request->input('client_id');
+        $categoryFilter = $request->input('category_id');
         $unpaidOnly = $request->boolean('unpaid_only', false);
         $ids = $request->input('ids', []);
         if (!is_array($ids)) {
@@ -107,17 +122,18 @@ class OrderController extends BaseController
         }
         $ids = array_filter(array_map('intval', $ids));
         $orders = $this->itemsRepository->getItemsForExport(
-            $userUuid,
-            $search,
-            $dateFilter,
-            $startDate,
-            $endDate,
-            $statusFilter,
-            $projectFilter,
-            $clientFilter,
-            $unpaidOnly,
-            $ids ?: null,
-            10000
+            userUuid: $userUuid,
+            search: $search,
+            dateFilter: $dateFilter,
+            startDate: $startDate,
+            endDate: $endDate,
+            statusFilter: $statusFilter,
+            projectFilter: $projectFilter,
+            clientFilter: $clientFilter,
+            categoryFilter: $categoryFilter,
+            unpaidOnly: $unpaidOnly,
+            ids: $ids ?: null,
+            limit: 10000
         );
         $exportColumns = [
             'id' => ['№', fn ($o) => $o->id],
