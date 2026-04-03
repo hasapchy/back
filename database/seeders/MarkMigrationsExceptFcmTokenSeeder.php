@@ -9,18 +9,26 @@ use Illuminate\Support\Facades\File;
 /**
  * Помечает все файлы миграций как выполненные в таблице migrations,
  * кроме create_user_fcm_token — её можно применить отдельно: php artisan migrate.
+ *
+ * Имена в БД должны совпадать с Laravel Migrator::getMigrationName() — без суффикса .php.
  */
 class MarkMigrationsExceptFcmTokenSeeder extends Seeder
 {
-    private const EXCLUDED_MIGRATION = '2026_04_03_120000_create_user_fcm_token_table.php';
+    private const EXCLUDED_MIGRATION = '2026_04_03_120000_create_user_fcm_token_table';
 
     public function run(): void
     {
+        // Старый баг: записи с «.php» не совпадают с тем, что сравнивает migrate.
+        DB::table('migrations')
+            ->where('migration', 'like', '%.php')
+            ->delete();
+
         DB::table('migrations')->where('migration', self::EXCLUDED_MIGRATION)->delete();
 
         $files = collect(File::files(database_path('migrations')))
             ->map(fn (\SplFileInfo $file) => $file->getFilename())
             ->filter(fn (string $name) => str_ends_with($name, '.php'))
+            ->map(fn (string $name) => basename($name, '.php'))
             ->reject(fn (string $name) => $name === self::EXCLUDED_MIGRATION)
             ->sort()
             ->values();
