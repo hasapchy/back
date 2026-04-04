@@ -7,6 +7,11 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
 class Kernel extends ConsoleKernel
 {
+
+    protected $commands = [
+        Commands\DatabaseBackup::class,
+    ];
+
     /**
      * Define the application's command schedule.
      */
@@ -19,6 +24,23 @@ class Kernel extends ConsoleKernel
         $schedule->command('recurring-transactions:run')
             ->dailyAt('00:05')
             ->timezone('Asia/Ashgabat');
+
+
+            // Бэкап в 08:00 (UTC+5)
+        $schedule
+        ->command('db:backup')
+        ->dailyAt('03:00')
+        ->timezone('Asia/Tashkent')
+        ->withoutOverlapping()
+        ->runInBackground();
+
+        // Бэкап в 23:00 (UTC+5)
+        $schedule
+            ->command('db:backup')
+            ->dailyAt('18:00')
+            ->timezone('Asia/Tashkent')
+            ->withoutOverlapping()
+            ->runInBackground();
     }
 
     /**
