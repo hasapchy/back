@@ -32,7 +32,7 @@ class DatabaseBackup extends Command
         $host     = config('database.connections.mysql.host');
         $port     = config('database.connections.mysql.port', 3306);
 
-        $dumpsPath = base_path('mysql_dumps_backups');
+        $dumpsPath = base_path('/root/mysql_hasap_backup');
 
         if (! is_dir($dumpsPath)) {
             mkdir($dumpsPath, 0755, true);
