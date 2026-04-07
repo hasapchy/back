@@ -11,11 +11,14 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property string $name Название категории
  * @property int $type Тип категории (0 - расход, 1 - доход)
+ * @property int|null $parent_id ID родительской категории
  * @property int $creator_id ID создателя
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
  * @property-read \App\Models\User $creator
+ * @property-read \App\Models\TransactionCategory|null $parent
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\TransactionCategory[] $children
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
  */
 class TransactionCategory extends Model
@@ -26,6 +29,7 @@ class TransactionCategory extends Model
         'name',
         'type',
         'creator_id',
+        'parent_id',
     ];
 
     protected $casts = [
@@ -40,6 +44,22 @@ class TransactionCategory extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'creator_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function parent()
+    {
+        return $this->belongsTo(TransactionCategory::class, 'parent_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function children()
+    {
+        return $this->hasMany(TransactionCategory::class, 'parent_id');
     }
 
     /**
