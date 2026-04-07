@@ -19,7 +19,7 @@ class TransactionCategoryRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('transaction_categories_paginated', [$perPage, $page]);
 
         return CacheService::getPaginatedData($cacheKey, function() use ($perPage, $page) {
-            return TransactionCategory::with('creator')->paginate($perPage, ['*'], 'page', (int) $page);
+            return TransactionCategory::with(['creator', 'parent'])->orderBy('id')->paginate($perPage, ['*'], 'page', (int) $page);
         }, 1);
     }
 
@@ -33,7 +33,7 @@ class TransactionCategoryRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('transaction_categories_all', []);
 
         return CacheService::getReferenceData($cacheKey, function() {
-            return TransactionCategory::with('creator')->get();
+            return TransactionCategory::with(['creator', 'parent'])->orderBy('id')->get();
         });
     }
 
@@ -49,6 +49,7 @@ class TransactionCategoryRepository extends BaseRepository
         $item->name = $data['name'];
         $item->type = $data['type'];
         $item->creator_id = $data['creator_id'];
+        $item->parent_id = $data['parent_id'] ?? null;
         $item->save();
         CacheService::invalidateTransactionCategoriesCache();
         return true;
@@ -73,6 +74,9 @@ class TransactionCategoryRepository extends BaseRepository
         $item->name = $data['name'];
         $item->type = $data['type'];
         $item->creator_id = $data['creator_id'];
+        if (array_key_exists('parent_id', $data)) {
+            $item->parent_id = $data['parent_id'];
+        }
         $item->save();
         CacheService::invalidateTransactionCategoriesCache();
         return true;
@@ -88,6 +92,10 @@ class TransactionCategoryRepository extends BaseRepository
     public function deleteItem($id)
     {
         $item = TransactionCategory::findOrFail($id);
+
+        if ($item->children()->exists()) {
+            throw new \Exception('Нельзя удалить категорию, у которой есть подкатегории.');
+        }
 
         $item->delete();
         CacheService::invalidateTransactionCategoriesCache();

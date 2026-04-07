@@ -26,8 +26,6 @@ return new class extends Migration
         Schema::table('currency_histories', function (Blueprint $table) {
             if (Schema::hasColumn('currency_histories', 'company_id')) {
                 $table->dropForeign(['company_id']);
-            }
-            if (Schema::hasColumn('currency_histories', 'company_id')) {
                 $table->dropColumn('company_id');
             }
         });

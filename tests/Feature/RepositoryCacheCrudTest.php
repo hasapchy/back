@@ -128,13 +128,13 @@ class RepositoryCacheCrudTest extends TestCase
         $this->assertTrue(Cache::has($fullKey));
 
         try {
-            $repo->createItem(['name' => 'Test Category', 'type' => 1, 'creator_id' => 1]);
+            $repo->createItem(['name' => 'Test Category', 'type' => 1, 'creator_id' => 1, 'parent_id' => null]);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after create');
 
             $category = \App\Models\TransactionCategory::where('name', 'Test Category')->first();
             if ($category && $category->canBeEdited()) {
                 Cache::put($fullKey, ['test'], 3600);
-                $repo->updateItem($category->id, ['name' => 'Updated Category', 'type' => 1, 'creator_id' => 1]);
+                $repo->updateItem($category->id, ['name' => 'Updated Category', 'type' => 1, 'creator_id' => 1, 'parent_id' => null]);
                 $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after update');
 
                 if ($category->canBeDeleted()) {

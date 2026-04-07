@@ -155,7 +155,7 @@ class CompaniesControllerTest extends TestCase
         $updateData = [
             'name' => 'New Name',
             'rounding_enabled' => true,
-            'rounding_decimals' => 3,
+            'rounding_decimals' => 2,
         ];
 
         $response = $this->actingAsApi($this->adminUser)

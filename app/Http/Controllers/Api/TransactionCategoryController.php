@@ -6,7 +6,6 @@ use App\Http\Requests\StoreTransactionCategoryRequest;
 use App\Http\Requests\UpdateTransactionCategoryRequest;
 use App\Http\Resources\TransactionCategoryResource;
 use App\Repositories\TransactionCategoryRepository;
-use App\Services\CacheService;
 use Illuminate\Http\Request;
 
 /**
@@ -34,7 +33,7 @@ class TransactionCategoryController extends BaseController
      */
     public function index(Request $request)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 20);
@@ -56,10 +55,9 @@ class TransactionCategoryController extends BaseController
     /**
      * Получить все категории транзакций
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function all(Request $request)
+    public function all()
     {
         $items = $this->itemsRepository->getAllItems();
 
@@ -69,7 +67,7 @@ class TransactionCategoryController extends BaseController
     /**
      * Создать новую категорию транзакций
      *
-     * @param Request $request
+     * @param StoreTransactionCategoryRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreTransactionCategoryRequest $request)
@@ -77,13 +75,12 @@ class TransactionCategoryController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
-        $created = $this->itemsRepository->createItem([
+        $this->itemsRepository->createItem([
             'name' => $validatedData['name'],
             'type' => $validatedData['type'],
             'creator_id' => $userUuid,
+            'parent_id' => $validatedData['parent_id'],
         ]);
-
-        if (!$created) return $this->errorResponse('Ошибка создания категории транзакции', 400);
 
         return $this->successResponse(null, 'Категория транзакции создана');
     }
@@ -91,7 +88,7 @@ class TransactionCategoryController extends BaseController
     /**
      * Обновить категорию транзакций
      *
-     * @param Request $request
+     * @param UpdateTransactionCategoryRequest $request
      * @param int $id ID категории
      * @return \Illuminate\Http\JsonResponse
      */
@@ -101,13 +98,15 @@ class TransactionCategoryController extends BaseController
         $validatedData = $request->validated();
 
         try {
-            $updated = $this->itemsRepository->updateItem($id, [
+            $payload = [
                 'name' => $validatedData['name'],
                 'type' => $validatedData['type'],
                 'creator_id' => $userUuid,
-            ]);
-
-            if (!$updated) return $this->errorResponse('Категория транзакции не найдена', 404);
+            ];
+            if (array_key_exists('parent_id', $validatedData)) {
+                $payload['parent_id'] = $validatedData['parent_id'];
+            }
+            $this->itemsRepository->updateItem($id, $payload);
 
             return $this->successResponse(null, 'Категория транзакции обновлена');
         } catch (\Exception $e) {
@@ -123,11 +122,10 @@ class TransactionCategoryController extends BaseController
      */
     public function destroy($id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->getAuthenticatedUserIdOrFail();
 
         try {
-            $deleted = $this->itemsRepository->deleteItem($id);
-            if (!$deleted) return $this->errorResponse('Категория транзакции не найдена', 404);
+            $this->itemsRepository->deleteItem($id);
 
             return $this->successResponse(null, 'Категория транзакции удалена');
         } catch (\Exception $e) {
