@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('currency_histories', function (Blueprint $table) {
-            if (! Schema::hasColumn('currency_histories', 'company_id')) {
+            if (!Schema::hasColumn('currency_histories', 'company_id')) {
                 $table->foreignId('company_id')->nullable()->constrained()->onDelete('cascade')->after('currency_id');
             }
         });
