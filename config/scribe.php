@@ -95,7 +95,6 @@ return [
         // The base URL to use in the API tester. Leave as null to be the same as the displayed URL (`scribe.base_url`).
         'base_url' => null,
 
-        // [Laravel Sanctum] Fetch a CSRF token before each request, and add it as an X-XSRF-TOKEN header.
         'use_csrf' => false,
 
         // The URL to fetch the CSRF token from (if `use_csrf` is true).
@@ -126,7 +125,7 @@ return [
         'placeholder' => '{YOUR_ACCESS_TOKEN}',
 
         // Any extra authentication-related info for your users. Markdown and HTML are supported.
-        'extra_info' => 'To authenticate, first call the <code>POST /api/user/login</code> endpoint to get your access token. Then use the <code>access_token</code> from the response in the Authorization header as a Bearer token for all subsequent requests.<br><br><strong>Important:</strong> All API requests must include the <code>X-Company-ID</code> header with the company ID. This header is required for multi-tenant functionality.',
+        'extra_info' => '<p><strong>Вход:</strong> <code>GET /sanctum/csrf-cookie</code> (опционально), <code>POST /api/user/login</code> с cookies. Ответ: <code>user</code>, сессия в httpOnly cookie.</p><p><strong>API:</strong> <code>credentials: include</code>, префикс <code>api/*</code> без проверки CSRF (защита SameSite). <code>X-Company-ID</code>.</p>',
     ],
 
     // Example requests for each endpoint will be shown in each of these languages.

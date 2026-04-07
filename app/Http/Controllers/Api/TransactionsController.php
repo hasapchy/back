@@ -271,9 +271,9 @@ class TransactionsController extends BaseController
             return $this->errorResponse('У вас нет прав на редактирование этой транзакции', 403);
         }
 
-        if ($this->isRestrictedTransaction($transaction_exist)) {
-            $message = $this->getRestrictedTransactionMessage($transaction_exist);
-            return $this->errorResponse($message, 403);
+        $restrictionMessage = $this->getTransactionRestrictionMessage($transaction_exist);
+        if ($restrictionMessage !== null) {
+            return $this->errorResponse($restrictionMessage, 403);
         }
 
         $cashAccessCheck = $this->checkCashRegisterAccess($transaction_exist->cash_id);
@@ -364,9 +364,9 @@ class TransactionsController extends BaseController
             return $this->errorResponse('У вас нет прав на удаление этой транзакции', 403);
         }
 
-        if ($this->isRestrictedTransaction($transaction_exist)) {
-            $message = $this->getRestrictedTransactionMessage($transaction_exist);
-            return $this->errorResponse($message, 403);
+        $restrictionMessage = $this->getTransactionRestrictionMessage($transaction_exist);
+        if ($restrictionMessage !== null) {
+            return $this->errorResponse($restrictionMessage, 403);
         }
 
         $transaction_deleted = $this->itemsRepository->deleteItem($id);
@@ -444,55 +444,53 @@ class TransactionsController extends BaseController
         return [$contract?->project?->client_id ?? $clientId, 30];
     }
 
-    private function isRestrictedTransaction($transaction)
-    {
-        if ($transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists()) {
-            return true;
-        }
-
-        if ($transaction->source_type && $transaction->source_id) {
-            $sourceType = class_basename($transaction->source_type);
-
-            if ($sourceType === 'EmployeeSalary') {
-                return false;
-            }
-
-            if ($sourceType === 'ProjectContract') {
-                $user = $this->getAuthenticatedUser();
-                return !($user && $user->is_admin);
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    private function getRestrictedTransactionMessage($transaction)
+    /**
+     * @param  \App\Models\Transaction  $transaction
+     * @return string|null Текст отказа или null, если ограничений нет
+     */
+    private function getTransactionRestrictionMessage(Transaction $transaction): ?string
     {
         if ($transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists()) {
             return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с переводом между кассами';
         }
 
-        if ($transaction->source_type && $transaction->source_id) {
-            $sourceType = class_basename($transaction->source_type);
-
-            switch ($sourceType) {
-                case 'Sale':
-                    return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через продажу. Управляйте ей через раздел "Продажи"';
-                case 'Order':
-                    return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через заказ. Управляйте ей через раздел "Заказы"';
-                case 'WhReceipt':
-                    return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через складское поступление. Управляйте ей через раздел "Склад"';
-                case 'EmployeeSalary':
-                    return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с зарплатой сотрудника. Управляйте ей через раздел "Сотрудники"';
-                case 'ProjectContract':
-                    return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через контракт проекта. Управляйте ей через раздел "Контракты"';
-                default:
-                    return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с другой операцией в системе';
-            }
+        if (! $transaction->source_type || ! $transaction->source_id) {
+            return null;
         }
 
-        return 'Нельзя редактировать/удалить эту транзакцию';
+        $sourceType = class_basename($transaction->source_type);
+
+        if ($sourceType === 'EmployeeSalary') {
+            return null;
+        }
+
+        if ($sourceType === 'ProjectContract') {
+            $user = $this->getAuthenticatedUser();
+            if ($user && $user->is_admin) {
+                return null;
+            }
+
+            return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через контракт проекта. Управляйте ей через раздел "Контракты"';
+        }
+
+        return $this->getTransactionRestrictionMessageBySourceType($sourceType);
+    }
+
+    /**
+     * @param  string  $sourceType
+     * @return string
+     */
+    private function getTransactionRestrictionMessageBySourceType(string $sourceType): string
+    {
+        switch ($sourceType) {
+            case 'Sale':
+                return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через продажу. Управляйте ей через раздел "Продажи"';
+            case 'Order':
+                return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через заказ. Управляйте ей через раздел "Заказы"';
+            case 'WhReceipt':
+                return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через складское поступление. Управляйте ей через раздел "Склад"';
+            default:
+                return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с другой операцией в системе';
+        }
     }
 }

@@ -110,10 +110,21 @@ class TaskRepository extends BaseRepository
         return Task::create($data);
     }
 
+    /**
+     * @param int $id
+     * @param array<string, mixed> $data
+     * @return Task
+     */
     public function update($id, array $data): Task
     {
         $task = $this->findById($id);
-        $task->update($data);
+        if (array_key_exists('status_id', $data) && $task->status_id == $data['status_id']) {
+            unset($data['status_id']);
+        }
+        if ($data !== []) {
+            $task->update($data);
+            return $task->fresh();
+        }
 
         return $task;
     }
@@ -127,9 +138,12 @@ class TaskRepository extends BaseRepository
     public function changeStatus($id, int $statusId): Task
     {
         $task = $this->findById($id);
+        if ($task->status_id == $statusId) {
+            return $task;
+        }
         $task->update(['status_id' => $statusId]);
 
-        return $task;
+        return $task->fresh();
     }
 
     /**

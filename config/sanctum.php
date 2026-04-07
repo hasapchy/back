@@ -50,6 +50,10 @@ return [
 
     'remember_expiration' => env('SANCTUM_REMEMBER_EXPIRATION', 10080),
 
+    'mobile_refresh_days' => env('SANCTUM_MOBILE_REFRESH_DAYS', 7),
+
+    'mobile_refresh_days_remember' => env('SANCTUM_MOBILE_REFRESH_DAYS_REMEMBER', 30),
+
     /*
     |--------------------------------------------------------------------------
     | Token Prefix

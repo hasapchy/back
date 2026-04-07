@@ -47,15 +47,13 @@ use App\Http\Controllers\Api\WarehouseStockController;
 use App\Http\Controllers\Api\WarehouseWriteoffController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['throttle:auth'])->group(function () {
-    Route::post('user/login', [AuthController::class, 'login']);
-    Route::post('user/refresh', [AuthController::class, 'refresh']);
-});
+Route::post('user/login', [AuthController::class, 'login'])->middleware('throttle:auth');
+Route::post('user/refresh', [AuthController::class, 'refresh'])->middleware('throttle:auth');
 
 Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
 
 // Main API routes - accessible to all authenticated users with appropriate permissions
-Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
+Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(function () {
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
     Route::get('app/currency/{id}/exchange-rate', [AppController::class, 'getCurrencyExchangeRate']);
     Route::get('app/units', [AppController::class, 'getUnitsList']);

@@ -9,7 +9,6 @@ use App\Models\Currency;
 use App\Models\TransactionCategory;
 use App\Models\Client;
 use App\Models\Project;
-use App\Models\Company;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -40,7 +39,6 @@ class TransactionFactory extends Factory
             'category_id' => TransactionCategory::factory(),
             'client_id' => fake()->optional(0.4)->passthrough(Client::factory()),
             'project_id' => fake()->optional(0.3)->passthrough(Project::factory()),
-            'company_id' => fake()->optional(0.3)->passthrough(Company::factory()),
             'exchange_rate' => $exchangeRate,
             'rep_rate' => fake()->optional()->randomFloat(6, 0.5, 2.0),
             'rep_amount' => fake()->optional()->randomFloat(2, 100, 10000),

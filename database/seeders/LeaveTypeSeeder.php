@@ -8,7 +8,7 @@ use App\Models\LeaveType;
 class LeaveTypeSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
+     * @return void
      */
     public function run(): void
     {

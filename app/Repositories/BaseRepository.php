@@ -9,6 +9,7 @@ use App\Models\Currency;
 use App\Models\User;
 use App\Services\CurrencyConverter;
 use App\Services\RoundingService;
+use App\Support\ResolvedCompany;
 
 abstract class BaseRepository
 {
@@ -19,17 +20,7 @@ abstract class BaseRepository
      */
     protected function getCurrentCompanyId(): ?int
     {
-        $companyId = request()->header('X-Company-ID');
-
-        if ($companyId === null || $companyId === '') {
-            return null;
-        }
-
-        if (!is_numeric($companyId)) {
-            return null;
-        }
-
-        return (int) $companyId;
+        return ResolvedCompany::fromRequest(request());
     }
 
     /**
@@ -462,6 +453,7 @@ abstract class BaseRepository
             'creator_id'      => $data['creator_id'] ?? auth('api')->id(),
             'project_id'   => $data['project_id'] ?? null,
             'currency_id'  => $data['currency_id'] ?? $defaultCurrency->id,
+            'client_balance_id' => $data['client_balance_id'] ?? null,
         ];
     }
 
@@ -655,7 +647,7 @@ abstract class BaseRepository
         $requireAtLeastOne = $options['require_at_least_one'] ?? false;
         $filterEmpty = $options['filter_empty'] ?? false;
         $errorMessage = $options['error_message'] ?? 'Должен быть указан хотя бы один пользователь';
-        $userColumn = $options['user_column'] ?? 'creator_id';
+        $userColumn = $options['user_column'] ?? 'user_id';
 
         if ($filterEmpty) {
             $userIds = array_filter($userIds, function ($userId) {

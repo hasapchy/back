@@ -89,10 +89,6 @@ class TransactionCategoryRepository extends BaseRepository
     {
         $item = TransactionCategory::findOrFail($id);
 
-        if (!$item->canBeDeleted()) {
-            throw new \Exception('Нельзя удалить системную категорию: ' . $item->name);
-        }
-
         $item->delete();
         CacheService::invalidateTransactionCategoriesCache();
         return true;

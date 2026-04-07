@@ -2,6 +2,7 @@
 
 namespace App\Rules;
 
+use App\Support\ResolvedCompany;
 use App\Models\Client;
 use App\Services\PermissionCheckService;
 use Closure;
@@ -55,8 +56,8 @@ class ClientAccessRule implements ValidationRule
 
     protected function getUserPermissions(): array
     {
-        $companyId = request()->header('X-Company-ID');
-        
+        $companyId = ResolvedCompany::fromRequest(request());
+
         if ($companyId) {
             return $this->user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray();
         }

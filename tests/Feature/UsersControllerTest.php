@@ -36,8 +36,7 @@ class UsersControllerTest extends TestCase
 
     protected function actingAsApi(User $user)
     {
-        $token = $user->createToken('test-token')->plainTextToken;
-        return $this->withHeader('Authorization', 'Bearer ' . $token);
+        return $this->withApiTokenForCompany($user, null);
     }
 
     public function test_store_user_requires_validation(): void

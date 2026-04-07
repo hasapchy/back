@@ -7,6 +7,7 @@ use App\Models\ChatParticipant;
 use App\Models\Company;
 use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
+use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -14,6 +15,12 @@ use Tests\TestCase;
 class BroadcastChatChannelTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+    }
 
     public function test_user_can_authorize_private_chat_channel_when_company_member_has_permission_and_is_participant(): void
     {

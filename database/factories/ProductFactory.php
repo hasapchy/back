@@ -4,8 +4,6 @@ namespace Database\Factories;
 
 use App\Models\Product;
 use App\Models\User;
-use App\Models\Company;
-use App\Models\Category;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -30,7 +28,6 @@ class ProductFactory extends Factory
             'type' => fake()->boolean(),
             'is_serialized' => false,
             'creator_id' => User::factory(),
-            'company_id' => Company::factory(),
             'date' => now(),
         ];
     }

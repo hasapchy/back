@@ -2,6 +2,7 @@
 
 namespace App\Rules;
 
+use App\Support\ResolvedCompany;
 use App\Models\CashRegister;
 use App\Services\PermissionCheckService;
 use Closure;
@@ -67,7 +68,7 @@ class CashRegisterAccessRule implements ValidationRule
      */
     protected function getUserPermissions(): array
     {
-        $companyId = request()->header('X-Company-ID');
+        $companyId = ResolvedCompany::fromRequest(request());
 
         if ($companyId) {
             return $this->user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray();

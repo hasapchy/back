@@ -5,9 +5,14 @@ namespace App\Models;
 use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use App\Models\ClientsPhone;
 use App\Models\ClientsEmail;
 use App\Models\Currency;
+use App\Models\Comment;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
+use App\Contracts\SupportsTimeline;
 
 /**
  * Модель клиента
@@ -38,11 +43,12 @@ use App\Models\Currency;
  * @property-read \App\Models\Company|null $company
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\ClientsPhone[] $phones
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\ClientsEmail[] $emails
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Comment[] $comments
  */
-class Client extends Model
+class Client extends Model implements SupportsTimeline
 {
     use BelongsToCompany;
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     public const CLIENT_TYPES = ['company', 'individual', 'employee', 'investor'];
 
@@ -72,6 +78,45 @@ class Client extends Model
         'is_conflict' => 'boolean',
         'status' => 'boolean',
     ];
+
+    /**
+     * @return string
+     */
+    public function getDescriptionForEvent(string $eventName): string
+    {
+        return match ($eventName) {
+            'created', 'updated', 'deleted' => "activity_log.client.{$eventName}",
+            default => 'activity_log.client.default',
+        };
+    }
+
+    /**
+     * @return LogOptions
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'creator_id',
+                'employee_id',
+                'client_type',
+                'is_supplier',
+                'is_conflict',
+                'first_name',
+                'last_name',
+                'patronymic',
+                'position',
+                'address',
+                'note',
+                'discount_type',
+                'discount',
+                'status',
+            ])
+            ->useLogName('client')
+            ->dontSubmitEmptyLogs()
+            ->logOnlyDirty()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
+    }
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -119,6 +164,22 @@ class Client extends Model
     public function transactions()
     {
         return $this->hasMany(\App\Models\Transaction::class, 'client_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
+    public function comments(): MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
+    public function activities(): MorphMany
+    {
+        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
     }
 
     /**

@@ -7,13 +7,11 @@ use App\Models\User;
 class PermissionCheckService
 {
     /**
-     * Проверить, может ли пользователь выполнить действие с записью
-     *
      * @param User $user
      * @param string $resource
      * @param string $action
      * @param mixed $record
-     * @param array $userPermissions
+     * @param array<int, string> $userPermissions
      * @return bool
      */
     public function canPerformAction(User $user, string $resource, string $action, $record = null, array $userPermissions = []): bool
@@ -41,8 +39,6 @@ class PermissionCheckService
     }
 
     /**
-     * Проверить доступ к своей записи
-     *
      * @param User $user
      * @param string $resource
      * @param mixed $record
@@ -54,32 +50,42 @@ class PermissionCheckService
             return true;
         }
 
-        $config = config("permissions.resources.{$resource}");
+        $config = config("permissions.resources.{$resource}") ?? [];
         $strategy = $config['check_strategy'] ?? 'default';
 
         if ($strategy === 'many_to_many') {
-            if (method_exists($record, 'hasUser')) {
-                return $record->hasUser($user->id);
-            }
-            if (method_exists($record, 'users')) {
-                return $record->users()->where('creator_id', $user->id)->exists();
-            }
-            return false;
+            return method_exists($record, 'hasUser') && $record->hasUser($user->id);
+        }
+
+        if ($resource === 'users' && method_exists($record, 'getKey')) {
+            return (int) $record->getKey() === (int) $user->id;
+        }
+
+        $requireOwner = (bool) ($config['require_owner_for_own'] ?? false);
+
+        if ($strategy === 'user_id') {
+            return $this->userMatchesOwnOwner($user, $record->user_id ?? $record->creator_id ?? null, $requireOwner);
         }
 
         if ($strategy === 'creator_id' || $strategy === 'default') {
-            if ($resource === 'users' && method_exists($record, 'getKey')) {
-                return $record->getKey() === $user->id;
-            }
-            $ownerId = $record->creator_id ?? $record->user_id ?? null;
-            return $ownerId === null || (int) $ownerId === (int) $user->id;
-        }
-
-        if ($strategy === 'user_id') {
-            $ownerId = $record->user_id ?? $record->creator_id ?? null;
-            return $ownerId === null || (int) $ownerId === (int) $user->id;
+            return $this->userMatchesOwnOwner($user, $record->creator_id ?? $record->user_id ?? null, $requireOwner);
         }
 
         return true;
+    }
+
+    /**
+     * @param User $user
+     * @param mixed $ownerId
+     * @param bool $requireOwner
+     * @return bool
+     */
+    private function userMatchesOwnOwner(User $user, $ownerId, bool $requireOwner): bool
+    {
+        if ($ownerId === null) {
+            return !$requireOwner;
+        }
+
+        return (int) $ownerId === (int) $user->id;
     }
 }

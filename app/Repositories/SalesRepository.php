@@ -42,6 +42,7 @@ class SalesRepository extends BaseRepository
                 'sales.client_id',
                 'sales.warehouse_id',
                 'sales.cash_id',
+                'sales.client_balance_id',
                 'sales.creator_id',
                 'sales.project_id',
                 'sales.date',
@@ -60,6 +61,7 @@ class SalesRepository extends BaseRepository
                     'warehouse:id,name',
                     'cashRegister:id,name,currency_id,is_cash',
                     'cashRegister.currency:id,name,symbol',
+                    'clientBalance:id,client_id,currency_id,type',
                     'creator:id,name',
                     'project:id,name',
                     'products:id,sale_id,product_id,quantity,price',
@@ -108,6 +110,7 @@ class SalesRepository extends BaseRepository
                 'warehouse:id,name',
                 'cashRegister:id,name,currency_id,is_cash',
                 'cashRegister.currency:id,name,symbol',
+                'clientBalance:id,client_id,currency_id,type',
                 'creator:id,name',
                 'project:id,name',
                 'products:id,sale_id,product_id,quantity,price',
@@ -180,6 +183,7 @@ class SalesRepository extends BaseRepository
      *   - note (string|null) Примечание
      *   - products (array) Массив продуктов с полями: product_id, quantity, price
      *   - currency_id (int|null) ID валюты
+     *   - client_balance_id (int|null) Явный баланс клиента
      * @return bool
      * @throws \Exception При ошибке валидации или транзакции
      */
@@ -197,6 +201,7 @@ class SalesRepository extends BaseRepository
             $date        = $data['date'] ?? now();
             $note        = $data['note'] ?? null;
             $products    = $data['products'];
+            $clientBalanceId = $data['client_balance_id'] ?? null;
 
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $fromCurrency = $defaultCurrency;
@@ -242,6 +247,7 @@ class SalesRepository extends BaseRepository
             $sale = Sale::create([
                 'creator_id'      => $userId,
                 'client_id'    => $clientId,
+                'client_balance_id' => $clientBalanceId,
                 'project_id'   => $projectId,
                 'cash_id'      => $cashId,
                 'warehouse_id' => $warehouseId,
@@ -253,6 +259,7 @@ class SalesRepository extends BaseRepository
 
             $transactionData = $this->buildSaleTransactionData([
                 'client_id' => $clientId,
+                'client_balance_id' => $clientBalanceId,
                 'amount' => $totalPrice,
                 'cash_id' => $cashId,
                 'category_id' => 1,
@@ -263,7 +270,6 @@ class SalesRepository extends BaseRepository
                 'currency_id' => $defaultCurrency->id,
             ]);
 
-            // Всегда создаем транзакцию с долгом
             $this->createTransactionForSource($transactionData, \App\Models\Sale::class, $sale->id, true);
 
             // Если не долг, создаем также транзакцию оплаты
@@ -319,6 +325,7 @@ class SalesRepository extends BaseRepository
             $date = $data['date'] ?? now();
             $note = $data['note'] ?? null;
             $products = $data['products'];
+            $clientBalanceId = $data['client_balance_id'] ?? null;
 
             $oldProducts = SalesProduct::where('sale_id', $id)->get();
             foreach ($oldProducts as $p) {
@@ -392,6 +399,7 @@ class SalesRepository extends BaseRepository
 
             $sale->update([
                 'client_id' => $clientId,
+                'client_balance_id' => $clientBalanceId,
                 'project_id' => $projectId,
                 'cash_id' => $cashId,
                 'warehouse_id' => $warehouseId,
@@ -403,6 +411,7 @@ class SalesRepository extends BaseRepository
 
             $transactionData = $this->buildSaleTransactionData([
                 'client_id' => $clientId,
+                'client_balance_id' => $clientBalanceId,
                 'amount' => $totalPrice,
                 'cash_id' => $cashId,
                 'category_id' => 1,
@@ -499,12 +508,14 @@ class SalesRepository extends BaseRepository
      *   - creator_id (int) ID пользователя
      *   - project_id (int|null) ID проекта
      *   - currency_id (int) ID валюты
+     *   - client_balance_id (int|null) Явный баланс клиента
      * @return array<string, mixed> Данные транзакции для создания
      */
     private function buildSaleTransactionData(array $data): array
     {
         return [
             'client_id' => $data['client_id'],
+            'client_balance_id' => $data['client_balance_id'] ?? null,
             'amount' => $data['amount'],
             'orig_amount' => $data['amount'],
             'type' => 1,

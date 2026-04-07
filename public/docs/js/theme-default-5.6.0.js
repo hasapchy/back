@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+﻿document.addEventListener('DOMContentLoaded', function() {
     const updateHash = function (id) {
         window.location.hash = `#${id}`;
     };

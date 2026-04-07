@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ResolvedCompany;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,8 +27,8 @@ class PermissionMiddleware
             return $next($request);
         }
 
-        $companyId = $request->header('X-Company-ID');
-        $userPermissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray() : $user->getAllPermissions()->pluck('name')->toArray();
+        $companyId = ResolvedCompany::fromRequest($request);
+        $userPermissions = $companyId ? $user->getAllPermissionsForCompany($companyId)->pluck('name')->toArray() : $user->getAllPermissions()->pluck('name')->toArray();
 
         $permissionList = [];
         foreach ($permissions as $perm) {

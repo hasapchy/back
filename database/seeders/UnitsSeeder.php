@@ -3,13 +3,12 @@
 namespace Database\Seeders;
 
 use App\Models\Unit;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class UnitsSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
+     * @return void
      */
     public function run(): void
     {
@@ -24,12 +23,11 @@ class UnitsSeeder extends Seeder
             ['id' => 8, 'name' => 'BOX', 'short_name' => 'кор'],
             ['id' => 9, 'name' => 'PALLET', 'short_name' => 'пал'],
             ['id' => 10, 'name' => 'SET', 'short_name' => 'комп'],
-            ['id' => 12, 'name' => 'ROLL', 'short_name' => 'рул']
+            ['id' => 12, 'name' => 'ROLL', 'short_name' => 'рул'],
         ];
 
         foreach ($units as $unit) {
             Unit::updateOrCreate(['id' => $unit['id']], $unit);
         }
-
     }
 }

@@ -42,16 +42,13 @@ class WarehouseMovementControllerTest extends TestCase
             'company_id' => $this->company->id,
         ]);
         $this->product = Product::factory()->create([
-            'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
         ]);
     }
 
     protected function actingAsApi(User $user)
     {
-        $token = $user->createToken('test-token')->plainTextToken;
-        return $this->withHeader('Authorization', 'Bearer ' . $token)
-            ->withHeader('X-Company-ID', $this->company->id);
+        return $this->withApiTokenForCompany($user, (int) $this->company->id);
     }
 
     public function test_store_warehouse_movement_requires_validation(): void

@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use App\Events\OrderFirstStageCountUpdated;
 use App\Exports\GenericExport;
 use App\Http\Resources\OrderResource;
+use App\Support\NullableInt;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -234,6 +235,9 @@ class OrderController extends BaseController
                 'width'       => $p['width'] ?? null,
                 'height'      => $p['height'] ?? null,
             ], $validatedData['temp_products'] ?? []),
+            'client_balance_id' => array_key_exists('client_balance_id', $validatedData)
+                ? NullableInt::fromRequest($validatedData['client_balance_id'])
+                : null,
         ];
 
 
@@ -328,6 +332,9 @@ class OrderController extends BaseController
             ], $validatedData['temp_products'] ?? []),
             'remove_temp_products' => $validatedData['remove_temp_products'] ?? [],
         ];
+        if (array_key_exists('client_balance_id', $validatedData)) {
+            $data['client_balance_id'] = NullableInt::fromRequest($validatedData['client_balance_id']);
+        }
 
 
         $cashAccessCheck = $this->checkCashRegisterAccess($validatedData['cash_id'] ?? null);

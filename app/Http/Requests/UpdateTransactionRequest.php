@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesTransactionClientBalanceConsistency;
 use App\Models\ProjectContract;
 use App\Models\Transaction;
 use App\Rules\ProjectAccessRule;
@@ -12,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class UpdateTransactionRequest extends FormRequest
 {
+    use ValidatesTransactionClientBalanceConsistency;
+
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -53,6 +56,26 @@ class UpdateTransactionRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            $transactionId = $this->route('id');
+            if ($transactionId) {
+                $transaction = Transaction::find($transactionId);
+                if ($transaction && $transaction->client_balance_id) {
+                    $currencyId = $this->has('currency_id')
+                        ? $this->input('currency_id')
+                        : $transaction->currency_id;
+                    $clientId = $this->has('client_id')
+                        ? $this->input('client_id')
+                        : $transaction->client_id;
+                    $this->assertTransactionPayloadMatchesClientBalance(
+                        $validator,
+                        $transaction->client_balance_id,
+                        $clientId,
+                        $currencyId,
+                        $transaction->cash_id,
+                    );
+                }
+            }
+
             $sourceType = $this->input('source_type');
             $sourceId = $this->input('source_id');
             $projectId = $this->input('project_id');

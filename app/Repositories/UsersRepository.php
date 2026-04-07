@@ -97,6 +97,7 @@ class UsersRepository extends BaseRepository
                     $q->where('users.name', 'like', "%{$search}%")
                         ->orWhere('users.surname', 'like', "%{$search}%")
                         ->orWhere('users.email', 'like', "%{$search}%")
+                        ->orWhere('users.phone', 'like', "%{$search}%")
                         ->orWhere('users.position', 'like', "%{$search}%");
                 });
             }

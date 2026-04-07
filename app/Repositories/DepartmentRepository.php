@@ -28,7 +28,7 @@ class DepartmentRepository extends BaseRepository
             if ($this->shouldApplyUserFilter('departments')) {
                 $filterUserId = $this->getFilterUserIdForPermission('departments', $userId);
                 $departmentIds = \DB::table('department_user')
-                    ->where('creator_id', $filterUserId)
+                    ->where('user_id', $filterUserId)
                     ->pluck('department_id')
                     ->toArray();
 
@@ -66,7 +66,7 @@ class DepartmentRepository extends BaseRepository
             if ($this->shouldApplyUserFilter('departments')) {
                 $filterUserId = $this->getFilterUserIdForPermission('departments', $userId);
                 $departmentIds = \DB::table('department_user')
-                    ->where('creator_id', $filterUserId)
+                    ->where('user_id', $filterUserId)
                     ->pluck('department_id')
                     ->toArray();
 
@@ -163,6 +163,7 @@ class DepartmentRepository extends BaseRepository
             [
                 'require_at_least_one' => true,
                 'error_message' => 'В департаменте должен быть хотя бы один сотрудник',
+                'user_column' => 'user_id',
             ]
         );
     }

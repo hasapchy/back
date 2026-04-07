@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesTransactionClientBalanceConsistency;
 use App\Models\ProjectContract;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\ProjectAccessRule;
@@ -12,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class StoreTransactionRequest extends FormRequest
 {
+    use ValidatesTransactionClientBalanceConsistency;
+
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -58,6 +61,14 @@ class StoreTransactionRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            $this->assertTransactionPayloadMatchesClientBalance(
+                $validator,
+                $this->input('client_balance_id'),
+                $this->input('client_id'),
+                $this->input('currency_id'),
+                $this->input('cash_id'),
+            );
+
             $sourceType = $this->input('source_type');
             $sourceId = $this->input('source_id');
             $projectId = $this->input('project_id');

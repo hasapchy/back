@@ -33,8 +33,8 @@ class ChatController extends BaseController
     {
         $user = $this->requireAuthenticatedUser();
         $companyId = (int) $this->getCurrentCompanyId();
-        if (!$companyId) {
-            abort(422, 'X-Company-ID header is required');
+        if (! $companyId) {
+            abort(422, 'Company context is required');
         }
         return [$user, $companyId];
     }

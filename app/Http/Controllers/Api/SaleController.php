@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateSaleRequest;
 use App\Http\Resources\SaleResource;
 use App\Repositories\SalesRepository;
 use App\Services\CacheService;
+use App\Support\NullableInt;
 use Illuminate\Http\Request;
 
 /**
@@ -82,6 +83,7 @@ class SaleController extends BaseController
         $data = [
             'creator_id'       => $userUuid,
             'client_id'     => $validatedData['client_id'],
+            'client_balance_id' => NullableInt::fromRequest($validatedData['client_balance_id'] ?? null),
             'project_id'    => $validatedData['project_id'] ?? null,
             'type'          => $validatedData['type'],
             'cash_id'       => $validatedData['cash_id'] ?? null,
@@ -148,6 +150,7 @@ class SaleController extends BaseController
         $data = [
             'creator_id'       => $userUuid,
             'client_id'     => $validatedData['client_id'],
+            'client_balance_id' => NullableInt::fromRequest($validatedData['client_balance_id'] ?? null),
             'project_id'    => $validatedData['project_id'] ?? null,
             'type'          => $validatedData['type'],
             'cash_id'       => $validatedData['cash_id'] ?? null,

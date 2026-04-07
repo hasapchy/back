@@ -47,8 +47,11 @@ class UsersController extends BaseController
         $perPage = $request->input('per_page', 20);
         $activeOnly = $request->boolean('active_only', true);
         $statusFilter = $activeOnly ? true : null;
+        $searchRaw = $request->input('search');
+        $search = is_string($searchRaw) ? trim($searchRaw) : null;
+        $search = ($search !== '') ? $search : null;
 
-        $items = $this->itemsRepository->getItemsWithPagination($page, $perPage, null, $statusFilter);
+        $items = $this->itemsRepository->getItemsWithPagination($page, $perPage, $search, $statusFilter);
 
         return $this->successResponse([
             'items' => UserResource::collection($items->items())->resolve(),

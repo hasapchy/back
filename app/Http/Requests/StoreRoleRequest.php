@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\ResolvedCompany;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
@@ -26,7 +27,7 @@ class StoreRoleRequest extends FormRequest
      */
     public function rules(): array
     {
-        $companyId = $this->header('X-Company-ID');
+        $companyId = ResolvedCompany::fromRequest($this);
 
         $uniqueRule = Rule::unique('roles', 'name')
             ->where('guard_name', 'api');

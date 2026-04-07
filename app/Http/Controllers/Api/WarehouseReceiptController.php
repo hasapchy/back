@@ -6,6 +6,7 @@ use App\Http\Requests\StoreWarehouseReceiptRequest;
 use App\Http\Requests\UpdateWarehouseReceiptRequest;
 use App\Http\Resources\WarehouseReceiptResource;
 use App\Repositories\WarehouseReceiptRepository;
+use App\Support\NullableInt;
 use Illuminate\Http\Request;
 
 /**
@@ -90,6 +91,7 @@ class WarehouseReceiptController extends BaseController
 
         $data = [
             'client_id' => $validatedData['client_id'],
+            'client_balance_id' => NullableInt::fromRequest($validatedData['client_balance_id'] ?? null),
             'warehouse_id' => $validatedData['warehouse_id'],
             'type' => $validatedData['type'],
             'cash_id' => $validatedData['cash_id'] ?? null,
@@ -136,7 +138,7 @@ class WarehouseReceiptController extends BaseController
         }
 
         $data = [
-            'client_id' => $receipt->client_id,
+            'client_id' => $receipt->supplier_id,
             'warehouse_id' => $receipt->warehouse_id,
             'cash_id' => $receipt->cash_id,
             'date' => $validatedData['date'] ?? $receipt->date,

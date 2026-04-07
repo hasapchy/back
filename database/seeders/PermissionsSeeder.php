@@ -7,6 +7,9 @@ use Spatie\Permission\Models\Permission;
 
 class PermissionsSeeder extends Seeder
 {
+    /**
+     * @return void
+     */
     public function run(): void
     {
         $resources = config('permissions.resources', []);

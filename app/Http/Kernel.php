@@ -2,10 +2,23 @@
 
 namespace App\Http;
 
+use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
+use Illuminate\Routing\Router;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 class Kernel extends HttpKernel
 {
+    /**
+     * @return void
+     */
+    public function __construct(Application $app, Router $router)
+    {
+        parent::__construct($app, $router);
+
+        $this->prependToMiddlewarePriority(EnsureFrontendRequestsAreStateful::class);
+    }
+
     /**
      * The application's global HTTP middleware stack.
      *
@@ -14,7 +27,6 @@ class Kernel extends HttpKernel
      * @var array<int, class-string|string>
      */
     protected $middleware = [
-        // \App\Http\Middleware\TrustHosts::class,
         \App\Http\Middleware\TrustProxies::class,
         \Illuminate\Http\Middleware\HandleCors::class,
         \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
@@ -24,7 +36,7 @@ class Kernel extends HttpKernel
     ];
 
     /**
-     * The application's route middleware groups.
+     * The application's middleware groups.
      *
      * @var array<string, array<int, class-string|string>>
      */
@@ -40,7 +52,7 @@ class Kernel extends HttpKernel
         ],
 
         'api' => [
-            // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            EnsureFrontendRequestsAreStateful::class,
             \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
@@ -48,8 +60,6 @@ class Kernel extends HttpKernel
 
     /**
      * The application's middleware aliases.
-     *
-     * Aliases may be used instead of class names to conveniently assign middleware to routes and groups.
      *
      * @var array<string, class-string|string>
      */
@@ -70,6 +80,7 @@ class Kernel extends HttpKernel
         'role'       => \Spatie\Permission\Middleware\RoleMiddleware::class,
         'time.restriction' => \App\Http\Middleware\CheckTimeRestriction::class,
         'user.active' => \App\Http\Middleware\CheckUserActive::class,
-        'broadcast.json' => \App\Http\Middleware\JsonBroadcastAuth::class,
+        'bc.json' => \App\Http\Middleware\BroadcastJson::class,
+        'resolve.company' => \App\Http\Middleware\ResolveCompanyContext::class,
     ];
 }

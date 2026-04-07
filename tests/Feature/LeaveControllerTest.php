@@ -66,8 +66,7 @@ class LeaveControllerTest extends TestCase
 
     protected function actingAsApi(User $user)
     {
-        $token = $user->createToken('test-token')->plainTextToken;
-        return $this->withHeader('Authorization', 'Bearer ' . $token);
+        return $this->withApiTokenForCompany($user, null);
     }
 
     public function test_index_returns_paginated_leaves(): void

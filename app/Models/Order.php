@@ -5,9 +5,11 @@ namespace App\Models;
 use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Arr;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use App\Contracts\SupportsTimeline;
 use App\Services\CacheService;
 
 /**
@@ -26,6 +28,7 @@ use App\Services\CacheService;
  * @property float $discount Скидка
  * @property float $paid_amount Оплаченная сумма
  * @property int|null $cash_id ID кассы
+ * @property int|null $client_balance_id ID баланса клиента
  * @property int|null $warehouse_id ID склада
  * @property int|null $project_id ID проекта
  * @property int|null $category_id ID категории
@@ -41,6 +44,7 @@ use App\Services\CacheService;
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Comment[] $comments
  * @property-read \App\Models\Warehouse|null $warehouse
+ * @property-read \App\Models\ClientBalance|null $clientBalance
  * @property-read \App\Models\CashRegister|null $cash
  * @property-read \App\Models\Project|null $project
  * @property-read \App\Models\Company|null $company
@@ -63,7 +67,7 @@ use App\Services\CacheService;
  * @property string|null $category_name
  * @property float|null $total_price
  */
-class Order extends Model
+class Order extends Model implements SupportsTimeline
 {
     use BelongsToCompany;
     use HasFactory, LogsActivity;
@@ -79,6 +83,7 @@ class Order extends Model
         'discount',
         'paid_amount',
         'cash_id',
+        'client_balance_id',
         'warehouse_id',
         'project_id',
         'category_id',
@@ -96,6 +101,7 @@ class Order extends Model
         'price',
         'discount',
         'cash_id',
+        'client_balance_id',
         'warehouse_id',
         'project_id',
         'category_id'
@@ -108,16 +114,10 @@ class Order extends Model
 
     public function getDescriptionForEvent(string $eventName): string
     {
-        switch ($eventName) {
-            case 'created':
-                return 'Создан заказ';
-            case 'updated':
-                return 'Заказ обновлен';
-            case 'deleted':
-                return 'Заказ удален';
-            default:
-                return "Заказ был {$eventName}";
-        }
+        return match ($eventName) {
+            'created', 'updated', 'deleted' => "activity_log.order.{$eventName}",
+            default => 'activity_log.order.default',
+        };
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -226,7 +226,7 @@ class Order extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\MorphMany
      */
-    public function comments()
+    public function comments(): MorphMany
     {
         return $this->morphMany(Comment::class, 'commentable');
     }
@@ -249,6 +249,14 @@ class Order extends Model
     public function cashRegister()
     {
         return $this->belongsTo(CashRegister::class, 'cash_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function clientBalance()
+    {
+        return $this->belongsTo(ClientBalance::class, 'client_balance_id');
     }
 
     /**
@@ -277,7 +285,7 @@ class Order extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\MorphMany
      */
-    public function activities()
+    public function activities(): MorphMany
     {
         return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
     }

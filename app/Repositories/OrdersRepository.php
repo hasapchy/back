@@ -14,6 +14,7 @@ use App\Models\CashRegister;
 use App\Models\Transaction;
 use App\Models\OrderStatus;
 use App\Models\User;
+use App\Support\NullableInt;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
@@ -915,6 +916,9 @@ class OrdersRepository extends BaseRepository
             $order->note = $note;
             $order->description = $description;
             $order->creator_id = $userUuid;
+            if (array_key_exists('client_balance_id', $data)) {
+                $order->client_balance_id = NullableInt::fromRequest($data['client_balance_id']);
+            }
             $order->save();
 
             if (!empty($productsCache)) {
@@ -942,20 +946,22 @@ class OrdersRepository extends BaseRepository
             }
 
             if ($client_id) {
-                $this->createTransactionForSource([
-                    'client_id' => $client_id,
-                    'amount' => $total_price,
-                    'orig_amount' => $total_price,
-                    'type' => 1,
-                    'is_debt' => true,
-                    'cash_id' => $cash_id,
-                    'category_id' => 1,
-                    'date' => $date,
-                    'note' => $note,
-                    'creator_id' => $userUuid,
-                    'project_id' => $project_id,
-                    'currency_id' => $defaultCurrency->id,
-                ], Order::class, $order->id, true);
+                $this->createTransactionForSource(
+                    $this->orderDebtTransactionPayload(
+                        $client_id,
+                        (float) $total_price,
+                        $cash_id,
+                        $date,
+                        $note,
+                        (int) $userUuid,
+                        $project_id,
+                        (int) $defaultCurrency->id,
+                        $order->client_balance_id
+                    ),
+                    Order::class,
+                    $order->id,
+                    true
+                );
             }
 
             DB::commit();
@@ -1125,6 +1131,9 @@ class OrdersRepository extends BaseRepository
                 'note' => $note,
                 'description' => $description
             ];
+            if (array_key_exists('client_balance_id', $data)) {
+                $updateData['client_balance_id'] = NullableInt::fromRequest($data['client_balance_id']);
+            }
 
             $order->fill($updateData);
             $hasChanges = $order->isDirty();
@@ -1339,7 +1348,8 @@ class OrdersRepository extends BaseRepository
                         || (int) $orderTransaction->project_id !== (int) $project_id
                         || (int) $orderTransaction->cash_id !== (int) ($cash_id ?? 0)
                         || $orderTransaction->date != $date
-                        || $orderTransaction->note !== $note;
+                        || $orderTransaction->note !== $note
+                        || (int) ($orderTransaction->client_balance_id ?? 0) !== (int) ($order->client_balance_id ?? 0);
 
                     if ($transactionNeedsUpdate) {
                         $txRepo = new TransactionsRepository();
@@ -1353,26 +1363,29 @@ class OrdersRepository extends BaseRepository
                             'category_id' => 1,
                             'date' => $date,
                             'note' => $note,
+                            'client_balance_id' => $order->client_balance_id,
                         ]);
                     }
                 } else {
                     $orderTransaction->delete();
                 }
-            } else if ($client_id) {
-                $this->createTransactionForSource([
-                    'client_id'    => $client_id,
-                    'amount'       => $total_price,
-                    'orig_amount'  => $total_price,
-                    'type'         => 1,
-                    'is_debt'      => true,
-                    'cash_id'      => $cash_id,
-                    'category_id'  => 1,
-                    'date'         => $date,
-                    'note'         => $note,
-                    'creator_id'      => $order->creator_id,
-                    'project_id'   => $project_id,
-                    'currency_id'  => $defaultCurrency->id,
-                ], Order::class, $order->id, true);
+            } elseif ($client_id) {
+                $this->createTransactionForSource(
+                    $this->orderDebtTransactionPayload(
+                        $client_id,
+                        (float) $total_price,
+                        $cash_id,
+                        $date,
+                        $note,
+                        (int) $order->creator_id,
+                        $project_id,
+                        (int) $defaultCurrency->id,
+                        $order->client_balance_id
+                    ),
+                    Order::class,
+                    $order->id,
+                    true
+                );
             }
 
             DB::commit();
@@ -1481,6 +1494,10 @@ class OrdersRepository extends BaseRepository
             /** @var \App\Models\Order $order */
             $order = $orders->get($id);
 
+            if ($order->status_id == $statusId) {
+                continue;
+            }
+
             if (in_array($statusId, [5], true) && !$order->project_id) {
                 $orderTotal = (float) ($order->price - $order->discount);
                 $paidTotal = (float) ($paidTotals->get($order->id) ?? 0);
@@ -1501,11 +1518,9 @@ class OrdersRepository extends BaseRepository
                 }
             }
 
-            if ($order->status_id != $statusId) {
-                $ordersToUpdate[] = $id;
-                if ($order->client_id) {
-                    $clientIdsToInvalidate[$order->client_id] = true;
-                }
+            $ordersToUpdate[] = $id;
+            if ($order->client_id) {
+                $clientIdsToInvalidate[$order->client_id] = true;
             }
         }
 
@@ -1985,6 +2000,48 @@ class OrdersRepository extends BaseRepository
         }
 
         return 'orders';
+    }
+
+    /**
+     * Данные долговой транзакции по заказу для createTransactionForSource.
+     *
+     * @param  int  $clientId
+     * @param  float  $totalPrice
+     * @param  int|null  $cashId
+     * @param  mixed  $date
+     * @param  string|null  $note
+     * @param  int  $creatorId
+     * @param  int|null  $projectId
+     * @param  int  $currencyId
+     * @param  int|null  $clientBalanceId
+     * @return array<string, mixed>
+     */
+    private function orderDebtTransactionPayload(
+        int $clientId,
+        float $totalPrice,
+        $cashId,
+        $date,
+        ?string $note,
+        int $creatorId,
+        $projectId,
+        int $currencyId,
+        ?int $clientBalanceId
+    ): array {
+        return [
+            'client_id' => $clientId,
+            'amount' => $totalPrice,
+            'orig_amount' => $totalPrice,
+            'type' => 1,
+            'is_debt' => true,
+            'cash_id' => $cashId,
+            'category_id' => 1,
+            'date' => $date,
+            'note' => $note,
+            'creator_id' => $creatorId,
+            'project_id' => $projectId,
+            'currency_id' => $currencyId,
+            'client_balance_id' => $clientBalanceId,
+        ];
     }
 
     /**

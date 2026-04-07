@@ -1,4 +1,4 @@
-# To include an endpoint that isn't a part of your Laravel app (or belongs to a vendor package),
+﻿# To include an endpoint that isn't a part of your Laravel app (or belongs to a vendor package),
 # you can define it in a custom.*.yaml file, like this one.
 # Each custom file should contain an array of endpoints. Here's an example:
 # See https://scribe.knuckles.wtf/laravel/documenting/custom-endpoints#extra-sorting-groups-in-custom-endpoint-files for more options

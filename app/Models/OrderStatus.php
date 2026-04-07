@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property string $name Название статуса
  * @property int $category_id ID категории статуса
+ * @property bool $is_active
+ * @property string|null $kanban_outcome Итог канбана: failure|success
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -24,7 +26,7 @@ class OrderStatus extends Model
     protected const PROTECTED_STATUS_IDS = [1, 2, 4, 5, 6];
     protected const PROTECTED_STATUS_IDS_FOR_IS_ACTIVE = [1, 5, 6];
 
-    protected $fillable = ['name', 'category_id', 'is_active'];
+    protected $fillable = ['name', 'category_id', 'is_active', 'kanban_outcome'];
 
     protected $casts = [
         'is_active' => 'boolean',

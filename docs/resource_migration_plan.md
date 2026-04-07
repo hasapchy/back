@@ -23,7 +23,7 @@
    - Финансы: `TransactionResource`, `TransactionCategoryResource`, `CashRegisterResource`, `TransferResource`, `SaleResource`.
 
 3) **Оставшиеся контроллеры**
-   - Категории/статусы: `CategoryResource`, `OrderStatusResource`, `OrderStatusCategoryResource`, `CompanyRoundingRuleResource`.
+   - Категории/статусы: `CategoryResource`, `OrderStatusResource`, `OrderStatusCategoryResource`.
    - Прочие: `CommentResource`, `CurrencyHistoryResource`, `RoleResource`, `PermissionResource`, `CacheResource` (если понадобится однородность ответов).
 
 4) **Изменение контроллеров**

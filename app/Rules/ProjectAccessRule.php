@@ -2,6 +2,7 @@
 
 namespace App\Rules;
 
+use App\Support\ResolvedCompany;
 use App\Models\Project;
 use App\Services\PermissionCheckService;
 use Closure;
@@ -33,7 +34,7 @@ class ProjectAccessRule implements ValidationRule
             return;
         }
 
-        $companyId = request()->header('X-Company-ID');
+        $companyId = ResolvedCompany::fromRequest(request());
         if ($companyId && $project->company_id != $companyId) {
             $fail('Проект не принадлежит текущей компании.');
             return;
@@ -61,7 +62,7 @@ class ProjectAccessRule implements ValidationRule
 
     protected function getUserPermissions(): array
     {
-        $companyId = request()->header('X-Company-ID');
+        $companyId = ResolvedCompany::fromRequest(request());
 
         if ($companyId) {
             return $this->user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray();

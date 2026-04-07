@@ -2,55 +2,33 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use App\Models\CashRegister;
 use App\Models\CashRegisterUser;
+use Illuminate\Database\Seeder;
 
 class CashRegisterSeeder extends Seeder
 {
-    public function run()
+    /**
+     * @return void
+     */
+    public function run(): void
     {
-        // Динамически получаем ID валюты TMT (не хардкод!)
-        $tmtCurrency = DB::table('currencies')
-            ->whereNull('company_id')
-            ->where('code', 'TMT')
-            ->first();
-
-        if (!$tmtCurrency) {
-            $this->command->error('Валюта TMT не найдена! Запустите CurrencySeeder сначала.');
-            return;
-        }
-
-        $tmtCurrencyId = $tmtCurrency->id;
-
-        $existingCashRegister = CashRegister::find(1);
-
-        if ($existingCashRegister) {
-            $existingCashRegister->update([
-                'balance' => $existingCashRegister->balance,
-                'currency_id' => 1,
-                'is_cash' => true,
-                'is_working_minus' => false,
-            ]);
-            $cashRegister = $existingCashRegister;
-        } else {
-            $cashRegister = CashRegister::create([
+        $cashRegister = CashRegister::find(1);
+        if (!$cashRegister) {
+            $cashRegister = CashRegister::query()->create([
                 'id' => 1,
                 'name' => 'Главная касса',
                 'balance' => 0,
                 'currency_id' => 1,
+                'company_id' => 1,
                 'is_cash' => true,
                 'is_working_minus' => false,
             ]);
         }
 
-        CashRegisterUser::updateOrCreate([
+        CashRegisterUser::firstOrCreate([
             'cash_register_id' => $cashRegister->id,
-            'user_id' => 1
-        ], [
-            'cash_register_id' => $cashRegister->id,
-            'user_id' => 1
+            'user_id' => 1,
         ]);
     }
 }

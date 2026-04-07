@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Support\ResolvedCompany;
 use App\Models\CashRegister;
 use App\Models\User;
 use App\Services\PermissionCheckService;
@@ -28,7 +29,7 @@ class CashRegisterPolicy
 
     protected function getUserPermissions(User $user): array
     {
-        $companyId = request()->header('X-Company-ID');
+        $companyId = ResolvedCompany::fromRequest(request());
         
         if ($companyId) {
             return $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray();

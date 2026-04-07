@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\PermissionCheckService;
+use App\Support\ResolvedCompany;
 
 class BaseController extends BaseRoutingController
 {
@@ -25,23 +26,11 @@ class BaseController extends BaseRoutingController
     }
 
     /**
-     * Получить текущую компанию пользователя из заголовка запроса
-     *
      * @return int|null
      */
     protected function getCurrentCompanyId(): ?int
     {
-        $companyId = request()->header('X-Company-ID');
-
-        if ($companyId === null || $companyId === '') {
-            return null;
-        }
-
-        if (!is_numeric($companyId)) {
-            return null;
-        }
-
-        return (int) $companyId;
+        return ResolvedCompany::fromRequest(request());
     }
 
     /**
@@ -86,7 +75,7 @@ class BaseController extends BaseRoutingController
      * Получить права доступа пользователя в виде массива с учетом текущей компании
      *
      * @param \App\Models\User|null $user
-     * @param int|null $companyId ID компании (если null, берется из заголовка X-Company-ID)
+     * @param int|null $companyId ID компании (если null, из контекста запроса)
      * @return array
      */
     protected function getUserPermissions($user = null, ?int $companyId = null)

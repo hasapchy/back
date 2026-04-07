@@ -24,6 +24,8 @@ class ProjectStatusFactory extends Factory
         return [
             'name' => fake()->words(2, true),
             'color' => fake()->hexColor(),
+            'is_visible' => true,
+            'kanban_outcome' => null,
             'creator_id' => User::factory(),
         ];
     }

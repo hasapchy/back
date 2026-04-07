@@ -69,22 +69,12 @@ class OrderProduct extends Model
      */
     public function getDescriptionForEvent(string $eventName): string
     {
-        if ($eventName === 'created') {
-            $product = $this->product;
-            $productName = $product ? $product->name : 'Товар/услуга';
-            return "Добавлен товар/услуга: {$productName}";
-        }
-        if ($eventName === 'updated') {
-            $product = $this->product;
-            $productName = $product ? $product->name : 'Товар/услуга';
-            return "Изменён товар/услуга: {$productName}";
-        }
-        if ($eventName === 'deleted') {
-            $product = $this->product;
-            $productName = $product ? $product->name : 'Товар/услуга';
-            return "Удалён товар/услуга: {$productName}";
-        }
-        return "Товар/услуга был {$eventName}";
+        return match ($eventName) {
+            'created' => 'activity_log.order_product.created',
+            'updated' => 'activity_log.order_product.updated',
+            'deleted' => 'activity_log.order_product.deleted',
+            default => 'activity_log.order_product.default',
+        };
     }
 
     /**
@@ -98,7 +88,8 @@ class OrderProduct extends Model
             ->logOnly(static::$logAttributes)
             ->useLogName(static::$logName)
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
     }
 
     /**

@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use App\Models\Category;
 use App\Models\ProductPrice;
 use App\Models\WarehouseStock;
@@ -13,6 +13,8 @@ use App\Models\WhWriteoffProduct;
 use App\Models\WhMovementProduct;
 use App\Models\SalesProduct;
 use App\Models\Unit;
+use App\Models\Comment;
+use App\Contracts\SupportsTimeline;
 
 /**
  * Модель продукта
@@ -28,7 +30,6 @@ use App\Models\Unit;
  * @property bool $type Тип продукта (0 - товар, 1 - услуга)
  * @property \Carbon\Carbon|null $date Дата
  * @property int $creator_id ID пользователя
- * @property int|null $company_id ID компании
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -41,11 +42,10 @@ use App\Models\Unit;
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhMovementProduct[] $movementProducts
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\SalesProduct[] $salesProducts
  * @property-read \App\Models\User $creator
- * @property-read \App\Models\Company|null $company
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Comment[] $comments
  */
-class Product extends Model
+class Product extends Model implements SupportsTimeline
 {
-    use BelongsToCompany;
     use HasFactory;
 
     protected $table = 'products';
@@ -60,7 +60,6 @@ class Product extends Model
         'type',
         'date',
         'creator_id',
-        'company_id',
     ];
 
     protected $casts = [
@@ -161,17 +160,34 @@ class Product extends Model
     }
 
     /**
-     * Scope для фильтрации по компании
-     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
+    public function comments(): MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
+    public function activities(): MorphMany
+    {
+        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
+    }
+
+    /**
      * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int|null $companyId ID компании
+     * @param int|null $companyId
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeForCompany($query, $companyId = null)
     {
         if ($companyId) {
-            return $query->where('company_id', $companyId);
+            return $query->whereHas('categories', function ($q) use ($companyId) {
+                $q->where('categories.company_id', $companyId);
+            });
         }
+
         return $query;
     }
 

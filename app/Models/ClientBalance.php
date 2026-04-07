@@ -96,11 +96,6 @@ class ClientBalance extends Model
         return $this->belongsToMany(User::class, 'client_balance_users', 'client_balance_id', 'creator_id');
     }
 
-    public function hasUser($userId)
-    {
-        return $this->users()->wherePivot('creator_id', $userId)->exists();
-    }
-
     /**
      * Может ли пользователь видеть баланс: пустой список сотрудников — виден всем, иначе только выбранным.
      *

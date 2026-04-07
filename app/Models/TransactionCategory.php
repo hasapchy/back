@@ -81,7 +81,7 @@ class TransactionCategory extends Model
     public function delete()
     {
         if (!$this->canBeDeleted()) {
-            throw new \Exception('Нельзя удалить системную категорию');
+            throw new \Exception('Нельзя удалить системную категорию: ' . $this->name);
         }
 
         return parent::delete();

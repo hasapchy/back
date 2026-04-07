@@ -162,7 +162,7 @@ class ProjectContractsController extends BaseController
 
             return $this->successResponse([
                 'message' => 'Контракт успешно создан',
-                'item' => (new ProjectContractResource($contract->load(['currency', 'project', 'cashRegister'])))->resolve()
+                'item' => (new ProjectContractResource($contract->load(['currency', 'project.client', 'cashRegister'])))->resolve()
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
@@ -186,7 +186,7 @@ class ProjectContractsController extends BaseController
                 return $this->errorResponse('Контракт не найден', 404);
             }
 
-            if (!$this->canPerformAction('contracts', 'view', $contract->project)) {
+            if (!$this->canPerformAction('contracts', 'view', $contract)) {
                 return $this->errorResponse('У вас нет прав на просмотр этого контракта', 403);
             }
 
@@ -208,7 +208,7 @@ class ProjectContractsController extends BaseController
         try {
             $contract = ProjectContract::findOrFail($id);
 
-            if (!$this->canPerformAction('contracts', 'update', $contract->project)) {
+            if (!$this->canPerformAction('contracts', 'update', $contract)) {
                 return $this->errorResponse('У вас нет прав на редактирование этого контракта', 403);
             }
 
@@ -220,7 +220,7 @@ class ProjectContractsController extends BaseController
 
             return $this->successResponse([
                 'message' => 'Контракт успешно обновлен',
-                'item' => (new ProjectContractResource($contract->load(['currency', 'project', 'cashRegister'])))->resolve()
+                'item' => (new ProjectContractResource($contract->load(['currency', 'project.client', 'cashRegister'])))->resolve()
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
@@ -242,7 +242,7 @@ class ProjectContractsController extends BaseController
         try {
             $contract = ProjectContract::findOrFail($id);
 
-            if (!$this->canPerformAction('contracts', 'delete', $contract->project)) {
+            if (!$this->canPerformAction('contracts', 'delete', $contract)) {
                 return $this->errorResponse('У вас нет прав на удаление этого контракта', 403);
             }
 

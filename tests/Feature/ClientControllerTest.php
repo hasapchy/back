@@ -39,9 +39,7 @@ class ClientControllerTest extends TestCase
 
     protected function actingAsApi(User $user)
     {
-        $token = $user->createToken('test-token')->plainTextToken;
-
-        return $this->withHeader('Authorization', 'Bearer '.$token);
+        return $this->withApiTokenForCompany($user, (int) $this->company->id);
     }
 
     public function test_store_client_requires_validation(): void
@@ -69,7 +67,6 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->postJson('/api/clients', $clientData);
 
         if ($response->status() === 500) {
@@ -98,7 +95,6 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->postJson('/api/clients', $clientData);
 
         if ($response->status() === 500) {
@@ -126,7 +122,6 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->postJson('/api/clients', $clientData);
 
         if ($response->status() === 500) {
@@ -151,7 +146,6 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->postJson('/api/clients', $clientData);
 
         if ($response->status() === 500) {
@@ -193,7 +187,6 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->putJson("/api/clients/{$client->id}", $updateData);
 
         $response->assertStatus(200);
@@ -222,7 +215,6 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->putJson("/api/clients/{$client->id}", $updateData);
 
         $response->assertStatus(200);
@@ -252,7 +244,6 @@ class ClientControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->putJson("/api/clients/{$client->id}", $updateData);
 
         $response->assertStatus(200);
@@ -310,7 +301,6 @@ class ClientControllerTest extends TestCase
         ]);
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->getJson("/api/clients/{$client->id}");
 
         if ($response->status() === 500) {
@@ -338,7 +328,6 @@ class ClientControllerTest extends TestCase
         ]);
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->getJson('/api/clients?per_page=2&page=1');
 
         $response->assertStatus(200);
@@ -383,7 +372,6 @@ class ClientControllerTest extends TestCase
         ]);
 
         $response = $this->actingAsApi($this->adminUser)
-            ->withHeader('X-Company-ID', (string) $this->company->id)
             ->getJson("/api/clients/all?for_mutual_settlements=1&cash_register_id={$cashRegister->id}");
 
         if ($response->status() === 500) {

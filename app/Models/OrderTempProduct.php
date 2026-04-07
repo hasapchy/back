@@ -72,19 +72,12 @@ class OrderTempProduct extends Model
      */
     public function getDescriptionForEvent(string $eventName): string
     {
-        if ($eventName === 'created') {
-            $productName = $this->name ?? 'Временный товар';
-            return "Добавлен временный товар ({$productName})";
-        }
-        if ($eventName === 'updated') {
-            $productName = $this->name ?? 'Временный товар';
-            return "Изменён временный товар ({$productName})";
-        }
-        if ($eventName === 'deleted') {
-            $productName = $this->name ?? 'Временный товар';
-            return "Удалён временный товар ({$productName})";
-        }
-        return "временный товар был {$eventName}";
+        return match ($eventName) {
+            'created' => 'activity_log.order_temp_product.created',
+            'updated' => 'activity_log.order_temp_product.updated',
+            'deleted' => 'activity_log.order_temp_product.deleted',
+            default => 'activity_log.order_temp_product.default',
+        };
     }
 
     /**

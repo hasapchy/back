@@ -2,11 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Простое перенаправление на фронтенд
 Route::get('/', function () {
-    return redirect('https://hassap.online');
+    return redirect(config('app.url'));
 });
 
 Route::get('/dashboard', function () {
-    return redirect('https://hassap.online');
+    return redirect(config('app.url'));
 });

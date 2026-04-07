@@ -4,8 +4,13 @@ namespace App\Models;
 
 use App\Models\Traits\BelongsToCompany;
 use App\Models\Traits\HasManyToManyUsers;
+use App\Models\Comment;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
+use App\Contracts\SupportsTimeline;
 
 /**
  * Модель проекта
@@ -33,11 +38,12 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \App\Models\ProjectStatus $status
  * @property-read \App\Models\Company|null $company
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\ProjectContract[] $contracts
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Comment[] $comments
  */
-class Project extends Model
+class Project extends Model implements SupportsTimeline
 {
     use BelongsToCompany;
-    use HasFactory, HasManyToManyUsers;
+    use HasFactory, HasManyToManyUsers, LogsActivity;
 
     protected $fillable = ['name', 'creator_id', 'client_id', 'files', 'budget', 'currency_id', 'date', 'description', 'status_id', 'company_id'];
 
@@ -46,6 +52,30 @@ class Project extends Model
         'date' => 'datetime',
         'budget' => 'decimal:5',
     ];
+
+    /**
+     * @return string
+     */
+    public function getDescriptionForEvent(string $eventName): string
+    {
+        return match ($eventName) {
+            'created', 'updated', 'deleted' => "activity_log.project.{$eventName}",
+            default => 'activity_log.project.default',
+        };
+    }
+
+    /**
+     * @return LogOptions
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'budget', 'currency_id', 'date', 'client_id', 'description', 'status_id', 'files'])
+            ->useLogName('project')
+            ->dontSubmitEmptyLogs()
+            ->logOnlyDirty()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
+    }
 
     /**
      * Связь с клиентом
@@ -107,11 +137,6 @@ class Project extends Model
         return $this->belongsToMany(User::class, 'project_users', 'project_id', 'user_id');
     }
 
-    public function hasUser($userId)
-    {
-        return $this->users()->wherePivot('user_id', $userId)->exists();
-    }
-
     /**
      * Связь со статусом проекта
      *
@@ -122,6 +147,21 @@ class Project extends Model
         return $this->belongsTo(ProjectStatus::class, 'status_id');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
+    public function comments(): MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
+    public function activities(): MorphMany
+    {
+        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
+    }
 
     /**
      * Получить курс обмена валюты

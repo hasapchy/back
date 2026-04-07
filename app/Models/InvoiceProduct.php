@@ -59,16 +59,12 @@ class InvoiceProduct extends Model
 
     public function getDescriptionForEvent(string $eventName): string
     {
-        if ($eventName === 'created') {
-            return "Добавлен товар в счет: {$this->product_name}";
-        }
-        if ($eventName === 'updated') {
-            return "Изменён товар в счете: {$this->product_name}";
-        }
-        if ($eventName === 'deleted') {
-            return "Удалён товар из счета: {$this->product_name}";
-        }
-        return "Товар в счете был {$eventName}";
+        return match ($eventName) {
+            'created' => 'activity_log.invoice_product.created',
+            'updated' => 'activity_log.invoice_product.updated',
+            'deleted' => 'activity_log.invoice_product.deleted',
+            default => 'activity_log.invoice_product.default',
+        };
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -77,7 +73,8 @@ class InvoiceProduct extends Model
             ->logOnly(static::$logAttributes)
             ->useLogName(static::$logName)
             ->logOnlyDirty()
-            ->submitEmptyLogs();
+            ->submitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
     }
 
     // Привязываем записи активности к самому счету для отображения в таймлайне счета

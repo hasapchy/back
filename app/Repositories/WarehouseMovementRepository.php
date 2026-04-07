@@ -24,14 +24,11 @@ class WarehouseMovementRepository extends BaseRepository
     {
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('warehouse_movements_paginated', [$userUuid, $perPage, $companyId]);
-        $headerCompanyId = request()->header('X-Company-ID');
-
         Log::channel('warehouse_movements')->info('getItemsWithPagination.enter', [
             'user_uuid' => $userUuid,
             'page' => $page,
             'per_page' => $perPage,
             'company_id_resolved' => $companyId,
-            'x_company_id_header_raw' => $headerCompanyId,
             'cache_key' => $cacheKey,
         ]);
 

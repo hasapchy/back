@@ -24,6 +24,7 @@ use App\Repositories\ProjectContractsRepository;
 use App\Repositories\CommentsRepository;
 use App\Repositories\UsersRepository;
 use App\Services\CacheService;
+use App\Support\ResolvedCompany;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
@@ -33,7 +34,7 @@ class RepositoryCacheCrudTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
-        request()->headers->set('X-Company-ID', '1');
+        request()->attributes->set(ResolvedCompany::ATTRIBUTE, 1);
     }
 
     public function test_order_status_cache_invalidation_on_crud()

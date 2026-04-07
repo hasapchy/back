@@ -7,6 +7,7 @@ use App\Models\ProjectUser;
 use App\Models\ProjectStatus;
 use App\Models\Currency;
 use App\Services\CacheService;
+use App\Services\Timeline\TimelineCache;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 
@@ -27,7 +28,7 @@ class ProjectsRepository extends BaseRepository
             'client.phones:id,client_id,phone',
             'client.emails:id,client_id,email',
             'currency:id,name,symbol',
-            'status:id,name,color,is_tr_visible',
+            'status:id,name,color,is_visible',
             'creator:id,name,photo',
             'users:id,name',
         ];
@@ -143,7 +144,7 @@ class ProjectsRepository extends BaseRepository
 
             if ($activeOnly) {
                 $query->join('project_statuses', 'projects.status_id', '=', 'project_statuses.id')
-                    ->where('project_statuses.is_tr_visible', true);
+                    ->where('project_statuses.is_visible', true);
             }
 
             $this->applyOwnFilter($query, 'projects', 'projects', 'creator_id', $currentUser);
@@ -184,6 +185,7 @@ class ProjectsRepository extends BaseRepository
             }
 
             CacheService::invalidateProjectsCache();
+            TimelineCache::forget('project', (int) $item->id);
 
             return true;
         });
@@ -221,6 +223,7 @@ class ProjectsRepository extends BaseRepository
             }
 
             CacheService::invalidateProjectsCache();
+            TimelineCache::forget('project', $id);
 
             return true;
         });
@@ -290,6 +293,7 @@ class ProjectsRepository extends BaseRepository
             $item->delete();
 
             CacheService::invalidateProjectsCache();
+            TimelineCache::forget('project', (int) $id);
 
             return true;
         });
@@ -539,6 +543,9 @@ class ProjectsRepository extends BaseRepository
 
         if ($updatedCount > 0) {
             CacheService::invalidateProjectsCache();
+            foreach ($ids as $projectId) {
+                TimelineCache::forget('project', (int) $projectId);
+            }
         }
 
         return $updatedCount;

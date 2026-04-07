@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\ResolvedCompany;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -25,7 +26,7 @@ class StoreMessageTemplateRequest extends FormRequest
     public function rules(): array
     {
         $allowedTypes = array_keys(config('template_types', []));
-        $companyId = $this->header('X-Company-ID');
+        $companyId = ResolvedCompany::fromRequest($this);
         $isActive = $this->input('is_active', true);
 
         $typeRules = ['required', 'string', 'max:255'];
