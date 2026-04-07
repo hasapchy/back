@@ -91,7 +91,8 @@ class RoundingService
             return $value;
         }
 
-        $decimals = max(0, min(5, (int) ($company->$decimalsField ?? $defaultDecimals)));
+        $maxDecimals = $decimalsField === 'rounding_decimals' ? 2 : 5;
+        $decimals = max(0, min($maxDecimals, (int) ($company->$decimalsField ?? $defaultDecimals)));
         $enabled = $company->$enabledField ?? true;
 
         if (!$enabled) {
@@ -177,6 +178,6 @@ class RoundingService
             return 2;
         }
 
-        return max(0, min(5, (int) $company->rounding_decimals));
+        return max(0, min(2, (int) $company->rounding_decimals));
     }
 }
