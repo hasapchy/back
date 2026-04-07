@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('currency_histories', function (Blueprint $table) {
-            $table->foreignId('company_id')->nullable()->constrained()->onDelete('cascade')->after('currency_id');
+            if (!Schema::hasColumn('currency_histories', 'company_id')) {
+                $table->foreignId('company_id')->nullable()->constrained()->onDelete('cascade')->after('currency_id');
+            }
         });
     }
 
@@ -22,8 +24,12 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('currency_histories', function (Blueprint $table) {
-            $table->dropForeign(['company_id']);
-            $table->dropColumn('company_id');
+            if (Schema::hasColumn('currency_histories', 'company_id')) {
+                $table->dropForeign(['company_id']);
+            }
+            if (Schema::hasColumn('currency_histories', 'company_id')) {
+                $table->dropColumn('company_id');
+            }
         });
     }
 };
