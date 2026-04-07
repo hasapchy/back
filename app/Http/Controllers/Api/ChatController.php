@@ -19,11 +19,15 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\Chat\ChatService;
+use App\Services\PushNotificationSender;
+use Illuminate\Support\Str;
 
 class ChatController extends BaseController
 {
-    public function __construct(protected ChatService $chatService)
-    {
+    public function __construct(
+        protected ChatService $chatService,
+        private readonly PushNotificationSender $pushNotificationSender,
+    ) {
     }
 
     /**
@@ -214,7 +218,63 @@ class ChatController extends BaseController
             $parentId
         );
 
+        $this->sendNewMessagePush($chat, $message, $user);
+
         return (new ChatMessageResource($message->load(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])))->response()->setStatusCode(201);
+    }
+
+    private function sendNewMessagePush(Chat $chat, ChatMessage $message, $sender): void
+    {
+        try {
+            $recipientIds = ChatParticipant::query()
+                ->where('chat_id', $chat->id)
+                ->where('user_id', '!=', (int) $sender->id)
+                ->pluck('user_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->toArray();
+
+            if ($recipientIds === []) {
+                return;
+            }
+
+            $senderName = trim((string) ($sender->name ?? '').' '.(string) ($sender->surname ?? ''));
+            if ($senderName === '') {
+                $senderName = 'Unknown sender';
+            }
+
+            $messagePreview = trim((string) ($message->body ?? ''));
+            if ($messagePreview === '') {
+                $messagePreview = 'Attachment';
+            }
+            $messagePreview = Str::limit($messagePreview, 140);
+
+            $chatTitle = trim((string) ($chat->title ?? ''));
+            $pushTitle = $chat->type === 'direct'
+                ? $senderName
+                : ($chatTitle !== '' ? $chatTitle : 'Chat');
+
+            $pushBody = $chat->type === 'direct'
+                ? $messagePreview
+                : $senderName.': '.$messagePreview;
+
+            $this->pushNotificationSender->sendToUserIds(
+                $recipientIds,
+                $pushTitle,
+                $pushBody,
+                [
+                    'type' => 'chat_new_message',
+                    'chat_id' => (string) $chat->id,
+                    'message_id' => (string) $message->id,
+                    'chat_type' => (string) $chat->type,
+                    'sender_id' => (string) $sender->id,
+                    'sender_name' => $senderName,
+                ]
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     public function updateMessage(UpdateChatMessageRequest $request, Chat $chat, ChatMessage $message): JsonResponse
