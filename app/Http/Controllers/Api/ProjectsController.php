@@ -101,6 +101,8 @@ class ProjectsController extends BaseController
      */
     public function all(Request $request)
     {
+        $this->authorize('viewAny', Project::class);
+
         $this->getAuthenticatedUserIdOrFail();
 
         $activeOnly = (bool) $request->input('active_only', false);
@@ -119,9 +121,7 @@ class ProjectsController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        if (!$this->hasPermission('projects_create')) {
-            return $this->errorResponse('У вас нет прав на создание проектов', 403);
-        }
+        $this->authorize('create', Project::class);
 
         $validatedData = $request->validated();
 
@@ -156,9 +156,7 @@ class ProjectsController extends BaseController
 
         $project = Project::findOrFail($id);
 
-        if (!$this->canPerformAction('projects', 'update', $project)) {
-            return $this->errorResponse('У вас нет прав на редактирование этого проекта', 403);
-        }
+        $this->authorize('update', $project);
 
         $validatedData = $request->validated();
 
@@ -192,9 +190,7 @@ class ProjectsController extends BaseController
         
         $project = Project::findOrFail($id);
 
-        if (!$this->canPerformAction('projects', 'view', $project)) {
-            return $this->errorResponse('У вас нет прав на просмотр этого проекта', 403);
-        }
+        $this->authorize('view', $project);
 
         $project = $this->itemsRepository->findItemWithRelations($id);
 
@@ -240,9 +236,7 @@ class ProjectsController extends BaseController
         try {
             $project = Project::findOrFail($id);
 
-            if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->errorResponse('У вас нет прав на редактирование этого проекта', 403);
-            }
+            $this->authorize('update', $project);
 
             $storedFiles = $project->files ?? [];
             if (count($storedFiles) + count($files) > 100) {
@@ -265,6 +259,8 @@ class ProjectsController extends BaseController
             $project->update(['files' => $storedFiles]);
 
             return $this->successResponse($storedFiles, 'Files uploaded successfully');
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при загрузке файлов: Internal server error', 500);
         }
@@ -281,9 +277,7 @@ class ProjectsController extends BaseController
     {
         $project = Project::findOrFail($id);
 
-        if (!$this->canPerformAction('projects', 'view', $project)) {
-            return $this->errorResponse('У вас нет прав на просмотр этого проекта', 403);
-        }
+        $this->authorize('view', $project);
 
         $files = collect($project->files ?? [])
             ->whereIn('path', $request->input('paths', []))
@@ -325,9 +319,7 @@ class ProjectsController extends BaseController
 
             $project = Project::findOrFail($id);
 
-            if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->errorResponse('У вас нет прав на редактирование этого проекта', 403);
-            }
+            $this->authorize('update', $project);
 
             $filePath = $request->input('path');
             if (!$filePath || str_contains($filePath, '..') || !str_starts_with($filePath, 'projects/' . $id . '/')) {
@@ -358,6 +350,8 @@ class ProjectsController extends BaseController
 
 
             return $this->successResponse($updatedFiles, 'Файл успешно удалён');
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Внутренняя ошибка сервера', 500);
         }
@@ -375,9 +369,7 @@ class ProjectsController extends BaseController
         try {
             $project = Project::findOrFail($id);
 
-            if (!$this->canPerformAction('projects', 'view', $project)) {
-                return $this->errorResponse('У вас нет прав на просмотр этого проекта', 403);
-            }
+            $this->authorize('view', $project);
 
             if ($request->has('t')) {
                 $this->itemsRepository->invalidateProjectCache($id);
@@ -403,6 +395,8 @@ class ProjectsController extends BaseController
             }
 
             return $this->successResponse($response);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении истории баланса проекта: ' . $e->getMessage(), 500);
         }
@@ -419,13 +413,13 @@ class ProjectsController extends BaseController
         try {
             $project = Project::findOrFail($id);
 
-            if (!$this->canPerformAction('projects', 'view', $project)) {
-                return $this->errorResponse('У вас нет прав на просмотр этого проекта', 403);
-            }
+            $this->authorize('view', $project);
 
             $detailedBalance = $this->itemsRepository->getDetailedBalance($id);
 
             return $this->successResponse($detailedBalance);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при получении детального баланса проекта: ' . $e->getMessage(), 500);
         }
@@ -443,9 +437,7 @@ class ProjectsController extends BaseController
 
         $project = Project::findOrFail($id);
 
-        if (!$this->canPerformAction('projects', 'delete', $project)) {
-            return $this->errorResponse('У вас нет прав на удаление этого проекта', 403);
-        }
+        $this->authorize('delete', $project);
 
         try {
             $deleted = $this->itemsRepository->deleteItem($id);
@@ -480,9 +472,7 @@ class ProjectsController extends BaseController
 
         $projects = Project::whereIn('id', $request->ids)->get();
         foreach ($projects as $project) {
-            if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->errorResponse('У вас нет прав на редактирование одного или нескольких проектов', 403);
-            }
+            $this->authorize('update', $project);
         }
 
         try {

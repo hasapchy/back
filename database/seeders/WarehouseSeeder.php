@@ -2,27 +2,29 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Warehouse;
 use App\Models\WhUser;
+use Illuminate\Database\Seeder;
 
 class WarehouseSeeder extends Seeder
 {
-    public function run()
+    /**
+     * @return void
+     */
+    public function run(): void
     {
-        $warehouse = Warehouse::updateOrCreate([
-            'id' => 1
-        ], [
-            'name' => 'Основной склад',
-        ]);
+        $warehouse = Warehouse::find(1);
+        if (!$warehouse) {
+            $warehouse = Warehouse::query()->create([
+                'id' => 1,
+                'name' => 'Основной склад',
+                'company_id' => 1,
+            ]);
+        }
 
-        // Добавляем пользователя с ID 1 в основной склад
-        WhUser::updateOrCreate([
+        WhUser::firstOrCreate([
             'warehouse_id' => $warehouse->id,
-            'creator_id' => 1
-        ], [
-            'warehouse_id' => $warehouse->id,
-            'creator_id' => 1
+            'user_id' => 1,
         ]);
     }
 }

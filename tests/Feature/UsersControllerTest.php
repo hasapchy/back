@@ -36,8 +36,7 @@ class UsersControllerTest extends TestCase
 
     protected function actingAsApi(User $user)
     {
-        $token = $user->createToken('test-token')->plainTextToken;
-        return $this->withHeader('Authorization', 'Bearer ' . $token);
+        return $this->withApiTokenForCompany($user, null);
     }
 
     public function test_store_user_requires_validation(): void
@@ -56,11 +55,13 @@ class UsersControllerTest extends TestCase
     public function test_store_user_with_valid_data(): void
     {
         $role = Role::create(['name' => 'test_role_' . uniqid(), 'guard_name' => 'api']);
+        $email = 'test.'.uniqid('', true).'@example.com';
 
         $userData = [
             'name' => 'Test User',
-            'email' => 'test@example.com',
+            'email' => $email,
             'password' => 'password123',
+            'password_confirmation' => 'password123',
             'companies' => [$this->company->id],
             'roles' => [$role->name],
             'is_active' => true,
@@ -78,7 +79,7 @@ class UsersControllerTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('users', [
-            'email' => 'test@example.com',
+            'email' => $email,
             'name' => 'Test User',
         ]);
     }
@@ -91,6 +92,7 @@ class UsersControllerTest extends TestCase
             'name' => 'Test User',
             'email' => 'test2@example.com',
             'password' => 'password123',
+            'password_confirmation' => 'password123',
             'companies' => [$this->company->id],
             'is_active' => 'true',
             'is_admin' => 'false',
@@ -116,6 +118,7 @@ class UsersControllerTest extends TestCase
             'name' => 'Test User',
             'email' => 'test3@example.com',
             'password' => 'password123',
+            'password_confirmation' => 'password123',
             'companies' => [$this->company->id],
             'roles' => $role->name,
         ];
@@ -138,6 +141,7 @@ class UsersControllerTest extends TestCase
             'name' => 'Test User',
             'email' => 'test4@example.com',
             'password' => 'password123',
+            'password_confirmation' => 'password123',
             'companies' => (string)$this->company->id,
         ];
 
@@ -159,6 +163,7 @@ class UsersControllerTest extends TestCase
             'name' => 'Test User',
             'email' => 'test5@example.com',
             'password' => 'password123',
+            'password_confirmation' => 'password123',
             'companies' => [$this->company->id],
             'position' => '',
             'hire_date' => '',
@@ -318,13 +323,18 @@ class UsersControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
-            'items' => [
-                '*' => ['id', 'name', 'email']
+            'data' => [
+                'items' => [
+                    '*' => ['id', 'name', 'email'],
+                ],
+                'meta' => [
+                    'current_page',
+                    'next_page',
+                    'last_page',
+                    'per_page',
+                    'total',
+                ],
             ],
-            'current_page',
-            'next_page',
-            'last_page',
-            'total'
         ]);
     }
 

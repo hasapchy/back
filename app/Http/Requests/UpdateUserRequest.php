@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Category;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Validation\Rule;
 
 class UpdateUserRequest extends FormRequest
 {
@@ -14,7 +17,13 @@ class UpdateUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $targetUser = User::query()->find($this->route('id'));
+
+        if (! $targetUser) {
+            return true;
+        }
+
+        return $this->user()->can('update', $targetUser);
     }
 
     /**
@@ -38,6 +47,13 @@ class UpdateUserRequest extends FormRequest
             'position' => 'nullable|string|max:255',
             'is_active'   => 'nullable|boolean',
             'is_admin'   => 'nullable|boolean',
+            'is_simple_user'   => 'nullable|boolean',
+            'simple_category_id' => [
+                'exclude_unless:is_simple_user,true',
+                'required',
+                'integer',
+                Rule::exists('categories', 'id')->where(fn ($q) => $q->whereNull('parent_id')),
+            ],
             'photo' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
             'roles' => 'nullable|array',
             'roles.*' => 'string|exists:roles,name,guard_name,api',
@@ -72,6 +88,20 @@ class UpdateUserRequest extends FormRequest
             } else {
                 $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
             }
+        }
+
+        if (isset($data['is_simple_user'])) {
+            $currentUser = auth('api')->user();
+            if (!$currentUser || !$currentUser->is_admin) {
+                unset($data['is_simple_user']);
+                unset($data['simple_category_id']);
+            } else {
+                $data['is_simple_user'] = filter_var($data['is_simple_user'], FILTER_VALIDATE_BOOLEAN);
+            }
+        }
+
+        if (isset($data['is_simple_user']) && ! $data['is_simple_user']) {
+            unset($data['simple_category_id']);
         }
 
         if (isset($data['roles']) && is_string($data['roles'])) {
@@ -119,6 +149,32 @@ class UpdateUserRequest extends FormRequest
         }
 
         $this->merge($data);
+    }
+
+    /**
+     * @param  \Illuminate\Validation\Validator  $validator
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function (Validator $v): void {
+            $cid = (int) $this->input('simple_category_id');
+            if (! $cid) {
+                return;
+            }
+            $raw = $this->input('companies');
+            if (is_array($raw) && $raw !== []) {
+                $companyIds = array_map('intval', $raw);
+            } else {
+                $targetUser = User::query()->find($this->route('id'));
+                $companyIds = $targetUser !== null
+                    ? $targetUser->companies()->pluck('companies.id')->map(fn ($id) => (int) $id)->all()
+                    : [];
+            }
+            $catCompany = Category::whereKey($cid)->value('company_id');
+            if ($catCompany === null || ! in_array((int) $catCompany, $companyIds, true)) {
+                $v->errors()->add('simple_category_id', 'Категория должна быть из компаний пользователя.');
+            }
+        });
     }
 
     /**

@@ -2,34 +2,24 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Models\Sanctum\PersonalAccessToken;
 use App\Models\User;
-use App\Repositories\UsersRepository;
+use App\Services\MobileSanctumTokenService;
+use App\Support\AuthRequestLogContext;
+use App\Support\ResolvedCompany;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Log;
-use Laravel\Sanctum\PersonalAccessToken;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 class AuthController extends BaseController
 {
-    /**
-     * @var UsersRepository
-     */
-    protected $itemsRepository;
-
-    /**
-     * Конструктор контроллера
-     *
-     * @param UsersRepository $itemsRepository Репозиторий пользователей
-     */
-    public function __construct(UsersRepository $itemsRepository)
-    {
-        $this->itemsRepository = $itemsRepository;
+    public function __construct(
+        private readonly MobileSanctumTokenService $mobileSanctumTokenService
+    ) {
     }
 
     /**
-     * Аутентификация пользователя
-     *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
@@ -38,76 +28,134 @@ class AuthController extends BaseController
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
+            'company_id' => 'nullable|integer',
         ]);
+
+        $baseCtx = array_merge(AuthRequestLogContext::fromRequest($request), [
+            'email' => $request->input('email'),
+            'remember' => $request->boolean('remember'),
+            'company_id_param' => $request->input('company_id'),
+        ]);
+        $this->authLoginLog('auth.login.attempt', $baseCtx);
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
-            Log::warning('Login attempt: user not found', ['email' => $request->email]);
+        if (! $user || ! Hash::check($request->password, $user->password)) {
+            $this->authLoginLog('auth.login.failed', array_merge($baseCtx, [
+                'reason' => 'invalid_credentials',
+                'user_found' => (bool) $user,
+            ]));
+
             return $this->errorResponse('Неверный логин или пароль', 401);
         }
 
-        if (!Hash::check($request->password, $user->password)) {
-            Log::warning('Login attempt: invalid password', ['email' => $request->email, 'creator_id' => $user->id]);
-            return $this->errorResponse('Неверный логин или пароль', 401);
-        }
+        if (! $user->is_active) {
+            $this->authLoginLog('auth.login.failed', array_merge($baseCtx, [
+                'reason' => 'inactive',
+                'user_id' => $user->id,
+            ]));
 
-        if (!$user->is_active) {
             return $this->errorResponse('Account is disabled', 403);
         }
 
-        $user->load('roles', 'permissions');
-        $resolvedRoles = $user->getAllRoleNames();
-
         User::where('id', $user->id)->update(['last_login_at' => now()]);
 
-        RateLimiter::clear('auth:'.$request->ip());
-
         $remember = $request->boolean('remember');
-        $ttl = $remember ? config('sanctum.remember_expiration', 10080) : config('sanctum.expiration', 1440);
+        $user->tokens()->delete();
 
-        $expiresAt = $ttl ? now()->addMinutes($ttl) : null;
+        [$companyId, $error] = $this->resolveLoginCompanyId($request, $user);
+        if ($error !== null) {
+            $this->authLoginLog('auth.login.failed', array_merge($baseCtx, [
+                'reason' => 'company',
+                'user_id' => $user->id,
+                'company_error' => $error,
+            ]));
 
-        $fingerprint = $request->input('device_fingerprint');
-        if ($fingerprint !== null && $fingerprint !== '') {
-            $user->tokens()->where('device_fingerprint', $fingerprint)->delete();
-        } else {
-            $user->tokens()->delete();
+            return $this->errorResponse($error, 404);
         }
 
-        $accessToken = $user->createToken('access-token', ['*'], $expiresAt);
-        $refreshToken = $user->createToken('refresh-token', ['refresh'], $remember ? now()->addMinutes(43200) : now()->addMinutes(10080));
+        $stateful = EnsureFrontendRequestsAreStateful::fromFrontend($request);
 
-        $deviceName = $request->input('device_name') ?? $request->userAgent();
-        $this->setDeviceOnToken($accessToken->accessToken, $fingerprint, $deviceName);
-        $this->setDeviceOnToken($refreshToken->accessToken, $fingerprint, $deviceName);
+        if ($stateful) {
+            Auth::guard('web')->login($user, $remember);
+            $request->session()->regenerate();
+            $request->session()->put(ResolvedCompany::SESSION_KEY, $companyId);
 
-        $companyId = $user->companies()->value('companies.id');
-        $permissions = $this->getUserPermissions($user, $companyId ? (int) $companyId : null);
+            $this->authLoginLog('auth.login.success', array_merge($baseCtx, [
+                'user_id' => $user->id,
+                'company_id' => $companyId,
+                'mode' => 'session',
+                'session_id' => $request->session()->getId(),
+            ]));
 
-        return $this->successResponse([
-            'access_token' => $accessToken->plainTextToken,
-            'refresh_token' => $refreshToken->plainTextToken,
-            'token_type'   => 'bearer',
-            'expires_in'   => $ttl ? $ttl * 60 : null,
-            'refresh_expires_in' => ($remember ? 43200 : 10080) * 60,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'surname' => $user->surname,
-                'email' => $user->email,
-                'photo' => $user->photo,
-                'birthday' => $user->birthday?->format('Y-m-d'),
-                'is_admin' => $user->is_admin,
-                'roles' => $resolvedRoles,
-                'permissions' => $permissions
-            ]
-        ]);
+            return $this->successResponse([
+                'user' => $this->userPayloadForAuthResponse($user, $companyId),
+            ]);
+        }
+
+        $this->authLoginLog('auth.login.success', array_merge($baseCtx, [
+            'user_id' => $user->id,
+            'company_id' => $companyId,
+            'mode' => 'token_pair',
+        ]));
+
+        return $this->successResponse(array_merge(
+            ['user' => $this->userPayloadForAuthResponse($user, $companyId)],
+            $this->mobileSanctumTokenService->issueTokenPair($user, $remember, $companyId)
+        ));
     }
 
     /**
-     * Получить данные текущего аутентифицированного пользователя
-     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function refresh(Request $request)
+    {
+        $plain = $request->input('refresh_token');
+        if (! is_string($plain) || $plain === '') {
+            return $this->errorResponse('Refresh token is required', 400);
+        }
+
+        $token = PersonalAccessToken::findToken($plain);
+        if (! $token || ! $token->can('refresh')) {
+            $token?->delete();
+
+            return $this->errorResponse('Invalid refresh token', 401);
+        }
+
+        /** @var User $user */
+        $user = $token->tokenable;
+        if (! $user instanceof User || ! $user->is_active) {
+            $token->delete();
+
+            return $this->errorResponse('User account is deactivated', 403);
+        }
+
+        $companyId = $token->company_id !== null && $token->company_id !== ''
+            ? (int) $token->company_id
+            : (int) ($user->companies()->value('companies.id') ?? 0);
+
+        if ($companyId < 1) {
+            $token->delete();
+
+            return $this->errorResponse('No companies available', 404);
+        }
+
+        if (! $user->companies()->where('companies.id', $companyId)->exists()) {
+            $token->delete();
+
+            return $this->errorResponse('Company not found or access denied', 403);
+        }
+
+        $token->delete();
+
+        return $this->successResponse(array_merge(
+            ['user' => $this->userPayloadForAuthResponse($user, $companyId)],
+            $this->mobileSanctumTokenService->issueTokenPair($user, false, $companyId)
+        ));
+    }
+
+    /**
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
@@ -118,27 +166,16 @@ class AuthController extends BaseController
         $user->load('roles', 'permissions');
 
         $companyId = $this->getCurrentCompanyId();
-        $permissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray() : $user->getAllPermissions()->pluck('name')->toArray();
-        $roles = $user->getAllRoleNames();
+        $permissions = $companyId
+            ? $user->getAllPermissionsForCompany((int) $companyId)->pluck('name')->toArray()
+            : $user->getAllPermissions()->pluck('name')->toArray();
 
         return $this->successResponse([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'surname' => $user->surname,
-                'email' => $user->email,
-                'photo' => $user->photo,
-                'birthday' => $user->birthday?->format('Y-m-d'),
-                'is_admin' => $user->is_admin,
-                'roles' => $roles,
-                'permissions' => $permissions
-            ],
+            'user' => $this->serializeUserForApi($user, $user->getAllRoleNames(), $permissions),
         ]);
     }
 
     /**
-     * Выход пользователя из системы
-     *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
@@ -146,95 +183,89 @@ class AuthController extends BaseController
     {
         $user = $request->user();
 
-        if ($user && $user->currentAccessToken()) {
-            $user->currentAccessToken()->delete();
+        if ($user !== null && $user->currentAccessToken() !== null) {
+            $user->tokens()->delete();
+        }
+
+        Auth::guard('web')->logout();
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
         }
 
         return $this->successResponse(null, 'Successfully logged out');
     }
 
     /**
-     * Обновить access token используя refresh token
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return array{0: int|null, 1: string|null}
      */
-    public function refresh(Request $request)
+    private function resolveLoginCompanyId(Request $request, User $user): array
     {
-        $refreshToken = $request->input('refresh_token');
+        if ($request->filled('company_id')) {
+            $cid = (int) $request->input('company_id');
+            if ($cid < 1) {
+                return [null, 'Company not found or access denied'];
+            }
+            if (! $user->companies()->where('companies.id', $cid)->exists()) {
+                return [null, 'Company not found or access denied'];
+            }
 
-        if (!$refreshToken) {
-            return $this->errorResponse('Refresh token is required', 400);
+            return [$cid, null];
         }
 
-        $token = PersonalAccessToken::findToken($refreshToken);
+        $firstId = $user->companies()->value('companies.id');
 
-        if (!$token) {
-            return $this->errorResponse('Invalid refresh token', 401);
+        if ($firstId === null) {
+            return [null, 'No companies available'];
         }
 
-        if (!$token->can('refresh')) {
-            $token->delete();
-            return $this->errorResponse('Invalid refresh token', 401);
-        }
-
-        /** @var User $user */
-        $user = $token->tokenable;
-
-        if (!$user || !$user->is_active) {
-            $token->delete();
-            return $this->errorResponse('User account is deactivated', 403);
-        }
-
-        $user->load('roles', 'permissions');
-        $resolvedRoles = $user->getAllRoleNames();
-
-        $isRemember = $token->expires_at && $token->expires_at->gt(now()->addMinutes(43200 - 1440));
-        $ttl = $isRemember ? config('sanctum.remember_expiration', 10080) : config('sanctum.expiration', 1440);
-        $expiresAt = $ttl ? now()->addMinutes($ttl) : null;
-
-        $token->delete();
-
-        $newAccessToken = $user->createToken('access-token', ['*'], $expiresAt);
-        $newRefreshToken = $user->createToken('refresh-token', ['refresh'], $isRemember ? now()->addMinutes(43200) : now()->addMinutes(10080));
-
-        $this->setDeviceOnToken($newAccessToken->accessToken, $token->device_fingerprint, $token->device_name);
-        $this->setDeviceOnToken($newRefreshToken->accessToken, $token->device_fingerprint, $token->device_name);
-
-        return $this->successResponse([
-            'access_token'  => $newAccessToken->plainTextToken,
-            'refresh_token' => $newRefreshToken->plainTextToken,
-            'token_type'    => 'bearer',
-            'expires_in'    => $ttl ? $ttl * 60 : null,
-            'refresh_expires_in' => ($isRemember ? 43200 : 10080) * 60,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'surname' => $user->surname,
-                'email' => $user->email,
-                'photo' => $user->photo,
-                'birthday' => $user->birthday?->format('Y-m-d'),
-                'is_admin' => $user->is_admin,
-                'roles' => $resolvedRoles,
-                'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
-            ]
-        ]);
+        return [(int) $firstId, null];
     }
 
     /**
-     * @param \Laravel\Sanctum\PersonalAccessToken $token
-     * @param string|null $fingerprint
-     * @param string|null $deviceName
-     * @return void
+     * @return array<string, mixed>
      */
-    private function setDeviceOnToken($token, ?string $fingerprint, ?string $deviceName): void
+    private function userPayloadForAuthResponse(User $user, ?int $companyId = null): array
     {
-        $payload = array_filter([
-            'device_fingerprint' => $fingerprint,
-            'device_name' => $deviceName,
-        ], fn ($v) => $v !== null);
-        if ($payload !== []) {
-            $token->forceFill($payload)->save();
+        $user->loadMissing('roles', 'permissions');
+        if ($companyId === null) {
+            $companyId = $user->companies()->value('companies.id');
         }
+        $permissions = $companyId
+            ? $this->getUserPermissions($user, (int) $companyId)
+            : $user->getAllPermissions()->pluck('name')->toArray();
+
+        return $this->serializeUserForApi($user, $user->getAllRoleNames(), $permissions);
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function authLoginLog(string $message, array $context): void
+    {
+        AuthRequestLogContext::logAuth('info', $message, $context);
+    }
+
+    /**
+     * @param  array<int, string>  $roles
+     * @param  array<int, string>  $permissions
+     * @return array<string, mixed>
+     */
+    private function serializeUserForApi(User $user, array $roles, array $permissions): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'surname' => $user->surname,
+            'email' => $user->email,
+            'photo' => $user->photo,
+            'birthday' => $user->birthday?->format('Y-m-d'),
+            'is_admin' => $user->is_admin,
+            'is_simple_user' => (bool) $user->is_simple_user,
+            'simple_category_id' => $user->simple_category_id,
+            'roles' => $roles,
+            'permissions' => $permissions,
+        ];
     }
 }

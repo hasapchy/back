@@ -50,9 +50,7 @@ class ProjectContractsControllerTest extends TestCase
 
     protected function actingAsApi(User $user)
     {
-        $token = $user->createToken('test-token')->plainTextToken;
-        return $this->withHeader('Authorization', 'Bearer ' . $token)
-            ->withHeader('X-Company-ID', $this->company->id);
+        return $this->withApiTokenForCompany($user, (int) $this->company->id);
     }
 
     public function test_store_project_contract_requires_validation(): void
@@ -68,6 +66,7 @@ class ProjectContractsControllerTest extends TestCase
     {
         $data = [
             'project_id' => $this->project->id,
+            'client_id' => $this->client->id,
             'number' => 'CONTRACT-001',
             'amount' => 10000.00,
             'currency_id' => $this->currency->id,
@@ -91,6 +90,7 @@ class ProjectContractsControllerTest extends TestCase
 
         $data = [
             'project_id' => $this->project->id,
+            'client_id' => $this->client->id,
             'number' => 'CONTRACT-002',
             'amount' => 20000.00,
             'currency_id' => $this->currency->id,

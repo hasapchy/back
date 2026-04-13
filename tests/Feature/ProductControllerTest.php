@@ -44,9 +44,7 @@ class ProductControllerTest extends TestCase
 
     protected function actingAsApi(User $user)
     {
-        $token = $user->createToken('test-token')->plainTextToken;
-        return $this->withHeader('Authorization', 'Bearer ' . $token)
-            ->withHeader('X-Company-ID', $this->company->id);
+        return $this->withApiTokenForCompany($user, (int) $this->company->id);
     }
 
     public function test_store_product_requires_validation(): void
@@ -87,7 +85,7 @@ class ProductControllerTest extends TestCase
             ->postJson('/api/products', $data);
 
         $response->assertStatus(200);
-        $response->assertJsonStructure(['item', 'message']);
+        $response->assertJsonStructure(['data', 'message']);
         $this->assertDatabaseHas('products', [
             'name' => 'Test Product',
             'sku' => 'TEST-001',
@@ -110,15 +108,15 @@ class ProductControllerTest extends TestCase
             ->postJson('/api/products', $data);
 
         $response->assertStatus(200);
-        $response->assertJsonStructure(['item', 'message']);
+        $response->assertJsonStructure(['data', 'message']);
     }
 
     public function test_update_product_success(): void
     {
         $product = Product::factory()->create([
-            'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
         ]);
+        $product->categories()->attach($this->category->id);
 
         $data = [
             'name' => 'Updated Product',
@@ -126,10 +124,10 @@ class ProductControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->postJson("/api/products/{$product->id}", $data);
+            ->putJson("/api/products/{$product->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJsonStructure(['item', 'message']);
+        $response->assertJsonStructure(['data', 'message']);
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
             'name' => 'Updated Product',
@@ -139,9 +137,9 @@ class ProductControllerTest extends TestCase
     public function test_destroy_product_success(): void
     {
         $product = Product::factory()->create([
-            'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
         ]);
+        $product->categories()->attach($this->category->id);
 
         $response = $this->actingAsApi($this->adminUser)
             ->deleteJson("/api/products/{$product->id}");

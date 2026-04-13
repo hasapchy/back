@@ -11,6 +11,7 @@ use App\Models\OrderStatusCategory;
 use App\Models\ProjectStatus;
 use App\Models\TransactionCategory;
 use App\Services\CacheService;
+use App\Support\ResolvedCompany;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -27,10 +28,10 @@ class RepositoryCacheTest extends TestCase
     {
         $repo = new OrderStatusRepository();
 
-        request()->headers->set('X-Company-ID', '123');
+        request()->attributes->set(ResolvedCompany::ATTRIBUTE, 123);
         $key1 = $repo->generateCacheKey('test', ['param1']);
 
-        request()->headers->set('X-Company-ID', '456');
+        request()->attributes->set(ResolvedCompany::ATTRIBUTE, 456);
         $key2 = $repo->generateCacheKey('test', ['param1']);
 
         $this->assertNotEquals($key1, $key2);

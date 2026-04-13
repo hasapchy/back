@@ -1,5 +1,6 @@
 <?php
 
+use App\Broadcasting\CompanyPrivateChannel;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\DB;
 
@@ -14,15 +15,22 @@ use Illuminate\Support\Facades\DB;
 |
 */
 
+$userBelongsToCompany = static function ($user, int $companyId): bool {
+    return DB::table('company_user')
+        ->where('company_id', $companyId)
+        ->where('user_id', $user->id)
+        ->exists();
+};
+
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
-Broadcast::channel('company.{companyId}.chat.{chatId}', function ($user, $companyId, $chatId) {
+Broadcast::channel('company.{companyId}.chat.{chatId}', function ($user, $companyId, $chatId) use ($userBelongsToCompany) {
     try {
         $companyId = (int) $companyId;
         $chatId = (int) $chatId;
-        if (! DB::table('company_user')->where('company_id', $companyId)->where('user_id', $user->id)->exists()) {
+        if (! $userBelongsToCompany($user, $companyId)) {
             return false;
         }
         $permissions = $user->getAllPermissionsForCompany($companyId)->pluck('name');
@@ -44,10 +52,10 @@ Broadcast::channel('company.{companyId}.chat.{chatId}', function ($user, $compan
     }
 });
 
-Broadcast::channel('company.{companyId}.orders', function ($user, $companyId) {
+Broadcast::channel('company.{companyId}.' . CompanyPrivateChannel::SEGMENT_ORDERS, function ($user, $companyId) use ($userBelongsToCompany) {
     try {
         $companyId = (int) $companyId;
-        if (! DB::table('company_user')->where('company_id', $companyId)->where('user_id', $user->id)->exists()) {
+        if (! $userBelongsToCompany($user, $companyId)) {
             return false;
         }
         if ($user->is_admin) {
@@ -56,18 +64,54 @@ Broadcast::channel('company.{companyId}.orders', function ($user, $companyId) {
         $names = $user->getAllPermissionsForCompany($companyId)->pluck('name');
         return $names->contains('orders_view')
             || $names->contains('orders_view_all')
+            || $names->contains('orders_view_own')
             || $names->contains('orders_simple_view')
-            || $names->contains('orders_simple_view_all');
+            || $names->contains('orders_simple_view_all')
+            || $names->contains('orders_simple_view_own');
     } catch (\Throwable $e) {
         report($e);
         return false;
     }
 });
 
-Broadcast::channel('company.{companyId}.presence', function ($user, $companyId) {
+Broadcast::channel('company.{companyId}.' . CompanyPrivateChannel::SEGMENT_TRANSACTIONS, function ($user, $companyId) use ($userBelongsToCompany) {
     try {
         $companyId = (int) $companyId;
-        if (! DB::table('company_user')->where('company_id', $companyId)->where('user_id', $user->id)->exists()) {
+        if (! $userBelongsToCompany($user, $companyId)) {
+            return false;
+        }
+        if ($user->is_admin) {
+            return true;
+        }
+        $names = $user->getAllPermissionsForCompany($companyId)->pluck('name');
+
+        return $names->contains('transactions_view')
+            || $names->contains('transactions_view_all');
+    } catch (\Throwable $e) {
+        report($e);
+        return false;
+    }
+});
+
+Broadcast::channel('company.{companyId}.user.{userId}', function ($user, $companyId, $userId) use ($userBelongsToCompany) {
+    try {
+        $companyId = (int) $companyId;
+        $userId = (int) $userId;
+        if ((int) $user->id !== $userId) {
+            return false;
+        }
+
+        return $userBelongsToCompany($user, $companyId);
+    } catch (\Throwable $e) {
+        report($e);
+        return false;
+    }
+});
+
+Broadcast::channel('company.{companyId}.presence', function ($user, $companyId) use ($userBelongsToCompany) {
+    try {
+        $companyId = (int) $companyId;
+        if (! $userBelongsToCompany($user, $companyId)) {
             return false;
         }
         $permissions = $user->getAllPermissionsForCompany($companyId)->pluck('name');

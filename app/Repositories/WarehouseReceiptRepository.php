@@ -71,6 +71,7 @@ class WarehouseReceiptRepository extends BaseRepository
             'wh_receipts.id',
             'wh_receipts.warehouse_id',
             'wh_receipts.supplier_id',
+            'wh_receipts.client_balance_id',
             'wh_receipts.amount',
             'wh_receipts.cash_id',
             'wh_receipts.project_id',
@@ -92,6 +93,7 @@ class WarehouseReceiptRepository extends BaseRepository
                 'supplier:id,first_name,last_name,status,balance',
                 'supplier.phones:id,client_id,phone',
                 'supplier.emails:id,client_id,email',
+                'clientBalance:id,client_id,currency_id,type',
                 'products:id,receipt_id,product_id,quantity,price',
                 'products.product:id,name,image,unit_id',
                 'products.product.unit:id,name,short_name'
@@ -117,7 +119,7 @@ class WarehouseReceiptRepository extends BaseRepository
     /**
      * Создать оприходование
      *
-     * @param array $data Данные оприходования
+     * @param array $data Данные оприходования (в т.ч. client_balance_id)
      * @return bool
      * @throws \Exception
      */
@@ -131,7 +133,9 @@ class WarehouseReceiptRepository extends BaseRepository
         $note         = $data['note'] ?? null;
         $products     = $data['products'];
 
-        return DB::transaction(function () use ($data, $client_id, $warehouse_id, $type, $cash_id, $date, $note, $products) {
+        $client_balance_id = $data['client_balance_id'] ?? null;
+
+        return DB::transaction(function () use ($data, $client_id, $warehouse_id, $type, $cash_id, $date, $note, $products, $client_balance_id) {
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $currency = $defaultCurrency;
 
@@ -155,6 +159,7 @@ class WarehouseReceiptRepository extends BaseRepository
 
             $receipt = new WhReceipt();
             $receipt->supplier_id  = $client_id;
+            $receipt->client_balance_id = $client_balance_id;
             $receipt->warehouse_id = $warehouse_id;
             $receipt->project_id   = $data['project_id'] ?? null;
             $receipt->cash_id      = $cash_id;
@@ -185,6 +190,7 @@ class WarehouseReceiptRepository extends BaseRepository
                 'currency_id' => $currency->id,
                 'cash_id' => $cash_id,
                 'client_id' => $client_id,
+                'client_balance_id' => $client_balance_id,
                 'project_id' => $data['project_id'] ?? null,
                 'note' => $note,
                 'date' => $date,
@@ -407,6 +413,7 @@ class WarehouseReceiptRepository extends BaseRepository
      *   - project_id (int|null) ID проекта
      *   - note (string|null) Примечание
      *   - date (string) Дата транзакции
+     *   - client_balance_id (int|null) Явный баланс поставщика
      * @return array<string, mixed> Данные транзакции для создания
      */
     private function buildReceiptTransactionData(array $data): array
@@ -421,6 +428,7 @@ class WarehouseReceiptRepository extends BaseRepository
             'category_id' => 6,
             'project_id' => $data['project_id'] ?? null,
             'client_id' => $data['client_id'],
+            'client_balance_id' => $data['client_balance_id'] ?? null,
             'note' => $data['note'],
             'date' => $data['date'],
             'is_debt' => true,

@@ -1,6 +1,7 @@
 <?php
 
 namespace Database\Seeders;
+
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -9,9 +10,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             PermissionsSeeder::class,
+            CompanySeeder::class,
             RolesSeeder::class,
             AdminSeeder::class,
-            CompanySeeder::class,
             CurrencySeeder::class,
             TransactionCategorySeeder::class,
             OrderStatusSeeder::class,
@@ -21,7 +22,6 @@ class DatabaseSeeder extends Seeder
             UnitsSeeder::class,
             WarehouseSeeder::class,
             LeaveTypeSeeder::class,
-            TestUserSeeder::class,
             DepartmentSeeder::class,
             WorkscheduleSeeder::class,
         ]);

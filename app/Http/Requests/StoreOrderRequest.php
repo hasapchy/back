@@ -2,18 +2,24 @@
 
 namespace App\Http\Requests;
 
-use App\Rules\CashRegisterAccessRule;
+use App\Http\Requests\Concerns\NormalizesOrderNullableTextFields;
+use App\Http\Requests\Concerns\ResolvesSimpleOrderUser;
+use App\Http\Requests\Concerns\SharedOrderEntityRules;
+use App\Http\Requests\Concerns\ValidatesOrderClientBalance;
 use App\Rules\WarehouseAccessRule;
-use App\Rules\ProjectAccessRule;
-use App\Rules\ClientAccessRule;
 use App\Models\CashRegister;
-use App\Models\User;
+use App\Models\Order;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
 
 class StoreOrderRequest extends FormRequest
 {
+    use NormalizesOrderNullableTextFields;
+    use ResolvesSimpleOrderUser;
+    use SharedOrderEntityRules;
+    use ValidatesOrderClientBalance;
+
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -21,7 +27,7 @@ class StoreOrderRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', Order::class);
     }
 
     /**
@@ -31,19 +37,9 @@ class StoreOrderRequest extends FormRequest
      */
     public function rules(): array
     {
-        $user = auth('api')->user();
-        $isSimpleWorker = $user instanceof User && $user->hasRole(config('simple.worker_role'));
+        $isSimpleUser = $this->isSimpleOrderUser();
 
-        return [
-            'client_id'            => $isSimpleWorker
-                ? ['required', 'integer', 'exists:clients,id']
-                : ['required', 'integer', new ClientAccessRule()],
-            'project_id'           => $isSimpleWorker
-                ? ['nullable', 'integer', 'exists:projects,id']
-                : ['nullable', 'integer', new ProjectAccessRule()],
-            'cash_id'              => $isSimpleWorker
-                ? ['nullable', 'integer', 'exists:cash_registers,id']
-                : ['nullable', 'integer', new CashRegisterAccessRule()],
+        return array_merge($this->sharedOrderEntityRules($isSimpleUser, false), [
             'warehouse_id'         => ['required', 'integer', new WarehouseAccessRule()],
             'currency_id'          => [
                 'nullable',
@@ -59,7 +55,7 @@ class StoreOrderRequest extends FormRequest
                     }
                 },
             ],
-            'category_id'          => $isSimpleWorker
+            'category_id'          => $isSimpleUser
                 ? 'nullable|integer|exists:categories,id'
                 : 'required|integer|exists:categories,id',
             'discount'             => 'nullable|numeric|min:0',
@@ -81,27 +77,8 @@ class StoreOrderRequest extends FormRequest
             'temp_products.*.unit_id'     => 'nullable|exists:units,id',
             'temp_products.*.width'      => 'nullable|numeric|min:0',
             'temp_products.*.height'     => 'nullable|numeric|min:0',
-        ];
-    }
-
-    /**
-     * Подготовить данные для валидации
-     *
-     * @return void
-     */
-    protected function prepareForValidation(): void
-    {
-        $data = $this->all();
-
-        // Нормализация строк с пробелами в null (ConvertEmptyStringsToNull обрабатывает только полностью пустые строки)
-        $nullableFields = ['description', 'note'];
-        foreach ($nullableFields as $field) {
-            if (isset($data[$field]) && is_string($data[$field]) && trim($data[$field]) === '') {
-                $data[$field] = null;
-            }
-        }
-
-        $this->merge($data);
+            'client_balance_id'          => $this->orderClientBalanceIdRules(),
+        ]);
     }
 
     /**

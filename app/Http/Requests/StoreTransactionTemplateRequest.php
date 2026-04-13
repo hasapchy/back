@@ -2,17 +2,18 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Template;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreTransactionTemplateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', Template::class);
     }
 
     /**
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array|string>
+     * @return array<string, mixed>
      */
     public function rules(): array
     {
@@ -26,7 +27,6 @@ class StoreTransactionTemplateRequest extends FormRequest
             'category_id' => 'nullable|integer|exists:transaction_categories,id',
             'client_id' => 'nullable|integer|exists:clients,id',
             'project_id' => 'nullable|integer|exists:projects,id',
-            'date' => 'nullable|date',
             'note' => 'nullable|string|max:65535',
         ];
     }

@@ -13,5 +13,5 @@ class DepartmentUser extends Model
 
     public $timestamps = true;
 
-    protected $fillable = ['department_id', 'creator_id'];
+    protected $fillable = ['department_id', 'user_id'];
 }

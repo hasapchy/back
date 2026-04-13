@@ -291,7 +291,6 @@ protected const SALARY_CATEGORY_IDS = [7, 23, 24, 26, 27];
 
 - `Client::balance` - имеет cast `'decimal:2'` ✅
 - `Company::rounding_custom_threshold` - имеет cast, но не указан в PHPDoc
-- `CompanyRoundingRule::custom_threshold` - имеет cast `'decimal:2'` ✅
 
 **Рекомендация:**
 - Проверить все модели на наличие casts для decimal полей
@@ -598,16 +597,6 @@ protected const PROTECTED_CATEGORY_IDS = [1, 2, 3, 4, 5];
 ---
 
 ### Company
-
-**Статус:** ✅ Хорошо структурирована
-
-**Проблемы:** Минимальные
-
-**Рекомендации:** Продолжать поддерживать текущий уровень качества
-
----
-
-### CompanyRoundingRule
 
 **Статус:** ✅ Хорошо структурирована
 

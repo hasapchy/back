@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Models\TransactionCategory;
 use App\Models\User;
-use App\Models\Company;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -25,6 +24,7 @@ class TransactionCategoryFactory extends Factory
             'name' => fake()->words(2, true),
             'type' => fake()->boolean() ? 1 : 0,
             'creator_id' => User::factory(),
+            'parent_id' => null,
         ];
     }
 }

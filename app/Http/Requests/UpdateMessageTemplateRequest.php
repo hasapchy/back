@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\MessageTemplate;
+use App\Support\ResolvedCompany;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -15,7 +16,13 @@ class UpdateMessageTemplateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $template = MessageTemplate::query()->find($this->route('id'));
+
+        if (! $template) {
+            return true;
+        }
+
+        return $this->user()->can('update', $template);
     }
 
     /**
@@ -27,7 +34,7 @@ class UpdateMessageTemplateRequest extends FormRequest
     {
         $allowedTypes = array_keys(config('template_types', []));
         $templateId = $this->route('id');
-        $companyId = $this->header('X-Company-ID');
+        $companyId = ResolvedCompany::fromRequest($this);
         $isActive = $this->input('is_active');
 
         $typeRules = ['sometimes', 'string', 'max:255'];

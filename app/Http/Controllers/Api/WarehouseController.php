@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\StoreWarehouseRequest;
 use App\Http\Requests\UpdateWarehouseRequest;
 use App\Http\Resources\WarehouseResource;
+use App\Models\Warehouse;
 use App\Repositories\WarehouseRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
@@ -34,6 +35,8 @@ class WarehouseController extends BaseController
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Warehouse::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
@@ -60,6 +63,8 @@ class WarehouseController extends BaseController
      */
     public function all(Request $request)
     {
+        $this->authorize('viewAny', Warehouse::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $warehouses = $this->itemsRepository->getAllItems($userUuid);
@@ -75,6 +80,8 @@ class WarehouseController extends BaseController
      */
     public function store(StoreWarehouseRequest $request)
     {
+        $this->authorize('create', Warehouse::class);
+
         $validatedData = $request->validated();
 
         $warehouse_created = $this->itemsRepository->createItem($validatedData['name'], $validatedData['users']);
@@ -97,9 +104,7 @@ class WarehouseController extends BaseController
     {
         $warehouse = \App\Models\Warehouse::findOrFail($id);
 
-        if (!$this->canPerformAction('warehouses', 'update', $warehouse)) {
-            return $this->errorResponse('У вас нет прав на редактирование этого склада', 403);
-        }
+        $this->authorize('update', $warehouse);
 
         $validatedData = $request->validated();
 
@@ -122,9 +127,7 @@ class WarehouseController extends BaseController
     {
         $warehouse = \App\Models\Warehouse::findOrFail($id);
 
-        if (!$this->canPerformAction('warehouses', 'delete', $warehouse)) {
-            return $this->errorResponse('У вас нет прав на удаление этого склада', 403);
-        }
+        $this->authorize('delete', $warehouse);
 
         $warehouse_deleted = $this->itemsRepository->deleteItem($id);
 

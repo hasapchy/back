@@ -160,10 +160,9 @@ class CacheService
             return $companyId;
         }
 
-        if (request()->hasHeader('X-Company-ID')) {
-            $headerCompanyId = request()->header('X-Company-ID');
-
-            return $headerCompanyId ? (int) $headerCompanyId : null;
+        $resolved = \App\Support\ResolvedCompany::fromRequest(request());
+        if ($resolved !== null) {
+            return $resolved;
         }
 
         return null;

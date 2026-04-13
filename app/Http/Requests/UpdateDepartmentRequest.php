@@ -2,13 +2,20 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Department;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateDepartmentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $department = Department::query()->find($this->route('id'));
+
+        if (! $department) {
+            return true;
+        }
+
+        return $this->user()->can('update', $department);
     }
 
     public function rules(): array

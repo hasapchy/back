@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesOrderClientBalance;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\WarehouseAccessRule;
 use App\Rules\ProjectAccessRule;
@@ -12,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class StoreWarehouseReceiptRequest extends FormRequest
 {
+    use ValidatesOrderClientBalance;
+
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -41,6 +44,7 @@ class StoreWarehouseReceiptRequest extends FormRequest
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity' => 'required|numeric|min:0',
             'products.*.price' => 'required|numeric|min:0',
+            'client_balance_id' => $this->orderClientBalanceIdRules(),
         ];
     }
 

@@ -34,9 +34,7 @@ class WarehouseControllerTest extends TestCase
 
     protected function actingAsApi(User $user)
     {
-        $token = $user->createToken('test-token')->plainTextToken;
-        return $this->withHeader('Authorization', 'Bearer ' . $token)
-            ->withHeader('X-Company-ID', $this->company->id);
+        return $this->withApiTokenForCompany($user, (int) $this->company->id);
     }
 
     public function test_store_warehouse_requires_validation(): void

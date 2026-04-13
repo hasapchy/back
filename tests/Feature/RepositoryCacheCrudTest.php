@@ -24,6 +24,7 @@ use App\Repositories\ProjectContractsRepository;
 use App\Repositories\CommentsRepository;
 use App\Repositories\UsersRepository;
 use App\Services\CacheService;
+use App\Support\ResolvedCompany;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
@@ -33,7 +34,7 @@ class RepositoryCacheCrudTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
-        request()->headers->set('X-Company-ID', '1');
+        request()->attributes->set(ResolvedCompany::ATTRIBUTE, 1);
     }
 
     public function test_order_status_cache_invalidation_on_crud()
@@ -127,13 +128,13 @@ class RepositoryCacheCrudTest extends TestCase
         $this->assertTrue(Cache::has($fullKey));
 
         try {
-            $repo->createItem(['name' => 'Test Category', 'type' => 1, 'creator_id' => 1]);
+            $repo->createItem(['name' => 'Test Category', 'type' => 1, 'creator_id' => 1, 'parent_id' => null]);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after create');
 
             $category = \App\Models\TransactionCategory::where('name', 'Test Category')->first();
             if ($category && $category->canBeEdited()) {
                 Cache::put($fullKey, ['test'], 3600);
-                $repo->updateItem($category->id, ['name' => 'Updated Category', 'type' => 1, 'creator_id' => 1]);
+                $repo->updateItem($category->id, ['name' => 'Updated Category', 'type' => 1, 'creator_id' => 1, 'parent_id' => null]);
                 $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after update');
 
                 if ($category->canBeDeleted()) {

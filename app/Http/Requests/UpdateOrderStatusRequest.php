@@ -44,7 +44,6 @@ class UpdateOrderStatusRequest extends FormRequest
         if (isset($data['is_active'])) {
             $data['is_active'] = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
         }
-
         $this->merge($data);
     }
 

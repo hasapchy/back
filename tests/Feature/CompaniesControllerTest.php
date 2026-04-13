@@ -30,8 +30,7 @@ class CompaniesControllerTest extends TestCase
 
     protected function actingAsApi(User $user)
     {
-        $token = $user->createToken('test-token')->plainTextToken;
-        return $this->withHeader('Authorization', 'Bearer ' . $token);
+        return $this->withApiTokenForCompany($user, null);
     }
 
     public function test_store_company_requires_validation(): void
@@ -156,7 +155,7 @@ class CompaniesControllerTest extends TestCase
         $updateData = [
             'name' => 'New Name',
             'rounding_enabled' => true,
-            'rounding_decimals' => 3,
+            'rounding_decimals' => 2,
         ];
 
         $response = $this->actingAsApi($this->adminUser)

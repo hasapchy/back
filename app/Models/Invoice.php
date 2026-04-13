@@ -64,16 +64,10 @@ class Invoice extends Model
      */
     public function getDescriptionForEvent(string $eventName): string
     {
-        switch ($eventName) {
-            case 'created':
-                return 'Создан счет';
-            case 'updated':
-                return 'Счет обновлен';
-            case 'deleted':
-                return 'Счет удален';
-            default:
-                return "Счет был {$eventName}";
-        }
+        return match ($eventName) {
+            'created', 'updated', 'deleted' => "activity_log.invoice.{$eventName}",
+            default => 'activity_log.invoice.default',
+        };
     }
 
     /**

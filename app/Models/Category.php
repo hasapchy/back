@@ -73,9 +73,27 @@ class Category extends Model
         return $this->belongsToMany(User::class, 'category_users', 'category_id', 'user_id');
     }
 
-    public function hasUser($userId)
+    /**
+     * @return array<int, int>
+     */
+    public static function descendantIdsIncludingRoot(int $rootId): array
     {
-        return $this->users()->wherePivot('user_id', $userId)->exists();
-    }
+        $ids = [$rootId];
+        $queue = [$rootId];
 
+        while ($queue !== []) {
+            $parentId = array_shift($queue);
+            $childIds = static::query()
+                ->where('parent_id', $parentId)
+                ->pluck('id');
+
+            foreach ($childIds as $cid) {
+                $cid = (int) $cid;
+                $ids[] = $cid;
+                $queue[] = $cid;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
 }

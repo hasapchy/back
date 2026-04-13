@@ -24,6 +24,12 @@ class User extends Authenticatable
                 $user->tokens()->delete();
             }
         });
+
+        static::saving(function (User $user) {
+            if (! $user->is_simple_user) {
+                $user->simple_category_id = null;
+            }
+        });
     }
 
     /**
@@ -38,6 +44,8 @@ class User extends Authenticatable
         'phone',
         'password',
         'is_active',
+        'is_simple_user',
+        'simple_category_id',
         'hire_date',
         'dismissal_date',
         'birthday',
@@ -70,6 +78,7 @@ class User extends Authenticatable
         'birthday' => 'date:Y-m-d',
         'is_active' => 'boolean',
         'is_admin' => 'boolean',
+        'is_simple_user' => 'boolean',
     ];
 
 
@@ -148,6 +157,11 @@ class User extends Authenticatable
     public function categories()
     {
         return $this->belongsToMany(\App\Models\Category::class, 'category_users', 'user_id', 'category_id');
+    }
+
+    public function simpleCategory()
+    {
+        return $this->belongsTo(Category::class, 'simple_category_id');
     }
 
     /**

@@ -286,11 +286,11 @@ return new class extends Migration
         if (Schema::hasTable('activity_log')) {
             Schema::table('activity_log', function (Blueprint $table) {
                 $this->addCompositeIndexIfNotExists('activity_log', 'activity_log_subject_index', ['subject_type', 'subject_id']);
-                $this->addIndexIfNotExists($table, 'activity_log_causer_index', 'cacreator_id');
+                $this->addIndexIfNotExists($table, 'activity_log_causer_index', 'causer_id');
                 $this->addIndexIfNotExists($table, 'activity_log_name_index', 'log_name');
                 $this->addIndexIfNotExists($table, 'activity_log_created_at_index', 'created_at');
                 $this->addCompositeIndexIfNotExists('activity_log', 'activity_log_subject_created_index', ['subject_type', 'subject_id', 'created_at']);
-                $this->addCompositeIndexIfNotExists('activity_log', 'activity_log_causer_created_index', ['cacreator_id', 'created_at']);
+                $this->addCompositeIndexIfNotExists('activity_log', 'activity_log_causer_created_index', ['causer_id', 'created_at']);
             });
         }
 

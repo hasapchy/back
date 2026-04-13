@@ -2,6 +2,8 @@
 
 namespace App\Exceptions;
 
+use App\Support\AuthRequestLogContext;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Throwable;
 
@@ -19,12 +21,21 @@ class Handler extends ExceptionHandler
     ];
 
     /**
-     * Register the exception handling callbacks for the application.
+     * @return void
      */
     public function register(): void
     {
-        $this->reportable(function (Throwable $e) {
-            //
-        });
+    }
+
+    public function render($request, Throwable $e)
+    {
+        if ($e instanceof AuthenticationException && $request->is('api/*')) {
+            AuthRequestLogContext::logAuth('warning', 'auth.unauthenticated', array_merge(
+                AuthRequestLogContext::fromRequest($request),
+                ['path' => $request->path()]
+            ));
+        }
+
+        return parent::render($request, $e);
     }
 }

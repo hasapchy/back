@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -26,7 +26,7 @@
             </style>
 
     <script>
-        var tryItOutBaseUrl = "http://hasap.local";
+        var tryItOutBaseUrl = "http://hasapchy.local";
         var useCsrf = Boolean();
         var csrfUrl = "/sanctum/csrf-cookie";
     </script>
@@ -805,7 +805,7 @@
     <div class="content">
         <h1 id="introduction">Introduction</h1>
 <aside>
-    <strong>Base URL</strong>: <code>http://hasap.local</code>
+    <strong>Base URL</strong>: <code>http://hasapchy.local</code>
 </aside>
 <pre><code>This documentation aims to provide all the information you need to work with our API.
 
@@ -832,14 +832,14 @@ You can switch the language used with the tabs at the top right (or from the nav
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/documentation" \
+    --get "http://hasapchy.local/api/documentation" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/documentation"
+    "http://hasapchy.local/api/documentation"
 );
 
 const headers = {
@@ -958,14 +958,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/oauth2-callback" \
+    --get "http://hasapchy.local/api/oauth2-callback" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/oauth2-callback"
+    "http://hasapchy.local/api/oauth2-callback"
 );
 
 const headers = {
@@ -1088,7 +1088,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/user/login" \
+    "http://hasapchy.local/api/user/login" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -1100,7 +1100,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/user/login"
+    "http://hasapchy.local/api/user/login"
 );
 
 const headers = {
@@ -1234,14 +1234,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/user/refresh" \
+    "http://hasapchy.local/api/user/refresh" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/user/refresh"
+    "http://hasapchy.local/api/user/refresh"
 );
 
 const headers = {
@@ -1344,14 +1344,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/transaction_categories/all" \
+    --get "http://hasapchy.local/api/transaction_categories/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transaction_categories/all"
+    "http://hasapchy.local/api/transaction_categories/all"
 );
 
 const headers = {
@@ -1732,14 +1732,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/user/me" \
+    --get "http://hasapchy.local/api/simple/user/me" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/user/me"
+    "http://hasapchy.local/api/simple/user/me"
 );
 
 const headers = {
@@ -1858,14 +1858,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/simple/user/logout" \
+    "http://hasapchy.local/api/simple/user/logout" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/user/logout"
+    "http://hasapchy.local/api/simple/user/logout"
 );
 
 const headers = {
@@ -1968,14 +1968,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/simple/user/profile" \
+    "http://hasapchy.local/api/simple/user/profile" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/user/profile"
+    "http://hasapchy.local/api/simple/user/profile"
 );
 
 const headers = {
@@ -2078,14 +2078,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/orders" \
+    --get "http://hasapchy.local/api/simple/orders" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/orders"
+    "http://hasapchy.local/api/simple/orders"
 );
 
 const headers = {
@@ -2204,14 +2204,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/orders/consequatur" \
+    --get "http://hasapchy.local/api/simple/orders/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/orders/consequatur"
+    "http://hasapchy.local/api/simple/orders/consequatur"
 );
 
 const headers = {
@@ -2343,7 +2343,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/simple/orders" \
+    "http://hasapchy.local/api/simple/orders" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -2383,7 +2383,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/orders"
+    "http://hasapchy.local/api/simple/orders"
 );
 
 const headers = {
@@ -2823,7 +2823,7 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/simple/orders/consequatur" \
+    "http://hasapchy.local/api/simple/orders/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -2869,7 +2869,7 @@ Must be one of:
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/orders/consequatur"
+    "http://hasapchy.local/api/simple/orders/consequatur"
 );
 
 const headers = {
@@ -3378,14 +3378,14 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/simple/orders/consequatur" \
+    "http://hasapchy.local/api/simple/orders/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/orders/consequatur"
+    "http://hasapchy.local/api/simple/orders/consequatur"
 );
 
 const headers = {
@@ -3501,14 +3501,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/order_statuses" \
+    --get "http://hasapchy.local/api/simple/order_statuses" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/order_statuses"
+    "http://hasapchy.local/api/simple/order_statuses"
 );
 
 const headers = {
@@ -3627,14 +3627,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/order_statuses/all" \
+    --get "http://hasapchy.local/api/simple/order_statuses/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/order_statuses/all"
+    "http://hasapchy.local/api/simple/order_statuses/all"
 );
 
 const headers = {
@@ -3753,14 +3753,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/clients" \
+    --get "http://hasapchy.local/api/simple/clients" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/clients"
+    "http://hasapchy.local/api/simple/clients"
 );
 
 const headers = {
@@ -3879,14 +3879,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/clients/all" \
+    --get "http://hasapchy.local/api/simple/clients/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/clients/all"
+    "http://hasapchy.local/api/simple/clients/all"
 );
 
 const headers = {
@@ -4005,14 +4005,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/clients/search" \
+    --get "http://hasapchy.local/api/simple/clients/search" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/clients/search"
+    "http://hasapchy.local/api/simple/clients/search"
 );
 
 const headers = {
@@ -4131,14 +4131,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/clients/consequatur" \
+    --get "http://hasapchy.local/api/simple/clients/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/clients/consequatur"
+    "http://hasapchy.local/api/simple/clients/consequatur"
 );
 
 const headers = {
@@ -4270,7 +4270,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/simple/clients" \
+    "http://hasapchy.local/api/simple/clients" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -4299,7 +4299,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/clients"
+    "http://hasapchy.local/api/simple/clients"
 );
 
 const headers = {
@@ -4656,14 +4656,14 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/products" \
+    --get "http://hasapchy.local/api/simple/products" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/products"
+    "http://hasapchy.local/api/simple/products"
 );
 
 const headers = {
@@ -4782,14 +4782,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/services" \
+    --get "http://hasapchy.local/api/simple/services" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/services"
+    "http://hasapchy.local/api/simple/services"
 );
 
 const headers = {
@@ -4908,14 +4908,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/products/search" \
+    --get "http://hasapchy.local/api/simple/products/search" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/products/search"
+    "http://hasapchy.local/api/simple/products/search"
 );
 
 const headers = {
@@ -5034,14 +5034,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/projects" \
+    --get "http://hasapchy.local/api/simple/projects" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/projects"
+    "http://hasapchy.local/api/simple/projects"
 );
 
 const headers = {
@@ -5160,14 +5160,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/projects/all" \
+    --get "http://hasapchy.local/api/simple/projects/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/projects/all"
+    "http://hasapchy.local/api/simple/projects/all"
 );
 
 const headers = {
@@ -5286,14 +5286,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/projects/consequatur" \
+    --get "http://hasapchy.local/api/simple/projects/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/projects/consequatur"
+    "http://hasapchy.local/api/simple/projects/consequatur"
 );
 
 const headers = {
@@ -5425,14 +5425,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/warehouses" \
+    --get "http://hasapchy.local/api/simple/warehouses" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/warehouses"
+    "http://hasapchy.local/api/simple/warehouses"
 );
 
 const headers = {
@@ -5551,14 +5551,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/warehouses/all" \
+    --get "http://hasapchy.local/api/simple/warehouses/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/warehouses/all"
+    "http://hasapchy.local/api/simple/warehouses/all"
 );
 
 const headers = {
@@ -5677,14 +5677,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/cash_registers" \
+    --get "http://hasapchy.local/api/simple/cash_registers" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/cash_registers"
+    "http://hasapchy.local/api/simple/cash_registers"
 );
 
 const headers = {
@@ -5803,14 +5803,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/cash_registers/all" \
+    --get "http://hasapchy.local/api/simple/cash_registers/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/cash_registers/all"
+    "http://hasapchy.local/api/simple/cash_registers/all"
 );
 
 const headers = {
@@ -5929,14 +5929,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/app/currency" \
+    --get "http://hasapchy.local/api/simple/app/currency" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/app/currency"
+    "http://hasapchy.local/api/simple/app/currency"
 );
 
 const headers = {
@@ -6055,14 +6055,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/simple/app/units" \
+    --get "http://hasapchy.local/api/simple/app/units" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/simple/app/units"
+    "http://hasapchy.local/api/simple/app/units"
 );
 
 const headers = {
@@ -6181,14 +6181,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/app/currency" \
+    --get "http://hasapchy.local/api/app/currency" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/app/currency"
+    "http://hasapchy.local/api/app/currency"
 );
 
 const headers = {
@@ -6307,14 +6307,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/app/currency/consequatur/exchange-rate" \
+    --get "http://hasapchy.local/api/app/currency/consequatur/exchange-rate" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/app/currency/consequatur/exchange-rate"
+    "http://hasapchy.local/api/app/currency/consequatur/exchange-rate"
 );
 
 const headers = {
@@ -6446,14 +6446,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/app/units" \
+    --get "http://hasapchy.local/api/app/units" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/app/units"
+    "http://hasapchy.local/api/app/units"
 );
 
 const headers = {
@@ -6572,14 +6572,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/cache/clear" \
+    "http://hasapchy.local/api/cache/clear" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/cache/clear"
+    "http://hasapchy.local/api/cache/clear"
 );
 
 const headers = {
@@ -6682,14 +6682,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/currency-history/currencies" \
+    --get "http://hasapchy.local/api/currency-history/currencies" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/currency-history/currencies"
+    "http://hasapchy.local/api/currency-history/currencies"
 );
 
 const headers = {
@@ -6808,14 +6808,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/currency-history/consequatur" \
+    --get "http://hasapchy.local/api/currency-history/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/currency-history/consequatur"
+    "http://hasapchy.local/api/currency-history/consequatur"
 );
 
 const headers = {
@@ -6947,7 +6947,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/currency-history/consequatur" \
+    "http://hasapchy.local/api/currency-history/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -6960,7 +6960,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/currency-history/consequatur"
+    "http://hasapchy.local/api/currency-history/consequatur"
 );
 
 const headers = {
@@ -7120,7 +7120,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/currency-history/consequatur/consequatur" \
+    "http://hasapchy.local/api/currency-history/consequatur/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -7133,7 +7133,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/currency-history/consequatur/consequatur"
+    "http://hasapchy.local/api/currency-history/consequatur/consequatur"
 );
 
 const headers = {
@@ -7305,14 +7305,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/currency-history/consequatur/consequatur" \
+    "http://hasapchy.local/api/currency-history/consequatur/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/currency-history/consequatur/consequatur"
+    "http://hasapchy.local/api/currency-history/consequatur/consequatur"
 );
 
 const headers = {
@@ -7440,14 +7440,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/user/logout" \
+    "http://hasapchy.local/api/user/logout" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/user/logout"
+    "http://hasapchy.local/api/user/logout"
 );
 
 const headers = {
@@ -7550,14 +7550,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/user/me" \
+    --get "http://hasapchy.local/api/user/me" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/user/me"
+    "http://hasapchy.local/api/user/me"
 );
 
 const headers = {
@@ -7676,14 +7676,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/user/current" \
+    --get "http://hasapchy.local/api/user/current" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/user/current"
+    "http://hasapchy.local/api/user/current"
 );
 
 const headers = {
@@ -7802,14 +7802,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/user/profile" \
+    "http://hasapchy.local/api/user/profile" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/user/profile"
+    "http://hasapchy.local/api/user/profile"
 );
 
 const headers = {
@@ -7912,14 +7912,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/users" \
+    --get "http://hasapchy.local/api/users" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users"
+    "http://hasapchy.local/api/users"
 );
 
 const headers = {
@@ -8038,14 +8038,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/users/all" \
+    --get "http://hasapchy.local/api/users/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users/all"
+    "http://hasapchy.local/api/users/all"
 );
 
 const headers = {
@@ -8164,14 +8164,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/users/search" \
+    --get "http://hasapchy.local/api/users/search" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users/search"
+    "http://hasapchy.local/api/users/search"
 );
 
 const headers = {
@@ -8290,14 +8290,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/users/1" \
+    --get "http://hasapchy.local/api/users/1" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users/1"
+    "http://hasapchy.local/api/users/1"
 );
 
 const headers = {
@@ -8429,7 +8429,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/users" \
+    "http://hasapchy.local/api/users" \
     --header "Content-Type: multipart/form-data" \
     --header "Accept: application/json" \
     --form "name=vmqeopfuudtdsufvyvddq"\
@@ -8451,7 +8451,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users"
+    "http://hasapchy.local/api/users"
 );
 
 const headers = {
@@ -8793,7 +8793,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/users/1" \
+    "http://hasapchy.local/api/users/1" \
     --header "Content-Type: multipart/form-data" \
     --header "Accept: application/json" \
     --form "name=vmqeopfuudtdsufvyvddq"\
@@ -8815,7 +8815,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users/1"
+    "http://hasapchy.local/api/users/1"
 );
 
 const headers = {
@@ -9170,14 +9170,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/users/1" \
+    "http://hasapchy.local/api/users/1" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users/1"
+    "http://hasapchy.local/api/users/1"
 );
 
 const headers = {
@@ -9293,14 +9293,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/permissions" \
+    --get "http://hasapchy.local/api/permissions" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/permissions"
+    "http://hasapchy.local/api/permissions"
 );
 
 const headers = {
@@ -9419,14 +9419,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/users/1/permissions" \
+    --get "http://hasapchy.local/api/users/1/permissions" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users/1/permissions"
+    "http://hasapchy.local/api/users/1/permissions"
 );
 
 const headers = {
@@ -9558,14 +9558,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/users/1/salaries" \
+    --get "http://hasapchy.local/api/users/1/salaries" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users/1/salaries"
+    "http://hasapchy.local/api/users/1/salaries"
 );
 
 const headers = {
@@ -9697,14 +9697,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/users/1/salaries" \
+    "http://hasapchy.local/api/users/1/salaries" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users/1/salaries"
+    "http://hasapchy.local/api/users/1/salaries"
 );
 
 const headers = {
@@ -9820,14 +9820,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/users/1/salaries/consequatur" \
+    "http://hasapchy.local/api/users/1/salaries/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users/1/salaries/consequatur"
+    "http://hasapchy.local/api/users/1/salaries/consequatur"
 );
 
 const headers = {
@@ -9955,14 +9955,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/users/1/salaries/consequatur" \
+    "http://hasapchy.local/api/users/1/salaries/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users/1/salaries/consequatur"
+    "http://hasapchy.local/api/users/1/salaries/consequatur"
 );
 
 const headers = {
@@ -10090,14 +10090,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/users/1/balance" \
+    --get "http://hasapchy.local/api/users/1/balance" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users/1/balance"
+    "http://hasapchy.local/api/users/1/balance"
 );
 
 const headers = {
@@ -10229,14 +10229,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/users/1/balance-history" \
+    --get "http://hasapchy.local/api/users/1/balance-history" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/users/1/balance-history"
+    "http://hasapchy.local/api/users/1/balance-history"
 );
 
 const headers = {
@@ -10368,14 +10368,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/roles" \
+    --get "http://hasapchy.local/api/roles" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/roles"
+    "http://hasapchy.local/api/roles"
 );
 
 const headers = {
@@ -10494,14 +10494,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/roles/all" \
+    --get "http://hasapchy.local/api/roles/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/roles/all"
+    "http://hasapchy.local/api/roles/all"
 );
 
 const headers = {
@@ -10620,14 +10620,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/roles/consequatur" \
+    --get "http://hasapchy.local/api/roles/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/roles/consequatur"
+    "http://hasapchy.local/api/roles/consequatur"
 );
 
 const headers = {
@@ -10759,7 +10759,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/roles" \
+    "http://hasapchy.local/api/roles" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -10773,7 +10773,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/roles"
+    "http://hasapchy.local/api/roles"
 );
 
 const headers = {
@@ -10911,7 +10911,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/roles/consequatur" \
+    "http://hasapchy.local/api/roles/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -10924,7 +10924,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/roles/consequatur"
+    "http://hasapchy.local/api/roles/consequatur"
 );
 
 const headers = {
@@ -11062,14 +11062,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/roles/consequatur" \
+    "http://hasapchy.local/api/roles/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/roles/consequatur"
+    "http://hasapchy.local/api/roles/consequatur"
 );
 
 const headers = {
@@ -11185,14 +11185,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/companies" \
+    --get "http://hasapchy.local/api/companies" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/companies"
+    "http://hasapchy.local/api/companies"
 );
 
 const headers = {
@@ -11311,7 +11311,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/companies" \
+    "http://hasapchy.local/api/companies" \
     --header "Content-Type: multipart/form-data" \
     --header "Accept: application/json" \
     --form "name=vmqeopfuudtdsufvyvddq"\
@@ -11330,7 +11330,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/companies"
+    "http://hasapchy.local/api/companies"
 );
 
 const headers = {
@@ -11637,7 +11637,7 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/companies/consequatur" \
+    "http://hasapchy.local/api/companies/consequatur" \
     --header "Content-Type: multipart/form-data" \
     --header "Accept: application/json" \
     --form "name=vmqeopfuudtdsufvyvddq"\
@@ -11656,7 +11656,7 @@ Must be one of:
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/companies/consequatur"
+    "http://hasapchy.local/api/companies/consequatur"
 );
 
 const headers = {
@@ -11976,14 +11976,14 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/companies/consequatur" \
+    "http://hasapchy.local/api/companies/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/companies/consequatur"
+    "http://hasapchy.local/api/companies/consequatur"
 );
 
 const headers = {
@@ -12099,7 +12099,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/companies/consequatur/salaries/accrue" \
+    "http://hasapchy.local/api/companies/consequatur/salaries/accrue" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -12116,7 +12116,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/companies/consequatur/salaries/accrue"
+    "http://hasapchy.local/api/companies/consequatur/salaries/accrue"
 );
 
 const headers = {
@@ -12316,14 +12316,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/companies/consequatur/salaries/check" \
+    --get "http://hasapchy.local/api/companies/consequatur/salaries/check" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/companies/consequatur/salaries/check"
+    "http://hasapchy.local/api/companies/consequatur/salaries/check"
 );
 
 const headers = {
@@ -12455,14 +12455,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/warehouses" \
+    --get "http://hasapchy.local/api/warehouses" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouses"
+    "http://hasapchy.local/api/warehouses"
 );
 
 const headers = {
@@ -12581,14 +12581,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/warehouses/all" \
+    --get "http://hasapchy.local/api/warehouses/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouses/all"
+    "http://hasapchy.local/api/warehouses/all"
 );
 
 const headers = {
@@ -12707,7 +12707,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/warehouses" \
+    "http://hasapchy.local/api/warehouses" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -12718,7 +12718,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouses"
+    "http://hasapchy.local/api/warehouses"
 );
 
 const headers = {
@@ -12853,7 +12853,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/warehouses/consequatur" \
+    "http://hasapchy.local/api/warehouses/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -12864,7 +12864,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouses/consequatur"
+    "http://hasapchy.local/api/warehouses/consequatur"
 );
 
 const headers = {
@@ -13012,14 +13012,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/warehouses/consequatur" \
+    "http://hasapchy.local/api/warehouses/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouses/consequatur"
+    "http://hasapchy.local/api/warehouses/consequatur"
 );
 
 const headers = {
@@ -13135,14 +13135,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/warehouse_stocks" \
+    --get "http://hasapchy.local/api/warehouse_stocks" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_stocks"
+    "http://hasapchy.local/api/warehouse_stocks"
 );
 
 const headers = {
@@ -13261,14 +13261,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/warehouse_receipts" \
+    --get "http://hasapchy.local/api/warehouse_receipts" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_receipts"
+    "http://hasapchy.local/api/warehouse_receipts"
 );
 
 const headers = {
@@ -13387,14 +13387,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/warehouse_receipts/consequatur" \
+    --get "http://hasapchy.local/api/warehouse_receipts/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_receipts/consequatur"
+    "http://hasapchy.local/api/warehouse_receipts/consequatur"
 );
 
 const headers = {
@@ -13526,7 +13526,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/warehouse_receipts" \
+    "http://hasapchy.local/api/warehouse_receipts" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -13550,7 +13550,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_receipts"
+    "http://hasapchy.local/api/warehouse_receipts"
 );
 
 const headers = {
@@ -13806,7 +13806,7 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/warehouse_receipts/consequatur" \
+    "http://hasapchy.local/api/warehouse_receipts/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -13818,7 +13818,7 @@ Must be one of:
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_receipts/consequatur"
+    "http://hasapchy.local/api/warehouse_receipts/consequatur"
 );
 
 const headers = {
@@ -13965,14 +13965,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/warehouse_receipts/consequatur" \
+    "http://hasapchy.local/api/warehouse_receipts/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_receipts/consequatur"
+    "http://hasapchy.local/api/warehouse_receipts/consequatur"
 );
 
 const headers = {
@@ -14088,14 +14088,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/warehouse_writeoffs" \
+    --get "http://hasapchy.local/api/warehouse_writeoffs" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_writeoffs"
+    "http://hasapchy.local/api/warehouse_writeoffs"
 );
 
 const headers = {
@@ -14214,7 +14214,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/warehouse_writeoffs" \
+    "http://hasapchy.local/api/warehouse_writeoffs" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -14232,7 +14232,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_writeoffs"
+    "http://hasapchy.local/api/warehouse_writeoffs"
 );
 
 const headers = {
@@ -14408,7 +14408,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/warehouse_writeoffs/consequatur" \
+    "http://hasapchy.local/api/warehouse_writeoffs/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -14426,7 +14426,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_writeoffs/consequatur"
+    "http://hasapchy.local/api/warehouse_writeoffs/consequatur"
 );
 
 const headers = {
@@ -14615,14 +14615,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/warehouse_writeoffs/consequatur" \
+    "http://hasapchy.local/api/warehouse_writeoffs/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_writeoffs/consequatur"
+    "http://hasapchy.local/api/warehouse_writeoffs/consequatur"
 );
 
 const headers = {
@@ -14738,14 +14738,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/warehouse_movements" \
+    --get "http://hasapchy.local/api/warehouse_movements" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_movements"
+    "http://hasapchy.local/api/warehouse_movements"
 );
 
 const headers = {
@@ -14864,7 +14864,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/warehouse_movements" \
+    "http://hasapchy.local/api/warehouse_movements" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -14884,7 +14884,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_movements"
+    "http://hasapchy.local/api/warehouse_movements"
 );
 
 const headers = {
@@ -15086,7 +15086,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/warehouse_movements/consequatur" \
+    "http://hasapchy.local/api/warehouse_movements/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -15106,7 +15106,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_movements/consequatur"
+    "http://hasapchy.local/api/warehouse_movements/consequatur"
 );
 
 const headers = {
@@ -15321,14 +15321,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/warehouse_movements/consequatur" \
+    "http://hasapchy.local/api/warehouse_movements/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/warehouse_movements/consequatur"
+    "http://hasapchy.local/api/warehouse_movements/consequatur"
 );
 
 const headers = {
@@ -15444,14 +15444,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/categories" \
+    --get "http://hasapchy.local/api/categories" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/categories"
+    "http://hasapchy.local/api/categories"
 );
 
 const headers = {
@@ -15570,14 +15570,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/categories/all" \
+    --get "http://hasapchy.local/api/categories/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/categories/all"
+    "http://hasapchy.local/api/categories/all"
 );
 
 const headers = {
@@ -15696,14 +15696,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/categories/parents" \
+    --get "http://hasapchy.local/api/categories/parents" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/categories/parents"
+    "http://hasapchy.local/api/categories/parents"
 );
 
 const headers = {
@@ -15822,7 +15822,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/categories" \
+    "http://hasapchy.local/api/categories" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -15833,7 +15833,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/categories"
+    "http://hasapchy.local/api/categories"
 );
 
 const headers = {
@@ -15980,7 +15980,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/categories/consequatur" \
+    "http://hasapchy.local/api/categories/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -15991,7 +15991,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/categories/consequatur"
+    "http://hasapchy.local/api/categories/consequatur"
 );
 
 const headers = {
@@ -16151,14 +16151,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/categories/consequatur" \
+    "http://hasapchy.local/api/categories/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/categories/consequatur"
+    "http://hasapchy.local/api/categories/consequatur"
 );
 
 const headers = {
@@ -16274,14 +16274,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/products" \
+    --get "http://hasapchy.local/api/products" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/products"
+    "http://hasapchy.local/api/products"
 );
 
 const headers = {
@@ -16400,14 +16400,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/services" \
+    --get "http://hasapchy.local/api/services" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/services"
+    "http://hasapchy.local/api/services"
 );
 
 const headers = {
@@ -16526,14 +16526,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/products/search" \
+    --get "http://hasapchy.local/api/products/search" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/products/search"
+    "http://hasapchy.local/api/products/search"
 );
 
 const headers = {
@@ -16652,14 +16652,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/products/consequatur" \
+    --get "http://hasapchy.local/api/products/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/products/consequatur"
+    "http://hasapchy.local/api/products/consequatur"
 );
 
 const headers = {
@@ -16791,7 +16791,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/products" \
+    "http://hasapchy.local/api/products" \
     --header "Content-Type: multipart/form-data" \
     --header "Accept: application/json" \
     --form "type=consequatur"\
@@ -16808,7 +16808,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/products"
+    "http://hasapchy.local/api/products"
 );
 
 const headers = {
@@ -17095,7 +17095,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/products/consequatur" \
+    "http://hasapchy.local/api/products/consequatur" \
     --header "Content-Type: multipart/form-data" \
     --header "Accept: application/json" \
     --form "type=17"\
@@ -17112,7 +17112,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/products/consequatur"
+    "http://hasapchy.local/api/products/consequatur"
 );
 
 const headers = {
@@ -17412,14 +17412,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/products/consequatur" \
+    "http://hasapchy.local/api/products/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/products/consequatur"
+    "http://hasapchy.local/api/products/consequatur"
 );
 
 const headers = {
@@ -17535,14 +17535,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/clients" \
+    --get "http://hasapchy.local/api/clients" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/clients"
+    "http://hasapchy.local/api/clients"
 );
 
 const headers = {
@@ -17661,14 +17661,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/clients/all" \
+    --get "http://hasapchy.local/api/clients/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/clients/all"
+    "http://hasapchy.local/api/clients/all"
 );
 
 const headers = {
@@ -17787,14 +17787,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/clients/search" \
+    --get "http://hasapchy.local/api/clients/search" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/clients/search"
+    "http://hasapchy.local/api/clients/search"
 );
 
 const headers = {
@@ -17913,14 +17913,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/clients/consequatur" \
+    --get "http://hasapchy.local/api/clients/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/clients/consequatur"
+    "http://hasapchy.local/api/clients/consequatur"
 );
 
 const headers = {
@@ -18052,7 +18052,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/clients" \
+    "http://hasapchy.local/api/clients" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -18081,7 +18081,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/clients"
+    "http://hasapchy.local/api/clients"
 );
 
 const headers = {
@@ -18438,7 +18438,7 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/clients/consequatur" \
+    "http://hasapchy.local/api/clients/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -18467,7 +18467,7 @@ Must be one of:
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/clients/consequatur"
+    "http://hasapchy.local/api/clients/consequatur"
 );
 
 const headers = {
@@ -18837,14 +18837,14 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/clients/consequatur/balance-history" \
+    --get "http://hasapchy.local/api/clients/consequatur/balance-history" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/clients/consequatur/balance-history"
+    "http://hasapchy.local/api/clients/consequatur/balance-history"
 );
 
 const headers = {
@@ -18976,14 +18976,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/clients/consequatur" \
+    "http://hasapchy.local/api/clients/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/clients/consequatur"
+    "http://hasapchy.local/api/clients/consequatur"
 );
 
 const headers = {
@@ -19099,14 +19099,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/cash_registers" \
+    --get "http://hasapchy.local/api/cash_registers" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/cash_registers"
+    "http://hasapchy.local/api/cash_registers"
 );
 
 const headers = {
@@ -19225,14 +19225,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/cash_registers/all" \
+    --get "http://hasapchy.local/api/cash_registers/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/cash_registers/all"
+    "http://hasapchy.local/api/cash_registers/all"
 );
 
 const headers = {
@@ -19351,14 +19351,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/cash_registers/balance" \
+    --get "http://hasapchy.local/api/cash_registers/balance" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/cash_registers/balance"
+    "http://hasapchy.local/api/cash_registers/balance"
 );
 
 const headers = {
@@ -19477,7 +19477,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/cash_registers" \
+    "http://hasapchy.local/api/cash_registers" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -19489,7 +19489,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/cash_registers"
+    "http://hasapchy.local/api/cash_registers"
 );
 
 const headers = {
@@ -19649,7 +19649,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/cash_registers/consequatur" \
+    "http://hasapchy.local/api/cash_registers/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -19660,7 +19660,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/cash_registers/consequatur"
+    "http://hasapchy.local/api/cash_registers/consequatur"
 );
 
 const headers = {
@@ -19808,14 +19808,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/cash_registers/consequatur" \
+    "http://hasapchy.local/api/cash_registers/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/cash_registers/consequatur"
+    "http://hasapchy.local/api/cash_registers/consequatur"
 );
 
 const headers = {
@@ -19931,14 +19931,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/projects" \
+    --get "http://hasapchy.local/api/projects" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects"
+    "http://hasapchy.local/api/projects"
 );
 
 const headers = {
@@ -20057,14 +20057,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/projects/all" \
+    --get "http://hasapchy.local/api/projects/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/all"
+    "http://hasapchy.local/api/projects/all"
 );
 
 const headers = {
@@ -20183,14 +20183,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/projects/consequatur" \
+    --get "http://hasapchy.local/api/projects/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur"
+    "http://hasapchy.local/api/projects/consequatur"
 );
 
 const headers = {
@@ -20322,7 +20322,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/projects" \
+    "http://hasapchy.local/api/projects" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -20336,7 +20336,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects"
+    "http://hasapchy.local/api/projects"
 );
 
 const headers = {
@@ -20510,7 +20510,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/projects/consequatur" \
+    "http://hasapchy.local/api/projects/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -20524,7 +20524,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur"
+    "http://hasapchy.local/api/projects/consequatur"
 );
 
 const headers = {
@@ -20711,7 +20711,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/projects/consequatur/upload-files" \
+    "http://hasapchy.local/api/projects/consequatur/upload-files" \
     --header "Content-Type: multipart/form-data" \
     --header "Accept: application/json" \
     --form "files[]=@C:\Users\User\AppData\Local\Temp\phpB52C.tmp" </code></pre></div>
@@ -20719,7 +20719,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur/upload-files"
+    "http://hasapchy.local/api/projects/consequatur/upload-files"
 );
 
 const headers = {
@@ -20854,14 +20854,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/projects/consequatur/download-files" \
+    "http://hasapchy.local/api/projects/consequatur/download-files" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur/download-files"
+    "http://hasapchy.local/api/projects/consequatur/download-files"
 );
 
 const headers = {
@@ -20977,14 +20977,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/projects/consequatur/delete-file" \
+    "http://hasapchy.local/api/projects/consequatur/delete-file" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur/delete-file"
+    "http://hasapchy.local/api/projects/consequatur/delete-file"
 );
 
 const headers = {
@@ -21100,7 +21100,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/projects/batch-status" \
+    "http://hasapchy.local/api/projects/batch-status" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -21114,7 +21114,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/batch-status"
+    "http://hasapchy.local/api/projects/batch-status"
 );
 
 const headers = {
@@ -21252,14 +21252,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/projects/consequatur" \
+    "http://hasapchy.local/api/projects/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur"
+    "http://hasapchy.local/api/projects/consequatur"
 );
 
 const headers = {
@@ -21375,14 +21375,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/projects/consequatur/balance-history" \
+    --get "http://hasapchy.local/api/projects/consequatur/balance-history" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur/balance-history"
+    "http://hasapchy.local/api/projects/consequatur/balance-history"
 );
 
 const headers = {
@@ -21514,14 +21514,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/projects/consequatur/detailed-balance" \
+    --get "http://hasapchy.local/api/projects/consequatur/detailed-balance" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur/detailed-balance"
+    "http://hasapchy.local/api/projects/consequatur/detailed-balance"
 );
 
 const headers = {
@@ -21653,14 +21653,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/projects/consequatur/contracts" \
+    --get "http://hasapchy.local/api/projects/consequatur/contracts" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur/contracts"
+    "http://hasapchy.local/api/projects/consequatur/contracts"
 );
 
 const headers = {
@@ -21792,14 +21792,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/projects/consequatur/contracts/all" \
+    --get "http://hasapchy.local/api/projects/consequatur/contracts/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur/contracts/all"
+    "http://hasapchy.local/api/projects/consequatur/contracts/all"
 );
 
 const headers = {
@@ -21931,7 +21931,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/projects/consequatur/contracts" \
+    "http://hasapchy.local/api/projects/consequatur/contracts" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -21948,7 +21948,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur/contracts"
+    "http://hasapchy.local/api/projects/consequatur/contracts"
 );
 
 const headers = {
@@ -22204,14 +22204,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/contracts" \
+    --get "http://hasapchy.local/api/contracts" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/contracts"
+    "http://hasapchy.local/api/contracts"
 );
 
 const headers = {
@@ -22330,14 +22330,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/contracts/consequatur" \
+    --get "http://hasapchy.local/api/contracts/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/contracts/consequatur"
+    "http://hasapchy.local/api/contracts/consequatur"
 );
 
 const headers = {
@@ -22469,7 +22469,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/contracts/consequatur" \
+    "http://hasapchy.local/api/contracts/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -22485,7 +22485,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/contracts/consequatur"
+    "http://hasapchy.local/api/contracts/consequatur"
 );
 
 const headers = {
@@ -22728,14 +22728,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/contracts/consequatur" \
+    "http://hasapchy.local/api/contracts/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/contracts/consequatur"
+    "http://hasapchy.local/api/contracts/consequatur"
 );
 
 const headers = {
@@ -22851,14 +22851,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/projects/consequatur/transactions" \
+    --get "http://hasapchy.local/api/projects/consequatur/transactions" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur/transactions"
+    "http://hasapchy.local/api/projects/consequatur/transactions"
 );
 
 const headers = {
@@ -22990,14 +22990,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/projects/consequatur/transactions/all" \
+    --get "http://hasapchy.local/api/projects/consequatur/transactions/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur/transactions/all"
+    "http://hasapchy.local/api/projects/consequatur/transactions/all"
 );
 
 const headers = {
@@ -23129,7 +23129,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/projects/consequatur/transactions" \
+    "http://hasapchy.local/api/projects/consequatur/transactions" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -23145,7 +23145,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/projects/consequatur/transactions"
+    "http://hasapchy.local/api/projects/consequatur/transactions"
 );
 
 const headers = {
@@ -23354,14 +23354,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/project-transactions/consequatur" \
+    --get "http://hasapchy.local/api/project-transactions/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/project-transactions/consequatur"
+    "http://hasapchy.local/api/project-transactions/consequatur"
 );
 
 const headers = {
@@ -23493,7 +23493,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/project-transactions/consequatur" \
+    "http://hasapchy.local/api/project-transactions/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -23508,7 +23508,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/project-transactions/consequatur"
+    "http://hasapchy.local/api/project-transactions/consequatur"
 );
 
 const headers = {
@@ -23704,14 +23704,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/project-transactions/consequatur" \
+    "http://hasapchy.local/api/project-transactions/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/project-transactions/consequatur"
+    "http://hasapchy.local/api/project-transactions/consequatur"
 );
 
 const headers = {
@@ -23827,14 +23827,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/project-statuses" \
+    --get "http://hasapchy.local/api/project-statuses" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/project-statuses"
+    "http://hasapchy.local/api/project-statuses"
 );
 
 const headers = {
@@ -23953,14 +23953,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/project-statuses/all" \
+    --get "http://hasapchy.local/api/project-statuses/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/project-statuses/all"
+    "http://hasapchy.local/api/project-statuses/all"
 );
 
 const headers = {
@@ -24079,7 +24079,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/project-statuses" \
+    "http://hasapchy.local/api/project-statuses" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -24092,7 +24092,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/project-statuses"
+    "http://hasapchy.local/api/project-statuses"
 );
 
 const headers = {
@@ -24249,7 +24249,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/project-statuses/consequatur" \
+    "http://hasapchy.local/api/project-statuses/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -24262,7 +24262,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/project-statuses/consequatur"
+    "http://hasapchy.local/api/project-statuses/consequatur"
 );
 
 const headers = {
@@ -24432,14 +24432,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/project-statuses/consequatur" \
+    "http://hasapchy.local/api/project-statuses/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/project-statuses/consequatur"
+    "http://hasapchy.local/api/project-statuses/consequatur"
 );
 
 const headers = {
@@ -24555,14 +24555,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/transactions" \
+    --get "http://hasapchy.local/api/transactions" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transactions"
+    "http://hasapchy.local/api/transactions"
 );
 
 const headers = {
@@ -24681,7 +24681,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/transactions" \
+    "http://hasapchy.local/api/transactions" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -24704,7 +24704,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transactions"
+    "http://hasapchy.local/api/transactions"
 );
 
 const headers = {
@@ -25027,7 +25027,7 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/transactions/consequatur" \
+    "http://hasapchy.local/api/transactions/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -25045,7 +25045,7 @@ Must be one of:
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transactions/consequatur"
+    "http://hasapchy.local/api/transactions/consequatur"
 );
 
 const headers = {
@@ -25316,14 +25316,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/transactions/consequatur" \
+    "http://hasapchy.local/api/transactions/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transactions/consequatur"
+    "http://hasapchy.local/api/transactions/consequatur"
 );
 
 const headers = {
@@ -25439,14 +25439,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/transactions/total" \
+    --get "http://hasapchy.local/api/transactions/total" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transactions/total"
+    "http://hasapchy.local/api/transactions/total"
 );
 
 const headers = {
@@ -25565,14 +25565,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/transactions/consequatur" \
+    --get "http://hasapchy.local/api/transactions/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transactions/consequatur"
+    "http://hasapchy.local/api/transactions/consequatur"
 );
 
 const headers = {
@@ -25704,14 +25704,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/transfers" \
+    --get "http://hasapchy.local/api/transfers" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transfers"
+    "http://hasapchy.local/api/transfers"
 );
 
 const headers = {
@@ -25830,7 +25830,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/transfers" \
+    "http://hasapchy.local/api/transfers" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -25845,7 +25845,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transfers"
+    "http://hasapchy.local/api/transfers"
 );
 
 const headers = {
@@ -26018,7 +26018,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/transfers/consequatur" \
+    "http://hasapchy.local/api/transfers/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -26033,7 +26033,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transfers/consequatur"
+    "http://hasapchy.local/api/transfers/consequatur"
 );
 
 const headers = {
@@ -26219,14 +26219,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/transfers/consequatur" \
+    "http://hasapchy.local/api/transfers/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transfers/consequatur"
+    "http://hasapchy.local/api/transfers/consequatur"
 );
 
 const headers = {
@@ -26342,14 +26342,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/sales" \
+    --get "http://hasapchy.local/api/sales" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/sales"
+    "http://hasapchy.local/api/sales"
 );
 
 const headers = {
@@ -26468,7 +26468,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/sales" \
+    "http://hasapchy.local/api/sales" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -26495,7 +26495,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/sales"
+    "http://hasapchy.local/api/sales"
 );
 
 const headers = {
@@ -26792,14 +26792,14 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/sales/consequatur" \
+    "http://hasapchy.local/api/sales/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/sales/consequatur"
+    "http://hasapchy.local/api/sales/consequatur"
 );
 
 const headers = {
@@ -26915,14 +26915,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/sales/consequatur" \
+    --get "http://hasapchy.local/api/sales/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/sales/consequatur"
+    "http://hasapchy.local/api/sales/consequatur"
 );
 
 const headers = {
@@ -27054,14 +27054,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/orders" \
+    --get "http://hasapchy.local/api/orders" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/orders"
+    "http://hasapchy.local/api/orders"
 );
 
 const headers = {
@@ -27180,7 +27180,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/orders" \
+    "http://hasapchy.local/api/orders" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -27220,7 +27220,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/orders"
+    "http://hasapchy.local/api/orders"
 );
 
 const headers = {
@@ -27660,7 +27660,7 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/orders/consequatur" \
+    "http://hasapchy.local/api/orders/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -27706,7 +27706,7 @@ Must be one of:
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/orders/consequatur"
+    "http://hasapchy.local/api/orders/consequatur"
 );
 
 const headers = {
@@ -28215,14 +28215,14 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/orders/consequatur" \
+    "http://hasapchy.local/api/orders/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/orders/consequatur"
+    "http://hasapchy.local/api/orders/consequatur"
 );
 
 const headers = {
@@ -28338,7 +28338,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/orders/batch-status" \
+    "http://hasapchy.local/api/orders/batch-status" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -28352,7 +28352,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/orders/batch-status"
+    "http://hasapchy.local/api/orders/batch-status"
 );
 
 const headers = {
@@ -28490,14 +28490,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/orders/consequatur" \
+    --get "http://hasapchy.local/api/orders/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/orders/consequatur"
+    "http://hasapchy.local/api/orders/consequatur"
 );
 
 const headers = {
@@ -28629,7 +28629,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/orders/consequatur/transactions" \
+    "http://hasapchy.local/api/orders/consequatur/transactions" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -28640,7 +28640,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/orders/consequatur/transactions"
+    "http://hasapchy.local/api/orders/consequatur/transactions"
 );
 
 const headers = {
@@ -28774,14 +28774,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/orders/consequatur/transactions/consequatur" \
+    "http://hasapchy.local/api/orders/consequatur/transactions/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/orders/consequatur/transactions/consequatur"
+    "http://hasapchy.local/api/orders/consequatur/transactions/consequatur"
 );
 
 const headers = {
@@ -28909,14 +28909,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/orders/consequatur/transactions" \
+    --get "http://hasapchy.local/api/orders/consequatur/transactions" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/orders/consequatur/transactions"
+    "http://hasapchy.local/api/orders/consequatur/transactions"
 );
 
 const headers = {
@@ -29048,14 +29048,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/order_statuses" \
+    --get "http://hasapchy.local/api/order_statuses" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/order_statuses"
+    "http://hasapchy.local/api/order_statuses"
 );
 
 const headers = {
@@ -29174,14 +29174,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/order_statuses/all" \
+    --get "http://hasapchy.local/api/order_statuses/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/order_statuses/all"
+    "http://hasapchy.local/api/order_statuses/all"
 );
 
 const headers = {
@@ -29300,7 +29300,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/order_statuses" \
+    "http://hasapchy.local/api/order_statuses" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -29313,7 +29313,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/order_statuses"
+    "http://hasapchy.local/api/order_statuses"
 );
 
 const headers = {
@@ -29470,7 +29470,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/order_statuses/consequatur" \
+    "http://hasapchy.local/api/order_statuses/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -29483,7 +29483,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/order_statuses/consequatur"
+    "http://hasapchy.local/api/order_statuses/consequatur"
 );
 
 const headers = {
@@ -29653,14 +29653,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/order_statuses/consequatur" \
+    "http://hasapchy.local/api/order_statuses/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/order_statuses/consequatur"
+    "http://hasapchy.local/api/order_statuses/consequatur"
 );
 
 const headers = {
@@ -29776,14 +29776,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/order_status_categories" \
+    --get "http://hasapchy.local/api/order_status_categories" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/order_status_categories"
+    "http://hasapchy.local/api/order_status_categories"
 );
 
 const headers = {
@@ -29902,14 +29902,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/order_status_categories/all" \
+    --get "http://hasapchy.local/api/order_status_categories/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/order_status_categories/all"
+    "http://hasapchy.local/api/order_status_categories/all"
 );
 
 const headers = {
@@ -30028,7 +30028,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/order_status_categories" \
+    "http://hasapchy.local/api/order_status_categories" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -30040,7 +30040,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/order_status_categories"
+    "http://hasapchy.local/api/order_status_categories"
 );
 
 const headers = {
@@ -30174,7 +30174,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/order_status_categories/consequatur" \
+    "http://hasapchy.local/api/order_status_categories/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -30186,7 +30186,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/order_status_categories/consequatur"
+    "http://hasapchy.local/api/order_status_categories/consequatur"
 );
 
 const headers = {
@@ -30333,14 +30333,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/order_status_categories/consequatur" \
+    "http://hasapchy.local/api/order_status_categories/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/order_status_categories/consequatur"
+    "http://hasapchy.local/api/order_status_categories/consequatur"
 );
 
 const headers = {
@@ -30456,14 +30456,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/leave_types" \
+    --get "http://hasapchy.local/api/leave_types" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/leave_types"
+    "http://hasapchy.local/api/leave_types"
 );
 
 const headers = {
@@ -30582,14 +30582,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/leave_types/all" \
+    --get "http://hasapchy.local/api/leave_types/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/leave_types/all"
+    "http://hasapchy.local/api/leave_types/all"
 );
 
 const headers = {
@@ -30708,7 +30708,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/leave_types" \
+    "http://hasapchy.local/api/leave_types" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -30720,7 +30720,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/leave_types"
+    "http://hasapchy.local/api/leave_types"
 );
 
 const headers = {
@@ -30854,7 +30854,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/leave_types/consequatur" \
+    "http://hasapchy.local/api/leave_types/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -30866,7 +30866,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/leave_types/consequatur"
+    "http://hasapchy.local/api/leave_types/consequatur"
 );
 
 const headers = {
@@ -31013,14 +31013,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/leave_types/consequatur" \
+    "http://hasapchy.local/api/leave_types/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/leave_types/consequatur"
+    "http://hasapchy.local/api/leave_types/consequatur"
 );
 
 const headers = {
@@ -31136,14 +31136,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/leaves" \
+    --get "http://hasapchy.local/api/leaves" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/leaves"
+    "http://hasapchy.local/api/leaves"
 );
 
 const headers = {
@@ -31262,14 +31262,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/leaves/all" \
+    --get "http://hasapchy.local/api/leaves/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/leaves/all"
+    "http://hasapchy.local/api/leaves/all"
 );
 
 const headers = {
@@ -31388,14 +31388,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/leaves/consequatur" \
+    --get "http://hasapchy.local/api/leaves/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/leaves/consequatur"
+    "http://hasapchy.local/api/leaves/consequatur"
 );
 
 const headers = {
@@ -31527,7 +31527,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/leaves" \
+    "http://hasapchy.local/api/leaves" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -31542,7 +31542,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/leaves"
+    "http://hasapchy.local/api/leaves"
 );
 
 const headers = {
@@ -31715,7 +31715,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/leaves/consequatur" \
+    "http://hasapchy.local/api/leaves/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -31730,7 +31730,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/leaves/consequatur"
+    "http://hasapchy.local/api/leaves/consequatur"
 );
 
 const headers = {
@@ -31916,14 +31916,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/leaves/consequatur" \
+    "http://hasapchy.local/api/leaves/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/leaves/consequatur"
+    "http://hasapchy.local/api/leaves/consequatur"
 );
 
 const headers = {
@@ -32039,14 +32039,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/transaction_categories" \
+    --get "http://hasapchy.local/api/transaction_categories" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transaction_categories"
+    "http://hasapchy.local/api/transaction_categories"
 );
 
 const headers = {
@@ -32165,7 +32165,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/transaction_categories" \
+    "http://hasapchy.local/api/transaction_categories" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -32177,7 +32177,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transaction_categories"
+    "http://hasapchy.local/api/transaction_categories"
 );
 
 const headers = {
@@ -32321,7 +32321,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/transaction_categories/1" \
+    "http://hasapchy.local/api/transaction_categories/1" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -32333,7 +32333,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transaction_categories/1"
+    "http://hasapchy.local/api/transaction_categories/1"
 );
 
 const headers = {
@@ -32490,14 +32490,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/transaction_categories/1" \
+    "http://hasapchy.local/api/transaction_categories/1" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/transaction_categories/1"
+    "http://hasapchy.local/api/transaction_categories/1"
 );
 
 const headers = {
@@ -32613,14 +32613,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/invoices" \
+    --get "http://hasapchy.local/api/invoices" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/invoices"
+    "http://hasapchy.local/api/invoices"
 );
 
 const headers = {
@@ -32739,7 +32739,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/invoices" \
+    "http://hasapchy.local/api/invoices" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -32755,7 +32755,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/invoices"
+    "http://hasapchy.local/api/invoices"
 );
 
 const headers = {
@@ -32919,7 +32919,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/invoices/consequatur" \
+    "http://hasapchy.local/api/invoices/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -32945,7 +32945,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/invoices/consequatur"
+    "http://hasapchy.local/api/invoices/consequatur"
 );
 
 const headers = {
@@ -33218,14 +33218,14 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/invoices/consequatur" \
+    "http://hasapchy.local/api/invoices/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/invoices/consequatur"
+    "http://hasapchy.local/api/invoices/consequatur"
 );
 
 const headers = {
@@ -33341,14 +33341,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/invoices/consequatur" \
+    --get "http://hasapchy.local/api/invoices/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/invoices/consequatur"
+    "http://hasapchy.local/api/invoices/consequatur"
 );
 
 const headers = {
@@ -33480,7 +33480,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/invoices/orders" \
+    "http://hasapchy.local/api/invoices/orders" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -33493,7 +33493,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/invoices/orders"
+    "http://hasapchy.local/api/invoices/orders"
 );
 
 const headers = {
@@ -33618,7 +33618,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/comments/timeline" \
+    --get "http://hasapchy.local/api/comments/timeline" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -33630,7 +33630,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/comments/timeline"
+    "http://hasapchy.local/api/comments/timeline"
 );
 
 const headers = {
@@ -33780,7 +33780,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/comments" \
+    --get "http://hasapchy.local/api/comments" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -33792,7 +33792,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/comments"
+    "http://hasapchy.local/api/comments"
 );
 
 const headers = {
@@ -33942,7 +33942,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/comments" \
+    "http://hasapchy.local/api/comments" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -33955,7 +33955,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/comments"
+    "http://hasapchy.local/api/comments"
 );
 
 const headers = {
@@ -34102,7 +34102,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/comments/consequatur" \
+    "http://hasapchy.local/api/comments/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -34113,7 +34113,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/comments/consequatur"
+    "http://hasapchy.local/api/comments/consequatur"
 );
 
 const headers = {
@@ -34247,14 +34247,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/comments/consequatur" \
+    "http://hasapchy.local/api/comments/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/comments/consequatur"
+    "http://hasapchy.local/api/comments/consequatur"
 );
 
 const headers = {
@@ -34370,14 +34370,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/user/current-company" \
+    --get "http://hasapchy.local/api/user/current-company" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/user/current-company"
+    "http://hasapchy.local/api/user/current-company"
 );
 
 const headers = {
@@ -34496,14 +34496,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/user/set-company" \
+    "http://hasapchy.local/api/user/set-company" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/user/set-company"
+    "http://hasapchy.local/api/user/set-company"
 );
 
 const headers = {
@@ -34606,14 +34606,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/user/companies" \
+    --get "http://hasapchy.local/api/user/companies" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/user/companies"
+    "http://hasapchy.local/api/user/companies"
 );
 
 const headers = {
@@ -34732,14 +34732,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/tasks" \
+    --get "http://hasapchy.local/api/tasks" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/tasks"
+    "http://hasapchy.local/api/tasks"
 );
 
 const headers = {
@@ -34858,14 +34858,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/tasks/consequatur" \
+    --get "http://hasapchy.local/api/tasks/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/tasks/consequatur"
+    "http://hasapchy.local/api/tasks/consequatur"
 );
 
 const headers = {
@@ -34997,7 +34997,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/tasks" \
+    "http://hasapchy.local/api/tasks" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -35014,7 +35014,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/tasks"
+    "http://hasapchy.local/api/tasks"
 );
 
 const headers = {
@@ -35265,7 +35265,7 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/tasks/consequatur" \
+    "http://hasapchy.local/api/tasks/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -35280,7 +35280,7 @@ Must be one of:
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/tasks/consequatur"
+    "http://hasapchy.local/api/tasks/consequatur"
 );
 
 const headers = {
@@ -35542,14 +35542,14 @@ Must be one of:
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/tasks/consequatur" \
+    "http://hasapchy.local/api/tasks/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/tasks/consequatur"
+    "http://hasapchy.local/api/tasks/consequatur"
 );
 
 const headers = {
@@ -35666,14 +35666,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/tasks/consequatur/complete" \
+    "http://hasapchy.local/api/tasks/consequatur/complete" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/tasks/consequatur/complete"
+    "http://hasapchy.local/api/tasks/consequatur/complete"
 );
 
 const headers = {
@@ -35790,14 +35790,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/tasks/consequatur/accept" \
+    "http://hasapchy.local/api/tasks/consequatur/accept" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/tasks/consequatur/accept"
+    "http://hasapchy.local/api/tasks/consequatur/accept"
 );
 
 const headers = {
@@ -35914,14 +35914,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/tasks/consequatur/return" \
+    "http://hasapchy.local/api/tasks/consequatur/return" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/tasks/consequatur/return"
+    "http://hasapchy.local/api/tasks/consequatur/return"
 );
 
 const headers = {
@@ -36037,7 +36037,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/tasks/consequatur/files" \
+    "http://hasapchy.local/api/tasks/consequatur/files" \
     --header "Content-Type: multipart/form-data" \
     --header "Accept: application/json" \
     --form "files[]=@C:\Users\User\AppData\Local\Temp\phpB675.tmp" </code></pre></div>
@@ -36045,7 +36045,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/tasks/consequatur/files"
+    "http://hasapchy.local/api/tasks/consequatur/files"
 );
 
 const headers = {
@@ -36180,14 +36180,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/tasks/consequatur/delete-file" \
+    "http://hasapchy.local/api/tasks/consequatur/delete-file" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/tasks/consequatur/delete-file"
+    "http://hasapchy.local/api/tasks/consequatur/delete-file"
 );
 
 const headers = {
@@ -36303,14 +36303,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/task-statuses" \
+    --get "http://hasapchy.local/api/task-statuses" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/task-statuses"
+    "http://hasapchy.local/api/task-statuses"
 );
 
 const headers = {
@@ -36429,14 +36429,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/task-statuses/all" \
+    --get "http://hasapchy.local/api/task-statuses/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/task-statuses/all"
+    "http://hasapchy.local/api/task-statuses/all"
 );
 
 const headers = {
@@ -36555,7 +36555,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/task-statuses" \
+    "http://hasapchy.local/api/task-statuses" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -36567,7 +36567,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/task-statuses"
+    "http://hasapchy.local/api/task-statuses"
 );
 
 const headers = {
@@ -36701,7 +36701,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/task-statuses/consequatur" \
+    "http://hasapchy.local/api/task-statuses/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -36713,7 +36713,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/task-statuses/consequatur"
+    "http://hasapchy.local/api/task-statuses/consequatur"
 );
 
 const headers = {
@@ -36860,14 +36860,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/task-statuses/consequatur" \
+    "http://hasapchy.local/api/task-statuses/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/task-statuses/consequatur"
+    "http://hasapchy.local/api/task-statuses/consequatur"
 );
 
 const headers = {
@@ -36983,14 +36983,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/departments" \
+    --get "http://hasapchy.local/api/departments" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/departments"
+    "http://hasapchy.local/api/departments"
 );
 
 const headers = {
@@ -37109,14 +37109,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/departments/all" \
+    --get "http://hasapchy.local/api/departments/all" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/departments/all"
+    "http://hasapchy.local/api/departments/all"
 );
 
 const headers = {
@@ -37235,7 +37235,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/departments" \
+    "http://hasapchy.local/api/departments" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -37247,7 +37247,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/departments"
+    "http://hasapchy.local/api/departments"
 );
 
 const headers = {
@@ -37431,7 +37431,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request PUT \
-    "http://hasap.local/api/departments/consequatur" \
+    "http://hasapchy.local/api/departments/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -37443,7 +37443,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/departments/consequatur"
+    "http://hasapchy.local/api/departments/consequatur"
 );
 
 const headers = {
@@ -37640,14 +37640,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/departments/consequatur" \
+    "http://hasapchy.local/api/departments/consequatur" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/departments/consequatur"
+    "http://hasapchy.local/api/departments/consequatur"
 );
 
 const headers = {
@@ -37763,14 +37763,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/chats" \
+    --get "http://hasapchy.local/api/chats" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/chats"
+    "http://hasapchy.local/api/chats"
 );
 
 const headers = {
@@ -37889,14 +37889,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/chats/general" \
+    "http://hasapchy.local/api/chats/general" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/chats/general"
+    "http://hasapchy.local/api/chats/general"
 );
 
 const headers = {
@@ -37999,7 +37999,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/chats/direct" \
+    "http://hasapchy.local/api/chats/direct" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -38010,7 +38010,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/chats/direct"
+    "http://hasapchy.local/api/chats/direct"
 );
 
 const headers = {
@@ -38131,7 +38131,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/chats/groups" \
+    "http://hasapchy.local/api/chats/groups" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -38145,7 +38145,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/chats/groups"
+    "http://hasapchy.local/api/chats/groups"
 );
 
 const headers = {
@@ -38283,14 +38283,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request GET \
-    --get "http://hasap.local/api/chats/1/messages" \
+    --get "http://hasapchy.local/api/chats/1/messages" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/chats/1/messages"
+    "http://hasapchy.local/api/chats/1/messages"
 );
 
 const headers = {
@@ -38422,7 +38422,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/chats/1/read" \
+    "http://hasapchy.local/api/chats/1/read" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json" \
     --data "{
@@ -38433,7 +38433,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/chats/1/read"
+    "http://hasapchy.local/api/chats/1/read"
 );
 
 const headers = {
@@ -38567,7 +38567,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request POST \
-    "http://hasap.local/api/chats/1/messages" \
+    "http://hasapchy.local/api/chats/1/messages" \
     --header "Content-Type: multipart/form-data" \
     --header "Accept: application/json" \
     --form "body=vmqeopfuudtdsufvyvddq"\
@@ -38576,7 +38576,7 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/chats/1/messages"
+    "http://hasapchy.local/api/chats/1/messages"
 );
 
 const headers = {
@@ -38724,14 +38724,14 @@ You can check the Dev Tools console for debugging information.</code></pre>
 
 <div class="bash-example">
     <pre><code class="language-bash">curl --request DELETE \
-    "http://hasap.local/api/chats/1" \
+    "http://hasapchy.local/api/chats/1" \
     --header "Content-Type: application/json" \
     --header "Accept: application/json"</code></pre></div>
 
 
 <div class="javascript-example">
     <pre><code class="language-javascript">const url = new URL(
-    "http://hasap.local/api/chats/1"
+    "http://hasapchy.local/api/chats/1"
 );
 
 const headers = {

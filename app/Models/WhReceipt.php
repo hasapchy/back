@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\ClientBalance;
 use App\Services\CacheService;
 use App\Services\TransactionDeletionService;
 
@@ -12,6 +13,7 @@ use App\Services\TransactionDeletionService;
  *
  * @property int $id
  * @property int|null $supplier_id ID поставщика
+ * @property int|null $client_balance_id ID выбранного баланса поставщика
  * @property int $warehouse_id ID склада
  * @property string|null $note Примечание
  * @property int|null $cash_id ID кассы
@@ -23,6 +25,7 @@ use App\Services\TransactionDeletionService;
  * @property \Carbon\Carbon $updated_at
  *
  * @property-read \App\Models\Client|null $supplier
+ * @property-read \App\Models\ClientBalance|null $clientBalance
  * @property-read \App\Models\Warehouse $warehouse
  * @property-read \App\Models\CashRegister|null $cashRegister
  * @property-read \App\Models\User $creator
@@ -37,6 +40,7 @@ class WhReceipt extends Model
 
     protected $fillable = [
         'supplier_id',
+        'client_balance_id',
         'warehouse_id',
         'note',
         'cash_id',
@@ -66,6 +70,14 @@ class WhReceipt extends Model
     public function supplier()
     {
         return $this->belongsTo(Client::class, 'supplier_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function clientBalance()
+    {
+        return $this->belongsTo(ClientBalance::class, 'client_balance_id');
     }
 
     /**

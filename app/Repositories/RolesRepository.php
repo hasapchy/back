@@ -300,9 +300,9 @@ class RolesRepository extends BaseRepository
         $adminRole->syncPermissions($allPermissions);
 
         $basementPermissions = [
-            'orders_view',
-            'orders_create',
-            'orders_update',
+            'orders_simple_view_own',
+            'orders_simple_create',
+            'orders_simple_update_own',
             'clients_view',
             'clients_create',
             'clients_update',

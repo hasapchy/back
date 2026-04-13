@@ -44,4 +44,3 @@ class StoreTaskStatusRequest extends FormRequest
             ->redirectTo($this->getRedirectUrl());
     }
 }
-

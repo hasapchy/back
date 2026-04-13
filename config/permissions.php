@@ -236,7 +236,8 @@ return [
         ],
         'contracts' => [
             'has_creator_id' => true,
-            'check_strategy' => 'many_to_many',
+            'check_strategy' => 'creator_id',
+            'require_owner_for_own' => true,
             'actions' => ['view', 'create', 'update', 'delete', 'export'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],

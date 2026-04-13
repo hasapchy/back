@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\RecSchedule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreRecurringTransactionRequest extends FormRequest
@@ -11,7 +12,7 @@ class StoreRecurringTransactionRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', RecSchedule::class);
     }
 
     /**

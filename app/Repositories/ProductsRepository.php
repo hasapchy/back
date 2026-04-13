@@ -2,6 +2,8 @@
 
 namespace App\Repositories;
 
+use App\Models\InvoiceProduct;
+use App\Models\OrderProduct;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductPrice;
@@ -41,7 +43,7 @@ class ProductsRepository extends BaseRepository
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             if ($categoryId) {
-                $userCategoryIds = array_intersect($userCategoryIds, [$categoryId]);
+                $userCategoryIds = array_values(array_intersect($userCategoryIds, [$categoryId]));
             }
 
             if (empty($userCategoryIds)) {
@@ -120,7 +122,7 @@ class ProductsRepository extends BaseRepository
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             if ($categoryId) {
-                $userCategoryIds = array_intersect($userCategoryIds, [$categoryId]);
+                $userCategoryIds = array_values(array_intersect($userCategoryIds, [$categoryId]));
             }
 
             if (empty($userCategoryIds)) {
@@ -229,10 +231,10 @@ class ProductsRepository extends BaseRepository
             $product->type = $data['type'];
             $product->image = $data['image'] ?? null;
             $product->name = $data['name'];
-            $product->description = $data['description'];
+            $product->description = $data['description'] ?? null;
             $product->sku = $data['sku'];
-            $product->barcode = $data['barcode'];
-            $product->unit_id = $data['unit_id'];
+            $product->barcode = $data['barcode'] ?? null;
+            $product->unit_id = $data['unit_id'] ?? null;
             $product->date = $data['date'] ?? now();
             $product->creator_id = $data['creator_id'] ?? auth()->id();
             $product->save();
@@ -453,26 +455,57 @@ class ProductsRepository extends BaseRepository
             return ['success' => false, 'message' => 'Товар/услуга не найдена'];
         }
 
-        $usedInSales = $product->salesProducts()->exists();
-
-        if ($usedInSales) {
-            return [
-                'success' => false,
-                'message' => 'Товар/услуга используется в продажах или заказах и не может быть удалён(а).',
-            ];
+        $usageMessage = $this->getProductDeleteBlockMessage($product);
+        if ($usageMessage !== null) {
+            return ['success' => false, 'message' => $usageMessage];
         }
 
-        if ($product->image) {
-            Storage::disk('public')->delete($product->image);
-        }
+        DB::transaction(function () use ($product, $id) {
+            if ($product->image) {
+                Storage::disk('public')->delete($product->image);
+            }
 
-        ProductPrice::where('product_id', $id)->delete();
+            ProductPrice::where('product_id', $id)->delete();
+            ProductCategory::where('product_id', $id)->delete();
+            WarehouseStock::where('product_id', $id)->delete();
 
-        $product->delete();
+            $product->delete();
+        });
 
         CacheService::invalidateProductsCache();
 
         return ['success' => true];
+    }
+
+    /**
+     * Текст отказа при удалении, если товар фигурирует в учётных документах.
+     *
+     * @param  \App\Models\Product  $product
+     * @return string|null
+     */
+    private function getProductDeleteBlockMessage(Product $product): ?string
+    {
+        if ($product->salesProducts()->exists()) {
+            return 'Товар/услуга используется в продажах и не может быть удалён(а).';
+        }
+
+        if (OrderProduct::where('product_id', $product->id)->exists()) {
+            return 'Товар/услуга используется в заказах и не может быть удалён(а).';
+        }
+
+        if (InvoiceProduct::where('product_id', $product->id)->exists()) {
+            return 'Товар/услуга используется в счетах и не может быть удалён(а).';
+        }
+
+        $warehouseLineExists = $product->receiptProducts()->exists()
+            || $product->writeOffProducts()->exists()
+            || $product->movementProducts()->exists();
+
+        if ($warehouseLineExists) {
+            return 'Товар/услуга используется в складских операциях и не может быть удалён(а).';
+        }
+
+        return null;
     }
 
     /**

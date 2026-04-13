@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesOrderClientBalance;
+use App\Models\Sale;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\WarehouseAccessRule;
 use App\Rules\ProjectAccessRule;
@@ -12,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class UpdateSaleRequest extends FormRequest
 {
+    use ValidatesOrderClientBalance;
+
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -19,7 +23,13 @@ class UpdateSaleRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $sale = Sale::query()->find($this->route('id'));
+
+        if (! $sale) {
+            return true;
+        }
+
+        return $this->user()->can('update', $sale);
     }
 
     /**
@@ -44,6 +54,7 @@ class UpdateSaleRequest extends FormRequest
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity'   => 'required|numeric|min:1',
             'products.*.price'      => 'required|numeric|min:0',
+            'client_balance_id'     => $this->orderClientBalanceIdRules(),
         ];
     }
 

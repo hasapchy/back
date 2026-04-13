@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\ResolvedCompany;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
@@ -27,7 +28,7 @@ class UpdateRoleRequest extends FormRequest
     public function rules(): array
     {
         $roleId = $this->route('id');
-        $companyId = $this->header('X-Company-ID');
+        $companyId = ResolvedCompany::fromRequest($this);
 
         $rules = [
             'permissions' => 'nullable|array|max:1000',

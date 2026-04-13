@@ -2,29 +2,32 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Department;
-use App\Models\User;
+use Illuminate\Database\Seeder;
 
 class DepartmentSeeder extends Seeder
 {
+    /**
+     * @return void
+     */
     public function run(): void
     {
-        // Пример департаментов
-        $departments = [
-            ['title' => 'IT', 'description' => 'Информационные технологии', 'company_id' => 1],
-            ['title' => 'HR', 'description' => 'Отдел кадров', 'company_id' => 1],
-            ['title' => 'Marketing', 'description' => 'Маркетинг и реклама', 'company_id' => 1],
+        $rows = [
+            ['title' => 'IT', 'description' => 'Информационные технологии'],
+            ['title' => 'HR', 'description' => 'Отдел кадров'],
+            ['title' => 'Marketing', 'description' => 'Маркетинг и реклама'],
         ];
 
-        foreach ($departments as $data) {
-            $department = Department::create($data);
-
-            // Связь с случайным пользователем (если есть пользователи)
-            $user = User::inRandomOrder()->first();
-            if ($user) {
-                $department->users()->attach($user->id);
-            }
+        foreach ($rows as $row) {
+            Department::updateOrCreate(
+                [
+                    'title' => $row['title'],
+                    'company_id' => 1,
+                ],
+                array_merge($row, [
+                    'company_id' => 1,
+                ])
+            );
         }
     }
 }

@@ -10,10 +10,10 @@ return new class extends Migration {
         Schema::create('company_rounding_rules', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('company_id');
-            $table->string('context'); // orders, receipts, sales, transactions
-            $table->unsignedTinyInteger('decimals'); // 2..5
-            $table->string('direction'); // standard, up, down, custom
-            $table->decimal('custom_threshold', 3, 2)->nullable(); // e.g. 0.60 means >= 0.60 rounds up
+            $table->string('context');
+            $table->unsignedTinyInteger('decimals');
+            $table->string('direction');
+            $table->decimal('custom_threshold', 3, 2)->nullable();
             $table->timestamps();
 
             $table->unique(['company_id', 'context']);
@@ -26,5 +26,3 @@ return new class extends Migration {
         Schema::dropIfExists('company_rounding_rules');
     }
 };
-
-

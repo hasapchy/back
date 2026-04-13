@@ -1,4 +1,4 @@
-window.abortControllers = {};
+﻿window.abortControllers = {};
 
 function cacheAuthValue() {
     // Whenever the auth header is set for one endpoint, cache it for the others
@@ -264,7 +264,7 @@ async function executeTryOut(endpointId, form) {
     let preflightPromise = Promise.resolve();
     if (window.useCsrf && window.csrfUrl) {
         preflightPromise = makeAPICall('GET', window.csrfUrl).then(() => {
-            headers['X-XSRF-TOKEN'] = getCookie('XSRF-TOKEN');
+            headers['X-CSRF-TOKEN'] = getCookie('XSRF-TOKEN');
         });
     }
 

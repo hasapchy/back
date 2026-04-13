@@ -28,8 +28,17 @@ class UpdateProjectStatusRequest extends FormRequest
         return [
             'name' => 'required|string',
             'color' => 'nullable|string|max:7',
-            'is_tr_visible' => 'nullable|boolean',
+            'is_visible' => 'nullable|boolean',
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $data = $this->all();
+        if (isset($data['is_visible'])) {
+            $data['is_visible'] = filter_var($data['is_visible'], FILTER_VALIDATE_BOOLEAN);
+        }
+        $this->merge($data);
     }
 
     /**

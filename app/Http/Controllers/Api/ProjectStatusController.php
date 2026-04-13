@@ -79,7 +79,7 @@ class ProjectStatusController extends BaseController
         $created = $this->itemsRepository->createItem([
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
-            'is_tr_visible' => $validatedData['is_tr_visible'] ?? true,
+            'is_visible' => $validatedData['is_visible'] ?? true,
             'creator_id' => $userUuid,
         ]);
         if (! $created) {
@@ -106,7 +106,7 @@ class ProjectStatusController extends BaseController
         $updated = $this->itemsRepository->updateItem($id, [
             'name' => $validatedData['name'],
             'color' => $validatedData['color'] ?? '#6c757d',
-            'is_tr_visible' => $validatedData['is_tr_visible'] ?? true,
+            'is_visible' => $validatedData['is_visible'] ?? true,
         ]);
         if (! $updated) {
             return $this->errorResponse('Ошибка обновления статуса', 400);

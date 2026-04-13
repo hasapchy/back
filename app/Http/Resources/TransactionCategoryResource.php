@@ -18,6 +18,11 @@ class TransactionCategoryResource extends JsonResource
             'id' => data_get($resource, 'id'),
             'name' => data_get($resource, 'name'),
             'type' => data_get($resource, 'type'),
+            'parent_id' => data_get($resource, 'parent_id'),
+            'parent' => $resource->parent ? [
+                'id' => $resource->parent->id,
+                'name' => $resource->parent->name,
+            ] : null,
             'creator_id' => data_get($resource, 'creator_id'),
             'creator' => data_get($resource, 'creator') ? [
                 'id' => data_get($resource, 'creator.id'),

@@ -2,13 +2,20 @@
 
 namespace App\Http\Requests;
 
+use App\Models\News;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateNewsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $news = News::query()->find($this->route('id'));
+
+        if (! $news) {
+            return true;
+        }
+
+        return $this->user()->can('update', $news);
     }
 
     public function rules(): array

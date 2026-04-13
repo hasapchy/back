@@ -59,9 +59,4 @@ class Warehouse extends Model
         return $this->belongsToMany(User::class, 'wh_users', 'warehouse_id', 'user_id');
     }
 
-    public function hasUser($userId)
-    {
-        return $this->users()->wherePivot('user_id', $userId)->exists();
-    }
-
 }

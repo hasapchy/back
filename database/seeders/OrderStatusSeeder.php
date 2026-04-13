@@ -2,15 +2,18 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\OrderStatusCategory;
 use App\Models\OrderStatus;
+use App\Models\OrderStatusCategory;
+use App\Services\CacheService;
+use Illuminate\Database\Seeder;
 
 class OrderStatusSeeder extends Seeder
 {
-    public function run()
+    /**
+     * @return void
+     */
+    public function run(): void
     {
-        // Create Order Status Categories
         OrderStatusCategory::updateOrCreate(
             ['id' => 1],
             [
@@ -38,8 +41,7 @@ class OrderStatusSeeder extends Seeder
             ]
         );
 
-
-         OrderStatusCategory::updateOrCreate(
+        OrderStatusCategory::updateOrCreate(
             ['id' => 4],
             [
                 'name' => 'COMPLETED',
@@ -47,7 +49,7 @@ class OrderStatusSeeder extends Seeder
                 'color' => '#939699',
             ]
         );
-          OrderStatusCategory::updateOrCreate(
+        OrderStatusCategory::updateOrCreate(
             ['id' => 5],
             [
                 'name' => 'CANCELLED',
@@ -72,7 +74,7 @@ class OrderStatusSeeder extends Seeder
             ]
         );
 
-         OrderStatus::updateOrCreate(
+        OrderStatus::updateOrCreate(
             ['id' => 4],
             [
                 'name' => 'READY',
@@ -85,14 +87,18 @@ class OrderStatusSeeder extends Seeder
             [
                 'name' => 'COMPLETED',
                 'category_id' => 4,
+                'kanban_outcome' => 'success',
             ]
         );
-         OrderStatus::updateOrCreate(
+        OrderStatus::updateOrCreate(
             ['id' => 6],
             [
                 'name' => 'CANCELLED',
                 'category_id' => 5,
+                'kanban_outcome' => 'failure',
             ]
         );
+
+        CacheService::invalidateOrderStatusesCache();
     }
 }

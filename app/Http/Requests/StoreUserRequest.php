@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Category;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
 {
@@ -14,7 +17,7 @@ class StoreUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', User::class);
     }
 
     /**
@@ -36,6 +39,13 @@ class StoreUserRequest extends FormRequest
             'position' => 'nullable|string|max:255',
             'is_active'   => 'nullable|boolean',
             'is_admin'   => 'nullable|boolean',
+            'is_simple_user'   => 'nullable|boolean',
+            'simple_category_id' => [
+                'exclude_unless:is_simple_user,true',
+                'required',
+                'integer',
+                Rule::exists('categories', 'id')->where(fn ($q) => $q->whereNull('parent_id')),
+            ],
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'roles' => 'nullable|array',
             'roles.*' => 'string|exists:roles,name,guard_name,api',
@@ -74,6 +84,20 @@ class StoreUserRequest extends FormRequest
             } catch (\Exception $e) {
                 unset($data['is_admin']);
             }
+        }
+
+        if (isset($data['is_simple_user'])) {
+            $currentUser = auth('api')->user();
+            if (!$currentUser || !$currentUser->is_admin) {
+                unset($data['is_simple_user']);
+                unset($data['simple_category_id']);
+            } else {
+                $data['is_simple_user'] = filter_var($data['is_simple_user'], FILTER_VALIDATE_BOOLEAN);
+            }
+        }
+
+        if (empty($data['is_simple_user'])) {
+            unset($data['simple_category_id']);
         }
 
         if (isset($data['roles']) && is_string($data['roles'])) {
@@ -121,6 +145,32 @@ class StoreUserRequest extends FormRequest
         }
 
         $this->merge($data);
+    }
+
+    /**
+     * @param  \Illuminate\Validation\Validator  $validator
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function (Validator $v): void {
+            if (! $this->boolean('is_simple_user')) {
+                return;
+            }
+            $cid = (int) $this->input('simple_category_id');
+            if (! $cid) {
+                return;
+            }
+            $companies = $this->input('companies', []);
+            if (! is_array($companies) || $companies === []) {
+                $v->errors()->add('simple_category_id', 'Выберите компанию.');
+
+                return;
+            }
+            $catCompany = Category::whereKey($cid)->value('company_id');
+            if ($catCompany === null || ! in_array((int) $catCompany, array_map('intval', $companies), true)) {
+                $v->errors()->add('simple_category_id', 'Категория должна быть из выбранных компаний.');
+            }
+        });
     }
 
     /**

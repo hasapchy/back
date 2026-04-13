@@ -207,11 +207,25 @@ class ClientBalanceService
     }
 
     /**
+     * Множитель направления изменения записи client_balances по типу транзакции и долгу (+1 / −1).
+     *
+     * @param  int  $type  Тип транзакции (1 — доход, 0 — расход)
+     * @param  bool  $isDebt  Долговая транзакция
+     * @return int
+     */
+    public static function balanceLedgerSign(int $type, bool $isDebt): int
+    {
+        return $isDebt
+            ? ($type === 1 ? 1 : -1)
+            : ($type === 1 ? -1 : 1);
+    }
+
+    /**
      * Вычислить изменение баланса на основе типа транзакции (публичный для проверок/отчётов).
      *
      * @param float $amount Сумма
      * @param int $type Тип транзакции (0 или 1)
-     * @param bool $isDebt Является ли долгом
+     * @param bool $isDebt  Является ли долгом
      * @return float
      */
     public static function balanceDelta(float $amount, int $type, bool $isDebt): float
@@ -220,11 +234,7 @@ class ClientBalanceService
             return 0;
         }
 
-        $sign = $isDebt
-            ? ($type === 1 ? 1 : -1)
-            : ($type === 1 ? -1 : 1);
-
-        return $sign * $amount;
+        return self::balanceLedgerSign($type, $isDebt) * $amount;
     }
 
     /**

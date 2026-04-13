@@ -11,7 +11,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property string $name Название статуса
  * @property string $color Цвет статуса
- * @property bool $is_tr_visible Показывать проекты в списке для выбора
+ * @property bool $is_visible Показывать проекты в списке для выбора
+ * @property string|null $kanban_outcome Итог канбана: failure|success
  * @property int $creator_id ID создателя
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -26,12 +27,13 @@ class ProjectStatus extends Model
     protected $fillable = [
         'name',
         'color',
-        'is_tr_visible',
+        'is_visible',
+        'kanban_outcome',
         'creator_id'
     ];
 
     protected $casts = [
-        'is_tr_visible' => 'boolean',
+        'is_visible' => 'boolean',
     ];
 
     /**

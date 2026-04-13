@@ -2,23 +2,19 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ResolvedCompany;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class PermissionMiddleware
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next, string ...$permissions): Response
     {
-        /** @var \App\Models\User $user */
+        /** @var \App\Models\User|null $user */
         $user = auth('api')->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
@@ -26,8 +22,10 @@ class PermissionMiddleware
             return $next($request);
         }
 
-        $companyId = $request->header('X-Company-ID');
-        $userPermissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray() : $user->getAllPermissions()->pluck('name')->toArray();
+        $companyId = ResolvedCompany::fromRequest($request);
+        $userPermissions = $companyId
+            ? $user->getAllPermissionsForCompany($companyId)->pluck('name')->toArray()
+            : $user->getAllPermissions()->pluck('name')->toArray();
 
         $permissionList = [];
         foreach ($permissions as $perm) {
@@ -36,7 +34,7 @@ class PermissionMiddleware
         $permissionList = array_map('trim', $permissionList);
 
         foreach ($permissionList as $permission) {
-            if (in_array($permission, $userPermissions)) {
+            if (in_array($permission, $userPermissions, true)) {
                 return $next($request);
             }
         }
@@ -44,4 +42,3 @@ class PermissionMiddleware
         return response()->json(['message' => 'Forbidden'], 403);
     }
 }
-

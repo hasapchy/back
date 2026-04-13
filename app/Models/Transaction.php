@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use App\Services\CurrencyConverter;
 use App\Services\TransactionSourceService;
 use App\Services\BalanceService;
@@ -12,6 +13,7 @@ use App\Repositories\OrdersRepository;
 use App\Repositories\ProjectContractsRepository;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use App\Contracts\SupportsTimeline;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
 
@@ -54,7 +56,7 @@ use Illuminate\Support\Facades\DB;
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\CashTransfer[] $cashTransfersTo
  * @property-read \Illuminate\Database\Eloquent\Model|null $source
  */
-class Transaction extends Model
+class Transaction extends Model implements SupportsTimeline
 {
     use HasFactory, LogsActivity {
         LogsActivity::shouldLogEvent as protected traitShouldLogEvent;
@@ -109,16 +111,10 @@ class Transaction extends Model
 
     public function getDescriptionForEvent(string $eventName): string
     {
-        switch ($eventName) {
-            case 'created':
-                return 'Создана транзакция';
-            case 'updated':
-                return 'Транзакция обновлена';
-            case 'deleted':
-                return 'Транзакция удалена';
-            default:
-                return "Транзакция была {$eventName}";
-        }
+        return match ($eventName) {
+            'created', 'updated', 'deleted' => "activity_log.transaction.{$eventName}",
+            default => 'activity_log.transaction.default',
+        };
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -426,7 +422,7 @@ class Transaction extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\MorphMany
      */
-    public function activities()
+    public function activities(): MorphMany
     {
         return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
     }
@@ -436,7 +432,7 @@ class Transaction extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\MorphMany
      */
-    public function comments()
+    public function comments(): MorphMany
     {
         return $this->morphMany(\App\Models\Comment::class, 'commentable');
     }

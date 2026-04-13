@@ -4,15 +4,20 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Resources\CompanyResource;
 use App\Models\Company;
+use App\Models\Sanctum\PersonalAccessToken;
 use App\Services\CacheService;
+use App\Services\MobileSanctumTokenService;
+use App\Support\ResolvedCompany;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
-/**
- * Контроллер для работы с компаниями пользователя
- */
 class UserCompanyController extends BaseController
 {
+    public function __construct(
+        private readonly MobileSanctumTokenService $mobileSanctumTokenService
+    ) {
+    }
+
     /**
      * Получить текущую компанию пользователя
      *
@@ -22,7 +27,7 @@ class UserCompanyController extends BaseController
     public function getCurrentCompany(Request $request)
     {
         $user = $this->getAuthenticatedUser();
-        if (!$user) {
+        if (! $user) {
             return $this->errorResponse(null, 401);
         }
 
@@ -42,7 +47,7 @@ class UserCompanyController extends BaseController
 
         $company = $user->companies()->first();
 
-        if (!$company) {
+        if (! $company) {
             return $this->errorResponse('No companies available for user', 404);
         }
 
@@ -58,27 +63,51 @@ class UserCompanyController extends BaseController
     public function setCurrentCompany(Request $request)
     {
         $user = $this->getAuthenticatedUser();
-        if (!$user) {
+        if (! $user) {
             return $this->errorResponse(null, 401);
         }
 
         $companyId = $request->company_id;
 
-        if (!$companyId) {
+        if (! $companyId) {
             $company = $user->companies()->first();
-            if (!$company) {
+            if (! $company) {
                 return $this->errorResponse('No companies available', 404);
             }
             $companyId = $company->id;
         } else {
             $company = $user->companies()->where('companies.id', $companyId)->first();
 
-            if (!$company) {
+            if (! $company) {
                 return $this->errorResponse('Company not found or access denied', 404);
             }
         }
 
         CacheService::invalidateCurrenciesCache();
+
+        $companyIdInt = (int) $companyId;
+
+        if ($request->hasSession() && $request->session()->isStarted()) {
+            $request->session()->put(ResolvedCompany::SESSION_KEY, $companyIdInt);
+        }
+
+        if (! EnsureFrontendRequestsAreStateful::fromFrontend($request)) {
+            $current = $user->currentAccessToken();
+            $fingerprint = $current instanceof PersonalAccessToken ? $current->device_fingerprint : null;
+            $query = $user->tokens();
+            if ($fingerprint !== null && $fingerprint !== '') {
+                $query->where('device_fingerprint', $fingerprint);
+            }
+            $query->delete();
+
+            $remember = $request->boolean('remember');
+            $tokens = $this->mobileSanctumTokenService->issueTokenPair($user, $remember, $companyIdInt);
+
+            return $this->successResponse(array_merge(
+                (new CompanyResource($company))->resolve(),
+                $tokens
+            ), 'Company selected successfully');
+        }
 
         return $this->successResponse(new CompanyResource($company), 'Company selected successfully');
     }
@@ -91,7 +120,7 @@ class UserCompanyController extends BaseController
     public function getUserCompanies()
     {
         $user = $this->getAuthenticatedUser();
-        if (!$user) {
+        if (! $user) {
             return $this->errorResponse(null, 401);
         }
 

@@ -9,6 +9,7 @@ use App\Models\Currency;
 use App\Models\CashRegister;
 use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
+use App\Services\Timeline\TimelineCache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -26,12 +27,14 @@ class ProjectContractsRepository extends BaseRepository
         return ProjectContract::select([
             'project_contracts.id',
             'project_contracts.project_id',
+            'project_contracts.client_id',
             'project_contracts.creator_id',
             'project_contracts.number',
             'project_contracts.type',
             'project_contracts.amount',
             'project_contracts.currency_id',
             'project_contracts.cash_id',
+            'project_contracts.client_balance_id',
             'project_contracts.date',
             'project_contracts.returned',
             'project_contracts.paid_amount',
@@ -291,7 +294,7 @@ class ProjectContractsRepository extends BaseRepository
 
             if ($activeProjectsOnly) {
                 $query->join('project_statuses', 'projects.status_id', '=', 'project_statuses.id')
-                    ->where('project_statuses.is_tr_visible', true);
+                    ->where('project_statuses.is_visible', true);
             }
 
             if ($projectStatusId !== null) {
@@ -380,7 +383,7 @@ class ProjectContractsRepository extends BaseRepository
                 ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
                 ->addSelect('projects.name as project_name', 'projects.id as project_id',
                     'clients.id as client_id', 'clients.first_name as client_first_name', 'clients.last_name as client_last_name')
-                ->where('projects.creator_id', $userId);
+                ->where('project_contracts.creator_id', $userId);
 
             $companyId = $this->getCurrentCompanyId();
             if ($companyId) {
@@ -389,7 +392,7 @@ class ProjectContractsRepository extends BaseRepository
 
             if ($activeProjectsOnly) {
                 $query->join('project_statuses', 'projects.status_id', '=', 'project_statuses.id')
-                    ->where('project_statuses.is_tr_visible', true);
+                    ->where('project_statuses.is_visible', true);
             }
 
             if ($projectStatusId !== null) {
@@ -462,12 +465,16 @@ class ProjectContractsRepository extends BaseRepository
 
             $contract = new ProjectContract();
             $contract->project_id = $data['project_id'];
+            $contract->client_id = isset($data['client_id']) && $data['client_id'] !== '' && $data['client_id'] !== null
+                ? (int) $data['client_id']
+                : $project->client_id;
             $contract->creator_id = auth('api')->id();
             $contract->number = $data['number'];
             $contract->type = $data['type'] ?? 0;
             $contract->amount = $data['amount'];
             $contract->currency_id = $data['currency_id'] ?? null;
             $contract->cash_id = $data['cash_id'];
+            $contract->client_balance_id = $data['client_balance_id'] ?? null;
             $contract->date = $data['date'];
             $contract->returned = $data['returned'] ?? false;
             $contract->paid_amount = 0;
@@ -475,11 +482,12 @@ class ProjectContractsRepository extends BaseRepository
             $contract->note = $data['note'] ?? null;
             $contract->save();
 
-            if ($contract->cash_id && $project->client_id) {
+            if ($contract->cash_id && ($contract->client_id ?? $project->client_id)) {
                 $this->createContractTransaction($contract, $project);
             }
 
             $this->invalidateProjectContractsCache($data['project_id']);
+            TimelineCache::forget('project_contract', (int) $contract->id);
 
             return $contract;
         });
@@ -502,9 +510,19 @@ class ProjectContractsRepository extends BaseRepository
             if (array_key_exists('type', $data)) {
                 $contract->type = (int) $data['type'];
             }
+            if (array_key_exists('client_id', $data)) {
+                $contract->client_id = $data['client_id'] !== null && $data['client_id'] !== ''
+                    ? (int) $data['client_id']
+                    : null;
+            }
             $contract->amount = $data['amount'];
             $contract->currency_id = $data['currency_id'] ?? null;
             $contract->cash_id = $data['cash_id'];
+            if (array_key_exists('client_balance_id', $data)) {
+                $contract->client_balance_id = $data['client_balance_id'] !== null && $data['client_balance_id'] !== ''
+                    ? (int) $data['client_balance_id']
+                    : null;
+            }
             $contract->date = $data['date'];
             $contract->note = $data['note'] ?? null;
 
@@ -540,12 +558,14 @@ class ProjectContractsRepository extends BaseRepository
                     'note'         => $contract->note,
                     'cash_id'      => $contract->cash_id,
                     'currency_id'  => $contractCurrencyId,
-                    'client_id'    => $project->client_id,
+                    'client_id'    => $contract->client_id ?? $project->client_id,
+                    'client_balance_id' => $contract->client_balance_id,
                     'category_id'  => $debtTransaction->category_id,
                 ]);
             }
 
             $this->invalidateProjectContractsCache($contract->project_id, $id);
+            TimelineCache::forget('project_contract', $id);
 
             return $contract;
         });
@@ -563,7 +583,9 @@ class ProjectContractsRepository extends BaseRepository
 
         return CacheService::remember($cacheKey, function () use ($id) {
             $query = ProjectContract::with([
-                'project:id,name,company_id',
+                'project:id,name,company_id,client_id',
+                'project.client:id,first_name,last_name',
+                'client:id,first_name,last_name',
                 'currency:id,name,symbol',
                 'cashRegister:id,name',
                 'creator:id,name'
@@ -604,6 +626,7 @@ class ProjectContractsRepository extends BaseRepository
             $contract->delete();
 
             $this->invalidateProjectContractsCache($projectId, $id);
+            TimelineCache::forget('project_contract', $id);
 
             return true;
         });
@@ -619,7 +642,7 @@ class ProjectContractsRepository extends BaseRepository
      */
     private function createContractTransaction(ProjectContract $contract, Project $project): void
     {
-        if (!$contract->cash_id || !$project->client_id) {
+        if (! $contract->cash_id || ! ($contract->client_id ?? $project->client_id)) {
             return;
         }
 
@@ -638,7 +661,8 @@ class ProjectContractsRepository extends BaseRepository
      */
     public function createContractDebtTransaction(ProjectContract $contract, Project $project, ?int $userId = null): bool
     {
-        if (!$contract->cash_id || !$project->client_id) {
+        $clientId = $contract->client_id ?? $project->client_id;
+        if (! $contract->cash_id || ! $clientId) {
             return false;
         }
 
@@ -664,7 +688,7 @@ class ProjectContractsRepository extends BaseRepository
         }
 
         $this->createTransactionForSource([
-            'client_id'    => $project->client_id,
+            'client_id'    => $clientId,
             'amount'       => $contract->amount,
             'orig_amount'  => $contract->amount,
             'type'         => 1,
@@ -676,6 +700,7 @@ class ProjectContractsRepository extends BaseRepository
             'creator_id'      => $userId ?? auth('api')->id(),
             'currency_id'  => $contractCurrencyId,
             'project_id'   => null,
+            'client_balance_id' => $contract->client_balance_id,
         ], ProjectContract::class, $contract->id, true);
 
         $this->updateContractPaidAmount($contract->id);

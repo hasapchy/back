@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\RecSchedule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateRecurringTransactionRequest extends FormRequest
@@ -11,7 +12,13 @@ class UpdateRecurringTransactionRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $schedule = RecSchedule::query()->find($this->route('id'));
+
+        if (! $schedule) {
+            return true;
+        }
+
+        return $this->user()->can('update', $schedule);
     }
 
     /**

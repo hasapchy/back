@@ -1,4 +1,4 @@
-name: Endpoints
+﻿name: Endpoints
 description: ''
 endpoints:
   -
@@ -38,9 +38,9 @@ endpoints:
           <head>
               <meta charset="UTF-8">
               <title>Laravel API</title>
-              <link rel="stylesheet" type="text/css" href="http://hasap.local/docs/asset/swagger-ui.css?v=295c0e8b75154a3a99d297333d3e9cb9">
-              <link rel="icon" type="image/png" href="http://hasap.local/docs/asset/favicon-32x32.png?v=40d4f2c38d1cd854ad463f16373cbcb6" sizes="32x32"/>
-              <link rel="icon" type="image/png" href="http://hasap.local/docs/asset/favicon-16x16.png?v=f0ae831196d55d8f4115b6c5e8ec5384" sizes="16x16"/>
+              <link rel="stylesheet" type="text/css" href="http://hasapchy.local/docs/asset/swagger-ui.css?v=295c0e8b75154a3a99d297333d3e9cb9">
+              <link rel="icon" type="image/png" href="http://hasapchy.local/docs/asset/favicon-32x32.png?v=40d4f2c38d1cd854ad463f16373cbcb6" sizes="32x32"/>
+              <link rel="icon" type="image/png" href="http://hasapchy.local/docs/asset/favicon-16x16.png?v=f0ae831196d55d8f4115b6c5e8ec5384" sizes="16x16"/>
               <style>
               html
               {
@@ -65,18 +65,18 @@ endpoints:
           <body >
           <div id="swagger-ui"></div>
 
-          <script src="http://hasap.local/docs/asset/swagger-ui-bundle.js?v=3abe734b0cfda5cb259bd02f796042d1"></script>
-          <script src="http://hasap.local/docs/asset/swagger-ui-standalone-preset.js?v=e309748b3af627b5137cb7a559853117"></script>
+          <script src="http://hasapchy.local/docs/asset/swagger-ui-bundle.js?v=3abe734b0cfda5cb259bd02f796042d1"></script>
+          <script src="http://hasapchy.local/docs/asset/swagger-ui-standalone-preset.js?v=e309748b3af627b5137cb7a559853117"></script>
           <script>
               window.onload = function() {
                   // Build a system
                   const ui = SwaggerUIBundle({
                       dom_id: '#swagger-ui',
-                      url: "http://hasap.local/docs?api-docs.json",
+                      url: "http://hasapchy.local/docs?api-docs.json",
                       operationsSorter: null,
                       configUrl: null,
                       validatorUrl: null,
-                      oauth2RedirectUrl: "http://hasap.local/api/oauth2-callback",
+                      oauth2RedirectUrl: "http://hasapchy.local/api/oauth2-callback",
 
                       requestInterceptor: function(request) {
                           request.headers['X-CSRF-TOKEN'] = '';

@@ -44,4 +44,3 @@ class UpdateTaskStatusRequest extends FormRequest
             ->redirectTo($this->getRedirectUrl());
     }
 }
-

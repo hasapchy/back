@@ -2,9 +2,9 @@
 
 namespace Database\Factories;
 
-use App\Models\ProjectContract;
-use App\Models\Project;
 use App\Models\Currency;
+use App\Models\Project;
+use App\Models\ProjectContract;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -15,8 +15,6 @@ class ProjectContractFactory extends Factory
     protected $model = ProjectContract::class;
 
     /**
-     * Define the model's default state.
-     *
      * @return array<string, mixed>
      */
     public function definition(): array
@@ -31,6 +29,27 @@ class ProjectContractFactory extends Factory
             'files' => null,
             'note' => fake()->optional()->sentence(),
         ];
+    }
+
+    /**
+     * @return $this
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (ProjectContract $contract) {
+            if ($contract->client_id !== null) {
+                return;
+            }
+            $pid = $contract->project_id;
+            if (! $pid) {
+                return;
+            }
+            $clientId = Project::query()->whereKey($pid)->value('client_id');
+            if ($clientId) {
+                $contract->client_id = (int) $clientId;
+                $contract->saveQuietly();
+            }
+        });
     }
 }
 

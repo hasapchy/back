@@ -5,13 +5,15 @@ namespace App\Models;
 use App\Models\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Enums\TaskPriority;
 use App\Enums\TaskComplexity;
+use App\Contracts\SupportsTimeline;
 
-class Task extends Model
+class Task extends Model implements SupportsTimeline
 {
     use BelongsToCompany;
     use HasFactory, SoftDeletes, LogsActivity;
@@ -82,7 +84,7 @@ class Task extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\MorphMany
      */
-    public function comments()
+    public function comments(): MorphMany
     {
         return $this->morphMany(\App\Models\Comment::class, 'commentable');
     }
@@ -92,9 +94,21 @@ class Task extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\MorphMany
      */
-    public function activities()
+    public function activities(): MorphMany
     {
         return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
+    }
+
+    /**
+     * @param string $eventName
+     * @return string
+     */
+    public function getDescriptionForEvent(string $eventName): string
+    {
+        return match ($eventName) {
+            'created', 'updated', 'deleted' => "activity_log.task.{$eventName}",
+            default => 'activity_log.task.default',
+        };
     }
 
     /**
@@ -107,6 +121,7 @@ class Task extends Model
         return LogOptions::defaults()
             ->logOnly(['title', 'description', 'status_id', 'priority', 'complexity', 'deadline', 'supervisor_id', 'executor_id', 'project_id'])
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
     }
 }

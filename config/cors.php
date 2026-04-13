@@ -19,19 +19,27 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        env('API_ALLOWED_ORIGINS', 'https://test.hasapp.online'),
-        'http://localhost:5173',
-        'http://localhost:8080',
-        'http://localhost',
-        'http://192.168.0.119',
-        'http://127.0.0.1:6002',
-        'http://127.0.0.1:8080',
-        'http://127.0.0.1',
-        '*'
-    ],
+    'allowed_origins' => array_values(array_unique(array_filter(array_merge(
+        [
+            'http://localhost:5173',
+            'http://localhost:5174',
+            'http://localhost:8080',
+            'http://localhost',
+            'http://127.0.0.1',
+            'http://127.0.0.1:5173',
+            'http://127.0.0.1:8080',
+        ],
+        preg_split('/\s*,\s*/', (string) env('API_ALLOWED_ORIGINS', ''), -1, PREG_SPLIT_NO_EMPTY),
+        preg_split('/\s*,\s*/', (string) env('FRONTEND_URL', ''), -1, PREG_SPLIT_NO_EMPTY),
+        [env('APP_URL', '')],
+    )))),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => filter_var(env('CORS_ALLOW_LAN_ORIGINS', false), FILTER_VALIDATE_BOOLEAN)
+        ? [
+            '#^http://192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$#',
+            '#^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$#',
+        ]
+        : [],
 
     'allowed_headers' => ['*'],
 

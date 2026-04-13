@@ -26,7 +26,7 @@ class UpdateCurrencyHistoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'exchange_rate' => 'required|numeric|min:0.000001',
+            'exchange_rate' => 'required|numeric|min:0.00001',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after:start_date',
         ];

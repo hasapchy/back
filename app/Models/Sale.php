@@ -4,13 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use App\Models\SalesProduct;
 use App\Models\Client;
 use App\Models\Warehouse;
 use App\Models\CashRegister;
 use App\Models\User;
+use App\Models\Comment;
 use App\Models\Transaction;
 use App\Models\Project;
+use App\Models\ClientBalance;
+use App\Contracts\SupportsTimeline;
 use App\Services\CacheService;
 
 
@@ -20,6 +24,7 @@ use App\Services\CacheService;
  * @property int $id
  * @property int|null $cash_id ID кассы
  * @property int $client_id ID клиента
+ * @property int|null $client_balance_id ID выбранного баланса клиента
  * @property \Carbon\Carbon $date Дата продажи
  * @property float $discount Размер скидки
  * @property string|null $note Примечание
@@ -32,20 +37,23 @@ use App\Services\CacheService;
  * @property \Carbon\Carbon $updated_at
  *
  * @property-read \App\Models\Client $client
+ * @property-read \App\Models\ClientBalance|null $clientBalance
  * @property-read \App\Models\Warehouse $warehouse
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\SalesProduct[] $products
  * @property-read \App\Models\CashRegister $cashRegister
  * @property-read \App\Models\User $creator
  * @property-read \App\Models\Project $project
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Comment[] $comments
  */
-class Sale extends Model
+class Sale extends Model implements SupportsTimeline
 {
     use HasFactory;
 
     protected $fillable = [
         'cash_id',
         'client_id',
+        'client_balance_id',
         'date',
         'discount',
         'note',
@@ -89,6 +97,14 @@ class Sale extends Model
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function clientBalance()
+    {
+        return $this->belongsTo(ClientBalance::class, 'client_balance_id');
     }
 
     /**
@@ -147,5 +163,21 @@ class Sale extends Model
     public function transactions()
     {
         return $this->morphMany(Transaction::class, 'source');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
+    public function comments(): MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
+    public function activities(): MorphMany
+    {
+        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
     }
 }

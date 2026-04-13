@@ -29,11 +29,11 @@ class CommentsRepository extends BaseRepository
                 'comments.commentable_id',
                 'comments.creator_id',
                 'comments.created_at',
-                'comments.updated_at'
+                'comments.updated_at',
             ])
                 ->with([
-                    'user:id,name,email',
-                    'commentable:id,name'
+                    'creator:id,name,email',
+                    'commentable',
                 ])
                 ->where('commentable_type', $modelClass)
                 ->where('commentable_id', $id)
@@ -110,7 +110,10 @@ class CommentsRepository extends BaseRepository
             $comment->body = $body;
             $comment->save();
 
-            $this->invalidateCommentsCache($comment->commentable_type, $comment->commentable_id);
+            $this->invalidateCommentsCache(
+                $this->apiTypeFromModelClass($comment->commentable_type),
+                (int) $comment->commentable_id
+            );
 
             return $comment->load(['creator:id,name,email']);
         });
@@ -143,7 +146,10 @@ class CommentsRepository extends BaseRepository
             $deleted = $comment->delete();
 
             if ($deleted) {
-                $this->invalidateCommentsCache($commentableType, $commentableId);
+                $this->invalidateCommentsCache(
+                    $this->apiTypeFromModelClass($commentableType),
+                    (int) $commentableId
+                );
             }
 
             return $deleted;
@@ -167,7 +173,29 @@ class CommentsRepository extends BaseRepository
             'product' => \App\Models\Product::class,
             'project' => \App\Models\Project::class,
             'task' => \App\Models\Task::class,
+            'project_contract' => \App\Models\ProjectContract::class,
             default => throw new \InvalidArgumentException("Unknown commentable type: $type"),
+        };
+    }
+
+    /**
+     * Короткий API-тип сущности по классу модели (для кэша таймлайна и комментариев)
+     *
+     * @param string $modelClass FQCN модели из commentable_type
+     * @return string
+     */
+    public function apiTypeFromModelClass(string $modelClass): string
+    {
+        return match ($modelClass) {
+            \App\Models\Order::class => 'order',
+            \App\Models\Sale::class => 'sale',
+            \App\Models\Transaction::class => 'transaction',
+            \App\Models\Client::class => 'client',
+            \App\Models\Product::class => 'product',
+            \App\Models\Project::class => 'project',
+            \App\Models\Task::class => 'task',
+            \App\Models\ProjectContract::class => 'project_contract',
+            default => throw new \InvalidArgumentException("Unknown commentable model class: {$modelClass}"),
         };
     }
 

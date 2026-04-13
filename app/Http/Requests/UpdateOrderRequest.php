@@ -2,19 +2,24 @@
 
 namespace App\Http\Requests;
 
-use App\Rules\CashRegisterAccessRule;
-use App\Rules\WarehouseAccessRule;
-use App\Rules\ProjectAccessRule;
-use App\Rules\ClientAccessRule;
+use App\Http\Requests\Concerns\NormalizesOrderNullableTextFields;
+use App\Http\Requests\Concerns\ResolvesSimpleOrderUser;
+use App\Http\Requests\Concerns\SharedOrderEntityRules;
+use App\Http\Requests\Concerns\ValidatesOrderClientBalance;
 use App\Models\CashRegister;
 use App\Models\Order;
-use App\Models\User;
+use App\Rules\WarehouseAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
 
 class UpdateOrderRequest extends FormRequest
 {
+    use NormalizesOrderNullableTextFields;
+    use ResolvesSimpleOrderUser;
+    use SharedOrderEntityRules;
+    use ValidatesOrderClientBalance;
+
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -22,7 +27,13 @@ class UpdateOrderRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $order = Order::query()->find($this->route('id'));
+
+        if (! $order) {
+            return true;
+        }
+
+        return $this->user()->can('update', $order);
     }
 
     /**
@@ -32,19 +43,9 @@ class UpdateOrderRequest extends FormRequest
      */
     public function rules(): array
     {
-        $user = auth('api')->user();
-        $isSimpleWorker = $user instanceof User && $user->hasRole(config('simple.worker_role'));
+        $isSimpleUser = $this->isSimpleOrderUser();
 
-        return [
-            'client_id'            => $isSimpleWorker
-                ? ['required', 'integer', 'exists:clients,id']
-                : ['required', 'integer', new ClientAccessRule()],
-            'project_id'           => $isSimpleWorker
-                ? ['nullable', 'sometimes', 'integer', 'exists:projects,id']
-                : ['nullable', 'sometimes', 'integer', new ProjectAccessRule()],
-            'cash_id'              => $isSimpleWorker
-                ? ['nullable', 'integer', 'exists:cash_registers,id']
-                : ['nullable', 'integer', new CashRegisterAccessRule()],
+        return array_merge($this->sharedOrderEntityRules($isSimpleUser, true), [
             'warehouse_id'         => ['required', 'integer', new WarehouseAccessRule()],
             'currency_id'          => [
                 'nullable',
@@ -85,27 +86,8 @@ class UpdateOrderRequest extends FormRequest
             'temp_products.*.height'      => 'nullable|numeric|min:0',
             'remove_temp_products'  => 'nullable|array',
             'remove_temp_products.*' => 'integer|exists:order_temp_products,id',
-        ];
-    }
-
-    /**
-     * Подготовить данные для валидации
-     *
-     * @return void
-     */
-    protected function prepareForValidation(): void
-    {
-        $data = $this->all();
-
-        // Нормализация строк с пробелами в null (ConvertEmptyStringsToNull обрабатывает только полностью пустые строки)
-        $nullableFields = ['description', 'note'];
-        foreach ($nullableFields as $field) {
-            if (isset($data[$field]) && is_string($data[$field]) && trim($data[$field]) === '') {
-                $data[$field] = null;
-            }
-        }
-
-        $this->merge($data);
+            'client_balance_id'      => $this->orderClientBalanceIdRules(),
+        ]);
     }
 
     /**
@@ -145,4 +127,3 @@ class UpdateOrderRequest extends FormRequest
             ->redirectTo($this->getRedirectUrl());
     }
 }
-

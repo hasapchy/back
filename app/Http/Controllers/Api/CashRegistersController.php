@@ -6,6 +6,7 @@ use App\Http\Requests\StoreCashRegisterRequest;
 use App\Http\Requests\UpdateCashRegisterRequest;
 use App\Http\Resources\CashRegisterResource;
 use App\Repositories\CashRegistersRepository;
+use App\Models\CashRegister;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -32,6 +33,8 @@ class CashRegistersController extends BaseController
      */
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', CashRegister::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $page = $request->input('page', 1);
@@ -58,6 +61,8 @@ class CashRegistersController extends BaseController
      */
     public function all(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', CashRegister::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $items = $this->itemsRepository->getAllItems($userUuid);
         return $this->successResponse(CashRegisterResource::collection($items)->resolve());
@@ -73,7 +78,7 @@ class CashRegistersController extends BaseController
     {
         $user = $this->requireAuthenticatedUser();
 
-        if (!$this->hasPermission('settings_cash_balance_view', $user)) {
+        if (! $user->can('settings_cash_balance_view')) {
             return $this->errorResponse('Нет доступа к просмотру баланса кассы', 403);
         }
 
@@ -86,7 +91,7 @@ class CashRegistersController extends BaseController
             $ids = array_map('intval', explode(',', $cashRegisterIds));
             $cashRegisters = \App\Models\CashRegister::whereIn('id', $ids)->get();
             foreach ($cashRegisters as $cashRegister) {
-                if (!$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
+                if (! $user->can('view', $cashRegister)) {
                     return $this->errorResponse('У вас нет прав на просмотр одной или нескольких касс', 403);
                 }
             }
@@ -137,6 +142,8 @@ class CashRegistersController extends BaseController
      */
     public function store(StoreCashRegisterRequest $request): JsonResponse
     {
+        $this->authorize('create', CashRegister::class);
+
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $validatedData = $request->validated();
 
@@ -170,9 +177,7 @@ class CashRegistersController extends BaseController
 
         $cashRegister = \App\Models\CashRegister::findOrFail($id);
 
-        if (!$this->canPerformAction('cash_registers', 'update', $cashRegister)) {
-            return $this->errorResponse('У вас нет прав на редактирование этой кассы', 403);
-        }
+        $this->authorize('update', $cashRegister);
 
         $validatedData = $request->validated();
 
@@ -211,11 +216,9 @@ class CashRegistersController extends BaseController
     public function destroy($id): JsonResponse
     {
         try {
-            $cashRegister = \App\Models\CashRegister::findOrFail($id);
+            $cashRegister = CashRegister::findOrFail($id);
 
-            if (!$this->canPerformAction('cash_registers', 'delete', $cashRegister)) {
-                return $this->errorResponse('У вас нет прав на удаление этой кассы', 403);
-            }
+            $this->authorize('delete', $cashRegister);
 
             $category_deleted = $this->itemsRepository->deleteItem($id);
 
@@ -226,6 +229,8 @@ class CashRegistersController extends BaseController
             return $this->successResponse(null, 'Касса удалена');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Касса не найдена', 404);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }

@@ -10,6 +10,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Services\CacheService;
 use App\Services\ClientBalanceService;
+use App\Services\Timeline\TimelineCache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -380,6 +381,7 @@ class ClientsRepository extends BaseRepository
 
         CacheService::invalidateClientsCache();
         $this->invalidateClientBalanceCache($client->id);
+        TimelineCache::forget('client', (int) $client->id);
 
         return $client->load('phones', 'emails', 'creator', 'employee', 'balances.currency', 'balances.users', 'defaultBalance.currency');
     }
@@ -425,6 +427,7 @@ class ClientsRepository extends BaseRepository
 
         CacheService::invalidateClientsCache();
         $this->invalidateClientBalanceCache($id);
+        TimelineCache::forget('client', (int) $id);
 
         return $client->load('phones', 'emails', 'creator', 'employee');
     }
