@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\CashRegister;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
@@ -16,7 +17,13 @@ class UpdateCashRegisterRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $cashRegister = CashRegister::query()->find($this->route('id'));
+
+        if (! $cashRegister) {
+            return true;
+        }
+
+        return $this->user()->can('update', $cashRegister);
     }
 
     /**

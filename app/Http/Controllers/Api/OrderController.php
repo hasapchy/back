@@ -7,14 +7,13 @@ use App\Http\Requests\UpdateOrderRequest;
 use App\Repositories\OrdersRepository;
 use App\Services\CacheService;
 use App\Models\Order;
-use App\Models\User;
-use App\Models\Category;
-use App\Models\CategoryUser;
 use Illuminate\Http\Request;
 use App\Events\OrderFirstStageCountUpdated;
+use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use App\Exports\GenericExport;
 use App\Http\Resources\OrderResource;
 use App\Support\NullableInt;
+use App\Support\SimpleUser;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -31,8 +30,10 @@ class OrderController extends BaseController
      *
      * @param OrdersRepository $itemsRepository Репозиторий заказов
      */
-    public function __construct(OrdersRepository $itemsRepository)
-    {
+    public function __construct(
+        OrdersRepository $itemsRepository,
+        private readonly InAppNotificationDispatcher $inAppNotificationDispatcher,
+    ) {
         $this->itemsRepository = $itemsRepository;
     }
 
@@ -45,13 +46,7 @@ class OrderController extends BaseController
     public function index(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-        $user = $this->requireAuthenticatedUser();
-
-        $resource = $this->getOrderResourceForUser($user);
-
-        if (!$this->canPerformAction($resource, 'view')) {
-            return $this->errorResponse('У вас нет прав на просмотр заказов', 403);
-        }
+        $this->authorize('viewAny', Order::class);
 
         $page = $request->input('page', 1);
         $per_page = $request->input('per_page', 20);
@@ -108,6 +103,7 @@ class OrderController extends BaseController
     public function export(Request $request): BinaryFileResponse
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->authorize('viewAny', Order::class);
         $search = $request->input('search');
         $dateFilter = $request->input('date_filter_type', 'all_time');
         $startDate = $request->input('start_date');
@@ -170,11 +166,8 @@ class OrderController extends BaseController
      */
     public function firstStageCount()
     {
-        $user = $this->requireAuthenticatedUser();
-        $resource = $this->getOrderResourceForUser($user);
-        if (! $this->canPerformAction($resource, 'view')) {
-            return $this->errorResponse('У вас нет прав на просмотр заказов', 403);
-        }
+        $this->requireAuthenticatedUser();
+        $this->authorize('viewAny', Order::class);
 
         $count = $this->itemsRepository->getFirstStageOrdersCount();
 
@@ -191,16 +184,11 @@ class OrderController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $user = $this->requireAuthenticatedUser();
-
-        // Проверка прав на создание заказов
-        $resource = $this->getOrderResourceForUser($user);
-        if (!$this->canPerformAction($resource, 'create')) {
-            return $this->errorResponse('У вас нет прав на создание заказов', 403);
-        }
+        $this->authorize('create', Order::class);
 
         $validatedData = $request->validated();
 
-        $categoryId = $this->resolveCategoryForSimpleWorker($validatedData['category_id'] ?? null, $userUuid);
+        $categoryId = $this->resolveCategoryForSimpleUser($validatedData['category_id'] ?? null);
         if ($categoryId instanceof \Illuminate\Http\JsonResponse) {
             return $categoryId;
         }
@@ -263,7 +251,16 @@ class OrderController extends BaseController
             }
 
             $order = $this->itemsRepository->getItemById($order->id);
-            event(new OrderFirstStageCountUpdated((int) $this->getCurrentCompanyId()));
+            $companyId = (int) $this->getCurrentCompanyId();
+            event(new OrderFirstStageCountUpdated($companyId));
+            $this->inAppNotificationDispatcher->dispatch(
+                $companyId,
+                'orders_new',
+                $user->id,
+                'Новый заказ #'.$order->id,
+                null,
+                ['route' => '/orders/'.$order->id, 'order_id' => $order->id]
+            );
             return (new OrderResource($order))->additional(['message' => 'Заказ успешно создан'])->response();
         } catch (\Throwable $th) {
             return $this->errorResponse($th->getMessage(), 400);
@@ -286,15 +283,11 @@ class OrderController extends BaseController
             return $this->errorResponse('Заказ не найден', 404);
         }
 
-        $user = $this->requireAuthenticatedUser();
-        $resource = $this->getOrderResourceForUser($user);
-        if (!$this->canPerformAction($resource, 'update', $order)) {
-            return $this->errorResponse('У вас нет прав на редактирование этого заказа', 403);
-        }
+        $this->authorize('update', $order);
 
         $validatedData = $request->validated();
 
-        $categoryId = $this->resolveCategoryForSimpleWorker($validatedData['category_id'] ?? null, $userUuid);
+        $categoryId = $this->resolveCategoryForSimpleUser($validatedData['category_id'] ?? null);
         if ($categoryId instanceof \Illuminate\Http\JsonResponse) {
             return $categoryId;
         }
@@ -379,11 +372,8 @@ class OrderController extends BaseController
             return $this->errorResponse('Заказ не найден', 404);
         }
 
-        $user = $this->requireAuthenticatedUser();
-        $resource = $this->getOrderResourceForUser($user);
-        if (!$this->canPerformAction($resource, 'delete', $order)) {
-            return $this->errorResponse('У вас нет прав на удаление этого заказа', 403);
-        }
+        $this->requireAuthenticatedUser();
+        $this->authorize('delete', $order);
 
         $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
         if ($cashAccessCheck) {
@@ -424,13 +414,10 @@ class OrderController extends BaseController
             'status_id' => 'required|integer|exists:order_statuses,id',
         ]);
 
-        $user = $this->requireAuthenticatedUser();
-        $resource = $this->getOrderResourceForUser($user);
+        $this->requireAuthenticatedUser();
         $orders = Order::whereIn('id', $request->ids)->get();
         foreach ($orders as $order) {
-            if (!$this->canPerformAction($resource, 'update', $order)) {
-                return $this->errorResponse('У вас нет прав на редактирование одного или нескольких заказов', 403);
-            }
+            $this->authorize('update', $order);
         }
 
         try {
@@ -473,11 +460,8 @@ class OrderController extends BaseController
             return $this->errorResponse('Not found', 404);
         }
 
-        $user = $this->requireAuthenticatedUser();
-        $resource = $this->getOrderResourceForUser($user);
-        if (!$this->canPerformAction($resource, 'view', $item)) {
-            return $this->errorResponse('У вас нет прав на просмотр этого заказа', 403);
-        }
+        $this->requireAuthenticatedUser();
+        $this->authorize('view', $item);
 
         $cashAccessCheck = $this->checkCashRegisterAccess($item->cash_id);
         if ($cashAccessCheck) {
@@ -502,76 +486,24 @@ class OrderController extends BaseController
     }
 
     /**
-     * Разрешить категорию для simple worker
-     *
-     * @param int|null $categoryId ID категории
-     * @param int $userUuid ID пользователя
      * @return int|\Illuminate\Http\JsonResponse
      */
-    protected function resolveCategoryForSimpleWorker(?int $categoryId, int $userUuid)
+    protected function resolveCategoryForSimpleUser(?int $categoryId)
     {
         $user = auth('api')->user();
-        if (!($user instanceof User && $user->hasRole(config('simple.worker_role')))) {
+        if (! SimpleUser::matches($user)) {
             return $categoryId;
         }
 
-        $mapping = config('simple.user_category_mapping', []);
-        $mappedCategoryId = $mapping[$userUuid] ?? null;
-
-        if ($mappedCategoryId) {
-            if (!$categoryId) {
-                $categoryId = $mappedCategoryId;
-            } elseif ($categoryId != $mappedCategoryId) {
-                return $this->errorResponse('У вас нет доступа к указанной категории', 403);
-            }
-            return $categoryId;
+        $primaryId = SimpleUser::rootCategoryIdForCurrentCompany($user);
+        if ($primaryId === null) {
+            return $this->errorResponse('Не настроена основная категория заказов (simple).', 400);
         }
 
-        $companyId = $this->getCurrentCompanyId();
-        $userCategoryIds = CategoryUser::where('creator_id', $userUuid)
-            ->pluck('category_id')
-            ->toArray();
-
-        if ($companyId) {
-            $companyCategoryIds = Category::where('company_id', $companyId)
-                ->pluck('id')
-                ->toArray();
-            $userCategoryIds = array_intersect($userCategoryIds, $companyCategoryIds);
-        }
-
-        if (!$categoryId) {
-            $categoryId = !empty($userCategoryIds) ? $userCategoryIds[0] : null;
-
-            if (!$categoryId) {
-                return $this->errorResponse('У вас нет доступных категорий. Обратитесь к администратору для назначения категории.', 400);
-            }
-        } elseif (!in_array($categoryId, $userCategoryIds)) {
+        if ($categoryId !== null && (int) $categoryId !== $primaryId) {
             return $this->errorResponse('У вас нет доступа к указанной категории', 403);
         }
 
-        return $categoryId;
-    }
-
-    /**
-     * Получить ресурс для проверки permissions в зависимости от роли пользователя
-     *
-     * @param User $user Пользователь
-     * @return string Название ресурса ('orders' или 'orders_simple')
-     */
-    protected function getOrderResourceForUser(User $user): string
-    {
-        if ($user->hasRole(config('simple.worker_role'))) {
-            return 'orders_simple';
-        }
-
-        $permissions = $this->getUserPermissions($user);
-
-        foreach ($permissions as $permission) {
-            if (str_starts_with($permission, 'orders_simple_')) {
-                return 'orders_simple';
-            }
-        }
-
-        return 'orders';
+        return $primaryId;
     }
 }

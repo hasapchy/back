@@ -49,8 +49,10 @@ class Company extends Model
     protected $attributes = [
         'logo' => 'logo.png',
         'show_deleted_transactions' => false,
+        'rounding_decimals' => 2,
         'rounding_enabled' => true,
         'rounding_direction' => 'standard',
+        'rounding_quantity_decimals' => 2,
         'rounding_quantity_enabled' => true,
         'rounding_quantity_direction' => 'standard',
         'skip_project_order_balance' => true,

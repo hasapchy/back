@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\MessageTemplate;
 use App\Support\ResolvedCompany;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -15,7 +16,7 @@ class StoreMessageTemplateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', MessageTemplate::class);
     }
 
     /**

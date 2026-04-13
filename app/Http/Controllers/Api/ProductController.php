@@ -10,13 +10,14 @@ use App\Models\OrderProduct;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SalesProduct;
-use App\Models\User;
 use App\Models\WarehouseStock;
 use App\Models\WhReceipt;
 use App\Models\WhReceiptProduct;
 use App\Models\WhWriteoff;
+use App\Models\Category;
 use App\Models\WhWriteoffProduct;
 use App\Repositories\ProductsRepository;
+use App\Support\SimpleUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -44,12 +45,13 @@ class ProductController extends BaseController
     public function products(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->authorize('viewAny', Product::class);
 
         $page = $request->query('page', 1);
         $per_page = $request->query('per_page', 20);
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
-        $categoryId = $this->normalizeCategoryIdForSimpleWorker($request->query('category_id'));
+        $categoryId = $this->normalizeCategoryIdForSimpleUser($request->query('category_id'));
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, true, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy);
@@ -74,11 +76,12 @@ class ProductController extends BaseController
     public function search(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->authorize('viewAny', Product::class);
 
         $search = $request->query('search');
         $productsOnly = $request->query('products_only');
         $warehouseId = $request->query('warehouse_id');
-        $categoryId = $this->normalizeCategoryIdForSimpleWorker($request->query('category_id'));
+        $categoryId = $this->normalizeCategoryIdForSimpleUser($request->query('category_id'));
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(100, max(1, (int) $request->query('per_page', 20)));
@@ -107,10 +110,7 @@ class ProductController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $product = Product::findOrFail($id);
-
-        if (! $this->canPerformAction('products', 'view', $product)) {
-            return $this->errorResponse('У вас нет прав на просмотр этого товара', 403);
-        }
+        $this->authorize('view', $product);
 
         $product = $this->itemsRepository->getItemById($id, $userUuid);
 
@@ -125,12 +125,13 @@ class ProductController extends BaseController
     public function services(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->authorize('viewAny', Product::class);
 
         $page = $request->query('page', 1);
         $per_page = $request->query('per_page', 20);
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
-        $categoryId = $this->normalizeCategoryIdForSimpleWorker($request->query('category_id'));
+        $categoryId = $this->normalizeCategoryIdForSimpleUser($request->query('category_id'));
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, false, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy);
@@ -176,11 +177,7 @@ class ProductController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $product_exist = Product::findOrFail($id);
-
-        if (! $this->canPerformAction('products', 'update', $product_exist)) {
-            return $this->errorResponse('У вас нет прав на редактирование этого товара', 403);
-        }
+        Product::findOrFail($id);
 
         $data = $request->validated();
         $data = array_filter($data, function ($value) {
@@ -211,10 +208,7 @@ class ProductController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $product = Product::findOrFail($id);
-
-        if (! $this->canPerformAction('products', 'delete', $product)) {
-            return $this->errorResponse('У вас нет прав на удаление этого товара', 403);
-        }
+        $this->authorize('delete', $product);
 
         $result = $this->itemsRepository->deleteItem($id);
 
@@ -235,10 +229,7 @@ class ProductController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $product = Product::with('unit')->findOrFail($id);
-
-        if (! $this->canPerformAction('products', 'view', $product)) {
-            return $this->errorResponse('У вас нет прав на просмотр этого товара', 403);
-        }
+        $this->authorize('view', $product);
 
         $unitShortName = $product->unit ? $product->unit->short_name : '';
         $filter = $request->query('filter', 'all');
@@ -345,20 +336,21 @@ class ProductController extends BaseController
         ]);
     }
 
-    /**
-     * Нормализует categoryId для simple workers
-     * Для simple workers возвращает null, чтобы фильтрация происходила через getUserCategoryIds
-     * который учитывает маппинг из конфига и подкатегории
-     *
-     * @param  mixed  $categoryId
-     * @return int|null
-     */
-    protected function normalizeCategoryIdForSimpleWorker($categoryId)
+    protected function normalizeCategoryIdForSimpleUser($categoryId)
     {
         $user = auth('api')->user();
-        $isSimpleWorker = $user instanceof User && $user->hasRole(config('simple.worker_role'));
+        if (! SimpleUser::matches($user)) {
+            return $categoryId;
+        }
 
-        return $isSimpleWorker ? null : $categoryId;
+        $rootId = SimpleUser::rootCategoryIdForCurrentCompany($user);
+        if ($rootId === null || $categoryId === null || $categoryId === '') {
+            return null;
+        }
+
+        $cid = (int) $categoryId;
+
+        return in_array($cid, Category::descendantIdsIncludingRoot($rootId), true) ? $cid : null;
     }
 
     /**

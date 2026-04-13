@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\Sanctum\PersonalAccessToken;
 use App\Models\User;
 use App\Services\MobileSanctumTokenService;
+use App\Support\AuthRequestLogContext;
 use App\Support\ResolvedCompany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,13 +31,30 @@ class AuthController extends BaseController
             'company_id' => 'nullable|integer',
         ]);
 
+        $baseCtx = array_merge(AuthRequestLogContext::fromRequest($request), [
+            'email' => $request->input('email'),
+            'remember' => $request->boolean('remember'),
+            'company_id_param' => $request->input('company_id'),
+        ]);
+        $this->authLoginLog('auth.login.attempt', $baseCtx);
+
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
+            $this->authLoginLog('auth.login.failed', array_merge($baseCtx, [
+                'reason' => 'invalid_credentials',
+                'user_found' => (bool) $user,
+            ]));
+
             return $this->errorResponse('Неверный логин или пароль', 401);
         }
 
         if (! $user->is_active) {
+            $this->authLoginLog('auth.login.failed', array_merge($baseCtx, [
+                'reason' => 'inactive',
+                'user_id' => $user->id,
+            ]));
+
             return $this->errorResponse('Account is disabled', 403);
         }
 
@@ -47,18 +65,39 @@ class AuthController extends BaseController
 
         [$companyId, $error] = $this->resolveLoginCompanyId($request, $user);
         if ($error !== null) {
+            $this->authLoginLog('auth.login.failed', array_merge($baseCtx, [
+                'reason' => 'company',
+                'user_id' => $user->id,
+                'company_error' => $error,
+            ]));
+
             return $this->errorResponse($error, 404);
         }
 
-        if (EnsureFrontendRequestsAreStateful::fromFrontend($request)) {
+        $stateful = EnsureFrontendRequestsAreStateful::fromFrontend($request);
+
+        if ($stateful) {
             Auth::guard('web')->login($user, $remember);
             $request->session()->regenerate();
             $request->session()->put(ResolvedCompany::SESSION_KEY, $companyId);
+
+            $this->authLoginLog('auth.login.success', array_merge($baseCtx, [
+                'user_id' => $user->id,
+                'company_id' => $companyId,
+                'mode' => 'session',
+                'session_id' => $request->session()->getId(),
+            ]));
 
             return $this->successResponse([
                 'user' => $this->userPayloadForAuthResponse($user, $companyId),
             ]);
         }
+
+        $this->authLoginLog('auth.login.success', array_merge($baseCtx, [
+            'user_id' => $user->id,
+            'company_id' => $companyId,
+            'mode' => 'token_pair',
+        ]));
 
         return $this->successResponse(array_merge(
             ['user' => $this->userPayloadForAuthResponse($user, $companyId)],
@@ -201,6 +240,14 @@ class AuthController extends BaseController
     }
 
     /**
+     * @param  array<string, mixed>  $context
+     */
+    private function authLoginLog(string $message, array $context): void
+    {
+        AuthRequestLogContext::logAuth('info', $message, $context);
+    }
+
+    /**
      * @param  array<int, string>  $roles
      * @param  array<int, string>  $permissions
      * @return array<string, mixed>
@@ -215,6 +262,8 @@ class AuthController extends BaseController
             'photo' => $user->photo,
             'birthday' => $user->birthday?->format('Y-m-d'),
             'is_admin' => $user->is_admin,
+            'is_simple_user' => (bool) $user->is_simple_user,
+            'simple_category_id' => $user->simple_category_id,
             'roles' => $roles,
             'permissions' => $permissions,
         ];

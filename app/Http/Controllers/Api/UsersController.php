@@ -43,6 +43,8 @@ class UsersController extends BaseController
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', User::class);
+
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 20);
         $activeOnly = $request->boolean('active_only', true);
@@ -73,6 +75,8 @@ class UsersController extends BaseController
      */
     public function store(StoreUserRequest $request)
     {
+        $this->authorize('create', User::class);
+
         $data = $request->validated();
 
         if ($request->hasFile('photo')) {
@@ -98,9 +102,7 @@ class UsersController extends BaseController
     {
         $user = User::findOrFail($id);
 
-        if (!$this->canPerformAction('users', 'view', $user)) {
-            return $this->errorResponse('Нет прав на просмотр этого пользователя', 403);
-        }
+        $this->authorize('view', $user);
 
         return $this->userResponse($user);
     }
@@ -109,9 +111,7 @@ class UsersController extends BaseController
     {
         $targetUser = User::findOrFail($id);
 
-        if (!$this->canPerformAction('users', 'update', $targetUser)) {
-            return $this->errorResponse('Нет прав на редактирование этого пользователя', 403);
-        }
+        $this->authorize('update', $targetUser);
 
         $data = $request->validated();
         unset($data['photo']);
@@ -181,15 +181,15 @@ class UsersController extends BaseController
         try {
             $targetUser = User::findOrFail($id);
 
-            if (!$this->canPerformAction('users', 'delete', $targetUser)) {
-                return $this->errorResponse('Нет прав на удаление этого пользователя', 403);
-            }
+            $this->authorize('delete', $targetUser);
 
             $this->itemsRepository->deleteItem($id);
 
             return $this->successResponse(null, 'User deleted');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Пользователь не найден', 404);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -204,6 +204,11 @@ class UsersController extends BaseController
     public function checkPermissions($id)
     {
         $user = User::with('permissions', 'roles')->findOrFail($id);
+
+        $current = $this->requireAuthenticatedUser();
+        if ((int) $current->id !== (int) $user->id) {
+            $this->authorize('view', $user);
+        }
         $companyId = $this->getCurrentCompanyId();
         $permissions = $companyId ? $user->getAllPermissionsForCompany((int)$companyId) : $user->getAllPermissions();
 
@@ -242,12 +247,16 @@ class UsersController extends BaseController
      */
     public function getAllUsers()
     {
+        $this->authorize('viewAny', User::class);
+
         $items = $this->itemsRepository->getAllItems();
         return $this->successResponse(UserResource::collection($items)->resolve());
     }
 
     public function search(Request $request)
     {
+        $this->authorize('viewAny', User::class);
+
         $search_request = $request->input('search_request');
 
         if (!$search_request || empty($search_request)) {
@@ -413,9 +422,9 @@ class UsersController extends BaseController
     {
         try {
             $user = User::findOrFail($id);
-            $currentUser = $this->getAuthenticatedUser();
+            $currentUser = $this->requireAuthenticatedUser();
 
-            if (!$this->hasPermission('employee_salaries_view_all') && $user->id !== $currentUser->id) {
+            if (! $currentUser->can('employee_salaries_view_all') && $user->id !== $currentUser->id) {
                 return $this->errorResponse('Нет прав на просмотр зарплат', 403);
             }
 
@@ -441,9 +450,7 @@ class UsersController extends BaseController
         try {
             $user = User::findOrFail($id);
 
-            if (!$this->hasPermission('employee_salaries_create')) {
-                return $this->errorResponse('Нет прав на создание зарплат', 403);
-            }
+            $this->authorize('create', EmployeeSalary::class);
 
             $validatedData = $request->validate([
                 'start_date' => 'required|date',
@@ -487,9 +494,7 @@ class UsersController extends BaseController
         try {
             $salary = EmployeeSalary::findOrFail($salaryId);
 
-            if (!$this->canPerformAction('employee_salaries', 'update', $salary)) {
-                return $this->errorResponse('Нет прав на обновление этой зарплаты', 403);
-            }
+            $this->authorize('update', $salary);
 
             $validatedData = $request->validate([
                 'start_date' => 'nullable|date',
@@ -507,6 +512,8 @@ class UsersController extends BaseController
             return $this->errorResponse('Пользователь или зарплата не найдены', 404);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $message = $e->getMessage();
             if (
@@ -533,15 +540,15 @@ class UsersController extends BaseController
         try {
             $salary = EmployeeSalary::findOrFail($salaryId);
 
-            if (!$this->canPerformAction('employee_salaries', 'delete', $salary)) {
-                return $this->errorResponse('Нет прав на удаление этой зарплаты', 403);
-            }
+            $this->authorize('delete', $salary);
 
             $this->itemsRepository->deleteSalary($salaryId);
 
             return $this->successResponse(null, 'Зарплата удалена успешно');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Пользователь или зарплата не найдены', 404);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при удалении зарплаты: ' . $e->getMessage(), 500);
         }
@@ -560,8 +567,8 @@ class UsersController extends BaseController
         try {
             $user = User::findOrFail($id);
 
-            if (!$this->hasPermission('settings_client_balance_view', $currentUser) &&
-                (!$this->hasPermission('settings_client_balance_view_own', $currentUser) || $user->id !== $currentUser->id)) {
+            if (! $currentUser->can('settings_client_balance_view') &&
+                (! $currentUser->can('settings_client_balance_view_own') || $user->id !== $currentUser->id)) {
                 return $this->errorResponse('Нет доступа к просмотру баланса', 403);
             }
 
@@ -588,8 +595,8 @@ class UsersController extends BaseController
         try {
             $targetUser = User::findOrFail($id);
 
-            if (!$this->hasPermission('settings_client_balance_view', $currentUser) &&
-                (!$this->hasPermission('settings_client_balance_view_own', $currentUser) || $targetUser->id !== $currentUser->id)) {
+            if (! $currentUser->can('settings_client_balance_view') &&
+                (! $currentUser->can('settings_client_balance_view_own') || $targetUser->id !== $currentUser->id)) {
                 return $this->errorResponse('Нет доступа к просмотру баланса', 403);
             }
 

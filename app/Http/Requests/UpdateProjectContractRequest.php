@@ -18,7 +18,13 @@ class UpdateProjectContractRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $contract = ProjectContract::query()->find($this->route('id'));
+
+        if (! $contract) {
+            return true;
+        }
+
+        return $this->user()->can('update', $contract);
     }
 
     /**

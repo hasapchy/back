@@ -128,7 +128,7 @@ class CompaniesController extends BaseController
             $paymentType = (bool) $validatedData['payment_type'];
             $items = $validatedData['items'] ?? null;
 
-            if (is_array($items) && ! $this->hasPermission('settings_client_balance_view')) {
+            if (is_array($items) && ! $this->requireAuthenticatedUser()->can('settings_client_balance_view')) {
                 $items = array_map(static function ($row) {
                     unset($row['client_balance_id']);
 
@@ -181,7 +181,7 @@ class CompaniesController extends BaseController
             $paymentType = (bool) $validatedData['payment_type'];
             $items = $validatedData['items'] ?? null;
 
-            if (is_array($items) && ! $this->hasPermission('settings_client_balance_view')) {
+            if (is_array($items) && ! $this->requireAuthenticatedUser()->can('settings_client_balance_view')) {
                 $items = array_map(static function ($row) {
                     unset($row['client_balance_id']);
 
@@ -315,7 +315,7 @@ class CompaniesController extends BaseController
             $currencyId = $request->filled('currency_id') ? (int) $request->input('currency_id') : null;
             $applyTransactionAdjustments = $request->boolean('apply_transaction_adjustments', true);
 
-            $includeBalances = $this->hasPermission('settings_client_balance_view');
+            $includeBalances = $this->requireAuthenticatedUser()->can('settings_client_balance_view');
             $preview = $this->salaryAccrualService()->getAccrualPreview(
                 $company->id,
                 $date,
@@ -392,7 +392,8 @@ class CompaniesController extends BaseController
      */
     public function deleteSalaryMonthlyReportBatch($id, $batchId)
     {
-        if (! $this->hasPermission('transactions_delete_all') && ! $this->hasPermission('transactions_delete')) {
+        $u = $this->requireAuthenticatedUser();
+        if (! $u->can('transactions_delete_all') && ! $u->can('transactions_delete')) {
             return $this->errorResponse('Нет права удалять проводки', 403);
         }
 

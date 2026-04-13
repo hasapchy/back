@@ -85,7 +85,7 @@ class ProductControllerTest extends TestCase
             ->postJson('/api/products', $data);
 
         $response->assertStatus(200);
-        $response->assertJsonStructure(['item', 'message']);
+        $response->assertJsonStructure(['data', 'message']);
         $this->assertDatabaseHas('products', [
             'name' => 'Test Product',
             'sku' => 'TEST-001',
@@ -108,7 +108,7 @@ class ProductControllerTest extends TestCase
             ->postJson('/api/products', $data);
 
         $response->assertStatus(200);
-        $response->assertJsonStructure(['item', 'message']);
+        $response->assertJsonStructure(['data', 'message']);
     }
 
     public function test_update_product_success(): void
@@ -124,10 +124,10 @@ class ProductControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->postJson("/api/products/{$product->id}", $data);
+            ->putJson("/api/products/{$product->id}", $data);
 
         $response->assertStatus(200);
-        $response->assertJsonStructure(['item', 'message']);
+        $response->assertJsonStructure(['data', 'message']);
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
             'name' => 'Updated Product',

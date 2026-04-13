@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\StoreDepartmentRequest;
 use App\Http\Requests\UpdateDepartmentRequest;
 use App\Http\Resources\DepartmentResource;
+use App\Models\Department;
 use App\Repositories\DepartmentRepository;
 use Illuminate\Http\Request;
 
@@ -19,6 +20,8 @@ class DepartmentController extends BaseController
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Department::class);
+
         $userId = $this->getAuthenticatedUserIdOrFail();
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 20);
@@ -39,6 +42,8 @@ class DepartmentController extends BaseController
 
     public function all(Request $request)
     {
+        $this->authorize('viewAny', Department::class);
+
         $userId = $this->getAuthenticatedUserIdOrFail();
         $departments = $this->itemsRepository->getAllItems($userId);
 
@@ -47,9 +52,7 @@ class DepartmentController extends BaseController
 
     public function store(StoreDepartmentRequest $request)
     {
-        if (!$this->hasPermission('departments_create')) {
-            return $this->errorResponse('У вас нет прав на создание департамента', 403);
-        }
+        $this->authorize('create', Department::class);
 
         $validatedData = $request->validated();
         $department = $this->itemsRepository->createItem($validatedData);
@@ -59,11 +62,9 @@ class DepartmentController extends BaseController
 
     public function update(UpdateDepartmentRequest $request, $id)
     {
-        $department = \App\Models\Department::findOrFail($id);
+        $department = Department::findOrFail($id);
 
-        if (!$this->canPerformAction('departments', 'update', $department)) {
-            return $this->errorResponse('У вас нет прав на редактирование этого департамента', 403);
-        }
+        $this->authorize('update', $department);
 
         $validatedData = $request->validated();
         $department = $this->itemsRepository->updateItem($id, $validatedData);
@@ -73,11 +74,9 @@ class DepartmentController extends BaseController
 
     public function destroy($id)
     {
-        $department = \App\Models\Department::findOrFail($id);
+        $department = Department::findOrFail($id);
 
-        if (!$this->canPerformAction('departments', 'delete', $department)) {
-            return $this->errorResponse('У вас нет прав на удаление этого департамента', 403);
-        }
+        $this->authorize('delete', $department);
 
         $this->itemsRepository->deleteItem($id);
 

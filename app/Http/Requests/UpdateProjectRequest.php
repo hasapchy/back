@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Project;
 use App\Rules\ClientAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -16,7 +17,13 @@ class UpdateProjectRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $project = Project::query()->find($this->route('id'));
+
+        if (! $project) {
+            return true;
+        }
+
+        return $this->user()->can('update', $project);
     }
 
     /**

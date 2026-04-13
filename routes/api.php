@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\CompanyProductionCalendarController;
 use App\Http\Controllers\Api\CurrencyHistoryController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\FcmStorageController;
+use App\Http\Controllers\Api\InAppNotificationController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\LeaveTypeController;
@@ -45,10 +46,15 @@ use App\Http\Controllers\Api\WarehouseMovementController;
 use App\Http\Controllers\Api\WarehouseReceiptController;
 use App\Http\Controllers\Api\WarehouseStockController;
 use App\Http\Controllers\Api\WarehouseWriteoffController;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
 Route::post('user/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 Route::post('user/refresh', [AuthController::class, 'refresh'])->middleware('throttle:auth');
+
+Route::middleware(['bc.json', 'auth:sanctum'])->post('broadcasting/auth', function (\Illuminate\Http\Request $request) {
+    return Broadcast::auth($request);
+});
 
 Route::get('transaction_categories/all', [TransactionCategoryController::class, 'all']);
 
@@ -76,6 +82,12 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::put('user/fcm-token', [FcmStorageController::class, 'upsert']);
     Route::delete('user/fcm-token', [FcmStorageController::class, 'destroy']);
     Route::post('user/fcm-token/test-send', [FcmStorageController::class, 'testSend']);
+
+    Route::get('user/notification-settings', [InAppNotificationController::class, 'settings']);
+    Route::put('user/notification-settings', [InAppNotificationController::class, 'updateSettings']);
+    Route::get('user/notifications', [InAppNotificationController::class, 'index']);
+    Route::post('user/notifications/read-all', [InAppNotificationController::class, 'markAllRead']);
+    Route::post('user/notifications/{id}/read', [InAppNotificationController::class, 'markRead']);
 
     Route::middleware('permission.scope:users_view_all,users_view')->get('users', [UsersController::class, 'index']);
     Route::get('users/all', [UsersController::class, 'getAllUsers']);
@@ -250,9 +262,9 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
     Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders/{id}', [OrderController::class, 'show']);
 
-    Route::middleware('permission:orders_update')->post('orders/{orderId}/transactions', [OrderTransactionController::class, 'linkTransaction']);
-    Route::middleware('permission:orders_update')->delete('orders/{orderId}/transactions/{transactionId}', [OrderTransactionController::class, 'unlinkTransaction']);
-    Route::get('orders/{orderId}/transactions', [OrderTransactionController::class, 'getOrderTransactions']);
+    Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->post('orders/{orderId}/transactions', [OrderTransactionController::class, 'linkTransaction']);
+    Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->delete('orders/{orderId}/transactions/{transactionId}', [OrderTransactionController::class, 'unlinkTransaction']);
+    Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders/{orderId}/transactions', [OrderTransactionController::class, 'getOrderTransactions']);
 
     Route::get('order_statuses', [OrderStatusController::class, 'index']);
     Route::get('order_statuses/all', [OrderStatusController::class, 'all']);

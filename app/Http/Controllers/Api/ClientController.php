@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Exports\GenericExport;
 use App\Repositories\ClientsRepository;
 use App\Services\CacheService;
+use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -27,8 +28,10 @@ class ClientController extends BaseController
      *
      * @param  ClientsRepository  $itemsRepository  Репозиторий клиентов
      */
-    public function __construct(ClientsRepository $itemsRepository)
-    {
+    public function __construct(
+        ClientsRepository $itemsRepository,
+        private readonly InAppNotificationDispatcher $inAppNotificationDispatcher,
+    ) {
         $this->itemsRepository = $itemsRepository;
     }
 
@@ -39,6 +42,8 @@ class ClientController extends BaseController
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Client::class);
+
         $params = $this->getClientListParams($request);
         $items = $this->itemsRepository->getItemsWithPagination(
             $params['per_page'],
@@ -135,6 +140,8 @@ class ClientController extends BaseController
      */
     public function search(Request $request)
     {
+        $this->authorize('viewAny', Client::class);
+
         $search_request = $request->input('search_request');
 
         if (! $search_request || empty($search_request)) {
@@ -172,10 +179,10 @@ class ClientController extends BaseController
             }
 
             $currentUser = $this->getAuthenticatedUser();
-            $canViewOwnBalance = $currentUser && $this->hasPermission('settings_client_balance_view_own', $currentUser)
+            $canViewOwnBalance = $currentUser && $currentUser->can('settings_client_balance_view_own')
                 && (int) $client->employee_id === (int) $currentUser->id;
 
-            if (!$canViewOwnBalance && ! $this->canPerformAction('clients', 'view', $client)) {
+            if (! $canViewOwnBalance && (! $currentUser || ! $currentUser->can('view', $client))) {
                 return $this->errorResponse('У вас нет прав на просмотр этого клиента', 403);
             }
 
@@ -197,8 +204,8 @@ class ClientController extends BaseController
 
         $client = $this->itemsRepository->getItemById($id);
         $canViewOwnBalance = $client && (int) $client->employee_id === (int) $user->id
-            && $this->hasPermission('settings_client_balance_view_own', $user);
-        $canViewAllBalance = $this->hasPermission('settings_client_balance_view', $user);
+            && $user->can('settings_client_balance_view_own');
+        $canViewAllBalance = $user->can('settings_client_balance_view');
 
         if (!$canViewOwnBalance && !$canViewAllBalance) {
             return $this->errorResponse('Нет доступа к просмотру баланса клиента', 403);
@@ -228,6 +235,10 @@ class ClientController extends BaseController
      */
     public function all(Request $request)
     {
+        if (! $request->boolean('for_mutual_settlements')) {
+            $this->authorize('viewAny', Client::class);
+        }
+
         try {
             $typeFilterInput = $request->input('type_filter');
             $typeFilter = [];
@@ -309,6 +320,18 @@ class ClientController extends BaseController
 
             $client->load('phones', 'emails', 'employee');
 
+            $companyId = (int) $this->getCurrentCompanyId();
+            if ($companyId >= 1) {
+                $this->inAppNotificationDispatcher->dispatch(
+                    $companyId,
+                    'clients_new',
+                    $this->getAuthenticatedUserIdOrFail(),
+                    'Новый клиент #'.$client->id,
+                    null,
+                    ['route' => '/clients/'.$client->id, 'client_id' => $client->id]
+                );
+            }
+
             return (new ClientResource($client))->additional([
                 'message' => 'Client created successfully',
             ])->response();
@@ -336,9 +359,7 @@ class ClientController extends BaseController
 
         $existingClient = Client::findOrFail($id);
 
-        if (! $this->canPerformAction('clients', 'update', $existingClient)) {
-            return $this->errorResponse('У вас нет прав на редактирование этого клиента', 403);
-        }
+        $this->authorize('update', $existingClient);
 
         $employeeCheck = $this->checkEmployeeIdDuplicate($validatedData['employee_id'] ?? null, $id);
         if ($employeeCheck) {
@@ -404,9 +425,7 @@ class ClientController extends BaseController
                 return $this->errorResponse('Клиент не найден', 404);
             }
 
-            if (! $this->canPerformAction('clients', 'delete', $client)) {
-                return $this->errorResponse('У вас нет прав на удаление этого клиента', 403);
-            }
+            $this->authorize('delete', $client);
 
             $hasTransactions = DB::table('transactions')->where('client_id', $id)->exists();
 
@@ -438,6 +457,8 @@ class ClientController extends BaseController
             } else {
                 return $this->errorResponse('Клиент не найден', 404);
             }
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при удалении клиента: '.$e->getMessage(), 500);
         }

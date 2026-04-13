@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\ValidatesTransactionClientBalanceConsistency;
 use App\Models\ProjectContract;
+use App\Models\Transaction;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\ProjectAccessRule;
 use App\Rules\ClientAccessRule;
@@ -22,7 +23,7 @@ class StoreTransactionRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', Transaction::class);
     }
 
     /**
@@ -34,7 +35,7 @@ class StoreTransactionRequest extends FormRequest
     {
         return [
             'type' => 'required|integer|in:1,0',
-            'orig_amount' => 'required|numeric|min:0.01',
+            'orig_amount' => 'required|numeric|gt:0',
             'currency_id' => 'required|exists:currencies,id',
             'cash_id' => ['required', 'integer', new CashRegisterAccessRule()],
             'category_id' => 'required|exists:transaction_categories,id',
@@ -48,7 +49,7 @@ class StoreTransactionRequest extends FormRequest
             'date' => 'nullable|sometimes|date',
             'is_debt' => 'nullable|boolean',
             'is_adjustment' => 'nullable|boolean',
-            'exchange_rate' => 'nullable|numeric|min:0.000001',
+            'exchange_rate' => 'nullable|numeric|min:0.00001',
         ];
     }
 

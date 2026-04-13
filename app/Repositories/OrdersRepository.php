@@ -15,6 +15,7 @@ use App\Models\Transaction;
 use App\Models\OrderStatus;
 use App\Models\User;
 use App\Support\NullableInt;
+use App\Support\SimpleUser;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,24 @@ class OrdersRepository extends BaseRepository
      * ID статуса заказа "Оплачен"
      */
     private const PAID_STATUS_ID = 5;
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  \App\Models\User|null  $currentUser
+     */
+    protected function applySimpleUserOrderCategoryFilter($query, $currentUser): void
+    {
+        if (! SimpleUser::matches($currentUser)) {
+            return;
+        }
+
+        $primaryId = SimpleUser::rootCategoryIdForCurrentCompany($currentUser);
+        if ($primaryId === null) {
+            $query->whereRaw('1 = 0');
+        } else {
+            $query->where('orders.category_id', $primaryId);
+        }
+    }
 
     /**
      * Получить заказы с пагинацией и фильтрацией
@@ -57,9 +76,7 @@ class OrdersRepository extends BaseRepository
         $loadProducts = $perPage <= 50;
 
         $buildResult = function () use ($userUuid, $perPage, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $page, $projectFilter, $clientFilter, $categoryFilter, $unpaidOnly, $currentUser, $hasSearch, $loadProducts) {
-            $orderResource = $this->getOrderResourceForUser($currentUser);
-            $isSimpleWorker = $currentUser instanceof User &&
-                ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
+            ['resource' => $orderResource, 'is_simple' => $isSimpleUser] = SimpleUser::orderAccess($currentUser);
             $query = $this->buildOrdersListQuery($userUuid, $searchTrimmed, $dateFilter, $startDate, $endDate, $statusFilter, $projectFilter, $clientFilter, $categoryFilter, $unpaidOnly, null);
             $orders = $query->orderBy('orders.created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
             $paidAmountsMap = $this->getPaidAmountsMap($orders->pluck('id')->toArray());
@@ -201,7 +218,7 @@ class OrdersRepository extends BaseRepository
             )
             ->whereNull('orders.project_id');
 
-            if (!$isSimpleWorker || $currentUser->is_admin) {
+            if (! $isSimpleUser) {
                 $unpaidQuery->where(function ($q) use ($userUuid) {
                     if ($this->shouldApplyUserFilter('cash_registers')) {
                         $q->whereNull('orders.cash_id');
@@ -224,18 +241,7 @@ class OrdersRepository extends BaseRepository
                 $unpaidQuery->where('orders.category_id', $categoryFilter);
             }
 
-            if ($isSimpleWorker && !$currentUser->is_admin) {
-                $userCategoryIds = $this->getUserCategoryIds($userUuid);
-
-                if (empty($userCategoryIds)) {
-                    $unpaidQuery->whereNull('orders.category_id');
-                } else {
-                    $unpaidQuery->where(function ($q) use ($userCategoryIds) {
-                        $q->whereIn('orders.category_id', $userCategoryIds)
-                            ->orWhereNull('orders.category_id');
-                    });
-                }
-            }
+            $this->applySimpleUserOrderCategoryFilter($unpaidQuery, $currentUser);
 
             $unpaidResult = $unpaidQuery->first();
             $unpaidOrdersTotal = $unpaidResult && $unpaidResult->unpaid_total !== null ? (float) $unpaidResult->unpaid_total : 0;
@@ -295,14 +301,12 @@ class OrdersRepository extends BaseRepository
             'tempProducts.unit:id,name,short_name',
             'tempProducts.origCurrency:id,name,symbol',
         ];
-        $orderResource = $this->getOrderResourceForUser($currentUser);
-        $isSimpleWorker = $currentUser instanceof User &&
-            ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
+        ['resource' => $orderResource, 'is_simple' => $isSimpleUser] = SimpleUser::orderAccess($currentUser);
         $query = Order::select([
             'orders.*',
             DB::raw('(orders.price - orders.discount) as total_price')
         ])->with($withRelations);
-        if (!$isSimpleWorker || $currentUser->is_admin) {
+        if (! $isSimpleUser) {
             $query->where(function ($q) use ($userUuid) {
                 if ($this->shouldApplyUserFilter('cash_registers')) {
                     $q->whereNull('orders.cash_id');
@@ -365,17 +369,8 @@ class OrdersRepository extends BaseRepository
                 ->whereRaw('(orders.price - orders.discount) > COALESCE(paid_transactions.total_paid, 0)')
                 ->select('orders.*', DB::raw('(orders.price - orders.discount) as total_price'));
         }
-        if ($isSimpleWorker && !$currentUser->is_admin) {
-            $userCategoryIds = $this->getUserCategoryIds($userUuid);
-            if (empty($userCategoryIds)) {
-                $query->whereNull('orders.category_id');
-            } else {
-                $query->where(function ($q) use ($userCategoryIds) {
-                    $q->whereIn('orders.category_id', $userCategoryIds)
-                        ->orWhereNull('orders.category_id');
-                });
-            }
-        }
+        $this->applySimpleUserOrderCategoryFilter($query, $currentUser);
+
         if ($ids !== null && $ids !== []) {
             $query->whereIn('orders.id', $ids);
         }
@@ -496,13 +491,11 @@ class OrdersRepository extends BaseRepository
         $userUuid = $currentUser->id;
         $companyId = $this->getCurrentCompanyId();
 
-        $orderResource = $this->getOrderResourceForUser($currentUser);
-        $isSimpleWorker = $currentUser instanceof User &&
-            ($currentUser->hasRole(config('simple.worker_role')) || $orderResource === 'orders_simple');
+        ['resource' => $orderResource, 'is_simple' => $isSimpleUser] = SimpleUser::orderAccess($currentUser);
 
         $query = Order::query()->where('orders.status_id', 1);
 
-        if (!$isSimpleWorker || $currentUser->is_admin) {
+        if (! $isSimpleUser) {
             $query->where(function ($q) use ($userUuid) {
                 if ($this->shouldApplyUserFilter('cash_registers')) {
                     $q->whereNull('orders.cash_id');
@@ -519,17 +512,7 @@ class OrdersRepository extends BaseRepository
 
         $this->applyOwnFilter($query, $orderResource, 'orders', 'creator_id', $currentUser);
 
-        if ($isSimpleWorker && !$currentUser->is_admin) {
-            $userCategoryIds = $this->getUserCategoryIds($userUuid);
-            if (empty($userCategoryIds)) {
-                $query->whereNull('orders.category_id');
-            } else {
-                $query->where(function ($q) use ($userCategoryIds) {
-                    $q->whereIn('orders.category_id', $userCategoryIds)
-                        ->orWhereNull('orders.category_id');
-                });
-            }
-        }
+        $this->applySimpleUserOrderCategoryFilter($query, $currentUser);
 
         $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
 
@@ -1974,32 +1957,6 @@ class OrdersRepository extends BaseRepository
             $paidAmount <= 0 ? 'unpaid' : ($paidAmount < $totalPrice ? 'partially_paid' : 'paid')
         );
         $order->makeVisible(['paid_amount', 'payment_status', 'payment_status_text']);
-    }
-
-    /**
-     * Получить ресурс для проверки permissions в зависимости от роли пользователя
-     *
-     * @param User|null $user Пользователь
-     * @return string Название ресурса ('orders' или 'orders_simple')
-     */
-    protected function getOrderResourceForUser(?User $user): string
-    {
-        if (!$user) {
-            return 'orders';
-        }
-
-        if ($user->hasRole(config('simple.worker_role'))) {
-            return 'orders_simple';
-        }
-
-        $permissions = $this->getUserPermissionsForCompany($user);
-        foreach ($permissions as $permission) {
-            if (str_starts_with($permission, 'orders_simple_')) {
-                return 'orders_simple';
-            }
-        }
-
-        return 'orders';
     }
 
     /**

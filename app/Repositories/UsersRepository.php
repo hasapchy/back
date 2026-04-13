@@ -195,6 +195,8 @@ class UsersRepository extends BaseRepository
             'users.birthday',
             'users.position',
             'users.is_admin',
+            'users.is_simple_user',
+            'users.simple_category_id',
             'users.photo',
             'users.created_at',
             'users.last_login_at'
@@ -426,6 +428,10 @@ class UsersRepository extends BaseRepository
             $user->is_active = $data['is_active'] ?? true;
             $user->position = $data['position'] ?? null;
             $user->is_admin = $data['is_admin'] ?? false;
+            $user->is_simple_user = $data['is_simple_user'] ?? false;
+            if (! empty($data['simple_category_id'])) {
+                $user->simple_category_id = (int) $data['simple_category_id'];
+            }
 
             if (isset($data['photo'])) {
                 $user->photo = $data['photo'];
@@ -482,6 +488,12 @@ class UsersRepository extends BaseRepository
             $user->is_active = $data['is_active'] ?? $user->is_active;
             $user->position = array_key_exists('position', $data) ? $data['position'] : $user->position;
             $user->is_admin = $data['is_admin'] ?? $user->is_admin;
+            if (array_key_exists('is_simple_user', $data)) {
+                $user->is_simple_user = (bool) $data['is_simple_user'];
+            }
+            if (array_key_exists('simple_category_id', $data)) {
+                $user->simple_category_id = $data['simple_category_id'] ? (int) $data['simple_category_id'] : null;
+            }
 
             if (isset($data['photo'])) {
                 $user->photo = $data['photo'];

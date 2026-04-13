@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateNewsRequest;
 use App\Http\Resources\NewsResource;
 use App\Models\News;
 use App\Repositories\NewsRepository;
+use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use App\Services\NewsImageService;
 use Illuminate\Http\Request;
 
@@ -16,8 +17,11 @@ class NewsController extends BaseController
 
     protected $imageService;
 
-    public function __construct(NewsRepository $itemsRepository, NewsImageService $imageService)
-    {
+    public function __construct(
+        NewsRepository $itemsRepository,
+        NewsImageService $imageService,
+        private readonly InAppNotificationDispatcher $inAppNotificationDispatcher,
+    ) {
         $this->itemsRepository = $itemsRepository;
         $this->imageService = $imageService;
     }
@@ -67,9 +71,7 @@ class NewsController extends BaseController
     {
         $userId = $this->getAuthenticatedUserIdOrFail();
 
-        if (! $this->hasPermission('news_create')) {
-            return $this->errorResponse('У вас нет прав на создание новостей', 403);
-        }
+        $this->authorize('create', News::class);
 
         $validatedData = $request->validated();
 
@@ -97,6 +99,18 @@ class NewsController extends BaseController
                 $this->itemsRepository->updateItem($itemCreated->id, ['content' => $organizedContent]);
             }
 
+            $companyId = (int) $this->getCurrentCompanyId();
+            if ($companyId > 0) {
+                $this->inAppNotificationDispatcher->dispatch(
+                    $companyId,
+                    'news_new',
+                    (int) $userId,
+                    'Новость',
+                    $itemCreated->title,
+                    ['route' => '/news', 'news_id' => $itemCreated->id]
+                );
+            }
+
             return $this->successResponse(null, 'Новость создана');
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка создания новости: '.$e->getMessage(), 500);
@@ -111,9 +125,7 @@ class NewsController extends BaseController
         $user = $this->requireAuthenticatedUser();
         $news = News::findOrFail($id);
 
-        if (! $this->canPerformAction('news', 'update', $news)) {
-            return $this->errorResponse('У вас нет прав на редактирование этой новости', 403);
-        }
+        $this->authorize('update', $news);
 
         $validatedData = $request->validated();
 
@@ -173,9 +185,7 @@ class NewsController extends BaseController
         $this->requireAuthenticatedUser();
         $news = News::findOrFail($id);
 
-        if (! $this->canPerformAction('news', 'delete', $news)) {
-            return $this->errorResponse('У вас нет прав на удаление этой новости', 403);
-        }
+        $this->authorize('delete', $news);
 
         try {
             // Удаляем все изображения новости перед удалением самой новости

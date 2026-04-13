@@ -9,17 +9,12 @@ use Symfony\Component\HttpFoundation\Response;
 
 class PermissionWithScopeMiddleware
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next, string ...$permissions): Response
     {
-        /** @var \App\Models\User $user */
+        /** @var \App\Models\User|null $user */
         $user = auth('api')->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
@@ -28,9 +23,10 @@ class PermissionWithScopeMiddleware
         }
 
         $companyId = ResolvedCompany::fromRequest($request);
-        $userPermissions = $companyId ? $user->getAllPermissionsForCompany($companyId)->pluck('name')->toArray() : $user->getAllPermissions()->pluck('name')->toArray();
+        $userPermissions = $companyId
+            ? $user->getAllPermissionsForCompany($companyId)->pluck('name')->toArray()
+            : $user->getAllPermissions()->pluck('name')->toArray();
 
-        // Если передано несколько разрешений через запятую, проверяем каждое
         $permissionList = [];
         foreach ($permissions as $perm) {
             $permissionList = array_merge($permissionList, explode(',', $perm));
@@ -38,32 +34,26 @@ class PermissionWithScopeMiddleware
         $permissionList = array_map('trim', $permissionList);
 
         foreach ($permissionList as $permission) {
-            // Проверяем точное совпадение разрешения
-            if (in_array($permission, $userPermissions)) {
+            if (in_array($permission, $userPermissions, true)) {
                 return $next($request);
             }
 
-            // Если разрешение заканчивается на _all, проверяем также _own
             if (str_ends_with($permission, '_all')) {
                 $ownPermission = str_replace('_all', '_own', $permission);
-                if (in_array($ownPermission, $userPermissions)) {
-                    // Для _own нужно проверить, является ли запись "своей"
-                    // Это будет проверяться в контроллере через canPerformAction
+                if (in_array($ownPermission, $userPermissions, true)) {
                     return $next($request);
                 }
             }
 
-            // Если разрешение заканчивается на _own, проверяем также _all
             if (str_ends_with($permission, '_own')) {
                 $allPermission = str_replace('_own', '_all', $permission);
-                if (in_array($allPermission, $userPermissions)) {
+                if (in_array($allPermission, $userPermissions, true)) {
                     return $next($request);
                 }
             }
 
-            // Обратная совместимость: проверяем старое разрешение без _all/_own
             $oldPermission = preg_replace('/_(all|own)$/', '', $permission);
-            if ($oldPermission !== $permission && in_array($oldPermission, $userPermissions)) {
+            if ($oldPermission !== $permission && in_array($oldPermission, $userPermissions, true)) {
                 return $next($request);
             }
         }
@@ -71,4 +61,3 @@ class PermissionWithScopeMiddleware
         return response()->json(['message' => 'Forbidden'], 403);
     }
 }
-

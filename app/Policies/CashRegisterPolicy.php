@@ -2,40 +2,44 @@
 
 namespace App\Policies;
 
-use App\Support\ResolvedCompany;
 use App\Models\CashRegister;
 use App\Models\User;
-use App\Services\PermissionCheckService;
+use App\Policies\Concerns\AuthorizesResourcePermissions;
+use App\Support\SimpleUser;
+use Illuminate\Auth\Access\Response;
 
 class CashRegisterPolicy
 {
-    public function view(User $user, CashRegister $cashRegister): bool
-    {
-        if ($user->is_admin) {
-            return true;
-        }
+    use AuthorizesResourcePermissions;
 
-        $permissions = $this->getUserPermissions($user);
-        $permissionCheckService = new PermissionCheckService();
-        
-        return $permissionCheckService->canPerformAction(
-            $user,
-            'cash_registers',
-            'view',
-            $cashRegister,
-            $permissions
-        );
+    private const RESOURCE = 'cash_registers';
+
+    public function viewAny(User $user): Response
+    {
+        return $this->resourceAbilityResponse($user, self::RESOURCE, 'view', null, 'У вас нет прав на просмотр касс');
     }
 
-    protected function getUserPermissions(User $user): array
+    public function view(User $user, CashRegister $cashRegister): Response
     {
-        $companyId = ResolvedCompany::fromRequest(request());
-        
-        if ($companyId) {
-            return $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray();
+        if (SimpleUser::matches($user) && $cashRegister->hasUser($user->id)) {
+            return Response::allow();
         }
-        
-        return $user->getAllPermissions()->pluck('name')->toArray();
+
+        return $this->resourceAbilityResponse($user, self::RESOURCE, 'view', $cashRegister, 'У вас нет прав на эту кассу');
+    }
+
+    public function create(User $user): Response
+    {
+        return $this->resourceAbilityResponse($user, self::RESOURCE, 'create', null, 'У вас нет прав на создание касс');
+    }
+
+    public function update(User $user, CashRegister $cashRegister): Response
+    {
+        return $this->resourceAbilityResponse($user, self::RESOURCE, 'update', $cashRegister, 'У вас нет прав на редактирование этой кассы');
+    }
+
+    public function delete(User $user, CashRegister $cashRegister): Response
+    {
+        return $this->resourceAbilityResponse($user, self::RESOURCE, 'delete', $cashRegister, 'У вас нет прав на удаление этой кассы');
     }
 }
-

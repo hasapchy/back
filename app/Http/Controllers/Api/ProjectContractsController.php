@@ -96,9 +96,7 @@ class ProjectContractsController extends BaseController
     public function getAllContracts(Request $request): JsonResponse
     {
         try {
-            if (!$this->hasAnyPermission(['contracts_view', 'contracts_view_all', 'contracts_view_own'])) {
-                return $this->errorResponse('У вас нет прав на просмотр контрактов', 403);
-            }
+            $this->authorize('viewAny', ProjectContract::class);
 
             $perPage = (int) $request->get('per_page', 20);
             $page = (int) $request->get('page', 1);
@@ -114,9 +112,9 @@ class ProjectContractsController extends BaseController
             $type = $request->has('type') ? (int) $request->get('type') : null;
 
             $user = $this->getAuthenticatedUser();
-            $hasViewAll = $user && ($user->is_admin || $this->hasPermission('contracts_view_all', $user));
+            $hasViewAll = $user && ($user->is_admin || $user->can('contracts_view_all'));
 
-            if (!$hasViewAll && $this->hasPermission('contracts_view_own', $user)) {
+            if (! $hasViewAll && $user && $user->can('contracts_view_own')) {
                 $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $user->id, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
             } else {
                 $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
@@ -152,9 +150,9 @@ class ProjectContractsController extends BaseController
                 return $this->errorResponse('Проект не найден', 404);
             }
 
-            if (!$this->canPerformAction('projects', 'update', $project)) {
-                return $this->errorResponse('У вас нет прав на редактирование этого проекта', 403);
-            }
+            $this->authorize('update', $project);
+
+            $this->authorize('create', ProjectContract::class);
 
             $data = $validatedData;
 
@@ -166,6 +164,8 @@ class ProjectContractsController extends BaseController
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при создании контракта: ' . $e->getMessage(), 500);
         }
@@ -186,11 +186,11 @@ class ProjectContractsController extends BaseController
                 return $this->errorResponse('Контракт не найден', 404);
             }
 
-            if (!$this->canPerformAction('contracts', 'view', $contract)) {
-                return $this->errorResponse('У вас нет прав на просмотр этого контракта', 403);
-            }
+            $this->authorize('view', $contract);
 
             return $this->successResponse(new ProjectContractResource($contract));
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении контракта: ' . $e->getMessage(), 500);
         }
@@ -208,9 +208,7 @@ class ProjectContractsController extends BaseController
         try {
             $contract = ProjectContract::findOrFail($id);
 
-            if (!$this->canPerformAction('contracts', 'update', $contract)) {
-                return $this->errorResponse('У вас нет прав на редактирование этого контракта', 403);
-            }
+            $this->authorize('update', $contract);
 
             $validatedData = $request->validated();
 
@@ -226,6 +224,8 @@ class ProjectContractsController extends BaseController
             return $this->validationErrorResponse($e->validator);
         } catch (\DomainException $e) {
             return $this->errorResponse($e->getMessage(), 422);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при обновлении контракта: ' . $e->getMessage(), 500);
         }
@@ -242,9 +242,7 @@ class ProjectContractsController extends BaseController
         try {
             $contract = ProjectContract::findOrFail($id);
 
-            if (!$this->canPerformAction('contracts', 'delete', $contract)) {
-                return $this->errorResponse('У вас нет прав на удаление этого контракта', 403);
-            }
+            $this->authorize('delete', $contract);
 
             $result = $this->repository->deleteContract($id);
 
@@ -253,6 +251,8 @@ class ProjectContractsController extends BaseController
             }
 
             return $this->successResponse(null, 'Контракт успешно удален');
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при удалении контракта: ' . $e->getMessage(), 500);
         }
@@ -278,7 +278,8 @@ class ProjectContractsController extends BaseController
             'delete' => 'У вас нет прав на удаление этого проекта',
         ];
 
-        if (!$this->canPerformAction('projects', $action, $project)) {
+        $user = $this->requireAuthenticatedUser();
+        if (! $user->can($action, $project)) {
             return $this->errorResponse($actionMessages[$action] ?? 'У вас нет прав на это действие', 403);
         }
 

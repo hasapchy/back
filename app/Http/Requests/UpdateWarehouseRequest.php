@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Warehouse;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -15,7 +16,13 @@ class UpdateWarehouseRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $warehouse = Warehouse::query()->find($this->route('id'));
+
+        if (! $warehouse) {
+            return true;
+        }
+
+        return $this->user()->can('update', $warehouse);
     }
 
     /**

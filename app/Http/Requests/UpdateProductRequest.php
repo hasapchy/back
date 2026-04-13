@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -15,7 +16,13 @@ class UpdateProductRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $product = Product::query()->find($this->route('id'));
+
+        if (! $product) {
+            return true;
+        }
+
+        return $this->user()->can('update', $product);
     }
 
     /**

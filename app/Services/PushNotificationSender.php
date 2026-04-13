@@ -20,8 +20,8 @@ class PushNotificationSender
     public function collectTokensForUserIds(array $userIds): array
     {
         $ids = array_values(array_unique(array_filter(
-            array_map(static fn ($id) => (int) $id, $userIds),
-            static fn (int $id) => $id > 0
+            array_map(static fn($id) => (int) $id, $userIds),
+            static fn(int $id) => $id > 0
         )));
 
         if ($ids === []) {
@@ -46,11 +46,12 @@ class PushNotificationSender
     }
 
     /**
-     * @param  array<int, mixed>  $data  Значения приводятся к строкам для FCM data.
+     * @param  array<int>  $userIds
+     * @param  array<string, mixed>  $data  Значения приводятся к строкам для FCM data.
      * @return array{
      *   ok: bool,
      *   tokens_count: int,
-     *   push_service?: array|null,
+     *   push_service?: array<string, mixed>|null,
      *   error?: string,
      *   http_status?: int
      * }
@@ -72,11 +73,11 @@ class PushNotificationSender
 
     /**
      * @param  array<int, string>  $tokens
-     * @param  array<int, mixed>  $data
+     * @param  array<string, mixed>  $data
      * @return array{
      *   ok: bool,
      *   tokens_count: int,
-     *   push_service?: array|null,
+     *   push_service?: array<string, mixed>|null,
      *   error?: string,
      *   http_status?: int
      * }
@@ -85,7 +86,7 @@ class PushNotificationSender
     {
         $tokens = array_values(array_unique(array_filter(
             $tokens,
-            static fn ($t) => is_string($t) && $t !== ''
+            static fn($t) => is_string($t) && $t !== ''
         )));
 
         if ($tokens === []) {
@@ -108,7 +109,7 @@ class PushNotificationSender
             ];
         }
 
-        $url = $baseUrl.'/v1/push/send';
+        $url = $baseUrl . '/v1/push/send';
         $payload = [
             'tokens' => $tokens,
             'title' => $title,

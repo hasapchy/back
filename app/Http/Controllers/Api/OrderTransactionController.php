@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Resources\TransactionResource;
 use App\Models\Order;
 use App\Models\Transaction;
-use App\Models\User;
 use App\Repositories\OrdersRepository;
 use Illuminate\Http\Request;
 
@@ -42,13 +41,8 @@ class OrderTransactionController extends BaseController
         $order = Order::findOrFail($orderId);
 
         $userId = $this->getAuthenticatedUserIdOrFail();
-        $user = $this->requireAuthenticatedUser();
-
-        // Проверка прав на обновление заказа
-        $resource = $this->getOrderResourceForUser($user);
-        if (!$this->canPerformAction($resource, 'update', $order)) {
-            return $this->errorResponse('У вас нет прав на редактирование этого заказа', 403);
-        }
+        $this->requireAuthenticatedUser();
+        $this->authorize('update', $order);
 
         $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
         if ($cashAccessCheck) {
@@ -80,13 +74,8 @@ class OrderTransactionController extends BaseController
         $order = Order::findOrFail($orderId);
 
         $this->getAuthenticatedUserIdOrFail();
-        $user = $this->requireAuthenticatedUser();
-
-        // Проверка прав на обновление заказа
-        $resource = $this->getOrderResourceForUser($user);
-        if (!$this->canPerformAction($resource, 'update', $order)) {
-            return $this->errorResponse('У вас нет прав на редактирование этого заказа', 403);
-        }
+        $this->requireAuthenticatedUser();
+        $this->authorize('update', $order);
 
         $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
         if ($cashAccessCheck) {
@@ -114,13 +103,8 @@ class OrderTransactionController extends BaseController
         $order = Order::findOrFail($orderId);
 
         $this->getAuthenticatedUserIdOrFail();
-        $user = $this->requireAuthenticatedUser();
-
-        // Проверка прав на просмотр заказа
-        $resource = $this->getOrderResourceForUser($user);
-        if (!$this->canPerformAction($resource, 'view', $order)) {
-            return $this->errorResponse('У вас нет прав на просмотр этого заказа', 403);
-        }
+        $this->requireAuthenticatedUser();
+        $this->authorize('view', $order);
 
         $cashAccessCheck = $this->checkCashRegisterAccess($order->cash_id);
         if ($cashAccessCheck) {
@@ -132,19 +116,5 @@ class OrderTransactionController extends BaseController
             ->get();
 
         return $this->successResponse(TransactionResource::collection($transactions)->resolve());
-    }
-
-    /**
-     * Получить ресурс для проверки permissions в зависимости от роли пользователя
-     *
-     * @param User $user Пользователь
-     * @return string Название ресурса ('orders' или 'orders_simple')
-     */
-    protected function getOrderResourceForUser(User $user): string
-    {
-        if ($user->hasRole(config('simple.worker_role'))) {
-            return 'orders_simple';
-        }
-        return 'orders';
     }
 }

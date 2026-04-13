@@ -16,7 +16,13 @@ class UpdateMessageTemplateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $template = MessageTemplate::query()->find($this->route('id'));
+
+        if (! $template) {
+            return true;
+        }
+
+        return $this->user()->can('update', $template);
     }
 
     /**

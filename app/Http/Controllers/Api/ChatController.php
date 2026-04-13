@@ -19,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\Chat\ChatService;
+use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use App\Services\PushNotificationSender;
 use Illuminate\Support\Str;
 
@@ -27,6 +28,7 @@ class ChatController extends BaseController
     public function __construct(
         protected ChatService $chatService,
         private readonly PushNotificationSender $pushNotificationSender,
+        private readonly InAppNotificationDispatcher $inAppNotificationDispatcher,
     ) {
     }
 
@@ -195,7 +197,7 @@ class ChatController extends BaseController
     {
         [$user, $companyId] = $this->requireChatAccess($chat);
 
-        if ($chat->type === 'general' && ! $this->hasPermission('chats_write_general', $user)) {
+        if ($chat->type === 'general' && ! $user->can('chats_write_general')) {
             return $this->successResponse(['message' => 'Forbidden'], null, 403);
         }
 
@@ -214,7 +216,7 @@ class ChatController extends BaseController
             $chat,
             $body,
             is_array($files) ? $files : [],
-            $this->hasPermission('chats_write_general', $user),
+            $user->can('chats_write_general'),
             $parentId
         );
 
@@ -271,6 +273,21 @@ class ChatController extends BaseController
                     'sender_id' => (string) $sender->id,
                     'sender_name' => $senderName,
                 ]
+            );
+
+            $this->inAppNotificationDispatcher->dispatchToUserIds(
+                (int) $chat->company_id,
+                'chats_new_message',
+                $recipientIds,
+                null,
+                $pushTitle,
+                $pushBody,
+                [
+                    'route' => '/messenger?open_chat='.(int) $chat->id.'&focus_message='.(int) $message->id,
+                    'chat_id' => $chat->id,
+                    'message_id' => $message->id,
+                ],
+                false,
             );
         } catch (\Throwable $e) {
             report($e);

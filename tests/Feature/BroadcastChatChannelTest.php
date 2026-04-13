@@ -51,7 +51,7 @@ class BroadcastChatChannelTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/broadcasting/auth', [
+        $response = $this->postJson('/api/broadcasting/auth', [
             'channel_name' => "private-company.{$company->id}.chat.{$chat->id}",
             'socket_id' => '123.456',
         ]);
@@ -80,7 +80,7 @@ class BroadcastChatChannelTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/broadcasting/auth', [
+        $response = $this->postJson('/api/broadcasting/auth', [
             'channel_name' => "private-company.{$company->id}.chat.{$chat->id}",
             'socket_id' => '123.456',
         ]);

@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Модель шаблона транзакции
@@ -17,7 +18,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $currency_id ID валюты
  * @property bool|null $type Тип транзакции (0 - расход, 1 - доход)
  * @property int|null $category_id ID категории транзакции
- * @property \Carbon\Carbon|null $date Дата транзакции
  * @property string|null $note Примечание
  * @property int|null $client_id ID клиента
  * @property int $creator_id ID создателя
@@ -46,7 +46,6 @@ class Template extends Model
         'currency_id',
         'type',
         'category_id',
-        'date',
         'note',
         'client_id',
         'creator_id',
@@ -55,54 +54,53 @@ class Template extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'date' => 'date',
         'type' => 'boolean',
     ];
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo<CashRegister, Template>
      */
-    public function cashRegister()
+    public function cashRegister(): BelongsTo
     {
         return $this->belongsTo(CashRegister::class, 'cash_id');
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo<User, Template>
      */
-    public function creator()
+    public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo<Currency, Template>
      */
-    public function currency()
+    public function currency(): BelongsTo
     {
         return $this->belongsTo(Currency::class, 'currency_id');
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo<TransactionCategory, Template>
      */
-    public function category()
+    public function category(): BelongsTo
     {
         return $this->belongsTo(TransactionCategory::class, 'category_id');
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo<Project, Template>
      */
-    public function project()
+    public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class, 'project_id');
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo<Client, Template>
      */
-    public function client()
+    public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class, 'client_id');
     }

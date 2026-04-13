@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\ValidatesOrderClientBalance;
+use App\Models\Sale;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\WarehouseAccessRule;
 use App\Rules\ProjectAccessRule;
@@ -22,7 +23,13 @@ class UpdateSaleRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $sale = Sale::query()->find($this->route('id'));
+
+        if (! $sale) {
+            return true;
+        }
+
+        return $this->user()->can('update', $sale);
     }
 
     /**

@@ -7,23 +7,12 @@ use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Routing\Controller as BaseRoutingController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Eloquent\Model;
-use App\Services\PermissionCheckService;
+use App\Support\CompanyScopedPermissions;
 use App\Support\ResolvedCompany;
 
 class BaseController extends BaseRoutingController
 {
     use AuthorizesRequests, ValidatesRequests;
-
-    protected ?PermissionCheckService $permissionCheckService = null;
-
-    protected function getPermissionCheckService(): PermissionCheckService
-    {
-        if ($this->permissionCheckService === null) {
-            $this->permissionCheckService = new PermissionCheckService();
-        }
-        return $this->permissionCheckService;
-    }
 
     /**
      * @return int|null
@@ -82,62 +71,15 @@ class BaseController extends BaseRoutingController
     {
         $user = $user ?? $this->getAuthenticatedUser();
 
-        if (!$user) {
+        if (! $user) {
             return [];
         }
 
-        if ($user->is_admin) {
-            return \Spatie\Permission\Models\Permission::where('guard_name', 'api')
-                ->pluck('name')
-                ->toArray();
+        if ($companyId !== null) {
+            return CompanyScopedPermissions::namesForCompany($user, $companyId);
         }
 
-        $companyId = $companyId ?? $this->getCurrentCompanyId();
-
-        if ($companyId) {
-            return $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray();
-        }
-
-        return $user->getAllPermissions()->pluck('name')->toArray();
-    }
-
-    /**
-     * Проверить, есть ли у пользователя конкретное разрешение
-     *
-     * @param string $permission
-     * @param \App\Models\User|null $user
-     * @return bool
-     */
-    protected function hasPermission($permission, $user = null)
-    {
-        $user = $user ?? $this->getAuthenticatedUser();
-
-        if ($user && $user->is_admin) {
-            return true;
-        }
-
-        $permissions = $this->getUserPermissions($user);
-        return in_array($permission, $permissions);
-    }
-
-    /**
-     * Проверить, есть ли у пользователя право на действие с записью (с учетом _all/_own)
-     *
-     * @param string $resource Ресурс (например, 'users', 'orders')
-     * @param string $action Действие (например, 'view', 'update', 'delete')
-     * @param mixed $record Запись для проверки (должна иметь creator_id)
-     * @param \App\Models\User|null $user Пользователь
-     * @return bool
-     */
-    protected function canPerformAction($resource, $action, $record = null, $user = null)
-    {
-        $user = $user ?? $this->getAuthenticatedUser();
-        if (!$user) {
-            return false;
-        }
-
-        $permissions = $this->getUserPermissions($user);
-        return $this->getPermissionCheckService()->canPerformAction($user, $resource, $action, $record, $permissions);
+        return CompanyScopedPermissions::names($user);
     }
 
     /**
@@ -158,11 +100,11 @@ class BaseController extends BaseRoutingController
             return true;
         }
 
-        $permissions = $this->getUserPermissions($user);
+        $names = CompanyScopedPermissions::names($user);
         $config = config("permissions.resources.mutual_settlements");
         $permissionName = $config['custom_permissions']["view_{$clientType}"] ?? "mutual_settlements_view_{$clientType}";
 
-        return in_array($permissionName, $permissions);
+        return in_array($permissionName, $names, true);
     }
 
     /**
@@ -182,13 +124,13 @@ class BaseController extends BaseRoutingController
             return ['individual', 'company', 'employee', 'investor'];
         }
 
-        $permissions = $this->getUserPermissions($user);
+        $names = CompanyScopedPermissions::names($user);
         $allowedTypes = [];
         $config = config("permissions.resources.mutual_settlements");
 
         if (isset($config['custom_permissions'])) {
             foreach ($config['custom_permissions'] as $key => $permissionName) {
-                if (in_array($permissionName, $permissions)) {
+                if (in_array($permissionName, $names, true)) {
                     $type = str_replace('view_', '', $key);
                     $allowedTypes[] = $type;
                 }
@@ -209,19 +151,15 @@ class BaseController extends BaseRoutingController
     {
         $user = $user ?? $this->getAuthenticatedUser();
 
-        if ($user && $user->is_admin) {
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->is_admin) {
             return true;
         }
 
-        $userPermissions = $this->getUserPermissions($user);
-
-        foreach ($permissions as $permission) {
-            if (in_array($permission, $userPermissions)) {
-                return true;
-            }
-        }
-
-        return false;
+        return CompanyScopedPermissions::userHasAny($user, $permissions);
     }
 
     /**
@@ -261,40 +199,6 @@ class BaseController extends BaseRoutingController
     protected function transaction(callable $callback)
     {
         return DB::transaction($callback);
-    }
-
-    /**
-     * Проверить, является ли пользователь владельцем записи или админом
-     *
-     * @param Model $model Модель для проверки
-     * @param string $userIdField Поле с ID пользователя (по умолчанию 'creator_id')
-     * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
-     * @return bool
-     */
-    protected function isOwnerOrAdmin(Model $model, string $userIdField = 'creator_id', $user = null): bool
-    {
-        $user = $user ?? $this->requireAuthenticatedUser();
-
-        if ($user->is_admin) {
-            return true;
-        }
-
-        return $model->$userIdField === $user->id;
-    }
-
-    /**
-     * Проверить, является ли пользователь владельцем записи или админом, или выбросить исключение
-     *
-     * @param Model $model Модель для проверки
-     * @param string $userIdField Поле с ID пользователя (по умолчанию 'creator_id')
-     * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
-     * @throws \Illuminate\Http\Exceptions\HttpResponseException
-     */
-    protected function requireOwnerOrAdmin(Model $model, string $userIdField = 'creator_id', $user = null): void
-    {
-        if (!$this->isOwnerOrAdmin($model, $userIdField, $user)) {
-            abort(403, 'У вас нет прав на эту операцию');
-        }
     }
 
     /**
@@ -366,35 +270,12 @@ class BaseController extends BaseRoutingController
     {
         if ($cashId) {
             $cashRegister = \App\Models\CashRegister::find($cashId);
-            if ($cashRegister) {
-                $user = $this->getAuthenticatedUser();
-
-                if ($user && $user->hasRole(config('simple.worker_role'))) {
-                    $hasAccessByAssignment = $cashRegister->hasUser($user->id);
-
-                    if ($hasAccessByAssignment) {
-                        return null;
-                    }
-
-                    $permissions = $this->getUserPermissions($user);
-                    $hasSimpleOrderPermission = false;
-                    foreach ($permissions as $permission) {
-                        if (str_starts_with($permission, 'orders_simple_')) {
-                            $hasSimpleOrderPermission = true;
-                            break;
-                        }
-                    }
-
-                    if ($hasSimpleOrderPermission) {
-                        return null;
-                    }
-                }
-
-                if (!$this->canPerformAction('cash_registers', 'view', $cashRegister)) {
-                    return $this->errorResponse('У вас нет прав на эту кассу', 403);
-                }
+            $user = $this->getAuthenticatedUser();
+            if ($cashRegister && $user && ! $user->can('view', $cashRegister)) {
+                return $this->errorResponse('У вас нет прав на эту кассу', 403);
             }
         }
+
         return null;
     }
 
@@ -408,10 +289,12 @@ class BaseController extends BaseRoutingController
     {
         if ($warehouseId) {
             $warehouse = \App\Models\Warehouse::find($warehouseId);
-            if ($warehouse && !$this->canPerformAction('warehouses', 'view', $warehouse)) {
+            $user = $this->getAuthenticatedUser();
+            if ($warehouse && $user && ! $user->can('view', $warehouse)) {
                 return $this->errorResponse('У вас нет прав на этот склад', 403);
             }
         }
+
         return null;
     }
 }

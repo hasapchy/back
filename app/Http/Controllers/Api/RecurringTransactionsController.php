@@ -23,8 +23,10 @@ class RecurringTransactionsController extends BaseController
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', RecSchedule::class);
+
         $userId = $this->getAuthenticatedUserIdOrFail();
-        $viewAll = $this->hasPermission('rec_schedules_view_all');
+        $viewAll = $this->requireAuthenticatedUser()->can('rec_schedules_view_all');
         $perPage = (int) $request->input('per_page', 20);
         $page = (int) $request->input('page', 1);
         $templateId = $request->input('template_id') !== null ? (int) $request->input('template_id') : null;
@@ -55,16 +57,14 @@ class RecurringTransactionsController extends BaseController
      */
     public function show(int $id)
     {
-        $userId = $this->getAuthenticatedUserIdOrFail();
+        $this->getAuthenticatedUserIdOrFail();
         $schedule = $this->repository->getItemById($id);
 
-        if (!$schedule) {
+        if (! $schedule) {
             return $this->errorResponse('Расписание не найдено', 404);
         }
 
-        if (!$this->canView($schedule, $userId)) {
-            return $this->errorResponse('Нет прав на просмотр этого расписания', 403);
-        }
+        $this->authorize('view', $schedule);
 
         return $this->successResponse(new RecScheduleResource($schedule));
     }
@@ -75,9 +75,7 @@ class RecurringTransactionsController extends BaseController
      */
     public function store(StoreRecurringTransactionRequest $request)
     {
-        if (!$this->hasPermission('rec_schedules_create')) {
-            return $this->errorResponse('Нет прав на создание повторяющихся транзакций', 403);
-        }
+        $this->authorize('create', RecSchedule::class);
 
         $userId = $this->getAuthenticatedUserIdOrFail();
         $data = $request->validated();
@@ -98,16 +96,13 @@ class RecurringTransactionsController extends BaseController
      */
     public function update(UpdateRecurringTransactionRequest $request, int $id)
     {
-        $userId = $this->getAuthenticatedUserIdOrFail();
         $schedule = $this->repository->getItemById($id);
 
-        if (!$schedule) {
+        if (! $schedule) {
             return $this->errorResponse('Расписание не найдено', 404);
         }
 
-        if (!$this->canUpdate($schedule, $userId)) {
-            return $this->errorResponse('Нет прав на редактирование этого расписания', 403);
-        }
+        $this->authorize('update', $schedule);
 
         $data = $request->validated();
         $this->repository->updateItem($id, $data);
@@ -124,59 +119,17 @@ class RecurringTransactionsController extends BaseController
      */
     public function destroy(int $id)
     {
-        $userId = $this->getAuthenticatedUserIdOrFail();
         $schedule = $this->repository->getItemById($id);
 
-        if (!$schedule) {
+        if (! $schedule) {
             return $this->errorResponse('Расписание не найдено', 404);
         }
 
-        if (!$this->canDelete($schedule, $userId)) {
-            return $this->errorResponse('Нет прав на удаление этого расписания', 403);
-        }
+        $this->authorize('delete', $schedule);
 
         $this->repository->deleteItem($schedule);
         CacheService::invalidateTransactionsCache();
 
         return $this->successResponse(null, 'Расписание удалено');
-    }
-
-    /**
-     * @param RecSchedule $schedule
-     * @param int $userId
-     * @return bool
-     */
-    private function canView(RecSchedule $schedule, int $userId): bool
-    {
-        if ($this->hasPermission('rec_schedules_view_all')) {
-            return true;
-        }
-        return $schedule->creator_id === $userId;
-    }
-
-    /**
-     * @param RecSchedule $schedule
-     * @param int $userId
-     * @return bool
-     */
-    private function canUpdate(RecSchedule $schedule, int $userId): bool
-    {
-        if ($this->hasPermission('rec_schedules_update_all')) {
-            return true;
-        }
-        return $this->hasPermission('rec_schedules_update') && $schedule->creator_id === $userId;
-    }
-
-    /**
-     * @param RecSchedule $schedule
-     * @param int $userId
-     * @return bool
-     */
-    private function canDelete(RecSchedule $schedule, int $userId): bool
-    {
-        if ($this->hasPermission('rec_schedules_delete_all')) {
-            return true;
-        }
-        return $this->hasPermission('rec_schedules_delete') && $schedule->creator_id === $userId;
     }
 }

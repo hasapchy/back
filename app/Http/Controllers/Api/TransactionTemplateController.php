@@ -7,7 +7,7 @@ use App\Http\Requests\UpdateTransactionTemplateRequest;
 use App\Http\Resources\ClientResource;
 use App\Http\Resources\TransactionTemplateResource;
 use App\Models\Client;
-use App\Models\Project;
+use App\Models\Template;
 use App\Repositories\TransactionTemplateRepository;
 use Illuminate\Http\Request;
 
@@ -30,13 +30,7 @@ class TransactionTemplateController extends BaseController
 
         $perPage = (int) $request->input('per_page', 20);
         $page = (int) $request->input('page', 1);
-        $filters = [];
-        if ($request->has('cash_id')) {
-            $filters['cash_id'] = $request->input('cash_id');
-        }
-        if ($request->has('type') && in_array($request->input('type'), ['0', '1'], true)) {
-            $filters['type'] = (int) $request->input('type');
-        }
+        $filters = $this->transactionTemplateListFilters($request);
         if ($request->has('search')) {
             $filters['search'] = $request->input('search');
         }
@@ -61,15 +55,7 @@ class TransactionTemplateController extends BaseController
     {
         $this->getAuthenticatedUserIdOrFail();
 
-        $filters = [];
-        if ($request->has('cash_id')) {
-            $filters['cash_id'] = $request->input('cash_id');
-        }
-        if ($request->has('type') && in_array($request->input('type'), ['0', '1'], true)) {
-            $filters['type'] = (int) $request->input('type');
-        }
-
-        $items = $this->repository->getAllItems($filters);
+        $items = $this->repository->getAllItems($this->transactionTemplateListFilters($request));
         return $this->successResponse(TransactionTemplateResource::collection($items)->resolve());
     }
 
@@ -77,11 +63,11 @@ class TransactionTemplateController extends BaseController
      * @param int $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function show($id)
+    public function show(int $id)
     {
         $this->getAuthenticatedUserIdOrFail();
 
-        $template = $this->repository->getItemById((int) $id);
+        $template = $this->repository->getItemById($id);
         if (!$template) {
             return $this->errorResponse('Шаблон не найден', 404);
         }
@@ -89,53 +75,42 @@ class TransactionTemplateController extends BaseController
     }
 
     /**
+     * @param Request $request
      * @param int $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function apply($id)
+    public function apply(Request $request, int $id)
     {
-        $this->getAuthenticatedUserIdOrFail();
+        $user = $this->requireAuthenticatedUser();
 
-        $template = $this->repository->getItemById((int) $id);
+        $template = $this->repository->getItemById($id);
         if (!$template) {
             return $this->errorResponse('Шаблон не найден', 404);
         }
 
-        $item = [
-            'name' => $template->name,
-            'icon' => $template->icon,
-            'type' => $template->type,
-            'amount' => $template->amount,
-            'currency_id' => $template->currency_id,
-            'category_id' => $template->category_id,
-            'date' => $template->date,
-            'note' => $template->note,
-        ];
+        $data = (new TransactionTemplateResource($template))->toArray($request);
 
-        if ($template->cash_id && $this->checkCashRegisterAccess((int) $template->cash_id) === null) {
-            $item['cash_id'] = $template->cash_id;
-            if ($template->relationLoaded('cashRegister') && $template->cashRegister) {
-                $item['cash_register'] = $template->cashRegister;
-            }
+        if (!$template->cash_id || $this->checkCashRegisterAccess((int) $template->cash_id) !== null) {
+            unset($data['cash_id'], $data['cash_register']);
         }
 
+        unset($data['client_id'], $data['client']);
         if ($template->client_id) {
             $client = Client::with(['phones', 'emails', 'balances.currency', 'balances.users'])->find($template->client_id);
-            if ($client && $this->canPerformAction('clients', 'view', $client)) {
-                $item['client_id'] = $template->client_id;
-                $item['client'] = (new ClientResource($client))->toArray(request());
+            if ($client && $user->can('view', $client)) {
+                $data['client_id'] = $template->client_id;
+                $data['client'] = (new ClientResource($client))->toArray($request);
             }
         }
 
-        if ($template->project_id) {
-            $project = Project::find($template->project_id);
-            if ($project && $this->canPerformAction('projects', 'view', $project)) {
-                $item['project_id'] = $template->project_id;
-                $item['project'] = $project;
-            }
+        unset($data['project_id'], $data['project']);
+        $project = $template->project;
+        if ($project && $user->can('view', $project)) {
+            $data['project_id'] = $template->project_id;
+            $data['project'] = $project->only(['id', 'name']);
         }
 
-        return $this->successResponse($item);
+        return $this->successResponse($data);
     }
 
     /**
@@ -146,9 +121,7 @@ class TransactionTemplateController extends BaseController
     {
         $userId = $this->getAuthenticatedUserIdOrFail();
 
-        if (!$this->hasPermission('transaction_templates_create')) {
-            return $this->errorResponse('У вас нет прав на создание шаблонов транзакций', 403);
-        }
+        $this->authorize('create', Template::class);
 
         $validated = $request->validated();
         $cashAccessCheck = $this->checkCashRegisterAccess((int) ($validated['cash_id'] ?? 0));
@@ -166,7 +139,6 @@ class TransactionTemplateController extends BaseController
             'category_id' => $validated['category_id'] ?? null,
             'client_id' => $validated['client_id'] ?? null,
             'project_id' => $validated['project_id'] ?? null,
-            'date' => isset($validated['date']) ? $validated['date'] : now(),
             'note' => $validated['note'] ?? null,
             'creator_id' => $userId,
         ];
@@ -180,17 +152,15 @@ class TransactionTemplateController extends BaseController
      * @param int $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(UpdateTransactionTemplateRequest $request, $id)
+    public function update(UpdateTransactionTemplateRequest $request, int $id)
     {
         $this->getAuthenticatedUserIdOrFail();
 
-        $template = $this->repository->getItemById((int) $id);
+        $template = $this->repository->getItemById($id);
         if (!$template) {
             return $this->errorResponse('Шаблон не найден', 404);
         }
-        if (!$this->canPerformAction('transaction_templates', 'update', $template)) {
-            return $this->errorResponse('У вас нет прав на редактирование этого шаблона', 403);
-        }
+        $this->authorize('update', $template);
 
         $validated = $request->validated();
         if (isset($validated['cash_id'])) {
@@ -210,11 +180,10 @@ class TransactionTemplateController extends BaseController
             'category_id' => $validated['category_id'] ?? null,
             'client_id' => $validated['client_id'] ?? null,
             'project_id' => $validated['project_id'] ?? null,
-            'date' => $validated['date'] ?? null,
             'note' => $validated['note'] ?? null,
         ], fn ($v) => $v !== null);
 
-        $updated = $this->repository->updateItem((int) $id, $data);
+        $updated = $this->repository->updateItem($id, $data);
         return $this->successResponse(new TransactionTemplateResource($updated), 'Шаблон обновлен');
     }
 
@@ -222,19 +191,33 @@ class TransactionTemplateController extends BaseController
      * @param int $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy($id)
+    public function destroy(int $id)
     {
         $this->getAuthenticatedUserIdOrFail();
 
-        $template = $this->repository->getItemById((int) $id);
+        $template = $this->repository->getItemById($id);
         if (!$template) {
             return $this->errorResponse('Шаблон не найден', 404);
         }
-        if (!$this->canPerformAction('transaction_templates', 'delete', $template)) {
-            return $this->errorResponse('У вас нет прав на удаление этого шаблона', 403);
-        }
+        $this->authorize('delete', $template);
 
         $this->repository->deleteItem($template->id);
         return $this->successResponse(null, 'Шаблон удален');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function transactionTemplateListFilters(Request $request): array
+    {
+        $filters = [];
+        if ($request->has('cash_id')) {
+            $filters['cash_id'] = $request->input('cash_id');
+        }
+        if ($request->has('type') && in_array($request->input('type'), ['0', '1'], true)) {
+            $filters['type'] = (int) $request->input('type');
+        }
+
+        return $filters;
     }
 }

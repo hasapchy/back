@@ -31,7 +31,6 @@ class RoundingService
             'rounding_enabled',
             'rounding_direction',
             'rounding_custom_threshold',
-            2
         );
     }
 
@@ -55,7 +54,6 @@ class RoundingService
             'rounding_quantity_enabled',
             'rounding_quantity_direction',
             'rounding_quantity_custom_threshold',
-            2
         );
     }
 
@@ -68,7 +66,6 @@ class RoundingService
      * @param string $enabledField Field name for enabled setting
      * @param string $directionField Field name for direction setting
      * @param string $thresholdField Field name for threshold setting
-     * @param int $defaultDecimals Default decimals if not set
      * @return float Rounded value
      */
     protected function roundWithSettings(
@@ -78,7 +75,6 @@ class RoundingService
         string $enabledField,
         string $directionField,
         string $thresholdField,
-        int $defaultDecimals
     ): float {
         if (!$companyId) {
             return $value;
@@ -92,25 +88,23 @@ class RoundingService
         }
 
         $maxDecimals = $decimalsField === 'rounding_decimals' ? 2 : 5;
-        $decimals = max(0, min($maxDecimals, (int) ($company->$decimalsField ?? $defaultDecimals)));
-        $enabled = $company->$enabledField ?? true;
+        $decimals = max(0, min($maxDecimals, (int) $company->{$decimalsField}));
+        $enabled = (bool) $company->{$enabledField};
 
-        if (!$enabled) {
+        if (! $enabled) {
             return $this->truncate($value, $decimals);
         }
 
-        $direction = $company->$directionField ?? self::DIRECTION_STANDARD;
-        $customThreshold = $company->$thresholdField;
+        $direction = $company->{$directionField};
+        $customThreshold = $company->{$thresholdField};
 
         return $this->applyRounding($value, $decimals, $direction, $customThreshold);
     }
 
     /**
-     * Truncate value to specified number of decimal places (without rounding)
-     *
-     * @param float $value Value to truncate
-     * @param int $decimals Number of decimal places
-     * @return float Truncated value
+     * @param  float  $value
+     * @param  int  $decimals
+     * @return float
      */
     protected function truncate(float $value, int $decimals): float
     {
@@ -127,11 +121,11 @@ class RoundingService
      *
      * @param float $value Value to round
      * @param int $decimals Number of decimal places
-     * @param string $direction Rounding direction
+     * @param string|null $direction Rounding direction
      * @param float|null $customThreshold Custom threshold for custom direction
      * @return float Rounded value
      */
-    protected function applyRounding(float $value, int $decimals, string $direction, ?float $customThreshold): float
+    protected function applyRounding(float $value, int $decimals, ?string $direction, ?float $customThreshold): float
     {
         $multiplier = pow(10, $decimals);
         $multiplied = $value * $multiplier;
@@ -157,27 +151,5 @@ class RoundingService
             default:
                 return round($value, $decimals);
         }
-    }
-
-    /**
-     * Get decimals for company
-     *
-     * @param int|null $companyId Company ID
-     * @return int Number of decimals
-     */
-    public function getDecimalsForCompany(?int $companyId): int
-    {
-        if (!$companyId) {
-            return 2;
-        }
-
-        /** @var Company|null $company */
-        $company = Company::find($companyId);
-
-        if (!$company) {
-            return 2;
-        }
-
-        return max(0, min(2, (int) $company->rounding_decimals));
     }
 }

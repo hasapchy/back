@@ -6,6 +6,7 @@ use App\Http\Requests\TaskRequest;
 use App\Repositories\TaskRepository;
 use App\Http\Resources\TaskResource;
 use App\Models\Task;
+use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -14,8 +15,10 @@ class TasksController extends BaseController
 {
     protected $itemsRepository;
 
-    public function __construct(TaskRepository $itemsRepository)
-    {
+    public function __construct(
+        TaskRepository $itemsRepository,
+        private readonly InAppNotificationDispatcher $inAppNotificationDispatcher,
+    ) {
         $this->itemsRepository = $itemsRepository;
     }
 
@@ -67,6 +70,19 @@ class TasksController extends BaseController
 
         $task = $this->itemsRepository->create($data);
         $task->load(['creator', 'supervisor', 'executor', 'project', 'status']);
+
+        $user = $this->requireAuthenticatedUser();
+        $companyId = (int) $data['company_id'];
+        if ($companyId > 0) {
+            $this->inAppNotificationDispatcher->dispatch(
+                $companyId,
+                'tasks_new',
+                (int) $user->id,
+                'Новая задача',
+                $task->title,
+                ['route' => '/tasks/'.$task->id, 'task_id' => $task->id]
+            );
+        }
 
         return $this->successResponse([
             'data' => new TaskResource($task),

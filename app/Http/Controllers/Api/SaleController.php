@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateSaleRequest;
 use App\Http\Resources\SaleResource;
 use App\Repositories\SalesRepository;
 use App\Services\CacheService;
+use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use App\Support\NullableInt;
 use Illuminate\Http\Request;
 
@@ -22,8 +23,10 @@ class SaleController extends BaseController
      *
      * @param SalesRepository $itemsRepository Репозиторий продаж
      */
-    public function __construct(SalesRepository $itemsRepository)
-    {
+    public function __construct(
+        SalesRepository $itemsRepository,
+        private readonly InAppNotificationDispatcher $inAppNotificationDispatcher,
+    ) {
         $this->itemsRepository = $itemsRepository;
     }
 
@@ -101,13 +104,23 @@ class SaleController extends BaseController
         ];
 
         try {
-            $this->itemsRepository->createItem($data);
+            $sale = $this->itemsRepository->createItem($data);
 
             CacheService::invalidateSalesCache();
             CacheService::invalidateClientsCache();
             if ($request->project_id) {
                 CacheService::invalidateProjectsCache();
             }
+
+            $companyId = (int) $this->getCurrentCompanyId();
+            $this->inAppNotificationDispatcher->dispatch(
+                $companyId,
+                'sales_new',
+                $userUuid,
+                'Новая продажа',
+                'Продажа #'.$sale->id,
+                ['route' => '/sales/'.$sale->id, 'sale_id' => $sale->id]
+            );
 
             return $this->successResponse(null, 'Продажа добавлена', 201);
         } catch (\Throwable $e) {
@@ -131,9 +144,7 @@ class SaleController extends BaseController
             return $this->errorResponse('Продажа не найдена', 404);
         }
 
-        if (!$this->canPerformAction('sales', 'update', $sale)) {
-            return $this->errorResponse('У вас нет прав на редактирование этой продажи', 403);
-        }
+        $this->authorize('update', $sale);
 
         $validatedData = $request->validated();
 
@@ -195,9 +206,7 @@ class SaleController extends BaseController
             return $this->errorResponse('Not found', 404);
         }
 
-        if (!$this->canPerformAction('sales', 'view', $item)) {
-            return $this->errorResponse('У вас нет прав на просмотр этой продажи', 403);
-        }
+        $this->authorize('view', $item);
 
         return $this->successResponse(new SaleResource($item));
     }
@@ -217,9 +226,7 @@ class SaleController extends BaseController
             return $this->errorResponse('Продажа не найдена', 404);
         }
 
-        if (!$this->canPerformAction('sales', 'delete', $sale)) {
-            return $this->errorResponse('У вас нет прав на удаление этой продажи', 403);
-        }
+        $this->authorize('delete', $sale);
 
         try {
             $projectId = $sale->project_id ?? null;

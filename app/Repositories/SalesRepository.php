@@ -184,7 +184,7 @@ class SalesRepository extends BaseRepository
      *   - products (array) Массив продуктов с полями: product_id, quantity, price
      *   - currency_id (int|null) ID валюты
      *   - client_balance_id (int|null) Явный баланс клиента
-     * @return bool
+     * @return \App\Models\Sale
      * @throws \Exception При ошибке валидации или транзакции
      */
     public function createItem(array $data)
@@ -298,7 +298,7 @@ class SalesRepository extends BaseRepository
             CacheService::invalidateClientsCache();
             $this->invalidateClientBalanceCache($clientId);
 
-            return true;
+            return $sale;
         });
     }
 

@@ -13,7 +13,7 @@ class BroadcastJson
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->is('broadcasting/auth') && $request->isJson()) {
+        if (($request->is('broadcasting/auth') || $request->is('api/broadcasting/auth')) && $request->isJson()) {
             $request->merge($request->json()->all());
         }
 

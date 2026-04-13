@@ -7,8 +7,10 @@ use App\Models\Category;
 use App\Models\CategoryUser;
 use App\Models\Currency;
 use App\Models\User;
+use App\Support\SimpleUser;
 use App\Services\CurrencyConverter;
 use App\Services\RoundingService;
+use App\Support\CompanyScopedPermissions;
 use App\Support\ResolvedCompany;
 
 abstract class BaseRepository
@@ -31,39 +33,22 @@ abstract class BaseRepository
      */
     protected function getUserCategoryIds(int $userId): array
     {
-        $currentUser = auth('api')->user();
-        $isSimpleWorker = false;
-        
-        if ($currentUser instanceof User) {
-            $isSimpleWorker = $currentUser->hasRole(config('simple.worker_role'));
-            
-            if (!$isSimpleWorker) {
-                $permissions = $this->getUserPermissionsForCompany($currentUser);
-                foreach ($permissions as $permission) {
-                    if (str_starts_with($permission, 'orders_simple_')) {
-                        $isSimpleWorker = true;
-                        break;
-                    }
-                }
+        $user = User::query()->find($userId);
+
+        if ($user && SimpleUser::matches($user)) {
+            $rootId = SimpleUser::rootCategoryIdForCurrentCompany($user);
+            if ($rootId === null) {
+                return [];
             }
+            $ids = Category::descendantIdsIncludingRoot($rootId);
+            sort($ids);
+
+            return $ids;
         }
 
-        if ($isSimpleWorker) {
-            $mapping = config('simple.user_category_mapping', []);
-            $mappedCategoryId = $mapping[$userId] ?? null;
-
-            if ($mappedCategoryId) {
-                $categoryIds = $this->getCategoryWithChildrenIds($mappedCategoryId);
-            } else {
-                $categoryIds = CategoryUser::where('user_id', $userId)
-                    ->pluck('category_id')
-                    ->toArray();
-            }
-        } else {
-            $categoryIds = CategoryUser::where('user_id', $userId)
-                ->pluck('category_id')
-                ->toArray();
-        }
+        $categoryIds = CategoryUser::where('user_id', $userId)
+            ->pluck('category_id')
+            ->toArray();
 
         if (empty($categoryIds)) {
             return [];
@@ -80,24 +65,6 @@ abstract class BaseRepository
 
         $categoryIds = array_values(array_unique($categoryIds));
         sort($categoryIds);
-
-        return $categoryIds;
-    }
-
-    /**
-     * Получить ID категории и всех её подкатегорий рекурсивно
-     *
-     * @param int $categoryId ID категории
-     * @return array
-     */
-    protected function getCategoryWithChildrenIds(int $categoryId): array
-    {
-        $categoryIds = [$categoryId];
-        $children = Category::where('parent_id', $categoryId)->pluck('id')->toArray();
-
-        foreach ($children as $childId) {
-            $categoryIds = array_merge($categoryIds, $this->getCategoryWithChildrenIds($childId));
-        }
 
         return $categoryIds;
     }
@@ -482,14 +449,11 @@ abstract class BaseRepository
     {
         /** @var \App\Models\User|null $user */
         $user = $user ?? auth('api')->user();
-        if (!$user) {
+        if (! $user) {
             return [];
         }
 
-        $companyId = $this->getCurrentCompanyId();
-        return $companyId
-            ? $user->getAllPermissionsForCompany((int)$companyId)->pluck('name')->toArray()
-            : $user->getAllPermissions()->pluck('name')->toArray();
+        return CompanyScopedPermissions::namesForCompany($user, $this->getCurrentCompanyId());
     }
 
     /**

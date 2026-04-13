@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\Template;
 use App\Services\CacheService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class TransactionTemplateRepository extends BaseRepository
@@ -28,13 +29,13 @@ class TransactionTemplateRepository extends BaseRepository
      * @param int $perPage
      * @param int $page
      * @param array<string, mixed> $filters
-     * @return LengthAwarePaginator
+     * @return LengthAwarePaginator<Template>
      */
     public function getItemsWithPagination($perPage = 20, $page = 1, array $filters = []): LengthAwarePaginator
     {
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $filtersKey = !empty($filters) ? md5(json_encode($filters)) : 'no_filters';
+        $filtersKey = $this->filtersCacheKey($filters);
         $cacheKey = $this->generateCacheKey('transaction_templates_paginated', [
             $perPage, $filtersKey, $currentUser?->id, $companyId,
         ]);
@@ -53,13 +54,13 @@ class TransactionTemplateRepository extends BaseRepository
 
     /**
      * @param array<string, mixed> $filters
-     * @return Collection
+     * @return Collection<int, Template>
      */
     public function getAllItems(array $filters = []): Collection
     {
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $filtersKey = !empty($filters) ? md5(json_encode($filters)) : 'no_filters';
+        $filtersKey = $this->filtersCacheKey($filters);
         $cacheKey = $this->generateCacheKey('transaction_templates_all', [
             $filtersKey, $currentUser?->id, $companyId,
         ]);
@@ -130,11 +131,11 @@ class TransactionTemplateRepository extends BaseRepository
     }
 
     /**
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param Builder<Template> $query
      * @param array<string, mixed> $filters
      * @return void
      */
-    private function applyFilters($query, array $filters): void
+    private function applyFilters(Builder $query, array $filters): void
     {
         $query->when(isset($filters['cash_id']), fn ($q) => $q->where('templates.cash_id', $filters['cash_id']));
         $query->when(isset($filters['type']) && $filters['type'] !== '' && $filters['type'] !== null, fn ($q) => $q->where('templates.type', $filters['type']));
@@ -145,5 +146,18 @@ class TransactionTemplateRepository extends BaseRepository
                     ->orWhere('templates.note', 'like', "%{$search}%");
             });
         });
+    }
+
+    /**
+     * @param array<string, mixed> $filters
+     */
+    private function filtersCacheKey(array $filters): string
+    {
+        if ($filters === []) {
+            return 'no_filters';
+        }
+        $json = json_encode($filters);
+
+        return md5($json !== false ? $json : serialize($filters));
     }
 }

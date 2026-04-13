@@ -31,7 +31,7 @@ class StoreTransferRequest extends FormRequest
             'cash_id_to' => ['required', 'integer', 'different:cash_id_from', new CashRegisterAccessRule()],
             'amount' => 'required|numeric|min:0.01',
             'note' => 'nullable|sometimes|string',
-            'exchange_rate' => 'nullable|sometimes|numeric|min:0.000001',
+            'exchange_rate' => 'nullable|sometimes|numeric|min:0.00001',
         ];
     }
 

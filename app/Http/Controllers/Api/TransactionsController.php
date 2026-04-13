@@ -11,6 +11,7 @@ use App\Models\ProjectContract;
 use App\Exports\GenericExport;
 use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
+use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -27,8 +28,10 @@ class TransactionsController extends BaseController
      *
      * @param TransactionsRepository $itemsRepository Репозиторий транзакций
      */
-    public function __construct(TransactionsRepository $itemsRepository)
-    {
+    public function __construct(
+        TransactionsRepository $itemsRepository,
+        private readonly InAppNotificationDispatcher $inAppNotificationDispatcher,
+    ) {
         $this->itemsRepository = $itemsRepository;
     }
 
@@ -181,7 +184,7 @@ class TransactionsController extends BaseController
         $validatedData = $request->validated();
 
         if (isset($validatedData['is_adjustment']) && $validatedData['is_adjustment']) {
-            if (!$this->hasPermission('settings_client_balance_adjustment')) {
+            if (! $this->requireAuthenticatedUser()->can('settings_client_balance_adjustment')) {
                 return $this->errorResponse('У вас нет прав на корректировку баланса', 403);
             }
         }
@@ -209,7 +212,7 @@ class TransactionsController extends BaseController
             $validatedData['category_id']
         );
 
-        $item_created = $this->itemsRepository->createItem([
+        $transactionId = $this->itemsRepository->createItem([
             'type' => $validatedData['type'],
             'creator_id' => $userUuid,
             'orig_amount' => $validatedData['orig_amount'],
@@ -225,9 +228,9 @@ class TransactionsController extends BaseController
             'date' => $validatedData['date'] ?? now(),
             'is_debt' => $validatedData['is_debt'] ?? false,
             'exchange_rate' => $validatedData['exchange_rate'] ?? null
-        ]);
+        ], true);
 
-        if (!$item_created) {
+        if (! $transactionId) {
             return $this->errorResponse('Ошибка создания транзакции', 400);
         }
 
@@ -239,6 +242,20 @@ class TransactionsController extends BaseController
             CacheService::invalidateProjectsCache();
         }
         CacheService::invalidateCashRegistersCache();
+
+        if (empty($validatedData['is_adjustment'])) {
+            $companyId = (int) $this->getCurrentCompanyId();
+            if ($companyId >= 1) {
+                $this->inAppNotificationDispatcher->dispatch(
+                    $companyId,
+                    'transactions_new',
+                    $this->getAuthenticatedUserIdOrFail(),
+                    'Новая транзакция #'.$transactionId,
+                    null,
+                    ['route' => '/transactions/'.$transactionId, 'transaction_id' => $transactionId]
+                );
+            }
+        }
 
         return $this->successResponse(null, 'Транзакция создана');
     }
@@ -262,14 +279,12 @@ class TransactionsController extends BaseController
             (isset($validatedData['category_id']) && in_array($validatedData['category_id'], [21, 22]));
 
         if ($isAdjustmentCategory) {
-            if (!$this->hasPermission('settings_client_balance_adjustment')) {
+            if (! $this->requireAuthenticatedUser()->can('settings_client_balance_adjustment')) {
                 return $this->errorResponse('У вас нет прав на корректировку баланса', 403);
             }
         }
 
-        if (!$this->canPerformAction('transactions', 'update', $transaction_exist)) {
-            return $this->errorResponse('У вас нет прав на редактирование этой транзакции', 403);
-        }
+        $this->authorize('update', $transaction_exist);
 
         $restrictionMessage = $this->getTransactionRestrictionMessage($transaction_exist);
         if ($restrictionMessage !== null) {
@@ -360,9 +375,7 @@ class TransactionsController extends BaseController
 
         $transaction_exist = Transaction::findOrFail($id);
 
-        if (!$this->canPerformAction('transactions', 'delete', $transaction_exist)) {
-            return $this->errorResponse('У вас нет прав на удаление этой транзакции', 403);
-        }
+        $this->authorize('delete', $transaction_exist);
 
         $restrictionMessage = $this->getTransactionRestrictionMessage($transaction_exist);
         if ($restrictionMessage !== null) {
@@ -421,9 +434,7 @@ class TransactionsController extends BaseController
 
         $transaction = Transaction::findOrFail($id);
 
-        if (!$this->canPerformAction('transactions', 'view', $transaction)) {
-            return $this->errorResponse('У вас нет прав на просмотр этой транзакции', 403);
-        }
+        $this->authorize('view', $transaction);
 
         $item = $this->itemsRepository->getItemById($id);
         if (!$item) {

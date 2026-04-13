@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Events\TransactionCreated;
 use App\Models\CashRegister;
 use App\Models\Client;
 use App\Models\ClientBalance;
@@ -601,6 +602,10 @@ class TransactionsRepository extends BaseRepository
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
+        }
+
+        if ($companyId) {
+            event(new TransactionCreated((int) $companyId, (int) $transaction->id, (int) $transaction->creator_id));
         }
 
         return $return_id ? $transaction->id : true;

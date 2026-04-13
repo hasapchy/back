@@ -43,7 +43,7 @@ class ProductsRepository extends BaseRepository
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             if ($categoryId) {
-                $userCategoryIds = array_intersect($userCategoryIds, [$categoryId]);
+                $userCategoryIds = array_values(array_intersect($userCategoryIds, [$categoryId]));
             }
 
             if (empty($userCategoryIds)) {
@@ -122,7 +122,7 @@ class ProductsRepository extends BaseRepository
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             if ($categoryId) {
-                $userCategoryIds = array_intersect($userCategoryIds, [$categoryId]);
+                $userCategoryIds = array_values(array_intersect($userCategoryIds, [$categoryId]));
             }
 
             if (empty($userCategoryIds)) {
@@ -231,10 +231,10 @@ class ProductsRepository extends BaseRepository
             $product->type = $data['type'];
             $product->image = $data['image'] ?? null;
             $product->name = $data['name'];
-            $product->description = $data['description'];
+            $product->description = $data['description'] ?? null;
             $product->sku = $data['sku'];
-            $product->barcode = $data['barcode'];
-            $product->unit_id = $data['unit_id'];
+            $product->barcode = $data['barcode'] ?? null;
+            $product->unit_id = $data['unit_id'] ?? null;
             $product->date = $data['date'] ?? now();
             $product->creator_id = $data['creator_id'] ?? auth()->id();
             $product->save();

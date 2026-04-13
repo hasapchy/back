@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Project;
+use App\Models\ProjectContract;
 use App\Rules\ProjectAccessRule;
 use App\Rules\CashRegisterTypeMatchRule;
 use Illuminate\Contracts\Validation\Validator;
@@ -19,7 +20,7 @@ class StoreProjectContractRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', ProjectContract::class);
     }
 
     /**

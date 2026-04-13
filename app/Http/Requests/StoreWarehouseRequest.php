@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Warehouse;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
@@ -15,7 +16,7 @@ class StoreWarehouseRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', Warehouse::class);
     }
 
     /**

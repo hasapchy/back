@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Resources\LeaveResource;
 use App\Models\Leave;
 use App\Repositories\LeaveRepository;
+use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use Illuminate\Http\Request;
 
 /**
@@ -17,8 +18,10 @@ class LeaveController extends BaseController
     /**
      * Конструктор контроллера
      */
-    public function __construct(LeaveRepository $itemsRepository)
-    {
+    public function __construct(
+        LeaveRepository $itemsRepository,
+        private readonly InAppNotificationDispatcher $inAppNotificationDispatcher,
+    ) {
         $this->itemsRepository = $itemsRepository;
     }
 
@@ -112,6 +115,19 @@ class LeaveController extends BaseController
         $created = $this->itemsRepository->createItem($data);
         if (! $created) {
             return $this->errorResponse('Ошибка создания записи отпуска', 400);
+        }
+
+        $companyId = (int) $this->getCurrentCompanyId();
+        $leaveUserId = (int) ($data['user_id'] ?? $userUuid);
+        if ($companyId > 0 && $leaveUserId > 0) {
+            $this->inAppNotificationDispatcher->dispatch(
+                $companyId,
+                'leaves_new',
+                $leaveUserId,
+                'Новая заявка на отпуск',
+                'С '.substr((string) $data['date_from'], 0, 10).' по '.substr((string) $data['date_to'], 0, 10),
+                ['route' => '/leaves/'.$created->id, 'leave_id' => $created->id]
+            );
         }
 
         return $this->successResponse(new LeaveResource($created), 'Запись отпуска создана');

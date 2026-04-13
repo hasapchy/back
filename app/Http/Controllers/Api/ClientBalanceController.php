@@ -27,10 +27,8 @@ class ClientBalanceController extends BaseController
         try {
             $client = Client::findOrFail($clientId);
 
-            if (!$this->canPerformAction('clients', 'view', $client)) {
-                return $this->errorResponse('У вас нет прав на просмотр этого клиента', 403);
-            }
-            if (!$this->hasPermission('client_balances_view_all')) {
+            $this->authorize('view', $client);
+            if (! $this->requireAuthenticatedUser()->can('client_balances_view_all')) {
                 return $this->errorResponse('У вас нет прав на просмотр балансов клиента', 403);
             }
 
@@ -42,6 +40,8 @@ class ClientBalanceController extends BaseController
             $balancesData = $balances->values()->map(fn ($balance) => $this->formatBalanceResponse($balance))->all();
 
             return $this->successResponse(ClientBalanceResource::collection($balancesData)->resolve());
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при получении балансов клиента: ' . $e->getMessage(), 500);
         }
@@ -69,10 +69,8 @@ class ClientBalanceController extends BaseController
 
             $client = Client::findOrFail($clientId);
 
-            if (!$this->canPerformAction('clients', 'update', $client)) {
-                return $this->errorResponse('У вас нет прав на редактирование этого клиента', 403);
-            }
-            if (!$this->hasPermission('client_balances_create')) {
+            $this->authorize('update', $client);
+            if (! $this->requireAuthenticatedUser()->can('client_balances_create')) {
                 return $this->errorResponse('У вас нет прав на создание баланса клиента', 403);
             }
 
@@ -105,6 +103,8 @@ class ClientBalanceController extends BaseController
             return $this->successResponse(new ClientBalanceResource($this->formatBalanceResponse($balance)), 'Баланс создан успешно', 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse($e->getMessage(), 422);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при создании баланса: ' . $e->getMessage(), 500);
         }
@@ -135,10 +135,8 @@ class ClientBalanceController extends BaseController
                 ->findOrFail($id);
 
             $client = $balance->client;
-            if (!$this->canPerformAction('clients', 'update', $client)) {
-                return $this->errorResponse('У вас нет прав на редактирование этого клиента', 403);
-            }
-            if (!$this->hasPermission('client_balances_update_all')) {
+            $this->authorize('update', $client);
+            if (! $this->requireAuthenticatedUser()->can('client_balances_update_all')) {
                 return $this->errorResponse('У вас нет прав на редактирование баланса клиента', 403);
             }
 
@@ -184,6 +182,8 @@ class ClientBalanceController extends BaseController
             return $this->successResponse(new ClientBalanceResource($this->formatBalanceResponse($balance)), 'Баланс обновлен успешно');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse($e->getMessage(), 422);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при обновлении баланса: ' . $e->getMessage(), 500);
         }
@@ -201,10 +201,8 @@ class ClientBalanceController extends BaseController
         try {
             $balance = ClientBalance::where('client_id', $clientId)->findOrFail($id);
             $client = $balance->client;
-            if (!$this->canPerformAction('clients', 'update', $client)) {
-                return $this->errorResponse('У вас нет прав на редактирование этого клиента', 403);
-            }
-            if (!$this->hasPermission('client_balances_delete_all')) {
+            $this->authorize('update', $client);
+            if (! $this->requireAuthenticatedUser()->can('client_balances_delete_all')) {
                 return $this->errorResponse('У вас нет прав на удаление баланса клиента', 403);
             }
 
@@ -233,6 +231,8 @@ class ClientBalanceController extends BaseController
             CacheService::invalidateClientBalanceCache($balance->client_id);
 
             return $this->successResponse(null, 'Баланс удален успешно');
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при удалении баланса: ' . $e->getMessage(), 500);
         }

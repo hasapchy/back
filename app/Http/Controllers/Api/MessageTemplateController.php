@@ -143,9 +143,7 @@ class MessageTemplateController extends BaseController
     {
         $userId = $this->getAuthenticatedUserIdOrFail();
 
-        if (! $this->hasPermission('templates_create')) {
-            return $this->errorResponse('У вас нет прав на создание шаблонов', 403);
-        }
+        $this->authorize('create', MessageTemplate::class);
 
         $validatedData = $request->validated();
 
@@ -175,9 +173,7 @@ class MessageTemplateController extends BaseController
         try {
             $template = MessageTemplate::findOrFail($id);
 
-            if (! $this->canPerformAction('templates', 'update', $template)) {
-                return $this->errorResponse('У вас нет прав на редактирование этого шаблона', 403);
-            }
+            $this->authorize('update', $template);
 
             $validatedData = $request->validated();
 
@@ -192,6 +188,8 @@ class MessageTemplateController extends BaseController
             $template = $this->repository->findItemWithRelations($id);
 
             return $this->successResponse(new MessageTemplateResource($template), 'Шаблон обновлен');
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Шаблон не найден', 404);
         }
@@ -210,13 +208,13 @@ class MessageTemplateController extends BaseController
         try {
             $template = MessageTemplate::findOrFail($id);
 
-            if (! $this->canPerformAction('templates', 'delete', $template)) {
-                return $this->errorResponse('У вас нет прав на удаление этого шаблона', 403);
-            }
+            $this->authorize('delete', $template);
 
             $this->repository->deleteItem($id);
 
             return $this->successResponse(null, 'Шаблон удален');
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Шаблон не найден', 404);
         }
@@ -243,7 +241,7 @@ class MessageTemplateController extends BaseController
             foreach ($ids as $id) {
                 try {
                     $template = MessageTemplate::findOrFail($id);
-                    if ($this->canPerformAction('templates', 'delete', $template)) {
+                    if ($this->getAuthenticatedUser()?->can('delete', $template)) {
                         $this->repository->deleteItem($id);
                         $deleted++;
                     }
