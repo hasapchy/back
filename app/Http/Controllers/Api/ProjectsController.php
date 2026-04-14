@@ -5,13 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Http\Resources\ProjectResource;
+use App\Models\Project;
 use App\Repositories\ProjectsRepository;
 use App\Services\CacheService;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use App\Models\Project;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use ZipArchive;
 
 /**
@@ -24,20 +27,17 @@ class ProjectsController extends BaseController
      */
     protected $itemsRepository;
 
-    /**
-     * @param ProjectsRepository $itemsRepository
-     */
-    public function __construct(ProjectsRepository $itemsRepository)
-    {
+    public function __construct(
+        ProjectsRepository $itemsRepository,
+    ) {
         $this->itemsRepository = $itemsRepository;
     }
 
     /**
      * Подготовить данные проекта из запроса
      *
-     * @param Request $request
-     * @param int $userId ID пользователя
-     * @return array
+     * @param  Request  $request
+     * @param  int  $userId  ID пользователя
      */
     private function prepareProjectData(array $validatedData, int $userId): array
     {
@@ -63,8 +63,7 @@ class ProjectsController extends BaseController
     /**
      * Получить список проектов с пагинацией
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -96,13 +95,10 @@ class ProjectsController extends BaseController
     /**
      * Получить все проекты
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function all(Request $request)
     {
-        $this->authorize('viewAny', Project::class);
-
         $this->getAuthenticatedUserIdOrFail();
 
         $activeOnly = (bool) $request->input('active_only', false);
@@ -114,8 +110,7 @@ class ProjectsController extends BaseController
     /**
      * Создать новый проект
      *
-     * @param StoreProjectRequest $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(StoreProjectRequest $request)
     {
@@ -131,7 +126,7 @@ class ProjectsController extends BaseController
         try {
             $itemCreated = $this->itemsRepository->createItem($itemData);
 
-            if (!$itemCreated) {
+            if (! $itemCreated) {
                 return $this->errorResponse('Ошибка создания проекта', 400);
             }
 
@@ -139,16 +134,15 @@ class ProjectsController extends BaseController
 
             return $this->successResponse(null, 'Проект создан');
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка создания проекта: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка создания проекта: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Обновить проект
      *
-     * @param UpdateProjectRequest $request
-     * @param int $id ID проекта
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID проекта
+     * @return JsonResponse
      */
     public function update(UpdateProjectRequest $request, $id)
     {
@@ -166,7 +160,7 @@ class ProjectsController extends BaseController
         try {
             $itemUpdated = $this->itemsRepository->updateItem($id, $itemData);
 
-            if (!$itemUpdated) {
+            if (! $itemUpdated) {
                 return $this->errorResponse('Ошибка обновления проекта', 400);
             }
 
@@ -174,27 +168,27 @@ class ProjectsController extends BaseController
 
             return $this->successResponse(null, 'Проект обновлен');
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка обновления проекта: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка обновления проекта: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Получить проект по ID
      *
-     * @param int $id ID проекта
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID проекта
+     * @return JsonResponse
      */
     public function show($id)
     {
         $this->getAuthenticatedUserIdOrFail();
-        
+
         $project = Project::findOrFail($id);
 
         $this->authorize('view', $project);
 
         $project = $this->itemsRepository->findItemWithRelations($id);
 
-        if (!$project) {
+        if (! $project) {
             return $this->errorResponse('Проект не найден или доступ запрещен', 404);
         }
 
@@ -204,24 +198,23 @@ class ProjectsController extends BaseController
     /**
      * Загрузить файлы проекта
      *
-     * @param Request $request
-     * @param int $id ID проекта
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID проекта
+     * @return JsonResponse
      */
     public function uploadFiles(Request $request, $id)
     {
         $request->validate([
-            'files.*' => 'required|file|max:10240|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,gif,bmp,svg,zip,rar,7z,txt,md'
+            'files.*' => 'required|file|max:10240|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,gif,bmp,svg,zip,rar,7z,txt,md',
         ], [
             'files.*.max' => 'Файл не должен превышать 10MB',
-            'files.*.mimes' => 'Неподдерживаемый тип файла'
+            'files.*.mimes' => 'Неподдерживаемый тип файла',
         ]);
 
         $files = $request->file('files');
 
         if (is_null($files)) {
             $files = [];
-        } elseif ($files instanceof \Illuminate\Http\UploadedFile) {
+        } elseif ($files instanceof UploadedFile) {
             $files = [$files];
         }
 
@@ -244,8 +237,8 @@ class ProjectsController extends BaseController
             }
 
             foreach ($files as $file) {
-                $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('projects/' . $project->id, $filename, 'public');
+                $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
+                $path = $file->storeAs('projects/'.$project->id, $filename, 'public');
 
                 $storedFiles[] = [
                     'name' => $file->getClientOriginalName(),
@@ -259,7 +252,7 @@ class ProjectsController extends BaseController
             $project->update(['files' => $storedFiles]);
 
             return $this->successResponse($storedFiles, 'Files uploaded successfully');
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Ошибка при загрузке файлов: Internal server error', 500);
@@ -269,9 +262,8 @@ class ProjectsController extends BaseController
     /**
      * Скачать выбранные файлы проекта в архиве
      *
-     * @param Request $request
-     * @param int $id ID проекта
-     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\JsonResponse
+     * @param  int  $id  ID проекта
+     * @return BinaryFileResponse|JsonResponse
      */
     public function downloadFiles(Request $request, $id)
     {
@@ -281,14 +273,14 @@ class ProjectsController extends BaseController
 
         $files = collect($project->files ?? [])
             ->whereIn('path', $request->input('paths', []))
-            ->filter(fn($file) => Storage::disk('public')->exists($file['path']));
+            ->filter(fn ($file) => Storage::disk('public')->exists($file['path']));
 
         if ($files->isEmpty()) {
             return $this->errorResponse('Файлы не найдены', 404);
         }
 
-        $zipPath = storage_path('app/temp/project_' . $project->id . '_' . time() . '.zip');
-        $zip = new ZipArchive();
+        $zipPath = storage_path('app/temp/project_'.$project->id.'_'.time().'.zip');
+        $zip = new ZipArchive;
 
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             return $this->errorResponse('Не удалось создать архив', 500);
@@ -297,7 +289,7 @@ class ProjectsController extends BaseController
         foreach ($files as $file) {
             $safeName = basename(str_replace(["\0", '..', '/', '\\'], '', $file['name'] ?? 'file'));
             $safeName = $safeName ?: 'file';
-            $zip->addFile(storage_path('app/public/' . $file['path']), $safeName);
+            $zip->addFile(storage_path('app/public/'.$file['path']), $safeName);
         }
 
         $zip->close();
@@ -308,9 +300,8 @@ class ProjectsController extends BaseController
     /**
      * Удалить файл проекта
      *
-     * @param Request $request
-     * @param int $id ID проекта
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID проекта
+     * @return JsonResponse
      */
     public function deleteFile(Request $request, $id)
     {
@@ -322,7 +313,7 @@ class ProjectsController extends BaseController
             $this->authorize('update', $project);
 
             $filePath = $request->input('path');
-            if (!$filePath || str_contains($filePath, '..') || !str_starts_with($filePath, 'projects/' . $id . '/')) {
+            if (! $filePath || str_contains($filePath, '..') || ! str_starts_with($filePath, 'projects/'.$id.'/')) {
                 return $this->errorResponse('Некорректный путь файла', 400);
             }
 
@@ -336,21 +327,21 @@ class ProjectsController extends BaseController
                     if (Storage::disk('public')->exists($filePath)) {
                         Storage::disk('public')->delete($filePath);
                     }
+
                     continue;
                 }
                 $updatedFiles[] = $file;
             }
 
-            if (!$deletedFile) {
+            if (! $deletedFile) {
                 return $this->errorResponse('Файл не найден в проекте', 404);
             }
 
             $project->files = $updatedFiles;
             $project->save();
 
-
             return $this->successResponse($updatedFiles, 'Файл успешно удалён');
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Внутренняя ошибка сервера', 500);
@@ -360,9 +351,8 @@ class ProjectsController extends BaseController
     /**
      * Получить историю баланса проекта
      *
-     * @param Request $request
-     * @param int $id ID проекта
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID проекта
+     * @return JsonResponse
      */
     public function getBalanceHistory(Request $request, $id)
     {
@@ -395,18 +385,18 @@ class ProjectsController extends BaseController
             }
 
             return $this->successResponse($response);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            return $this->errorResponse('Ошибка при получении истории баланса проекта: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при получении истории баланса проекта: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Получить детальный баланс проекта
      *
-     * @param int $id ID проекта
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID проекта
+     * @return JsonResponse
      */
     public function getDetailedBalance($id)
     {
@@ -418,18 +408,18 @@ class ProjectsController extends BaseController
             $detailedBalance = $this->itemsRepository->getDetailedBalance($id);
 
             return $this->successResponse($detailedBalance);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            return $this->errorResponse('Ошибка при получении детального баланса проекта: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при получении детального баланса проекта: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Удалить проект
      *
-     * @param int $id ID проекта
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID проекта
+     * @return JsonResponse
      */
     public function destroy($id)
     {
@@ -442,7 +432,7 @@ class ProjectsController extends BaseController
         try {
             $deleted = $this->itemsRepository->deleteItem($id);
 
-            if (!$deleted) {
+            if (! $deleted) {
                 return $this->errorResponse('Ошибка удаления проекта', 400);
             }
 
@@ -454,38 +444,4 @@ class ProjectsController extends BaseController
         }
     }
 
-    /**
-     * Массовое обновление статуса проектов
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function batchUpdateStatus(Request $request)
-    {
-        $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'ids'       => 'required|array|min:1',
-            'ids.*'     => 'integer|exists:projects,id',
-            'status_id' => 'required|integer|exists:project_statuses,id',
-        ]);
-
-        $projects = Project::whereIn('id', $request->ids)->get();
-        foreach ($projects as $project) {
-            $this->authorize('update', $project);
-        }
-
-        try {
-            $affected = $this->itemsRepository
-                ->updateStatusByIds($request->ids, $request->status_id);
-
-            if ($affected > 0) {
-                return $this->successResponse(null, "Статус обновлён у {$affected} проект(ов)");
-            } else {
-                return $this->successResponse(null, "Статус не изменился");
-            }
-        } catch (\Throwable $th) {
-            return $this->errorResponse($th->getMessage() ?: 'Ошибка смены статуса', 400);
-        }
-    }
 }

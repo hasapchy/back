@@ -114,6 +114,8 @@ class SalaryAccrualService
             throw new \Exception($emptyUserIdsMessage);
         }
 
+        $uniqueUserIds = array_values(array_unique(array_map('intval', $userIds)));
+
         $results = [
             'success' => [],
             'skipped' => [],
@@ -124,12 +126,14 @@ class SalaryAccrualService
             ->where('client_type', 'employee')
             ->where('status', true)
             ->whereNotNull('employee_id')
-            ->whereIn('employee_id', $userIds)
+            ->whereIn('employee_id', $uniqueUserIds)
             ->get();
 
-        if ($employees->isEmpty()) {
-            return $results;
-        }
+        $employeesByUserId = $employees
+            ->groupBy(fn (Client $c) => (int) $c->employee_id)
+            ->map(fn (Collection $group) => $group->first());
+
+        $this->assertEveryUserHasActiveEmployeeClient($uniqueUserIds, $employeesByUserId);
 
         $cashRegister = CashRegister::findOrFail($cashId);
         if ($cashRegister->company_id !== $companyId) {
@@ -140,9 +144,8 @@ class SalaryAccrualService
         $itemByUserId = $this->salaryItemsIndexedByCreatorId($items);
         $batchLines = [];
 
-        $payrollUserIds = $employees->pluck('employee_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
         $payrollUsersById = User::query()
-            ->whereIn('id', $payrollUserIds)
+            ->whereIn('id', $uniqueUserIds)
             ->get(['id', 'name', 'surname', 'hire_date', 'dismissal_date'])
             ->keyBy('id');
 
@@ -153,26 +156,30 @@ class SalaryAccrualService
             $company = Company::query()->findOrFail($companyId);
             $monthPayroll = $this->payrollMonthDayBounds($date);
 
-            foreach ($employees as $employeeClient) {
+            foreach ($uniqueUserIds as $userId) {
+                $employeeClient = $employeesByUserId->get($userId);
                 $employeePayload = $this->employeeClientOutcomeBase($employeeClient);
                 try {
-                    $sel = $itemByUserId[$employeeClient->employee_id] ?? null;
+                    $sel = $itemByUserId[$userId] ?? null;
                     $activeSalary = $this->resolveActiveEmployeeSalary(
                         $companyId,
-                        (int) $employeeClient->employee_id,
+                        $userId,
                         $paymentTypeValue,
                         $sel
                     );
 
                     if (! $activeSalary) {
-                        $results['skipped'][] = $employeePayload + ['reason' => 'Нет активной зарплаты'];
-
-                        continue;
+                        $id = $userId;
+                        $hint = trim((string) ($employeePayload['employee_name'] ?? '')) !== ''
+                            ? $employeePayload['employee_name'].' (ID '.$id.')'
+                            : 'ID '.$id;
+                        throw new \Exception('Нет активной зарплаты: '.$hint);
                     }
 
                     $activeSalary->loadMissing('currency');
-                    $empUserId = (int) $employeeClient->employee_id;
-                    $payrollUser = $payrollUsersById->get($empUserId);
+                    $this->assertSelectedClientBalanceIfAny($sel, $employeeClient, $activeSalary);
+
+                    $payrollUser = $payrollUsersById->get($userId);
                     $row = $this->createProRataSalaryTransaction(
                         $company,
                         $monthPayroll,
@@ -192,11 +199,11 @@ class SalaryAccrualService
                     $results['success'][] = $employeePayload + $row['success_payload'];
                 } catch (\Throwable $e) {
                     Log::error($logErrorEventLabel, [
-                        'employee_id' => $employeeClient->employee_id,
+                        'employee_id' => $userId,
                         'error' => $e->getMessage(),
                     ]);
 
-                    $id = (int) $employeeClient->employee_id;
+                    $id = $userId;
                     $hint = trim((string) ($employeePayload['employee_name'] ?? '')) !== ''
                         ? $employeePayload['employee_name'].' (ID '.$id.')'
                         : 'ID '.$id;
@@ -645,6 +652,56 @@ class SalaryAccrualService
             'employee_id' => $employeeClient->employee_id,
             'employee_name' => trim(($employeeClient->first_name ?? '').' '.($employeeClient->last_name ?? '')),
         ];
+    }
+
+    /**
+     * @param  array<int, int>  $uniqueUserIds
+     * @param  Collection<int, Client>  $employeesByUserId
+     */
+    private function assertEveryUserHasActiveEmployeeClient(array $uniqueUserIds, Collection $employeesByUserId): void
+    {
+        $missing = [];
+        foreach ($uniqueUserIds as $uid) {
+            if (! $employeesByUserId->has($uid)) {
+                $missing[] = $uid;
+            }
+        }
+        if ($missing === []) {
+            return;
+        }
+        $users = User::query()
+            ->whereIn('id', $missing)
+            ->get(['id', 'name', 'surname'])
+            ->keyBy('id');
+        $parts = [];
+        foreach ($missing as $mid) {
+            $u = $users->get($mid);
+            $parts[] = $this->formatUserDisplayName($u instanceof User ? $u : null, (int) $mid);
+        }
+        throw new \Exception(
+            'Нет карточки клиента-сотрудника (активной, с привязкой к пользователю): '.implode(', ', $parts)
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $sel
+     */
+    private function assertSelectedClientBalanceIfAny(?array $sel, Client $employeeClient, EmployeeSalary $activeSalary): void
+    {
+        if (! $sel || empty($sel['client_balance_id'])) {
+            return;
+        }
+        $ok = ClientBalance::query()
+            ->where('id', (int) $sel['client_balance_id'])
+            ->where('client_id', $employeeClient->id)
+            ->where('currency_id', $activeSalary->currency_id)
+            ->where('type', (int) $activeSalary->payment_type)
+            ->exists();
+        if (! $ok) {
+            throw new \Exception(
+                'Указанный баланс клиента не найден или не соответствует валюте и типу оплаты зарплаты'
+            );
+        }
     }
 
     /**

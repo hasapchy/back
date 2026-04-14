@@ -5123,9 +5123,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/projects\/batch-status",
+                            "path": "api\/projects\/batch\/status",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/projects\/batch-status"
+                            "raw": "{{baseUrl}}\/api\/projects\/batch\/status"
                         },
                         "method": "POST",
                         "header": [
@@ -6654,9 +6654,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/orders\/batch-status",
+                            "path": "api\/orders\/batch\/status",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/orders\/batch-status"
+                            "raw": "{{baseUrl}}\/api\/orders\/batch\/status"
                         },
                         "method": "POST",
                         "header": [
@@ -8032,9 +8032,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/company-holidays\/batch-delete",
+                            "path": "api\/company-holidays\/batch\/delete",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/company-holidays\/batch-delete"
+                            "raw": "{{baseUrl}}\/api\/company-holidays\/batch\/delete"
                         },
                         "method": "POST",
                         "header": [
@@ -10770,9 +10770,9 @@
                     "request": {
                         "url": {
                             "host": "{{baseUrl}}",
-                            "path": "api\/message-templates\/batch-delete",
+                            "path": "api\/message-templates\/batch\/delete",
                             "query": [],
-                            "raw": "{{baseUrl}}\/api\/message-templates\/batch-delete"
+                            "raw": "{{baseUrl}}\/api\/message-templates\/batch\/delete"
                         },
                         "method": "POST",
                         "header": [

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Batch\BatchEntityActions;
 use App\Http\Requests\StoreSaleRequest;
 use App\Http\Requests\UpdateSaleRequest;
 use App\Http\Resources\SaleResource;
@@ -9,7 +10,10 @@ use App\Repositories\SalesRepository;
 use App\Services\CacheService;
 use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use App\Support\NullableInt;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Контроллер для работы с продажами
@@ -21,11 +25,12 @@ class SaleController extends BaseController
     /**
      * Конструктор контроллера
      *
-     * @param SalesRepository $itemsRepository Репозиторий продаж
+     * @param  SalesRepository  $itemsRepository  Репозиторий продаж
      */
     public function __construct(
         SalesRepository $itemsRepository,
         private readonly InAppNotificationDispatcher $inAppNotificationDispatcher,
+        private readonly BatchEntityActions $batchEntityActions,
     ) {
         $this->itemsRepository = $itemsRepository;
     }
@@ -33,8 +38,7 @@ class SaleController extends BaseController
     /**
      * Получить список продаж с пагинацией
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -64,8 +68,7 @@ class SaleController extends BaseController
     /**
      * Создать новую продажу
      *
-     * @param StoreSaleRequest $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(StoreSaleRequest $request)
     {
@@ -84,22 +87,22 @@ class SaleController extends BaseController
         }
 
         $data = [
-            'creator_id'       => $userUuid,
-            'client_id'     => $validatedData['client_id'],
+            'creator_id' => $userUuid,
+            'client_id' => $validatedData['client_id'],
             'client_balance_id' => NullableInt::fromRequest($validatedData['client_balance_id'] ?? null),
-            'project_id'    => $validatedData['project_id'] ?? null,
-            'type'          => $validatedData['type'],
-            'cash_id'       => $validatedData['cash_id'] ?? null,
-            'warehouse_id'  => $validatedData['warehouse_id'],
-            'currency_id'   => $validatedData['currency_id'] ?? null,
-            'discount'      => $validatedData['discount'] ?? 0,
+            'project_id' => $validatedData['project_id'] ?? null,
+            'type' => $validatedData['type'],
+            'cash_id' => $validatedData['cash_id'] ?? null,
+            'warehouse_id' => $validatedData['warehouse_id'],
+            'currency_id' => $validatedData['currency_id'] ?? null,
+            'discount' => $validatedData['discount'] ?? 0,
             'discount_type' => $validatedData['discount_type'] ?? 'percent',
-            'date'          => $validatedData['date'] ?? now(),
-            'note'          => $validatedData['note'] ?? '',
-            'products'      => array_map(fn($p) => [
+            'date' => $validatedData['date'] ?? now(),
+            'note' => $validatedData['note'] ?? '',
+            'products' => array_map(fn ($p) => [
                 'product_id' => $p['product_id'],
-                'quantity'   => $p['quantity'],
-                'price'      => $p['price'],
+                'quantity' => $p['quantity'],
+                'price' => $p['price'],
             ], $validatedData['products']),
         ];
 
@@ -131,16 +134,15 @@ class SaleController extends BaseController
     /**
      * Обновить продажу
      *
-     * @param UpdateSaleRequest $request
-     * @param int $id ID продажи
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID продажи
+     * @return JsonResponse
      */
     public function update(UpdateSaleRequest $request, $id)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $sale = $this->itemsRepository->getItemById($id);
-        if (!$sale) {
+        if (! $sale) {
             return $this->errorResponse('Продажа не найдена', 404);
         }
 
@@ -159,22 +161,22 @@ class SaleController extends BaseController
         }
 
         $data = [
-            'creator_id'       => $userUuid,
-            'client_id'     => $validatedData['client_id'],
+            'creator_id' => $userUuid,
+            'client_id' => $validatedData['client_id'],
             'client_balance_id' => NullableInt::fromRequest($validatedData['client_balance_id'] ?? null),
-            'project_id'    => $validatedData['project_id'] ?? null,
-            'type'          => $validatedData['type'],
-            'cash_id'       => $validatedData['cash_id'] ?? null,
-            'warehouse_id'  => $validatedData['warehouse_id'],
-            'currency_id'   => $validatedData['currency_id'] ?? null,
-            'discount'      => $validatedData['discount'] ?? 0,
+            'project_id' => $validatedData['project_id'] ?? null,
+            'type' => $validatedData['type'],
+            'cash_id' => $validatedData['cash_id'] ?? null,
+            'warehouse_id' => $validatedData['warehouse_id'],
+            'currency_id' => $validatedData['currency_id'] ?? null,
+            'discount' => $validatedData['discount'] ?? 0,
             'discount_type' => $validatedData['discount_type'] ?? 'percent',
-            'date'          => $validatedData['date'] ?? now(),
-            'note'          => $validatedData['note'] ?? '',
-            'products'      => array_map(fn($p) => [
+            'date' => $validatedData['date'] ?? now(),
+            'note' => $validatedData['note'] ?? '',
+            'products' => array_map(fn ($p) => [
                 'product_id' => $p['product_id'],
-                'quantity'   => $p['quantity'],
-                'price'      => $p['price'],
+                'quantity' => $p['quantity'],
+                'price' => $p['price'],
             ], $validatedData['products']),
         ];
 
@@ -183,7 +185,7 @@ class SaleController extends BaseController
 
             CacheService::invalidateSalesCache();
             CacheService::invalidateClientsCache();
-            if (!empty($validatedData['project_id'])) {
+            if (! empty($validatedData['project_id'])) {
                 CacheService::invalidateProjectsCache();
             }
 
@@ -196,13 +198,13 @@ class SaleController extends BaseController
     /**
      * Получить продажу по ID
      *
-     * @param int $id ID продажи
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID продажи
+     * @return JsonResponse
      */
     public function show($id)
     {
         $item = $this->itemsRepository->getItemById($id);
-        if (!$item) {
+        if (! $item) {
             return $this->errorResponse('Not found', 404);
         }
 
@@ -214,39 +216,34 @@ class SaleController extends BaseController
     /**
      * Удалить продажу
      *
-     * @param int $id ID продажи
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID продажи
+     * @return JsonResponse
      */
     public function destroy($id)
     {
-        $this->getAuthenticatedUserIdOrFail();
+        $user = $this->requireAuthenticatedUser();
 
         $sale = $this->itemsRepository->getItemById($id);
-        if (!$sale) {
+        if (! $sale) {
             return $this->errorResponse('Продажа не найдена', 404);
         }
 
-        $this->authorize('delete', $sale);
+        $saleData = [
+            'id' => $sale->id,
+            'client_id' => $sale->client_id,
+            'project_id' => $sale->project_id ?? null,
+        ];
 
         try {
-            $projectId = $sale->project_id ?? null;
-            $saleData = [
-                'id' => $sale->id,
-                'client_id' => $sale->client_id,
-                'project_id' => $projectId,
-            ];
-
-            $result = $this->itemsRepository->deleteItem($id);
-
-            CacheService::invalidateSalesCache();
-            CacheService::invalidateClientsCache();
-            if ($projectId) {
-                CacheService::invalidateProjectsCache();
-            }
+            $this->batchEntityActions->deleteSale($user, (int) $id);
 
             return $this->successResponse($saleData, 'Продажа удалена успешно');
+        } catch (AuthorizationException $e) {
+            throw $e;
+        } catch (NotFoundHttpException $e) {
+            return $this->errorResponse($e->getMessage() ?: 'Продажа не найдена', 404);
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка при удалении продажи: ' . $th->getMessage(), 400);
+            return $this->errorResponse('Ошибка при удалении продажи: '.$th->getMessage(), 400);
         }
     }
 }

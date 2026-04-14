@@ -2,20 +2,16 @@
 
 namespace App\Services;
 
-use App\Models\Transaction;
+use App\Models\CashRegister;
 use App\Models\Client;
+use App\Models\ClientBalance;
 use App\Models\Currency;
-use App\Services\CurrencyConverter;
-use App\Services\CacheService;
-use App\Services\ClientBalanceService;
+use App\Models\Transaction;
 
 class BalanceService
 {
     /**
      * Обновить баланс клиента при создании транзакции
-     *
-     * @param Transaction $transaction
-     * @return void
      */
     public static function updateClientBalanceOnCreate(Transaction $transaction): void
     {
@@ -23,22 +19,22 @@ class BalanceService
             return;
         }
 
-        $isOrderWithProject = ($transaction->source_type === 'App\\Models\\Order') && !empty($transaction->project_id);
+        $isOrderWithProject = ($transaction->source_type === 'App\\Models\\Order') && ! empty($transaction->project_id);
         if ($isOrderWithProject) {
             return;
         }
 
-        if (!$transaction->client_id) {
+        if (! $transaction->client_id) {
             return;
         }
 
         $client = Client::find($transaction->client_id);
-        if (!$client) {
+        if (! $client) {
             return;
         }
 
         $currency = $transaction->currency;
-        if (!$currency) {
+        if (! $currency) {
             return;
         }
 
@@ -64,7 +60,7 @@ class BalanceService
 
         if ($balanceId) {
             $transaction->client_balance_id = $balanceId;
-            $transaction->save();
+            $transaction->saveQuietly();
         }
 
         CacheService::invalidateClientsCache();
@@ -74,9 +70,6 @@ class BalanceService
 
     /**
      * Обновить баланс клиента при обновлении транзакции
-     *
-     * @param Transaction $transaction
-     * @return void
      */
     public static function updateClientBalanceOnUpdate(Transaction $transaction): void
     {
@@ -84,8 +77,15 @@ class BalanceService
             return;
         }
 
-        $isOrderWithProject = ($transaction->source_type === 'App\\Models\\Order') && !empty($transaction->project_id);
+        $isOrderWithProject = ($transaction->source_type === 'App\\Models\\Order') && ! empty($transaction->project_id);
         if ($isOrderWithProject) {
+            return;
+        }
+
+        $oldClientId = $transaction->getOriginal('client_id');
+        $newClientId = $transaction->client_id;
+
+        if (! $oldClientId && ! $newClientId) {
             return;
         }
 
@@ -93,109 +93,88 @@ class BalanceService
         $originalCurrency = Currency::find($transaction->getOriginal('currency_id'));
         $originalType = $transaction->getOriginal('type');
         $originalIsDebt = $transaction->getOriginal('is_debt');
-        $oldClientId = $transaction->getOriginal('client_id');
         $oldExchangeRate = $transaction->getOriginal('exchange_rate');
-        $oldCashRegisterId = $transaction->getOriginal('cash_register_id');
-        $oldCashCurrency = $oldCashRegisterId ? \App\Models\CashRegister::find($oldCashRegisterId)?->currency : null;
+        $oldCashRegisterId = $transaction->getOriginal('cash_id');
+        $oldCashRegister = $oldCashRegisterId ? CashRegister::find($oldCashRegisterId) : null;
+        $oldCashCurrency = $oldCashRegister ? $oldCashRegister->currency : null;
 
-        if ($oldClientId && $oldClientId != $transaction->client_id) {
-            $oldClient = Client::find($oldClientId);
-            if ($oldClient && $originalCurrency) {
-                $oldCompanyId = $oldClient->company_id;
-                $oldTransactionDate = $transaction->created_at ? $transaction->created_at->toDateString() : null;
+        $transactionDate = $transaction->created_at ? $transaction->created_at->toDateString() : null;
+        $cashCurrency = $transaction->cashRegister ? $transaction->cashRegister->currency : null;
 
+        if ($oldClientId && $originalCurrency) {
+            $reverseClient = Client::find($oldClientId);
+            if ($reverseClient) {
                 ClientBalanceService::updateBalance(
-                    $oldClient,
+                    $reverseClient,
                     $originalCurrency,
                     -$originalAmount,
                     $originalType,
                     $originalIsDebt,
-                    $oldCompanyId,
-                    $oldTransactionDate,
-                    $oldExchangeRate,
-                    $oldCashCurrency
-                );
-            }
-
-            $balanceId = ClientBalanceService::updateBalance(
-                $client,
-                $currency,
-                $transaction->orig_amount,
-                $transaction->type,
-                $transaction->is_debt,
-                $companyId,
-                $transactionDate,
-                $transaction->exchange_rate,
-                $cashCurrency
-            );
-
-            if ($balanceId) {
-                $transaction->client_balance_id = $balanceId;
-                $transaction->save();
-            }
-        } elseif (!$oldClientId) {
-            $balanceId = ClientBalanceService::updateBalance(
-                $client,
-                $currency,
-                $transaction->orig_amount,
-                $transaction->type,
-                $transaction->is_debt,
-                $companyId,
-                $transactionDate,
-                $transaction->exchange_rate,
-                $cashCurrency
-            );
-
-            if ($balanceId) {
-                $transaction->client_balance_id = $balanceId;
-                $transaction->save();
-            }
-        } else {
-            if ($originalCurrency) {
-                ClientBalanceService::updateBalance(
-                    $client,
-                    $originalCurrency,
-                    -$originalAmount,
-                    $originalType,
-                    $originalIsDebt,
-                    $companyId,
+                    $reverseClient->company_id,
                     $transactionDate,
                     $oldExchangeRate,
                     $oldCashCurrency
                 );
             }
-
-            $balanceId = ClientBalanceService::updateBalance(
-                $client,
-                $currency,
-                $transaction->orig_amount,
-                $transaction->type,
-                $transaction->is_debt,
-                $companyId,
-                $transactionDate,
-                $transaction->exchange_rate,
-                $cashCurrency
-            );
-
-            if ($balanceId) {
-                $transaction->client_balance_id = $balanceId;
-                $transaction->save();
-            }
         }
 
+        if (! $newClientId) {
+            self::invalidateAfterTransactionClientBalanceUpdate(null, $oldClientId);
+
+            return;
+        }
+
+        $client = Client::find($newClientId);
+        if (! $client) {
+            self::invalidateAfterTransactionClientBalanceUpdate(null, $oldClientId);
+
+            return;
+        }
+
+        $currency = $transaction->currency;
+        if (! $currency) {
+            self::invalidateAfterTransactionClientBalanceUpdate($newClientId, $oldClientId);
+
+            return;
+        }
+
+        $balanceId = ClientBalanceService::updateBalance(
+            $client,
+            $currency,
+            $transaction->orig_amount,
+            $transaction->type,
+            $transaction->is_debt,
+            $client->company_id,
+            $transactionDate,
+            $transaction->exchange_rate,
+            $cashCurrency
+        );
+
+        if ($balanceId) {
+            $transaction->client_balance_id = $balanceId;
+            $transaction->saveQuietly();
+        }
+
+        self::invalidateAfterTransactionClientBalanceUpdate($newClientId, $oldClientId);
+    }
+
+    /**
+     * @param  int|string|null  $oldClientId
+     */
+    private static function invalidateAfterTransactionClientBalanceUpdate(?int $newClientId, $oldClientId): void
+    {
         CacheService::invalidateClientsCache();
-        CacheService::invalidateClientBalanceCache($transaction->client_id);
-        if ($oldClientId && $oldClientId != $transaction->client_id) {
-            CacheService::invalidateClientBalanceCache($oldClientId);
+        if ($newClientId) {
+            CacheService::invalidateClientBalanceCache($newClientId);
+        }
+        if ($oldClientId && (int) $oldClientId !== (int) $newClientId) {
+            CacheService::invalidateClientBalanceCache((int) $oldClientId);
         }
         CacheService::invalidateProjectsCache();
     }
 
     /**
      * Обновить баланс клиента при удалении транзакции
-     *
-     * @param Transaction $transaction
-     * @return void
      */
     public static function updateClientBalanceOnDelete(Transaction $transaction): void
     {
@@ -203,17 +182,17 @@ class BalanceService
             return;
         }
 
-        if (!$transaction->client_id) {
+        if (! $transaction->client_id) {
             return;
         }
 
         $client = Client::find($transaction->client_id);
-        if (!$client) {
+        if (! $client) {
             return;
         }
 
         $currency = $transaction->currency;
-        if (!$currency) {
+        if (! $currency) {
             return;
         }
 
@@ -222,8 +201,8 @@ class BalanceService
         $cashCurrency = $transaction->cashRegister ? $transaction->cashRegister->currency : null;
 
         if ($transaction->client_balance_id) {
-            $clientBalance = \App\Models\ClientBalance::lockForUpdate()->find($transaction->client_balance_id);
-            if (!$clientBalance || $clientBalance->client_id != $client->id) {
+            $clientBalance = ClientBalance::lockForUpdate()->find($transaction->client_balance_id);
+            if (! $clientBalance || $clientBalance->client_id != $client->id) {
                 return;
             }
 
@@ -231,8 +210,8 @@ class BalanceService
             $amountToUse = $transaction->orig_amount;
 
             if ($balanceCurrency->id !== $currency->id) {
-                $defaultCurrency = \App\Models\Currency::where('is_default', true)->first();
-                $convertedAmount = \App\Services\CurrencyConverter::convert(
+                $defaultCurrency = Currency::where('is_default', true)->first();
+                $convertedAmount = CurrencyConverter::convert(
                     $transaction->orig_amount,
                     $currency,
                     $balanceCurrency,
@@ -242,7 +221,7 @@ class BalanceService
                     $transaction->exchange_rate,
                     $cashCurrency
                 );
-                $roundingService = new \App\Services\RoundingService;
+                $roundingService = new RoundingService;
                 $amountToUse = $roundingService->roundForCompany($companyId, $convertedAmount);
             }
 
@@ -272,15 +251,10 @@ class BalanceService
 
     /**
      * Конвертировать сумму в валюту по умолчанию
-     *
-     * @param float $amount
-     * @param Currency|null $fromCurrency
-     * @param Currency $defaultCurrency
-     * @return float
      */
     protected static function convertToDefaultCurrency(float $amount, ?Currency $fromCurrency, Currency $defaultCurrency): float
     {
-        if (!$fromCurrency) {
+        if (! $fromCurrency) {
             return $amount;
         }
 
@@ -295,4 +269,3 @@ class BalanceService
         );
     }
 }
-

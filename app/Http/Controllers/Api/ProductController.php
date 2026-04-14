@@ -45,7 +45,6 @@ class ProductController extends BaseController
     public function products(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-        $this->authorize('viewAny', Product::class);
 
         $page = $request->query('page', 1);
         $per_page = $request->query('per_page', 20);
@@ -76,7 +75,6 @@ class ProductController extends BaseController
     public function search(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-        $this->authorize('viewAny', Product::class);
 
         $search = $request->query('search');
         $productsOnly = $request->query('products_only');
@@ -125,7 +123,6 @@ class ProductController extends BaseController
     public function services(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
-        $this->authorize('viewAny', Product::class);
 
         $page = $request->query('page', 1);
         $per_page = $request->query('per_page', 20);

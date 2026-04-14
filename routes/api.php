@@ -2,16 +2,18 @@
 
 use App\Http\Controllers\Api\AppController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BatchController;
 use App\Http\Controllers\Api\CacheController as ApiCacheController;
 use App\Http\Controllers\Api\CashRegistersController;
 use App\Http\Controllers\Api\CategoriesController;
 use App\Http\Controllers\Api\ChatController;
-use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ClientBalanceController;
+use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\CompaniesController;
 use App\Http\Controllers\Api\CompanyHolidayController;
 use App\Http\Controllers\Api\CompanyProductionCalendarController;
+use App\Http\Controllers\Api\CurrenciesController;
 use App\Http\Controllers\Api\CurrencyHistoryController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\FcmStorageController;
@@ -29,15 +31,15 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProjectContractsController;
 use App\Http\Controllers\Api\ProjectsController;
 use App\Http\Controllers\Api\ProjectStatusController;
+use App\Http\Controllers\Api\RecurringTransactionsController;
+use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\RolesController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\TasksController;
 use App\Http\Controllers\Api\TaskStatusController;
 use App\Http\Controllers\Api\TransactionCategoryController;
-use App\Http\Controllers\Api\RecurringTransactionsController;
-use App\Http\Controllers\Api\ReportsController;
-use App\Http\Controllers\Api\TransactionTemplateController;
 use App\Http\Controllers\Api\TransactionsController;
+use App\Http\Controllers\Api\TransactionTemplateController;
 use App\Http\Controllers\Api\TransfersController;
 use App\Http\Controllers\Api\UserCompanyController;
 use App\Http\Controllers\Api\UsersController;
@@ -46,13 +48,14 @@ use App\Http\Controllers\Api\WarehouseMovementController;
 use App\Http\Controllers\Api\WarehouseReceiptController;
 use App\Http\Controllers\Api\WarehouseStockController;
 use App\Http\Controllers\Api\WarehouseWriteoffController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
 Route::post('user/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 Route::post('user/refresh', [AuthController::class, 'refresh'])->middleware('throttle:auth');
 
-Route::middleware(['bc.json', 'auth:sanctum'])->post('broadcasting/auth', function (\Illuminate\Http\Request $request) {
+Route::middleware(['bc.json', 'auth:sanctum'])->post('broadcasting/auth', function (Request $request) {
     return Broadcast::auth($request);
 });
 
@@ -60,18 +63,22 @@ Route::get('transaction_categories/all', [TransactionCategoryController::class, 
 
 // Main API routes - accessible to all authenticated users with appropriate permissions
 Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(function () {
+    Route::post('batch', [BatchController::class, 'execute']);
+
     Route::get('app/currency', [AppController::class, 'getCurrencyList']);
     Route::get('app/currency/{id}/exchange-rate', [AppController::class, 'getCurrencyExchangeRate']);
     Route::get('app/units', [AppController::class, 'getUnitsList']);
     Route::get('app/versions', [AppController::class, 'getVersions']);
     Route::post('cache/clear', [ApiCacheController::class, 'clear']);
 
-    Route::get('currency-history/currencies', [CurrencyHistoryController::class, 'getCurrenciesWithRates']);
-    Route::get('currency-history', [CurrencyHistoryController::class, 'indexAll']);
-    Route::get('currency-history/{currencyId}', [CurrencyHistoryController::class, 'index']);
-    Route::middleware('permission:currency_history_create')->post('currency-history/{currencyId}', [CurrencyHistoryController::class, 'store']);
-    Route::middleware('permission:currency_history_update')->put('currency-history/{currencyId}/{historyId}', [CurrencyHistoryController::class, 'update']);
-    Route::middleware('permission:currency_history_delete')->delete('currency-history/{currencyId}/{historyId}', [CurrencyHistoryController::class, 'destroy']);
+    Route::middleware('permission.scope:currency_history_view_all,currency_history_view')->get('currency-history/currencies', [CurrencyHistoryController::class, 'getCurrenciesWithRates']);
+    Route::middleware('permission.scope:currency_history_view_all,currency_history_view')->get('currency-history', [CurrencyHistoryController::class, 'indexAll']);
+    Route::middleware('permission.scope:currency_history_view_all,currency_history_view')->get('currency-history/{currencyId}', [CurrencyHistoryController::class, 'index']);
+    Route::middleware('permission.scope:currency_history_create,currency_history_update_all')->post('currency-history/{currencyId}', [CurrencyHistoryController::class, 'store']);
+    Route::middleware('permission.scope:currency_history_update_all,currency_history_update')->put('currency-history/{currencyId}/{historyId}', [CurrencyHistoryController::class, 'update']);
+    Route::middleware('permission.scope:currency_history_delete_all,currency_history_delete')->delete('currency-history/{currencyId}/{historyId}', [CurrencyHistoryController::class, 'destroy']);
+
+    Route::middleware('permission.scope:currency_history_view_all,currency_history_view,currency_history_view_own,settings_currencies_view')->get('settings/currencies', [CurrenciesController::class, 'index']);
 
     Route::post('user/logout', [AuthController::class, 'logout']);
     Route::get('user/me', [AuthController::class, 'me']);
@@ -114,6 +121,7 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
 
     Route::get('companies', [CompaniesController::class, 'index']);
     Route::middleware('permission:companies_create')->post('companies', [CompaniesController::class, 'store']);
+    Route::middleware('permission:companies_update_all')->patch('companies/{id}', [CompaniesController::class, 'update']);
     Route::middleware('permission:companies_update_all')->post('companies/{id}', [CompaniesController::class, 'update']);
     Route::middleware('permission:companies_delete_all')->delete('companies/{id}', [CompaniesController::class, 'destroy']);
     Route::middleware('permission:employee_salaries_accrue')->post('companies/{id}/salaries/accrue', [CompaniesController::class, 'accrueSalaries']);
@@ -155,9 +163,9 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission:categories_update_all')->put('categories/{id}', [CategoriesController::class, 'update']);
     Route::middleware('permission:categories_delete_all')->delete('categories/{id}', [CategoriesController::class, 'destroy']);
 
-    Route::middleware('permission.scope:products_view_all,products_view')->get('products', [ProductController::class, 'products']);
-    Route::middleware('permission.scope:products_view_all,products_view')->get('services', [ProductController::class, 'services']);
-    Route::middleware('permission.scope:products_view_all,products_view')->get('products/search', [ProductController::class, 'search']);
+    Route::get('products', [ProductController::class, 'products']);
+    Route::get('services', [ProductController::class, 'services']);
+    Route::get('products/search', [ProductController::class, 'search']);
     Route::middleware('permission.scope:products_view_all,products_view')->get('products/{id}', [ProductController::class, 'show']);
     Route::middleware('permission:products_create')->post('products', [ProductController::class, 'store']);
     Route::middleware('permission.scope:products_update_all,products_update')->put('products/{id}', [ProductController::class, 'update']);
@@ -199,7 +207,6 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware(['permission.scope:projects_update_all,projects_update', 'throttle:20,1'])->post('projects/{id}/upload-files', [ProjectsController::class, 'uploadFiles']);
     Route::middleware(['permission.scope:projects_view_all,projects_view', 'throttle:20,1'])->post('projects/{id}/download-files', [ProjectsController::class, 'downloadFiles']);
     Route::middleware(['permission.scope:projects_update_all,projects_update', 'throttle:20,1'])->post('projects/{id}/delete-file', [ProjectsController::class, 'deleteFile']);
-    Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/batch-status', [ProjectsController::class, 'batchUpdateStatus']);
     Route::middleware('permission.scope:projects_delete_all,projects_delete')->delete('projects/{id}', [ProjectsController::class, 'destroy']);
     Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}/balance-history', [ProjectsController::class, 'getBalanceHistory']);
     Route::middleware('permission.scope:projects_view_all,projects_view')->get('projects/{id}/detailed-balance', [ProjectsController::class, 'getDetailedBalance']);
@@ -209,7 +216,7 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission.scope:projects_update_all,projects_update')->post('projects/{projectId}/contracts', [ProjectContractsController::class, 'store']);
     Route::middleware('permission.scope:contracts_view_all,contracts_view_own')->get('contracts', [ProjectContractsController::class, 'getAllContracts']);
     Route::middleware('permission.scope:contracts_view_all,contracts_view_own')->get('contracts/{id}', [ProjectContractsController::class, 'show']);
-    Route::middleware('permission.scope:contracts_update_all,contracts_update_own')->put('contracts/{id}', [ProjectContractsController::class, 'update']);
+    Route::middleware('permission.scope:contracts_update_all,contracts_update_own')->patch('contracts/{id}', [ProjectContractsController::class, 'patch']);
     Route::middleware('permission.scope:contracts_delete_all,contracts_delete_own')->delete('contracts/{id}', [ProjectContractsController::class, 'destroy']);
 
     Route::get('project-statuses', [ProjectStatusController::class, 'index']);
@@ -217,7 +224,6 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission:project_statuses_create')->post('project-statuses', [ProjectStatusController::class, 'store']);
     Route::middleware('permission.scope:project_statuses_update_all,project_statuses_update')->put('project-statuses/{id}', [ProjectStatusController::class, 'update']);
     Route::middleware('permission.scope:project_statuses_delete_all,project_statuses_delete')->delete('project-statuses/{id}', [ProjectStatusController::class, 'destroy']);
-
     Route::middleware('permission.scope:transactions_view_all,transactions_view')->get('transactions', [TransactionsController::class, 'index']);
     Route::middleware('permission:transactions_create')->post('transactions', [TransactionsController::class, 'store']);
     Route::middleware(['permission.scope:transactions_update_all,transactions_update', 'time.restriction:Transaction'])->put('transactions/{id}', [TransactionsController::class, 'update']);
@@ -253,13 +259,12 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware(['permission.scope:sales_delete_all,sales_delete', 'time.restriction:Sale'])->delete('sales/{id}', [SaleController::class, 'destroy']);
     Route::middleware('permission.scope:sales_view_all,sales_view')->get('sales/{id}', [SaleController::class, 'show']);
 
-    Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders', [OrderController::class, 'index']);
+    Route::get('orders', [OrderController::class, 'index']);
     Route::middleware('permission:orders_export,orders_simple_export')->get('orders/export', [OrderController::class, 'export']);
-    Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders/first-stage-count', [OrderController::class, 'firstStageCount']);
+    Route::get('orders/first-stage-count', [OrderController::class, 'firstStageCount']);
     Route::middleware('permission:orders_create,orders_simple_create')->post('orders', [OrderController::class, 'store']);
     Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->put('orders/{id}', [OrderController::class, 'update']);
     Route::middleware('permission.scope:orders_delete_all,orders_delete,orders_simple_delete_all,orders_simple_delete')->delete('orders/{id}', [OrderController::class, 'destroy']);
-    Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->post('orders/batch-status', [OrderController::class, 'batchUpdateStatus']);
     Route::middleware('permission.scope:orders_view_all,orders_view,orders_simple_view_all,orders_simple_view')->get('orders/{id}', [OrderController::class, 'show']);
 
     Route::middleware('permission.scope:orders_update_all,orders_update,orders_simple_update_all,orders_simple_update')->post('orders/{orderId}/transactions', [OrderTransactionController::class, 'linkTransaction']);
@@ -271,19 +276,16 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission:order_statuses_create')->post('order_statuses', [OrderStatusController::class, 'store']);
     Route::middleware('permission:order_statuses_update')->put('order_statuses/{id}', [OrderStatusController::class, 'update']);
     Route::middleware('permission:order_statuses_delete')->delete('order_statuses/{id}', [OrderStatusController::class, 'destroy']);
-
     Route::get('order_status_categories', [OrderStatusCategoryController::class, 'index']);
     Route::get('order_status_categories/all', [OrderStatusCategoryController::class, 'all']);
     Route::middleware('permission:order_statuscategories_create')->post('order_status_categories', [OrderStatusCategoryController::class, 'store']);
     Route::middleware('permission:order_statuscategories_update')->put('order_status_categories/{id}', [OrderStatusCategoryController::class, 'update']);
     Route::middleware('permission:order_statuscategories_delete')->delete('order_status_categories/{id}', [OrderStatusCategoryController::class, 'destroy']);
-
     Route::middleware('permission:leave_types_view_all')->get('leave_types', [LeaveTypeController::class, 'index']);
     Route::middleware('permission:leave_types_view_all')->get('leave_types/all', [LeaveTypeController::class, 'all']);
     Route::middleware('permission:leave_types_create_all')->post('leave_types', [LeaveTypeController::class, 'store']);
     Route::middleware('permission:leave_types_update_all')->put('leave_types/{id}', [LeaveTypeController::class, 'update']);
     Route::middleware('permission:leave_types_delete_all')->delete('leave_types/{id}', [LeaveTypeController::class, 'destroy']);
-
     Route::middleware('permission:leaves_view_all')->get('leaves', [LeaveController::class, 'index']);
     Route::middleware('permission:leaves_view_all')->get('leaves/all', [LeaveController::class, 'all']);
     Route::middleware('permission:leaves_view_all')->get('leaves/{id}', [LeaveController::class, 'show']);
@@ -299,18 +301,14 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission:company_holidays_create')->post('company-holidays', [CompanyHolidayController::class, 'store']);
     Route::middleware('permission:company_holidays_update_all')->put('company-holidays/{id}', [CompanyHolidayController::class, 'update']);
     Route::middleware('permission:company_holidays_delete_all')->delete('company-holidays/{id}', [CompanyHolidayController::class, 'destroy']);
-    Route::middleware('permission:company_holidays_delete_all')->post('company-holidays/batch-delete', [CompanyHolidayController::class, 'batchDelete']);
-
     Route::get('company-production-calendar-days/all', [CompanyProductionCalendarController::class, 'all']);
     Route::middleware('permission:company_production_calendar_create')->post('company-production-calendar-days', [CompanyProductionCalendarController::class, 'store']);
-    Route::middleware('permission:company_production_calendar_delete_all')->post('company-production-calendar-days/batch-delete', [CompanyProductionCalendarController::class, 'batchDelete']);
     Route::middleware('permission:company_production_calendar_delete_all')->delete('company-production-calendar-days/{id}', [CompanyProductionCalendarController::class, 'destroy']);
 
     Route::get('transaction_categories', [TransactionCategoryController::class, 'index']);
     Route::middleware('permission:transaction_categories_create')->post('transaction_categories', [TransactionCategoryController::class, 'store']);
     Route::middleware('permission:transaction_categories_update')->put('transaction_categories/{id}', [TransactionCategoryController::class, 'update']);
     Route::middleware('permission:transaction_categories_delete')->delete('transaction_categories/{id}', [TransactionCategoryController::class, 'destroy']);
-
     Route::get('invoices', [InvoiceController::class, 'index']);
     Route::middleware('permission:invoices_create')->post('invoices', [InvoiceController::class, 'store']);
     Route::middleware('permission.scope:invoices_update_all,invoices_update')->put('invoices/{id}', [InvoiceController::class, 'update']);
@@ -345,13 +343,17 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware(['permission.scope:tasks_update_all,tasks_update', 'throttle:20,1'])->post('tasks/{id}/files', [TasksController::class, 'uploadFiles']);
     Route::middleware(['permission.scope:tasks_update_all,tasks_update', 'throttle:20,1'])->post('tasks/{id}/delete-file', [TasksController::class, 'deleteFile']);
 
+    Route::prefix('v2')->group(function () {
+        Route::middleware(['permission.scope:projects_update_all,projects_update', 'throttle:20,1'])->delete('projects/{id}/files', [ProjectsController::class, 'deleteFile']);
+        Route::middleware(['permission.scope:tasks_update_all,tasks_update', 'throttle:20,1'])->delete('tasks/{id}/files', [TasksController::class, 'deleteFile']);
+    });
+
     // Task statuses
     Route::get('task-statuses', [TaskStatusController::class, 'index']);
     Route::get('task-statuses/all', [TaskStatusController::class, 'all']);
     Route::middleware('permission:task_statuses_create')->post('task-statuses', [TaskStatusController::class, 'store']);
     Route::middleware('permission.scope:task_statuses_update_all,task_statuses_update')->put('task-statuses/{id}', [TaskStatusController::class, 'update']);
     Route::middleware('permission.scope:task_statuses_delete_all,task_statuses_delete')->delete('task-statuses/{id}', [TaskStatusController::class, 'destroy']);
-
     // Departments routes
     Route::middleware('permission:departments_view_all')->get('departments', [DepartmentController::class, 'index']);
     Route::middleware('permission:departments_view_all')->get('departments/all', [DepartmentController::class, 'all']);
@@ -393,5 +395,4 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission:templates_create')->post('message-templates', [MessageTemplateController::class, 'store']);
     Route::middleware('permission.scope:templates_update_all,templates_update')->put('message-templates/{id}', [MessageTemplateController::class, 'update']);
     Route::middleware('permission.scope:templates_delete_all,templates_delete')->delete('message-templates/{id}', [MessageTemplateController::class, 'destroy']);
-    Route::middleware('permission:templates_delete_all')->post('message-templates/batch-delete', [MessageTemplateController::class, 'batchDelete']);
 });

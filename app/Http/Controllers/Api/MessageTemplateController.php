@@ -7,6 +7,8 @@ use App\Http\Requests\UpdateMessageTemplateRequest;
 use App\Http\Resources\MessageTemplateResource;
 use App\Models\MessageTemplate;
 use App\Repositories\MessageTemplateRepository;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
@@ -24,7 +26,7 @@ class MessageTemplateController extends BaseController
     /**
      * Получить список шаблонов с пагинацией
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -57,7 +59,7 @@ class MessageTemplateController extends BaseController
     /**
      * Получить все шаблоны
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function all(Request $request)
     {
@@ -76,7 +78,7 @@ class MessageTemplateController extends BaseController
     /**
      * Получить доступные типы шаблонов из конфига
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getTypes()
     {
@@ -115,7 +117,7 @@ class MessageTemplateController extends BaseController
      * Получить шаблон по ID
      *
      * @param  int  $id  ID шаблона
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function show($id)
     {
@@ -137,7 +139,7 @@ class MessageTemplateController extends BaseController
     /**
      * Создать новый шаблон
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(StoreMessageTemplateRequest $request)
     {
@@ -164,7 +166,7 @@ class MessageTemplateController extends BaseController
      * Обновить шаблон
      *
      * @param  int  $id  ID шаблона
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function update(UpdateMessageTemplateRequest $request, $id)
     {
@@ -188,7 +190,7 @@ class MessageTemplateController extends BaseController
             $template = $this->repository->findItemWithRelations($id);
 
             return $this->successResponse(new MessageTemplateResource($template), 'Шаблон обновлен');
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Шаблон не найден', 404);
@@ -199,7 +201,7 @@ class MessageTemplateController extends BaseController
      * Удалить шаблон
      *
      * @param  int  $id  ID шаблона
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function destroy($id)
     {
@@ -213,49 +215,10 @@ class MessageTemplateController extends BaseController
             $this->repository->deleteItem($id);
 
             return $this->successResponse(null, 'Шаблон удален');
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
             return $this->errorResponse('Шаблон не найден', 404);
-        }
-    }
-
-    /**
-     * Пакетное удаление шаблонов
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function batchDelete(Request $request)
-    {
-        $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'integer',
-        ]);
-
-        $ids = $request->input('ids');
-
-        try {
-            $deleted = 0;
-            foreach ($ids as $id) {
-                try {
-                    $template = MessageTemplate::findOrFail($id);
-                    if ($this->getAuthenticatedUser()?->can('delete', $template)) {
-                        $this->repository->deleteItem($id);
-                        $deleted++;
-                    }
-                } catch (\Exception $e) {
-                    continue;
-                }
-            }
-
-            return $this->successResponse([
-                'message' => "Удалено шаблонов: $deleted",
-                'deleted' => $deleted,
-            ]);
-        } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при пакетном удалении', 400);
         }
     }
 }

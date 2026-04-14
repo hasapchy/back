@@ -2,21 +2,27 @@
 
 namespace App\Http\Controllers\Api;
 
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Foundation\Validation\ValidatesRequests;
-use Illuminate\Routing\Controller as BaseRoutingController;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
+use App\Models\CashRegister;
+use App\Models\User;
+use App\Models\Warehouse;
 use App\Support\CompanyScopedPermissions;
 use App\Support\ResolvedCompany;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Foundation\Validation\ValidatesRequests;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Controller as BaseRoutingController;
+use Illuminate\Support\Facades\DB;
 
 class BaseController extends BaseRoutingController
 {
     use AuthorizesRequests, ValidatesRequests;
 
-    /**
-     * @return int|null
-     */
+    public const BATCH_IDS_MAX = 50;
+
     protected function getCurrentCompanyId(): ?int
     {
         return ResolvedCompany::fromRequest(request());
@@ -25,7 +31,7 @@ class BaseController extends BaseRoutingController
     /**
      * Получить авторизованного пользователя API
      *
-     * @return \App\Models\User|null
+     * @return User|null
      */
     protected function getAuthenticatedUser()
     {
@@ -35,14 +41,15 @@ class BaseController extends BaseRoutingController
     /**
      * Получить авторизованного пользователя или выбросить исключение
      *
-     * @return \App\Models\User
-     * @throws \Illuminate\Http\Exceptions\HttpResponseException
+     * @return User
+     *
+     * @throws HttpResponseException
      */
     protected function requireAuthenticatedUser()
     {
         $user = $this->getAuthenticatedUser();
 
-        if (!$user) {
+        if (! $user) {
             abort(401, 'Unauthorized');
         }
 
@@ -52,8 +59,7 @@ class BaseController extends BaseRoutingController
     /**
      * Получить ID авторизованного пользователя или выбросить исключение
      *
-     * @return int
-     * @throws \Illuminate\Http\Exceptions\HttpResponseException
+     * @throws HttpResponseException
      */
     protected function getAuthenticatedUserIdOrFail(): int
     {
@@ -63,8 +69,8 @@ class BaseController extends BaseRoutingController
     /**
      * Получить права доступа пользователя в виде массива с учетом текущей компании
      *
-     * @param \App\Models\User|null $user
-     * @param int|null $companyId ID компании (если null, из контекста запроса)
+     * @param  User|null  $user
+     * @param  int|null  $companyId  ID компании (если null, из контекста запроса)
      * @return array
      */
     protected function getUserPermissions($user = null, ?int $companyId = null)
@@ -85,14 +91,14 @@ class BaseController extends BaseRoutingController
     /**
      * Проверить доступ к взаиморасчетам по типу клиента
      *
-     * @param string $clientType Тип клиента (individual, company, employee, investor)
-     * @param \App\Models\User|null $user Пользователь
+     * @param  string  $clientType  Тип клиента (individual, company, employee, investor)
+     * @param  User|null  $user  Пользователь
      * @return bool
      */
     protected function canViewMutualSettlementsByClientType($clientType, $user = null)
     {
         $user = $user ?? $this->getAuthenticatedUser();
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -101,7 +107,7 @@ class BaseController extends BaseRoutingController
         }
 
         $names = CompanyScopedPermissions::names($user);
-        $config = config("permissions.resources.mutual_settlements");
+        $config = config('permissions.resources.mutual_settlements');
         $permissionName = $config['custom_permissions']["view_{$clientType}"] ?? "mutual_settlements_view_{$clientType}";
 
         return in_array($permissionName, $names, true);
@@ -110,13 +116,13 @@ class BaseController extends BaseRoutingController
     /**
      * Получить доступные типы клиентов для просмотра взаиморасчетов
      *
-     * @param \App\Models\User|null $user Пользователь
+     * @param  User|null  $user  Пользователь
      * @return array Массив типов клиентов, к которым есть доступ
      */
     protected function getAllowedMutualSettlementsClientTypes($user = null)
     {
         $user = $user ?? $this->getAuthenticatedUser();
-        if (!$user) {
+        if (! $user) {
             return [];
         }
 
@@ -126,7 +132,7 @@ class BaseController extends BaseRoutingController
 
         $names = CompanyScopedPermissions::names($user);
         $allowedTypes = [];
-        $config = config("permissions.resources.mutual_settlements");
+        $config = config('permissions.resources.mutual_settlements');
 
         if (isset($config['custom_permissions'])) {
             foreach ($config['custom_permissions'] as $key => $permissionName) {
@@ -143,8 +149,7 @@ class BaseController extends BaseRoutingController
     /**
      * Проверить, есть ли у пользователя хотя бы одно из разрешений
      *
-     * @param array $permissions
-     * @param \App\Models\User|null $user
+     * @param  User|null  $user
      * @return bool
      */
     protected function hasAnyPermission(array $permissions, $user = null)
@@ -163,8 +168,7 @@ class BaseController extends BaseRoutingController
     }
 
     /**
-     * @param mixed $data
-     * @return JsonResponse
+     * @param  mixed  $data
      */
     protected function successResponse($data = null, ?string $message = null, int $status = 200): JsonResponse
     {
@@ -172,8 +176,7 @@ class BaseController extends BaseRoutingController
     }
 
     /**
-     * @param \Illuminate\Contracts\Pagination\LengthAwarePaginator $items
-     * @return JsonResponse
+     * @param  LengthAwarePaginator  $items
      */
     protected function paginatedResponse($items): JsonResponse
     {
@@ -192,8 +195,8 @@ class BaseController extends BaseRoutingController
     /**
      * Выполнить операцию в транзакции БД
      *
-     * @param callable $callback
      * @return mixed
+     *
      * @throws \Throwable
      */
     protected function transaction(callable $callback)
@@ -204,8 +207,7 @@ class BaseController extends BaseRoutingController
     /**
      * Вернуть ответ с ошибкой валидации
      *
-     * @param \Illuminate\Contracts\Validation\Validator $validator
-     * @return \Illuminate\Http\JsonResponse
+     * @param  Validator  $validator
      */
     protected function validationErrorResponse($validator): JsonResponse
     {
@@ -214,10 +216,6 @@ class BaseController extends BaseRoutingController
 
     /**
      * Вернуть ответ с ошибкой сервера
-     *
-     * @param string|null $message
-     * @param int $status
-     * @return \Illuminate\Http\JsonResponse
      */
     protected function errorResponse(?string $message = null, int $status = 500): JsonResponse
     {
@@ -232,9 +230,8 @@ class BaseController extends BaseRoutingController
     }
 
     /**
-     * @param mixed $data
-     * @param array<string, mixed>|null $errors
-     * @return JsonResponse
+     * @param  mixed  $data
+     * @param  array<string, mixed>|null  $errors
      */
     private function messageResponse(
         int $status,
@@ -263,13 +260,13 @@ class BaseController extends BaseRoutingController
     /**
      * Проверить права доступа к кассе
      *
-     * @param int|null $cashId ID кассы
-     * @return \Illuminate\Http\JsonResponse|null Возвращает ответ с ошибкой, если нет прав, иначе null
+     * @param  int|null  $cashId  ID кассы
+     * @return JsonResponse|null Возвращает ответ с ошибкой, если нет прав, иначе null
      */
     protected function checkCashRegisterAccess(?int $cashId): ?JsonResponse
     {
         if ($cashId) {
-            $cashRegister = \App\Models\CashRegister::find($cashId);
+            $cashRegister = CashRegister::find($cashId);
             $user = $this->getAuthenticatedUser();
             if ($cashRegister && $user && ! $user->can('view', $cashRegister)) {
                 return $this->errorResponse('У вас нет прав на эту кассу', 403);
@@ -282,13 +279,13 @@ class BaseController extends BaseRoutingController
     /**
      * Проверить права доступа к складу
      *
-     * @param int|null $warehouseId ID склада
-     * @return \Illuminate\Http\JsonResponse|null Возвращает ответ с ошибкой, если нет прав, иначе null
+     * @param  int|null  $warehouseId  ID склада
+     * @return JsonResponse|null Возвращает ответ с ошибкой, если нет прав, иначе null
      */
     protected function checkWarehouseAccess(?int $warehouseId): ?JsonResponse
     {
         if ($warehouseId) {
-            $warehouse = \App\Models\Warehouse::find($warehouseId);
+            $warehouse = Warehouse::find($warehouseId);
             $user = $this->getAuthenticatedUser();
             if ($warehouse && $user && ! $user->can('view', $warehouse)) {
                 return $this->errorResponse('У вас нет прав на этот склад', 403);
@@ -297,5 +294,5 @@ class BaseController extends BaseRoutingController
 
         return null;
     }
-}
 
+}

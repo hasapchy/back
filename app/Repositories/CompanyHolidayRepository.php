@@ -5,6 +5,11 @@ namespace App\Repositories;
 use App\Models\CompanyHoliday;
 use App\Services\CacheService;
 use Carbon\Carbon;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class CompanyHolidayRepository extends BaseRepository
 {
@@ -24,7 +29,7 @@ class CompanyHolidayRepository extends BaseRepository
      * @param  int  $userUuid  ID пользователя
      * @param  int  $perPage  Количество записей на страницу
      * @param  array  $filters  Фильтры (year, date_from, date_to, company_id)
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     * @return LengthAwarePaginator
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $filters = [])
     {
@@ -89,9 +94,10 @@ class CompanyHolidayRepository extends BaseRepository
         $query = CompanyHoliday::with($this->getBaseRelations())->where('id', $id);
         $this->applyCompanyFilter($query);
         $item = $query->first();
-        if (!$item) {
-            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('CompanyHoliday not found');
+        if (! $item) {
+            throw new ModelNotFoundException('CompanyHoliday not found');
         }
+
         return $item;
     }
 
@@ -147,6 +153,35 @@ class CompanyHolidayRepository extends BaseRepository
         return true;
     }
 
+    public function getByIdsInCompany(array $ids): Collection
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        if ($ids === []) {
+            return collect();
+        }
+        $query = CompanyHoliday::query()->whereIn('id', $ids);
+        $this->applyCompanyFilter($query);
+
+        return $query->get();
+    }
+
+    public function deleteWhereIdsInCompany(array $ids): int
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        if ($ids === []) {
+            return 0;
+        }
+
+        return (int) DB::transaction(function () use ($ids) {
+            $query = CompanyHoliday::query();
+            $this->applyCompanyFilter($query);
+            $deleted = (int) $query->whereIn('id', $ids)->delete();
+            CacheService::invalidateCompanyHolidaysCache();
+
+            return $deleted;
+        });
+    }
+
     /**
      * Получить праздники для диапазона дат
      *
@@ -170,7 +205,7 @@ class CompanyHolidayRepository extends BaseRepository
     /**
      * Применить фильтры к запросу праздников
      *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query  Query builder
+     * @param  Builder  $query  Query builder
      * @param  array<string, mixed>  $filters  Массив фильтров:
      *                                         - year (int|null) Год
      *                                         - date_from (string|null) Дата начала периода

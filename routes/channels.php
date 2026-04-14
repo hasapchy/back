@@ -58,16 +58,8 @@ Broadcast::channel('company.{companyId}.' . CompanyPrivateChannel::SEGMENT_ORDER
         if (! $userBelongsToCompany($user, $companyId)) {
             return false;
         }
-        if ($user->is_admin) {
-            return true;
-        }
-        $names = $user->getAllPermissionsForCompany($companyId)->pluck('name');
-        return $names->contains('orders_view')
-            || $names->contains('orders_view_all')
-            || $names->contains('orders_view_own')
-            || $names->contains('orders_simple_view')
-            || $names->contains('orders_simple_view_all')
-            || $names->contains('orders_simple_view_own');
+
+        return true;
     } catch (\Throwable $e) {
         report($e);
         return false;

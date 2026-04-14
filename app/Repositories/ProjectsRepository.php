@@ -2,13 +2,16 @@
 
 namespace App\Repositories;
 
-use App\Models\Project;
-use App\Models\ProjectUser;
-use App\Models\ProjectStatus;
 use App\Models\Currency;
+use App\Models\Project;
+use App\Models\ProjectStatus;
+use App\Models\ProjectUser;
+use App\Models\Transaction;
+use App\Models\User;
 use App\Services\CacheService;
 use App\Services\Timeline\TimelineCache;
-use App\Models\Transaction;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -18,8 +21,6 @@ class ProjectsRepository extends BaseRepository
 {
     /**
      * Получить базовые связи для проектов
-     *
-     * @return array
      */
     private function getBaseRelations(): array
     {
@@ -37,9 +38,8 @@ class ProjectsRepository extends BaseRepository
     /**
      * Синхронизировать пользователей проекта
      *
-     * @param int $projectId ID проекта
-     * @param array $userIds Массив ID пользователей
-     * @return void
+     * @param  int  $projectId  ID проекта
+     * @param  array  $userIds  Массив ID пользователей
      */
     private function syncProjectUsers(int $projectId, array $userIds): void
     {
@@ -55,35 +55,35 @@ class ProjectsRepository extends BaseRepository
     /**
      * Получить проекты с пагинацией
      *
-     * @param int $perPage Количество записей на страницу
-     * @param int $page Номер страницы
-     * @param string|null $search Поисковый запрос
-     * @param string $dateFilter Фильтр по дате
-     * @param string|null $startDate Начальная дата
-     * @param string|null $endDate Конечная дата
-     * @param int|null $statusId ID статуса
-     * @param int|null $clientId ID клиента
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     * @param  int  $perPage  Количество записей на страницу
+     * @param  int  $page  Номер страницы
+     * @param  string|null  $search  Поисковый запрос
+     * @param  string  $dateFilter  Фильтр по дате
+     * @param  string|null  $startDate  Начальная дата
+     * @param  string|null  $endDate  Конечная дата
+     * @param  int|null  $statusId  ID статуса
+     * @param  int|null  $clientId  ID клиента
+     * @return LengthAwarePaginator
      */
     public function getItemsWithPagination($perPage = 20, $page = 1, $search = null, $dateFilter = 'all_time', $startDate = null, $endDate = null, $statusId = null, $clientId = null)
     {
-        /** @var \App\Models\User|null $currentUser */
+        /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('projects_paginated', [$perPage, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, $currentUser?->id, $companyId]);
 
-        $ttl = (!$search && $dateFilter === 'all_time' && !$statusId && !$clientId) ? 1800 : 600;
+        $ttl = (! $search && $dateFilter === 'all_time' && ! $statusId && ! $clientId) ? 1800 : 600;
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $dateFilter, $startDate, $endDate, $page, $statusId, $clientId, $currentUser) {
             $query = Project::select(['projects.*'])
                 ->with(array_merge($this->getBaseRelations(), [
-                    'projectUsers:id,project_id,user_id'
+                    'projectUsers:id,project_id,user_id',
                 ]));
 
             $query = $this->addCompanyFilterDirect($query, 'projects');
 
             if ($search) {
-                $searchTrimmed = trim((string)$search);
+                $searchTrimmed = trim((string) $search);
                 $searchLower = mb_strtolower($searchTrimmed);
                 $query->where(function ($q) use ($searchTrimmed, $searchLower) {
                     $q->where('projects.id', 'like', "%{$searchTrimmed}%")
@@ -92,12 +92,12 @@ class ProjectsRepository extends BaseRepository
                     $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
                         $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
                     })
-                    ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
-                        $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
-                    })
-                    ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
-                        $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
-                    });
+                        ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
+                            $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                        })
+                        ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
+                            $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                        });
                 });
             }
 
@@ -115,23 +115,21 @@ class ProjectsRepository extends BaseRepository
 
             $this->applyOwnFilter($query, 'projects', 'projects', 'creator_id', $currentUser);
 
-            $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int)$page);
+            $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', (int) $page);
 
             return $paginated;
-        }, (int)$page);
+        }, (int) $page);
     }
-
-
 
     /**
      * Получить все проекты
      *
-     * @param bool $activeOnly Только активные проекты
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @param  bool  $activeOnly  Только активные проекты
+     * @return Collection
      */
     public function getAllItems($activeOnly = false)
     {
-        /** @var \App\Models\User|null $currentUser */
+        /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
         $cacheKey = $this->generateCacheKey('projects_all', [$activeOnly, $currentUser?->id, $companyId]);
@@ -158,8 +156,8 @@ class ProjectsRepository extends BaseRepository
     /**
      * Создать проект
      *
-     * @param array $data Данные проекта
-     * @return bool
+     * @param  array  $data  Данные проекта
+     *
      * @throws \Exception
      */
     public function createItem(array $data): bool
@@ -167,7 +165,7 @@ class ProjectsRepository extends BaseRepository
         return DB::transaction(function () use ($data) {
             $companyId = $this->getCurrentCompanyId();
 
-            $item = new Project();
+            $item = new Project;
             $item->name = $data['name'];
             $item->budget = $data['budget'] ?? 0;
             $item->currency_id = $data['currency_id'] ?? null;
@@ -194,9 +192,9 @@ class ProjectsRepository extends BaseRepository
     /**
      * Обновить проект
      *
-     * @param int $id ID проекта
-     * @param array $data Данные для обновления
-     * @return bool
+     * @param  int  $id  ID проекта
+     * @param  array  $data  Данные для обновления
+     *
      * @throws \Exception
      */
     public function updateItem(int $id, array $data): bool
@@ -232,7 +230,7 @@ class ProjectsRepository extends BaseRepository
     /**
      * Найти проект с отношениями
      *
-     * @param int $id ID проекта
+     * @param  int  $id  ID проекта
      * @return Project|null
      */
     public function findItemWithRelations($id)
@@ -250,7 +248,7 @@ class ProjectsRepository extends BaseRepository
                 'projects.client_id',
                 'projects.files',
                 'projects.created_at',
-                'projects.updated_at'
+                'projects.updated_at',
             ])
                 ->with([
                     'client:id,first_name,last_name,balance,client_type',
@@ -259,7 +257,7 @@ class ProjectsRepository extends BaseRepository
                     'creator:id,name,photo',
                     'currency:id,name,symbol',
                     'users:id,name',
-                    'projectUsers:id,project_id,user_id'
+                    'projectUsers:id,project_id,user_id',
                 ])
                 ->where('id', $id);
 
@@ -272,8 +270,9 @@ class ProjectsRepository extends BaseRepository
     /**
      * Удалить проект
      *
-     * @param int $id ID проекта
+     * @param  int  $id  ID проекта
      * @return bool
+     *
      * @throws \Exception
      */
     public function deleteItem($id)
@@ -285,7 +284,7 @@ class ProjectsRepository extends BaseRepository
                 ->where('is_deleted', false)
                 ->count();
             if ($transactionsCount > 0) {
-                throw new \Exception('Невозможно удалить проект, к нему привязано транзакций: ' . $transactionsCount);
+                throw new \Exception('Невозможно удалить проект, к нему привязано транзакций: '.$transactionsCount);
             }
 
             ProjectUser::where('project_id', $id)->delete();
@@ -302,9 +301,9 @@ class ProjectsRepository extends BaseRepository
     /**
      * Получить историю баланса проекта
      *
-     * @param int $projectId ID проекта
-     * @param int|null $page Номер страницы (null — вернуть все, для getTotalBalance)
-     * @param int $perPage Записей на странице
+     * @param  int  $projectId  ID проекта
+     * @param  int|null  $page  Номер страницы (null — вернуть все, для getTotalBalance)
+     * @param  int  $perPage  Записей на странице
      * @return array|array{history: array, current_page: int, last_page: int, total: int, per_page: int}
      */
     public function getBalanceHistory($projectId, $page = null, $perPage = 20)
@@ -316,12 +315,12 @@ class ProjectsRepository extends BaseRepository
             $projectCurrency = $project && $project->currency_id ? Currency::find($project->currency_id) : null;
             $companyId = $project ? $project->company_id : null;
             $defaultCurrency = Currency::where('is_default', true)
-                ->where(function($q) use ($companyId) {
+                ->where(function ($q) use ($companyId) {
                     $q->where('company_id', $companyId)->orWhereNull('company_id');
                 })
                 ->first();
             $reportCurrency = Currency::where('is_report', true)
-                ->where(function($q) use ($companyId) {
+                ->where(function ($q) use ($companyId) {
                     $q->where('company_id', $companyId)->orWhereNull('company_id');
                 })
                 ->first();
@@ -336,7 +335,7 @@ class ProjectsRepository extends BaseRepository
                     'cashRegister.currency:id,symbol',
                     'currency:id,symbol,name,is_default',
                     'creator:id,name',
-                    'category:id,name'
+                    'category:id,name',
                 ])
                 ->select(
                     'id',
@@ -402,7 +401,7 @@ class ProjectsRepository extends BaseRepository
                         'name' => $item->creator->name,
                     ] : null,
                     'cash_currency_symbol' => $item->cashRegister->currency->symbol ?? $item->currency->symbol,
-                    'category_name' => $item->category?->name ?? null
+                    'category_name' => $item->category?->name ?? null,
                 ];
             })->values()->all();
 
@@ -423,7 +422,7 @@ class ProjectsRepository extends BaseRepository
     /**
      * Получить общий баланс проекта
      *
-     * @param int $projectId ID проекта
+     * @param  int  $projectId  ID проекта
      * @return float
      */
     public function getTotalBalance($projectId)
@@ -441,7 +440,7 @@ class ProjectsRepository extends BaseRepository
     /**
      * Получить детальный баланс проекта
      *
-     * @param int $projectId ID проекта
+     * @param  int  $projectId  ID проекта
      * @return array
      */
     public function getDetailedBalance($projectId)
@@ -464,7 +463,7 @@ class ProjectsRepository extends BaseRepository
     /**
      * Рассчитать агрегированные показатели баланса проекта
      *
-     * @param array $history История баланса проекта
+     * @param  array  $history  История баланса проекта
      * @return array{balance: float, income: float, expense: float}
      */
     private function calculateBalanceStats(array $history): array
@@ -494,8 +493,7 @@ class ProjectsRepository extends BaseRepository
     /**
      * Инвалидировать кэш конкретного проекта
      *
-     * @param int $projectId ID проекта
-     * @return void
+     * @param  int  $projectId  ID проекта
      */
     public function invalidateProjectCache($projectId): void
     {
@@ -511,9 +509,10 @@ class ProjectsRepository extends BaseRepository
     /**
      * Массовое обновление статуса проектов
      *
-     * @param array $ids Массив ID проектов
-     * @param int $statusId ID нового статуса
+     * @param  array  $ids  Массив ID проектов
+     * @param  int  $statusId  ID нового статуса
      * @return int Количество обновленных проектов
+     *
      * @throws \Exception
      */
     public function updateStatusByIds(array $ids, int $statusId): int
@@ -523,32 +522,30 @@ class ProjectsRepository extends BaseRepository
         $projects = Project::whereIn('id', $ids)->get()->keyBy('id');
 
         foreach ($ids as $id) {
-            if (!$projects->has($id)) {
+            if (! $projects->has($id)) {
                 throw new \Exception("Проект ID {$id} не найден");
             }
         }
 
-        $updatedCount = 0;
-
+        $idsToUpdate = [];
         foreach ($ids as $id) {
-            /** @var \App\Models\Project $project */
+            /** @var Project $project */
             $project = $projects->get($id);
-
-            if ($project->status_id != $statusId) {
-                $project->status_id = $statusId;
-                $project->save();
-                $updatedCount++;
+            if ((int) $project->status_id !== (int) $statusId) {
+                $idsToUpdate[] = (int) $id;
             }
         }
 
-        if ($updatedCount > 0) {
+        $updatedCount = 0;
+        if ($idsToUpdate !== []) {
+            Project::query()->whereIn('id', $idsToUpdate)->update(['status_id' => $statusId]);
+            $updatedCount = count($idsToUpdate);
             CacheService::invalidateProjectsCache();
-            foreach ($ids as $projectId) {
-                TimelineCache::forget('project', (int) $projectId);
+            foreach ($idsToUpdate as $projectId) {
+                TimelineCache::forget('project', $projectId);
             }
         }
 
         return $updatedCount;
     }
-
 }

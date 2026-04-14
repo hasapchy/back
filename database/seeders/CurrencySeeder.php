@@ -2,15 +2,13 @@
 
 namespace Database\Seeders;
 
+use App\Models\Company;
 use App\Models\Currency;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 class CurrencySeeder extends Seeder
 {
-    /**
-     * @return void
-     */
     public function run(): void
     {
         $definitions = [
@@ -58,23 +56,46 @@ class CurrencySeeder extends Seeder
         ];
 
         $today = now()->toDateString();
-        $currencyHistories = [];
+        $companyIds = Company::query()->orderBy('id')->pluck('id');
 
-        foreach ($definitions as $def) {
-            $code = $def['code'];
-            $currencyHistories[] = [
-                'currency_id' => $currencyIds[$code],
-                'exchange_rate' => $realRates[$code] ?? 1.00,
-                'start_date' => $today,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
+        if ($companyIds->isEmpty()) {
+            foreach ($definitions as $def) {
+                $code = $def['code'];
+                DB::table('currency_histories')->updateOrInsert(
+                    [
+                        'currency_id' => $currencyIds[$code],
+                        'start_date' => $today,
+                        'company_id' => null,
+                    ],
+                    [
+                        'exchange_rate' => $realRates[$code] ?? 1.00,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]
+                );
+            }
+
+            return;
         }
 
-        DB::table('currency_histories')->upsert(
-            $currencyHistories,
-            ['currency_id', 'start_date'],
-            ['exchange_rate', 'updated_at']
-        );
+        foreach ($companyIds as $companyId) {
+            foreach ($definitions as $def) {
+                $code = $def['code'];
+                DB::table('currency_histories')->updateOrInsert(
+                    [
+                        'currency_id' => $currencyIds[$code],
+                        'start_date' => $today,
+                        'company_id' => $companyId,
+                    ],
+                    [
+                        'exchange_rate' => $realRates[$code] ?? 1.00,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]
+                );
+            }
+        }
+
+        DB::table('currency_histories')->whereNull('company_id')->delete();
     }
 }
