@@ -45,4 +45,13 @@ final class CompanyScopedPermissions
 
         return false;
     }
+
+    public static function userCanViewCurrencyHistory(User $user): bool
+    {
+        return self::userHasAny($user, [
+            'currency_history_view',
+            'currency_history_view_all',
+            'currency_history_view_own',
+        ]);
+    }
 }

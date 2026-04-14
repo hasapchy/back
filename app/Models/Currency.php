@@ -3,8 +3,11 @@
 namespace App\Models;
 
 use App\Models\Traits\BelongsToCompany;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Модель валюты
@@ -18,9 +21,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $is_default Является ли валютой по умолчанию
  * @property string $status Статус
  * @property bool $is_report Используется ли в отчетах
- *
- * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\CurrencyHistory[] $exchangeRateHistories
- * @property-read \App\Models\Company|null $company
+ * @property-read Collection|CurrencyHistory[] $exchangeRateHistories
+ * @property-read Company|null $company
  */
 class Currency extends Model
 {
@@ -35,7 +37,7 @@ class Currency extends Model
         'is_default',
         'status',
         'is_report',
-        'company_id'
+        'company_id',
     ];
 
     protected $casts = [
@@ -47,7 +49,7 @@ class Currency extends Model
     /**
      * Связь с историей курсов валют
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany
      */
     public function exchangeRateHistories()
     {
@@ -57,7 +59,7 @@ class Currency extends Model
     /**
      * Получить текущий курс валюты
      *
-     * @return \App\Models\CurrencyHistory|null
+     * @return CurrencyHistory|null
      */
     public function currentExchangeRate()
     {
@@ -70,8 +72,8 @@ class Currency extends Model
     /**
      * Получить текущий курс валюты для конкретной компании
      *
-     * @param int|null $companyId ID компании
-     * @return \App\Models\CurrencyHistory|null
+     * @param  int|null  $companyId  ID компании
+     * @return CurrencyHistory|null
      */
     public function getCurrentExchangeRateForCompany($companyId = null)
     {
@@ -79,11 +81,14 @@ class Currency extends Model
             ->where('start_date', '<=', now()->toDateString())
             ->where(function ($q) {
                 $q->whereNull('end_date')
-                  ->orWhere('end_date', '>=', now()->toDateString());
+                    ->orWhere('end_date', '>=', now()->toDateString());
             });
 
         if ($companyId) {
-            $query->where('company_id', $companyId);
+            $query->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            });
+            $query->orderByRaw('CASE WHEN company_id = ? THEN 0 WHEN company_id IS NULL THEN 1 ELSE 2 END', [$companyId]);
         } else {
             $query->whereNull('company_id');
         }
@@ -94,8 +99,8 @@ class Currency extends Model
     /**
      * Получить курс валюты для конкретной компании на конкретную дату
      *
-     * @param int|null $companyId ID компании
-     * @param string|null $date Дата
+     * @param  int|null  $companyId  ID компании
+     * @param  string|null  $date  Дата
      * @return float
      */
     public function getExchangeRateForCompany($companyId = null, $date = null)
@@ -105,7 +110,7 @@ class Currency extends Model
         $baseQuery = $this->exchangeRateHistories();
 
         if ($companyId) {
-            $query = (clone $baseQuery)->where(function($q) use ($companyId) {
+            $query = (clone $baseQuery)->where(function ($q) use ($companyId) {
                 $q->where('company_id', $companyId)->orWhereNull('company_id');
             });
         } else {
@@ -116,29 +121,41 @@ class Currency extends Model
             ->where('start_date', '<=', $date)
             ->where(function ($q) use ($date) {
                 $q->whereNull('end_date')
-                  ->orWhere('end_date', '>=', $date);
-            })
-            ->orderBy('start_date', 'desc')
-            ->first();
+                    ->orWhere('end_date', '>=', $date);
+            });
+        $this->applyExchangeHistoryCompanyPreference($activeHistory, $companyId);
+        $activeHistory = $activeHistory->orderBy('start_date', 'desc')->first();
 
         if ($activeHistory) {
             return $activeHistory->exchange_rate;
         }
 
         $earliestHistory = (clone $query)
-            ->where('start_date', '>', $date)
-            ->orderBy('start_date', 'asc')
-            ->first();
+            ->where('start_date', '>', $date);
+        $this->applyExchangeHistoryCompanyPreference($earliestHistory, $companyId);
+        $earliestHistory = $earliestHistory->orderBy('start_date', 'asc')->first();
 
         if ($earliestHistory) {
             return $earliestHistory->exchange_rate;
         }
 
-        $firstHistory = (clone $query)
-            ->orderBy('start_date', 'asc')
-            ->first();
+        $firstHistory = (clone $query);
+        $this->applyExchangeHistoryCompanyPreference($firstHistory, $companyId);
+        $firstHistory = $firstHistory->orderBy('start_date', 'asc')->first();
 
         return $firstHistory ? $firstHistory->exchange_rate : 1;
+    }
+
+    /**
+     * @param  Builder  $query
+     */
+    private function applyExchangeHistoryCompanyPreference($query, ?int $companyId): void
+    {
+        if (! $companyId) {
+            return;
+        }
+
+        $query->orderByRaw('CASE WHEN company_id = ? THEN 0 WHEN company_id IS NULL THEN 1 ELSE 2 END', [$companyId]);
     }
 
     protected static function booted()
@@ -159,5 +176,4 @@ class Currency extends Model
             }
         });
     }
-
 }

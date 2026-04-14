@@ -2,14 +2,16 @@
 
 namespace App\Repositories;
 
-use App\Models\ProjectContract;
-use App\Models\Project;
-use App\Models\Transaction;
-use App\Models\Currency;
 use App\Models\CashRegister;
-use App\Repositories\TransactionsRepository;
+use App\Models\Currency;
+use App\Models\Project;
+use App\Models\ProjectContract;
+use App\Models\Transaction;
 use App\Services\CacheService;
 use App\Services\Timeline\TimelineCache;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,7 +22,7 @@ class ProjectContractsRepository extends BaseRepository
     /**
      * Получить базовый запрос контрактов с валютами
      *
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
     private function getBaseQuery()
     {
@@ -45,7 +47,7 @@ class ProjectContractsRepository extends BaseRepository
             'currencies.name as currency_name',
             'currencies.symbol as currency_symbol',
             'cash_registers.name as cash_register_name',
-            'contract_creator.name as creator_name'
+            'contract_creator.name as creator_name',
         ])
             ->leftJoin('currencies', 'project_contracts.currency_id', '=', 'currencies.id')
             ->leftJoin('cash_registers', 'project_contracts.cash_id', '=', 'cash_registers.id')
@@ -55,14 +57,14 @@ class ProjectContractsRepository extends BaseRepository
     /**
      * Добавить к контрактам payment_status и payment_status_text из полей amount и paid_amount
      *
-     * @param \Illuminate\Support\Collection|iterable $contracts
-     * @return \Illuminate\Support\Collection|iterable
+     * @param  Collection|iterable  $contracts
+     * @return Collection|iterable
      */
     private function enrichContractsWithPaymentStatus($contracts)
     {
         $collection = collect($contracts);
 
-        /** @var \App\Models\ProjectContract $contract */
+        /** @var ProjectContract $contract */
         foreach ($collection as $contract) {
             $paidAmount = (float) ($contract->paid_amount ?? 0);
             $amount = (float) ($contract->amount ?? 0);
@@ -79,9 +81,9 @@ class ProjectContractsRepository extends BaseRepository
 
                     $symbol = $contract->currency_symbol ?? '';
                     $formattedPaidAmount = number_format($paidAmount, 2);
-                    $amountWithCurrency = trim($formattedPaidAmount . ' ' . $symbol);
+                    $amountWithCurrency = trim($formattedPaidAmount.' '.$symbol);
 
-                    $text = $amountWithCurrency !== '' ? 'Частично оплачено: ' . $amountWithCurrency : 'Частично оплачено';
+                    $text = $amountWithCurrency !== '' ? 'Частично оплачено: '.$amountWithCurrency : 'Частично оплачено';
                 }
             }
 
@@ -93,13 +95,14 @@ class ProjectContractsRepository extends BaseRepository
     }
 
     /**
-     * @param \Illuminate\Support\Collection|iterable $contracts
-     * @return \Illuminate\Support\Collection|iterable
+     * @param  Collection|iterable  $contracts
+     * @return Collection|iterable
      */
     private function normalizeContractCreators($contracts)
     {
         $collection = collect($contracts);
 
+        /** @var object{creator_id: int|null, creator_name: string|null, creator: mixed} $contract */
         foreach ($collection as $contract) {
             $contract->creator = $contract->creator_id ? [
                 'id' => (int) $contract->creator_id,
@@ -112,9 +115,9 @@ class ProjectContractsRepository extends BaseRepository
     }
 
     /**
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string|null $paymentStatus unpaid|partially_paid|paid
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @param  string|null  $paymentStatus  unpaid|partially_paid|paid
+     * @return Builder
      */
     private function applyPaymentStatusFilter($query, $paymentStatus)
     {
@@ -130,14 +133,14 @@ class ProjectContractsRepository extends BaseRepository
         if ($paymentStatus === 'partially_paid') {
             return $query->whereRaw('project_contracts.paid_amount > 0 AND project_contracts.paid_amount < project_contracts.amount');
         }
+
         return $query;
     }
 
     /**
      * Обновить оплаченную сумму контракта на основе транзакций (платежи: is_debt=0)
      *
-     * @param int $contractId ID контракта
-     * @return void
+     * @param  int  $contractId  ID контракта
      */
     public function updateContractPaidAmount(int $contractId): void
     {
@@ -150,7 +153,7 @@ class ProjectContractsRepository extends BaseRepository
             ->sum('orig_amount');
 
         ProjectContract::where('id', $contractId)->update([
-            'paid_amount' => (float) $paidAmount
+            'paid_amount' => (float) $paidAmount,
         ]);
 
         $contract = ProjectContract::find($contractId);
@@ -162,9 +165,9 @@ class ProjectContractsRepository extends BaseRepository
     /**
      * Применить фильтрацию по компании через связь с проектом
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int|null $companyId ID компании (игнорируется, так как в project_contracts нет company_id)
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @param  int|null  $companyId  ID компании (игнорируется, так как в project_contracts нет company_id)
+     * @return Builder
      */
     protected function applyCompanyFilter($query, $companyId = null)
     {
@@ -174,11 +177,11 @@ class ProjectContractsRepository extends BaseRepository
     /**
      * Получить контракты проекта с пагинацией
      *
-     * @param int $projectId ID проекта
-     * @param int $perPage Количество записей на страницу
-     * @param int $page Номер страницы
-     * @param string|null $search Поисковый запрос
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     * @param  int  $projectId  ID проекта
+     * @param  int  $perPage  Количество записей на страницу
+     * @param  int  $page  Номер страницы
+     * @param  string|null  $search  Поисковый запрос
+     * @return LengthAwarePaginator
      */
     public function getItemsWithPagination($projectId, $perPage = 20, $page = 1, $search = null)
     {
@@ -227,17 +230,18 @@ class ProjectContractsRepository extends BaseRepository
             }
 
             $paginator = $query->orderBy('project_contracts.id', 'desc')
-                ->paginate($perPage, ['*'], 'page', (int)$page);
+                ->paginate($perPage, ['*'], 'page', (int) $page);
             $this->enrichContractsWithPaymentStatus($paginator->getCollection());
             $this->normalizeContractCreators($paginator->getCollection());
+
             return $paginator;
-        }, (int)$page);
+        }, (int) $page);
     }
 
     /**
      * Получить все контракты проекта
      *
-     * @param int $projectId ID проекта
+     * @param  int  $projectId  ID проекта
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getAllItems($projectId)
@@ -254,6 +258,7 @@ class ProjectContractsRepository extends BaseRepository
                 ->get();
             $this->enrichContractsWithPaymentStatus($items);
             $this->normalizeContractCreators($items);
+
             return $items;
         });
     }
@@ -261,22 +266,22 @@ class ProjectContractsRepository extends BaseRepository
     /**
      * Получить все контракты с пагинацией (без фильтра по проекту)
      *
-     * @param int $perPage Количество записей на страницу
-     * @param int $page Номер страницы
-     * @param string|null $search Поисковый запрос
-     * @param int|null $projectId Фильтр по проекту (опционально)
-     * @param string|null $paymentStatus Фильтр по статусу оплаты: unpaid, partially_paid, paid
-     * @param bool|null $returned Фильтр по статусу возврата (опционально)
-     * @param int|null $cashId Фильтр по кассе (опционально)
-     * @param int|null $type Фильтр по типу контракта (опционально)
-     * @param bool $activeProjectsOnly Только контракты активных проектов
-     * @param int|null $projectStatusId Фильтр по статусу проекта
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     * @param  int  $perPage  Количество записей на страницу
+     * @param  int  $page  Номер страницы
+     * @param  string|null  $search  Поисковый запрос
+     * @param  int|null  $projectId  Фильтр по проекту (опционально)
+     * @param  string|null  $paymentStatus  Фильтр по статусу оплаты: unpaid, partially_paid, paid
+     * @param  bool|null  $returned  Фильтр по статусу возврата (опционально)
+     * @param  int|null  $cashId  Фильтр по кассе (опционально)
+     * @param  int|null  $type  Фильтр по типу контракта (опционально)
+     * @param  bool  $activeProjectsOnly  Только контракты активных проектов
+     * @param  int|null  $projectStatusId  Фильтр по статусу проекта
+     * @return LengthAwarePaginator
      */
     public function getAllContractsWithPagination($perPage = 20, $page = 1, $search = null, $projectId = null, $paymentStatus = null, $returned = null, $cashId = null, $type = null, $activeProjectsOnly = false, $projectStatusId = null)
     {
         $returnedKey = $returned === true ? 'ret1' : ($returned === false ? 'ret0' : 'retn');
-        $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';
+        $searchKey = $search !== null ? md5(trim((string) $search)) : 'null';
         $cacheKey = $this->generateCacheKey('all_contracts_paginated', [$perPage, $page, $searchKey, $projectId, $paymentStatus, $returnedKey, $cashId, $type, $activeProjectsOnly, $projectStatusId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId) {
@@ -309,12 +314,12 @@ class ProjectContractsRepository extends BaseRepository
             $query->when($returned !== null, function ($q) use ($returned) {
                 return $q->where('project_contracts.returned', $returned ? 1 : 0);
             })
-            ->when($cashId !== null, function ($q) use ($cashId) {
-                return $q->where('project_contracts.cash_id', $cashId);
-            })
-            ->when($type !== null, function ($q) use ($type) {
-                return $q->where('project_contracts.type', $type);
-            });
+                ->when($cashId !== null, function ($q) use ($cashId) {
+                    return $q->where('project_contracts.cash_id', $cashId);
+                })
+                ->when($type !== null, function ($q) use ($type) {
+                    return $q->where('project_contracts.type', $type);
+                });
 
             if ($search) {
                 $searchTrimmed = trim((string) $search);
@@ -347,33 +352,34 @@ class ProjectContractsRepository extends BaseRepository
             }
 
             $paginator = $query->orderBy('project_contracts.id', 'desc')
-                ->paginate($perPage, ['*'], 'page', (int)$page);
+                ->paginate($perPage, ['*'], 'page', (int) $page);
             $this->enrichContractsWithPaymentStatus($paginator->getCollection());
             $this->normalizeContractCreators($paginator->getCollection());
+
             return $paginator;
-        }, (int)$page);
+        }, (int) $page);
     }
 
     /**
      * Получить все контракты с пагинацией для конкретного пользователя (own)
      *
-     * @param int $perPage Количество записей на страницу
-     * @param int $page Номер страницы
-     * @param string|null $search Поисковый запрос
-     * @param int|null $projectId Фильтр по проекту (опционально)
-     * @param int $userId ID пользователя
-     * @param string|null $paymentStatus Фильтр по статусу оплаты: unpaid, partially_paid, paid
-     * @param bool|null $returned Фильтр по статусу возврата (опционально)
-     * @param int|null $cashId Фильтр по кассе (опционально)
-     * @param int|null $type Фильтр по типу контракта (опционально)
-     * @param bool $activeProjectsOnly Только контракты активных проектов
-     * @param int|null $projectStatusId Фильтр по статусу проекта
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     * @param  int  $perPage  Количество записей на страницу
+     * @param  int  $page  Номер страницы
+     * @param  string|null  $search  Поисковый запрос
+     * @param  int|null  $projectId  Фильтр по проекту (опционально)
+     * @param  int  $userId  ID пользователя
+     * @param  string|null  $paymentStatus  Фильтр по статусу оплаты: unpaid, partially_paid, paid
+     * @param  bool|null  $returned  Фильтр по статусу возврата (опционально)
+     * @param  int|null  $cashId  Фильтр по кассе (опционально)
+     * @param  int|null  $type  Фильтр по типу контракта (опционально)
+     * @param  bool  $activeProjectsOnly  Только контракты активных проектов
+     * @param  int|null  $projectStatusId  Фильтр по статусу проекта
+     * @return LengthAwarePaginator
      */
-    public function getAllContractsWithPaginationForUser($perPage = 20, $page = 1, $search = null, $projectId = null, $userId, $paymentStatus = null, $returned = null, $cashId = null, $type = null, $activeProjectsOnly = false, $projectStatusId = null)
+    public function getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $userId, $paymentStatus = null, $returned = null, $cashId = null, $type = null, $activeProjectsOnly = false, $projectStatusId = null)
     {
         $returnedKey = $returned === true ? 'ret1' : ($returned === false ? 'ret0' : 'retn');
-        $searchKey = $search !== null ? md5(trim((string)$search)) : 'null';
+        $searchKey = $search !== null ? md5(trim((string) $search)) : 'null';
         $cacheKey = $this->generateCacheKey('all_contracts_paginated_user', [$perPage, $page, $searchKey, $projectId, $userId, $paymentStatus, $returnedKey, $cashId, $type, $activeProjectsOnly, $projectStatusId]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $userId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId) {
@@ -406,12 +412,12 @@ class ProjectContractsRepository extends BaseRepository
             $query->when($returned !== null, function ($q) use ($returned) {
                 return $q->where('project_contracts.returned', $returned ? 1 : 0);
             })
-            ->when($cashId !== null, function ($q) use ($cashId) {
-                return $q->where('project_contracts.cash_id', $cashId);
-            })
-            ->when($type !== null, function ($q) use ($type) {
-                return $q->where('project_contracts.type', $type);
-            });
+                ->when($cashId !== null, function ($q) use ($cashId) {
+                    return $q->where('project_contracts.cash_id', $cashId);
+                })
+                ->when($type !== null, function ($q) use ($type) {
+                    return $q->where('project_contracts.type', $type);
+                });
 
             if ($search) {
                 $searchTrimmed = trim((string) $search);
@@ -444,18 +450,19 @@ class ProjectContractsRepository extends BaseRepository
             }
 
             $paginator = $query->orderBy('project_contracts.id', 'desc')
-                ->paginate($perPage, ['*'], 'page', (int)$page);
+                ->paginate($perPage, ['*'], 'page', (int) $page);
             $this->enrichContractsWithPaymentStatus($paginator->getCollection());
             $this->normalizeContractCreators($paginator->getCollection());
+
             return $paginator;
-        }, (int)$page);
+        }, (int) $page);
     }
 
     /**
      * Создать контракт проекта
      *
-     * @param array $data Данные контракта
-     * @return ProjectContract
+     * @param  array  $data  Данные контракта
+     *
      * @throws \Exception
      */
     public function createContract(array $data): ProjectContract
@@ -463,7 +470,7 @@ class ProjectContractsRepository extends BaseRepository
         return DB::transaction(function () use ($data) {
             $project = Project::findOrFail($data['project_id']);
 
-            $contract = new ProjectContract();
+            $contract = new ProjectContract;
             $contract->project_id = $data['project_id'];
             $contract->client_id = isset($data['client_id']) && $data['client_id'] !== '' && $data['client_id'] !== null
                 ? (int) $data['client_id']
@@ -496,9 +503,9 @@ class ProjectContractsRepository extends BaseRepository
     /**
      * Обновить контракт проекта
      *
-     * @param int $id ID контракта
-     * @param array $data Данные для обновления
-     * @return ProjectContract
+     * @param  int  $id  ID контракта
+     * @param  array  $data  Данные для обновления
+     *
      * @throws \Exception
      */
     public function updateContract(int $id, array $data): ProjectContract
@@ -506,7 +513,9 @@ class ProjectContractsRepository extends BaseRepository
         return DB::transaction(function () use ($id, $data) {
             $contract = ProjectContract::findOrFail($id);
 
-            $contract->number = $data['number'];
+            if (array_key_exists('number', $data)) {
+                $contract->number = $data['number'];
+            }
             if (array_key_exists('type', $data)) {
                 $contract->type = (int) $data['type'];
             }
@@ -515,16 +524,28 @@ class ProjectContractsRepository extends BaseRepository
                     ? (int) $data['client_id']
                     : null;
             }
-            $contract->amount = $data['amount'];
-            $contract->currency_id = $data['currency_id'] ?? null;
-            $contract->cash_id = $data['cash_id'];
+            if (array_key_exists('amount', $data)) {
+                $contract->amount = $data['amount'];
+            }
+            if (array_key_exists('currency_id', $data)) {
+                $contract->currency_id = $data['currency_id'];
+            }
+            if (array_key_exists('cash_id', $data)) {
+                $contract->cash_id = $data['cash_id'] !== null && $data['cash_id'] !== ''
+                    ? (int) $data['cash_id']
+                    : null;
+            }
             if (array_key_exists('client_balance_id', $data)) {
                 $contract->client_balance_id = $data['client_balance_id'] !== null && $data['client_balance_id'] !== ''
                     ? (int) $data['client_balance_id']
                     : null;
             }
-            $contract->date = $data['date'];
-            $contract->note = $data['note'] ?? null;
+            if (array_key_exists('date', $data)) {
+                $contract->date = $data['date'];
+            }
+            if (array_key_exists('note', $data)) {
+                $contract->note = $data['note'];
+            }
 
             if (array_key_exists('returned', $data)) {
                 $contract->returned = (bool) $data['returned'];
@@ -536,6 +557,8 @@ class ProjectContractsRepository extends BaseRepository
 
             $contract->save();
 
+            $contract->loadMissing('project:id,client_id');
+
             $debtTransaction = Transaction::where('source_type', ProjectContract::class)
                 ->where('source_id', $contract->id)
                 ->where('is_debt', true)
@@ -546,21 +569,21 @@ class ProjectContractsRepository extends BaseRepository
                 $project = $contract->project;
                 $cashRegister = CashRegister::find($contract->cash_id);
                 $contractCurrencyId = $contract->currency_id ?? ($cashRegister ? $cashRegister->currency_id : null);
-                if (!$contractCurrencyId) {
+                if (! $contractCurrencyId) {
                     $defaultCurrency = Currency::where('is_default', true)->first();
                     $contractCurrencyId = $defaultCurrency ? $defaultCurrency->id : null;
                 }
                 $txRepo = app(TransactionsRepository::class);
                 $txRepo->updateItem($debtTransaction->id, [
-                    'amount'       => $contract->amount,
-                    'orig_amount'  => $contract->amount,
-                    'date'         => $contract->date,
-                    'note'         => $contract->note,
-                    'cash_id'      => $contract->cash_id,
-                    'currency_id'  => $contractCurrencyId,
-                    'client_id'    => $contract->client_id ?? $project->client_id,
+                    'amount' => $contract->amount,
+                    'orig_amount' => $contract->amount,
+                    'date' => $contract->date,
+                    'note' => $contract->note,
+                    'cash_id' => $contract->cash_id,
+                    'currency_id' => $contractCurrencyId,
+                    'client_id' => $contract->client_id ?? $project->client_id,
                     'client_balance_id' => $contract->client_balance_id,
-                    'category_id'  => $debtTransaction->category_id,
+                    'category_id' => $debtTransaction->category_id,
                 ]);
             }
 
@@ -574,8 +597,7 @@ class ProjectContractsRepository extends BaseRepository
     /**
      * Найти контракт по ID
      *
-     * @param int $id ID контракта
-     * @return ProjectContract|null
+     * @param  int  $id  ID контракта
      */
     public function findContract(int $id): ?ProjectContract
     {
@@ -588,7 +610,7 @@ class ProjectContractsRepository extends BaseRepository
                 'client:id,first_name,last_name',
                 'currency:id,name,symbol',
                 'cashRegister:id,name',
-                'creator:id,name'
+                'creator:id,name',
             ])->where('id', $id);
 
             $this->applyCompanyFilter($query);
@@ -597,6 +619,7 @@ class ProjectContractsRepository extends BaseRepository
             if ($contract) {
                 $this->enrichContractsWithPaymentStatus(collect([$contract]));
             }
+
             return $contract;
         }, $this->getCacheTTL('item'));
     }
@@ -604,8 +627,8 @@ class ProjectContractsRepository extends BaseRepository
     /**
      * Удалить контракт проекта
      *
-     * @param int $id ID контракта
-     * @return bool
+     * @param  int  $id  ID контракта
+     *
      * @throws \Exception
      */
     public function deleteContract(int $id): bool
@@ -635,9 +658,9 @@ class ProjectContractsRepository extends BaseRepository
     /**
      * Создать транзакцию для контракта
      *
-     * @param ProjectContract $contract Контракт
-     * @param Project $project Проект
-     * @return void
+     * @param  ProjectContract  $contract  Контракт
+     * @param  Project  $project  Проект
+     *
      * @throws \Exception
      */
     private function createContractTransaction(ProjectContract $contract, Project $project): void
@@ -653,10 +676,11 @@ class ProjectContractsRepository extends BaseRepository
      * Создать долговую транзакцию по контракту (для контрактов без существующей долговой транзакции).
      * Используется при создании контракта и в одноразовой команде contracts:create-debt-transactions.
      *
-     * @param ProjectContract $contract Контракт
-     * @param Project $project Проект (должен быть загружен с client_id)
-     * @param int|null $userId ID пользователя (для консоли; в API — auth)
+     * @param  ProjectContract  $contract  Контракт
+     * @param  Project  $project  Проект (должен быть загружен с client_id)
+     * @param  int|null  $userId  ID пользователя (для консоли; в API — auth)
      * @return bool true если транзакция создана, false если пропущено
+     *
      * @throws \Exception
      */
     public function createContractDebtTransaction(ProjectContract $contract, Project $project, ?int $userId = null): bool
@@ -679,27 +703,27 @@ class ProjectContractsRepository extends BaseRepository
         $cashRegister = CashRegister::findOrFail($contract->cash_id);
         $contractCurrencyId = $contract->currency_id ?? $cashRegister->currency_id;
 
-        if (!$contractCurrencyId) {
+        if (! $contractCurrencyId) {
             $defaultCurrency = Currency::where('is_default', true)->first();
-            if (!$defaultCurrency) {
+            if (! $defaultCurrency) {
                 throw new \Exception('Валюта по умолчанию не найдена');
             }
             $contractCurrencyId = $defaultCurrency->id;
         }
 
         $this->createTransactionForSource([
-            'client_id'    => $clientId,
-            'amount'       => $contract->amount,
-            'orig_amount'  => $contract->amount,
-            'type'         => 1,
-            'is_debt'      => true,
-            'cash_id'      => $contract->cash_id,
-            'category_id'  => 30,
-            'date'         => now(),
-            'note'         => $contract->note,
-            'creator_id'      => $userId ?? auth('api')->id(),
-            'currency_id'  => $contractCurrencyId,
-            'project_id'   => null,
+            'client_id' => $clientId,
+            'amount' => $contract->amount,
+            'orig_amount' => $contract->amount,
+            'type' => 1,
+            'is_debt' => true,
+            'cash_id' => $contract->cash_id,
+            'category_id' => 30,
+            'date' => now(),
+            'note' => $contract->note,
+            'creator_id' => $userId ?? auth('api')->id(),
+            'currency_id' => $contractCurrencyId,
+            'project_id' => null,
             'client_balance_id' => $contract->client_balance_id,
         ], ProjectContract::class, $contract->id, true);
 
@@ -711,9 +735,8 @@ class ProjectContractsRepository extends BaseRepository
     /**
      * Инвалидация кэша контрактов проекта
      *
-     * @param int $projectId ID проекта
-     * @param int|null $contractId ID контракта (опционально, для инвалидации конкретного контракта)
-     * @return void
+     * @param  int  $projectId  ID проекта
+     * @param  int|null  $contractId  ID контракта (опционально, для инвалидации конкретного контракта)
      */
     private function invalidateProjectContractsCache(int $projectId, ?int $contractId = null): void
     {
@@ -727,5 +750,4 @@ class ProjectContractsRepository extends BaseRepository
 
         CacheService::invalidateProjectsCache();
     }
-
 }

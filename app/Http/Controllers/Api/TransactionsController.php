@@ -2,19 +2,26 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Batch\BatchEntityActions;
+use App\Exports\GenericExport;
 use App\Http\Requests\StoreTransactionRequest;
 use App\Http\Requests\UpdateTransactionRequest;
 use App\Http\Resources\TransactionResource;
-use App\Models\Transaction;
 use App\Models\Order;
 use App\Models\ProjectContract;
-use App\Exports\GenericExport;
+use App\Models\Transaction;
 use App\Repositories\TransactionsRepository;
 use App\Services\CacheService;
 use App\Services\InAppNotifications\InAppNotificationDispatcher;
+use App\Services\TransactionDeleteConstraints;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Контроллер для работы с транзакциями
@@ -26,11 +33,13 @@ class TransactionsController extends BaseController
     /**
      * Конструктор контроллера
      *
-     * @param TransactionsRepository $itemsRepository Репозиторий транзакций
+     * @param  TransactionsRepository  $itemsRepository  Репозиторий транзакций
      */
     public function __construct(
         TransactionsRepository $itemsRepository,
         private readonly InAppNotificationDispatcher $inAppNotificationDispatcher,
+        private readonly TransactionDeleteConstraints $transactionDeleteConstraints,
+        private readonly BatchEntityActions $batchEntityActions,
     ) {
         $this->itemsRepository = $itemsRepository;
     }
@@ -38,8 +47,7 @@ class TransactionsController extends BaseController
     /**
      * Получить список транзакций с пагинацией
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -74,18 +82,14 @@ class TransactionsController extends BaseController
             ],
             'total_debt_positive' => $items->total_debt_positive ?? 0,
             'total_debt_negative' => $items->total_debt_negative ?? 0,
-            'total_debt_balance' => $items->total_debt_balance ?? 0
+            'total_debt_balance' => $items->total_debt_balance ?? 0,
         ];
-
 
         return $this->successResponse($response);
     }
 
     /**
      * Экспорт транзакций в Excel (по фильтру или по выбранным id).
-     *
-     * @param Request $request
-     * @return BinaryFileResponse
      */
     public function export(Request $request): BinaryFileResponse
     {
@@ -116,8 +120,9 @@ class TransactionsController extends BaseController
         $headings = ['№', 'Дата', 'Тип', 'Сумма', 'Клиент', 'Категория', 'Касса', 'Примечание'];
         $rows = array_map(function ($t) {
             $clientName = $t->client
-                ? trim(($t->client['first_name'] ?? '') . ' ' . ($t->client['last_name'] ?? ''))
+                ? trim(($t->client['first_name'] ?? '').' '.($t->client['last_name'] ?? ''))
                 : '';
+
             return [
                 $t->id,
                 $t->date ? (is_string($t->date) ? $t->date : $t->date->format('Y-m-d H:i')) : '',
@@ -129,15 +134,13 @@ class TransactionsController extends BaseController
                 $t->note ?? '',
             ];
         }, $items);
-        $filename = 'transactions_' . date('Y-m-d_His') . '.xlsx';
+        $filename = 'transactions_'.date('Y-m-d_His').'.xlsx';
+
         return Excel::download(new GenericExport($rows, $headings), $filename, \Maatwebsite\Excel\Excel::XLSX);
     }
 
     /**
      * Параметры списка транзакций из Request
-     *
-     * @param Request $request
-     * @return array
      */
     protected function getTransactionListParams(Request $request): array
     {
@@ -174,8 +177,7 @@ class TransactionsController extends BaseController
     /**
      * Создать новую транзакцию
      *
-     * @param StoreTransactionRequest $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(StoreTransactionRequest $request)
     {
@@ -227,7 +229,7 @@ class TransactionsController extends BaseController
             'note' => $validatedData['note'] ?? null,
             'date' => $validatedData['date'] ?? now(),
             'is_debt' => $validatedData['is_debt'] ?? false,
-            'exchange_rate' => $validatedData['exchange_rate'] ?? null
+            'exchange_rate' => $validatedData['exchange_rate'] ?? null,
         ], true);
 
         if (! $transactionId) {
@@ -263,9 +265,8 @@ class TransactionsController extends BaseController
     /**
      * Обновить транзакцию
      *
-     * @param UpdateTransactionRequest $request
-     * @param int $id ID транзакции
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID транзакции
+     * @return JsonResponse
      */
     public function update(UpdateTransactionRequest $request, $id)
     {
@@ -286,7 +287,10 @@ class TransactionsController extends BaseController
 
         $this->authorize('update', $transaction_exist);
 
-        $restrictionMessage = $this->getTransactionRestrictionMessage($transaction_exist);
+        $restrictionMessage = $this->transactionDeleteConstraints->editRestrictionMessage(
+            $this->getAuthenticatedUser(),
+            $transaction_exist,
+        );
         if ($restrictionMessage !== null) {
             return $this->errorResponse($restrictionMessage, 403);
         }
@@ -324,7 +328,7 @@ class TransactionsController extends BaseController
             'client_id' => $updateClientId,
             'note' => $validatedData['note'] ?? null,
             'date' => $validatedData['date'] ?? now(),
-            'is_debt' => $validatedData['is_debt'] ?? false
+            'is_debt' => $validatedData['is_debt'] ?? false,
         ];
 
         if (isset($validatedData['orig_amount'])) {
@@ -347,7 +351,7 @@ class TransactionsController extends BaseController
 
         $category_updated = $this->itemsRepository->updateItem($id, $updateData);
 
-        if (!$category_updated) {
+        if (! $category_updated) {
             return $this->errorResponse('Ошибка обновления транзакции', 400);
         }
 
@@ -366,36 +370,26 @@ class TransactionsController extends BaseController
     /**
      * Удалить транзакцию
      *
-     * @param int $id ID транзакции
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID транзакции
+     * @return JsonResponse
      */
     public function destroy($id)
     {
         $this->getAuthenticatedUserIdOrFail();
 
-        $transaction_exist = Transaction::findOrFail($id);
-
-        $this->authorize('delete', $transaction_exist);
-
-        $restrictionMessage = $this->getTransactionRestrictionMessage($transaction_exist);
-        if ($restrictionMessage !== null) {
-            return $this->errorResponse($restrictionMessage, 403);
+        try {
+            $this->batchEntityActions->deleteTransaction($this->requireAuthenticatedUser(), (int) $id);
+        } catch (NotFoundHttpException $e) {
+            return $this->errorResponse($e->getMessage(), 404);
+        } catch (ModelNotFoundException $e) {
+            return $this->errorResponse('Not found', 404);
+        } catch (AccessDeniedHttpException $e) {
+            return $this->errorResponse($e->getMessage(), 403);
+        } catch (AuthorizationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            return $this->errorResponse($e->getMessage() ?: 'Ошибка удаления транзакции', 400);
         }
-
-        $transaction_deleted = $this->itemsRepository->deleteItem($id);
-
-        if (!$transaction_deleted) {
-            return $this->errorResponse('Ошибка удаления транзакции', 400);
-        }
-
-        CacheService::invalidateTransactionsCache();
-        if ($transaction_exist->client_id) {
-            CacheService::invalidateClientsCache();
-        }
-        if ($transaction_exist->project_id) {
-            CacheService::invalidateProjectsCache();
-        }
-        CacheService::invalidateCashRegistersCache();
 
         return $this->successResponse(null, 'Транзакция удалена');
     }
@@ -403,15 +397,14 @@ class TransactionsController extends BaseController
     /**
      * Получить сумму транзакций по заказу
      *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getTotalByOrderId(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $orderId = $request->query('order_id');
-        if (!$orderId) {
+        if (! $orderId) {
             return $this->errorResponse('order_id is required', 400);
         }
 
@@ -425,8 +418,8 @@ class TransactionsController extends BaseController
     /**
      * Получить транзакцию по ID
      *
-     * @param int $id ID транзакции
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID транзакции
+     * @return JsonResponse
      */
     public function show($id)
     {
@@ -437,9 +430,10 @@ class TransactionsController extends BaseController
         $this->authorize('view', $transaction);
 
         $item = $this->itemsRepository->getItemById($id);
-        if (!$item) {
+        if (! $item) {
             return $this->errorResponse('Not found', 404);
         }
+
         return $this->successResponse(new TransactionResource($item));
     }
 
@@ -448,60 +442,11 @@ class TransactionsController extends BaseController
      */
     private function resolveClientAndCategoryFromSource(?string $sourceType, $sourceId, ?int $clientId, int $categoryId): array
     {
-        if ($sourceType !== ProjectContract::class || !$sourceId) {
+        if ($sourceType !== ProjectContract::class || ! $sourceId) {
             return [$clientId, $categoryId];
         }
         $contract = ProjectContract::with('project')->find($sourceId);
+
         return [$contract?->project?->client_id ?? $clientId, 30];
-    }
-
-    /**
-     * @param  \App\Models\Transaction  $transaction
-     * @return string|null Текст отказа или null, если ограничений нет
-     */
-    private function getTransactionRestrictionMessage(Transaction $transaction): ?string
-    {
-        if ($transaction->cashTransfersFrom()->exists() || $transaction->cashTransfersTo()->exists()) {
-            return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с переводом между кассами';
-        }
-
-        if (! $transaction->source_type || ! $transaction->source_id) {
-            return null;
-        }
-
-        $sourceType = class_basename($transaction->source_type);
-
-        if ($sourceType === 'EmployeeSalary') {
-            return null;
-        }
-
-        if ($sourceType === 'ProjectContract') {
-            $user = $this->getAuthenticatedUser();
-            if ($user && $user->is_admin) {
-                return null;
-            }
-
-            return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через контракт проекта. Управляйте ей через раздел "Контракты"';
-        }
-
-        return $this->getTransactionRestrictionMessageBySourceType($sourceType);
-    }
-
-    /**
-     * @param  string  $sourceType
-     * @return string
-     */
-    private function getTransactionRestrictionMessageBySourceType(string $sourceType): string
-    {
-        switch ($sourceType) {
-            case 'Sale':
-                return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через продажу. Управляйте ей через раздел "Продажи"';
-            case 'Order':
-                return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через заказ. Управляйте ей через раздел "Заказы"';
-            case 'WhReceipt':
-                return 'Нельзя редактировать/удалить эту транзакцию, так как она была создана через складское поступление. Управляйте ей через раздел "Склад"';
-            default:
-                return 'Нельзя редактировать/удалить эту транзакцию, так как она связана с другой операцией в системе';
-        }
     }
 }

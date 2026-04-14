@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use App\Services\CacheService;
@@ -79,6 +80,13 @@ class UsersController extends BaseController
 
         $data = $request->validated();
 
+        Log::info('users.store simple fields', [
+            'validated_has_is_simple_user' => array_key_exists('is_simple_user', $data),
+            'validated_is_simple_user' => $data['is_simple_user'] ?? null,
+            'validated_has_simple_category_id' => array_key_exists('simple_category_id', $data),
+            'validated_simple_category_id' => $data['simple_category_id'] ?? null,
+        ]);
+
         if ($request->hasFile('photo')) {
             $photo = $request->file('photo');
             $photoName = time() . '_' . $photo->getClientOriginalName();
@@ -113,7 +121,8 @@ class UsersController extends BaseController
 
         $this->authorize('update', $targetUser);
 
-        $data = $request->validated();
+        $validated = $request->validated();
+        $data = $validated;
         unset($data['photo']);
 
         $companies = $data['companies'] ?? null;
@@ -154,6 +163,20 @@ class UsersController extends BaseController
         if ($hasBirthday) {
             $data['birthday'] = $birthday;
         }
+
+        Log::info('users.update simple fields', [
+            'target_user_id' => (int) $id,
+            'request_is_simple_user' => $request->input('is_simple_user'),
+            'request_simple_category_id' => $request->input('simple_category_id'),
+            'validated_has_is_simple_user' => array_key_exists('is_simple_user', $validated),
+            'validated_is_simple_user' => $validated['is_simple_user'] ?? null,
+            'validated_has_simple_category_id' => array_key_exists('simple_category_id', $validated),
+            'validated_simple_category_id' => $validated['simple_category_id'] ?? null,
+            'payload_has_is_simple_user' => array_key_exists('is_simple_user', $data),
+            'payload_is_simple_user' => $data['is_simple_user'] ?? null,
+            'payload_has_simple_category_id' => array_key_exists('simple_category_id', $data),
+            'payload_simple_category_id' => $data['simple_category_id'] ?? null,
+        ]);
 
         $user = $this->itemsRepository->updateItem($id, $data);
         $user = $this->handlePhotoUpload($request, $user);

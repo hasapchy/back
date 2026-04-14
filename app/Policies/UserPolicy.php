@@ -14,7 +14,7 @@ class UserPolicy
 
     public function viewAny(User $user): Response
     {
-        return $this->resourceAbilityResponse($user, self::RESOURCE, 'view', null, 'У вас нет прав на просмотр пользователей');
+        return Response::allow();
     }
 
     public function view(User $user, User $model): Response

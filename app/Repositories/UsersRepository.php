@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\CacheService;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\CashRegisterUser;
 use App\Models\Transaction;
@@ -64,6 +65,8 @@ class UsersRepository extends BaseRepository
                 'users.birthday',
                 'users.position',
                 'users.is_admin',
+                'users.is_simple_user',
+                'users.simple_category_id',
                 'users.photo',
                 'users.created_at',
                 'users.updated_at',
@@ -437,7 +440,22 @@ class UsersRepository extends BaseRepository
                 $user->photo = $data['photo'];
             }
 
+            Log::info('users.repository.createItem simple fields before save', [
+                'data_has_is_simple_user' => array_key_exists('is_simple_user', $data),
+                'data_is_simple_user' => $data['is_simple_user'] ?? null,
+                'data_has_simple_category_id' => array_key_exists('simple_category_id', $data),
+                'data_simple_category_id' => $data['simple_category_id'] ?? null,
+                'model_is_simple_user' => $user->is_simple_user,
+                'model_simple_category_id' => $user->simple_category_id,
+            ]);
+
             $user->save();
+
+            Log::info('users.repository.createItem simple fields after save', [
+                'user_id' => $user->id,
+                'model_is_simple_user' => $user->is_simple_user,
+                'model_simple_category_id' => $user->simple_category_id,
+            ]);
 
             if (isset($data['companies'])) {
                 $user->companies()->sync($data['companies']);
@@ -489,7 +507,7 @@ class UsersRepository extends BaseRepository
             $user->position = array_key_exists('position', $data) ? $data['position'] : $user->position;
             $user->is_admin = $data['is_admin'] ?? $user->is_admin;
             if (array_key_exists('is_simple_user', $data)) {
-                $user->is_simple_user = (bool) $data['is_simple_user'];
+                $user->is_simple_user = $data['is_simple_user'];
             }
             if (array_key_exists('simple_category_id', $data)) {
                 $user->simple_category_id = $data['simple_category_id'] ? (int) $data['simple_category_id'] : null;
@@ -503,7 +521,25 @@ class UsersRepository extends BaseRepository
                 $user->password = $data['password'];
             }
 
+            Log::info('users.repository.updateItem simple fields before save', [
+                'target_user_id' => (int) $id,
+                'data_has_is_simple_user' => array_key_exists('is_simple_user', $data),
+                'data_is_simple_user' => $data['is_simple_user'] ?? null,
+                'data_has_simple_category_id' => array_key_exists('simple_category_id', $data),
+                'data_simple_category_id' => $data['simple_category_id'] ?? null,
+                'model_is_simple_user' => $user->is_simple_user,
+                'model_simple_category_id' => $user->simple_category_id,
+            ]);
+
             $user->save();
+
+            $user->refresh();
+
+            Log::info('users.repository.updateItem simple fields after save', [
+                'target_user_id' => (int) $id,
+                'model_is_simple_user' => $user->is_simple_user,
+                'model_simple_category_id' => $user->simple_category_id,
+            ]);
 
             if (isset($data['companies'])) {
                 $user->companies()->sync($data['companies']);
@@ -970,6 +1006,8 @@ class UsersRepository extends BaseRepository
                 'users.birthday',
                 'users.position',
                 'users.is_admin',
+                'users.is_simple_user',
+                'users.simple_category_id',
                 'users.photo',
                 'users.created_at',
                 'users.updated_at',

@@ -2,19 +2,24 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Batch\BatchEntityActions;
+use App\Exports\GenericExport;
 use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
 use App\Http\Resources\ClientResource;
+use App\Http\Resources\ClientSearchResource;
 use App\Models\Client;
-use App\Exports\GenericExport;
 use App\Repositories\ClientsRepository;
 use App\Services\CacheService;
 use App\Services\InAppNotifications\InAppNotificationDispatcher;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
  * Контроллер для работы с клиентами
@@ -31,6 +36,7 @@ class ClientController extends BaseController
     public function __construct(
         ClientsRepository $itemsRepository,
         private readonly InAppNotificationDispatcher $inAppNotificationDispatcher,
+        private readonly BatchEntityActions $batchEntityActions,
     ) {
         $this->itemsRepository = $itemsRepository;
     }
@@ -38,7 +44,7 @@ class ClientController extends BaseController
     /**
      * Получить список клиентов с пагинацией
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -69,9 +75,6 @@ class ClientController extends BaseController
 
     /**
      * Экспорт клиентов в Excel (по фильтру или по выбранным id).
-     *
-     * @param  Request  $request
-     * @return BinaryFileResponse
      */
     public function export(Request $request): BinaryFileResponse
     {
@@ -97,7 +100,7 @@ class ClientController extends BaseController
 
             return [
                 $client->id,
-                trim($client->first_name . ' ' . $client->last_name),
+                trim($client->first_name.' '.$client->last_name),
                 $client->client_type ?? '',
                 $client->status ? 'Активен' : 'Неактивен',
                 $phones,
@@ -106,15 +109,13 @@ class ClientController extends BaseController
                 $client->note ?? '',
             ];
         })->all();
-        $filename = 'clients_' . date('Y-m-d_His') . '.xlsx';
+        $filename = 'clients_'.date('Y-m-d_His').'.xlsx';
+
         return Excel::download(new GenericExport($rows, $headings), $filename, \Maatwebsite\Excel\Excel::XLSX);
     }
 
     /**
      * Параметры списка клиентов из Request
-     *
-     * @param  Request  $request
-     * @return array
      */
     protected function getClientListParams(Request $request): array
     {
@@ -136,12 +137,10 @@ class ClientController extends BaseController
     /**
      * Поиск клиентов
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function search(Request $request)
     {
-        $this->authorize('viewAny', Client::class);
-
         $search_request = $request->input('search_request');
 
         if (! $search_request || empty($search_request)) {
@@ -158,7 +157,7 @@ class ClientController extends BaseController
 
         $items = $this->itemsRepository->searchClient($search_request, $typeFilter);
 
-        $resource = \App\Http\Resources\ClientSearchResource::collection($items);
+        $resource = ClientSearchResource::collection($items);
 
         return $this->successResponse($resource->toArray($request));
     }
@@ -167,7 +166,7 @@ class ClientController extends BaseController
      * Получить клиента по ID
      *
      * @param  int  $id  ID клиента
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function show($id)
     {
@@ -196,7 +195,7 @@ class ClientController extends BaseController
      * Получить историю баланса клиента
      *
      * @param  int  $id  ID клиента
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getBalanceHistory(Request $request, $id)
     {
@@ -207,7 +206,7 @@ class ClientController extends BaseController
             && $user->can('settings_client_balance_view_own');
         $canViewAllBalance = $user->can('settings_client_balance_view');
 
-        if (!$canViewOwnBalance && !$canViewAllBalance) {
+        if (! $canViewOwnBalance && ! $canViewAllBalance) {
             return $this->errorResponse('Нет доступа к просмотру баланса клиента', 403);
         }
 
@@ -231,14 +230,10 @@ class ClientController extends BaseController
     /**
      * Получить всех клиентов
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function all(Request $request)
     {
-        if (! $request->boolean('for_mutual_settlements')) {
-            $this->authorize('viewAny', Client::class);
-        }
-
         try {
             $typeFilterInput = $request->input('type_filter');
             $typeFilter = [];
@@ -290,7 +285,7 @@ class ClientController extends BaseController
      * Создать нового клиента
      *
      * @param  Request  $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(StoreClientRequest $request)
     {
@@ -351,7 +346,7 @@ class ClientController extends BaseController
      *
      * @param  Request  $request
      * @param  int  $id  ID клиента
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function update(UpdateClientRequest $request, $id)
     {
@@ -414,51 +409,20 @@ class ClientController extends BaseController
      * Удалить клиента
      *
      * @param  int  $id  ID клиента
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function destroy($id)
     {
         try {
-            $client = Client::find($id);
+            $this->batchEntityActions->deleteClient($this->requireAuthenticatedUser(), (int) $id);
 
-            if (! $client) {
-                return $this->errorResponse('Клиент не найден', 404);
-            }
-
-            $this->authorize('delete', $client);
-
-            $hasTransactions = DB::table('transactions')->where('client_id', $id)->exists();
-
-            if ($hasTransactions) {
-                return $this->errorResponse('Нельзя удалить клиента: найдены связанные транзакции.', 422);
-            }
-
-            $hasOrders = DB::table('orders')->where('client_id', $id)->exists();
-
-            if ($hasOrders) {
-                return $this->errorResponse('Нельзя удалить клиента: найдены связанные заказы.', 422);
-            }
-
-            $balance = DB::table('clients')->where('id', $id)->value('balance');
-
-            if ($balance > 0 || $balance < 0) {
-                return $this->errorResponse('Нельзя удалить клиента с ненулевым балансом.', 422);
-            }
-
-            $deleted = $this->itemsRepository->deleteItem($id);
-
-            if ($deleted) {
-                CacheService::invalidateClientsCache();
-                CacheService::invalidateOrdersCache();
-                CacheService::invalidateSalesCache();
-                CacheService::invalidateTransactionsCache();
-
-                return $this->successResponse(null, 'Клиент успешно удалён');
-            } else {
-                return $this->errorResponse('Клиент не найден', 404);
-            }
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return $this->successResponse(null, 'Клиент успешно удалён');
+        } catch (AuthorizationException $e) {
             throw $e;
+        } catch (NotFoundHttpException $e) {
+            return $this->errorResponse($e->getMessage() ?: 'Клиент не найден', 404);
+        } catch (UnprocessableEntityHttpException $e) {
+            return $this->errorResponse($e->getMessage(), 422);
         } catch (\Throwable $e) {
             return $this->errorResponse('Ошибка при удалении клиента: '.$e->getMessage(), 500);
         }
@@ -469,7 +433,7 @@ class ClientController extends BaseController
      *
      * @param  int|null  $employeeId  ID сотрудника
      * @param  int|null  $excludeId  ID клиента для исключения из проверки
-     * @return \Illuminate\Http\JsonResponse|null
+     * @return JsonResponse|null
      */
     protected function checkEmployeeIdDuplicate(?int $employeeId, ?int $excludeId = null)
     {
@@ -502,7 +466,7 @@ class ClientController extends BaseController
      *
      * @param  array  $phones  Массив телефонов
      * @param  int|null  $excludeClientId  ID клиента для исключения из проверки
-     * @return \Illuminate\Http\JsonResponse|null
+     * @return JsonResponse|null
      */
     protected function checkPhoneDuplicates(array $phones, ?int $excludeClientId = null)
     {

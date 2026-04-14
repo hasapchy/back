@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateCompanyHolidayRequest;
 use App\Http\Resources\CompanyHolidayResource;
 use App\Models\CompanyHoliday;
 use App\Repositories\CompanyHolidayRepository;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
@@ -24,7 +25,7 @@ class CompanyHolidayController extends BaseController
     /**
      * Получить список праздников компании с пагинацией
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -33,7 +34,7 @@ class CompanyHolidayController extends BaseController
         $perPage = $request->input('per_page', 20);
 
         $filters = $this->buildFilters($request);
-        
+
         // Добавляем company_id в фильтры, если передан
         if ($request->has('company_id')) {
             $filters['company_id'] = $request->input('company_id');
@@ -55,14 +56,14 @@ class CompanyHolidayController extends BaseController
     /**
      * Получить все праздники компании
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function all(Request $request)
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
         $filters = $this->buildFilters($request);
-        
+
         // Добавляем company_id в фильтры, если передан
         if ($request->has('company_id')) {
             $filters['company_id'] = $request->input('company_id');
@@ -77,7 +78,7 @@ class CompanyHolidayController extends BaseController
      * Получить праздник по ID
      *
      * @param  int  $id  ID праздника
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function show($id)
     {
@@ -95,7 +96,7 @@ class CompanyHolidayController extends BaseController
     /**
      * Создать новый праздник
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(StoreCompanyHolidayRequest $request)
     {
@@ -124,7 +125,7 @@ class CompanyHolidayController extends BaseController
      * Обновить праздник
      *
      * @param  int  $id  ID праздника
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function update(UpdateCompanyHolidayRequest $request, $id)
     {
@@ -158,7 +159,7 @@ class CompanyHolidayController extends BaseController
      * Удалить праздник
      *
      * @param  int  $id  ID праздника
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function destroy($id)
     {
@@ -175,43 +176,6 @@ class CompanyHolidayController extends BaseController
             return $this->successResponse(null, 'Праздник удален');
         } catch (\Exception $e) {
             return $this->errorResponse('Праздник не найден', 404);
-        }
-    }
-
-    /**
-     * Пакетное удаление праздников
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function batchDelete(Request $request)
-    {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
-
-        $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'integer',
-        ]);
-
-        $ids = $request->input('ids');
-
-        try {
-            $deleted = 0;
-            foreach ($ids as $id) {
-                try {
-                    $this->repository->deleteItem($id);
-                    $deleted++;
-                } catch (\Exception $e) {
-                    // Пропускаем записи, которые не найдены
-                    continue;
-                }
-            }
-
-            return $this->successResponse([
-                'message' => "Удалено праздников: $deleted",
-                'deleted' => $deleted,
-            ]);
-        } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при пакетном удалении', 400);
         }
     }
 

@@ -4,6 +4,10 @@ namespace App\Repositories;
 
 use App\Models\MessageTemplate;
 use App\Services\CacheService;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class MessageTemplateRepository extends BaseRepository
 {
@@ -26,7 +30,7 @@ class MessageTemplateRepository extends BaseRepository
      * @param  int  $perPage  Количество записей на страницу
      * @param  int  $page  Номер страницы
      * @param  array<string, mixed>  $filters  Фильтры (type, search)
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     * @return LengthAwarePaginator
      */
     public function getItemsWithPagination($perPage = 20, $page = 1, $filters = [])
     {
@@ -54,7 +58,7 @@ class MessageTemplateRepository extends BaseRepository
      * Получить все шаблоны
      *
      * @param  array<string, mixed>  $filters  Фильтры (type)
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @return Collection
      */
     public function getAllItems($filters = [])
     {
@@ -81,7 +85,7 @@ class MessageTemplateRepository extends BaseRepository
      * Получить шаблон по типу (например, для ДР)
      *
      * @param  string  $type  Тип шаблона
-     * @return \App\Models\MessageTemplate|null
+     * @return MessageTemplate|null
      */
     public function getByType(string $type)
     {
@@ -102,16 +106,17 @@ class MessageTemplateRepository extends BaseRepository
      * Получить шаблон по ID
      *
      * @param  int  $id  ID шаблона
-     * @return \App\Models\MessageTemplate|null
+     * @return MessageTemplate|null
      */
     public function getItemById($id)
     {
         $query = MessageTemplate::with($this->getBaseRelations())->where('id', $id);
         $this->applyCompanyFilter($query);
         $item = $query->first();
-        if (!$item) {
-            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('MessageTemplate not found');
+        if (! $item) {
+            throw new ModelNotFoundException('MessageTemplate not found');
         }
+
         return $item;
     }
 
@@ -119,7 +124,7 @@ class MessageTemplateRepository extends BaseRepository
      * Создать шаблон
      *
      * @param  array<string, mixed>  $data  Данные шаблона
-     * @return \App\Models\MessageTemplate
+     * @return MessageTemplate
      */
     public function createItem($data)
     {
@@ -140,7 +145,7 @@ class MessageTemplateRepository extends BaseRepository
      *
      * @param  int  $id  ID шаблона
      * @param  array<string, mixed>  $data  Данные для обновления
-     * @return \App\Models\MessageTemplate
+     * @return MessageTemplate
      */
     public function updateItem($id, $data)
     {
@@ -155,7 +160,7 @@ class MessageTemplateRepository extends BaseRepository
      * Найти шаблон с отношениями
      *
      * @param  int  $id  ID шаблона
-     * @return \App\Models\MessageTemplate|null
+     * @return MessageTemplate|null
      */
     public function findItemWithRelations($id)
     {
@@ -177,6 +182,7 @@ class MessageTemplateRepository extends BaseRepository
                 ->with($this->getBaseRelations())
                 ->where('message_templates.id', $id);
             $this->applyCompanyFilter($query);
+
             return $query->first();
         }, $this->getCacheTTL('reference'));
     }
@@ -199,7 +205,7 @@ class MessageTemplateRepository extends BaseRepository
     /**
      * Применить фильтры к запросу шаблонов
      *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query  Query builder
+     * @param  Builder  $query  Query builder
      * @param  array<string, mixed>  $filters  Массив фильтров:
      *                                         - type (string|null) Тип шаблона
      *                                         - search (string|null) Поиск по названию и содержанию

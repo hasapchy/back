@@ -3,7 +3,9 @@
 namespace App\Repositories;
 
 use App\Models\Task;
+use App\Models\TaskStatus;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class TaskRepository extends BaseRepository
 {
@@ -13,19 +15,19 @@ class TaskRepository extends BaseRepository
     {
         $companyId = $this->getCurrentCompanyId();
         $query = Task::with(['creator', 'supervisor', 'executor', 'project', 'status'])
-                    ->where('company_id', $companyId);
+            ->where('company_id', $companyId);
 
         $user = auth('api')->user();
-        if ($user && !$user->is_admin) {
+        if ($user && ! $user->is_admin) {
             $permissions = $this->getUserPermissionsForCompany($user);
             $hasViewAll = in_array('tasks_view_all', $permissions);
             $hasViewOwn = in_array('tasks_view_own', $permissions);
 
-            if (!$hasViewAll && $hasViewOwn) {
-                $query->where(function($q) use ($user) {
+            if (! $hasViewAll && $hasViewOwn) {
+                $query->where(function ($q) use ($user) {
                     $q->where('creator_id', $user->id)
-                      ->orWhere('supervisor_id', $user->id)
-                      ->orWhere('executor_id', $user->id);
+                        ->orWhere('supervisor_id', $user->id)
+                        ->orWhere('executor_id', $user->id);
                 });
             }
         }
@@ -47,13 +49,14 @@ class TaskRepository extends BaseRepository
         // Поиск по названию/описанию
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
         $perPage = $request->input('per_page', 20);
+
         return $query->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $request->input('page', 1));
     }
 
@@ -61,22 +64,22 @@ class TaskRepository extends BaseRepository
     {
         $companyId = $this->getCurrentCompanyId();
         $task = Task::with(['creator', 'supervisor', 'executor', 'project', 'status'])
-                    ->where('company_id', $companyId)
-                    ->findOrFail($id);
+            ->where('company_id', $companyId)
+            ->findOrFail($id);
 
         $user = auth('api')->user();
-        if ($user && !$user->is_admin) {
+        if ($user && ! $user->is_admin) {
             $permissions = $this->getUserPermissionsForCompany($user);
             $hasViewAll = in_array('tasks_view_all', $permissions);
             $hasViewOwn = in_array('tasks_view_own', $permissions);
 
-            if (!$hasViewAll && $hasViewOwn) {
+            if (! $hasViewAll && $hasViewOwn) {
                 $isOwnTask = $task->creator_id === $user->id
                           || $task->supervisor_id === $user->id
                           || $task->executor_id === $user->id;
 
-                if (!$isOwnTask) {
-                    abort(403, 'You do not have permission to view this task');
+                if (! $isOwnTask) {
+                    throw new AccessDeniedHttpException('You do not have permission to view this task');
                 }
             }
         }
@@ -92,14 +95,13 @@ class TaskRepository extends BaseRepository
         $data['priority'] = $data['priority'] ?? 'low';
         $data['complexity'] = $data['complexity'] ?? 'normal';
 
-
-        if (!isset($data['company_id']) || !$data['company_id']) {
+        if (! isset($data['company_id']) || ! $data['company_id']) {
             throw new \Exception('Company ID is required');
         }
 
         // Если status_id не указан, устанавливаем первый доступный статус по умолчанию
-        if (!isset($data['status_id']) || !$data['status_id']) {
-            $defaultStatus = \App\Models\TaskStatus::orderBy('id')->first();
+        if (! isset($data['status_id']) || ! $data['status_id']) {
+            $defaultStatus = TaskStatus::orderBy('id')->first();
             if ($defaultStatus) {
                 $data['status_id'] = $defaultStatus->id;
             } else {
@@ -111,9 +113,8 @@ class TaskRepository extends BaseRepository
     }
 
     /**
-     * @param int $id
-     * @param array<string, mixed> $data
-     * @return Task
+     * @param  int  $id
+     * @param  array<string, mixed>  $data
      */
     public function update($id, array $data): Task
     {
@@ -123,6 +124,7 @@ class TaskRepository extends BaseRepository
         }
         if ($data !== []) {
             $task->update($data);
+
             return $task->fresh();
         }
 
@@ -132,6 +134,7 @@ class TaskRepository extends BaseRepository
     public function delete($id): bool
     {
         $task = $this->findById($id);
+
         return $task->delete();
     }
 
@@ -159,12 +162,12 @@ class TaskRepository extends BaseRepository
             ->whereIn('status_id', self::OVERDUE_STATUS_IDS);
 
         $user = auth('api')->user();
-        if ($user && !$user->is_admin) {
+        if ($user && ! $user->is_admin) {
             $permissions = $this->getUserPermissionsForCompany($user);
             $hasViewAll = in_array('tasks_view_all', $permissions);
             $hasViewOwn = in_array('tasks_view_own', $permissions);
 
-            if (!$hasViewAll && $hasViewOwn) {
+            if (! $hasViewAll && $hasViewOwn) {
                 $query->where(function ($q) use ($user) {
                     $q->where('creator_id', $user->id)
                         ->orWhere('supervisor_id', $user->id)

@@ -7,18 +7,19 @@ use App\Models\Category;
 use App\Models\CategoryUser;
 use App\Models\Currency;
 use App\Models\User;
-use App\Support\SimpleUser;
+use App\Services\CacheService;
 use App\Services\CurrencyConverter;
 use App\Services\RoundingService;
 use App\Support\CompanyScopedPermissions;
 use App\Support\ResolvedCompany;
+use App\Support\SimpleUser;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 
 abstract class BaseRepository
 {
     /**
      * Получить ID текущей компании из заголовка запроса
-     *
-     * @return int|null
      */
     protected function getCurrentCompanyId(): ?int
     {
@@ -28,8 +29,7 @@ abstract class BaseRepository
     /**
      * Получить ID категорий, доступных пользователю в рамках текущей компании
      *
-     * @param int $userId ID пользователя
-     * @return array
+     * @param  int  $userId  ID пользователя
      */
     protected function getUserCategoryIds(int $userId): array
     {
@@ -44,6 +44,21 @@ abstract class BaseRepository
             sort($ids);
 
             return $ids;
+        }
+
+        if ($user && ! $this->shouldApplyUserFilter('categories', $user)) {
+            $companyId = $this->getCurrentCompanyId();
+            $q = Category::query();
+            if ($companyId) {
+                $q->where('company_id', $companyId);
+            } else {
+                $q->whereNull('company_id');
+            }
+            $categoryIds = $q->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $categoryIds = array_values(array_unique($categoryIds));
+            sort($categoryIds);
+
+            return $categoryIds;
         }
 
         $categoryIds = CategoryUser::where('user_id', $userId)
@@ -72,9 +87,9 @@ abstract class BaseRepository
     /**
      * Добавить фильтр по компании напрямую к таблице
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
-     * @param string $tableName Имя таблицы
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query  Query builder
+     * @param  string  $tableName  Имя таблицы
+     * @return Builder
      */
     protected function addCompanyFilterDirect($query, $tableName)
     {
@@ -84,15 +99,16 @@ abstract class BaseRepository
         } else {
             $query->whereNull("{$tableName}.company_id");
         }
+
         return $query;
     }
 
     /**
      * Применить фильтр по company_id к запросу
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
-     * @param int|null $companyId ID компании (если null, берется из заголовка)
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query  Query builder
+     * @param  int|null  $companyId  ID компании (если null, берется из заголовка)
+     * @return Builder
      */
     protected function applyCompanyFilter($query, $companyId = null)
     {
@@ -108,10 +124,10 @@ abstract class BaseRepository
     /**
      * Добавить фильтр по компании через отношение
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
-     * @param string $relationName Имя отношения
-     * @param string|null $relationTable Имя таблицы отношения (опционально)
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query  Query builder
+     * @param  string  $relationName  Имя отношения
+     * @param  string|null  $relationTable  Имя таблицы отношения (опционально)
+     * @return Builder
      */
     protected function addCompanyFilterThroughRelation($query, $relationName, $relationTable = null)
     {
@@ -127,18 +143,19 @@ abstract class BaseRepository
                 $q->whereNull("{$table}.company_id");
             });
         }
+
         return $query;
     }
 
     /**
      * Применить фильтр по дате к запросу
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
-     * @param string $dateFilter Тип фильтра по дате
-     * @param string|null $startDate Начальная дата
-     * @param string|null $endDate Конечная дата
-     * @param string $dateColumn Имя колонки с датой
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query  Query builder
+     * @param  string  $dateFilter  Тип фильтра по дате
+     * @param  string|null  $startDate  Начальная дата
+     * @param  string|null  $endDate  Конечная дата
+     * @param  string  $dateColumn  Имя колонки с датой
+     * @return Builder
      */
     protected function applyDateFilter($query, $dateFilter, $startDate = null, $endDate = null, $dateColumn = 'date')
     {
@@ -147,7 +164,7 @@ abstract class BaseRepository
         if ($dateRange) {
             $query->whereBetween($dateColumn, [
                 $dateRange[0]->toDateTimeString(),
-                $dateRange[1]->toDateTimeString()
+                $dateRange[1]->toDateTimeString(),
             ]);
         }
 
@@ -156,9 +173,10 @@ abstract class BaseRepository
 
     /**
      * Получить диапазон дат для фильтра
-     * @param string $dateFilter
-     * @param string|null $startDate
-     * @param string|null $endDate
+     *
+     * @param  string  $dateFilter
+     * @param  string|null  $startDate
+     * @param  string|null  $endDate
      * @return array|null [start, end] или null
      */
     protected function getDateRangeForFilter($dateFilter, $startDate = null, $endDate = null): ?array
@@ -183,10 +201,11 @@ abstract class BaseRepository
             case 'custom':
                 if ($startDate && $endDate) {
                     return [
-                        \Carbon\Carbon::parse($startDate)->startOfDay(),
-                        \Carbon\Carbon::parse($endDate)->endOfDay()
+                        Carbon::parse($startDate)->startOfDay(),
+                        Carbon::parse($endDate)->endOfDay(),
                     ];
                 }
+
                 return null;
             default:
                 return null;
@@ -196,7 +215,7 @@ abstract class BaseRepository
     /**
      * Инвалидировать кэш баланса клиента
      *
-     * @param int|null $clientId ID клиента
+     * @param  int|null  $clientId  ID клиента
      * @return void
      */
     protected function invalidateClientBalanceCache($clientId)
@@ -209,9 +228,8 @@ abstract class BaseRepository
     /**
      * Сгенерировать ключ кэша
      *
-     * @param string $prefix Префикс ключа
-     * @param array $params Параметры для ключа
-     * @return string
+     * @param  string  $prefix  Префикс ключа
+     * @param  array  $params  Параметры для ключа
      */
     public function generateCacheKey(string $prefix, array $params = []): string
     {
@@ -233,16 +251,16 @@ abstract class BaseRepository
         $key .= "_{$companyId}";
         if (strlen($key) > 250) {
             $hash = md5($key);
-            $key = substr($key, 0, 200) . "_{$hash}";
+            $key = substr($key, 0, 200)."_{$hash}";
         }
+
         return $key;
     }
 
     /**
      * Нормализовать параметр для ключа кэша
      *
-     * @param mixed $param Параметр
-     * @return string
+     * @param  mixed  $param  Параметр
      */
     protected function normalizeCacheParam($param): string
     {
@@ -252,20 +270,20 @@ abstract class BaseRepository
 
         if (is_array($param)) {
             sort($param);
+
             return implode(',', $param);
         }
 
         return (string) $param;
     }
 
-
     /**
      * Применить поиск по клиенту через прямую таблицу
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
-     * @param string $search Поисковый запрос
-     * @param string $clientTableAlias Алиас таблицы клиентов
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query  Query builder
+     * @param  string  $search  Поисковый запрос
+     * @param  string  $clientTableAlias  Алиас таблицы клиентов
+     * @return Builder
      */
     protected function applyClientSearchFilter($query, $search, $clientTableAlias = 'clients')
     {
@@ -277,10 +295,10 @@ abstract class BaseRepository
     /**
      * Применить поиск по клиенту через отношение
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
-     * @param string $relationName Имя отношения
-     * @param string $search Поисковый запрос
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query  Query builder
+     * @param  string  $relationName  Имя отношения
+     * @param  string  $search  Поисковый запрос
+     * @return Builder
      */
     protected function applyClientSearchFilterThroughRelation($query, $relationName, $search)
     {
@@ -293,10 +311,10 @@ abstract class BaseRepository
      * Общие условия поиска клиента (DRY принцип)
      * Добавляет условия поиска к существующему query builder
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
-     * @param string $search Поисковый запрос
-     * @param string|null $tableAlias Алиас таблицы
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query  Query builder
+     * @param  string  $search  Поисковый запрос
+     * @param  string|null  $tableAlias  Алиас таблицы
+     * @return Builder
      */
     protected function applyClientSearchConditions($query, $search, $tableAlias = null)
     {
@@ -315,8 +333,7 @@ abstract class BaseRepository
     /**
      * Округлить сумму по правилам компании
      *
-     * @param float $amount Сумма
-     * @return float
+     * @param  float  $amount  Сумма
      */
     protected function roundAmount(float $amount): float
     {
@@ -326,14 +343,12 @@ abstract class BaseRepository
         );
     }
 
-
     /**
      * Конвертировать валюту
      *
-     * @param float $amount Сумма
-     * @param int $fromCurrencyId ID исходной валюты
-     * @param int $toCurrencyId ID целевой валюты
-     * @return float
+     * @param  float  $amount  Сумма
+     * @param  int  $fromCurrencyId  ID исходной валюты
+     * @param  int  $toCurrencyId  ID целевой валюты
      */
     protected function convertCurrency(float $amount, int $fromCurrencyId, int $toCurrencyId): float
     {
@@ -350,22 +365,20 @@ abstract class BaseRepository
     /**
      * Конвертировать и округлить валюту
      *
-     * @param float $amount Сумма
-     * @param int $fromCurrencyId ID исходной валюты
-     * @param int $toCurrencyId ID целевой валюты
-     * @return float
+     * @param  float  $amount  Сумма
+     * @param  int  $fromCurrencyId  ID исходной валюты
+     * @param  int  $toCurrencyId  ID целевой валюты
      */
     protected function convertAndRoundCurrency(float $amount, int $fromCurrencyId, int $toCurrencyId): float
     {
         $converted = $this->convertCurrency($amount, $fromCurrencyId, $toCurrencyId);
+
         return $this->roundAmount($converted);
     }
 
     /**
      * Получить валюту по умолчанию (глобальная для всех компаний)
      * Использует статическое кэширование для оптимизации
-     *
-     * @return Currency
      */
     protected function getDefaultCurrency(): Currency
     {
@@ -382,10 +395,9 @@ abstract class BaseRepository
     /**
      * Построить данные транзакции для источника
      *
-     * @param array $data Данные транзакции
-     * @param string $sourceType Тип источника
-     * @param int $sourceId ID источника
-     * @return array
+     * @param  array  $data  Данные транзакции
+     * @param  string  $sourceType  Тип источника
+     * @param  int  $sourceId  ID источника
      */
     protected function buildTransactionData(array $data, string $sourceType, int $sourceId): array
     {
@@ -406,20 +418,20 @@ abstract class BaseRepository
         }
 
         return [
-            'client_id'    => $data['client_id'] ?? null,
-            'amount'       => $this->roundAmount($amount),
-            'orig_amount'  => $this->roundAmount($origAmount),
-            'type'         => $data['type'] ?? 1,
-            'is_debt'      => $data['is_debt'] ?? false,
-            'cash_id'      => $data['cash_id'] ?? null,
-            'category_id'  => $data['category_id'] ?? 1,
-            'source_type'  => $sourceType,
-            'source_id'    => $sourceId,
-            'date'         => $data['date'] ?? now(),
-            'note'         => $data['note'] ?? null,
-            'creator_id'      => $data['creator_id'] ?? auth('api')->id(),
-            'project_id'   => $data['project_id'] ?? null,
-            'currency_id'  => $data['currency_id'] ?? $defaultCurrency->id,
+            'client_id' => $data['client_id'] ?? null,
+            'amount' => $this->roundAmount($amount),
+            'orig_amount' => $this->roundAmount($origAmount),
+            'type' => $data['type'] ?? 1,
+            'is_debt' => $data['is_debt'] ?? false,
+            'cash_id' => $data['cash_id'] ?? null,
+            'category_id' => $data['category_id'] ?? 1,
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+            'date' => $data['date'] ?? now(),
+            'note' => $data['note'] ?? null,
+            'creator_id' => $data['creator_id'] ?? auth('api')->id(),
+            'project_id' => $data['project_id'] ?? null,
+            'currency_id' => $data['currency_id'] ?? $defaultCurrency->id,
             'client_balance_id' => $data['client_balance_id'] ?? null,
         ];
     }
@@ -427,10 +439,10 @@ abstract class BaseRepository
     /**
      * Создать транзакцию для источника
      *
-     * @param array $data Данные транзакции
-     * @param string $sourceType Тип источника (класс модели)
-     * @param int $sourceId ID источника
-     * @param bool $returnId Вернуть ID транзакции
+     * @param  array  $data  Данные транзакции
+     * @param  string  $sourceType  Тип источника (класс модели)
+     * @param  int  $sourceId  ID источника
+     * @param  bool  $returnId  Вернуть ID транзакции
      * @return int|null ID транзакции или null
      */
     protected function createTransactionForSource(array $data, string $sourceType, int $sourceId, bool $returnId = false): ?int
@@ -442,12 +454,13 @@ abstract class BaseRepository
 
     /**
      * Получить разрешения текущего пользователя с учетом компании
-     * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
+     *
+     * @param  User|null  $user  Пользователь (по умолчанию текущий)
      * @return array Массив разрешений
      */
     protected function getUserPermissionsForCompany($user = null): array
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = $user ?? auth('api')->user();
         if (! $user) {
             return [];
@@ -458,15 +471,16 @@ abstract class BaseRepository
 
     /**
      * Получить ID пользователя для фильтрации по правам _own/_all
-     * @param string $resource Название ресурса (например, 'cash_registers', 'warehouses')
-     * @param int|null $defaultUserId ID пользователя по умолчанию (если нет разрешений)
+     *
+     * @param  string  $resource  Название ресурса (например, 'cash_registers', 'warehouses')
+     * @param  int|null  $defaultUserId  ID пользователя по умолчанию (если нет разрешений)
      * @return int ID пользователя для фильтрации
      */
     protected function getFilterUserIdForPermission(string $resource, ?int $defaultUserId = null): int
     {
-        /** @var \App\Models\User|null $currentUser */
+        /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
-        if (!$currentUser) {
+        if (! $currentUser) {
             return $defaultUserId ?? auth('api')->id();
         }
 
@@ -478,7 +492,7 @@ abstract class BaseRepository
         $hasViewAll = in_array("{$resource}_view_all", $permissions);
         $hasViewOwn = in_array("{$resource}_view_own", $permissions);
 
-        if (!$hasViewAll && $hasViewOwn) {
+        if (! $hasViewAll && $hasViewOwn) {
             return $currentUser->id;
         }
 
@@ -487,19 +501,20 @@ abstract class BaseRepository
 
     /**
      * Применить фильтр _own для запроса, если у пользователя есть только разрешение _own (без _all)
-     * @param \Illuminate\Database\Eloquent\Builder $query Query builder
-     * @param string $resource Название ресурса (например, 'clients', 'orders', 'projects')
-     * @param string $tableName Имя таблицы (например, 'clients', 'orders')
-     * @param string $userIdColumn Имя колонки с creator_id (по умолчанию 'creator_id')
-     * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
-     * @param string|null $additionalOwnColumn Доп. колонка «своей» записи (например employee_id для клиента-сотрудника)
-     * @return \Illuminate\Database\Eloquent\Builder
+     *
+     * @param  Builder  $query  Query builder
+     * @param  string  $resource  Название ресурса (например, 'clients', 'orders', 'projects')
+     * @param  string  $tableName  Имя таблицы (например, 'clients', 'orders')
+     * @param  string  $userIdColumn  Имя колонки с creator_id (по умолчанию 'creator_id')
+     * @param  User|null  $user  Пользователь (по умолчанию текущий)
+     * @param  string|null  $additionalOwnColumn  Доп. колонка «своей» записи (например employee_id для клиента-сотрудника)
+     * @return Builder
      */
     protected function applyOwnFilter($query, string $resource, string $tableName, string $userIdColumn = 'creator_id', $user = null, ?string $additionalOwnColumn = null)
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = $user ?? auth('api')->user();
-        if (!$user) {
+        if (! $user) {
             return $query;
         }
 
@@ -511,7 +526,7 @@ abstract class BaseRepository
         $hasViewAll = in_array("{$resource}_view_all", $permissions);
         $hasViewOwn = in_array("{$resource}_view_own", $permissions);
 
-        if (!$hasViewAll && $hasViewOwn) {
+        if (! $hasViewAll && $hasViewOwn) {
             if ($additionalOwnColumn !== null) {
                 $query->where(function ($q) use ($tableName, $userIdColumn, $additionalOwnColumn, $user) {
                     $q->where("{$tableName}.{$userIdColumn}", $user->id)
@@ -528,19 +543,17 @@ abstract class BaseRepository
     /**
      * Проверить, должен ли применяться фильтр по пользователям
      * Для админа фильтр не применяется.
-     * Для остальных:
-     *  - для касс фильтр ВСЕГДА применяется (только по привязкам к кассе),
-     *  - для других ресурсов пользователи с *_view_all видят всё, остальные фильтруются.
+     * Для остальных: при наличии *_view_all фильтр не применяется, иначе — по привязкам (many-to-many) или иной стратегии ресурса.
      *
-     * @param string $resource Название ресурса (например, 'cash_registers', 'warehouses', 'categories')
-     * @param \App\Models\User|null $user Пользователь (по умолчанию текущий)
+     * @param  string  $resource  Название ресурса (например, 'cash_registers', 'warehouses', 'categories')
+     * @param  User|null  $user  Пользователь (по умолчанию текущий)
      * @return bool true - фильтр нужно применять, false - фильтр не нужен
      */
     protected function shouldApplyUserFilter(string $resource, $user = null): bool
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = $user ?? auth('api')->user();
-        if (!$user) {
+        if (! $user) {
             return true;
         }
 
@@ -548,57 +561,53 @@ abstract class BaseRepository
             return false;
         }
 
-        if ($resource === 'cash_registers') {
-            return true;
-        }
-
         $permissions = $this->getUserPermissionsForCompany($user);
         $hasViewAll = in_array("{$resource}_view_all", $permissions);
 
-        return !$hasViewAll;
+        return ! $hasViewAll;
     }
 
     /**
      * Получить TTL для кэширования в зависимости от типа данных и наличия фильтров
      *
-     * @param string $type Тип кэша ('search', 'paginated', 'reference', 'item', 'user_data')
-     * @param bool $hasFilters Есть ли примененные фильтры (поиск, фильтры по дате и т.д.)
+     * @param  string  $type  Тип кэша ('search', 'paginated', 'reference', 'item', 'user_data')
+     * @param  bool  $hasFilters  Есть ли примененные фильтры (поиск, фильтры по дате и т.д.)
      * @return int TTL в секундах
      */
     protected function getCacheTTL(string $type = 'reference', bool $hasFilters = false): int
     {
-        if (!$hasFilters && $type === 'reference') {
-            return \App\Services\CacheService::CACHE_TTL['reference_data'];
+        if (! $hasFilters && $type === 'reference') {
+            return CacheService::CACHE_TTL['reference_data'];
         }
 
         switch ($type) {
             case 'search':
-                return \App\Services\CacheService::CACHE_TTL['search_results'];
+                return CacheService::CACHE_TTL['search_results'];
             case 'paginated':
-                return \App\Services\CacheService::CACHE_TTL['sales_list'];
+                return CacheService::CACHE_TTL['sales_list'];
             case 'user_data':
-                return \App\Services\CacheService::CACHE_TTL['user_data'];
+                return CacheService::CACHE_TTL['user_data'];
             case 'reference':
             case 'item':
             default:
                 return $hasFilters
-                    ? \App\Services\CacheService::CACHE_TTL['sales_list']
-                    : \App\Services\CacheService::CACHE_TTL['reference_data'];
+                    ? CacheService::CACHE_TTL['sales_list']
+                    : CacheService::CACHE_TTL['reference_data'];
         }
     }
 
     /**
      * Универсальный метод для синхронизации связей many-to-many с пользователями
      *
-     * @param string $modelClass Класс модели промежуточной таблицы (например, ProjectUser::class)
-     * @param string $foreignKey Название колонки для основной сущности (например, 'project_id')
-     * @param int $entityId ID основной сущности
-     * @param array $userIds Массив ID пользователей
-     * @param array $options Опции:
-     *   - 'require_at_least_one' (bool) - требуется ли хотя бы один пользователь (по умолчанию false)
-     *   - 'filter_empty' (bool) - фильтровать ли пустые значения из массива (по умолчанию false)
-     *   - 'error_message' (string) - сообщение об ошибке, если требуется хотя бы один пользователь
-     * @return void
+     * @param  string  $modelClass  Класс модели промежуточной таблицы (например, ProjectUser::class)
+     * @param  string  $foreignKey  Название колонки для основной сущности (например, 'project_id')
+     * @param  int  $entityId  ID основной сущности
+     * @param  array  $userIds  Массив ID пользователей
+     * @param  array  $options  Опции:
+     *                          - 'require_at_least_one' (bool) - требуется ли хотя бы один пользователь (по умолчанию false)
+     *                          - 'filter_empty' (bool) - фильтровать ли пустые значения из массива (по умолчанию false)
+     *                          - 'error_message' (string) - сообщение об ошибке, если требуется хотя бы один пользователь
+     *
      * @throws \Exception
      */
     protected function syncManyToManyUsers(
@@ -615,7 +624,7 @@ abstract class BaseRepository
 
         if ($filterEmpty) {
             $userIds = array_filter($userIds, function ($userId) {
-                return !empty($userId);
+                return ! empty($userId);
             });
         }
 
@@ -625,7 +634,7 @@ abstract class BaseRepository
 
         $modelClass::where($foreignKey, $entityId)->delete();
 
-        if (!empty($userIds)) {
+        if (! empty($userIds)) {
             $now = now();
             $insertData = [];
             foreach ($userIds as $userId) {

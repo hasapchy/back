@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Requests\PatchProjectContractRequest;
 use App\Http\Requests\StoreProjectContractRequest;
-use App\Http\Requests\UpdateProjectContractRequest;
 use App\Http\Resources\ProjectContractResource;
 use App\Models\Project;
 use App\Models\ProjectContract;
 use App\Repositories\ProjectContractsRepository;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Контроллер для управления контрактами проектов
@@ -21,9 +23,6 @@ class ProjectContractsController extends BaseController
      */
     protected $repository;
 
-    /**
-     * @param ProjectContractsRepository $repository
-     */
     public function __construct(ProjectContractsRepository $repository)
     {
         $this->repository = $repository;
@@ -32,15 +31,13 @@ class ProjectContractsController extends BaseController
     /**
      * Получение контрактов проекта с пагинацией
      *
-     * @param Request $request
-     * @param int $projectId ID проекта
-     * @return JsonResponse
+     * @param  int  $projectId  ID проекта
      */
     public function index(Request $request, $projectId): JsonResponse
     {
         try {
             $project = $this->findProjectAndCheckAccess($projectId, 'view');
-            if ($project instanceof \Illuminate\Http\JsonResponse) {
+            if ($project instanceof JsonResponse) {
                 return $project;
             }
 
@@ -60,22 +57,20 @@ class ProjectContractsController extends BaseController
                 ],
             ]);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении контрактов проекта: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при получении контрактов проекта: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Получение всех контрактов проекта
      *
-     * @param Request $request
-     * @param int $projectId ID проекта
-     * @return JsonResponse
+     * @param  int  $projectId  ID проекта
      */
     public function getAll(Request $request, $projectId): JsonResponse
     {
         try {
             $project = $this->findProjectAndCheckAccess($projectId, 'view');
-            if ($project instanceof \Illuminate\Http\JsonResponse) {
+            if ($project instanceof JsonResponse) {
                 return $project;
             }
 
@@ -83,15 +78,12 @@ class ProjectContractsController extends BaseController
 
             return $this->successResponse(ProjectContractResource::collection($contracts)->resolve());
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении контрактов проекта: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при получении контрактов проекта: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Получение всех контрактов с пагинацией (без фильтра по проекту)
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function getAllContracts(Request $request): JsonResponse
     {
@@ -130,15 +122,12 @@ class ProjectContractsController extends BaseController
                 ],
             ]);
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении контрактов: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при получении контрактов: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Создание нового контракта
-     *
-     * @param StoreProjectContractRequest $request
-     * @return JsonResponse
      */
     public function store(StoreProjectContractRequest $request): JsonResponse
     {
@@ -146,7 +135,7 @@ class ProjectContractsController extends BaseController
             $validatedData = $request->validated();
 
             $project = Project::find($validatedData['project_id']);
-            if (!$project) {
+            if (! $project) {
                 return $this->errorResponse('Проект не найден', 404);
             }
 
@@ -160,50 +149,42 @@ class ProjectContractsController extends BaseController
 
             return $this->successResponse([
                 'message' => 'Контракт успешно создан',
-                'item' => (new ProjectContractResource($contract->load(['currency', 'project.client', 'cashRegister'])))->resolve()
+                'item' => (new ProjectContractResource($contract->load(['currency', 'project.client', 'cashRegister'])))->resolve(),
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при создании контракта: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при создании контракта: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Получение контракта по ID
      *
-     * @param int $id ID контракта
-     * @return JsonResponse
+     * @param  int  $id  ID контракта
      */
     public function show($id): JsonResponse
     {
         try {
             $contract = $this->repository->findContract($id);
 
-            if (!$contract) {
+            if (! $contract) {
                 return $this->errorResponse('Контракт не найден', 404);
             }
 
             $this->authorize('view', $contract);
 
             return $this->successResponse(new ProjectContractResource($contract));
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при получении контракта: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при получении контракта: '.$e->getMessage(), 500);
         }
     }
 
-    /**
-     * Обновление контракта
-     *
-     * @param UpdateProjectContractRequest $request
-     * @param int $id ID контракта
-     * @return JsonResponse
-     */
-    public function update(UpdateProjectContractRequest $request, $id): JsonResponse
+    public function patch(PatchProjectContractRequest $request, $id): JsonResponse
     {
         try {
             $contract = ProjectContract::findOrFail($id);
@@ -212,30 +193,27 @@ class ProjectContractsController extends BaseController
 
             $validatedData = $request->validated();
 
-            $data = $validatedData;
-
-            $contract = $this->repository->updateContract($id, $data);
+            $contract = $this->repository->updateContract($id, $validatedData);
 
             return $this->successResponse([
                 'message' => 'Контракт успешно обновлен',
-                'item' => (new ProjectContractResource($contract->load(['currency', 'project.client', 'cashRegister'])))->resolve()
+                'item' => (new ProjectContractResource($contract->load(['currency', 'project.client', 'cashRegister'])))->resolve(),
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return $this->validationErrorResponse($e->validator);
         } catch (\DomainException $e) {
             return $this->errorResponse($e->getMessage(), 422);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при обновлении контракта: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при обновлении контракта: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Удаление контракта
      *
-     * @param int $id ID контракта
-     * @return JsonResponse
+     * @param  int  $id  ID контракта
      */
     public function destroy($id): JsonResponse
     {
@@ -246,29 +224,29 @@ class ProjectContractsController extends BaseController
 
             $result = $this->repository->deleteContract($id);
 
-            if (!$result) {
+            if (! $result) {
                 return $this->errorResponse('Контракт не найден', 404);
             }
 
             return $this->successResponse(null, 'Контракт успешно удален');
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return $this->errorResponse('Ошибка при удалении контракта: ' . $e->getMessage(), 500);
+            return $this->errorResponse('Ошибка при удалении контракта: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Найти проект и проверить доступ
      *
-     * @param int $projectId ID проекта
-     * @param string $action Действие (view, update, delete)
-     * @return \App\Models\Project|\Illuminate\Http\JsonResponse
+     * @param  int  $projectId  ID проекта
+     * @param  string  $action  Действие (view, update, delete)
+     * @return Project|JsonResponse
      */
     protected function findProjectAndCheckAccess(int $projectId, string $action)
     {
         $project = Project::find($projectId);
-        if (!$project) {
+        if (! $project) {
             return $this->errorResponse('Проект не найден', 404);
         }
 
@@ -286,4 +264,3 @@ class ProjectContractsController extends BaseController
         return $project;
     }
 }
-

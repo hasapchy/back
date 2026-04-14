@@ -2,12 +2,13 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
-use App\Models\Company;
-use App\Models\Transaction;
 use App\Models\CashRegister;
+use App\Models\Client;
+use App\Models\Company;
 use App\Models\Currency;
+use App\Models\Transaction;
 use App\Models\TransactionCategory;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -17,16 +18,22 @@ class TransactionsControllerTest extends TestCase
     use DatabaseTransactions;
 
     protected User $adminUser;
+
     protected Company $company;
+
     protected CashRegister $cashRegister;
+
     protected Currency $currency;
+
     protected TransactionCategory $category;
+
+    protected Client $client;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        if (!Schema::hasTable('companies')) {
+        if (! Schema::hasTable('companies')) {
             $this->markTestSkipped('Таблица companies не существует.');
         }
 
@@ -42,6 +49,10 @@ class TransactionsControllerTest extends TestCase
             'currency_id' => $this->currency->id,
         ]);
         $this->category = TransactionCategory::factory()->create([
+            'creator_id' => $this->adminUser->id,
+        ]);
+        $this->client = Client::factory()->create([
+            'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
         ]);
     }
@@ -82,6 +93,7 @@ class TransactionsControllerTest extends TestCase
     public function test_update_transaction_success(): void
     {
         $transaction = Transaction::factory()->create([
+            'type' => 1,
             'cash_id' => $this->cashRegister->id,
             'currency_id' => $this->currency->id,
             'category_id' => $this->category->id,
@@ -107,10 +119,12 @@ class TransactionsControllerTest extends TestCase
     public function test_destroy_transaction_success(): void
     {
         $transaction = Transaction::factory()->create([
+            'type' => 1,
             'cash_id' => $this->cashRegister->id,
             'currency_id' => $this->currency->id,
             'category_id' => $this->category->id,
             'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
         ]);
 
         $response = $this->actingAsApi($this->adminUser)
@@ -119,9 +133,37 @@ class TransactionsControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJson(['message' => 'Транзакция удалена']);
     }
+
+    public function test_batch_destroy_transactions_success(): void
+    {
+        $t1 = Transaction::factory()->create([
+            'type' => 1,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $this->currency->id,
+            'category_id' => $this->category->id,
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+        ]);
+        $t2 = Transaction::factory()->create([
+            'type' => 1,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $this->currency->id,
+            'category_id' => $this->category->id,
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/batch', [
+                'entity' => 'transactions',
+                'action' => 'delete',
+                'ids' => [$t1->id, $t2->id],
+                'sync' => true,
+            ]);
+
+        $response->assertStatus(200);
+        $this->assertSame(2, $response->json('data.success_count'));
+        $this->assertSame([], $response->json('data.failed_ids'));
+        $this->assertSame([], $response->json('data.errors'));
+    }
 }
-
-
-
-
-

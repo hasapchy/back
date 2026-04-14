@@ -2,10 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\Company;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class CompaniesControllerTest extends TestCase
@@ -18,7 +17,7 @@ class CompaniesControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (!\Schema::hasTable('companies')) {
+        if (! \Schema::hasTable('companies')) {
             $this->markTestSkipped('Таблица companies не существует. Выполните миграции перед запуском тестов.');
         }
 
@@ -140,7 +139,7 @@ class CompaniesControllerTest extends TestCase
         $company = Company::factory()->create();
 
         $response = $this->actingAsApi($this->adminUser)
-            ->putJson("/api/companies/{$company->id}", [
+            ->patchJson("/api/companies/{$company->id}", [
                 'name' => '',
             ]);
 
@@ -159,13 +158,29 @@ class CompaniesControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->putJson("/api/companies/{$company->id}", $updateData);
+            ->patchJson("/api/companies/{$company->id}", $updateData);
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('companies', [
             'id' => $company->id,
             'name' => 'New Name',
         ]);
+    }
+
+    public function test_update_company_via_post_multipart_still_works(): void
+    {
+        $company = Company::factory()->create(['name' => 'Post Update Co']);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->post("/api/companies/{$company->id}", [
+                'name' => 'Updated Via Post',
+                'show_deleted_transactions' => '1',
+            ]);
+
+        $response->assertStatus(200);
+        $company->refresh();
+        $this->assertSame('Updated Via Post', $company->name);
+        $this->assertTrue($company->show_deleted_transactions);
     }
 
     public function test_update_company_normalizes_boolean_fields(): void
@@ -182,7 +197,7 @@ class CompaniesControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->putJson("/api/companies/{$company->id}", $updateData);
+            ->patchJson("/api/companies/{$company->id}", $updateData);
 
         $response->assertStatus(200);
         $company->refresh();
@@ -204,7 +219,7 @@ class CompaniesControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)
-            ->putJson("/api/companies/{$company->id}", $updateData);
+            ->patchJson("/api/companies/{$company->id}", $updateData);
 
         $response->assertStatus(200);
         $company->refresh();
@@ -213,4 +228,3 @@ class CompaniesControllerTest extends TestCase
         $this->assertNull($company->rounding_custom_threshold);
     }
 }
-

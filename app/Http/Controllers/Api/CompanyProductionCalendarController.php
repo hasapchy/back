@@ -46,7 +46,7 @@ class CompanyProductionCalendarController extends BaseController
     {
         return $this->withCurrentCompany(function (int $companyId) use ($request) {
             $validated = $request->validate([
-                'dates' => 'required|array|min:1',
+                'dates' => 'required|array|min:1|max:'.self::BATCH_IDS_MAX,
                 'dates.*' => 'date_format:Y-m-d',
             ]);
 
@@ -65,23 +65,6 @@ class CompanyProductionCalendarController extends BaseController
                 'created' => $created,
                 'total_requested' => count($validated['dates']),
             ]);
-        });
-    }
-
-    public function batchDelete(Request $request): JsonResponse
-    {
-        return $this->withCurrentCompany(function (int $companyId) use ($request) {
-            $validated = $request->validate([
-                'dates' => 'required|array|min:1',
-                'dates.*' => 'date_format:Y-m-d',
-            ]);
-
-            $deleted = CompanyProductionCalendarDay::query()
-                ->where('company_id', $companyId)
-                ->whereIn('date', array_unique($validated['dates']))
-                ->delete();
-
-            return $this->successResponse(['deleted' => $deleted]);
         });
     }
 

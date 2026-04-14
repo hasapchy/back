@@ -90,20 +90,6 @@ class UpdateUserRequest extends FormRequest
             }
         }
 
-        if (isset($data['is_simple_user'])) {
-            $currentUser = auth('api')->user();
-            if (!$currentUser || !$currentUser->is_admin) {
-                unset($data['is_simple_user']);
-                unset($data['simple_category_id']);
-            } else {
-                $data['is_simple_user'] = filter_var($data['is_simple_user'], FILTER_VALIDATE_BOOLEAN);
-            }
-        }
-
-        if (isset($data['is_simple_user']) && ! $data['is_simple_user']) {
-            unset($data['simple_category_id']);
-        }
-
         if (isset($data['roles']) && is_string($data['roles'])) {
             $data['roles'] = explode(',', $data['roles']);
         }
