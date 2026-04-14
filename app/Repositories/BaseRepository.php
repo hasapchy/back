@@ -561,6 +561,10 @@ abstract class BaseRepository
             return false;
         }
 
+        if (in_array($resource, ['cash_registers', 'warehouses', 'categories'], true)) {
+            return true;
+        }
+
         $permissions = $this->getUserPermissionsForCompany($user);
         $hasViewAll = in_array("{$resource}_view_all", $permissions);
 
