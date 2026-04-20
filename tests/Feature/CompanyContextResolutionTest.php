@@ -40,7 +40,9 @@ class CompanyContextResolutionTest extends TestCase
         $user = User::factory()->create(['is_active' => true]);
         $user->companies()->attach($company->id);
 
-        $response = $this->actingAs($user, 'web')
+        $response = $this->withHeader('Origin', 'http://localhost')
+            ->withHeader('Referer', 'http://localhost')
+            ->actingAs($user, 'web')
             ->withSession([ResolvedCompany::SESSION_KEY => $company->id])
             ->getJson('/api/user/current-company');
 
@@ -64,5 +66,48 @@ class CompanyContextResolutionTest extends TestCase
             ->getJson('/api/user/current-company');
 
         $response->assertStatus(409);
+    }
+
+    public function test_me_returns_409_when_company_context_missing_for_stateful_user(): void
+    {
+        if (! Schema::hasTable('companies')) {
+            $this->markTestSkipped('companies table missing');
+        }
+
+        $company = Company::factory()->create();
+        $user = User::factory()->create(['is_active' => true]);
+        $user->companies()->attach($company->id);
+
+        $response = $this->actingAs($user, 'web')
+            ->getJson('/api/user/me');
+
+        $response->assertStatus(409);
+        $response->assertJsonPath('error', 'Company context missing');
+    }
+
+    public function test_me_returns_user_with_permissions_when_company_context_present_in_session(): void
+    {
+        if (! Schema::hasTable('companies')) {
+            $this->markTestSkipped('companies table missing');
+        }
+
+        $company = Company::factory()->create();
+        $user = User::factory()->create(['is_active' => true]);
+        $user->companies()->attach($company->id);
+
+        $response = $this->withHeader('Origin', 'http://localhost')
+            ->withHeader('Referer', 'http://localhost')
+            ->actingAs($user, 'web')
+            ->withSession([ResolvedCompany::SESSION_KEY => $company->id])
+            ->getJson('/api/user/me');
+
+        $response->assertOk();
+        $response->assertJsonPath('data.user.id', $user->id);
+        $response->assertJsonPath('data.user.email', $user->email);
+        $response->assertJsonStructure([
+            'data' => [
+                'user' => ['id', 'email', 'permissions'],
+            ],
+        ]);
     }
 }

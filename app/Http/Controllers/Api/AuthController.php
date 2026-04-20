@@ -166,9 +166,11 @@ class AuthController extends BaseController
         $user->load('roles', 'permissions');
 
         $companyId = $this->getCurrentCompanyId();
-        $permissions = $companyId
-            ? $user->getAllPermissionsForCompany((int) $companyId)->pluck('name')->toArray()
-            : $user->getAllPermissions()->pluck('name')->toArray();
+        if (! $companyId) {
+            return $this->errorResponse('Company context missing', 409);
+        }
+
+        $permissions = $user->getAllPermissionsForCompany((int) $companyId)->pluck('name')->toArray();
 
         return $this->successResponse([
             'user' => $this->serializeUserForApi($user, $user->getAllRoleNames(), $permissions),

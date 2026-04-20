@@ -25,6 +25,10 @@ class Kernel extends ConsoleKernel
             ->dailyAt('00:05')
             ->timezone('Asia/Ashgabat');
 
+        $schedule->command('notifications:send-birthdays')
+            ->dailyAt('00:10')
+            ->timezone('Asia/Ashgabat');
+
 
             // Бэкап в 08:00 (UTC+5)
         $schedule
