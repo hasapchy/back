@@ -32,23 +32,22 @@ class UserCompanyController extends BaseController
         }
 
         $selectedCompanyId = $this->getCurrentCompanyId() ?? $request->input('company_id');
-
-        if ($selectedCompanyId) {
-            $company = Company::where('id', $selectedCompanyId)
-                ->whereHas('users', function ($query) use ($user) {
-                    $query->where('users.id', $user->id);
-                })
-                ->first();
-
-            if ($company) {
-                return $this->successResponse(new CompanyResource($company));
-            }
+        if (! $selectedCompanyId) {
+            return $this->errorResponse('Company context missing', 409);
         }
 
-        $company = $user->companies()->first();
+        $company = Company::where('id', $selectedCompanyId)
+            ->whereHas('users', function ($query) use ($user) {
+                $query->where('users.id', $user->id);
+            })
+            ->first();
 
         if (! $company) {
-            return $this->errorResponse('No companies available for user', 404);
+            return $this->errorResponse('Company not found or access denied', 404);
+        }
+
+        if ($request->hasSession() && $request->session()->isStarted()) {
+            $request->session()->put(ResolvedCompany::SESSION_KEY, (int) $company->id);
         }
 
         return $this->successResponse(new CompanyResource($company));

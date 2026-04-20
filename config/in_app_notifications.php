@@ -25,6 +25,9 @@ return [
         'news_new' => [
             'all_company_members' => true,
         ],
+        'birthdays_today' => [
+            'all_company_members' => true,
+        ],
         'leaves_new' => [
             'any_permissions' => ['leaves_view_all'],
         ],
