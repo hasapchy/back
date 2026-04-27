@@ -98,19 +98,23 @@ class UpdateOrderRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $orderId = $this->route('id');
-            if (! $orderId || ! $this->exists('cash_id')) {
+            if (! $orderId) {
                 return;
             }
             $order = Order::query()->find($orderId);
             if (! $order) {
                 return;
             }
-            $incoming = $this->input('cash_id');
-            $newId = $incoming === null || $incoming === '' ? null : (int) $incoming;
-            $oldId = $order->cash_id === null ? null : (int) $order->cash_id;
-            if ($newId !== $oldId) {
-                $validator->errors()->add('cash_id', 'Нельзя изменить кассу у сохранённого заказа.');
+
+            if ($this->exists('cash_id')) {
+                $incoming = $this->input('cash_id');
+                $newId = $incoming === null || $incoming === '' ? null : (int) $incoming;
+                $oldId = $order->cash_id === null ? null : (int) $order->cash_id;
+                if ($newId !== $oldId) {
+                    $validator->errors()->add('cash_id', 'Нельзя изменить кассу у сохранённого заказа.');
+                }
             }
+
         });
     }
 

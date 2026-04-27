@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Transaction;
+use App\Models\ClientBalance;
 use App\Models\TransactionCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -114,6 +115,51 @@ class TransactionsControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson(['message' => 'Транзакция обновлена']);
+    }
+
+    public function test_update_transaction_sets_client_balance_id_and_history_contains_transaction(): void
+    {
+        $clientBalance = ClientBalance::query()->create([
+            'client_id' => $this->client->id,
+            'currency_id' => $this->currency->id,
+            'type' => $this->cashRegister->is_cash ? 1 : 0,
+            'balance' => 0,
+            'is_default' => true,
+        ]);
+
+        $transaction = Transaction::factory()->create([
+            'type' => 1,
+            'is_debt' => true,
+            'orig_amount' => 100,
+            'amount' => 100,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $this->currency->id,
+            'category_id' => $this->category->id,
+            'creator_id' => $this->adminUser->id,
+            'client_id' => null,
+            'client_balance_id' => null,
+        ]);
+
+        $updateResponse = $this->actingAsApi($this->adminUser)
+            ->putJson("/api/transactions/{$transaction->id}", [
+                'category_id' => $this->category->id,
+                'client_id' => $this->client->id,
+                'orig_amount' => 100,
+                'currency_id' => $this->currency->id,
+                'is_debt' => true,
+            ]);
+
+        $updateResponse->assertStatus(200);
+        $transaction->refresh();
+        $this->assertSame((int) $clientBalance->id, (int) $transaction->client_balance_id);
+
+        $historyResponse = $this->actingAsApi($this->adminUser)
+            ->getJson("/api/clients/{$this->client->id}/balance-history?balance_id={$clientBalance->id}");
+
+        $historyResponse->assertStatus(200);
+        $history = $historyResponse->json('data.history') ?? [];
+        $sourceIds = array_map(static fn ($row) => (int) ($row['source_id'] ?? 0), $history);
+        $this->assertContains((int) $transaction->id, $sourceIds);
     }
 
     public function test_destroy_transaction_success(): void

@@ -11,6 +11,9 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\CashRegister;
 use App\Models\Currency;
+use App\Models\ClientBalance;
+use App\Models\Project;
+use App\Models\Transaction;
 use App\Models\TransactionCategory;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -209,6 +212,65 @@ class OrderControllerTest extends TestCase
         foreach ($items as $item) {
             $this->assertEquals($this->category->id, (int) ($item['category_id'] ?? 0));
         }
+    }
+
+    public function test_store_order_keeps_client_balance_id_but_skips_balance_amount_for_project_when_skip_enabled(): void
+    {
+        $this->company->update(['skip_project_order_balance' => true]);
+
+        $project = Project::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+            'currency_id' => $this->currency->id,
+        ]);
+
+        $clientBalance = ClientBalance::query()->create([
+            'client_id' => $this->client->id,
+            'currency_id' => $this->currency->id,
+            'type' => $this->cashRegister->is_cash ? 1 : 0,
+            'balance' => 0,
+            'is_default' => true,
+        ]);
+
+        $data = [
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'category_id' => $this->category->id,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $this->currency->id,
+            'project_id' => $project->id,
+            'client_balance_id' => $clientBalance->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                    'price' => 100,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/orders', $data);
+
+        $response->assertStatus(200);
+
+        $createdOrderId = (int) $response->json('data.id');
+        $this->assertGreaterThan(0, $createdOrderId);
+
+        $order = Order::query()->findOrFail($createdOrderId);
+        $this->assertSame((int) $clientBalance->id, (int) $order->client_balance_id);
+
+        $orderDebtTransaction = Transaction::query()
+            ->where('source_type', Order::class)
+            ->where('source_id', $createdOrderId)
+            ->where('is_debt', true)
+            ->first();
+        $this->assertNotNull($orderDebtTransaction);
+        $this->assertSame((int) $clientBalance->id, (int) $orderDebtTransaction->client_balance_id);
+
+        $clientBalance->refresh();
+        $this->assertSame(0.0, (float) $clientBalance->balance);
     }
 }
 

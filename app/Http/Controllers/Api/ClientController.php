@@ -330,6 +330,10 @@ class ClientController extends BaseController
             return (new ClientResource($client))->additional([
                 'message' => 'Client created successfully',
             ])->response();
+        } catch (\DomainException $e) {
+            DB::rollBack();
+
+            return $this->errorResponse($e->getMessage(), 422);
         } catch (\Throwable $e) {
             DB::rollBack();
 

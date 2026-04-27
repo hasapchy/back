@@ -371,10 +371,24 @@ class ClientsRepository extends BaseRepository
             $this->syncPhones($client->id, $data['phones'] ?? []);
             $this->syncEmails($client->id, $data['emails'] ?? []);
 
-            $defaultCurrency = Currency::where('is_default', true)->first();
-            if ($defaultCurrency) {
-                ClientBalanceService::createBalance($client, $defaultCurrency, true);
+            $defaultCurrencyQuery = Currency::query()
+                ->where('is_default', true);
+
+            if ($companyId) {
+                $defaultCurrencyQuery->where(function ($query) use ($companyId) {
+                    $query->where('company_id', $companyId)
+                        ->orWhereNull('company_id');
+                })->orderByRaw('CASE WHEN company_id = ? THEN 0 ELSE 1 END', [$companyId]);
+            } else {
+                $defaultCurrencyQuery->whereNull('company_id');
             }
+
+            $defaultCurrency = $defaultCurrencyQuery->first();
+            if (! $defaultCurrency) {
+                throw new \DomainException('Для компании не настроена валюта по умолчанию. Укажите дефолтную валюту в настройках.');
+            }
+
+            ClientBalanceService::createBalance($client, $defaultCurrency, true);
 
             return $client;
         });
