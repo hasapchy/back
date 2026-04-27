@@ -36,7 +36,7 @@ class StoreProductRequest extends FormRequest
             'category_id' => 'nullable|exists:categories,id',
             'categories' => 'nullable|array',
             'categories.*' => 'exists:categories,id',
-            'unit_id' => 'nullable|sometimes|exists:units,id',
+            'unit_id' => 'required|exists:units,id',
             'retail_price' => 'nullable|numeric|min:0',
             'wholesale_price' => 'nullable|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',

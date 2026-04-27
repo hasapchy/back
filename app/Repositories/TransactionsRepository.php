@@ -469,16 +469,11 @@ class TransactionsRepository extends BaseRepository
             $defAmount = $roundedConvertedAmountDefault;
         }
 
-        $skipForOrderProject = (($data['source_type'] ?? null) === \App\Models\Order::class) && ! empty($data['project_id']);
-
-        if ($skipForOrderProject) {
-            $companyIdForCheck = $this->getCurrentCompanyId();
-            $company = $companyIdForCheck ? Company::find($companyIdForCheck) : null;
-
-            if ($company) {
-                $skipForOrderProject = (bool) $company->skip_project_order_balance;
-            }
-        }
+        $skipForOrderProject = $this->shouldSkipOrderProjectClientBalance(
+            $data['source_type'] ?? null,
+            $data['project_id'] ?? null,
+            $companyId
+        );
 
         DB::beginTransaction();
 
@@ -507,6 +502,9 @@ class TransactionsRepository extends BaseRepository
             $transaction->is_debt = $data['is_debt'] ?? false;
             $transaction->source_type = $data['source_type'] ?? null;
             $transaction->source_id = $data['source_id'] ?? null;
+            $transaction->client_balance_id = ! empty($data['client_balance_id'])
+                ? (int) $data['client_balance_id']
+                : null;
             $transaction->exchange_rate = $exchangeRate;
             $transaction->rep_rate = $repRate;
             $transaction->rep_amount = $repAmount;
@@ -522,7 +520,7 @@ class TransactionsRepository extends BaseRepository
                 if ($client) {
                     $balanceId = null;
                     $useExplicitBalance = ! empty($data['client_balance_id']);
-                    $shouldUpdateClientBalance = $useExplicitBalance || ! $skipForOrderProject;
+                    $shouldUpdateClientBalance = ! $skipForOrderProject;
 
                     if ($shouldUpdateClientBalance) {
                         if ($useExplicitBalance) {
@@ -872,15 +870,14 @@ class TransactionsRepository extends BaseRepository
             }
 
             $companyId = $this->getCurrentCompanyId();
-            $company = $companyId ? Company::find($companyId) : null;
-            $skipProjectOrderBalance = $company ? (bool) $company->skip_project_order_balance : true;
+            $skipProjectOrderBalance = $this->companySkipsProjectOrderBalance($companyId);
 
             $isOrder = ($transaction->source_type === \App\Models\Order::class);
             $hadProject = ! empty($oldProjectId);
             $hasProject = ! empty($transaction->project_id);
 
-            $shouldSkipOld = $isOrder && $hadProject && $skipProjectOrderBalance && ! $oldClientBalanceId;
-            $shouldSkipNew = $isOrder && $hasProject && $skipProjectOrderBalance && ! $transaction->client_balance_id;
+            $shouldSkipOld = $isOrder && $hadProject && $skipProjectOrderBalance;
+            $shouldSkipNew = $isOrder && $hasProject && $skipProjectOrderBalance;
 
             if (! $shouldSkipOld && $oldClientId) {
                 $oldClient = Client::find($oldClientId);
@@ -942,7 +939,7 @@ class TransactionsRepository extends BaseRepository
                             $roundingService
                         );
                     } else {
-                        ClientBalanceService::updateBalance(
+                        $balanceId = ClientBalanceService::updateBalance(
                             $client,
                             $fromCurrency,
                             $newOrigAmount,
@@ -953,6 +950,11 @@ class TransactionsRepository extends BaseRepository
                             $data['exchange_rate'] ?? null,
                             $toCurrency
                         );
+
+                        if ($balanceId) {
+                            $transaction->client_balance_id = (int) $balanceId;
+                            $transaction->save();
+                        }
                     }
                 }
             }
@@ -1038,12 +1040,12 @@ class TransactionsRepository extends BaseRepository
 
             DB::table('transactions')->where('id', $transaction->id)->update(['is_deleted' => true]);
 
-            $skipForOrderProject = ($transaction->source_type === \App\Models\Order::class) && ! empty($transaction->project_id);
-            if ($skipForOrderProject) {
-                $company = $companyId ? Company::findOrFail($companyId) : null;
-                $skipForOrderProject = $company ? (bool) $company->skip_project_order_balance : $skipForOrderProject;
-            }
-            $shouldSkipClientBalanceRevert = $skipForOrderProject && ! $transaction->client_balance_id;
+            $skipForOrderProject = $this->shouldSkipOrderProjectClientBalance(
+                $transaction->source_type,
+                $transaction->project_id,
+                $companyId
+            );
+            $shouldSkipClientBalanceRevert = $skipForOrderProject;
             if (! $skipClientUpdate && $transaction->client_id && ! $shouldSkipClientBalanceRevert) {
                 $client = Client::find($transaction->client_id);
                 $cashCurrency = $cashRegister->currency;
@@ -1486,6 +1488,34 @@ class TransactionsRepository extends BaseRepository
         );
 
         return $roundingService->roundForCompany($companyId, $converted);
+    }
+
+    private function companySkipsProjectOrderBalance(?int $companyId): bool
+    {
+        if (! $companyId) {
+            return false;
+        }
+
+        $company = Company::find($companyId);
+
+        if (! $company) {
+            return false;
+        }
+
+        return (bool) $company->skip_project_order_balance;
+    }
+
+    private function shouldSkipOrderProjectClientBalance(?string $sourceType, mixed $projectId, ?int $companyId): bool
+    {
+        if ($sourceType !== \App\Models\Order::class) {
+            return false;
+        }
+
+        if (empty($projectId)) {
+            return false;
+        }
+
+        return $this->companySkipsProjectOrderBalance($companyId);
     }
 
     /**
