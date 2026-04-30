@@ -15,6 +15,8 @@ use App\Models\ClientBalance;
 use App\Models\Project;
 use App\Models\Transaction;
 use App\Models\TransactionCategory;
+use App\Models\OrderStatus;
+use App\Models\OrderStatusCategory;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -212,6 +214,79 @@ class OrderControllerTest extends TestCase
         foreach ($items as $item) {
             $this->assertEquals($this->category->id, (int) ($item['category_id'] ?? 0));
         }
+    }
+
+    public function test_get_orders_meta_contains_status_counts_with_name_color_and_count(): void
+    {
+        $statusCategoryA = OrderStatusCategory::factory()->create([
+            'name' => 'В работе',
+            'color' => '#FF8800',
+            'creator_id' => $this->adminUser->id,
+        ]);
+        $statusCategoryB = OrderStatusCategory::factory()->create([
+            'name' => 'Закрыто',
+            'color' => '#00AA55',
+            'creator_id' => $this->adminUser->id,
+        ]);
+
+        $statusA = OrderStatus::factory()->create([
+            'name' => 'Новый',
+            'category_id' => $statusCategoryA->id,
+        ]);
+        $statusB = OrderStatus::factory()->create([
+            'name' => 'Готов',
+            'category_id' => $statusCategoryB->id,
+        ]);
+
+        Order::factory()->create([
+            'client_id' => $this->client->id,
+            'creator_id' => $this->adminUser->id,
+            'warehouse_id' => $this->warehouse->id,
+            'category_id' => $this->category->id,
+            'cash_id' => $this->cashRegister->id,
+            'project_id' => null,
+            'status_id' => $statusA->id,
+        ]);
+        Order::factory()->create([
+            'client_id' => $this->client->id,
+            'creator_id' => $this->adminUser->id,
+            'warehouse_id' => $this->warehouse->id,
+            'category_id' => $this->category->id,
+            'cash_id' => $this->cashRegister->id,
+            'project_id' => null,
+            'status_id' => $statusA->id,
+        ]);
+        Order::factory()->create([
+            'client_id' => $this->client->id,
+            'creator_id' => $this->adminUser->id,
+            'warehouse_id' => $this->warehouse->id,
+            'category_id' => $this->category->id,
+            'cash_id' => $this->cashRegister->id,
+            'project_id' => null,
+            'status_id' => $statusB->id,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/orders');
+
+        $response->assertStatus(200);
+
+        $statusCounts = collect($response->json('data.meta.status_counts', []));
+        $this->assertTrue($statusCounts->isNotEmpty());
+
+        $statusAItem = $statusCounts->firstWhere('id', $statusA->id);
+        $statusBItem = $statusCounts->firstWhere('id', $statusB->id);
+
+        $this->assertNotNull($statusAItem);
+        $this->assertNotNull($statusBItem);
+
+        $this->assertSame('Новый', $statusAItem['name']);
+        $this->assertSame('#FF8800', $statusAItem['color']);
+        $this->assertSame(2, (int) $statusAItem['count']);
+
+        $this->assertSame('Готов', $statusBItem['name']);
+        $this->assertSame('#00AA55', $statusBItem['color']);
+        $this->assertSame(1, (int) $statusBItem['count']);
     }
 
     public function test_store_order_keeps_client_balance_id_but_skips_balance_amount_for_project_when_skip_enabled(): void
