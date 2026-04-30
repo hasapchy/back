@@ -32,17 +32,19 @@ class ProductsRepository extends BaseRepository
      * @param  string  $warehouseStockPolicy  all|in_stock
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $warehouseId = null, $search = null, $categoryId = null, $warehouseStockPolicy = 'all')
+    public function getItemsWithPagination($userUuid, $perPage = 20, $type = true, $page = 1, $warehouseId = null, $search = null, $categoryId = null, $warehouseStockPolicy = 'all', array $categoryIds = [])
     {
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $currentUser?->id, $companyId, $warehouseStockPolicy, 'wh_stock_pos_v1']);
+        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, 'wh_stock_pos_v1']);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $currentUser, $warehouseStockPolicy) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $currentUser, $warehouseStockPolicy, $categoryIds) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
-            if ($categoryId) {
+            if (! empty($categoryIds)) {
+                $userCategoryIds = array_values(array_intersect($userCategoryIds, $categoryIds));
+            } elseif ($categoryId) {
                 $userCategoryIds = array_values(array_intersect($userCategoryIds, [$categoryId]));
             }
 
@@ -112,16 +114,18 @@ class ProductsRepository extends BaseRepository
      * @param  string  $warehouseStockPolicy  all|in_stock
      * @return array{items: Collection, total: int, current_page: int, per_page: int, last_page: int}
      */
-    public function searchItems($userUuid, $search, $productsOnly = null, $warehouseId = null, $categoryId = null, $warehouseStockPolicy = 'all', int $page = 1, int $perPage = 20)
+    public function searchItems($userUuid, $search, $productsOnly = null, $warehouseId = null, $categoryId = null, $warehouseStockPolicy = 'all', int $page = 1, int $perPage = 20, array $categoryIds = [])
     {
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $currentUser?->id, $companyId, $warehouseStockPolicy, $page, $perPage, 'wh_stock_pos_v1']);
+        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, $page, $perPage, 'wh_stock_pos_v1']);
 
-        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage) {
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage, $categoryIds) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
-            if ($categoryId) {
+            if (! empty($categoryIds)) {
+                $userCategoryIds = array_values(array_intersect($userCategoryIds, $categoryIds));
+            } elseif ($categoryId) {
                 $userCategoryIds = array_values(array_intersect($userCategoryIds, [$categoryId]));
             }
 

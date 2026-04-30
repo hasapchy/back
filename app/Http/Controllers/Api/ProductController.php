@@ -51,9 +51,10 @@ class ProductController extends BaseController
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
         $categoryId = $this->normalizeCategoryIdForSimpleUser($request->query('category_id'));
+        $categoryIds = $this->normalizeCategoryIdsForSimpleUser($request->query('category_ids'));
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
 
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, true, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, true, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy, $categoryIds);
 
         return $this->successResponse([
             'items' => ProductResource::collection($items->items())->resolve(),
@@ -80,11 +81,12 @@ class ProductController extends BaseController
         $productsOnly = $request->query('products_only');
         $warehouseId = $request->query('warehouse_id');
         $categoryId = $this->normalizeCategoryIdForSimpleUser($request->query('category_id'));
+        $categoryIds = $this->normalizeCategoryIdsForSimpleUser($request->query('category_ids'));
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(100, max(1, (int) $request->query('per_page', 20)));
 
-        $result = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage);
+        $result = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage, $categoryIds);
 
         return $this->successResponse([
             'items' => ProductResource::collection($result['items'])->resolve(),
@@ -129,9 +131,10 @@ class ProductController extends BaseController
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
         $categoryId = $this->normalizeCategoryIdForSimpleUser($request->query('category_id'));
+        $categoryIds = $this->normalizeCategoryIdsForSimpleUser($request->query('category_ids'));
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
 
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, false, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, false, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy, $categoryIds);
 
         return $this->successResponse([
             'items' => ProductResource::collection($items->items())->resolve(),
@@ -348,6 +351,40 @@ class ProductController extends BaseController
         $cid = (int) $categoryId;
 
         return in_array($cid, Category::descendantIdsIncludingRoot($rootId), true) ? $cid : null;
+    }
+
+    /**
+     * @param  mixed  $categoryIds
+     * @return int[]
+     */
+    protected function normalizeCategoryIdsForSimpleUser($categoryIds): array
+    {
+        if ($categoryIds === null || $categoryIds === '') {
+            return [];
+        }
+
+        if (is_string($categoryIds)) {
+            $categoryIds = array_filter(array_map('trim', explode(',', $categoryIds)));
+        }
+
+        $normalized = array_values(array_unique(array_filter(array_map('intval', (array) $categoryIds))));
+
+        if (empty($normalized)) {
+            return [];
+        }
+
+        $user = auth('api')->user();
+        if (! SimpleUser::matches($user)) {
+            return $normalized;
+        }
+
+        $rootId = SimpleUser::rootCategoryIdForCurrentCompany($user);
+        if ($rootId === null) {
+            return [];
+        }
+
+        $allowed = Category::descendantIdsIncludingRoot($rootId);
+        return array_values(array_intersect($normalized, $allowed));
     }
 
     /**

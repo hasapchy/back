@@ -8,6 +8,7 @@ use App\Models\WhUser;
 use App\Models\WhWriteoff;
 use App\Models\WhWriteoffProduct;
 use App\Services\CacheService;
+use App\Services\InventoryLockService;
 use Illuminate\Support\Facades\DB;
 
 class WarehouseWriteoffRepository extends BaseRepository
@@ -177,10 +178,13 @@ class WarehouseWriteoffRepository extends BaseRepository
         $note = $data['note'];
         $products = $data['products'];
 
+        app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
+
         return DB::transaction(function () use ($warehouse_id, $note, $products) {
             $writeoff = new WhWriteoff();
             $writeoff->warehouse_id = $warehouse_id;
             $writeoff->note = $note;
+            $writeoff->date = now();
             $writeoff->creator_id      = auth('api')->id();
             $writeoff->save();
 
@@ -217,6 +221,8 @@ class WarehouseWriteoffRepository extends BaseRepository
         $warehouse_id = $data['warehouse_id'];
         $note = $data['note'];
         $products = $data['products'];
+
+        app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
 
         return DB::transaction(function () use ($writeoff_id, $warehouse_id, $note, $products) {
             $writeoff = WhWriteoff::findOrFail($writeoff_id);
@@ -284,6 +290,7 @@ class WarehouseWriteoffRepository extends BaseRepository
     {
         return DB::transaction(function () use ($writeoff_id) {
             $writeoff = WhWriteoff::findOrFail($writeoff_id);
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $writeoff->warehouse_id);
 
             $warehouse_id = $writeoff->warehouse_id;
             $products = WhWriteoffProduct::where('write_off_id', $writeoff_id)->get();
@@ -303,8 +310,60 @@ class WarehouseWriteoffRepository extends BaseRepository
     }
 
     /**
-     * Обновить остатки на складе
-     *
+     * @param  array<int, array{product_id: int, quantity: float}>  $products
+     */
+    public function createShortageWriteoff(int $warehouseId, string $note, array $products): int
+    {
+        if ($products === []) {
+            throw new \RuntimeException('EMPTY_WRITE_OFF_PRODUCTS');
+        }
+
+        app(InventoryLockService::class)->checkWarehouseIsUnlocked($warehouseId);
+
+        return (int) DB::transaction(function () use ($warehouseId, $note, $products) {
+            $writeoff = new WhWriteoff();
+            $writeoff->warehouse_id = $warehouseId;
+            $writeoff->note = $note;
+            $writeoff->date = now();
+            $writeoff->creator_id = auth('api')->id();
+            $writeoff->save();
+
+            foreach ($products as $product) {
+                $writeoffProduct = new WhWriteoffProduct();
+                $writeoffProduct->write_off_id = $writeoff->id;
+                $writeoffProduct->product_id = (int) $product['product_id'];
+                $writeoffProduct->quantity = (float) $product['quantity'];
+                $writeoffProduct->save();
+
+                $this->updateStock($warehouseId, (int) $product['product_id'], (float) $product['quantity']);
+            }
+
+            CacheService::invalidateWarehouseWriteoffsCache();
+            CacheService::invalidateWarehouseStocksCache();
+
+            return $writeoff->id;
+        });
+    }
+
+    public function deleteWriteoffWithoutInventoryLock(int $writeoffId): void
+    {
+        DB::transaction(function () use ($writeoffId) {
+            $writeoff = WhWriteoff::query()->lockForUpdate()->findOrFail($writeoffId);
+            $warehouseId = (int) $writeoff->warehouse_id;
+
+            foreach (WhWriteoffProduct::query()->where('write_off_id', $writeoffId)->get() as $product) {
+                $this->updateStock($warehouseId, (int) $product->product_id, -(float) $product->quantity);
+                $product->delete();
+            }
+
+            $writeoff->delete();
+
+            CacheService::invalidateWarehouseWriteoffsCache();
+            CacheService::invalidateWarehouseStocksCache();
+        });
+    }
+
+    /**
      * @param int $warehouse_id ID склада
      * @param int $product_id ID товара
      * @param float $remove_quantity Количество для списания

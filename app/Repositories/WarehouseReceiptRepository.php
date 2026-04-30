@@ -11,6 +11,7 @@ use App\Models\WhReceiptProduct;
 use App\Models\CashRegister;
 use App\Models\WhUser;
 use App\Services\CacheService;
+use App\Services\InventoryLockService;
 use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
 
@@ -135,6 +136,8 @@ class WarehouseReceiptRepository extends BaseRepository
 
         $client_balance_id = $data['client_balance_id'] ?? null;
 
+        app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
+
         return DB::transaction(function () use ($data, $client_id, $warehouse_id, $type, $cash_id, $date, $note, $products, $client_balance_id) {
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $currency = $defaultCurrency;
@@ -228,6 +231,8 @@ class WarehouseReceiptRepository extends BaseRepository
         $products     = $data['products'];
         $project_id   = $data['project_id'] ?? null;
 
+        app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
+
         return DB::transaction(function () use ($receipt_id, $client_id, $warehouse_id, $cash_id, $date, $note, $products, $project_id) {
             $receipt = WhReceipt::findOrFail($receipt_id);
 
@@ -304,6 +309,7 @@ class WarehouseReceiptRepository extends BaseRepository
         $projectId = null;
         $result = DB::transaction(function () use ($receipt_id, &$projectId) {
             $receipt = WhReceipt::findOrFail($receipt_id);
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $receipt->warehouse_id);
             $projectId = $receipt->project_id;
 
             foreach (WhReceiptProduct::where('receipt_id', $receipt_id)->get() as $p) {
@@ -311,7 +317,6 @@ class WarehouseReceiptRepository extends BaseRepository
                 $p->delete();
             }
 
-            $clientId = $receipt->supplier_id;
             $receipt->delete();
 
             return true;
@@ -320,6 +325,105 @@ class WarehouseReceiptRepository extends BaseRepository
             $this->invalidateCaches($projectId);
         }
         return $result;
+    }
+
+    /**
+     * Оприходование излишка после инвентаризации (без транзакций взаиморасчётов).
+     *
+     * @param  array<int, array{product_id: int, quantity: float}>  $products
+     */
+    public function createInventoryOverageReceipt(int $warehouseId, string $note, array $products): int
+    {
+        if ($products === []) {
+            throw new \RuntimeException('EMPTY_RECEIPT_PRODUCTS');
+        }
+
+        app(InventoryLockService::class)->checkWarehouseIsUnlocked($warehouseId);
+
+        return (int) DB::transaction(function () use ($warehouseId, $note, $products) {
+            $roundingService = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
+            $normalized = [];
+            foreach ($products as $product) {
+                $q = $roundingService->roundQuantityForCompany($companyId, (float) ($product['quantity'] ?? 0));
+                if ($q > 0) {
+                    $pid = (int) $product['product_id'];
+                    $normalized[] = [
+                        'product_id' => $pid,
+                        'quantity' => $q,
+                        'price' => $this->resolveCurrentPurchasePrice($pid),
+                    ];
+                }
+            }
+            if ($normalized === []) {
+                throw new \RuntimeException('EMPTY_RECEIPT_PRODUCTS');
+            }
+
+            $receipt = new WhReceipt();
+            $receipt->supplier_id = null;
+            $receipt->warehouse_id = $warehouseId;
+            $receipt->note = $note;
+            $receipt->date = now();
+            $receipt->creator_id = (int) auth('api')->id();
+            $receipt->cash_id = null;
+            $receipt->client_balance_id = null;
+            $receipt->project_id = null;
+
+            $totalAmount = 0.0;
+            foreach ($normalized as $product) {
+                $totalAmount += $product['price'] * $product['quantity'];
+            }
+            $receipt->amount = $roundingService->roundForCompany($companyId, $totalAmount);
+            $receipt->save();
+
+            foreach ($normalized as $product) {
+                $receiptProduct = new WhReceiptProduct();
+                $receiptProduct->receipt_id = $receipt->id;
+                $receiptProduct->product_id = $product['product_id'];
+                $receiptProduct->quantity = $product['quantity'];
+                $receiptProduct->price = $product['price'];
+                $receiptProduct->save();
+
+                if (! $this->updateStock($warehouseId, $product['product_id'], $product['quantity'])) {
+                    throw new \RuntimeException('STOCK_UPDATE_FAILED');
+                }
+            }
+
+            $this->invalidateCaches(null);
+
+            return $receipt->id;
+        });
+    }
+
+    /**
+     * Актуальная закупочная цена из последней записи product_prices.
+     */
+    private function resolveCurrentPurchasePrice(int $productId): float
+    {
+        $pp = ProductPrice::query()
+            ->where('product_id', $productId)
+            ->orderByDesc('id')
+            ->first();
+
+        return $pp ? (float) $pp->purchase_price : 0.0;
+    }
+
+    public function deleteReceiptWithoutInventoryLock(int $receiptId): void
+    {
+        $projectId = null;
+        DB::transaction(function () use ($receiptId, &$projectId) {
+            $receipt = WhReceipt::query()->lockForUpdate()->findOrFail($receiptId);
+            $projectId = $receipt->project_id;
+
+            foreach (WhReceiptProduct::query()->where('receipt_id', $receiptId)->get() as $p) {
+                $this->updateStock((int) $receipt->warehouse_id, (int) $p->product_id, -(float) $p->quantity);
+                $p->delete();
+            }
+
+            $receipt->delete();
+        });
+
+        $this->invalidateCaches($projectId);
     }
 
     /**

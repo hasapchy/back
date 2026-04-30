@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\CurrencyHistoryController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\FcmStorageController;
 use App\Http\Controllers\Api\InAppNotificationController;
+use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\LeaveTypeController;
@@ -138,6 +139,16 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission.scope:warehouses_delete_all,warehouses_delete')->delete('warehouses/{id}', [WarehouseController::class, 'destroy']);
 
     Route::get('warehouse_stocks', [WarehouseStockController::class, 'index']);
+    Route::middleware('permission.scope:inventories_view_all,inventories_view_own')->get('inventories', [InventoryController::class, 'index']);
+    Route::middleware('permission.scope:inventories_view_all,inventories_view_own')->get('inventories/{id}', [InventoryController::class, 'show']);
+    Route::middleware('permission.scope:inventories_view_all,inventories_view_own')->get('inventories/{id}/items', [InventoryController::class, 'items']);
+    Route::middleware('permission.scope:inventories_view_all,inventories_view_own')->get('inventories/{id}/report', [InventoryController::class, 'report']);
+    Route::middleware('permission:inventories_export')->get('inventories/{id}/export', [InventoryController::class, 'export']);
+    Route::middleware('permission:inventories_create')->post('inventories', [InventoryController::class, 'store']);
+    Route::middleware('permission:inventories_create')->delete('inventories/{id}', [InventoryController::class, 'destroy']);
+    Route::middleware('permission:inventories_count')->patch('inventories/{id}/items', [InventoryController::class, 'updateItems']);
+    Route::middleware('permission:inventories_finalize')->post('inventories/{id}/finalize', [InventoryController::class, 'finalize']);
+    Route::middleware('permission:inventories_finalize')->post('inventories/{id}/apply-shortage', [InventoryController::class, 'applyInventoryStockAdjustment']);
 
     Route::get('warehouse_receipts', [WarehouseReceiptController::class, 'index']);
     Route::get('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'show']);

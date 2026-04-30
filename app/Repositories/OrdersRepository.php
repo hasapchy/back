@@ -18,6 +18,7 @@ use App\Support\NullableInt;
 use App\Support\SimpleUser;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
+use App\Services\InventoryLockService;
 use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
 use App\Http\Resources\OrderResource;
@@ -874,6 +875,7 @@ class OrdersRepository extends BaseRepository
         $userUuid = $data['creator_id'];
         $client_id = $data['client_id'];
         $warehouse_id = $data['warehouse_id'];
+        app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
         $cash_id = $data['cash_id'] ?? null;
         $project_id = $data['project_id'];
         $status_id = $data['status_id'] ?? 1;
@@ -1099,6 +1101,8 @@ class OrdersRepository extends BaseRepository
 
             $client_id = $data['client_id'];
             $warehouse_id = $data['warehouse_id'];
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $oldWarehouseId);
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
             $warehouseChanged = (int) $oldWarehouseId !== (int) $warehouse_id;
 
             $this->returnProductsToWarehouse($oldProducts, $oldWarehouseId);
@@ -1520,6 +1524,7 @@ class OrdersRepository extends BaseRepository
     {
         return DB::transaction(function () use ($id) {
             $order = Order::findOrFail($id);
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $order->warehouse_id);
             $products = OrderProduct::where('order_id', $id)->get();
 
             $transactionsRepository = new TransactionsRepository();

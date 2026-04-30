@@ -11,6 +11,7 @@ use App\Models\WarehouseStock;
 use App\Models\CashRegister;
 use App\Services\CurrencyConverter;
 use App\Services\CacheService;
+use App\Services\InventoryLockService;
 use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
 
@@ -194,6 +195,7 @@ class SalesRepository extends BaseRepository
             $clientId    = $data['client_id'];
             $projectId   = $data['project_id'] ?? null;
             $warehouseId = $data['warehouse_id'];
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouseId);
             $cashId      = $data['cash_id'] ?? null;
             $isDebt      = ($data['type'] === 'balance');
             $discount    = $data['discount'] ?? 0;
@@ -318,6 +320,8 @@ class SalesRepository extends BaseRepository
             $clientId = $data['client_id'];
             $projectId = $data['project_id'] ?? null;
             $warehouseId = $data['warehouse_id'];
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouseId);
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $sale->warehouse_id);
             $cashId = $data['cash_id'] ?? null;
             $isDebt = ($data['type'] === 'balance');
             $discount = $data['discount'] ?? 0;
@@ -464,6 +468,7 @@ class SalesRepository extends BaseRepository
     {
         return DB::transaction(function () use ($id) {
             $sale     = Sale::findOrFail($id);
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $sale->warehouse_id);
             $products = SalesProduct::where('sale_id', $id)->get();
 
             foreach ($products as $p) {

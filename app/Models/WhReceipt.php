@@ -12,7 +12,7 @@ use App\Services\TransactionDeletionService;
  * Модель прихода на склад
  *
  * @property int $id
- * @property int|null $supplier_id ID поставщика
+ * @property int|null $supplier_id ID поставщика (null для служебных приходов, например излишек по инвентаризации)
  * @property int|null $client_balance_id ID выбранного баланса поставщика
  * @property int $warehouse_id ID склада
  * @property string|null $note Примечание
