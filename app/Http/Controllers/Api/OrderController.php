@@ -86,6 +86,18 @@ class OrderController extends BaseController
             $meta['unpaid_orders_total'] = $items->unpaid_orders_total;
         }
 
+        $meta['status_counts'] = $this->itemsRepository->getStatusCountsForFilters(
+            userUuid: (int) $userUuid,
+            search: is_string($search) ? $search : null,
+            dateFilter: (string) $dateFilter,
+            startDate: is_string($startDate) ? $startDate : null,
+            endDate: is_string($endDate) ? $endDate : null,
+            projectFilter: $projectFilter ? (int) $projectFilter : null,
+            clientFilter: $clientFilter ? (int) $clientFilter : null,
+            categoryFilter: $categoryFilter ? (int) $categoryFilter : null,
+            unpaidOnly: (bool) $unpaidOnly,
+        );
+
         return $this->successResponse([
             'items' => OrderResource::collection($items->items())->resolve(),
             'meta' => $meta,

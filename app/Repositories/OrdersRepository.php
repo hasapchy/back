@@ -262,6 +262,121 @@ class OrdersRepository extends BaseRepository
     }
 
     /**
+     * Получить агрегированное количество заказов по статусам для текущих фильтров.
+     *
+     * Важно: агрегаты считаются без применения statusFilter, чтобы UI мог показать
+     * распределение по всем статусам в рамках остальных фильтров.
+     *
+     * @return array<int, array{id:int,name:string,color:?string,count:int}>
+     */
+    public function getStatusCountsForFilters(
+        int $userUuid,
+        ?string $search = null,
+        string $dateFilter = 'all_time',
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?int $projectFilter = null,
+        ?int $clientFilter = null,
+        ?int $categoryFilter = null,
+        bool $unpaidOnly = false
+    ): array {
+        /** @var \App\Models\User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $searchTrimmed = is_string($search) ? trim($search) : '';
+        $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
+        ['resource' => $orderResource, 'is_simple' => $isSimpleUser] = SimpleUser::orderAccess($currentUser);
+
+        $query = Order::query()
+            ->leftJoin('order_statuses', 'orders.status_id', '=', 'order_statuses.id')
+            ->leftJoin('order_status_categories', 'order_statuses.category_id', '=', 'order_status_categories.id');
+
+        if (! $isSimpleUser) {
+            $query->where(function ($q) use ($userUuid) {
+                if ($this->shouldApplyUserFilter('cash_registers')) {
+                    $q->whereNull('orders.cash_id');
+                    $filterUserId = $this->getFilterUserIdForPermission('cash_registers', $userUuid);
+                    $q->orWhereExists(function ($subQuery) use ($filterUserId) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('cash_register_users')
+                            ->whereColumn('cash_register_users.cash_register_id', 'orders.cash_id')
+                            ->where('cash_register_users.user_id', $filterUserId);
+                    });
+                }
+            });
+        }
+
+        $this->applyOwnFilter($query, $orderResource, 'orders', 'creator_id', $currentUser);
+
+        if ($hasSearch) {
+            $searchLower = mb_strtolower($searchTrimmed);
+            $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                $q->where('orders.id', 'like', "%{$searchTrimmed}%")
+                    ->orWhereRaw('LOWER(orders.note) LIKE ?', ["%{$searchLower}%"])
+                    ->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
+                        $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
+                    })
+                    ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
+                        $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                    })
+                    ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
+                        $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                    });
+            });
+        }
+
+        if ($dateFilter && $dateFilter !== 'all_time') {
+            $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'orders.date');
+        }
+        if ($projectFilter) {
+            $query->where('orders.project_id', $projectFilter);
+        }
+        if ($clientFilter) {
+            $query->where('orders.client_id', $clientFilter);
+        }
+        if ($categoryFilter) {
+            $query->where('orders.category_id', $categoryFilter);
+        }
+        if ($unpaidOnly) {
+            $query->whereNull('orders.project_id')
+                ->leftJoinSub(
+                    Transaction::select('source_id', DB::raw($this->orderPaymentsSumExpression().' as total_paid'))
+                        ->where('source_type', Order::class)
+                        ->where('is_debt', 0)
+                        ->where('is_deleted', 0)
+                        ->groupBy('source_id'),
+                    'paid_transactions',
+                    function ($join) {
+                        $join->on('orders.id', '=', 'paid_transactions.source_id');
+                    }
+                )
+                ->whereRaw('(orders.price - orders.discount) > COALESCE(paid_transactions.total_paid, 0)');
+        }
+
+        $this->applySimpleUserOrderCategoryFilter($query, $currentUser);
+        $query = $this->addCompanyFilterThroughRelation($query, 'cashRegister');
+
+        return $query
+            ->select([
+                'order_statuses.id as status_id',
+                'order_statuses.name as status_name',
+                'order_status_categories.color as status_color',
+                DB::raw('COUNT(orders.id) as status_count'),
+            ])
+            ->whereNotNull('orders.status_id')
+            ->groupBy('order_statuses.id', 'order_statuses.name', 'order_status_categories.color')
+            ->orderBy('order_statuses.id')
+            ->get()
+            ->map(fn ($row) => [
+                'id' => (int) $row->status_id,
+                'name' => (string) $row->status_name,
+                'color' => $row->status_color,
+                'count' => (int) $row->status_count,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * Построить запрос списка заказов с фильтрами и scope прав.
      *
      * @param int $userUuid
