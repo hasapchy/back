@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Enums\WhWriteoffReason;
+use App\Http\Resources\WarehouseWriteoffResource;
 use App\Models\User;
 use App\Models\WarehouseStock;
 use App\Models\WhUser;
@@ -159,7 +160,7 @@ class WarehouseWriteoffRepository extends BaseRepository
             'id' => (int) $row->id,
             'warehouse_id' => (int) $row->warehouse_id,
             'warehouse_name' => $row->warehouse_name,
-            'reason' => (string) $row->reason,
+            'reason' => WarehouseWriteoffResource::serializedReason($row->reason),
             'note' => $row->note ?? '',
             'creator_id' => $row->creator_id ? (int) $row->creator_id : null,
             'creator' => $creator,

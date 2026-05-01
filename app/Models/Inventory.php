@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -76,6 +77,20 @@ class Inventory extends Model
     public function items(): HasMany
     {
         return $this->hasMany(InventoryItem::class, 'inventory_id');
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeWithDiscrepancyItemsCount(Builder $query): Builder
+    {
+        return $query->withCount([
+            'items as inventory_discrepancy_items_count' => function (Builder $q) {
+                $q->whereNotNull('actual_quantity')
+                    ->whereRaw('ABS(COALESCE(difference_quantity, 0)) > ?', [1e-6]);
+            },
+        ]);
     }
 
     /**

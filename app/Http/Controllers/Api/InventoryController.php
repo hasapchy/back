@@ -8,9 +8,9 @@ use App\Http\Requests\UpdateInventoryItemsRequest;
 use App\Http\Resources\InventoryItemResource;
 use App\Http\Resources\InventoryResource;
 use App\Models\Inventory;
-use App\Models\InventoryItem;
 use App\Repositories\InventoryRepository;
 use App\Services\InventoryService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\QueryException;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -27,18 +27,24 @@ class InventoryController extends BaseController
     ) {
     }
 
+    /**
+     * @throws ModelNotFoundException
+     */
     public function store(StoreInventoryRequest $request): JsonResponse
     {
         try {
-            $inventory = $this->inventoryService->createInventory(
+            $created = $this->inventoryService->createInventory(
                 $request->validated(),
                 $this->getAuthenticatedUserIdOrFail()
             );
-
-            return $this->successResponse(InventoryResource::make($inventory)->resolve(), 'Инвентаризация создана');
         } catch (\Throwable $e) {
             return $this->inventoryMutationJsonResponse($e);
         }
+
+        $inventory = $this->inventoryRepository->getByIdForUser((int) $created->id)
+            ?? throw new ModelNotFoundException;
+
+        return $this->successResponse(InventoryResource::make($inventory)->resolve(), 'Инвентаризация создана');
     }
 
     public function index(Request $request): JsonResponse
@@ -91,19 +97,25 @@ class InventoryController extends BaseController
         });
     }
 
+    /**
+     * @throws ModelNotFoundException
+     */
     public function finalize(int $id): JsonResponse
     {
-        return $this->withInventory($id, function (Inventory $inventory) {
+        return $this->withInventory($id, function (Inventory $inventory) use ($id) {
             try {
-                $finalized = $this->inventoryService->finalizeInventory(
+                $this->inventoryService->finalizeInventory(
                     $inventory,
                     $this->getAuthenticatedUserIdOrFail()
                 );
-
-                return $this->successResponse(InventoryResource::make($finalized)->resolve(), 'Инвентаризация завершена');
             } catch (\Throwable $e) {
                 return $this->inventoryMutationJsonResponse($e);
             }
+
+            $fresh = $this->inventoryRepository->getByIdForUser($id)
+                ?? throw new ModelNotFoundException;
+
+            return $this->successResponse(InventoryResource::make($fresh)->resolve(), 'Инвентаризация завершена');
         });
     }
 
@@ -124,14 +136,13 @@ class InventoryController extends BaseController
      * Применить к складу недостачу (списание) и/или излишек (оприходование) по завершённой инвентаризации.
      *
      * @return JsonResponse
+     * @throws ModelNotFoundException
      */
     public function applyInventoryStockAdjustment(int $id): JsonResponse
     {
-        return $this->withInventory($id, function (Inventory $inventory) {
+        return $this->withInventory($id, function (Inventory $inventory) use ($id) {
             try {
-                $updated = $this->inventoryService->applyStockAdjustments($inventory);
-
-                return $this->successResponse(InventoryResource::make($updated)->resolve(), 'Склад обновлён по результатам инвентаризации');
+                $this->inventoryService->applyStockAdjustments($inventory);
             } catch (QueryException $e) {
                 report($e);
 
@@ -139,6 +150,11 @@ class InventoryController extends BaseController
             } catch (\Throwable $e) {
                 return $this->inventoryMutationJsonResponse($e);
             }
+
+            $fresh = $this->inventoryRepository->getByIdForUser($id)
+                ?? throw new ModelNotFoundException;
+
+            return $this->successResponse(InventoryResource::make($fresh)->resolve(), 'Склад обновлён по результатам инвентаризации');
         });
     }
 
@@ -206,7 +222,7 @@ class InventoryController extends BaseController
     }
 
     /**
-     * @param  LengthAwarePaginator<Inventory>|LengthAwarePaginator<InventoryItem>  $items
+     * @param  LengthAwarePaginator<int, mixed>  $items
      *
      * @return array<string, mixed>
      */
@@ -222,7 +238,7 @@ class InventoryController extends BaseController
     }
 
     /**
-     * @return HasMany<InventoryItem>
+     * @return HasMany
      */
     private function orderedInventoryItems(Inventory $inventory, string $sort = 'category'): HasMany
     {

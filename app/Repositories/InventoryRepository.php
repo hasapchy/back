@@ -11,6 +11,7 @@ class InventoryRepository extends BaseRepository
     {
         $query = Inventory::query()
             ->with(['warehouse:id,name', 'creator:id,name', 'finalizedBy:id,name'])
+            ->withDiscrepancyItemsCount()
             ->where('id', $id);
 
         $this->addCompanyFilterThroughRelation($query, 'warehouse');
@@ -25,6 +26,7 @@ class InventoryRepository extends BaseRepository
     {
         $query = Inventory::query()
             ->with(['warehouse:id,name', 'creator:id,name', 'finalizedBy:id,name'])
+            ->withDiscrepancyItemsCount()
             ->orderByDesc('id');
 
         $this->addCompanyFilterThroughRelation($query, 'warehouse');

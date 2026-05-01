@@ -153,8 +153,6 @@ class InventoryService
             }
 
             $didSomething = false;
-            $appliedWriteoff = false;
-            $appliedReceipt = false;
 
             if ($locked->wh_write_off_id === null && $shortageProducts !== []) {
                 $locked->wh_write_off_id = $this->warehouseWriteoffRepository->createShortageWriteoff(
@@ -163,7 +161,6 @@ class InventoryService
                     $shortageProducts
                 );
                 $didSomething = true;
-                $appliedWriteoff = true;
             }
 
             if ($locked->wh_receipt_id === null && $overageProducts !== []) {
@@ -173,7 +170,6 @@ class InventoryService
                     $overageProducts
                 );
                 $didSomething = true;
-                $appliedReceipt = true;
             }
 
             if (! $didSomething) {
@@ -188,8 +184,6 @@ class InventoryService
                 'user_id' => auth('api')->id(),
                 'wh_write_off_id' => $locked->wh_write_off_id,
                 'wh_receipt_id' => $locked->wh_receipt_id,
-                'applied_writeoff' => $appliedWriteoff,
-                'applied_receipt' => $appliedReceipt,
             ]);
 
             return $locked->fresh();

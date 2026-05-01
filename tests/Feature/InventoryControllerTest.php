@@ -161,6 +161,10 @@ class InventoryControllerTest extends TestCase
         $this->assertNotNull($wo);
         $this->assertStringContainsString('Недостача', (string) $wo->note);
         $this->assertSame(WhWriteoffReason::Shortage, $wo->reason);
+
+        $show = $this->actingAsApi($this->adminUser)->getJson("/api/inventories/{$id}");
+        $show->assertOk();
+        $this->assertSame('done', $show->json('data.stock_recalc_status'));
     }
 
     public function test_apply_stock_adjustment_creates_writeoff_and_receipt_when_both(): void
@@ -273,9 +277,30 @@ class InventoryControllerTest extends TestCase
         $id = $this->postNewInventoryId();
         $this->finalizeInventory($id);
 
+        $show = $this->actingAsApi($this->adminUser)->getJson("/api/inventories/{$id}");
+        $show->assertOk();
+        $this->assertSame('not_required', $show->json('data.stock_recalc_status'));
+
         $apply = $this->actingAsApi($this->adminUser)->postJson("/api/inventories/{$id}/apply-shortage", []);
         $apply->assertStatus(400);
         $this->assertSame('INVENTORY_NO_ADJUSTMENT', $apply->json('error'));
+    }
+
+    public function test_completed_inventory_stock_recalc_pending_until_applied(): void
+    {
+        $id = $this->postNewInventoryId();
+        $itemId = (int) $this->actingAsApi($this->adminUser)
+            ->getJson("/api/inventories/{$id}/items")->json('data.items.0.id');
+
+        $this->actingAsApi($this->adminUser)->patchJson("/api/inventories/{$id}/items", [
+            'items' => [['id' => $itemId, 'actual_quantity' => 20]],
+        ])->assertOk();
+
+        $this->finalizeInventory($id);
+
+        $show = $this->actingAsApi($this->adminUser)->getJson("/api/inventories/{$id}");
+        $show->assertOk();
+        $this->assertSame('pending', $show->json('data.stock_recalc_status'));
     }
 
     public function test_delete_completed_inventory_removes_linked_receipt(): void
