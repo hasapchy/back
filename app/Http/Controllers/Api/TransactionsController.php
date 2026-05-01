@@ -68,7 +68,8 @@ class TransactionsController extends BaseController
             $params['end_date'],
             $params['is_debt'],
             $params['category_ids'],
-            $params['contract_id']
+            $params['contract_id'],
+            $params['warehouse_receipt_id']
         );
 
         $response = [
@@ -114,6 +115,7 @@ class TransactionsController extends BaseController
             $params['is_debt'],
             $params['category_ids'],
             $params['contract_id'],
+            $params['warehouse_receipt_id'],
             $ids ?: null,
             10000
         );
@@ -163,6 +165,7 @@ class TransactionsController extends BaseController
             'date_filter_type' => $request->query('date_filter_type'),
             'order_id' => $request->query('order_id'),
             'contract_id' => $request->query('contract_id'),
+            'warehouse_receipt_id' => $request->query('warehouse_receipt_id'),
             'search' => $request->query('search'),
             'transaction_type' => $request->query('transaction_type'),
             'source' => $request->query('source'),
@@ -214,23 +217,27 @@ class TransactionsController extends BaseController
             $validatedData['category_id']
         );
 
-        $transactionId = $this->itemsRepository->createItem([
-            'type' => $validatedData['type'],
-            'creator_id' => $userUuid,
-            'orig_amount' => $validatedData['orig_amount'],
-            'currency_id' => $validatedData['currency_id'],
-            'cash_id' => $validatedData['cash_id'],
-            'category_id' => $categoryId,
-            'project_id' => $validatedData['project_id'] ?? null,
-            'client_id' => $clientId,
-            'client_balance_id' => $validatedData['client_balance_id'] ?? null,
-            'source_type' => $sourceType,
-            'source_id' => $sourceId,
-            'note' => $validatedData['note'] ?? null,
-            'date' => $validatedData['date'] ?? now(),
-            'is_debt' => $validatedData['is_debt'] ?? false,
-            'exchange_rate' => $validatedData['exchange_rate'] ?? null,
-        ], true);
+        try {
+            $transactionId = $this->itemsRepository->createItem([
+                'type' => $validatedData['type'],
+                'creator_id' => $userUuid,
+                'orig_amount' => $validatedData['orig_amount'],
+                'currency_id' => $validatedData['currency_id'],
+                'cash_id' => $validatedData['cash_id'],
+                'category_id' => $categoryId,
+                'project_id' => $validatedData['project_id'] ?? null,
+                'client_id' => $clientId,
+                'client_balance_id' => $validatedData['client_balance_id'] ?? null,
+                'source_type' => $sourceType,
+                'source_id' => $sourceId,
+                'note' => $validatedData['note'] ?? null,
+                'date' => $validatedData['date'] ?? now(),
+                'is_debt' => $validatedData['is_debt'] ?? false,
+                'exchange_rate' => $validatedData['exchange_rate'] ?? null,
+            ], true);
+        } catch (\RuntimeException $e) {
+            return $this->errorResponse($e->getMessage(), 422);
+        }
 
         if (! $transactionId) {
             return $this->errorResponse('Ошибка создания транзакции', 400);
@@ -349,7 +356,11 @@ class TransactionsController extends BaseController
             $updateData['source_id'] = $updateSourceId;
         }
 
-        $category_updated = $this->itemsRepository->updateItem($id, $updateData);
+        try {
+            $category_updated = $this->itemsRepository->updateItem($id, $updateData);
+        } catch (\RuntimeException $e) {
+            return $this->errorResponse($e->getMessage(), 422);
+        }
 
         if (! $category_updated) {
             return $this->errorResponse('Ошибка обновления транзакции', 400);

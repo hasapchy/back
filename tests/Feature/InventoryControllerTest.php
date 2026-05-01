@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\WhWriteoffReason;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\Product;
@@ -54,6 +55,7 @@ class InventoryControllerTest extends TestCase
             'type' => 1,
         ]);
         $this->product->categories()->attach($this->category->id);
+        $this->ensureProductPurchasePrice((int) $this->product->id);
         WarehouseStock::query()->create([
             'warehouse_id' => $this->warehouse->id,
             'product_id' => $this->product->id,
@@ -158,6 +160,7 @@ class InventoryControllerTest extends TestCase
         $wo = WhWriteoff::query()->find($writeOffId);
         $this->assertNotNull($wo);
         $this->assertStringContainsString('Недостача', (string) $wo->note);
+        $this->assertSame(WhWriteoffReason::Shortage, $wo->reason);
     }
 
     public function test_apply_stock_adjustment_creates_writeoff_and_receipt_when_both(): void
@@ -196,6 +199,9 @@ class InventoryControllerTest extends TestCase
         $receiptId = (int) $apply->json('data.wh_receipt_id');
         $this->assertGreaterThan(0, $writeOffId);
         $this->assertGreaterThan(0, $receiptId);
+        $wo = WhWriteoff::query()->find($writeOffId);
+        $this->assertNotNull($wo);
+        $this->assertSame(WhWriteoffReason::Shortage, $wo->reason);
     }
 
     public function test_apply_shortage_cannot_run_twice(): void

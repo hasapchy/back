@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use App\Enums\WhReceiptStatus;
 use App\Models\ClientBalance;
 use App\Services\CacheService;
 use App\Services\TransactionDeletionService;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Модель прихода на склад
@@ -21,6 +23,9 @@ use App\Services\TransactionDeletionService;
  * @property \Carbon\Carbon $date Дата прихода
  * @property int $creator_id ID пользователя
  * @property int|null $project_id ID проекта
+ * @property bool $is_legacy
+ * @property bool $is_simple
+ * @property WhReceiptStatus $status
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -33,6 +38,8 @@ use App\Services\TransactionDeletionService;
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhReceiptProduct[] $products
  * @property-read \App\Models\Project|null $project
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, WhWaybill> $waybills
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, WhReceiptExpenseAllocation> $expenseAllocations
  */
 class WhReceipt extends Model
 {
@@ -48,10 +55,16 @@ class WhReceipt extends Model
         'date',
         'creator_id',
         'project_id',
+        'is_legacy',
+        'is_simple',
+        'status',
     ];
 
     protected $casts = [
         'amount' => 'decimal:5',
+        'is_legacy' => 'boolean',
+        'is_simple' => 'boolean',
+        'status' => WhReceiptStatus::class,
     ];
 
     protected static function booted()
@@ -129,21 +142,6 @@ class WhReceipt extends Model
     }
 
     /**
-     * Связь many-to-many с продуктами через промежуточную таблицу
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
-    public function productsPivot()
-    {
-        return $this->belongsToMany(
-            Product::class,
-            'wh_receipt_products',
-            'receipt_id',
-            'product_id'
-        )->withPivot('quantity');
-    }
-
-    /**
      * Полиморфная связь с транзакциями
      *
      * @return \Illuminate\Database\Eloquent\Relations\MorphMany
@@ -161,5 +159,21 @@ class WhReceipt extends Model
     public function project()
     {
         return $this->belongsTo(Project::class, 'project_id');
+    }
+
+    /**
+     * @return HasMany<WhWaybill>
+     */
+    public function waybills(): HasMany
+    {
+        return $this->hasMany(WhWaybill::class, 'receipt_id');
+    }
+
+    /**
+     * @return HasMany<WhReceiptExpenseAllocation>
+     */
+    public function expenseAllocations(): HasMany
+    {
+        return $this->hasMany(WhReceiptExpenseAllocation::class, 'receipt_id');
     }
 }

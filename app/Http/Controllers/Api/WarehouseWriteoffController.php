@@ -89,6 +89,7 @@ class WarehouseWriteoffController extends BaseController
 
         $data = [
             'warehouse_id' => $validatedData['warehouse_id'],
+            'reason' => $validatedData['reason'],
             'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
                 return [
@@ -128,6 +129,7 @@ class WarehouseWriteoffController extends BaseController
 
         $data = [
             'warehouse_id' => $validatedData['warehouse_id'],
+            'reason' => $validatedData['reason'],
             'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
                 return [

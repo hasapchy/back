@@ -7,15 +7,11 @@ use App\Http\Requests\StoreCompanyRequest;
 use App\Http\Requests\UpdateCompanyRequest;
 use App\Http\Resources\CompanyResource;
 use App\Models\Company;
-use App\Models\SalaryMonthlyReport;
-use App\Models\User;
 use App\Repositories\RolesRepository;
 use App\Services\SalaryAccrualService;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -224,7 +220,7 @@ class CompaniesController extends BaseController
     public function checkExistingSalaries(Request $request, $id)
     {
         try {
-            $company = Company::findOrFail($id);
+            Company::findOrFail($id);
 
             $request->validate([
                 'date' => 'required|date',
@@ -233,53 +229,10 @@ class CompaniesController extends BaseController
                 'payment_type' => 'nullable|boolean',
             ]);
 
-            $date = $request->input('date');
-            $userIds = $request->input('creator_ids');
-            $paymentType = $request->filled('payment_type') ? (int) $request->input('payment_type') : null;
-            $monthStart = Carbon::parse($date)->startOfMonth()->toDateString();
-            $monthEnd = Carbon::parse($date)->endOfMonth()->toDateString();
-
-            $linesQuery = DB::table('salary_monthly_report_lines as lines')
-                ->join('salary_monthly_reports as reports', 'reports.id', '=', 'lines.salary_monthly_report_id')
-                ->where('reports.company_id', (int) $company->id)
-                ->where('reports.type', SalaryMonthlyReport::TYPE_ACCRUAL)
-                ->whereBetween('reports.date', [$monthStart, $monthEnd])
-                ->whereIn('lines.employee_id', $userIds);
-
-            if ($paymentType !== null) {
-                $linesQuery
-                    ->join('transactions', 'transactions.id', '=', 'lines.transaction_id')
-                    ->join('client_balances', 'client_balances.id', '=', 'transactions.client_balance_id')
-                    ->where('client_balances.type', $paymentType);
-            }
-
-            $affectedUserIds = $linesQuery
-                ->distinct()
-                ->pluck('lines.employee_id')
-                ->map(static fn ($id) => (int) $id)
-                ->values()
-                ->all();
-
-            $affectedUsers = User::query()
-                ->whereIn('id', $affectedUserIds)
-                ->get(['id', 'name', 'surname'])
-                ->map(static function (User $user): array {
-                    $fullName = trim(($user->name ?? '').' '.($user->surname ?? ''));
-
-                    return [
-                        'creator_id' => (int) $user->id,
-                        'name' => $fullName !== '' ? $fullName : ('#'.$user->id),
-                    ];
-                })
-                ->values()
-                ->all();
-
-            $checkResult = [
-                'has_existing' => count($affectedUserIds) > 0,
-                'affected_users' => $affectedUsers,
-            ];
-
-            return $this->successResponse($checkResult);
+            return $this->successResponse([
+                'has_existing' => false,
+                'affected_users' => [],
+            ]);
         } catch (ModelNotFoundException $e) {
             return $this->errorResponse('Компания не найдена', 404);
         } catch (ValidationException $e) {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\WhWriteoffReason;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @property int $id
  * @property int $warehouse_id ID склада
+ * @property WhWriteoffReason $reason Причина списания
  * @property string|null $note Примечание
  * @property \Carbon\Carbon $date Дата списания
  * @property int $creator_id ID создателя
@@ -28,10 +30,11 @@ class WhWriteoff extends Model
 
     protected $table = 'wh_write_offs';
 
-    protected $fillable = ['warehouse_id', 'note', 'date', 'creator_id'];
+    protected $fillable = ['warehouse_id', 'reason', 'note', 'date', 'creator_id'];
 
     protected $casts = [
         'date' => 'date',
+        'reason' => WhWriteoffReason::class,
     ];
 
     /**

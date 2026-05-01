@@ -121,20 +121,8 @@ class InventoryService
             $locked = Inventory::query()->lockForUpdate()->findOrFail($inventory->id);
 
             if ($locked->status !== 'completed') {
-                Log::warning('inventory.stock_adjustment.skipped', [
-                    'reason' => 'INVENTORY_NOT_COMPLETED',
-                    'inventory_id' => $locked->id,
-                    'status' => $locked->status,
-                    'user_id' => auth('api')->id(),
-                ]);
                 throw new \RuntimeException('INVENTORY_NOT_COMPLETED');
             }
-
-            $diagnostics = $this->stockAdjustmentDiagnosticsSnapshot($locked);
-
-            Log::info('inventory.stock_adjustment.evaluation', array_merge($diagnostics, [
-                'user_id' => auth('api')->id(),
-            ]));
 
             $shortageProducts = $locked->items()
                 ->whereNotNull('actual_quantity')
@@ -160,219 +148,52 @@ class InventoryService
                 ->values()
                 ->all();
 
-            $hasShortageLines = $shortageProducts !== [];
-            $hasOverageLines = $overageProducts !== [];
-
-            if (! $hasShortageLines && ! $hasOverageLines) {
-                Log::warning('inventory.stock_adjustment.no_lines', array_merge($diagnostics, [
-                    'user_id' => auth('api')->id(),
-                ]));
+            if ($shortageProducts === [] && $overageProducts === []) {
                 throw new \RuntimeException('INVENTORY_NO_ADJUSTMENT');
             }
 
-            $willApplyWriteoff = $locked->wh_write_off_id === null && $shortageProducts !== [];
-            $willApplyReceipt = $locked->wh_receipt_id === null && $overageProducts !== [];
-            $skipWriteoffLinked = $hasShortageLines && $locked->wh_write_off_id !== null;
-            $skipReceiptLinked = $hasOverageLines && $locked->wh_receipt_id !== null;
-
-            Log::info('inventory.stock_adjustment.intent', [
-                'inventory_id' => $locked->id,
-                'warehouse_id' => $locked->warehouse_id,
-                'user_id' => auth('api')->id(),
-                'has_shortage_lines' => $hasShortageLines,
-                'has_overage_lines' => $hasOverageLines,
-                'shortage_line_count' => count($shortageProducts),
-                'overage_line_count' => count($overageProducts),
-                'will_apply_writeoff' => $willApplyWriteoff,
-                'will_apply_receipt' => $willApplyReceipt,
-                'combined_in_one_request' => $willApplyWriteoff && $willApplyReceipt,
-                'skip_writeoff_already_linked' => $skipWriteoffLinked,
-                'skip_receipt_already_linked' => $skipReceiptLinked,
-                'existing_wh_write_off_id' => $locked->wh_write_off_id,
-                'existing_wh_receipt_id' => $locked->wh_receipt_id,
-            ]);
-
-            if ($skipWriteoffLinked) {
-                Log::info('inventory.stock_adjustment.writeoff_skipped_already_linked', [
-                    'inventory_id' => $locked->id,
-                    'warehouse_id' => $locked->warehouse_id,
-                    'wh_write_off_id' => $locked->wh_write_off_id,
-                    'shortage_line_count' => count($shortageProducts),
-                    'user_id' => auth('api')->id(),
-                ]);
-            }
-
-            if ($skipReceiptLinked) {
-                Log::info('inventory.stock_adjustment.receipt_skipped_already_linked', [
-                    'inventory_id' => $locked->id,
-                    'warehouse_id' => $locked->warehouse_id,
-                    'wh_receipt_id' => $locked->wh_receipt_id,
-                    'overage_line_count' => count($overageProducts),
-                    'user_id' => auth('api')->id(),
-                ]);
-            }
-
             $didSomething = false;
-            $appliedWriteoffThisRequest = false;
-            $appliedReceiptThisRequest = false;
+            $appliedWriteoff = false;
+            $appliedReceipt = false;
 
             if ($locked->wh_write_off_id === null && $shortageProducts !== []) {
-                Log::info('inventory.stock_adjustment.shortage_payload', [
-                    'inventory_id' => $locked->id,
-                    'warehouse_id' => $locked->warehouse_id,
-                    'lines' => $shortageProducts,
-                    'user_id' => auth('api')->id(),
-                ]);
-
-                try {
-                    $writeOffId = $this->warehouseWriteoffRepository->createShortageWriteoff(
-                        (int) $locked->warehouse_id,
-                        'Недостача после инвентаризации',
-                        $shortageProducts
-                    );
-                } catch (\Throwable $e) {
-                    Log::error('inventory.stock_adjustment.writeoff_failed', [
-                        'inventory_id' => $locked->id,
-                        'warehouse_id' => $locked->warehouse_id,
-                        'lines' => $shortageProducts,
-                        'user_id' => auth('api')->id(),
-                        'exception' => $e::class,
-                        'message' => $e->getMessage(),
-                    ]);
-                    throw $e;
-                }
-
-                $locked->wh_write_off_id = $writeOffId;
+                $locked->wh_write_off_id = $this->warehouseWriteoffRepository->createShortageWriteoff(
+                    (int) $locked->warehouse_id,
+                    'Недостача после инвентаризации',
+                    $shortageProducts
+                );
                 $didSomething = true;
-                $appliedWriteoffThisRequest = true;
-
-                Log::info('inventory.stock_adjustment.writeoff_created', [
-                    'inventory_id' => $locked->id,
-                    'warehouse_id' => $locked->warehouse_id,
-                    'wh_write_off_id' => $writeOffId,
-                    'lines' => $shortageProducts,
-                    'user_id' => auth('api')->id(),
-                ]);
+                $appliedWriteoff = true;
             }
 
             if ($locked->wh_receipt_id === null && $overageProducts !== []) {
-                Log::info('inventory.stock_adjustment.overage_payload', [
-                    'inventory_id' => $locked->id,
-                    'warehouse_id' => $locked->warehouse_id,
-                    'lines' => $overageProducts,
-                    'user_id' => auth('api')->id(),
-                ]);
-
-                try {
-                    $receiptId = $this->warehouseReceiptRepository->createInventoryOverageReceipt(
-                        (int) $locked->warehouse_id,
-                        'Излишек после инвентаризации',
-                        $overageProducts
-                    );
-                } catch (\Throwable $e) {
-                    Log::error('inventory.stock_adjustment.receipt_failed', [
-                        'inventory_id' => $locked->id,
-                        'warehouse_id' => $locked->warehouse_id,
-                        'lines' => $overageProducts,
-                        'user_id' => auth('api')->id(),
-                        'exception' => $e::class,
-                        'message' => $e->getMessage(),
-                    ]);
-                    throw $e;
-                }
-
-                $locked->wh_receipt_id = $receiptId;
+                $locked->wh_receipt_id = $this->warehouseReceiptRepository->createInventoryOverageReceipt(
+                    (int) $locked->warehouse_id,
+                    'Излишек после инвентаризации',
+                    $overageProducts
+                );
                 $didSomething = true;
-                $appliedReceiptThisRequest = true;
-
-                Log::info('inventory.stock_adjustment.receipt_created', [
-                    'inventory_id' => $locked->id,
-                    'warehouse_id' => $locked->warehouse_id,
-                    'wh_receipt_id' => $receiptId,
-                    'lines' => $overageProducts,
-                    'user_id' => auth('api')->id(),
-                ]);
+                $appliedReceipt = true;
             }
 
             if (! $didSomething) {
-                Log::warning('inventory.stock_adjustment.already_applied', array_merge($diagnostics, [
-                    'user_id' => auth('api')->id(),
-                ]));
                 throw new \RuntimeException('INVENTORY_ADJUSTMENT_ALREADY_APPLIED');
             }
 
             $locked->save();
 
-            $result = $locked->fresh();
-
             Log::info('inventory.stock_adjustment.completed', [
-                'inventory_id' => $result->id,
-                'warehouse_id' => $result->warehouse_id,
+                'inventory_id' => $locked->id,
+                'warehouse_id' => $locked->warehouse_id,
                 'user_id' => auth('api')->id(),
-                'wh_write_off_id' => $result->wh_write_off_id,
-                'wh_receipt_id' => $result->wh_receipt_id,
-                'applied_writeoff_this_request' => $appliedWriteoffThisRequest,
-                'applied_receipt_this_request' => $appliedReceiptThisRequest,
-                'combined_shortage_and_overage_this_request' => $appliedWriteoffThisRequest && $appliedReceiptThisRequest,
+                'wh_write_off_id' => $locked->wh_write_off_id,
+                'wh_receipt_id' => $locked->wh_receipt_id,
+                'applied_writeoff' => $appliedWriteoff,
+                'applied_receipt' => $appliedReceipt,
             ]);
 
-            return $result;
+            return $locked->fresh();
         });
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function stockAdjustmentDiagnosticsSnapshot(Inventory $inventory): array
-    {
-        $items = $inventory->items()
-            ->get([
-                'id',
-                'product_id',
-                'product_name',
-                'expected_quantity',
-                'actual_quantity',
-                'difference_quantity',
-                'difference_type',
-            ]);
-
-        $nullActual = $items->filter(fn (InventoryItem $i) => $i->actual_quantity === null);
-        $withActual = $items->filter(fn (InventoryItem $i) => $i->actual_quantity !== null);
-        $match = $withActual->filter(fn (InventoryItem $i) => (float) $i->difference_quantity === 0.0);
-        $shortage = $withActual->filter(fn (InventoryItem $i) => (float) $i->difference_quantity < 0);
-        $overage = $withActual->filter(fn (InventoryItem $i) => (float) $i->difference_quantity > 0);
-
-        return [
-            'inventory_id' => $inventory->id,
-            'warehouse_id' => $inventory->warehouse_id,
-            'items_total' => $items->count(),
-            'count_actual_null' => $nullActual->count(),
-            'count_match' => $match->count(),
-            'count_shortage' => $shortage->count(),
-            'count_overage' => $overage->count(),
-            'sample_actual_null' => $nullActual->take(8)->map(fn (InventoryItem $i) => [
-                'item_id' => $i->id,
-                'product_id' => $i->product_id,
-                'product_name' => $i->product_name,
-                'expected_quantity' => (float) $i->expected_quantity,
-            ])->values()->all(),
-            'sample_shortage' => $shortage->take(8)->map(fn (InventoryItem $i) => [
-                'item_id' => $i->id,
-                'product_id' => $i->product_id,
-                'product_name' => $i->product_name,
-                'expected_quantity' => (float) $i->expected_quantity,
-                'actual_quantity' => (float) $i->actual_quantity,
-                'difference_quantity' => (float) $i->difference_quantity,
-            ])->values()->all(),
-            'sample_overage' => $overage->take(8)->map(fn (InventoryItem $i) => [
-                'item_id' => $i->id,
-                'product_id' => $i->product_id,
-                'product_name' => $i->product_name,
-                'expected_quantity' => (float) $i->expected_quantity,
-                'actual_quantity' => (float) $i->actual_quantity,
-                'difference_quantity' => (float) $i->difference_quantity,
-            ])->values()->all(),
-        ];
     }
 
     /**

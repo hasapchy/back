@@ -59,7 +59,7 @@ class WarehouseReceiptControllerTest extends TestCase
             ->postJson('/api/warehouse_receipts', []);
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['client_id', 'warehouse_id', 'type', 'products']);
+        $response->assertJsonValidationErrors(['client_id', 'warehouse_id', 'products']);
     }
 
     public function test_store_warehouse_receipt_success(): void
@@ -67,7 +67,7 @@ class WarehouseReceiptControllerTest extends TestCase
         $data = [
             'client_id' => $this->client->id,
             'warehouse_id' => $this->warehouse->id,
-            'type' => 'cash',
+            'is_legacy' => true,
             'products' => [
                 [
                     'product_id' => $this->product->id,
@@ -95,7 +95,7 @@ class WarehouseReceiptControllerTest extends TestCase
         $data = [
             'client_id' => $this->client->id,
             'warehouse_id' => $this->warehouse->id,
-            'type' => 'balance',
+            'is_legacy' => true,
             'products' => [
                 [
                     'product_id' => $this->product->id,

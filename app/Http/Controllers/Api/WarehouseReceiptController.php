@@ -14,14 +14,9 @@ use Illuminate\Http\Request;
  */
 class WarehouseReceiptController extends BaseController
 {
-    protected $itemsRepository;
-
-    /**
-     * Конструктор контроллера
-     */
-    public function __construct(WarehouseReceiptRepository $itemsRepository)
-    {
-        $this->itemsRepository = $itemsRepository;
+    public function __construct(
+        protected WarehouseReceiptRepository $itemsRepository
+    ) {
     }
 
     /**
@@ -62,7 +57,7 @@ class WarehouseReceiptController extends BaseController
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $item = $this->itemsRepository->getItemById($id, $userUuid);
         if (! $item) {
-            return $this->errorResponse('Оприходование не найдено', 404);
+            return $this->errorResponse(__('warehouse_receipt.not_found'), 404);
         }
 
         return $this->successResponse(new WarehouseReceiptResource($item));
@@ -93,12 +88,14 @@ class WarehouseReceiptController extends BaseController
             'client_id' => $validatedData['client_id'],
             'client_balance_id' => NullableInt::fromRequest($validatedData['client_balance_id'] ?? null),
             'warehouse_id' => $validatedData['warehouse_id'],
-            'type' => $validatedData['type'],
             'cash_id' => $validatedData['cash_id'] ?? null,
             'creator_id' => $userUuid,
             'date' => $validatedData['date'] ?? now(),
             'note' => $validatedData['note'] ?? '',
             'project_id' => $validatedData['project_id'] ?? null,
+            'is_legacy' => (bool) ($validatedData['is_legacy'] ?? false),
+            'is_simple' => (bool) ($validatedData['is_simple'] ?? false),
+            'status' => $validatedData['status'] ?? null,
             'products' => array_map(function ($product) {
                 return [
                     'product_id' => $product['product_id'],
@@ -109,14 +106,11 @@ class WarehouseReceiptController extends BaseController
         ];
 
         try {
-            $warehouse_created = $this->itemsRepository->createItem($data);
-            if (! $warehouse_created) {
-                return $this->errorResponse('Ошибка оприходования', 400);
-            }
+            $receiptId = $this->itemsRepository->createItem($data);
 
-            return $this->successResponse(null, 'Оприходование создано');
+            return $this->successResponse(['id' => $receiptId], __('warehouse_receipt.created_success'));
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка оприходования: '.$th->getMessage(), 400);
+            return $this->errorResponse(__('warehouse_receipt.store_error', ['message' => $th->getMessage()]), 400);
         }
     }
 
@@ -134,7 +128,7 @@ class WarehouseReceiptController extends BaseController
 
         $receipt = $this->itemsRepository->getItemById($id, $userUuid);
         if (! $receipt) {
-            return $this->errorResponse('Оприходование не найдено', 404);
+            return $this->errorResponse(__('warehouse_receipt.not_found'), 404);
         }
 
         $data = [
@@ -145,17 +139,18 @@ class WarehouseReceiptController extends BaseController
             'note' => $validatedData['note'] ?? $receipt->note,
             'products' => $receipt->products,
             'project_id' => $receipt->project_id,
+            'status' => array_key_exists('status', $validatedData) ? $validatedData['status'] : null,
         ];
 
         try {
             $updated = $this->itemsRepository->updateReceipt($id, $data);
             if (! $updated) {
-                return $this->errorResponse('Ошибка обновления приходования', 400);
+                return $this->errorResponse(__('warehouse_receipt.update_failed'), 400);
             }
 
-            return $this->successResponse(null, 'Приходование обновлено');
+            return $this->successResponse(null, __('warehouse_receipt.updated_success'));
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка обновления приходования: '.$th->getMessage(), 400);
+            return $this->errorResponse(__('warehouse_receipt.update_error', ['message' => $th->getMessage()]), 400);
         }
     }
 
@@ -171,14 +166,14 @@ class WarehouseReceiptController extends BaseController
             $warehouse_deleted = $this->itemsRepository->deleteItem($id);
 
             if (! $warehouse_deleted) {
-                return $this->errorResponse('Ошибка удаления оприходования', 400);
+                return $this->errorResponse(__('warehouse_receipt.delete_failed'), 400);
             }
 
-            return $this->successResponse(null, 'Оприходование удалено');
+            return $this->successResponse(null, __('warehouse_receipt.deleted_success'));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return $this->errorResponse('Оприходование не найдено', 404);
+            return $this->errorResponse(__('warehouse_receipt.not_found'), 404);
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка удаления оприходования: '.$th->getMessage(), 400);
+            return $this->errorResponse(__('warehouse_receipt.delete_error', ['message' => $th->getMessage()]), 400);
         }
     }
 }

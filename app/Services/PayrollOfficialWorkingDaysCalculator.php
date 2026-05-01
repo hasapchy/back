@@ -83,6 +83,17 @@ class PayrollOfficialWorkingDaysCalculator
     }
 
     /**
+     * @param  Carbon  $segmentStart
+     * @param  Carbon  $segmentEnd
+     * @param  Carbon  $dayStart  Начало календарного дня учёта
+     * @param  Carbon  $dayEnd    Конец календарного дня учёта
+     */
+    private function intervalsOverlapInclusive(Carbon $segmentStart, Carbon $segmentEnd, Carbon $dayStart, Carbon $dayEnd): bool
+    {
+        return $segmentStart->lte($dayEnd) && $segmentEnd->gte($dayStart);
+    }
+
+    /**
      * @param  array<string, mixed>  $workSchedule
      * @param  array<string, bool>  $nonWorkingSet
      */
@@ -124,6 +135,53 @@ class PayrollOfficialWorkingDaysCalculator
         }
 
         return ! empty($cfg['enabled']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $workSchedule
+     * @param  array<string, bool>  $nonWorkingSet
+     * @return array{0: Carbon, 1: Carbon}|null
+     */
+    private function officialWorkingWindowForScheduleDay(
+        array $workSchedule,
+        array $nonWorkingSet,
+        Carbon $dayAnchor
+    ): ?array {
+        if (! $this->isOfficialWorkingDay($workSchedule, $nonWorkingSet, $dayAnchor)) {
+            return null;
+        }
+
+        $base = $dayAnchor->copy()->startOfDay();
+        $isoDow = (int) $base->dayOfWeekIso;
+        $cfg = $workSchedule[$isoDow] ?? null;
+        if (! is_array($cfg)) {
+            return null;
+        }
+
+        $startStr = $cfg['start'] ?? null;
+        $endStr = $cfg['end'] ?? null;
+        if (! is_string($startStr) || ! is_string($endStr)) {
+            return [$base->copy(), $base->copy()->endOfDay()];
+        }
+
+        $startStr = trim($startStr);
+        $endStr = trim($endStr);
+        if ($startStr === '' || $endStr === '') {
+            return [$base->copy(), $base->copy()->endOfDay()];
+        }
+
+        try {
+            $workStart = $base->copy()->setTimeFromTimeString($startStr);
+            $workEnd = $base->copy()->setTimeFromTimeString($endStr);
+        } catch (\Throwable) {
+            return [$base->copy(), $base->copy()->endOfDay()];
+        }
+
+        if ($workEnd->lt($workStart)) {
+            return null;
+        }
+
+        return [$workStart, $workEnd];
     }
 
     /**
@@ -250,22 +308,36 @@ class PayrollOfficialWorkingDaysCalculator
         $periods = [];
 
         foreach ($leaves as $leave) {
-            $leaveFrom = Carbon::parse($leave->date_from)->startOfDay();
-            $leaveTo = Carbon::parse($leave->date_to)->startOfDay();
-            $rangeStart = $empFrom->copy()->gt($leaveFrom) ? $empFrom->copy() : $leaveFrom->copy();
-            $rangeEnd = $empTo->copy()->lt($leaveTo) ? $empTo->copy() : $leaveTo->copy();
-            if ($rangeStart->gt($rangeEnd)) {
+            $leaveInstantFrom = Carbon::parse($leave->date_from);
+            $leaveInstantTo = Carbon::parse($leave->date_to);
+            $periodStartTs = $empFrom->copy()->startOfDay();
+            $periodEndTs = $empTo->copy()->endOfDay();
+            $overlapStart = $leaveInstantFrom->gt($periodStartTs) ? $leaveInstantFrom->copy() : $periodStartTs->copy();
+            $overlapEnd = $leaveInstantTo->lt($periodEndTs) ? $leaveInstantTo->copy() : $periodEndTs->copy();
+            if ($overlapStart->gt($overlapEnd)) {
                 continue;
             }
 
             $officialDaysThisLeave = 0;
-            $cursor = $rangeStart->copy();
-            while ($cursor->lte($rangeEnd)) {
-                if ($this->isOfficialWorkingDay($workSchedule, $nonWorkingSet, $cursor)) {
-                    $key = $cursor->toDateString();
-                    if (! isset($byDate[$key])) {
-                        $byDate[$key] = true;
-                    }
+            $daysCountedForLeave = [];
+            $cursor = $overlapStart->copy()->startOfDay();
+            $lastDay = $overlapEnd->copy()->startOfDay();
+            while ($cursor->lte($lastDay)) {
+                $window = $this->officialWorkingWindowForScheduleDay($workSchedule, $nonWorkingSet, $cursor);
+                if (
+                    $window === null
+                    || ! $this->intervalsOverlapInclusive($overlapStart, $overlapEnd, $window[0], $window[1])) {
+                    $cursor->addDay();
+
+                    continue;
+                }
+
+                $key = $cursor->toDateString();
+                if (! isset($byDate[$key])) {
+                    $byDate[$key] = true;
+                }
+                if (! isset($daysCountedForLeave[$key])) {
+                    $daysCountedForLeave[$key] = true;
                     $officialDaysThisLeave++;
                 }
                 $cursor->addDay();
@@ -274,8 +346,8 @@ class PayrollOfficialWorkingDaysCalculator
             if ($officialDaysThisLeave > 0) {
                 $periods[] = [
                     'leave_type_name' => (string) ($leave->leave_type_name ?? ''),
-                    'date_from' => $rangeStart->toDateString(),
-                    'date_to' => $rangeEnd->toDateString(),
+                    'date_from' => $overlapStart->toDateString(),
+                    'date_to' => $overlapEnd->toDateString(),
                     'official_days' => $officialDaysThisLeave,
                 ];
             }

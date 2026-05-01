@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\WhWriteoffReason;
 use App\Rules\WarehouseAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -28,6 +30,7 @@ class StoreWarehouseWriteoffRequest extends FormRequest
     {
         return [
             'warehouse_id' => ['required', 'integer', new WarehouseAccessRule()],
+            'reason' => ['required', 'string', Rule::in(WhWriteoffReason::values())],
             'note' => 'nullable|string',
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',

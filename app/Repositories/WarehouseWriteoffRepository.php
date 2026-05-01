@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Enums\WhWriteoffReason;
 use App\Models\User;
 use App\Models\WarehouseStock;
 use App\Models\WhUser;
@@ -50,6 +51,7 @@ class WarehouseWriteoffRepository extends BaseRepository
             $items = $items->select(
                 'wh_write_offs.id as id',
                 'wh_write_offs.warehouse_id as warehouse_id',
+                'wh_write_offs.reason as reason',
                 'warehouses.name as warehouse_name',
                 'wh_write_offs.note as note',
                 'wh_write_offs.creator_id as creator_id',
@@ -97,6 +99,7 @@ class WarehouseWriteoffRepository extends BaseRepository
             ->select(
                 'wh_write_offs.id',
                 'wh_write_offs.warehouse_id',
+                'wh_write_offs.reason',
                 'warehouses.name as warehouse_name',
                 'wh_write_offs.note',
                 'wh_write_offs.creator_id',
@@ -156,6 +159,7 @@ class WarehouseWriteoffRepository extends BaseRepository
             'id' => (int) $row->id,
             'warehouse_id' => (int) $row->warehouse_id,
             'warehouse_name' => $row->warehouse_name,
+            'reason' => (string) $row->reason,
             'note' => $row->note ?? '',
             'creator_id' => $row->creator_id ? (int) $row->creator_id : null,
             'creator' => $creator,
@@ -168,21 +172,24 @@ class WarehouseWriteoffRepository extends BaseRepository
     /**
      * Создать списание
      *
-     * @param array $data Данные списания
+     * @param  array{warehouse_id: int, reason: string, note: string, products: array<int, array{product_id: int, quantity: float}>}  $data
      * @return bool
+     *
      * @throws \Exception
      */
     public function createItem($data)
     {
         $warehouse_id = $data['warehouse_id'];
+        $reason = WhWriteoffReason::from((string) $data['reason']);
         $note = $data['note'];
         $products = $data['products'];
 
         app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
 
-        return DB::transaction(function () use ($warehouse_id, $note, $products) {
+        return DB::transaction(function () use ($warehouse_id, $reason, $note, $products) {
             $writeoff = new WhWriteoff();
             $writeoff->warehouse_id = $warehouse_id;
+            $writeoff->reason = $reason;
             $writeoff->note = $note;
             $writeoff->date = now();
             $writeoff->creator_id      = auth('api')->id();
@@ -211,24 +218,27 @@ class WarehouseWriteoffRepository extends BaseRepository
     /**
      * Обновить списание
      *
-     * @param int $writeoff_id ID списания
-     * @param array $data Данные для обновления
+     * @param  int  $writeoff_id  ID списания
+     * @param  array{warehouse_id: int, reason: string, note: string, products: array<int, array{product_id: int, quantity: float}>}  $data
      * @return bool
+     *
      * @throws \Exception
      */
     public function updateItem($writeoff_id, $data)
     {
         $warehouse_id = $data['warehouse_id'];
+        $reason = WhWriteoffReason::from((string) $data['reason']);
         $note = $data['note'];
         $products = $data['products'];
 
         app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
 
-        return DB::transaction(function () use ($writeoff_id, $warehouse_id, $note, $products) {
+        return DB::transaction(function () use ($writeoff_id, $warehouse_id, $reason, $note, $products) {
             $writeoff = WhWriteoff::findOrFail($writeoff_id);
             $old_warehouse_id = $writeoff->warehouse_id;
 
             $writeoff->warehouse_id = $warehouse_id;
+            $writeoff->reason = $reason;
             $writeoff->note = $note;
             $writeoff->save();
 
@@ -312,7 +322,7 @@ class WarehouseWriteoffRepository extends BaseRepository
     /**
      * @param  array<int, array{product_id: int, quantity: float}>  $products
      */
-    public function createShortageWriteoff(int $warehouseId, string $note, array $products): int
+    public function createShortageWriteoff(int $warehouseId, string $note, array $products, WhWriteoffReason $reason = WhWriteoffReason::Shortage): int
     {
         if ($products === []) {
             throw new \RuntimeException('EMPTY_WRITE_OFF_PRODUCTS');
@@ -320,9 +330,10 @@ class WarehouseWriteoffRepository extends BaseRepository
 
         app(InventoryLockService::class)->checkWarehouseIsUnlocked($warehouseId);
 
-        return (int) DB::transaction(function () use ($warehouseId, $note, $products) {
+        return (int) DB::transaction(function () use ($warehouseId, $note, $products, $reason) {
             $writeoff = new WhWriteoff();
             $writeoff->warehouse_id = $warehouseId;
+            $writeoff->reason = $reason;
             $writeoff->note = $note;
             $writeoff->date = now();
             $writeoff->creator_id = auth('api')->id();

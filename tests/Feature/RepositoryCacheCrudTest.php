@@ -560,6 +560,7 @@ class RepositoryCacheCrudTest extends TestCase
 
             $repo->createItem([
                 'warehouse_id' => $warehouse->id,
+                'reason' => 'other',
                 'note' => 'Test writeoff',
                 'products' => [],
             ]);

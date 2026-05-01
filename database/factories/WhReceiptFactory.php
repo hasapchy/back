@@ -6,7 +6,6 @@ use App\Models\WhReceipt;
 use App\Models\Warehouse;
 use App\Models\Client;
 use App\Models\User;
-use App\Models\Currency;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -30,6 +29,9 @@ class WhReceiptFactory extends Factory
             'note' => fake()->optional()->sentence(),
             'amount' => fake()->randomFloat(2, 100, 10000),
             'date' => now(),
+            'is_legacy' => true,
+            'is_simple' => false,
+            'status' => \App\Enums\WhReceiptStatus::Purchasing,
         ];
     }
 }

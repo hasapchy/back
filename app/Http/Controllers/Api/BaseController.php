@@ -266,10 +266,13 @@ class BaseController extends BaseRoutingController
     protected function checkCashRegisterAccess(?int $cashId): ?JsonResponse
     {
         if ($cashId) {
-            $cashRegister = CashRegister::find($cashId);
+            $cashRegister = CashRegister::query()->find($cashId);
+            if (! $cashRegister) {
+                return $this->errorResponse(__('warehouse_receipt.cash_register_not_found'), 422);
+            }
             $user = $this->getAuthenticatedUser();
-            if ($cashRegister && $user && ! $user->can('view', $cashRegister)) {
-                return $this->errorResponse('У вас нет прав на эту кассу', 403);
+            if ($user && ! $user->can('view', $cashRegister)) {
+                return $this->errorResponse(__('warehouse_receipt.cash_register_forbidden'), 403);
             }
         }
 

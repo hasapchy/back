@@ -13,6 +13,8 @@ use App\Models\SalesProduct;
 use App\Models\WarehouseStock;
 use App\Models\WhReceipt;
 use App\Models\WhReceiptProduct;
+use App\Models\WhWaybill;
+use App\Models\WhWaybillProduct;
 use App\Models\WhWriteoff;
 use App\Models\Category;
 use App\Models\WhWriteoffProduct;
@@ -220,9 +222,8 @@ class ProductController extends BaseController
     }
 
     /**
-     * Получить историю операций по товару
-     *
-     * @param  int  $id  ID товара
+     * @param  Request  $request  filter=all|income|expense
+     * @param  int|string  $id
      * @return JsonResponse
      */
     public function history(Request $request, $id)
@@ -235,17 +236,43 @@ class ProductController extends BaseController
         $filter = $request->query('filter', 'all');
         $history = collect();
 
-        if (in_array($filter, ['all', 'income'])) {
+        if (in_array($filter, ['all', 'income'], true)) {
+            foreach (WhWaybillProduct::query()
+                ->where('product_id', $id)
+                ->with(['waybill.creator', 'waybill.receipt'])
+                ->get() as $wbp) {
+                $waybill = $wbp->waybill;
+                if (! $waybill) {
+                    continue;
+                }
+                $receipt = $waybill->receipt;
+                $u = $waybill->creator ?? null;
+                $history->push([
+                    'source_label' => (string) __('product_history.waybill_receipt'),
+                    'source_type' => WhWaybill::class,
+                    'source_id' => (int) $waybill->id,
+                    'receipt_id' => $receipt ? (int) $receipt->id : null,
+                    'quantity' => (float) $wbp->quantity,
+                    'unit_short_name' => $unitShortName,
+                    'date' => $waybill->date,
+                    'creator' => $u ? [
+                        'id' => (int) $u->id,
+                        'name' => trim($u->name.' '.($u->surname ?? '')),
+                    ] : null,
+                ]);
+            }
+
             foreach (WhReceiptProduct::where('product_id', $id)->with(['receipt.creator'])->get() as $rp) {
                 $r = $rp->receipt;
-                if (! $r) {
+                if (! $r || ! $r->is_legacy) {
                     continue;
                 }
                 $u = $r->creator ?? null;
                 $history->push([
-                    'source_label' => 'Оприходование',
+                    'source_label' => (string) __('product_history.receipt_direct_stock'),
                     'source_type' => WhReceipt::class,
                     'source_id' => (int) $r->id,
+                    'receipt_id' => null,
                     'quantity' => (float) $rp->quantity,
                     'unit_short_name' => $unitShortName,
                     'date' => $r->date,

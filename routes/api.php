@@ -47,6 +47,7 @@ use App\Http\Controllers\Api\UsersController;
 use App\Http\Controllers\Api\WarehouseController;
 use App\Http\Controllers\Api\WarehouseMovementController;
 use App\Http\Controllers\Api\WarehouseReceiptController;
+use App\Http\Controllers\Api\WarehouseReceiptWaybillController;
 use App\Http\Controllers\Api\WarehouseStockController;
 use App\Http\Controllers\Api\WarehouseWriteoffController;
 use Illuminate\Http\Request;
@@ -155,6 +156,11 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission:warehouse_receipts_create')->post('warehouse_receipts', [WarehouseReceiptController::class, 'store']);
     Route::middleware(['permission:warehouse_receipts_update', 'time.restriction:WhReceipt'])->put('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'update']);
     Route::middleware(['permission:warehouse_receipts_delete', 'time.restriction:WhReceipt'])->delete('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'destroy']);
+    Route::middleware(['permission:warehouse_receipts_update', 'time.restriction:WhReceipt'])->get('warehouse_receipts/{receiptId}/waybill_allowed_lines', [WarehouseReceiptWaybillController::class, 'allowedProductLines']);
+    Route::middleware(['permission:warehouse_receipts_update', 'time.restriction:WhReceipt'])->get('warehouse_receipts/{receiptId}/waybills', [WarehouseReceiptWaybillController::class, 'index']);
+    Route::middleware(['permission:warehouse_receipts_update', 'time.restriction:WhReceipt'])->post('warehouse_receipts/{receiptId}/waybills', [WarehouseReceiptWaybillController::class, 'store']);
+    Route::middleware(['permission:warehouse_receipts_update', 'time.restriction:WhReceipt'])->put('warehouse_receipts/{receiptId}/waybills/{waybillId}', [WarehouseReceiptWaybillController::class, 'update']);
+    Route::middleware(['permission:warehouse_receipts_update', 'time.restriction:WhReceipt'])->delete('warehouse_receipts/{receiptId}/waybills/{waybillId}', [WarehouseReceiptWaybillController::class, 'destroy']);
 
     Route::get('warehouse_writeoffs', [WarehouseWriteoffController::class, 'index']);
     Route::get('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'show']);

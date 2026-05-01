@@ -37,7 +37,7 @@ class InventoryController extends BaseController
 
             return $this->successResponse(InventoryResource::make($inventory)->resolve(), 'Инвентаризация создана');
         } catch (\Throwable $e) {
-            return $this->errorResponse($e->getMessage(), 400);
+            return $this->inventoryMutationJsonResponse($e);
         }
     }
 
@@ -86,7 +86,7 @@ class InventoryController extends BaseController
 
                 return $this->successResponse(null, 'Позиции обновлены');
             } catch (\Throwable $e) {
-                return $this->errorFromMutation($e, 400);
+                return $this->inventoryMutationJsonResponse($e);
             }
         });
     }
@@ -102,12 +102,7 @@ class InventoryController extends BaseController
 
                 return $this->successResponse(InventoryResource::make($finalized)->resolve(), 'Инвентаризация завершена');
             } catch (\Throwable $e) {
-                return $this->immutableForbidden($e)
-                    ?? response()->json([
-                        'error' => 'FINALIZATION_FAILED',
-                        'message' => $e->getMessage(),
-                        'items' => [],
-                    ], 400);
+                return $this->inventoryMutationJsonResponse($e);
             }
         });
     }
@@ -120,7 +115,7 @@ class InventoryController extends BaseController
 
                 return $this->successResponse(null, 'Инвентаризация удалена');
             } catch (\Throwable $e) {
-                return $this->errorFromMutation($e, 400);
+                return $this->inventoryMutationJsonResponse($e);
             }
         });
     }
@@ -142,7 +137,7 @@ class InventoryController extends BaseController
 
                 return $this->errorResponse('Списание не создано: ошибка при сохранении в базу', 422);
             } catch (\Throwable $e) {
-                return $this->errorFromMutation($e, 400);
+                return $this->inventoryMutationJsonResponse($e);
             }
         });
     }
@@ -239,23 +234,17 @@ class InventoryController extends BaseController
     }
 
     /**
-     * @return JsonResponse|null
+     * @param  \Throwable  $exception
+     * @return JsonResponse
      */
-    private function immutableForbidden(\Throwable $exception): ?JsonResponse
+    private function inventoryMutationJsonResponse(\Throwable $exception): JsonResponse
     {
-        if ($exception->getMessage() !== 'INVENTORY_IMMUTABLE') {
-            return null;
+        $message = $exception->getMessage();
+        if ($message === 'INVENTORY_IMMUTABLE') {
+            return $this->errorResponse($message, 403);
         }
 
-        return $this->errorResponse('INVENTORY_IMMUTABLE', 403);
-    }
-
-    /**
-     * @param  \Throwable  $exception
-     */
-    private function errorFromMutation(\Throwable $exception, int $fallbackStatus): JsonResponse
-    {
-        return $this->immutableForbidden($exception) ?? $this->errorResponse($exception->getMessage(), $fallbackStatus);
+        return $this->errorResponse($message, 400);
     }
 }
 

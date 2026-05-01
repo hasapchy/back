@@ -9,10 +9,12 @@ use App\Models\ClientBalance;
 use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Transaction;
+use App\Models\WhReceipt;
 use App\Services\CacheService;
 use App\Services\CurrencyConverter;
 use App\Services\RoundingService;
 use App\Services\TransactionSourceService;
+use App\Services\ReceiptExpenseAllocationService;
 use App\Services\Timeline\TimelineCache;
 use App\Services\ClientBalanceService;
 use Illuminate\Support\Facades\DB;
@@ -49,7 +51,7 @@ class TransactionsRepository extends BaseRepository
      * @param  array|null  $category_ids  Массив ID категорий транзакций
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null, ?array $exportIds = null, ?int $exportLimit = null)
+    public function getItemsWithPagination($userUuid, $perPage = 10, $page = 1, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null, $warehouse_receipt_id = null, ?array $exportIds = null, ?int $exportLimit = null)
     {
         $companyId = $this->getCurrentCompanyId();
 
@@ -66,9 +68,9 @@ class TransactionsRepository extends BaseRepository
         $showDeletedKey = $showDeleted ? '1' : '0';
         $sourcePermissionsKey = $this->getSourcePermissionsKey($currentUser);
         $categoryIdsKey = $category_ids ? md5(implode(',', $category_ids)) : 'null';
-        $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $categoryIdsKey, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId(), $contract_id]);
+        $cacheKey = $this->generateCacheKey('transactions_paginated', [$perPage, $cash_id, $date_filter_type, $order_id, $searchKey, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $categoryIdsKey, $showDeletedKey, $sourcePermissionsKey, $currentUser?->id, $this->getCurrentCompanyId(), $contract_id, $warehouse_receipt_id]);
 
-        $runQuery = function () use ($perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $showDeleted, $currentUser, $userUuid, $contract_id, $exportIds, $exportLimit) {
+        $runQuery = function () use ($perPage, $page, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $showDeleted, $currentUser, $userUuid, $contract_id, $warehouse_receipt_id, $exportIds, $exportLimit) {
             $searchTrimmed = is_string($search) ? trim($search) : '';
             $hasSearch = $searchTrimmed !== '' && mb_strlen($searchTrimmed) >= 3;
 
@@ -123,6 +125,10 @@ class TransactionsRepository extends BaseRepository
                 ->when($contract_id, function ($query, $contract_id) {
                     return $query->where('source_type', 'App\\Models\\ProjectContract')
                         ->where('source_id', $contract_id);
+                })
+                ->when($warehouse_receipt_id, function ($query, $warehouse_receipt_id) {
+                    return $query->where('source_type', 'App\\Models\\WhReceipt')
+                        ->where('source_id', $warehouse_receipt_id);
                 })
                 ->when($hasSearch, function ($query) use ($searchTrimmed) {
                     $searchLower = mb_strtolower($searchTrimmed);
@@ -287,9 +293,9 @@ class TransactionsRepository extends BaseRepository
      * @param  int  $limit
      * @return array
      */
-    public function getItemsForExport($userUuid, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null, ?array $ids = null, int $limit = 10000): array
+    public function getItemsForExport($userUuid, $cash_id = null, $date_filter_type = null, $order_id = null, $search = null, $transaction_type = null, $source = null, $project_id = null, $start_date = null, $end_date = null, $is_debt = null, $category_ids = null, $contract_id = null, $warehouse_receipt_id = null, ?array $ids = null, int $limit = 10000): array
     {
-        $result = $this->getItemsWithPagination($userUuid, 10, 1, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $contract_id, $ids, $limit);
+        $result = $this->getItemsWithPagination($userUuid, 10, 1, $cash_id, $date_filter_type, $order_id, $search, $transaction_type, $source, $project_id, $start_date, $end_date, $is_debt, $category_ids, $contract_id, $warehouse_receipt_id, $ids, $limit);
 
         return $result->items ?? [];
     }
@@ -475,6 +481,8 @@ class TransactionsRepository extends BaseRepository
             $companyId
         );
 
+        $this->assertWarehouseReceiptGoodsPaymentCap($data, (float) $defAmount, null);
+
         DB::beginTransaction();
 
         try {
@@ -578,6 +586,8 @@ class TransactionsRepository extends BaseRepository
                 $this->changeCashBalance($cashRegister, $delta);
             }
 
+            $this->syncReceiptLandedCostAllocations($transaction);
+
             DB::commit();
 
             $this->invalidateTransactionsCache();
@@ -654,14 +664,18 @@ class TransactionsRepository extends BaseRepository
             $transaction->exchange_rate = (float) $data['exchange_rate'];
         }
 
-        $transaction->save();
+        DB::transaction(function () use ($transaction) {
+            $transaction->save();
 
-        if (! $transaction->source_type && ! $transaction->source_id) {
-            TransactionSourceService::setSalarySource($transaction);
-            if ($transaction->source_type || $transaction->source_id) {
-                $transaction->save();
+            if (! $transaction->source_type && ! $transaction->source_id) {
+                TransactionSourceService::setSalarySource($transaction);
+                if ($transaction->source_type || $transaction->source_id) {
+                    $transaction->save();
+                }
             }
-        }
+
+            $this->syncReceiptLandedCostAllocations($transaction);
+        });
 
         $this->invalidateTransactionsCache();
         if ($transaction->client_id) {
@@ -852,6 +866,14 @@ class TransactionsRepository extends BaseRepository
             $transaction->def_rate = $defRate;
             $transaction->def_amount = $defAmount;
 
+            $this->assertWarehouseReceiptGoodsPaymentCap([
+                'type' => (int) $transaction->type,
+                'is_debt' => (bool) $transaction->is_debt,
+                'category_id' => (int) $transaction->category_id,
+                'source_type' => $transaction->source_type,
+                'source_id' => (int) $transaction->source_id,
+            ], (float) $defAmount, (int) $transaction->id);
+
             $transaction->setSkipClientBalanceUpdate(true);
             $transaction->setSkipCashBalanceUpdate(true);
 
@@ -969,6 +991,8 @@ class TransactionsRepository extends BaseRepository
                 }
                 CacheService::invalidateProjectsCache();
             }
+
+            $this->syncReceiptLandedCostAllocations($transaction);
 
             DB::commit();
 
@@ -1118,6 +1142,8 @@ class TransactionsRepository extends BaseRepository
             }
 
             TimelineCache::forget('transaction', $id);
+
+            app(ReceiptExpenseAllocationService::class)->removeForTransactionId((int) $id);
 
             return true;
         } catch (\Exception $e) {
@@ -1689,5 +1715,43 @@ class TransactionsRepository extends BaseRepository
         }
 
         return ['income' => $income, 'expenses' => $expenses];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function assertWarehouseReceiptGoodsPaymentCap(array $data, float $defAmount, ?int $excludeTransactionId): void
+    {
+        if ((int) ($data['type'] ?? -1) !== 0) {
+            return;
+        }
+        if ((bool) ($data['is_debt'] ?? false)) {
+            return;
+        }
+        if ((int) ($data['category_id'] ?? 0) !== 6) {
+            return;
+        }
+        $sourceType = (string) ($data['source_type'] ?? '');
+        $sourceId = (int) ($data['source_id'] ?? 0);
+        if ($sourceId <= 0 || ! str_contains($sourceType, 'WhReceipt')) {
+            return;
+        }
+        $receipt = WhReceipt::query()->with(['warehouse', 'cashRegister.currency', 'products', 'waybills.lines'])->find($sourceId);
+        if (! $receipt) {
+            return;
+        }
+        $remaining = app(\App\Services\WarehouseReceiptGoodsPaymentLimitService::class)->remainingDefault($receipt, $excludeTransactionId);
+        if ($defAmount > $remaining + 0.01) {
+            throw new \RuntimeException((string) __('warehouse_receipt.goods_payment_exceeds_remaining'));
+        }
+    }
+
+    /**
+     * @param  Transaction  $transaction
+     * @return void
+     */
+    private function syncReceiptLandedCostAllocations(Transaction $transaction): void
+    {
+        app(ReceiptExpenseAllocationService::class)->syncForTransaction($transaction->fresh());
     }
 }
