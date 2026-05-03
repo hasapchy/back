@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Enums\WhReceiptStatus;
 use App\Models\WhReceipt;
 use App\Models\WhReceiptProduct;
 use App\Models\WhWaybill;
@@ -218,6 +219,9 @@ class WarehouseWaybillRepository extends BaseRepository
         }
         if ($receipt->is_simple) {
             throw new \RuntimeException('WAYBILL_READONLY_FOR_SIMPLE_RECEIPT');
+        }
+        if ($receipt->status === WhReceiptStatus::Completed) {
+            throw new \RuntimeException((string) __('warehouse_receipt.waybill_receipt_completed'));
         }
 
         return $receipt;

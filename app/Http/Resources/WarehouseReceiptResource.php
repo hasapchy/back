@@ -5,7 +5,6 @@ namespace App\Http\Resources;
 use App\Enums\WhReceiptStatus;
 use App\Models\WhReceipt;
 use App\Services\ReceiptExpenseAllocationService;
-use App\Services\RoundingService;
 use App\Services\WarehouseReceiptGoodsPaymentLimitService;
 
 class WarehouseReceiptResource extends BaseDomainResource
@@ -48,12 +47,8 @@ class WarehouseReceiptResource extends BaseDomainResource
                 'full_cost_default' => (float) $summary['full_cost_default'],
                 'default_currency_symbol' => $summary['default_currency_symbol'],
             ];
-            $paidGoods = app(WarehouseReceiptGoodsPaymentLimitService::class)->paidGoodsCashDefault((int) $receipt->id, null);
-            $rounding = new RoundingService;
-            $companyId = (int) ($receipt->warehouse?->company_id ?? 0);
-            $data['goods_payment_remaining_default'] = $companyId > 0
-                ? max(0.0, $rounding->roundForCompany($companyId, (float) $summary['goods_subtotal_default'] - $paidGoods))
-                : max(0.0, (float) $summary['goods_subtotal_default'] - $paidGoods);
+            $limitService = app(WarehouseReceiptGoodsPaymentLimitService::class);
+            $data['goods_payment_remaining_default'] = $limitService->remainingDefault($receipt, null);
         } else {
             $data['products'] = WarehouseReceiptProductResource::collection($receipt->products)->resolve();
         }

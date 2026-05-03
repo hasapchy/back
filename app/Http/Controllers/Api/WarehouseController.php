@@ -8,7 +8,6 @@ use App\Http\Resources\WarehouseResource;
 use App\Models\Warehouse;
 use App\Repositories\WarehouseRepository;
 use Illuminate\Http\Request;
-use App\Services\CacheService;
 
 /**
  * Контроллер для работы со складами

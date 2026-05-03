@@ -18,17 +18,19 @@ class WarehouseWriteoffRepository extends BaseRepository
     /**
      * Получить списания с пагинацией
      *
-     * @param int $userUuid ID пользователя
-     * @param int $perPage Количество записей на страницу
-     * @param int $page Номер страницы
+     * @param  int  $userUuid  ID пользователя
+     * @param  int  $perPage  Количество записей на страницу
+     * @param  int  $page  Номер страницы
+     * @param  string|null  $reason  Фильтр по типу списания (значение WhWriteoffReason)
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, ?string $reason = null)
     {
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('warehouse_writeoffs_paginated', [$userUuid, $perPage, $companyId]);
+        $reasonKey = $reason !== null && $reason !== '' ? $reason : '';
+        $cacheKey = $this->generateCacheKey('warehouse_writeoffs_paginated', [$userUuid, $perPage, $companyId, $reasonKey]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $companyId) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $companyId, $reason) {
             $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
                 ->leftJoin('users', 'wh_write_offs.creator_id', '=', 'users.id');
 
@@ -47,6 +49,11 @@ class WarehouseWriteoffRepository extends BaseRepository
                 } else {
                     $items->whereIn('wh_write_offs.warehouse_id', $warehouseIds);
                 }
+            }
+
+            $reasonEnum = is_string($reason) && $reason !== '' ? WhWriteoffReason::tryFrom($reason) : null;
+            if ($reasonEnum !== null) {
+                $items->where('wh_write_offs.reason', $reasonEnum->value);
             }
 
             $items = $items->select(

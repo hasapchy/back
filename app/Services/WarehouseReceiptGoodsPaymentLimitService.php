@@ -12,7 +12,29 @@ class WarehouseReceiptGoodsPaymentLimitService
      */
     public function goodsTotalDefault(WhReceipt $receipt): float
     {
-        return (float) app(ReceiptExpenseAllocationService::class)->buildLandedCostSummary($receipt)['goods_subtotal_default'];
+        $landed = (float) app(ReceiptExpenseAllocationService::class)->buildLandedCostSummary($receipt)['goods_subtotal_default'];
+        $debtBooked = $this->debtGoodsBookedDefault((int) $receipt->id);
+
+        return max($landed, $debtBooked);
+    }
+
+    /**
+     * @return float
+     */
+    private function debtGoodsBookedDefault(int $receiptId): float
+    {
+        if ($receiptId <= 0) {
+            return 0.0;
+        }
+
+        return (float) Transaction::query()
+            ->where('source_type', WhReceipt::class)
+            ->where('source_id', $receiptId)
+            ->where('category_id', 6)
+            ->where('type', 0)
+            ->where('is_debt', true)
+            ->where('is_deleted', false)
+            ->sum('def_amount');
     }
 
     /**

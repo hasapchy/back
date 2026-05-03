@@ -30,23 +30,73 @@ class WarehouseReceiptRepository extends BaseRepository
      * @param  int  $perPage  Количество записей на страницу
      * @param  int  $page  Номер страницы
      * @param  int|null  $clientId  Фильтр по поставщику
+     * @param  string|null  $status  Фильтр по статусу закупки (значение WhReceiptStatus)
+     * @param  string|null  $postingType  quick — упрощённое, standard — стандартное
+     * @param  int|null  $warehouseId  Фильтр по складу
+     * @param  int|null  $productId  Фильтр по товару в строках прихода
+     * @param  string  $dateFilter  Период: all_time, today, custom и т.д.
+     * @param  string|null  $startDate  Начало периода при dateFilter=custom
+     * @param  string|null  $endDate  Конец периода при dateFilter=custom
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<WhReceipt>
      */
-    public function getItemsWithPagination(int $userUuid, int $perPage = 20, int $page = 1, ?int $clientId = null)
-    {
+    public function getItemsWithPagination(
+        int $userUuid,
+        int $perPage = 20,
+        int $page = 1,
+        ?int $clientId = null,
+        ?string $status = null,
+        ?string $postingType = null,
+        ?int $warehouseId = null,
+        ?int $productId = null,
+        string $dateFilter = 'all_time',
+        ?string $startDate = null,
+        ?string $endDate = null,
+    ) {
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('warehouse_receipts_paginated', [$userUuid, $perPage, $clientId, $currentUser?->id, $companyId]);
+        $cacheKey = $this->generateCacheKey('warehouse_receipts_paginated', [
+            $userUuid,
+            $perPage,
+            $clientId,
+            $status,
+            $postingType,
+            $warehouseId,
+            $productId,
+            $dateFilter,
+            $startDate,
+            $endDate,
+            $currentUser?->id,
+            $companyId,
+        ]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $clientId) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $clientId, $status, $postingType, $warehouseId, $productId, $dateFilter, $startDate, $endDate) {
             $query = $this->buildBaseQuery($userUuid);
-            if ((int) $clientId > 0) {
-                $query->where('wh_receipts.supplier_id', (int) $clientId);
+            if ($clientId) {
+                $query->where('wh_receipts.supplier_id', $clientId);
             }
+            $statusEnum = $status ? WhReceiptStatus::tryFrom($status) : null;
+            if ($statusEnum !== null) {
+                $query->where('wh_receipts.status', $statusEnum);
+            }
+            if ($postingType === 'quick') {
+                $query->where('wh_receipts.is_simple', true);
+            } elseif ($postingType === 'standard') {
+                $query->where('wh_receipts.is_simple', false);
+            }
+            if ($warehouseId) {
+                $query->where('wh_receipts.warehouse_id', $warehouseId);
+            }
+            if ($productId) {
+                $query->whereHas('products', fn ($q) => $q->where('product_id', $productId));
+            }
+            if ($dateFilter !== '' && $dateFilter !== 'all_time') {
+                $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'wh_receipts.date');
+            }
+
             return $query->orderBy('wh_receipts.created_at', 'desc')
-                ->paginate($perPage, ['*'], 'page', (int)$page);
-        }, (int)$page);
+                ->paginate($perPage, ['*'], 'page', (int) $page);
+        }, (int) $page);
     }
 
     /**
@@ -96,7 +146,7 @@ class WarehouseReceiptRepository extends BaseRepository
         ])
             ->leftJoin('clients', 'wh_receipts.supplier_id', '=', 'clients.id')
             ->with([
-                'warehouse:id,name',
+                'warehouse:id,name,company_id',
                 'cashRegister:id,name,currency_id,is_cash',
                 'cashRegister.currency:id,name,symbol',
                 'creator:id,name',
@@ -152,6 +202,10 @@ class WarehouseReceiptRepository extends BaseRepository
         $is_legacy = (bool) ($data['is_legacy'] ?? false);
         $is_simple = (bool) ($data['is_simple'] ?? false);
         $status = $this->resolveReceiptStatusFromInput($data['status'] ?? null);
+
+        if ($status === WhReceiptStatus::Completed) {
+            throw new \RuntimeException((string) __('warehouse_receipt.cannot_create_completed'));
+        }
 
         app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
 
@@ -271,8 +325,16 @@ class WarehouseReceiptRepository extends BaseRepository
         $updated = DB::transaction(function () use ($receipt_id, $client_id, $warehouse_id, $cash_id, $date, $note, $products, $project_id, $data) {
             $receipt = WhReceipt::findOrFail($receipt_id);
 
+            if ($receipt->status === WhReceiptStatus::Completed) {
+                throw new \RuntimeException((string) __('warehouse_receipt.receipt_completed_readonly'));
+            }
+
             if (array_key_exists('status', $data) && $data['status'] !== null && $data['status'] !== '') {
-                $receipt->status = $this->resolveReceiptStatusFromInput($data['status']);
+                $incomingStatus = $this->resolveReceiptStatusFromInput($data['status']);
+                if ($incomingStatus === WhReceiptStatus::Completed) {
+                    throw new \RuntimeException((string) __('warehouse_receipt.completion_via_update_forbidden'));
+                }
+                $receipt->status = $incomingStatus;
                 $receipt->saveQuietly();
             }
 
@@ -346,6 +408,96 @@ class WarehouseReceiptRepository extends BaseRepository
     }
 
     /**
+     * Закрыть оприходование: пересчитать разнесение расходов, записать unit landed cost в purchase_price, статус completed.
+     *
+     * @param  string|null  $date
+     * @param  string|null  $note
+     *
+     * @throws \Throwable
+     */
+    public function completeReceipt(int $receipt_id, ?string $date = null, ?string $note = null): void
+    {
+        DB::transaction(function () use ($receipt_id, $date, $note): void {
+            $receipt = WhReceipt::query()->lockForUpdate()->findOrFail($receipt_id);
+
+            if ($receipt->status === WhReceiptStatus::Completed) {
+                throw new \RuntimeException((string) __('warehouse_receipt.already_completed'));
+            }
+
+            if (! $this->receiptEligibleForCompletion($receipt)) {
+                throw new \RuntimeException((string) __('warehouse_receipt.completion_not_ready'));
+            }
+
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $receipt->warehouse_id);
+
+            if ($date !== null && $date !== '') {
+                $receipt->date = $date;
+            }
+            if ($note !== null) {
+                $receipt->note = $note;
+            }
+            if (($date !== null && $date !== '') || $note !== null) {
+                $receipt->saveQuietly();
+            }
+
+            app(ReceiptExpenseAllocationService::class)->syncAllForReceipt($receipt_id);
+
+            $receiptForSummary = $receipt->fresh([
+                'products.product',
+                'products.product.unit',
+                'cashRegister.currency',
+                'warehouse',
+                'expenseAllocations',
+                'waybills.lines',
+            ]);
+
+            if (! $receiptForSummary instanceof WhReceipt) {
+                throw new \RuntimeException((string) __('warehouse_receipt.not_found'));
+            }
+
+            $summary = app(ReceiptExpenseAllocationService::class)->buildLandedCostSummary($receiptForSummary);
+            $companyId = (int) ($receiptForSummary->warehouse?->company_id ?? 0);
+            $rounding = new RoundingService();
+
+            foreach ($summary['lines'] as $line) {
+                $productId = (int) ($line['product_id'] ?? 0);
+                $qty = (float) ($line['quantity'] ?? 0);
+                if ($productId <= 0 || $qty <= 1e-12) {
+                    continue;
+                }
+
+                $landedLine = (float) ($line['landed_line_total_default'] ?? 0);
+                $unit = $landedLine / $qty;
+                if ($companyId > 0) {
+                    $unit = $rounding->roundForCompany($companyId, $unit);
+                }
+                if ($unit <= 1e-12) {
+                    continue;
+                }
+
+                $this->updateProductPurchasePrice($productId, $unit);
+            }
+
+            $receipt->status = WhReceiptStatus::Completed;
+            $receipt->saveQuietly();
+
+            $this->invalidateCaches($receipt->project_id !== null ? (int) $receipt->project_id : null);
+        });
+    }
+
+    /**
+     * @return bool
+     */
+    private function receiptEligibleForCompletion(WhReceipt $receipt): bool
+    {
+        if ($receipt->is_legacy) {
+            return true;
+        }
+
+        return $receipt->status === WhReceiptStatus::FullyReceived;
+    }
+
+    /**
      * Удалить оприходование
      *
      * @param int $receipt_id ID оприходования
@@ -356,6 +508,9 @@ class WarehouseReceiptRepository extends BaseRepository
         $projectId = null;
         $result = DB::transaction(function () use ($receipt_id, &$projectId) {
             $receipt = WhReceipt::findOrFail($receipt_id);
+            if ($receipt->status === WhReceiptStatus::Completed) {
+                throw new \RuntimeException((string) __('warehouse_receipt.cannot_delete_completed'));
+            }
             app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $receipt->warehouse_id);
             $projectId = $receipt->project_id;
 
@@ -566,6 +721,10 @@ class WarehouseReceiptRepository extends BaseRepository
     public function syncReceiptFulfillmentStatus(WhReceipt $receipt): void
     {
         if ($receipt->is_legacy) {
+            return;
+        }
+
+        if ($receipt->status === WhReceiptStatus::Completed) {
             return;
         }
 

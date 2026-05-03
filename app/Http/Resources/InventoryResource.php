@@ -17,6 +17,9 @@ class InventoryResource extends JsonResource
         $inventory = $this->resource;
         $data = $inventory->toArray();
         $data['stock_recalc_status'] = $this->resolveStockRecalcStatus($data);
+        $data['creator_name'] = $inventory->relationLoaded('creator')
+            ? (string) ($inventory->creator?->name ?? '')
+            : '';
         unset($data['inventory_discrepancy_items_count']);
 
         return $data;

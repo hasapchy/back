@@ -254,7 +254,7 @@ class ProductsRepository extends BaseRepository
                 [
                     'retail_price' => $data['retail_price'] ?? 0.0,
                     'wholesale_price' => $data['wholesale_price'] ?? 0.0,
-                    'purchase_price' => $data['purchase_price'] ?? 0.0,
+                    'purchase_price' => 0.0,
                 ]
             );
 
@@ -367,9 +367,6 @@ class ProductsRepository extends BaseRepository
             }
             if (isset($data['wholesale_price']) && $data['wholesale_price'] !== null) {
                 $prices_data['wholesale_price'] = $data['wholesale_price'];
-            }
-            if (isset($data['purchase_price']) && $data['purchase_price'] !== null) {
-                $prices_data['purchase_price'] = $data['purchase_price'];
             }
             ProductPrice::updateOrCreate(
                 ['product_id' => $product->id],

@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Enums\WhReceiptStatus;
 use App\Events\TransactionCreated;
 use App\Models\CashRegister;
 use App\Models\Client;
@@ -382,6 +383,11 @@ class TransactionsRepository extends BaseRepository
      */
     public function createItem($data, $return_id = false, bool $skipClientUpdate = false)
     {
+        $this->assertWarehouseReceiptOpenBySource(
+            isset($data['source_type']) ? (string) $data['source_type'] : null,
+            isset($data['source_id']) ? (int) $data['source_id'] : null
+        );
+
         $cashRegister = CashRegister::findOrFail($data['cash_id']);
         $originalAmount = $data['orig_amount'];
         $companyId = $this->getCurrentCompanyId();
@@ -631,6 +637,7 @@ class TransactionsRepository extends BaseRepository
     public function updateItem($id, $data)
     {
         $transaction = Transaction::findOrFail($id);
+        $this->assertWarehouseReceiptNotCompletedIfLinked($transaction);
 
         $transaction->setSkipClientBalanceUpdate(true);
         $transaction->setSkipCashBalanceUpdate(true);
@@ -710,6 +717,7 @@ class TransactionsRepository extends BaseRepository
     private function updateItemWithBalanceRecalculation($id, $data)
     {
         $transaction = Transaction::findOrFail($id);
+        $this->assertWarehouseReceiptNotCompletedIfLinked($transaction);
 
         DB::beginTransaction();
 
@@ -1032,6 +1040,7 @@ class TransactionsRepository extends BaseRepository
     public function deleteItem(int $id, bool $skipClientUpdate = false): bool
     {
         $transaction = Transaction::findOrFail($id);
+        $this->assertWarehouseReceiptNotCompletedIfLinked($transaction);
 
         DB::beginTransaction();
 
@@ -1718,8 +1727,36 @@ class TransactionsRepository extends BaseRepository
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * @return void
      */
+    private function assertWarehouseReceiptNotCompletedIfLinked(Transaction $transaction): void
+    {
+        $sid = $transaction->source_id;
+
+        $this->assertWarehouseReceiptOpenBySource(
+            $transaction->source_type,
+            ($sid !== null && $sid !== '') ? (int) $sid : null
+        );
+    }
+
+    /**
+     * @return void
+     */
+    private function assertWarehouseReceiptOpenBySource(?string $sourceType, ?int $sourceId): void
+    {
+        if ($sourceId === null || $sourceId <= 0 || $sourceType === null || $sourceType === '') {
+            return;
+        }
+        if (! is_a($sourceType, WhReceipt::class, true)) {
+            return;
+        }
+
+        $receipt = WhReceipt::query()->find($sourceId);
+        if ($receipt instanceof WhReceipt && $receipt->status === WhReceiptStatus::Completed) {
+            throw new \RuntimeException((string) __('warehouse_receipt.receipt_completed_transactions_locked'));
+        }
+    }
+
     private function assertWarehouseReceiptGoodsPaymentCap(array $data, float $defAmount, ?int $excludeTransactionId): void
     {
         if ((int) ($data['type'] ?? -1) !== 0) {

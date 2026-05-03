@@ -48,7 +48,12 @@ class StoreWarehouseReceiptRequest extends FormRequest
             'client_balance_id' => $this->orderClientBalanceIdRules(),
             'is_legacy' => 'sometimes|boolean',
             'is_simple' => 'sometimes|boolean',
-            'status' => ['sometimes', 'nullable', 'string', Rule::in(WhReceiptStatus::values())],
+            'status' => [
+                'sometimes',
+                'nullable',
+                'string',
+                Rule::in(array_values(array_diff(WhReceiptStatus::values(), [WhReceiptStatus::Completed->value]))),
+            ],
         ];
     }
 

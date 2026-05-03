@@ -8,6 +8,7 @@ enum WhReceiptStatus: string
     case CustomsClearance = 'customs_clearance';
     case Purchasing = 'purchasing';
     case FullyReceived = 'fully_received';
+    case Completed = 'completed';
 
     /**
      * @return array<int, string>

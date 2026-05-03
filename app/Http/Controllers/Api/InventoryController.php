@@ -49,9 +49,16 @@ class InventoryController extends BaseController
 
     public function index(Request $request): JsonResponse
     {
+        $filters = [];
+        $status = $request->query('status');
+        if (in_array($status, ['in_progress', 'completed'], true)) {
+            $filters['status'] = $status;
+        }
+
         $items = $this->inventoryRepository->getItemsPaginated(
             (int) $request->input('per_page', 20),
-            (int) $request->input('page', 1)
+            (int) $request->input('page', 1),
+            $filters
         );
 
         return $this->successResponse([

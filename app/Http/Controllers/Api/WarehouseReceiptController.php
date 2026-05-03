@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\WhReceiptStatus;
 use App\Http\Requests\StoreWarehouseReceiptRequest;
 use App\Http\Requests\UpdateWarehouseReceiptRequest;
 use App\Http\Resources\WarehouseReceiptResource;
@@ -28,11 +29,26 @@ class WarehouseReceiptController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $perPage = $request->input('per_page', 20);
-        $page = $request->input('page', 1);
-        $clientId = $request->input('client_id');
+        $postingType = $request->input('posting_type');
+        $postingType = in_array($postingType, ['quick', 'standard'], true) ? $postingType : null;
+        $status = WhReceiptStatus::tryFrom((string) ($request->input('status') ?? ''))?->value;
+        $dateFilter = $request->input('date_filter_type', 'all_time');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
 
-        $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page, $clientId);
+        $warehouses = $this->itemsRepository->getItemsWithPagination(
+            $userUuid,
+            (int) $request->input('per_page', 20),
+            (int) $request->input('page', 1),
+            NullableInt::positiveOrNull($request->input('client_id')),
+            $status,
+            $postingType,
+            NullableInt::positiveOrNull($request->input('warehouse_id')),
+            NullableInt::positiveOrNull($request->input('product_id')),
+            is_string($dateFilter) && $dateFilter !== '' ? $dateFilter : 'all_time',
+            is_string($startDate) && $startDate !== '' ? $startDate : null,
+            is_string($endDate) && $endDate !== '' ? $endDate : null,
+        );
 
         return $this->successResponse([
             'items' => WarehouseReceiptResource::collection($warehouses->items())->resolve(),
@@ -129,6 +145,28 @@ class WarehouseReceiptController extends BaseController
         $receipt = $this->itemsRepository->getItemById($id, $userUuid);
         if (! $receipt) {
             return $this->errorResponse(__('warehouse_receipt.not_found'), 404);
+        }
+
+        if ($receipt->status === WhReceiptStatus::Completed) {
+            return $this->errorResponse(__('warehouse_receipt.receipt_completed_readonly'), 400);
+        }
+
+        if (isset($validatedData['status'])) {
+            $targetStatus = WhReceiptStatus::tryFrom((string) $validatedData['status']);
+
+            if ($targetStatus === WhReceiptStatus::Completed) {
+                try {
+                    $this->itemsRepository->completeReceipt(
+                        (int) $id,
+                        $validatedData['date'] ?? null,
+                        array_key_exists('note', $validatedData) ? $validatedData['note'] : null
+                    );
+
+                    return $this->successResponse(null, __('warehouse_receipt.completed_success'));
+                } catch (\Throwable $th) {
+                    return $this->errorResponse(__('warehouse_receipt.update_error', ['message' => $th->getMessage()]), 400);
+                }
+            }
         }
 
         $data = [

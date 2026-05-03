@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\WhWriteoffReason;
 use App\Http\Requests\StoreWarehouseWriteoffRequest;
 use App\Http\Requests\UpdateWarehouseWriteoffRequest;
 use App\Http\Resources\WarehouseWriteoffResource;
@@ -34,8 +35,12 @@ class WarehouseWriteoffController extends BaseController
 
         $perPage = $request->input('per_page', 20);
         $page = $request->input('page', 1);
+        $reasonRaw = $request->query('reason');
+        $reason = is_string($reasonRaw) && $reasonRaw !== '' && WhWriteoffReason::tryFrom($reasonRaw) !== null
+            ? $reasonRaw
+            : null;
 
-        $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, (int) $perPage, (int) $page, $reason);
 
         return $this->successResponse([
             'items' => WarehouseWriteoffResource::collection($warehouses->items())->resolve(),
