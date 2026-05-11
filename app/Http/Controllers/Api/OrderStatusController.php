@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreOrderStatusRequest;
 use App\Http\Requests\UpdateOrderStatusRequest;
+use App\Http\Resources\OrderStatusReferenceResource;
 use App\Http\Resources\OrderStatusResource;
 use App\Models\Order;
 use App\Repositories\OrderStatusRepository;
@@ -41,9 +42,15 @@ class OrderStatusController extends BaseController
         $page = $request->input('page', 1);
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => OrderStatusResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                OrderStatusReferenceResource::class,
+                OrderStatusResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'next_page' => $items->nextPageUrl(),
@@ -65,7 +72,12 @@ class OrderStatusController extends BaseController
 
         $items = $this->itemsRepository->getAllItems($userUuid);
 
-        return $this->successResponse(OrderStatusResource::collection($items)->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($this->getCurrentCompanyId());
+        $collection = $useReference
+            ? OrderStatusReferenceResource::collection($items)
+            : OrderStatusResource::collection($items);
+
+        return $this->successResponse($collection->resolve());
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
+use App\Http\Resources\ProductSearchResource;
 use App\Models\Order;
 use App\Models\OrderProduct;
 use App\Models\Product;
@@ -93,7 +94,7 @@ class ProductController extends BaseController
         $result = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage, $categoryIds);
 
         return $this->successResponse([
-            'items' => ProductResource::collection($result['items'])->resolve(),
+            'items' => ProductSearchResource::collection($result['items'])->resolve(),
             'meta' => [
                 'current_page' => $result['current_page'],
                 'last_page' => $result['last_page'],

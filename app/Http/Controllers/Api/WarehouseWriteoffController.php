@@ -41,6 +41,10 @@ class WarehouseWriteoffController extends BaseController
     /**
      * Список списаний
      *
+     * Query: `reason` — только указанная причина; `exclude_reason` — все кроме указанной (игнорируется, если задан `reason`).
+     *
+     * @param  Request  $request
+     *
      * @response 200 {"data":{"items":[],"meta":{"current_page":1,"next_page":null,"last_page":1,"per_page":20,"total":0}}}
      * @response 401 {"error":"Unauthenticated."}
      *
@@ -57,7 +61,13 @@ class WarehouseWriteoffController extends BaseController
             ? $reasonRaw
             : null;
 
-        $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, (int) $perPage, (int) $page, $reason);
+        $excludeReasonRaw = $request->query('exclude_reason');
+        $excludeReason = $reason === null
+            && is_string($excludeReasonRaw) && $excludeReasonRaw !== '' && WhWriteoffReason::tryFrom($excludeReasonRaw) !== null
+            ? $excludeReasonRaw
+            : null;
+
+        $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, (int) $perPage, (int) $page, $reason, $excludeReason);
 
         return $this->successResponse([
             'items' => WarehouseWriteoffResource::collection($warehouses->items())->resolve(),

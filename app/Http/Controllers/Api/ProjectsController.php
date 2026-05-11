@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
+use App\Http\Resources\ProjectReferenceResource;
 use App\Http\Resources\ProjectResource;
 use App\Models\Project;
 use App\Repositories\ProjectsRepository;
@@ -91,8 +92,15 @@ class ProjectsController extends BaseController
             clientId: $clientId,
         );
 
+        $companyId = $this->getCurrentCompanyId();
+
         return $this->successResponse([
-            'items' => ProjectResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                ProjectReferenceResource::class,
+                ProjectResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'next_page' => $items->nextPageUrl(),
@@ -115,8 +123,12 @@ class ProjectsController extends BaseController
 
         $activeOnly = (bool) $request->input('active_only', false);
         $items = $this->itemsRepository->getAllItems($activeOnly);
+        $companyId = $this->getCurrentCompanyId();
+        $class = $this->useReferenceContractsForWave1IndexShow($companyId)
+            ? ProjectReferenceResource::class
+            : ProjectResource::class;
 
-        return $this->successResponse(ProjectResource::collection($items)->resolve());
+        return $this->successResponse($class::collection($items)->resolve());
     }
 
     /**

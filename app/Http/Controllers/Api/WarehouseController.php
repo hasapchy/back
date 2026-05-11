@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreWarehouseRequest;
 use App\Http\Requests\UpdateWarehouseRequest;
+use App\Http\Resources\WarehouseReferenceResource;
 use App\Http\Resources\WarehouseResource;
 use App\Models\Warehouse;
 use App\Repositories\WarehouseRepository;
@@ -48,8 +49,15 @@ class WarehouseController extends BaseController
         $perPage = $request->input('per_page', 20);
         $warehouses = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
 
+        $companyId = $this->getCurrentCompanyId();
+
         return $this->successResponse([
-            'items' => WarehouseResource::collection($warehouses->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $warehouses->items(),
+                WarehouseReferenceResource::class,
+                WarehouseResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $warehouses->currentPage(),
                 'next_page' => $warehouses->nextPageUrl(),
@@ -74,7 +82,12 @@ class WarehouseController extends BaseController
 
         $warehouses = $this->itemsRepository->getAllItems($userUuid);
 
-        return $this->successResponse(WarehouseResource::collection($warehouses)->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($this->getCurrentCompanyId());
+        $collection = $useReference
+            ? WarehouseReferenceResource::collection($warehouses)
+            : WarehouseResource::collection($warehouses);
+
+        return $this->successResponse($collection->resolve());
     }
 
     /**
@@ -99,7 +112,12 @@ class WarehouseController extends BaseController
             return $this->errorResponse('Ошибка создания склада', 400);
         }
 
-        return $this->successResponse(new WarehouseResource($warehouse_created), 'Склад создан');
+        $companyId = $this->getCurrentCompanyId();
+
+        return $this->successResponse(
+            $this->wave1SingleResource($warehouse_created, WarehouseReferenceResource::class, WarehouseResource::class, $companyId),
+            'Склад создан'
+        );
     }
 
     /**
@@ -128,7 +146,12 @@ class WarehouseController extends BaseController
             return $this->errorResponse('Ошибка обновления склада', 400);
         }
 
-        return $this->successResponse(new WarehouseResource($warehouse_updated), 'Склад обновлен');
+        $companyId = $this->getCurrentCompanyId();
+
+        return $this->successResponse(
+            $this->wave1SingleResource($warehouse_updated, WarehouseReferenceResource::class, WarehouseResource::class, $companyId),
+            'Склад обновлен'
+        );
     }
 
     /**

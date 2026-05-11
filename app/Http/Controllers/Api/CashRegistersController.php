@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreCashRegisterRequest;
 use App\Http\Requests\UpdateCashRegisterRequest;
+use App\Http\Resources\CashRegisterReferenceResource;
 use App\Http\Resources\CashRegisterResource;
 use App\Repositories\CashRegistersRepository;
 use App\Models\CashRegister;
@@ -44,9 +45,15 @@ class CashRegistersController extends BaseController
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 20);
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => CashRegisterResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                CashRegisterReferenceResource::class,
+                CashRegisterResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'next_page' => $items->nextPageUrl(),
@@ -69,7 +76,12 @@ class CashRegistersController extends BaseController
 
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $items = $this->itemsRepository->getAllItems($userUuid);
-        return $this->successResponse(CashRegisterResource::collection($items)->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($this->getCurrentCompanyId());
+        $collection = $useReference
+            ? CashRegisterReferenceResource::collection($items)
+            : CashRegisterResource::collection($items);
+
+        return $this->successResponse($collection->resolve());
     }
 
     /**

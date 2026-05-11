@@ -25,15 +25,17 @@ class WarehouseWriteoffRepository extends BaseRepository
      * @param  int  $perPage  Количество записей на страницу
      * @param  int  $page  Номер страницы
      * @param  string|null  $reason  Фильтр по типу списания (значение WhWriteoffReason)
+     * @param  string|null  $excludeReason  Исключить записи с указанной причиной (если задан $reason, параметр не применяется)
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, ?string $reason = null)
+    public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1, ?string $reason = null, ?string $excludeReason = null)
     {
         $companyId = $this->getCurrentCompanyId();
-        $reasonKey = $reason !== null && $reason !== '' ? $reason : '';
-        $cacheKey = $this->generateCacheKey('warehouse_writeoffs_paginated', [$userUuid, $perPage, $companyId, $reasonKey]);
+        $reasonSegment = $reason !== null && $reason !== '' ? 'reason:'.$reason : 'reason:none';
+        $excludeSegment = $excludeReason !== null && $excludeReason !== '' ? 'exclude:'.$excludeReason : 'exclude:none';
+        $cacheKey = $this->generateCacheKey('warehouse_writeoffs_paginated', [$userUuid, $perPage, $companyId, $reasonSegment, $excludeSegment]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $companyId, $reason) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $companyId, $reason, $excludeReason) {
             $items = WhWriteoff::leftJoin('warehouses', 'wh_write_offs.warehouse_id', '=', 'warehouses.id')
                 ->leftJoin('users', 'wh_write_offs.creator_id', '=', 'users.id');
 
@@ -57,6 +59,11 @@ class WarehouseWriteoffRepository extends BaseRepository
             $reasonEnum = is_string($reason) && $reason !== '' ? WhWriteoffReason::tryFrom($reason) : null;
             if ($reasonEnum !== null) {
                 $items->where('wh_write_offs.reason', $reasonEnum->value);
+            } else {
+                $excludeReasonEnum = is_string($excludeReason) && $excludeReason !== '' ? WhWriteoffReason::tryFrom($excludeReason) : null;
+                if ($excludeReasonEnum !== null) {
+                    $items->where('wh_write_offs.reason', '!=', $excludeReasonEnum->value);
+                }
             }
 
             $items = $items->select(
