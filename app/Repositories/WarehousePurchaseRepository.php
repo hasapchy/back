@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Enums\WhPurchaseStatus;
+use App\Models\CashRegister;
 use App\Models\WhPurchase;
 use App\Models\WhPurchaseProduct;
 use App\Services\CacheService;
@@ -113,13 +114,20 @@ class WarehousePurchaseRepository extends BaseRepository
             }
 
             $defaultCurrency = $this->getDefaultCurrency();
+            $cashId = CashRegister::query()
+                ->where('company_id', $this->getCurrentCompanyId())
+                ->orderBy('id')
+                ->value('id');
+            if (! $cashId) {
+                throw new \RuntimeException('Не найдена касса для создания долговой транзакции закупки');
+            }
             $this->createTransactionForSource([
                 'type' => 0,
                 'creator_id' => (int) auth('api')->id(),
                 'amount' => $amount,
                 'orig_amount' => $amount,
                 'currency_id' => (int) $defaultCurrency->id,
-                'cash_id' => null,
+                'cash_id' => (int) $cashId,
                 'category_id' => 6,
                 'client_id' => $purchase->supplier_id,
                 'client_balance_id' => $purchase->client_balance_id,
