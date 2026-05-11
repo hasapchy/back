@@ -80,6 +80,14 @@ class ProjectsController extends BaseController
 
         $items = $this->itemsRepository->getItemsWithPagination($perPage, $page, $search, $dateFilter, $startDate, $endDate, $statusId, $clientId, null);
 
+        $statusCounts = $this->itemsRepository->getStatusCountsForFilters(
+            search: is_string($search) ? $search : null,
+            dateFilter: (string) $dateFilter,
+            startDate: is_string($startDate) ? $startDate : null,
+            endDate: is_string($endDate) ? $endDate : null,
+            clientId: $clientId,
+        );
+
         return $this->successResponse([
             'items' => ProjectResource::collection($items->items())->resolve(),
             'meta' => [
@@ -88,6 +96,7 @@ class ProjectsController extends BaseController
                 'last_page' => $items->lastPage(),
                 'per_page' => $items->perPage(),
                 'total' => $items->total(),
+                'status_counts' => $statusCounts,
             ],
         ]);
     }
