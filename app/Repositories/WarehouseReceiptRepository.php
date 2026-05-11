@@ -6,6 +6,7 @@ use App\Enums\WhReceiptStatus;
 use App\Models\CashRegister;
 use App\Models\Currency;
 use App\Models\ProductPrice;
+use App\Models\Transaction;
 use App\Models\WarehouseStock;
 use App\Models\WhReceipt;
 use App\Models\WhReceiptProduct;
@@ -207,7 +208,7 @@ class WarehouseReceiptRepository extends BaseRepository
             }
 
             $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
+            $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
             foreach ($products as $idx => $product) {
                 $q = $roundingService->roundQuantityForCompany($companyId, (float) ($product['quantity']));
                 $products[$idx]['quantity'] = $q;
@@ -252,10 +253,6 @@ class WarehouseReceiptRepository extends BaseRepository
             }
 
             if ($purchase_id === null) {
-                $this->applyLegacyReceiptProductLinesToStock((int) $warehouse_id, $products);
-            }
-
-            if ($purchase_id === null) {
                 $debtTransactionData = $this->buildReceiptTransactionData([
                     'amount' => $totalInDefault,
                     'currency_id' => $defaultCurrency->id,
@@ -292,16 +289,18 @@ class WarehouseReceiptRepository extends BaseRepository
     }
 
     /**
-     * @param  array<int, array{product_id:int, quantity:float|int|string}>  $products
+     * @param  array<int, array{product_id:int, quantity:float|int|string, price:float|int|string}>  $products
      */
     private function assertPurchaseReceiptQuantities(WhPurchase $purchase, array $products, ?int $editingReceiptId): void
     {
         $companyId = $this->getCurrentCompanyId();
         $rounding = new RoundingService();
         $planned = [];
+        $plannedPrices = [];
         /** @var WhPurchaseProduct $line */
         foreach ($purchase->products as $line) {
             $planned[(int) $line->product_id] = $rounding->roundQuantityForCompany($companyId, (float) $line->quantity);
+            $plannedPrices[(int) $line->product_id] = (float) $line->price;
         }
 
         $received = WhReceiptProduct::query()
@@ -324,6 +323,11 @@ class WarehouseReceiptRepository extends BaseRepository
             $receivedQty = (float) ($received[$productId] ?? 0);
             if ($plannedQty <= 0 || $incoming + $receivedQty > $plannedQty + 1e-9) {
                 throw new \RuntimeException('Количество в оприходовании не может быть больше, чем в закупке');
+            }
+            $incomingPrice = (float) ($product['price'] ?? 0);
+            $plannedPrice = (float) ($plannedPrices[$productId] ?? 0);
+            if (abs($incomingPrice - $plannedPrice) > 1e-9) {
+                throw new \RuntimeException('Цена в оприходовании из закупки должна совпадать с ценой закупки');
             }
         }
     }
@@ -395,30 +399,43 @@ class WarehouseReceiptRepository extends BaseRepository
                     ['quantity' => $quantity, 'price' => $price]
                 );
 
-                $existingProduct = $existingProducts->firstWhere('product_id', $product_id);
-                $quantityDifference = $quantity - ($existingProduct ? $existingProduct->quantity : 0);
-                $this->updateStock($warehouse_id, $product_id, $quantityDifference);
-                $this->updateProductPurchasePrice($product_id, $price);
                 $total_amount += $price * $quantity;
             }
 
             $roundingService = new RoundingService();
-            $companyId = $this->getCurrentCompanyId();
+            $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
             $total_amount = $roundingService->roundForCompany($companyId, (float) $total_amount);
 
             $receipt->amount = $total_amount;
             $receipt->save();
 
+            $lineCurrency = Currency::firstWhere('is_default', true);
+            if ($cash_id !== null) {
+                $cash = CashRegister::query()->find($cash_id);
+                if ($cash === null) {
+                    throw new \RuntimeException((string) __('warehouse_receipt.cash_register_not_found'));
+                }
+                if ($cash->currency_id) {
+                    $lineCurrency = Currency::query()->findOrFail((int) $cash->currency_id);
+                }
+            }
+            $totalInDefault = $this->sumReceiptLinesInDefaultCurrency($products, $lineCurrency, $companyId, $date);
+
             $transactions = $receipt->transactions()->get();
             if ($transactions->isEmpty()) {
                 $this->updateClientBalance($client_id, $total_amount - $old_total_amount);
             }
+            $this->syncDraftAutoTransactions($receipt, $totalInDefault);
 
-            $deletedProducts = array_diff($existingProductIds, array_column($products, 'product_id'));
+            $incomingProductIds = collect($products)
+                ->map(fn ($product) => (int) ($product['product_id'] ?? 0))
+                ->filter(fn (int $id) => $id > 0)
+                ->values()
+                ->all();
+            $deletedProducts = array_diff($existingProductIds, $incomingProductIds);
             foreach ($deletedProducts as $deletedProductId) {
                 $deletedProduct = $existingProducts->firstWhere('product_id', $deletedProductId);
                 if ($deletedProduct) {
-                    $this->updateStock($warehouse_id, $deletedProductId, -$deletedProduct->quantity);
                     $deletedProduct->delete();
                 }
             }
@@ -431,6 +448,57 @@ class WarehouseReceiptRepository extends BaseRepository
         });
 
         return $updated;
+    }
+
+    /**
+     * Синхронизировать базовые автотранзакции чернового оприходования (долг + оплата товара).
+     */
+    private function syncDraftAutoTransactions(WhReceipt $receipt, float $totalInDefault): void
+    {
+        if ($receipt->purchase_id !== null) {
+            return;
+        }
+
+        $txs = Transaction::query()
+            ->where('source_type', WhReceipt::class)
+            ->where('source_id', (int) $receipt->id)
+            ->where('category_id', 6)
+            ->where('is_deleted', false)
+            ->orderBy('id')
+            ->get();
+
+        /** @var Transaction|null $debtTx */
+        $debtTx = $txs->first(fn (Transaction $t) => (bool) $t->is_debt);
+        /** @var Transaction|null $paymentTx */
+        $paymentTx = $txs->first(fn (Transaction $t) => ! (bool) $t->is_debt);
+        if (! $debtTx || ! $paymentTx) {
+            return;
+        }
+
+        $repo = app(TransactionsRepository::class);
+        $base = [
+            'type' => 0,
+            'category_id' => 6,
+            'client_id' => (int) $receipt->supplier_id,
+            'project_id' => null,
+            'date' => $receipt->date,
+            'note' => $receipt->note,
+            'source_type' => WhReceipt::class,
+            'source_id' => (int) $receipt->id,
+            'cash_id' => $receipt->cash_id,
+            'client_balance_id' => $receipt->client_balance_id,
+        ];
+
+        $repo->updateItem((int) $debtTx->id, array_merge($base, [
+            'is_debt' => true,
+            'orig_amount' => $totalInDefault,
+            'currency_id' => (int) $debtTx->currency_id,
+        ]));
+        $repo->updateItem((int) $paymentTx->id, array_merge($base, [
+            'is_debt' => false,
+            'orig_amount' => $totalInDefault,
+            'currency_id' => (int) $paymentTx->currency_id,
+        ]));
     }
 
     /**
@@ -503,6 +571,8 @@ class WarehouseReceiptRepository extends BaseRepository
                 $this->updateProductPurchasePrice($productId, $unit);
             }
 
+            $this->applyReceiptProductsToStock($receipt);
+
             $receipt->status = WhReceiptStatus::Completed;
             $receipt->saveQuietly();
 
@@ -532,7 +602,7 @@ class WarehouseReceiptRepository extends BaseRepository
                 throw new \RuntimeException((string) __('warehouse_receipt.cannot_delete_completed'));
             }
             app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $receipt->warehouse_id);
-            $this->reverseReceiptStockAndDeleteLines($receipt);
+            $this->reverseReceiptStockAndDeleteLines($receipt, false);
 
             $receipt->delete();
 
@@ -622,6 +692,13 @@ class WarehouseReceiptRepository extends BaseRepository
         }
     }
 
+    private function applyReceiptProductsToStock(WhReceipt $receipt): void
+    {
+        foreach ($receipt->products()->get() as $line) {
+            $this->updateStock((int) $receipt->warehouse_id, (int) $line->product_id, (float) $line->quantity);
+        }
+    }
+
     /**
      * Актуальная закупочная цена из последней записи product_prices.
      *
@@ -644,13 +721,39 @@ class WarehouseReceiptRepository extends BaseRepository
     /**
      * @return void
      */
-    private function reverseReceiptStockAndDeleteLines(WhReceipt $receipt): void
+    private function reverseReceiptStockAndDeleteLines(WhReceipt $receipt, bool $reverseStock): void
     {
         $receiptId = (int) $receipt->id;
+        if ($reverseStock) {
+            $this->assertReceiptDeletionWillNotMakeNegativeStock($receipt);
+        }
         foreach (WhReceiptProduct::query()->where('receipt_id', $receiptId)->get() as $p) {
-            $this->updateStock((int) $receipt->warehouse_id, (int) $p->product_id, -(float) $p->quantity);
+            if ($reverseStock) {
+                $this->updateStock((int) $receipt->warehouse_id, (int) $p->product_id, -(float) $p->quantity);
+            }
         }
         WhReceiptProduct::query()->where('receipt_id', $receiptId)->delete();
+    }
+
+    private function assertReceiptDeletionWillNotMakeNegativeStock(WhReceipt $receipt): void
+    {
+        $receiptLines = WhReceiptProduct::query()
+            ->where('receipt_id', (int) $receipt->id)
+            ->get();
+
+        foreach ($receiptLines as $line) {
+            $stock = WarehouseStock::query()
+                ->where('warehouse_id', (int) $receipt->warehouse_id)
+                ->where('product_id', (int) $line->product_id)
+                ->lockForUpdate()
+                ->first();
+
+            $currentQty = (float) ($stock?->quantity ?? 0.0);
+            $removeQty = (float) $line->quantity;
+            if (($currentQty - $removeQty) < -1e-9) {
+                throw new \RuntimeException('Нельзя удалить оприходование: остаток по товару уйдет в минус');
+            }
+        }
     }
 
     public function deleteReceiptWithoutInventoryLock(int $receiptId): void
@@ -658,7 +761,7 @@ class WarehouseReceiptRepository extends BaseRepository
         DB::transaction(function () use ($receiptId) {
             $receipt = WhReceipt::query()->lockForUpdate()->findOrFail($receiptId);
 
-            $this->reverseReceiptStockAndDeleteLines($receipt);
+            $this->reverseReceiptStockAndDeleteLines($receipt, true);
 
             $receipt->delete();
         });
