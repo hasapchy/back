@@ -13,6 +13,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с кассами
  */
+/**
+ * @group Финансы
+ * @subgroup Кассы
+ */
 class CashRegistersController extends BaseController
 {
     protected $itemsRepository;
@@ -26,7 +30,7 @@ class CashRegistersController extends BaseController
     }
 
     /**
-     * Получить список касс с пагинацией
+     * Список касс
      *
      * @param Request $request
      * @return JsonResponse
@@ -70,6 +74,10 @@ class CashRegistersController extends BaseController
 
     /**
      * Получить баланс касс
+     *
+     * Если параметр `cash_register_ids` не передан, вернётся баланс всех доступных касс.
+     * Если передан один ID, вернётся баланс одной кассы.
+     * Если передано несколько ID через запятую, вернётся баланс указанных касс.
      *
      * @param Request $request
      * @return JsonResponse
@@ -135,7 +143,7 @@ class CashRegistersController extends BaseController
     }
 
     /**
-     * Создать новую кассу
+     * Создать кассу
      *
      * @param Request $request
      * @return JsonResponse

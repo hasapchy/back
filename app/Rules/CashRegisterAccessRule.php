@@ -16,7 +16,7 @@ class CashRegisterAccessRule implements ValidationRule
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if (! $value) {
+        if ($value === null || $value === '' || $value === false) {
             return;
         }
 
@@ -26,14 +26,21 @@ class CashRegisterAccessRule implements ValidationRule
             return;
         }
 
-        $cashRegister = CashRegister::find($value);
+        $id = (int) $value;
+        if ($id <= 0) {
+            return;
+        }
+
+        $cashRegister = CashRegister::query()->find($id);
 
         if (! $cashRegister) {
+            $fail(__('warehouse_receipt.cash_register_not_found'));
+
             return;
         }
 
         if (! $this->user->can('view', $cashRegister)) {
-            $fail('У вас нет доступа к этой кассе.');
+            $fail(__('warehouse_receipt.cash_register_forbidden'));
         }
     }
 }

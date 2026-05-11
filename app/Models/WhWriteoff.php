@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Enums\WhWriteoffReason;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
  * Модель списания со склада
  *
  * @property int $id
  * @property int $warehouse_id ID склада
+ * @property int|null $source_receipt_id ID исходного оприходования
+ * @property WhWriteoffReason $reason Причина списания
  * @property string|null $note Примечание
  * @property \Carbon\Carbon $date Дата списания
  * @property int $creator_id ID создателя
@@ -18,7 +22,9 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\Carbon $updated_at
  *
  * @property-read \App\Models\Warehouse $warehouse
+ * @property-read \App\Models\WhReceipt|null $sourceReceipt
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhWriteoffProduct[] $writeOffProducts
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
  * @property-read \App\Models\Product|null $product
  * @property-read \App\Models\WarehouseStock|null $warehouseStock
  */
@@ -28,10 +34,11 @@ class WhWriteoff extends Model
 
     protected $table = 'wh_write_offs';
 
-    protected $fillable = ['warehouse_id', 'note', 'date', 'creator_id'];
+    protected $fillable = ['warehouse_id', 'source_receipt_id', 'reason', 'note', 'date', 'creator_id'];
 
     protected $casts = [
         'date' => 'date',
+        'reason' => WhWriteoffReason::class,
     ];
 
     /**
@@ -45,6 +52,14 @@ class WhWriteoff extends Model
     }
 
     /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function sourceReceipt()
+    {
+        return $this->belongsTo(WhReceipt::class, 'source_receipt_id');
+    }
+
+    /**
      * Связь с продуктами списания
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
@@ -52,6 +67,14 @@ class WhWriteoff extends Model
     public function writeOffProducts()
     {
         return $this->hasMany(WhWriteoffProduct::class, 'write_off_id');
+    }
+
+    /**
+     * @return MorphMany<\App\Models\Transaction>
+     */
+    public function transactions(): MorphMany
+    {
+        return $this->morphMany(Transaction::class, 'source');
     }
 
     /**

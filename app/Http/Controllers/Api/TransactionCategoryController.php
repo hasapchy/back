@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы с категориями транзакций
+ *
+ * @group Финансы
+ * @subgroup Категории транзакций
  */
 class TransactionCategoryController extends BaseController
 {
@@ -26,9 +29,12 @@ class TransactionCategoryController extends BaseController
     }
 
     /**
-     * Получить список категорий транзакций с пагинацией
+     * Список категорий транзакций
      *
      * @param Request $request
+     * @response 200 {"data":{"items":[],"meta":{"current_page":1,"next_page":null,"last_page":1,"per_page":20,"total":0}}}
+     * @response 401 {"error":"Unauthenticated."}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
@@ -65,9 +71,13 @@ class TransactionCategoryController extends BaseController
     }
 
     /**
-     * Создать новую категорию транзакций
+     * Создать категорию транзакций
      *
      * @param StoreTransactionCategoryRequest $request
+     * @response 200 {"data":null,"message":"Категория транзакции создана"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 422 {"error":"The given data was invalid.","errors":{"name":["The name field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreTransactionCategoryRequest $request)
@@ -86,10 +96,15 @@ class TransactionCategoryController extends BaseController
     }
 
     /**
-     * Обновить категорию транзакций
+     * Изменить категорию транзакций
      *
      * @param UpdateTransactionCategoryRequest $request
      * @param int $id ID категории
+     * @response 200 {"data":null,"message":"Категория транзакции обновлена"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Not found"}
+     * @response 422 {"error":"The given data was invalid.","errors":{"name":["The name field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateTransactionCategoryRequest $request, $id)
@@ -118,6 +133,10 @@ class TransactionCategoryController extends BaseController
      * Удалить категорию транзакций
      *
      * @param int $id ID категории
+     * @response 200 {"data":null,"message":"Категория транзакции удалена"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Not found"}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)

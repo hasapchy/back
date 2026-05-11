@@ -12,6 +12,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы со статусами задач
  */
+/**
+ * @group Задачи
+ * @subgroup Статусы
+ */
 class TaskStatusController extends BaseController
 {
     protected $itemsRepository;
@@ -25,7 +29,7 @@ class TaskStatusController extends BaseController
     }
 
     /**
-     * Получить список статусов задач с пагинацией
+     * Список статусов задач
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -65,7 +69,9 @@ class TaskStatusController extends BaseController
     }
 
     /**
-     * Создать новый статус задачи
+     * Создать статус задачи
+     *
+     * @subgroup Управление статусами
      *
      * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
@@ -90,6 +96,8 @@ class TaskStatusController extends BaseController
     /**
      * Обновить статус задачи
      *
+     * @subgroup Управление статусами
+     *
      * @param  Request  $request
      * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse
@@ -112,6 +120,8 @@ class TaskStatusController extends BaseController
 
     /**
      * Удалить статус задачи
+     *
+     * @subgroup Управление статусами
      *
      * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse

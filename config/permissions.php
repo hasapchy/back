@@ -20,6 +20,12 @@ return [
             'actions' => ['view', 'create', 'update', 'delete', 'export'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
+        'warehouse_purchases' => [
+            'has_creator_id' => true,
+            'check_strategy' => 'creator_id',
+            'actions' => ['view', 'create', 'update', 'delete', 'export'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
         'warehouse_writeoffs' => [
             'has_creator_id' => true,
             'check_strategy' => 'creator_id',
@@ -31,6 +37,16 @@ return [
             'check_strategy' => 'creator_id',
             'actions' => ['view', 'create', 'update', 'delete', 'export'],
             'scope_actions' => ['view', 'update', 'delete'],
+        ],
+        'inventories' => [
+            'has_creator_id' => true,
+            'check_strategy' => 'creator_id',
+            'actions' => ['view', 'create', 'export'],
+            'scope_actions' => ['view'],
+            'custom_permissions' => [
+                'count' => 'inventories_count',
+                'finalize' => 'inventories_finalize',
+            ],
         ],
         'categories' => [
             'has_creator_id' => false,
@@ -92,6 +108,7 @@ return [
                 'view_sale' => 'transactions_view_sale',
                 'view_order' => 'transactions_view_order',
                 'view_receipt' => 'transactions_view_receipt',
+                'view_purchase' => 'transactions_view_purchase',
                 'view_salary' => 'transactions_view_salary',
                 'view_other' => 'transactions_view_other',
             ],
@@ -293,7 +310,7 @@ return [
         ],
         'warehouses' => [
             'label' => 'warehouses',
-            'resources' => ['warehouses', 'warehouse_stocks', 'warehouse_receipts', 'warehouse_writeoffs', 'warehouse_movements'],
+            'resources' => ['warehouses', 'warehouse_stocks', 'warehouse_receipts', 'warehouse_purchases', 'warehouse_writeoffs', 'warehouse_movements', 'inventories'],
         ],
         'orders' => [
             'label' => 'orders',

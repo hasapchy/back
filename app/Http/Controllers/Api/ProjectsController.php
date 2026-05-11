@@ -20,6 +20,9 @@ use ZipArchive;
 /**
  * Контроллер для управления проектами
  */
+/**
+ * @group Проекты
+ */
 class ProjectsController extends BaseController
 {
     /**
@@ -61,7 +64,7 @@ class ProjectsController extends BaseController
     }
 
     /**
-     * Получить список проектов с пагинацией
+     * Список проектов
      *
      * @return JsonResponse
      */
@@ -117,7 +120,7 @@ class ProjectsController extends BaseController
     }
 
     /**
-     * Создать новый проект
+     * Создать проект
      *
      * @return JsonResponse
      */

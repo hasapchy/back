@@ -9,6 +9,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с остатками на складах
  */
+/**
+ * @group Склады
+ * @subgroup Остатки
+ */
 class WarehouseStockController extends BaseController
 {
     protected $itemsRepository;
@@ -24,7 +28,7 @@ class WarehouseStockController extends BaseController
     }
 
     /**
-     * Получить список остатков на складах с пагинацией
+     * Список остатков на складах
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse

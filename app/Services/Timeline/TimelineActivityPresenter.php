@@ -189,12 +189,6 @@ class TimelineActivityPresenter
             'log_name' => $logName,
         ];
 
-        if ($this->isOrderCreatedActivityDescription($log->description)) {
-            $baseRow['changes'] = null;
-
-            return $baseRow;
-        }
-
         $baseRow['changes'] = $this->processActivityChanges($log->properties, $modelClass);
 
         return $baseRow;

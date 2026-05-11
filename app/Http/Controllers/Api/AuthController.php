@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
+/**
+ * @group Авторизация
+ * @subgroup Сессия
+ */
 class AuthController extends BaseController
 {
     public function __construct(

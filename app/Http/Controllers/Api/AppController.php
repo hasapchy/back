@@ -9,6 +9,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Traits\HasRoles;
 
+/**
+ * @group Система
+ * @subgroup Приложение
+ */
 class AppController extends BaseController
 {
     use HasRoles;

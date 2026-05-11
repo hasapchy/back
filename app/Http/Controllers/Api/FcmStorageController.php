@@ -7,6 +7,10 @@ use App\Services\PushNotificationSender;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
+/**
+ * @group Пользователи
+ * @subgroup Уведомления
+ */
 class FcmStorageController extends BaseController
 {
     public function __construct(

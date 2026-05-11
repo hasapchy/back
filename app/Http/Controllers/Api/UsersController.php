@@ -22,6 +22,9 @@ use App\Services\CacheService;
 /**
  * Контроллер для работы с пользователями
  */
+/**
+ * @group Пользователи
+ */
 class UsersController extends BaseController
 {
     protected $itemsRepository;
@@ -37,7 +40,7 @@ class UsersController extends BaseController
     }
 
     /**
-     * Получить список пользователей с пагинацией
+     * Список пользователей
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -115,6 +118,13 @@ class UsersController extends BaseController
         return $this->userResponse($user);
     }
 
+    /**
+     * Обновить пользователя
+     *
+     * @param UpdateUserRequest $request
+     * @param int $id ID пользователя
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(UpdateUserRequest $request, $id)
     {
         $targetUser = User::findOrFail($id);
@@ -276,6 +286,12 @@ class UsersController extends BaseController
         return $this->successResponse(UserResource::collection($items)->resolve());
     }
 
+    /**
+     * Поиск пользователей
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function search(Request $request)
     {
         $this->authorize('viewAny', User::class);

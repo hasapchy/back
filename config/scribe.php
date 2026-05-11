@@ -17,12 +17,7 @@ return [
     'description' => '',
 
     // Text to place in the "Introduction" section, right after the `description`. Markdown and HTML are supported.
-    'intro_text' => <<<'INTRO'
-        This documentation aims to provide all the information you need to work with our API.
-
-        <aside>As you scroll, you'll see code examples for working with the API in different programming languages in the dark area to the right (or as part of the content on mobile).
-        You can switch the language used with the tabs at the top right (or from the nav menu at the top left on mobile).</aside>
-    INTRO,
+    'intro_text' => '',
 
     // The base URL displayed in the docs.
     // If you're using `laravel` type, you can set this to a dynamic string, like '{{ config("app.tenant_url") }}' to get a dynamic base URL.
@@ -34,6 +29,7 @@ return [
             'match' => [
                 // Match only routes whose paths match this pattern (use * as a wildcard to match any characters). Example: 'users/*'.
                 'prefixes' => ['api/*'],
+                'methods' => ['POST', 'PUT', 'PATCH', 'DELETE'],
 
                 // Match only routes whose domains match this pattern (use * as a wildcard to match any characters). Example: 'api.*'.
                 'domains' => ['*'],
@@ -46,7 +42,24 @@ return [
 
             // Exclude these routes even if they matched the rules above.
             'exclude' => [
-                // 'GET /health', 'admin.*'
+                'api/broadcasting/auth',
+                'api/batch',
+                'api/app/*',
+                'api/*/search',
+                'api/*/all',
+                'api/*/export',
+                'api/*/first-stage-count',
+                'api/permissions',
+                'api/*/permissions',
+                'api/user/current-company',
+                'api/user/companies',
+                'api/user/notification-settings',
+                'api/user/notifications*',
+                'api/user/fcm-token*',
+                'api/companies*',
+                'api/transaction-templates*',
+                'api/recurring-transactions*',
+                'api/leave_types*',
             ],
         ],
     ],
@@ -55,10 +68,10 @@ return [
     // - "static" will generate a static HTMl page in the /public/docs folder,
     // - "laravel" will generate the documentation as a Blade view, so you can add routing and authentication.
     // - "external_static" and "external_laravel" do the same as above, but pass the OpenAPI spec as a URL to an external UI template
-    'type' => 'external_static',
+    'type' => 'static',
 
     // See https://scribe.knuckles.wtf/laravel/reference/config#theme for supported options
-    'theme' => 'scalar',
+    'theme' => 'default',
 
     'static' => [
         // HTML documentation, assets and Postman collection will be generated to this folder.
@@ -125,7 +138,7 @@ return [
         'placeholder' => '{YOUR_ACCESS_TOKEN}',
 
         // Any extra authentication-related info for your users. Markdown and HTML are supported.
-        'extra_info' => '<p><strong>Вход:</strong> <code>GET /sanctum/csrf-cookie</code> (опционально), <code>POST /api/user/login</code> с cookies. Ответ: <code>user</code>, сессия в httpOnly cookie.</p><p><strong>API:</strong> <code>credentials: include</code>, префикс <code>api/*</code> без проверки CSRF (защита SameSite). <code>X-Company-ID</code>.</p>',
+        'extra_info' => '<p><strong>Вход:</strong> <code>GET /sanctum/csrf-cookie</code> (опционально), <code>POST /api/user/login</code> с cookies. Ответ: <code>user</code>, сессия в httpOnly cookie.</p><p><strong>API:</strong> <code>credentials: include</code>, префикс <code>api/*</code> без проверки CSRF (защита SameSite).</p>',
     ],
 
     // Example requests for each endpoint will be shown in each of these languages.
@@ -178,7 +191,23 @@ return [
         // You can override this by listing the groups, subgroups and endpoints here in the order you want them.
         // See https://scribe.knuckles.wtf/blog/laravel-v4#easier-sorting and https://scribe.knuckles.wtf/laravel/reference/config#order for details
         // Note: does not work for `external` docs types
-        'order' => [],
+        'order' => [
+            'Auth',
+            'Catalog',
+            'Chats',
+            'Clients',
+            'Companies',
+            'Content',
+            'Endpoints',
+            'Finance',
+            'HR',
+            'Orders',
+            'Projects',
+            'System',
+            'Tasks',
+            'Users',
+            'Warehouses',
+        ],
     ],
 
     // Custom logo path. This will be used as the value of the src attribute for the <img> tag,
@@ -220,7 +249,6 @@ return [
             Strategies\StaticData::withSettings(data: [
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
-                'X-Company-ID' => env('SCRIBE_COMPANY_ID', '1'),
             ]),
         ],
         'urlParameters' => [
@@ -235,7 +263,7 @@ return [
         'responses' => configureStrategy(
             Defaults::RESPONSES_STRATEGIES,
             Strategies\Responses\ResponseCalls::withSettings(
-                only: ['GET *', 'POST api/user/profile'],
+                only: ['POST api/user/login', 'POST api/user/refresh'],
                 // Recommended: disable debug mode in response calls to avoid error stack traces in responses
                 config: [
                     'app.debug' => false,

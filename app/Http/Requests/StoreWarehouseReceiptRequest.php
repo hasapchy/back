@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\WhReceiptStatus;
 use App\Http\Requests\Concerns\ValidatesOrderClientBalance;
 use App\Rules\CashRegisterAccessRule;
-use App\Rules\WarehouseAccessRule;
-use App\Rules\ProjectAccessRule;
 use App\Rules\ClientAccessRule;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\WarehouseAccessRule;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class StoreWarehouseReceiptRequest extends FormRequest
@@ -28,24 +29,45 @@ class StoreWarehouseReceiptRequest extends FormRequest
     /**
      * Получить правила валидации
      *
-     * @return array<string, \Illuminate\Contracts\Validation\Rule|array|string>
+     * @return array<string, mixed>
      */
     public function rules(): array
     {
         return [
             'client_id' => ['required', 'integer', new ClientAccessRule()],
             'warehouse_id' => ['required', 'integer', new WarehouseAccessRule()],
-            'type' => 'required|in:cash,balance',
+            'purchase_id' => ['nullable', 'integer', 'exists:wh_purchases,id'],
             'cash_id' => ['nullable', 'integer', new CashRegisterAccessRule()],
             'date' => 'nullable|date',
             'note' => 'nullable|string',
-            'project_id' => ['nullable', 'integer', new ProjectAccessRule()],
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity' => 'required|numeric|min:0',
             'products.*.price' => 'required|numeric|min:0',
             'client_balance_id' => $this->orderClientBalanceIdRules(),
+            'status' => [
+                'sometimes',
+                'nullable',
+                'string',
+                Rule::in([WhReceiptStatus::Draft->value]),
+            ],
         ];
+    }
+
+    /**
+     * @param  \Illuminate\Validation\Validator  $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $v): void {
+            if ($v->errors()->isNotEmpty()) {
+                return;
+            }
+            if (! $this->filled('purchase_id') && ! $this->filled('cash_id')) {
+                $v->errors()->add('cash_id', 'Для оприходования без закупки нужно выбрать кассу');
+            }
+        });
     }
 
     /**

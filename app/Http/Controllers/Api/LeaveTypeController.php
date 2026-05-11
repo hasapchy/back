@@ -9,6 +9,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с типами отпусков
  */
+/**
+ * @group Кадры
+ * @subgroup Типы отпусков
+ */
 class LeaveTypeController extends BaseController
 {
     protected $itemsRepository;
@@ -22,7 +26,7 @@ class LeaveTypeController extends BaseController
     }
 
     /**
-     * Получить список типов отпусков с пагинацией
+     * Список типов отпусков
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -61,7 +65,7 @@ class LeaveTypeController extends BaseController
     }
 
     /**
-     * Создать новый тип отпуска
+     * Создать тип отпуска
      *
      * @return \Illuminate\Http\JsonResponse
      */

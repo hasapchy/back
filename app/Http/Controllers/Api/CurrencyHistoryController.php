@@ -18,6 +18,10 @@ use Illuminate\Support\Facades\DB;
 /**
  * Контроллер для работы с историей курсов валют
  */
+/**
+ * @group Система
+ * @subgroup История валют
+ */
 class CurrencyHistoryController extends BaseController
 {
     /**
@@ -118,7 +122,7 @@ class CurrencyHistoryController extends BaseController
     }
 
     /**
-     * Создать новую запись в истории курсов валюты
+     * Создать запись в истории курсов валюты
      *
      * @param  int  $currencyId  ID валюты
      * @return JsonResponse

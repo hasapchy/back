@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $write_off_id ID списания
  * @property int $product_id ID продукта
  * @property float $quantity Количество
+ * @property float $price Цена
+ * @property int|null $source_receipt_product_id ID строки оприходования
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -24,10 +26,11 @@ class WhWriteoffProduct extends Model
 
     protected $table = 'wh_write_off_products';
 
-    protected $fillable = ['write_off_id', 'product_id', 'quantity'];
+    protected $fillable = ['write_off_id', 'product_id', 'quantity', 'price', 'source_receipt_product_id'];
 
     protected $casts = [
         'quantity' => 'decimal:5',
+        'price' => 'decimal:5',
     ];
 
     /**

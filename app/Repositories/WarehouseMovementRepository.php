@@ -7,6 +7,7 @@ use App\Models\WarehouseStock;
 use App\Models\WhMovement;
 use App\Models\WhMovementProduct;
 use App\Services\CacheService;
+use App\Services\InventoryLockService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -117,6 +118,9 @@ class WarehouseMovementRepository extends BaseRepository
         $date = $data['date'];
         $products = $data['products'];
 
+        app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_from_id);
+        app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_to_id);
+
         return DB::transaction(function () use ($warehouse_from_id, $warehouse_to_id, $date, $note, $products) {
             $movement = new WhMovement();
             $movement->wh_from = $warehouse_from_id;
@@ -161,6 +165,9 @@ class WarehouseMovementRepository extends BaseRepository
         $note = $data['note'];
         $date = $data['date'];
         $products = $data['products'];
+
+        app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_from_id);
+        app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_to_id);
 
         return DB::transaction(function () use ($movement_id, $warehouse_from_id, $warehouse_to_id, $date, $note, $products) {
             $movement = WhMovement::findOrFail($movement_id);
@@ -214,6 +221,8 @@ class WarehouseMovementRepository extends BaseRepository
     {
         return DB::transaction(function () use ($movement_id) {
             $movement = WhMovement::findOrFail($movement_id);
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $movement->wh_from);
+            app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $movement->wh_to);
 
             $products = WhMovementProduct::where('movement_id', $movement_id)->get();
             foreach ($products as $product) {

@@ -11,6 +11,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с категориями статусов заказов
  */
+/**
+ * @group Заказы
+ * @subgroup Категории статусов
+ */
 class OrderStatusCategoryController extends BaseController
 {
     protected $itemsRepository;
@@ -24,7 +28,7 @@ class OrderStatusCategoryController extends BaseController
     }
 
     /**
-     * Получить список категорий статусов заказов с пагинацией
+     * Список категорий статусов заказов
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -63,7 +67,7 @@ class OrderStatusCategoryController extends BaseController
     }
 
     /**
-     * Создать новую категорию статусов заказов
+     * Создать категорию статусов заказов
      *
      * @return \Illuminate\Http\JsonResponse
      */

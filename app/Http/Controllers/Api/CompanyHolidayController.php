@@ -13,6 +13,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с корпоративными праздниками
  */
+/**
+ * @group Кадры
+ * @subgroup Праздники
+ */
 class CompanyHolidayController extends BaseController
 {
     protected CompanyHolidayRepository $repository;
@@ -23,7 +27,7 @@ class CompanyHolidayController extends BaseController
     }
 
     /**
-     * Получить список праздников компании с пагинацией
+     * Список праздников компании
      *
      * @return JsonResponse
      */
@@ -94,7 +98,7 @@ class CompanyHolidayController extends BaseController
     }
 
     /**
-     * Создать новый праздник
+     * Создать праздник
      *
      * @return JsonResponse
      */

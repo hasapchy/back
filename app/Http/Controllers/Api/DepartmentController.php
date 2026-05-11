@@ -9,6 +9,10 @@ use App\Models\Department;
 use App\Repositories\DepartmentRepository;
 use Illuminate\Http\Request;
 
+/**
+ * @group Кадры
+ * @subgroup Отделы
+ */
 class DepartmentController extends BaseController
 {
     protected $itemsRepository;
@@ -18,6 +22,9 @@ class DepartmentController extends BaseController
         $this->itemsRepository = $itemsRepository;
     }
 
+    /**
+     * Список отделов
+     */
     public function index(Request $request)
     {
         $this->authorize('viewAny', Department::class);
@@ -40,6 +47,9 @@ class DepartmentController extends BaseController
         ]);
     }
 
+    /**
+     * Все отделы
+     */
     public function all(Request $request)
     {
         $this->authorize('viewAny', Department::class);
@@ -50,6 +60,9 @@ class DepartmentController extends BaseController
         return $this->successResponse(DepartmentResource::collection($departments)->resolve());
     }
 
+    /**
+     * Создать отдел
+     */
     public function store(StoreDepartmentRequest $request)
     {
         $this->authorize('create', Department::class);
@@ -60,6 +73,9 @@ class DepartmentController extends BaseController
         return $this->successResponse(new DepartmentResource($department), 'Департамент создан');
     }
 
+    /**
+     * Обновить отдел
+     */
     public function update(UpdateDepartmentRequest $request, $id)
     {
         $department = Department::findOrFail($id);
@@ -72,6 +88,9 @@ class DepartmentController extends BaseController
         return $this->successResponse(new DepartmentResource($department), 'Департамент обновлён');
     }
 
+    /**
+     * Удалить отдел
+     */
     public function destroy($id)
     {
         $department = Department::findOrFail($id);

@@ -2,17 +2,20 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use App\Enums\WhReceiptStatus;
 use App\Models\ClientBalance;
 use App\Services\CacheService;
 use App\Services\TransactionDeletionService;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Модель прихода на склад
  *
  * @property int $id
- * @property int|null $supplier_id ID поставщика
+ * @property int|null $supplier_id ID поставщика (null для служебных приходов, например излишек по инвентаризации)
+ * @property int|null $purchase_id ID закупки
  * @property int|null $client_balance_id ID выбранного баланса поставщика
  * @property int $warehouse_id ID склада
  * @property string|null $note Примечание
@@ -20,7 +23,7 @@ use App\Services\TransactionDeletionService;
  * @property float $amount Сумма
  * @property \Carbon\Carbon $date Дата прихода
  * @property int $creator_id ID пользователя
- * @property int|null $project_id ID проекта
+ * @property WhReceiptStatus $status
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -31,8 +34,8 @@ use App\Services\TransactionDeletionService;
  * @property-read \App\Models\User $creator
  * @property-read \App\Models\Currency|null $currency
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhReceiptProduct[] $products
- * @property-read \App\Models\Project|null $project
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, WhReceiptExpenseAllocation> $expenseAllocations
  */
 class WhReceipt extends Model
 {
@@ -40,6 +43,7 @@ class WhReceipt extends Model
 
     protected $fillable = [
         'supplier_id',
+        'purchase_id',
         'client_balance_id',
         'warehouse_id',
         'note',
@@ -47,11 +51,12 @@ class WhReceipt extends Model
         'amount',
         'date',
         'creator_id',
-        'project_id',
+        'status',
     ];
 
     protected $casts = [
         'amount' => 'decimal:5',
+        'status' => WhReceiptStatus::class,
     ];
 
     protected static function booted()
@@ -70,6 +75,14 @@ class WhReceipt extends Model
     public function supplier()
     {
         return $this->belongsTo(Client::class, 'supplier_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function purchase()
+    {
+        return $this->belongsTo(WhPurchase::class, 'purchase_id');
     }
 
     /**
@@ -129,21 +142,6 @@ class WhReceipt extends Model
     }
 
     /**
-     * Связь many-to-many с продуктами через промежуточную таблицу
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
-    public function productsPivot()
-    {
-        return $this->belongsToMany(
-            Product::class,
-            'wh_receipt_products',
-            'receipt_id',
-            'product_id'
-        )->withPivot('quantity');
-    }
-
-    /**
      * Полиморфная связь с транзакциями
      *
      * @return \Illuminate\Database\Eloquent\Relations\MorphMany
@@ -154,12 +152,10 @@ class WhReceipt extends Model
     }
 
     /**
-     * Связь с проектом
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return HasMany<WhReceiptExpenseAllocation>
      */
-    public function project()
+    public function expenseAllocations(): HasMany
     {
-        return $this->belongsTo(Project::class, 'project_id');
+        return $this->hasMany(WhReceiptExpenseAllocation::class, 'receipt_id');
     }
 }

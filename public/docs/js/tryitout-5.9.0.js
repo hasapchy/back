@@ -1,4 +1,4 @@
-﻿window.abortControllers = {};
+window.abortControllers = {};
 
 function cacheAuthValue() {
     // Whenever the auth header is set for one endpoint, cache it for the others
@@ -83,6 +83,8 @@ function cancelTryOut(endpointId) {
 }
 
 function makeAPICall(method, path, body = {}, query = {}, headers = {}, endpointId = null) {
+    console.log({endpointId, path, body, query, headers});
+
     if (!(body instanceof FormData) && typeof body !== "string") {
         body = JSON.stringify(body)
     }
@@ -264,7 +266,7 @@ async function executeTryOut(endpointId, form) {
     let preflightPromise = Promise.resolve();
     if (window.useCsrf && window.csrfUrl) {
         preflightPromise = makeAPICall('GET', window.csrfUrl).then(() => {
-            headers['X-CSRF-TOKEN'] = getCookie('XSRF-TOKEN');
+            headers['X-XSRF-TOKEN'] = getCookie('XSRF-TOKEN');
         });
     }
 
@@ -274,8 +276,10 @@ async function executeTryOut(endpointId, form) {
         })
         .catch(err => {
             if (err.name === "AbortError") {
+                console.log("Request cancelled");
                 return;
             }
+            console.log("Error while making request: ", err);
             handleError(endpointId, err);
         })
         .finally(() => {

@@ -25,6 +25,9 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Контроллер для работы с транзакциями
+ *
+ * @group Финансы
+ * @subgroup Транзакции
  */
 class TransactionsController extends BaseController
 {
@@ -45,7 +48,10 @@ class TransactionsController extends BaseController
     }
 
     /**
-     * Получить список транзакций с пагинацией
+     * Список транзакций
+     *
+     * @response 200 {"data":{"items":[],"meta":{"current_page":1,"next_page":null,"last_page":1,"per_page":20,"total":0}}}
+     * @response 401 {"error":"Unauthenticated."}
      *
      * @return JsonResponse
      */
@@ -68,7 +74,8 @@ class TransactionsController extends BaseController
             $params['end_date'],
             $params['is_debt'],
             $params['category_ids'],
-            $params['contract_id']
+            $params['contract_id'],
+            $params['warehouse_receipt_id']
         );
 
         $response = [
@@ -114,13 +121,14 @@ class TransactionsController extends BaseController
             $params['is_debt'],
             $params['category_ids'],
             $params['contract_id'],
+            $params['warehouse_receipt_id'],
             $ids ?: null,
             10000
         );
         $headings = ['№', 'Дата', 'Тип', 'Сумма', 'Клиент', 'Категория', 'Касса', 'Примечание'];
         $rows = array_map(function ($t) {
             $clientName = $t->client
-                ? trim(($t->client['first_name'] ?? '').' '.($t->client['last_name'] ?? ''))
+                ? trim(($t->client['first_name'] ?? '') . ' ' . ($t->client['last_name'] ?? ''))
                 : '';
 
             return [
@@ -134,7 +142,7 @@ class TransactionsController extends BaseController
                 $t->note ?? '',
             ];
         }, $items);
-        $filename = 'transactions_'.date('Y-m-d_His').'.xlsx';
+        $filename = 'transactions_' . date('Y-m-d_His') . '.xlsx';
 
         return Excel::download(new GenericExport($rows, $headings), $filename, \Maatwebsite\Excel\Excel::XLSX);
     }
@@ -163,6 +171,7 @@ class TransactionsController extends BaseController
             'date_filter_type' => $request->query('date_filter_type'),
             'order_id' => $request->query('order_id'),
             'contract_id' => $request->query('contract_id'),
+            'warehouse_receipt_id' => $request->query('warehouse_receipt_id'),
             'search' => $request->query('search'),
             'transaction_type' => $request->query('transaction_type'),
             'source' => $request->query('source'),
@@ -175,7 +184,11 @@ class TransactionsController extends BaseController
     }
 
     /**
-     * Создать новую транзакцию
+     * Создать транзакцию
+     *
+     * @response 200 {"data":null,"message":"Транзакция создана"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 422 {"error":"The given data was invalid.","errors":{"category_id":["The category id field is required."]}}
      *
      * @return JsonResponse
      */
@@ -214,23 +227,27 @@ class TransactionsController extends BaseController
             $validatedData['category_id']
         );
 
-        $transactionId = $this->itemsRepository->createItem([
-            'type' => $validatedData['type'],
-            'creator_id' => $userUuid,
-            'orig_amount' => $validatedData['orig_amount'],
-            'currency_id' => $validatedData['currency_id'],
-            'cash_id' => $validatedData['cash_id'],
-            'category_id' => $categoryId,
-            'project_id' => $validatedData['project_id'] ?? null,
-            'client_id' => $clientId,
-            'client_balance_id' => $validatedData['client_balance_id'] ?? null,
-            'source_type' => $sourceType,
-            'source_id' => $sourceId,
-            'note' => $validatedData['note'] ?? null,
-            'date' => $validatedData['date'] ?? now(),
-            'is_debt' => $validatedData['is_debt'] ?? false,
-            'exchange_rate' => $validatedData['exchange_rate'] ?? null,
-        ], true);
+        try {
+            $transactionId = $this->itemsRepository->createItem([
+                'type' => $validatedData['type'],
+                'creator_id' => $userUuid,
+                'orig_amount' => $validatedData['orig_amount'],
+                'currency_id' => $validatedData['currency_id'],
+                'cash_id' => $validatedData['cash_id'],
+                'category_id' => $categoryId,
+                'project_id' => $validatedData['project_id'] ?? null,
+                'client_id' => $clientId,
+                'client_balance_id' => $validatedData['client_balance_id'] ?? null,
+                'source_type' => $sourceType,
+                'source_id' => $sourceId,
+                'note' => $validatedData['note'] ?? null,
+                'date' => $validatedData['date'] ?? now(),
+                'is_debt' => $validatedData['is_debt'] ?? false,
+                'exchange_rate' => $validatedData['exchange_rate'] ?? null,
+            ], true);
+        } catch (\RuntimeException $e) {
+            return $this->errorResponse($e->getMessage(), 422);
+        }
 
         if (! $transactionId) {
             return $this->errorResponse('Ошибка создания транзакции', 400);
@@ -252,9 +269,9 @@ class TransactionsController extends BaseController
                     $companyId,
                     'transactions_new',
                     $this->getAuthenticatedUserIdOrFail(),
-                    'Новая транзакция #'.$transactionId,
+                    'Новая транзакция #' . $transactionId,
                     null,
-                    ['route' => '/transactions/'.$transactionId, 'transaction_id' => $transactionId]
+                    ['route' => '/transactions/' . $transactionId, 'transaction_id' => $transactionId]
                 );
             }
         }
@@ -263,9 +280,14 @@ class TransactionsController extends BaseController
     }
 
     /**
-     * Обновить транзакцию
+     * Изменить транзакцию
      *
      * @param  int  $id  ID транзакции
+     * @response 200 {"data":null,"message":"Транзакция обновлена"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Not found"}
+     * @response 422 {"error":"The given data was invalid.","errors":{"category_id":["The category id field is required."]}}
+     *
      * @return JsonResponse
      */
     public function update(UpdateTransactionRequest $request, $id)
@@ -349,7 +371,11 @@ class TransactionsController extends BaseController
             $updateData['source_id'] = $updateSourceId;
         }
 
-        $category_updated = $this->itemsRepository->updateItem($id, $updateData);
+        try {
+            $category_updated = $this->itemsRepository->updateItem($id, $updateData);
+        } catch (\RuntimeException $e) {
+            return $this->errorResponse($e->getMessage(), 422);
+        }
 
         if (! $category_updated) {
             return $this->errorResponse('Ошибка обновления транзакции', 400);
@@ -371,6 +397,10 @@ class TransactionsController extends BaseController
      * Удалить транзакцию
      *
      * @param  int  $id  ID транзакции
+     * @response 200 {"data":null,"message":"Транзакция удалена"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Not found"}
+     *
      * @return JsonResponse
      */
     public function destroy($id)
@@ -416,9 +446,13 @@ class TransactionsController extends BaseController
     }
 
     /**
-     * Получить транзакцию по ID
+     * Транзакция по ID
      *
      * @param  int  $id  ID транзакции
+     * @response 200 {"data":{"id":1}}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Not found"}
+     *
      * @return JsonResponse
      */
     public function show($id)

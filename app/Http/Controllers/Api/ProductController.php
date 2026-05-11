@@ -25,6 +25,10 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Контроллер для работы с товарами и услугами
  */
+/**
+ * @group Каталог
+ * @subgroup Товары и услуги
+ */
 class ProductController extends BaseController
 {
     protected $itemsRepository;
@@ -38,7 +42,7 @@ class ProductController extends BaseController
     }
 
     /**
-     * Получить список товаров с пагинацией
+     * Список товаров
      *
      * @return JsonResponse
      */
@@ -51,9 +55,10 @@ class ProductController extends BaseController
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
         $categoryId = $this->normalizeCategoryIdForSimpleUser($request->query('category_id'));
+        $categoryIds = $this->normalizeCategoryIdsForSimpleUser($request->query('category_ids'));
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
 
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, true, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, true, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy, $categoryIds);
 
         return $this->successResponse([
             'items' => ProductResource::collection($items->items())->resolve(),
@@ -80,11 +85,12 @@ class ProductController extends BaseController
         $productsOnly = $request->query('products_only');
         $warehouseId = $request->query('warehouse_id');
         $categoryId = $this->normalizeCategoryIdForSimpleUser($request->query('category_id'));
+        $categoryIds = $this->normalizeCategoryIdsForSimpleUser($request->query('category_ids'));
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(100, max(1, (int) $request->query('per_page', 20)));
 
-        $result = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage);
+        $result = $this->itemsRepository->searchItems($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage, $categoryIds);
 
         return $this->successResponse([
             'items' => ProductResource::collection($result['items'])->resolve(),
@@ -116,7 +122,7 @@ class ProductController extends BaseController
     }
 
     /**
-     * Получить список услуг с пагинацией
+     * Список услуг
      *
      * @return JsonResponse
      */
@@ -129,9 +135,10 @@ class ProductController extends BaseController
         $warehouseId = $request->query('warehouse_id');
         $search = $request->query('search');
         $categoryId = $this->normalizeCategoryIdForSimpleUser($request->query('category_id'));
+        $categoryIds = $this->normalizeCategoryIdsForSimpleUser($request->query('category_ids'));
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
 
-        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, false, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy);
+        $items = $this->itemsRepository->getItemsWithPagination($userUuid, $per_page, false, $page, $warehouseId, $search, $categoryId, $warehouseStockPolicy, $categoryIds);
 
         return $this->successResponse([
             'items' => ProductResource::collection($items->items())->resolve(),
@@ -146,7 +153,7 @@ class ProductController extends BaseController
     }
 
     /**
-     * Создать новый товар/услугу
+     * Создать товар/услугу
      *
      * @return JsonResponse
      */
@@ -217,9 +224,8 @@ class ProductController extends BaseController
     }
 
     /**
-     * Получить историю операций по товару
-     *
-     * @param  int  $id  ID товара
+     * @param  Request  $request  filter=all|income|expense
+     * @param  int|string  $id
      * @return JsonResponse
      */
     public function history(Request $request, $id)
@@ -232,7 +238,7 @@ class ProductController extends BaseController
         $filter = $request->query('filter', 'all');
         $history = collect();
 
-        if (in_array($filter, ['all', 'income'])) {
+        if (in_array($filter, ['all', 'income'], true)) {
             foreach (WhReceiptProduct::where('product_id', $id)->with(['receipt.creator'])->get() as $rp) {
                 $r = $rp->receipt;
                 if (! $r) {
@@ -240,9 +246,10 @@ class ProductController extends BaseController
                 }
                 $u = $r->creator ?? null;
                 $history->push([
-                    'source_label' => 'Оприходование',
+                    'source_label' => (string) __('product_history.receipt_direct_stock'),
                     'source_type' => WhReceipt::class,
                     'source_id' => (int) $r->id,
+                    'receipt_id' => null,
                     'quantity' => (float) $rp->quantity,
                     'unit_short_name' => $unitShortName,
                     'date' => $r->date,
@@ -262,7 +269,7 @@ class ProductController extends BaseController
                 }
                 $u = $w->creator ?? null;
                 $history->push([
-                    'source_label' => 'Списание',
+                    'source_label' => (string) __('product_history.writeoff_with_reason', ['reason' => $this->writeoffReasonLabel($w->reason)]),
                     'source_type' => WhWriteoff::class,
                     'source_id' => (int) $w->id,
                     'quantity' => -(float) $wp->quantity,
@@ -333,6 +340,19 @@ class ProductController extends BaseController
         ]);
     }
 
+    private function writeoffReasonLabel($reason): string
+    {
+        $reasonValue = $reason instanceof \BackedEnum ? (string) $reason->value : (string) $reason;
+
+        return match ($reasonValue) {
+            'defect' => (string) __('product_history.writeoff_reason_defect'),
+            'shortage' => (string) __('product_history.writeoff_reason_shortage'),
+            'consumable' => (string) __('product_history.writeoff_reason_consumable'),
+            'return_supplier' => (string) __('product_history.writeoff_reason_return_supplier'),
+            default => (string) __('product_history.writeoff_reason_other'),
+        };
+    }
+
     protected function normalizeCategoryIdForSimpleUser($categoryId)
     {
         $user = auth('api')->user();
@@ -348,6 +368,40 @@ class ProductController extends BaseController
         $cid = (int) $categoryId;
 
         return in_array($cid, Category::descendantIdsIncludingRoot($rootId), true) ? $cid : null;
+    }
+
+    /**
+     * @param  mixed  $categoryIds
+     * @return int[]
+     */
+    protected function normalizeCategoryIdsForSimpleUser($categoryIds): array
+    {
+        if ($categoryIds === null || $categoryIds === '') {
+            return [];
+        }
+
+        if (is_string($categoryIds)) {
+            $categoryIds = array_filter(array_map('trim', explode(',', $categoryIds)));
+        }
+
+        $normalized = array_values(array_unique(array_filter(array_map('intval', (array) $categoryIds))));
+
+        if (empty($normalized)) {
+            return [];
+        }
+
+        $user = auth('api')->user();
+        if (! SimpleUser::matches($user)) {
+            return $normalized;
+        }
+
+        $rootId = SimpleUser::rootCategoryIdForCurrentCompany($user);
+        if ($rootId === null) {
+            return [];
+        }
+
+        $allowed = Category::descendantIdsIncludingRoot($rootId);
+        return array_values(array_intersect($normalized, $allowed));
     }
 
     /**

@@ -11,6 +11,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с записями отпусков
  */
+/**
+ * @group Кадры
+ * @subgroup Отпуска
+ */
 class LeaveController extends BaseController
 {
     protected $itemsRepository;
@@ -26,7 +30,7 @@ class LeaveController extends BaseController
     }
 
     /**
-     * Получить список записей отпусков с пагинацией
+     * Список отпусков
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -88,7 +92,7 @@ class LeaveController extends BaseController
     }
 
     /**
-     * Создать новую запись отпуска
+     * Создать запись отпуска
      *
      * @return \Illuminate\Http\JsonResponse
      */

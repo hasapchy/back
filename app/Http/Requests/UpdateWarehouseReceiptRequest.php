@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Enums\WhReceiptStatus;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class UpdateWarehouseReceiptRequest extends FormRequest
@@ -21,13 +23,14 @@ class UpdateWarehouseReceiptRequest extends FormRequest
     /**
      * Получить правила валидации
      *
-     * @return array<string, \Illuminate\Contracts\Validation\Rule|array|string>
+     * @return array<string, mixed>
      */
     public function rules(): array
     {
         return [
             'date' => 'nullable|date',
             'note' => 'nullable|string',
+            'status' => ['sometimes', 'nullable', 'string', Rule::in(WhReceiptStatus::values())],
         ];
     }
 

@@ -53,13 +53,14 @@ class WarehouseWriteoffControllerTest extends TestCase
             ->postJson('/api/warehouse_writeoffs', []);
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['warehouse_id', 'products']);
+        $response->assertJsonValidationErrors(['warehouse_id', 'reason', 'products']);
     }
 
     public function test_store_warehouse_writeoff_success(): void
     {
         $data = [
             'warehouse_id' => $this->warehouse->id,
+            'reason' => 'defect',
             'note' => 'Test writeoff',
             'products' => [
                 [
@@ -84,6 +85,7 @@ class WarehouseWriteoffControllerTest extends TestCase
 
         $data = [
             'warehouse_id' => $this->warehouse->id,
+            'reason' => 'consumable',
             'note' => 'Updated writeoff',
             'products' => [
                 [

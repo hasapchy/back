@@ -8,10 +8,12 @@ use App\Http\Resources\WarehouseResource;
 use App\Models\Warehouse;
 use App\Repositories\WarehouseRepository;
 use Illuminate\Http\Request;
-use App\Services\CacheService;
 
 /**
  * Контроллер для работы со складами
+ *
+ * @group Склады
+ * @subgroup Склады
  */
 class WarehouseController extends BaseController
 {
@@ -28,9 +30,12 @@ class WarehouseController extends BaseController
     }
 
     /**
-     * Получить список складов с пагинацией
+     * Список складов
      *
      * @param Request $request
+     * @response 200 {"data":{"items":[],"meta":{"current_page":1,"next_page":null,"last_page":1,"per_page":20,"total":0}}}
+     * @response 401 {"error":"Unauthenticated."}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
@@ -56,7 +61,7 @@ class WarehouseController extends BaseController
     }
 
     /**
-     * Получить все склады
+     * Все склады
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -73,9 +78,13 @@ class WarehouseController extends BaseController
     }
 
     /**
-     * Создать новый склад
+     * Создать склад
      *
      * @param Request $request
+     * @response 200 {"data":{"id":1},"message":"Склад создан"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 422 {"error":"The given data was invalid.","errors":{"name":["The name field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreWarehouseRequest $request)
@@ -94,10 +103,15 @@ class WarehouseController extends BaseController
     }
 
     /**
-     * Обновить склад
+     * Изменить склад
      *
      * @param Request $request
      * @param int $id ID склада
+     * @response 200 {"data":{"id":1},"message":"Склад обновлен"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Not found"}
+     * @response 422 {"error":"The given data was invalid.","errors":{"name":["The name field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateWarehouseRequest $request, $id)
@@ -121,6 +135,10 @@ class WarehouseController extends BaseController
      * Удалить склад
      *
      * @param int $id ID склада
+     * @response 200 {"data":null,"message":"Склад удален"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Not found"}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
