@@ -10,6 +10,10 @@ use App\Repositories\RecSchedulesRepository;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 
+/**
+ * @group Финансы
+ * @subgroup Регулярные транзакции
+ */
 class RecurringTransactionsController extends BaseController
 {
     public function __construct(
@@ -18,7 +22,12 @@ class RecurringTransactionsController extends BaseController
     }
 
     /**
+     * Список расписаний
+     *
      * @param Request $request
+     * @response 200 {"data":{"items":[],"meta":{"current_page":1,"last_page":1,"per_page":20,"total":0}}}
+     * @response 401 {"error":"Unauthenticated."}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
@@ -52,7 +61,13 @@ class RecurringTransactionsController extends BaseController
     }
 
     /**
+     * Расписание по ID
+     *
      * @param int $id
+     * @response 200 {"data":{"id":1}}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Расписание не найдено"}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function show(int $id)
@@ -70,7 +85,13 @@ class RecurringTransactionsController extends BaseController
     }
 
     /**
+     * Создать расписание
+     *
      * @param StoreRecurringTransactionRequest $request
+     * @response 200 {"data":{"id":1},"message":"Расписание создано"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 422 {"error":"The given data was invalid.","errors":{"template_id":["The template id field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreRecurringTransactionRequest $request)
@@ -90,8 +111,15 @@ class RecurringTransactionsController extends BaseController
     }
 
     /**
+     * Изменить расписание
+     *
      * @param UpdateRecurringTransactionRequest $request
      * @param int $id
+     * @response 200 {"data":{"id":1},"message":"Расписание обновлено"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Расписание не найдено"}
+     * @response 422 {"error":"The given data was invalid.","errors":{"template_id":["The template id field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateRecurringTransactionRequest $request, int $id)
@@ -114,7 +142,13 @@ class RecurringTransactionsController extends BaseController
     }
 
     /**
+     * Удалить расписание
+     *
      * @param int $id
+     * @response 200 {"data":null,"message":"Расписание удалено"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Расписание не найдено"}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy(int $id)

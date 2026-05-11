@@ -13,8 +13,6 @@ use App\Models\SalesProduct;
 use App\Models\WarehouseStock;
 use App\Models\WhReceipt;
 use App\Models\WhReceiptProduct;
-use App\Models\WhWaybill;
-use App\Models\WhWaybillProduct;
 use App\Models\WhWriteoff;
 use App\Models\Category;
 use App\Models\WhWriteoffProduct;
@@ -26,6 +24,10 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Контроллер для работы с товарами и услугами
+ */
+/**
+ * @group Каталог
+ * @subgroup Товары и услуги
  */
 class ProductController extends BaseController
 {
@@ -40,7 +42,7 @@ class ProductController extends BaseController
     }
 
     /**
-     * Получить список товаров с пагинацией
+     * Список товаров
      *
      * @return JsonResponse
      */
@@ -120,7 +122,7 @@ class ProductController extends BaseController
     }
 
     /**
-     * Получить список услуг с пагинацией
+     * Список услуг
      *
      * @return JsonResponse
      */
@@ -151,7 +153,7 @@ class ProductController extends BaseController
     }
 
     /**
-     * Создать новый товар/услугу
+     * Создать товар/услугу
      *
      * @return JsonResponse
      */
@@ -237,34 +239,9 @@ class ProductController extends BaseController
         $history = collect();
 
         if (in_array($filter, ['all', 'income'], true)) {
-            foreach (WhWaybillProduct::query()
-                ->where('product_id', $id)
-                ->with(['waybill.creator', 'waybill.receipt'])
-                ->get() as $wbp) {
-                $waybill = $wbp->waybill;
-                if (! $waybill) {
-                    continue;
-                }
-                $receipt = $waybill->receipt;
-                $u = $waybill->creator ?? null;
-                $history->push([
-                    'source_label' => (string) __('product_history.waybill_receipt'),
-                    'source_type' => WhWaybill::class,
-                    'source_id' => (int) $waybill->id,
-                    'receipt_id' => $receipt ? (int) $receipt->id : null,
-                    'quantity' => (float) $wbp->quantity,
-                    'unit_short_name' => $unitShortName,
-                    'date' => $waybill->date,
-                    'creator' => $u ? [
-                        'id' => (int) $u->id,
-                        'name' => trim($u->name.' '.($u->surname ?? '')),
-                    ] : null,
-                ]);
-            }
-
             foreach (WhReceiptProduct::where('product_id', $id)->with(['receipt.creator'])->get() as $rp) {
                 $r = $rp->receipt;
-                if (! $r || ! $r->is_legacy) {
+                if (! $r) {
                     continue;
                 }
                 $u = $r->creator ?? null;
@@ -292,7 +269,7 @@ class ProductController extends BaseController
                 }
                 $u = $w->creator ?? null;
                 $history->push([
-                    'source_label' => 'Списание',
+                    'source_label' => (string) __('product_history.writeoff_with_reason', ['reason' => $this->writeoffReasonLabel($w->reason)]),
                     'source_type' => WhWriteoff::class,
                     'source_id' => (int) $w->id,
                     'quantity' => -(float) $wp->quantity,
@@ -361,6 +338,19 @@ class ProductController extends BaseController
             'items' => $history,
             'warehouse_stocks' => $warehouseStocks,
         ]);
+    }
+
+    private function writeoffReasonLabel($reason): string
+    {
+        $reasonValue = $reason instanceof \BackedEnum ? (string) $reason->value : (string) $reason;
+
+        return match ($reasonValue) {
+            'defect' => (string) __('product_history.writeoff_reason_defect'),
+            'shortage' => (string) __('product_history.writeoff_reason_shortage'),
+            'consumable' => (string) __('product_history.writeoff_reason_consumable'),
+            'return_supplier' => (string) __('product_history.writeoff_reason_return_supplier'),
+            default => (string) __('product_history.writeoff_reason_other'),
+        };
     }
 
     protected function normalizeCategoryIdForSimpleUser($categoryId)

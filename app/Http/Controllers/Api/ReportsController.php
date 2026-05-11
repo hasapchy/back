@@ -9,6 +9,10 @@ use Illuminate\Http\JsonResponse;
 /**
  * Контроллер отчётов (по компании, с фильтром по дате и выбором валюты).
  */
+/**
+ * @group Финансы
+ * @subgroup Отчеты
+ */
 class ReportsController extends BaseController
 {
     public function __construct(

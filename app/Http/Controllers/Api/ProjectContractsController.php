@@ -16,6 +16,10 @@ use Illuminate\Validation\ValidationException;
 /**
  * Контроллер для управления контрактами проектов
  */
+/**
+ * @group Контракты
+ * @subgroup Проекты
+ */
 class ProjectContractsController extends BaseController
 {
     /**
@@ -29,7 +33,7 @@ class ProjectContractsController extends BaseController
     }
 
     /**
-     * Получение контрактов проекта с пагинацией
+     * Список контрактов 1 проекта
      *
      * @param  int  $projectId  ID проекта
      */
@@ -62,7 +66,7 @@ class ProjectContractsController extends BaseController
     }
 
     /**
-     * Получение всех контрактов проекта
+     * Список всех контрактов проекта
      *
      * @param  int  $projectId  ID проекта
      */
@@ -83,7 +87,7 @@ class ProjectContractsController extends BaseController
     }
 
     /**
-     * Получение всех контрактов с пагинацией (без фильтра по проекту)
+     * Список контрактов
      */
     public function getAllContracts(Request $request): JsonResponse
     {
@@ -161,7 +165,7 @@ class ProjectContractsController extends BaseController
     }
 
     /**
-     * Получение контракта по ID
+     * Контракт по ID
      *
      * @param  int  $id  ID контракта
      */
@@ -184,6 +188,11 @@ class ProjectContractsController extends BaseController
         }
     }
 
+    /**
+     * Обновить контракт
+     *
+     * @param  int  $id  ID контракта
+     */
     public function patch(PatchProjectContractRequest $request, $id): JsonResponse
     {
         try {
@@ -192,6 +201,13 @@ class ProjectContractsController extends BaseController
             $this->authorize('update', $contract);
 
             $validatedData = $request->validated();
+            if (array_key_exists('project_id', $validatedData)) {
+                $targetProject = Project::find($validatedData['project_id']);
+                if (! $targetProject) {
+                    return $this->errorResponse('Проект не найден', 404);
+                }
+                $this->authorize('update', $targetProject);
+            }
 
             $contract = $this->repository->updateContract($id, $validatedData);
 
@@ -211,7 +227,7 @@ class ProjectContractsController extends BaseController
     }
 
     /**
-     * Удаление контракта
+     * Удалить контракт
      *
      * @param  int  $id  ID контракта
      */

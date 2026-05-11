@@ -14,8 +14,6 @@ use App\Models\Warehouse;
 use App\Models\WhReceipt;
 use App\Models\WhReceiptExpenseAllocation;
 use App\Models\WhReceiptProduct;
-use App\Models\WhWaybill;
-use App\Models\WhWaybillProduct;
 use App\Services\ReceiptExpenseAllocationService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Schema;
@@ -84,7 +82,6 @@ class ReceiptExpenseAllocationTest extends TestCase
             'supplier_id' => $this->client->id,
             'creator_id' => $this->adminUser->id,
             'cash_id' => $this->cashRegister->id,
-            'is_legacy' => true,
         ]);
         WhReceiptProduct::query()->create([
             'receipt_id' => $receipt->id,
@@ -135,7 +132,6 @@ class ReceiptExpenseAllocationTest extends TestCase
             'supplier_id' => $this->client->id,
             'creator_id' => $this->adminUser->id,
             'cash_id' => $this->cashRegister->id,
-            'is_legacy' => true,
         ]);
         WhReceiptProduct::query()->create([
             'receipt_id' => $receipt->id,
@@ -163,60 +159,4 @@ class ReceiptExpenseAllocationTest extends TestCase
         $this->assertSame(0, WhReceiptExpenseAllocation::query()->where('transaction_id', $transaction->id)->count());
     }
 
-    public function test_allocates_by_waybill_value_when_receipt_line_has_zero_price(): void
-    {
-        if (! Schema::hasTable('wh_waybills')) {
-            $this->markTestSkipped('Таблицы накладных не применены.');
-        }
-        $receipt = WhReceipt::factory()->create([
-            'warehouse_id' => $this->warehouse->id,
-            'supplier_id' => $this->client->id,
-            'creator_id' => $this->adminUser->id,
-            'cash_id' => $this->cashRegister->id,
-            'is_legacy' => false,
-        ]);
-        $rp = WhReceiptProduct::query()->create([
-            'receipt_id' => $receipt->id,
-            'product_id' => $this->productA->id,
-            'quantity' => 100,
-            'price' => 0,
-        ]);
-        $waybill = WhWaybill::query()->create([
-            'receipt_id' => $receipt->id,
-            'date' => now(),
-            'number' => 'WB-1',
-            'note' => null,
-            'creator_id' => $this->adminUser->id,
-        ]);
-        WhWaybillProduct::query()->create([
-            'waybill_id' => $waybill->id,
-            'product_id' => $this->productA->id,
-            'quantity' => '100',
-            'price' => '10',
-        ]);
-
-        $transaction = Transaction::factory()->create([
-            'type' => 0,
-            'is_debt' => false,
-            'category_id' => $this->expenseCategory->id,
-            'def_amount' => 50,
-            'orig_amount' => 50,
-            'amount' => 50,
-            'currency_id' => $this->defaultCurrency->id,
-            'cash_id' => $this->cashRegister->id,
-            'source_type' => WhReceipt::class,
-            'source_id' => $receipt->id,
-            'is_deleted' => false,
-        ]);
-
-        app(ReceiptExpenseAllocationService::class)->syncForTransaction($transaction);
-
-        $row = WhReceiptExpenseAllocation::query()->where('transaction_id', $transaction->id)->first();
-        $this->assertNotNull($row);
-        $this->assertSame((int) $rp->id, (int) $row->wh_receipt_product_id);
-        $this->assertEqualsWithDelta(50.0, (float) $row->amount_default, 0.02);
-
-        $summary = app(ReceiptExpenseAllocationService::class)->buildLandedCostSummary($receipt->fresh(['products', 'waybills.lines', 'warehouse', 'expenseAllocations', 'cashRegister.currency']));
-        $this->assertEqualsWithDelta(1000.0, (float) $summary['goods_subtotal_default'], 0.05);
-    }
 }

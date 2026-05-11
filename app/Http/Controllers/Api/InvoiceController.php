@@ -12,6 +12,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы со счетами
  */
+/**
+ * @group Финансы
+ * @subgroup Счета
+ */
 class InvoiceController extends BaseController
 {
     protected $itemsRepository;
@@ -27,7 +31,7 @@ class InvoiceController extends BaseController
     }
 
     /**
-     * Получить список счетов с пагинацией
+     * Список счетов
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -60,7 +64,7 @@ class InvoiceController extends BaseController
     }
 
     /**
-     * Создать новый счет
+     * Создать счет
      *
      * @param StoreInvoiceRequest $request
      * @return \Illuminate\Http\JsonResponse

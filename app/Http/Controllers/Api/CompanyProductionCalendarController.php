@@ -6,8 +6,15 @@ use App\Models\CompanyProductionCalendarDay;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * @group Кадры
+ * @subgroup Производственный календарь
+ */
 class CompanyProductionCalendarController extends BaseController
 {
+    /**
+     * Список производственного календаря
+     */
     public function all(Request $request): JsonResponse
     {
         return $this->withCurrentCompany(function (int $companyId) use ($request) {
@@ -42,6 +49,9 @@ class CompanyProductionCalendarController extends BaseController
         });
     }
 
+    /**
+     * Добавить дни в производственный календарь
+     */
     public function store(Request $request): JsonResponse
     {
         return $this->withCurrentCompany(function (int $companyId) use ($request) {
@@ -68,6 +78,9 @@ class CompanyProductionCalendarController extends BaseController
         });
     }
 
+    /**
+     * Удалить день из производственного календаря
+     */
     public function destroy(int $id): JsonResponse
     {
         return $this->withCurrentCompany(function (int $companyId) use ($id) {

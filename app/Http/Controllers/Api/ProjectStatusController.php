@@ -13,6 +13,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы со статусами проектов
  */
+/**
+ * @group Проекты
+ * @subgroup Статусы
+ */
 class ProjectStatusController extends BaseController
 {
     protected $itemsRepository;
@@ -26,7 +30,7 @@ class ProjectStatusController extends BaseController
     }
 
     /**
-     * Получить список статусов проектов с пагинацией
+     * Список статусов проектов
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -66,7 +70,9 @@ class ProjectStatusController extends BaseController
     }
 
     /**
-     * Создать новый статус проекта
+     * Создать статус проекта
+     *
+     * @subgroup Управление статусами
      *
      * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
@@ -94,6 +100,8 @@ class ProjectStatusController extends BaseController
     /**
      * Обновить статус проекта
      *
+     * @subgroup Управление статусами
+     *
      * @param  Request  $request
      * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse
@@ -119,6 +127,8 @@ class ProjectStatusController extends BaseController
 
     /**
      * Удалить статус проекта
+     *
+     * @subgroup Управление статусами
      *
      * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse

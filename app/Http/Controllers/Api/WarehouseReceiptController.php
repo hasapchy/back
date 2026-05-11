@@ -12,6 +12,9 @@ use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы с оприходованиями на склад
+ *
+ * @group Склады
+ * @subgroup Приходы
  */
 class WarehouseReceiptController extends BaseController
 {
@@ -21,7 +24,10 @@ class WarehouseReceiptController extends BaseController
     }
 
     /**
-     * Получить список оприходований с пагинацией
+     * Список оприходований
+     *
+     * @response 200 {"data":{"items":[],"meta":{"current_page":1,"next_page":null,"last_page":1,"per_page":20,"total":0}}}
+     * @response 401 {"error":"Unauthenticated."}
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -29,8 +35,6 @@ class WarehouseReceiptController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
 
-        $postingType = $request->input('posting_type');
-        $postingType = in_array($postingType, ['quick', 'standard'], true) ? $postingType : null;
         $status = WhReceiptStatus::tryFrom((string) ($request->input('status') ?? ''))?->value;
         $dateFilter = $request->input('date_filter_type', 'all_time');
         $startDate = $request->input('start_date');
@@ -42,7 +46,6 @@ class WarehouseReceiptController extends BaseController
             (int) $request->input('page', 1),
             NullableInt::positiveOrNull($request->input('client_id')),
             $status,
-            $postingType,
             NullableInt::positiveOrNull($request->input('warehouse_id')),
             NullableInt::positiveOrNull($request->input('product_id')),
             is_string($dateFilter) && $dateFilter !== '' ? $dateFilter : 'all_time',
@@ -63,9 +66,13 @@ class WarehouseReceiptController extends BaseController
     }
 
     /**
-     * Получить оприходование по ID
+     * Оприходование по ID
      *
      * @param  int  $id  ID оприходования
+     * @response 200 {"data":{"id":1}}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Оприходование не найдено"}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function show($id)
@@ -80,9 +87,13 @@ class WarehouseReceiptController extends BaseController
     }
 
     /**
-     * Создать оприходование на склад
+     * Создать оприходование
      *
      * @param  Request  $request
+     * @response 200 {"data":{"id":1},"message":"Оприходование создано"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 422 {"error":"The given data was invalid.","errors":{"warehouse_id":["The warehouse id field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreWarehouseReceiptRequest $request)
@@ -104,13 +115,11 @@ class WarehouseReceiptController extends BaseController
             'client_id' => $validatedData['client_id'],
             'client_balance_id' => NullableInt::fromRequest($validatedData['client_balance_id'] ?? null),
             'warehouse_id' => $validatedData['warehouse_id'],
+            'purchase_id' => isset($validatedData['purchase_id']) ? (int) $validatedData['purchase_id'] : null,
             'cash_id' => $validatedData['cash_id'] ?? null,
             'creator_id' => $userUuid,
             'date' => $validatedData['date'] ?? now(),
             'note' => $validatedData['note'] ?? '',
-            'project_id' => $validatedData['project_id'] ?? null,
-            'is_legacy' => (bool) ($validatedData['is_legacy'] ?? false),
-            'is_simple' => (bool) ($validatedData['is_simple'] ?? false),
             'status' => $validatedData['status'] ?? null,
             'products' => array_map(function ($product) {
                 return [
@@ -131,10 +140,15 @@ class WarehouseReceiptController extends BaseController
     }
 
     /**
-     * Обновить оприходование на склад
+     * Изменить оприходование
      *
      * @param  Request  $request
      * @param  int  $id  ID оприходования
+     * @response 200 {"data":null,"message":"Оприходование обновлено"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Оприходование не найдено"}
+     * @response 422 {"error":"The given data was invalid.","errors":{"status":["The selected status is invalid."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateWarehouseReceiptRequest $request, $id)
@@ -176,7 +190,6 @@ class WarehouseReceiptController extends BaseController
             'date' => $validatedData['date'] ?? $receipt->date,
             'note' => $validatedData['note'] ?? $receipt->note,
             'products' => $receipt->products,
-            'project_id' => $receipt->project_id,
             'status' => array_key_exists('status', $validatedData) ? $validatedData['status'] : null,
         ];
 
@@ -193,9 +206,13 @@ class WarehouseReceiptController extends BaseController
     }
 
     /**
-     * Удалить оприходование со склада
+     * Удалить оприходование
      *
      * @param  int  $id  ID оприходования
+     * @response 200 {"data":null,"message":"Оприходование удалено"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Оприходование не найдено"}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)

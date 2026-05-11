@@ -14,6 +14,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с шаблонами сообщений
  */
+/**
+ * @group Контент
+ * @subgroup Шаблоны сообщений
+ */
 class MessageTemplateController extends BaseController
 {
     protected MessageTemplateRepository $repository;
@@ -24,7 +28,7 @@ class MessageTemplateController extends BaseController
     }
 
     /**
-     * Получить список шаблонов с пагинацией
+     * Список шаблонов
      *
      * @return JsonResponse
      */
@@ -137,7 +141,7 @@ class MessageTemplateController extends BaseController
     }
 
     /**
-     * Создать новый шаблон
+     * Создать шаблон
      *
      * @return JsonResponse
      */

@@ -26,7 +26,7 @@ class WhWriteoffFactory extends Factory
             'warehouse_id' => Warehouse::factory(),
             'reason' => WhWriteoffReason::Other,
             'creator_id' => User::factory(),
-            'note' => fake()->optional()->sentence(),
+            'note' => fake()->sentence(),
             'date' => now(),
         ];
     }

@@ -31,5 +31,8 @@ return [
         'leaves_new' => [
             'any_permissions' => ['leaves_view_all'],
         ],
+        'stock_low' => [
+            'all_company_members' => true,
+        ],
     ],
 ];

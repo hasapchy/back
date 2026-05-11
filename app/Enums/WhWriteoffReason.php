@@ -7,6 +7,7 @@ enum WhWriteoffReason: string
     case Defect = 'defect';
     case Shortage = 'shortage';
     case Consumable = 'consumable';
+    case ReturnSupplier = 'return_supplier';
     case Other = 'other';
 
     /**

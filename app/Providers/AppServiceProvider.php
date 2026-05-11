@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Batch\BatchOperationRegistrar;
 use App\Batch\BatchOperationRegistry;
+use App\Models\WarehouseStock;
+use App\Observers\WarehouseStockObserver;
 use App\Models\Sanctum\PersonalAccessToken;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
@@ -23,5 +25,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+        WarehouseStock::observe(WarehouseStockObserver::class);
     }
 }

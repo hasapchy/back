@@ -14,6 +14,10 @@ use App\Services\ClientBalanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * @group Клиенты
+ * @subgroup Балансы
+ */
 class ClientBalanceController extends BaseController
 {
     /**

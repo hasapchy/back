@@ -3,8 +3,10 @@
 namespace App\Repositories;
 
 use App\Models\Comment;
+use App\Models\TimelineReadState;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CommentsRepository extends BaseRepository
 {
@@ -54,32 +56,42 @@ class CommentsRepository extends BaseRepository
      */
     public function createItem(string $type, int $id, string $body, int $userId): array
     {
-        return DB::transaction(function () use ($type, $id, $body, $userId) {
-            $modelClass = $this->resolveType($type);
+        try {
+            return DB::transaction(function () use ($type, $id, $body, $userId) {
+                $modelClass = $this->resolveType($type);
 
-            $comment = Comment::create([
-                'body' => $body,
-                'creator_id' => $userId,
-                'commentable_type' => $modelClass,
-                'commentable_id' => $id,
-            ])->load(['creator:id,name,email']);
+                $comment = Comment::create([
+                    'body' => $body,
+                    'creator_id' => $userId,
+                    'commentable_type' => $modelClass,
+                    'commentable_id' => $id,
+                ])->load(['creator:id,name,email']);
 
-            $this->invalidateCommentsCache($type, $id);
+                $this->invalidateCommentsCache($type, $id);
 
-            return [
-                'id' => $comment->id,
-                'body' => $comment->body,
-                'commentable_type' => $comment->commentable_type,
-                'commentable_id' => $comment->commentable_id,
-                'created_at' => $comment->created_at,
-                'updated_at' => $comment->updated_at,
-                'creator_id' => $comment->creator_id,
-                'user' => [
-                    'id' => $comment->creator->id,
-                    'name' => $comment->creator->name,
-                ],
-            ];
-        });
+                return [
+                    'id' => $comment->id,
+                    'body' => $comment->body,
+                    'commentable_type' => $comment->commentable_type,
+                    'commentable_id' => $comment->commentable_id,
+                    'created_at' => $comment->created_at,
+                    'updated_at' => $comment->updated_at,
+                    'creator_id' => $comment->creator_id,
+                    'user' => [
+                        'id' => $comment->creator->id,
+                        'name' => $comment->creator->name,
+                    ],
+                ];
+            });
+        } catch (\Throwable $e) {
+            Log::error('comment.repository.create_item_failed', [
+                'type' => $type,
+                'entity_id' => $id,
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -223,6 +235,84 @@ class CommentsRepository extends BaseRepository
     {
         $companyId = $this->getCurrentCompanyId() ?? 'default';
         CacheService::invalidateByLike("%comments_{$type}_{$companyId}%");
+    }
+
+    /**
+     * Получить количество непрочитанных комментариев для списка сущностей
+     *
+     * @param string $type Тип сущности
+     * @param array<int> $entityIds ID сущностей
+     * @param int $userId ID текущего пользователя
+     * @param int $companyId ID компании
+     * @return array<int, int> Map: entityId => unreadCount
+     */
+    public function getUnreadCountsForEntities(string $type, array $entityIds, int $userId, int $companyId): array
+    {
+        $entityIds = array_values(array_unique(array_map('intval', $entityIds)));
+        if ($entityIds === []) {
+            return [];
+        }
+
+        $modelClass = $this->resolveType($type);
+
+        $counts = Comment::query()
+            ->from('comments as c')
+            ->leftJoin('timeline_read_states as trs', function ($join) use ($userId, $companyId, $modelClass) {
+                $join->on('trs.commentable_id', '=', 'c.commentable_id')
+                    ->where('trs.user_id', '=', $userId)
+                    ->where('trs.company_id', '=', $companyId)
+                    ->where('trs.commentable_type', '=', $modelClass);
+            })
+            ->where('c.commentable_type', $modelClass)
+            ->whereIn('c.commentable_id', $entityIds)
+            ->where('c.creator_id', '!=', $userId)
+            ->whereRaw('c.id > COALESCE(trs.last_read_comment_id, 0)')
+            ->groupBy('c.commentable_id')
+            ->selectRaw('c.commentable_id as entity_id, COUNT(c.id) as unread_count')
+            ->pluck('unread_count', 'entity_id')
+            ->map(fn ($value) => (int) $value)
+            ->toArray();
+
+        $result = [];
+        foreach ($entityIds as $entityId) {
+            $result[$entityId] = (int) ($counts[$entityId] ?? 0);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Пометить комментарии сущности как прочитанные
+     *
+     * @param string $type Тип сущности
+     * @param int $entityId ID сущности
+     * @param int $userId ID пользователя
+     * @param int $companyId ID компании
+     * @return int Идентификатор последнего прочитанного комментария
+     */
+    public function markEntityCommentsAsRead(string $type, int $entityId, int $userId, int $companyId): int
+    {
+        $modelClass = $this->resolveType($type);
+
+        $lastCommentId = (int) (Comment::query()
+            ->where('commentable_type', $modelClass)
+            ->where('commentable_id', $entityId)
+            ->max('id') ?? 0);
+
+        TimelineReadState::query()->updateOrCreate(
+            [
+                'user_id' => $userId,
+                'company_id' => $companyId,
+                'commentable_type' => $modelClass,
+                'commentable_id' => $entityId,
+            ],
+            [
+                'last_read_comment_id' => $lastCommentId > 0 ? $lastCommentId : null,
+                'last_read_at' => now(),
+            ]
+        );
+
+        return $lastCommentId;
     }
 
     /**

@@ -20,6 +20,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Контроллер для работы с заказами
+ *
+ * @group Заказы
  */
 class OrderController extends BaseController
 {
@@ -38,7 +40,10 @@ class OrderController extends BaseController
     }
 
     /**
-     * Получить список заказов с пагинацией
+     * Список заказов
+     *
+     * @response 200 {"data":{"items":[],"meta":{"current_page":1,"last_page":1,"per_page":20,"total":0}}}
+     * @response 401 {"error":"Unauthenticated."}
      *
      * @return JsonResponse
      */
@@ -170,9 +175,11 @@ class OrderController extends BaseController
     /**
      * Количество заказов на первой стадии (status_id = 1), доступных текущему пользователю.
      *
+     * @hideFromAPIDocumentation
+     *
      * @return JsonResponse
      */
-    public function firstStageCount()
+    public function stageOneCount()
     {
         $this->requireAuthenticatedUser();
 
@@ -182,7 +189,11 @@ class OrderController extends BaseController
     }
 
     /**
-     * Создать новый заказ
+     * Создать заказ
+     *
+     * @response 200 {"data":{"id":1},"message":"Заказ успешно создан"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 422 {"error":"The given data was invalid.","errors":{"client_id":["The client id field is required."]}}
      *
      * @return JsonResponse
      */
@@ -274,9 +285,14 @@ class OrderController extends BaseController
     }
 
     /**
-     * Обновить заказ
+     * Изменить заказ
      *
      * @param  int  $id  ID заказа
+     * @response 200 {"data":{"id":1},"message":"Заказ сохранён"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Заказ не найден"}
+     * @response 422 {"error":"The given data was invalid.","errors":{"client_id":["The client id field is required."]}}
+     *
      * @return JsonResponse
      */
     public function update(UpdateOrderRequest $request, $id)
@@ -368,6 +384,10 @@ class OrderController extends BaseController
      * Удалить заказ
      *
      * @param  int  $id  ID заказа
+     * @response 200 {"data":null,"message":"Заказ успешно удалён"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Заказ не найден"}
+     *
      * @return JsonResponse
      */
     public function destroy($id)
@@ -405,9 +425,13 @@ class OrderController extends BaseController
     }
 
     /**
-     * Получить заказ по ID
+     * Заказ по ID
      *
      * @param  int  $id  ID заказа
+     * @response 200 {"data":{"id":1}}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Not found"}
+     *
      * @return JsonResponse
      */
     public function show($id)

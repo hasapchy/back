@@ -11,6 +11,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы с перемещениями между кассами
  */
+/**
+ * @group Финансы
+ * @subgroup Перемещения денег
+ */
 class TransfersController extends BaseController
 {
     protected $itemsRepository;
@@ -24,7 +28,7 @@ class TransfersController extends BaseController
     }
 
     /**
-     * Получить список перемещений с пагинацией
+     * Список перемещений
      *
      * @return \Illuminate\Http\JsonResponse
      */

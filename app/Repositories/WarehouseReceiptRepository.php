@@ -9,9 +9,9 @@ use App\Models\ProductPrice;
 use App\Models\WarehouseStock;
 use App\Models\WhReceipt;
 use App\Models\WhReceiptProduct;
+use App\Models\WhPurchase;
+use App\Models\WhPurchaseProduct;
 use App\Models\WhUser;
-use App\Models\WhWaybill;
-use App\Models\WhWaybillProduct;
 use App\Services\CacheService;
 use App\Services\CurrencyConverter;
 use App\Services\InventoryLockService;
@@ -31,7 +31,6 @@ class WarehouseReceiptRepository extends BaseRepository
      * @param  int  $page  Номер страницы
      * @param  int|null  $clientId  Фильтр по поставщику
      * @param  string|null  $status  Фильтр по статусу закупки (значение WhReceiptStatus)
-     * @param  string|null  $postingType  quick — упрощённое, standard — стандартное
      * @param  int|null  $warehouseId  Фильтр по складу
      * @param  int|null  $productId  Фильтр по товару в строках прихода
      * @param  string  $dateFilter  Период: all_time, today, custom и т.д.
@@ -45,7 +44,6 @@ class WarehouseReceiptRepository extends BaseRepository
         int $page = 1,
         ?int $clientId = null,
         ?string $status = null,
-        ?string $postingType = null,
         ?int $warehouseId = null,
         ?int $productId = null,
         string $dateFilter = 'all_time',
@@ -60,7 +58,6 @@ class WarehouseReceiptRepository extends BaseRepository
             $perPage,
             $clientId,
             $status,
-            $postingType,
             $warehouseId,
             $productId,
             $dateFilter,
@@ -70,7 +67,7 @@ class WarehouseReceiptRepository extends BaseRepository
             $companyId,
         ]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $clientId, $status, $postingType, $warehouseId, $productId, $dateFilter, $startDate, $endDate) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $clientId, $status, $warehouseId, $productId, $dateFilter, $startDate, $endDate) {
             $query = $this->buildBaseQuery($userUuid);
             if ($clientId) {
                 $query->where('wh_receipts.supplier_id', $clientId);
@@ -78,11 +75,6 @@ class WarehouseReceiptRepository extends BaseRepository
             $statusEnum = $status ? WhReceiptStatus::tryFrom($status) : null;
             if ($statusEnum !== null) {
                 $query->where('wh_receipts.status', $statusEnum);
-            }
-            if ($postingType === 'quick') {
-                $query->where('wh_receipts.is_simple', true);
-            } elseif ($postingType === 'standard') {
-                $query->where('wh_receipts.is_simple', false);
             }
             if ($warehouseId) {
                 $query->where('wh_receipts.warehouse_id', $warehouseId);
@@ -129,15 +121,13 @@ class WarehouseReceiptRepository extends BaseRepository
             'wh_receipts.id',
             'wh_receipts.warehouse_id',
             'wh_receipts.supplier_id',
+            'wh_receipts.purchase_id',
             'wh_receipts.client_balance_id',
             'wh_receipts.amount',
             'wh_receipts.cash_id',
-            'wh_receipts.project_id',
             'wh_receipts.note',
             'wh_receipts.creator_id',
             'wh_receipts.date',
-            'wh_receipts.is_legacy',
-            'wh_receipts.is_simple',
             'wh_receipts.status',
             'wh_receipts.created_at',
             'wh_receipts.updated_at',
@@ -150,19 +140,14 @@ class WarehouseReceiptRepository extends BaseRepository
                 'cashRegister:id,name,currency_id,is_cash',
                 'cashRegister.currency:id,name,symbol',
                 'creator:id,name',
-                'project:id,name',
                 'supplier:id,first_name,last_name,status,balance',
                 'supplier.phones:id,client_id,phone',
                 'supplier.emails:id,client_id,email',
+                'purchase:id,supplier_id,status,amount',
                 'clientBalance:id,client_id,currency_id,type',
                 'products:id,receipt_id,product_id,quantity,price',
                 'products.product:id,name,image,unit_id',
                 'products.product.unit:id,name,short_name',
-                'waybills:id,receipt_id,date,number,note,creator_id',
-                'waybills.lines:id,waybill_id,product_id,quantity,price',
-                'waybills.lines.product:id,name,image,unit_id',
-                'waybills.lines.product.unit:id,name,short_name',
-                'waybills.creator:id,name',
             ]);
 
         if ($this->shouldApplyUserFilter('warehouses')) {
@@ -195,12 +180,11 @@ class WarehouseReceiptRepository extends BaseRepository
         $client_id = $data['client_id'];
         $warehouse_id = $data['warehouse_id'];
         $cash_id = $this->normalizeOptionalPositiveIntId($data['cash_id'] ?? null);
+        $purchase_id = $this->normalizeOptionalPositiveIntId($data['purchase_id'] ?? null);
         $date = $data['date'] ?? now();
         $note = $data['note'] ?? null;
         $products = $data['products'];
         $client_balance_id = $data['client_balance_id'] ?? null;
-        $is_legacy = (bool) ($data['is_legacy'] ?? false);
-        $is_simple = (bool) ($data['is_simple'] ?? false);
         $status = $this->resolveReceiptStatusFromInput($data['status'] ?? null);
 
         if ($status === WhReceiptStatus::Completed) {
@@ -209,8 +193,7 @@ class WarehouseReceiptRepository extends BaseRepository
 
         app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
 
-        return DB::transaction(function () use ($data, $client_id, $warehouse_id, $cash_id, $date, $note, $products, $client_balance_id, $is_legacy, $is_simple, $status) {
-            $simpleWaybillId = null;
+        return DB::transaction(function () use ($data, $client_id, $warehouse_id, $cash_id, $date, $note, $products, $client_balance_id, $status, $purchase_id) {
             $defaultCurrency = Currency::firstWhere('is_default', true);
             $lineCurrency = $defaultCurrency;
             if ($cash_id !== null) {
@@ -238,18 +221,24 @@ class WarehouseReceiptRepository extends BaseRepository
 
             $totalInDefault = $this->sumReceiptLinesInDefaultCurrency($products, $lineCurrency, $companyId, $date);
 
+            if ($purchase_id !== null) {
+                $purchase = WhPurchase::query()->with('products')->lockForUpdate()->findOrFail($purchase_id);
+                if ($purchase->status === \App\Enums\WhPurchaseStatus::Draft) {
+                    throw new \RuntimeException('Нельзя создать оприходование из закупки в статусе Черновик');
+                }
+                $this->assertPurchaseReceiptQuantities($purchase, $products, null);
+            }
+
             $receipt = new WhReceipt();
             $receipt->supplier_id = $client_id;
+            $receipt->purchase_id = $purchase_id;
             $receipt->client_balance_id = $client_balance_id;
             $receipt->warehouse_id = $warehouse_id;
-            $receipt->project_id = $data['project_id'] ?? null;
             $receipt->cash_id = $cash_id;
             $receipt->date = $date;
             $receipt->note = $note;
             $receipt->amount = $total_amount;
             $receipt->creator_id = (int) auth('api')->id();
-            $receipt->is_legacy = $is_legacy;
-            $receipt->is_simple = $is_simple;
             $receipt->status = $status;
             $receipt->save();
 
@@ -262,44 +251,81 @@ class WarehouseReceiptRepository extends BaseRepository
                 $receiptProduct->save();
             }
 
-            if ($is_legacy) {
+            if ($purchase_id === null) {
                 $this->applyLegacyReceiptProductLinesToStock((int) $warehouse_id, $products);
-            } elseif ($is_simple) {
-                $simpleWaybillId = $this->createPrimaryWaybillWithLinesAndPostStock($receipt, (int) $warehouse_id, $products, $date);
-
-                $receipt->status = WhReceiptStatus::FullyReceived;
-                $receipt->save();
             }
 
-            $transactionData = $this->buildReceiptTransactionData([
-                'amount' => $totalInDefault,
-                'currency_id' => $defaultCurrency->id,
-                'cash_id' => $cash_id,
-                'client_id' => $client_id,
-                'client_balance_id' => $client_balance_id,
-                'project_id' => $data['project_id'] ?? null,
-                'note' => $note,
-                'date' => $date,
-            ]);
-
-            $this->createTransactionForSource($transactionData, \App\Models\WhReceipt::class, $receipt->id, true);
+            if ($purchase_id === null) {
+                $debtTransactionData = $this->buildReceiptTransactionData([
+                    'amount' => $totalInDefault,
+                    'currency_id' => $defaultCurrency->id,
+                    'cash_id' => $cash_id,
+                    'client_id' => $client_id,
+                    'client_balance_id' => $client_balance_id,
+                    'note' => $note,
+                    'date' => $date,
+                    'is_debt' => true,
+                ]);
+                $paymentTransactionData = $this->buildReceiptTransactionData([
+                    'amount' => $totalInDefault,
+                    'currency_id' => $defaultCurrency->id,
+                    'cash_id' => $cash_id,
+                    'client_id' => $client_id,
+                    'client_balance_id' => $client_balance_id,
+                    'note' => $note,
+                    'date' => $date,
+                    'is_debt' => false,
+                ]);
+                $this->createTransactionForSource($debtTransactionData, \App\Models\WhReceipt::class, $receipt->id, true);
+                $this->createTransactionForSource($paymentTransactionData, \App\Models\WhReceipt::class, $receipt->id, true);
+            }
 
             Log::info('wh_receipt_created', [
                 'receipt_id' => $receipt->id,
-                'is_legacy' => $is_legacy,
-                'is_simple' => $is_simple,
-                'waybill_id' => $simpleWaybillId,
                 'debt_amount_default' => $totalInDefault,
             ]);
 
-            if (! $is_legacy) {
-                $this->syncReceiptFulfillmentStatus($receipt->fresh(['products', 'waybills.lines']));
-            }
-
-            $this->invalidateCaches($data['project_id'] ?? null);
+            $this->invalidateCaches();
 
             return $receipt->id;
         });
+    }
+
+    /**
+     * @param  array<int, array{product_id:int, quantity:float|int|string}>  $products
+     */
+    private function assertPurchaseReceiptQuantities(WhPurchase $purchase, array $products, ?int $editingReceiptId): void
+    {
+        $companyId = $this->getCurrentCompanyId();
+        $rounding = new RoundingService();
+        $planned = [];
+        /** @var WhPurchaseProduct $line */
+        foreach ($purchase->products as $line) {
+            $planned[(int) $line->product_id] = $rounding->roundQuantityForCompany($companyId, (float) $line->quantity);
+        }
+
+        $received = WhReceiptProduct::query()
+            ->whereHas('receipt', function ($q) use ($purchase, $editingReceiptId) {
+                $q->where('purchase_id', $purchase->id);
+                if ($editingReceiptId !== null) {
+                    $q->where('id', '!=', $editingReceiptId);
+                }
+            })
+            ->selectRaw('product_id, sum(quantity) as qty')
+            ->groupBy('product_id')
+            ->pluck('qty', 'product_id')
+            ->map(fn ($v) => (float) $v)
+            ->all();
+
+        foreach ($products as $product) {
+            $productId = (int) ($product['product_id'] ?? 0);
+            $incoming = $rounding->roundQuantityForCompany($companyId, (float) ($product['quantity'] ?? 0));
+            $plannedQty = (float) ($planned[$productId] ?? 0);
+            $receivedQty = (float) ($received[$productId] ?? 0);
+            if ($plannedQty <= 0 || $incoming + $receivedQty > $plannedQty + 1e-9) {
+                throw new \RuntimeException('Количество в оприходовании не может быть больше, чем в закупке');
+            }
+        }
     }
 
     /**
@@ -318,11 +344,10 @@ class WarehouseReceiptRepository extends BaseRepository
         $date         = $data['date'];
         $note         = $data['note'] ?? null;
         $products     = $data['products'];
-        $project_id   = $data['project_id'] ?? null;
 
         app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $warehouse_id);
 
-        $updated = DB::transaction(function () use ($receipt_id, $client_id, $warehouse_id, $cash_id, $date, $note, $products, $project_id, $data) {
+        $updated = DB::transaction(function () use ($receipt_id, $client_id, $warehouse_id, $cash_id, $date, $note, $products, $data) {
             $receipt = WhReceipt::findOrFail($receipt_id);
 
             if ($receipt->status === WhReceiptStatus::Completed) {
@@ -340,9 +365,16 @@ class WarehouseReceiptRepository extends BaseRepository
 
             $old_total_amount = $receipt->amount;
 
+            if ($receipt->purchase_id !== null) {
+                $purchase = WhPurchase::query()->with('products')->lockForUpdate()->findOrFail((int) $receipt->purchase_id);
+                if ($purchase->status === \App\Enums\WhPurchaseStatus::Draft) {
+                    throw new \RuntimeException('Нельзя создать оприходование из закупки в статусе Черновик');
+                }
+                $this->assertPurchaseReceiptQuantities($purchase, $products, (int) $receipt_id);
+            }
+
             $receipt->supplier_id = $client_id;
             $receipt->warehouse_id = $warehouse_id;
-            $receipt->project_id = $project_id;
             $receipt->cash_id = $cash_id;
             $receipt->date = $date;
             $receipt->note = $note;
@@ -363,12 +395,10 @@ class WarehouseReceiptRepository extends BaseRepository
                     ['quantity' => $quantity, 'price' => $price]
                 );
 
-                if ($receipt->is_legacy) {
-                    $existingProduct = $existingProducts->firstWhere('product_id', $product_id);
-                    $quantityDifference = $quantity - ($existingProduct ? $existingProduct->quantity : 0);
-                    $this->updateStock($warehouse_id, $product_id, $quantityDifference);
-                    $this->updateProductPurchasePrice($product_id, $price);
-                }
+                $existingProduct = $existingProducts->firstWhere('product_id', $product_id);
+                $quantityDifference = $quantity - ($existingProduct ? $existingProduct->quantity : 0);
+                $this->updateStock($warehouse_id, $product_id, $quantityDifference);
+                $this->updateProductPurchasePrice($product_id, $price);
                 $total_amount += $price * $quantity;
             }
 
@@ -384,22 +414,18 @@ class WarehouseReceiptRepository extends BaseRepository
                 $this->updateClientBalance($client_id, $total_amount - $old_total_amount);
             }
 
-            if ($receipt->is_legacy) {
-                $deletedProducts = array_diff($existingProductIds, array_column($products, 'product_id'));
-                foreach ($deletedProducts as $deletedProductId) {
-                    $deletedProduct = $existingProducts->firstWhere('product_id', $deletedProductId);
+            $deletedProducts = array_diff($existingProductIds, array_column($products, 'product_id'));
+            foreach ($deletedProducts as $deletedProductId) {
+                $deletedProduct = $existingProducts->firstWhere('product_id', $deletedProductId);
+                if ($deletedProduct) {
                     $this->updateStock($warehouse_id, $deletedProductId, -$deletedProduct->quantity);
                     $deletedProduct->delete();
                 }
             }
 
-            if (! $receipt->is_legacy) {
-                $this->syncReceiptFulfillmentStatus($receipt->fresh(['products', 'waybills.lines']));
-            }
-
             app(ReceiptExpenseAllocationService::class)->syncAllForReceipt((int) $receipt_id);
 
-            $this->invalidateCaches($project_id);
+            $this->invalidateCaches();
 
             return true;
         });
@@ -448,7 +474,6 @@ class WarehouseReceiptRepository extends BaseRepository
                 'cashRegister.currency',
                 'warehouse',
                 'expenseAllocations',
-                'waybills.lines',
             ]);
 
             if (! $receiptForSummary instanceof WhReceipt) {
@@ -481,7 +506,7 @@ class WarehouseReceiptRepository extends BaseRepository
             $receipt->status = WhReceiptStatus::Completed;
             $receipt->saveQuietly();
 
-            $this->invalidateCaches($receipt->project_id !== null ? (int) $receipt->project_id : null);
+            $this->invalidateCaches();
         });
     }
 
@@ -490,11 +515,7 @@ class WarehouseReceiptRepository extends BaseRepository
      */
     private function receiptEligibleForCompletion(WhReceipt $receipt): bool
     {
-        if ($receipt->is_legacy) {
-            return true;
-        }
-
-        return $receipt->status === WhReceiptStatus::FullyReceived;
+        return true;
     }
 
     /**
@@ -505,15 +526,12 @@ class WarehouseReceiptRepository extends BaseRepository
      */
     public function deleteItem($receipt_id)
     {
-        $projectId = null;
-        $result = DB::transaction(function () use ($receipt_id, &$projectId) {
+        $result = DB::transaction(function () use ($receipt_id) {
             $receipt = WhReceipt::findOrFail($receipt_id);
             if ($receipt->status === WhReceiptStatus::Completed) {
                 throw new \RuntimeException((string) __('warehouse_receipt.cannot_delete_completed'));
             }
             app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $receipt->warehouse_id);
-            $projectId = $receipt->project_id;
-
             $this->reverseReceiptStockAndDeleteLines($receipt);
 
             $receipt->delete();
@@ -521,7 +539,7 @@ class WarehouseReceiptRepository extends BaseRepository
             return true;
         });
         if ($result) {
-            $this->invalidateCaches($projectId);
+            $this->invalidateCaches();
         }
 
         return $result;
@@ -567,16 +585,13 @@ class WarehouseReceiptRepository extends BaseRepository
             $receipt->creator_id = (int) auth('api')->id();
             $receipt->cash_id = null;
             $receipt->client_balance_id = null;
-            $receipt->project_id = null;
 
             $totalAmount = 0.0;
             foreach ($normalized as $product) {
                 $totalAmount += $product['price'] * $product['quantity'];
             }
             $receipt->amount = $roundingService->roundForCompany($companyId, $totalAmount);
-            $receipt->is_legacy = false;
-            $receipt->is_simple = true;
-            $receipt->status = WhReceiptStatus::Purchasing;
+            $receipt->status = WhReceiptStatus::Completed;
             $receipt->save();
 
             foreach ($normalized as $product) {
@@ -588,48 +603,12 @@ class WarehouseReceiptRepository extends BaseRepository
                 $receiptProduct->save();
             }
 
-            $this->createPrimaryWaybillWithLinesAndPostStock($receipt, $warehouseId, $normalized, $receipt->date);
-
-            $receipt->status = WhReceiptStatus::FullyReceived;
-            $receipt->save();
+            $this->applyLegacyReceiptProductLinesToStock($warehouseId, $normalized);
 
             $this->invalidateCaches(null);
 
             return $receipt->id;
         });
-    }
-
-    /**
-     * @param  array<int, array{product_id: int, quantity: float, price: float}>  $lines
-     * @return int ID созданной накладной
-     */
-    private function createPrimaryWaybillWithLinesAndPostStock(
-        WhReceipt $receipt,
-        int $warehouseId,
-        array $lines,
-        mixed $waybillDate
-    ): int {
-        $waybill = new WhWaybill();
-        $waybill->receipt_id = $receipt->id;
-        $waybill->date = $waybillDate;
-        $waybill->number = null;
-        $waybill->note = null;
-        $waybill->creator_id = (int) auth('api')->id();
-        $waybill->save();
-
-        foreach ($lines as $product) {
-            $wp = new WhWaybillProduct();
-            $wp->waybill_id = $waybill->id;
-            $wp->product_id = (int) $product['product_id'];
-            $wp->quantity = (string) $product['quantity'];
-            $wp->price = (string) $product['price'];
-            $wp->save();
-
-            $this->updateStock($warehouseId, (int) $product['product_id'], (float) $product['quantity']);
-            $this->updateProductPurchasePrice((int) $product['product_id'], (float) $product['price']);
-        }
-
-        return (int) $waybill->id;
     }
 
     /**
@@ -668,44 +647,28 @@ class WarehouseReceiptRepository extends BaseRepository
     private function reverseReceiptStockAndDeleteLines(WhReceipt $receipt): void
     {
         $receiptId = (int) $receipt->id;
-        if ($receipt->is_legacy) {
-            foreach (WhReceiptProduct::query()->where('receipt_id', $receiptId)->get() as $p) {
-                $this->updateStock((int) $receipt->warehouse_id, (int) $p->product_id, -(float) $p->quantity);
-                $p->delete();
-            }
-
-            return;
-        }
-
-        $sums = WhWaybillProduct::query()
-            ->whereHas('waybill', fn ($q) => $q->where('receipt_id', $receipt->id))
-            ->selectRaw('product_id, sum(quantity) as qty')
-            ->groupBy('product_id')
-            ->pluck('qty', 'product_id');
-        foreach ($sums as $pid => $qty) {
-            $this->updateStock((int) $receipt->warehouse_id, (int) $pid, -(float) $qty);
+        foreach (WhReceiptProduct::query()->where('receipt_id', $receiptId)->get() as $p) {
+            $this->updateStock((int) $receipt->warehouse_id, (int) $p->product_id, -(float) $p->quantity);
         }
         WhReceiptProduct::query()->where('receipt_id', $receiptId)->delete();
     }
 
     public function deleteReceiptWithoutInventoryLock(int $receiptId): void
     {
-        $projectId = null;
-        DB::transaction(function () use ($receiptId, &$projectId) {
+        DB::transaction(function () use ($receiptId) {
             $receipt = WhReceipt::query()->lockForUpdate()->findOrFail($receiptId);
-            $projectId = $receipt->project_id;
 
             $this->reverseReceiptStockAndDeleteLines($receipt);
 
             $receipt->delete();
         });
 
-        $this->invalidateCaches($projectId);
+        $this->invalidateCaches();
     }
 
-    public function invalidateWarehouseReceiptCaches(?int $projectId = null): void
+    public function invalidateWarehouseReceiptCaches(): void
     {
-        $this->invalidateCaches($projectId);
+        $this->invalidateCaches();
     }
 
     public function applyWarehouseStockDelta(int $warehouseId, int $productId, float $delta): void
@@ -720,55 +683,11 @@ class WarehouseReceiptRepository extends BaseRepository
 
     public function syncReceiptFulfillmentStatus(WhReceipt $receipt): void
     {
-        if ($receipt->is_legacy) {
-            return;
-        }
-
         if ($receipt->status === WhReceiptStatus::Completed) {
             return;
         }
-
-        $receipt->loadMissing(['products', 'waybills.lines']);
-        if ($receipt->products->isEmpty()) {
-            return;
-        }
-        $rounding = new RoundingService();
-        $companyId = $this->getCurrentCompanyId();
-
-        $waybillTotals = [];
-        foreach ($receipt->waybills as $wb) {
-            foreach ($wb->lines as $line) {
-                $pid = (int) $line->product_id;
-                $waybillTotals[$pid] = ($waybillTotals[$pid] ?? 0) + (float) $line->quantity;
-            }
-        }
-
-        $matched = true;
-        foreach ($receipt->products as $rp) {
-            $pid = (int) $rp->product_id;
-            $expected = $rounding->roundQuantityForCompany($companyId, (float) $rp->quantity);
-            $actual = $rounding->roundQuantityForCompany($companyId, (float) ($waybillTotals[$pid] ?? 0));
-            if (abs($actual - $expected) > 1e-9) {
-                $matched = false;
-                break;
-            }
-        }
-
-        $current = $receipt->status;
-
-        if ($matched) {
-            if ($current !== WhReceiptStatus::FullyReceived) {
-                $receipt->status = WhReceiptStatus::FullyReceived;
-                $receipt->saveQuietly();
-            }
-
-            return;
-        }
-
-        if ($current === WhReceiptStatus::FullyReceived) {
-            $receipt->status = WhReceiptStatus::Purchasing;
-            $receipt->saveQuietly();
-        }
+        $receipt->status = WhReceiptStatus::Draft;
+        $receipt->saveQuietly();
     }
 
     /**
@@ -811,27 +730,22 @@ class WarehouseReceiptRepository extends BaseRepository
     private function resolveReceiptStatusFromInput(mixed $value): WhReceiptStatus
     {
         if ($value === null || $value === '') {
-            return WhReceiptStatus::Purchasing;
+            return WhReceiptStatus::Draft;
         }
-
-        return WhReceiptStatus::tryFrom((string) $value) ?? WhReceiptStatus::Purchasing;
+        return WhReceiptStatus::tryFrom((string) $value) ?? WhReceiptStatus::Draft;
     }
 
     /**
      * Инвалидировать кэш
      *
-     * @param int|null $projectId ID проекта
      * @return void
      */
-    private function invalidateCaches($projectId = null)
+    private function invalidateCaches(): void
     {
         CacheService::invalidateWarehouseReceiptsCache();
         CacheService::invalidateWarehouseStocksCache();
         CacheService::invalidateProductsCache();
         CacheService::invalidateClientsCache();
-        if ($projectId) {
-            CacheService::invalidateProjectsCache();
-        }
     }
 
     /**
@@ -905,7 +819,6 @@ class WarehouseReceiptRepository extends BaseRepository
      *   - currency_id (int) ID валюты
      *   - cash_id (int|null) ID кассы
      *   - client_id (int) ID поставщика
-     *   - project_id (int|null) ID проекта
      *   - note (string|null) Примечание
      *   - date (string) Дата транзакции
      *   - client_balance_id (int|null) Явный баланс поставщика
@@ -921,12 +834,11 @@ class WarehouseReceiptRepository extends BaseRepository
             'currency_id' => $data['currency_id'],
             'cash_id' => $data['cash_id'],
             'category_id' => 6,
-            'project_id' => $data['project_id'] ?? null,
             'client_id' => $data['client_id'],
             'client_balance_id' => $data['client_balance_id'] ?? null,
             'note' => $data['note'],
             'date' => $data['date'],
-            'is_debt' => true,
+            'is_debt' => (bool) ($data['is_debt'] ?? true),
         ];
     }
 }

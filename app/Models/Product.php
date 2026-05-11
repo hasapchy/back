@@ -27,7 +27,10 @@ use App\Contracts\SupportsTimeline;
  * @property int $unit_id ID единицы измерения
  * @property string|null $barcode Штрих-код
  * @property bool $is_serialized Является ли серийным
- * @property bool $type Тип продукта (0 - товар, 1 - услуга)
+ * @property bool $type Тип продукта (1 - товар, 0 - услуга)
+ * @property bool $stock_alert_notify Включено ли оповещение о низком остатке
+ * @property float|null $stock_min_quantity Минимальный порог остатка
+ * @property bool $low_stock_notification_armed Флаг отправленного уведомления о низком остатке
  * @property \Carbon\Carbon|null $date Дата
  * @property int $creator_id ID пользователя
  * @property \Carbon\Carbon $created_at
@@ -58,6 +61,9 @@ class Product extends Model implements SupportsTimeline
         'barcode',
         'is_serialized',
         'type',
+        'stock_alert_notify',
+        'stock_min_quantity',
+        'low_stock_notification_armed',
         'date',
         'creator_id',
     ];
@@ -65,6 +71,9 @@ class Product extends Model implements SupportsTimeline
     protected $casts = [
         'is_serialized' => 'boolean',
         'type' => 'boolean',
+        'stock_alert_notify' => 'boolean',
+        'stock_min_quantity' => 'decimal:5',
+        'low_stock_notification_armed' => 'boolean',
         'date' => 'datetime',
     ];
 
@@ -195,7 +204,7 @@ class Product extends Model implements SupportsTimeline
      * Scope для фильтрации по типу продукта
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int|null $type Тип продукта (0 - товар, 1 - услуга)
+     * @param int|null $type Тип продукта (1 - товар, 0 - услуга)
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByType($query, $type = null)
@@ -204,5 +213,52 @@ class Product extends Model implements SupportsTimeline
             return $query->where('type', $type);
         }
         return $query;
+    }
+
+    /**
+     * @param mixed $value
+     * @return bool
+     */
+    public static function isProductTypeValue(mixed $value): bool
+    {
+        return in_array($value, [1, '1', true, 'product'], true);
+    }
+
+    /**
+     * @return bool
+     */
+    public function isProductType(): bool
+    {
+        return self::isProductTypeValue($this->type);
+    }
+
+    /**
+     * @param float $stockQuantity
+     * @return bool
+     */
+    public function isBelowMinStock(float $stockQuantity): bool
+    {
+        $minQuantity = $this->stock_min_quantity !== null ? (float) $this->stock_min_quantity : null;
+
+        return self::isBelowMinStockByValues(
+            $stockQuantity,
+            (bool) $this->stock_alert_notify,
+            $minQuantity
+        );
+    }
+
+    /**
+     * @param float $stockQuantity
+     * @param bool $stockAlertNotify
+     * @param float|null $stockMinQuantity
+     * @return bool
+     */
+    public static function isBelowMinStockByValues(float $stockQuantity, bool $stockAlertNotify, ?float $stockMinQuantity): bool
+    {
+        if (! $stockAlertNotify || $stockMinQuantity === null || $stockMinQuantity <= 0) {
+            return false;
+        }
+
+        return $stockQuantity <= $stockMinQuantity;
     }
 }

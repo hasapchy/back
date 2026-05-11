@@ -23,6 +23,9 @@ use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use App\Services\PushNotificationSender;
 use Illuminate\Support\Str;
 
+/**
+ * @group Чаты
+ */
 class ChatController extends BaseController
 {
     public function __construct(
@@ -64,6 +67,9 @@ class ChatController extends BaseController
         return [$user, $companyId];
     }
 
+    /**
+     * Список чатов
+     */
     public function index(IndexChatsRequest $request): JsonResponse
     {
         [$user, $companyId] = $this->requireUserAndCompany();
@@ -72,6 +78,9 @@ class ChatController extends BaseController
         return ChatListItemResource::collection(collect($payload))->response();
     }
 
+    /**
+     * Общий чат
+     */
     public function general(): JsonResponse
     {
         [$user, $companyId] = $this->requireUserAndCompany();
@@ -81,6 +90,9 @@ class ChatController extends BaseController
         return (new ChatResource($chat))->response();
     }
 
+    /**
+     * Начать личный чат
+     */
     public function startDirect(StartDirectChatRequest $request): JsonResponse
     {
         [$user, $companyId] = $this->requireUserAndCompany();
@@ -104,6 +116,9 @@ class ChatController extends BaseController
         return (new ChatResource($chat))->response();
     }
 
+    /**
+     * Создать групповой чат
+     */
     public function createGroup(CreateGroupChatRequest $request): JsonResponse
     {
         [$user, $companyId] = $this->requireUserAndCompany();
@@ -134,6 +149,9 @@ class ChatController extends BaseController
         return (new ChatResource($chat))->response()->setStatusCode(201);
     }
 
+    /**
+     * Сообщения чата
+     */
     public function messages(Request $request, Chat $chat): JsonResponse
     {
         [$user, $companyId] = $this->requireChatAccess($chat);
@@ -159,6 +177,9 @@ class ChatController extends BaseController
         return ChatMessageResource::collection($messages)->response();
     }
 
+    /**
+     * Поиск сообщений чата
+     */
     public function searchMessages(Request $request, Chat $chat): JsonResponse
     {
         [$user, $companyId] = $this->requireChatAccess($chat);
@@ -172,6 +193,9 @@ class ChatController extends BaseController
         return ChatMessageResource::collection($messages)->response();
     }
 
+    /**
+     * Отметить чат как прочитанный
+     */
     public function markAsRead(MarkChatReadRequest $request, Chat $chat): JsonResponse
     {
         [$user, $companyId] = $this->requireChatAccess($chat);
@@ -184,6 +208,9 @@ class ChatController extends BaseController
         return $this->successResponse(['ok' => true]);
     }
 
+    /**
+     * Индикатор набора сообщения
+     */
     public function typing(Chat $chat): JsonResponse
     {
         [$user, $companyId] = $this->requireChatAccess($chat);
@@ -193,6 +220,9 @@ class ChatController extends BaseController
         return $this->successResponse(['ok' => true]);
     }
 
+    /**
+     * Отправить сообщение
+     */
     public function storeMessage(StoreChatMessageRequest $request, Chat $chat): JsonResponse
     {
         [$user, $companyId] = $this->requireChatAccess($chat);
@@ -294,6 +324,9 @@ class ChatController extends BaseController
         }
     }
 
+    /**
+     * Обновить сообщение
+     */
     public function updateMessage(UpdateChatMessageRequest $request, Chat $chat, ChatMessage $message): JsonResponse
     {
         [$user, $companyId] = $this->requireChatAccess($chat);
@@ -314,6 +347,9 @@ class ChatController extends BaseController
         return (new ChatMessageResource($updatedMessage->load(['user:id,name,surname,photo', 'parent.user:id,name,surname,photo'])))->response();
     }
 
+    /**
+     * Удалить сообщение
+     */
     public function deleteMessage(Chat $chat, ChatMessage $message): JsonResponse
     {
         [$user, $companyId] = $this->requireChatAccess($chat);
@@ -323,6 +359,9 @@ class ChatController extends BaseController
         return $this->successResponse(['ok' => true]);
     }
 
+    /**
+     * Установить реакцию
+     */
     public function setReaction(Request $request, Chat $chat, ChatMessage $message): JsonResponse
     {
         [$user, $companyId] = $this->requireChatAccess($chat);
@@ -338,6 +377,9 @@ class ChatController extends BaseController
         return $this->successResponse(['reactions' => $reactions]);
     }
 
+    /**
+     * Закрепить сообщение
+     */
     public function pinMessage(Chat $chat, ChatMessage $message): JsonResponse
     {
         [$user, $companyId] = $this->requireChatAccess($chat);
@@ -346,6 +388,9 @@ class ChatController extends BaseController
         return (new ChatResource($updated))->response();
     }
 
+    /**
+     * Открепить сообщение
+     */
     public function unpinMessage(Chat $chat): JsonResponse
     {
         [$user, $companyId] = $this->requireChatAccess($chat);
@@ -354,6 +399,9 @@ class ChatController extends BaseController
         return (new ChatResource($updated))->response();
     }
 
+    /**
+     * Переслать сообщение
+     */
     public function forwardMessage(ForwardChatMessageRequest $request, Chat $chat, ChatMessage $message): JsonResponse
     {
         [$user, $companyId] = $this->requireChatAccess($chat);
@@ -380,6 +428,9 @@ class ChatController extends BaseController
         return (new ChatMessageResource($forwardedMessage->load(['user:id,name,surname,photo', 'forwardedFrom.user:id,name,surname,photo'])))->response()->setStatusCode(201);
     }
 
+    /**
+     * Удалить чат
+     */
     public function destroy(Chat $chat): JsonResponse
     {
         [$user, $companyId] = $this->requireChatAccess($chat);

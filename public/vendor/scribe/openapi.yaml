@@ -1430,15 +1430,6 @@ paths:
                     example: Unauthenticated.
       tags:
         - Endpoints
-  /api/cache/clear:
-    post:
-      summary: 'Clear backend cache storage.'
-      operationId: clearBackendCacheStorage
-      description: ''
-      parameters: []
-      responses: {  }
-      tags:
-        - Endpoints
   /api/currency-history/currencies:
     get:
       summary: 'Получить валюты с текущими курсами'
@@ -2757,11 +2748,6 @@ paths:
                   type: string
                   description: ''
                   example: consequatur
-                  nullable: true
-                project_id:
-                  type: integer
-                  description: ''
-                  example: 17
                   nullable: true
                 products:
                   type: array

@@ -17,6 +17,10 @@ use Illuminate\Support\Facades\Cache;
 /**
  * Контроллер для работы с ролями
  */
+/**
+ * @group Пользователи
+ * @subgroup Роли
+ */
 class RolesController extends BaseController
 {
     protected $itemsRepository;
@@ -32,7 +36,7 @@ class RolesController extends BaseController
     }
 
     /**
-     * Получить список ролей с пагинацией
+     * Список ролей
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -119,7 +123,7 @@ class RolesController extends BaseController
     }
 
     /**
-     * Создать новую роль
+     * Создать роль
      *
      * @param StoreRoleRequest $request
      * @return \Illuminate\Http\JsonResponse

@@ -37,7 +37,7 @@ class ProductsRepository extends BaseRepository
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, 'wh_stock_pos_v1']);
+        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, 'wh_stock_pos_v2']);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $currentUser, $warehouseStockPolicy, $categoryIds) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
@@ -118,7 +118,7 @@ class ProductsRepository extends BaseRepository
     {
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, $page, $perPage, 'wh_stock_pos_v1']);
+        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, $page, $perPage, 'wh_stock_pos_v2']);
 
         return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage, $categoryIds) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
@@ -233,12 +233,18 @@ class ProductsRepository extends BaseRepository
         return DB::transaction(function () use ($data) {
             $product = new Product;
             $product->type = $data['type'];
+            $isProductType = Product::isProductTypeValue($product->type);
             $product->image = $data['image'] ?? null;
             $product->name = $data['name'];
             $product->description = $data['description'] ?? null;
             $product->sku = $data['sku'];
             $product->barcode = $data['barcode'] ?? null;
             $product->unit_id = $data['unit_id'] ?? null;
+            $product->stock_alert_notify = $isProductType ? (bool) ($data['stock_alert_notify'] ?? false) : false;
+            $product->stock_min_quantity = $isProductType && isset($data['stock_min_quantity'])
+                ? (float) $data['stock_min_quantity']
+                : null;
+            $product->low_stock_notification_armed = false;
             $product->date = $data['date'] ?? now();
             $product->creator_id = $data['creator_id'] ?? auth()->id();
             $product->save();
@@ -258,7 +264,7 @@ class ProductsRepository extends BaseRepository
                 ]
             );
 
-            if ($this->isProductTypeValue($product->type)) {
+            if (Product::isProductTypeValue($product->type)) {
                 $companyId = $this->getCurrentCompanyId();
 
                 if ($companyId) {
@@ -338,10 +344,23 @@ class ProductsRepository extends BaseRepository
             if (isset($data['unit_id'])) {
                 $product->unit_id = $data['unit_id'];
             }
+            if (array_key_exists('stock_alert_notify', $data)) {
+                $product->stock_alert_notify = (bool) $data['stock_alert_notify'];
+            }
+            if (array_key_exists('stock_min_quantity', $data)) {
+                $product->stock_min_quantity = $data['stock_min_quantity'] !== null ? (float) $data['stock_min_quantity'] : null;
+            }
+
+            if (! Product::isProductTypeValue($product->type)) {
+                $product->stock_alert_notify = false;
+                $product->stock_min_quantity = null;
+                $product->low_stock_notification_armed = false;
+            }
+
             $product->save();
             $updatedType = $product->type;
             if ($originalType !== $updatedType) {
-                if ($this->isProductTypeValue($updatedType)) {
+                if (Product::isProductTypeValue($updatedType)) {
                     $companyId = $this->getCurrentCompanyId();
                     if ($companyId) {
                         $warehouseIds = Warehouse::where('company_id', $companyId)->pluck('id')->toArray();
@@ -439,6 +458,7 @@ class ProductsRepository extends BaseRepository
         $productArray['wholesale_price'] = $price?->wholesale_price ?? 0;
         $productArray['purchase_price'] = $price?->purchase_price ?? 0;
         $productArray['stock_quantity'] = 0;
+        $productArray['is_below_min_stock'] = $product->isBelowMinStock(0.0);
 
         return $productArray;
     }
@@ -510,17 +530,6 @@ class ProductsRepository extends BaseRepository
     }
 
     /**
-     * Проверить, является ли значение типом продукта
-     *
-     * @param  mixed  $value  Значение для проверки
-     * @return bool true если значение является типом продукта, false в противном случае
-     */
-    private function isProductTypeValue($value): bool
-    {
-        return in_array($value, [1, '1', true, 'product'], true);
-    }
-
-    /**
      * Получить карту остатков товаров
      *
      * @param  Collection<int>  $productIds  Коллекция ID товаров
@@ -583,6 +592,7 @@ class ProductsRepository extends BaseRepository
         $product->wholesale_price = $price?->wholesale_price;
         $product->purchase_price = $price?->purchase_price;
         $product->stock_quantity = (float) ($stocksMap[$product->id] ?? 0);
+        $product->is_below_min_stock = $product->isBelowMinStock($product->stock_quantity);
     }
 
     private function applyWarehouseRowScopeForSearch($query, $warehouseId, $warehouseStockPolicy, $productsOnly)

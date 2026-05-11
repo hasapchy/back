@@ -7,6 +7,8 @@ use App\Models\Company;
 use App\Models\Warehouse;
 use App\Models\Product;
 use App\Models\Client;
+use App\Models\CashRegister;
+use App\Models\Currency;
 use App\Models\WhReceipt;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Schema;
@@ -21,6 +23,7 @@ class WarehouseReceiptControllerTest extends TestCase
     protected Warehouse $warehouse;
     protected Product $product;
     protected Client $client;
+    protected CashRegister $cashRegister;
 
     protected function setUp(): void
     {
@@ -46,6 +49,26 @@ class WarehouseReceiptControllerTest extends TestCase
             'company_id' => $this->company->id,
             'creator_id' => $this->adminUser->id,
         ]);
+        $currency = Currency::query()
+            ->where('company_id', $this->company->id)
+            ->where('is_default', true)
+            ->first()
+            ?? Currency::factory()->create([
+                'company_id' => $this->company->id,
+                'is_default' => true,
+                'is_report' => true,
+            ]);
+        if (! Currency::query()->where('company_id', $this->company->id)->where('is_report', true)->exists()) {
+            Currency::factory()->create([
+                'company_id' => $this->company->id,
+                'is_default' => false,
+                'is_report' => true,
+            ]);
+        }
+        $this->cashRegister = CashRegister::factory()->create([
+            'company_id' => $this->company->id,
+            'currency_id' => $currency->id,
+        ]);
     }
 
     protected function actingAsApi(User $user)
@@ -67,7 +90,7 @@ class WarehouseReceiptControllerTest extends TestCase
         $data = [
             'client_id' => $this->client->id,
             'warehouse_id' => $this->warehouse->id,
-            'is_legacy' => true,
+            'cash_id' => $this->cashRegister->id,
             'products' => [
                 [
                     'product_id' => $this->product->id,
@@ -95,7 +118,7 @@ class WarehouseReceiptControllerTest extends TestCase
         $data = [
             'client_id' => $this->client->id,
             'warehouse_id' => $this->warehouse->id,
-            'is_legacy' => true,
+            'cash_id' => $this->cashRegister->id,
             'products' => [
                 [
                     'product_id' => $this->product->id,

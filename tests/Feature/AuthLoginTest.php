@@ -145,4 +145,32 @@ class AuthLoginTest extends TestCase
         $response->assertUnprocessable();
         $response->assertJsonValidationErrors(['email', 'password']);
     }
+
+    public function test_login_with_remember_flag_uses_remember_token_ttl(): void
+    {
+        $company = Company::factory()->create();
+        $plainPassword = 'remember-login-42';
+        $user = User::factory()->create([
+            'email' => 'remember-test@example.com',
+            'password' => Hash::make($plainPassword),
+            'is_active' => true,
+        ]);
+        $user->companies()->attach($company->id);
+
+        $response = $this->postJson('/api/user/login', [
+            'email' => 'remember-test@example.com',
+            'password' => $plainPassword,
+            'remember' => true,
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath(
+            'data.expires_in',
+            (int) config('sanctum.remember_expiration', 10080) * 60
+        );
+        $response->assertJsonPath(
+            'data.refresh_expires_in',
+            (int) config('sanctum.mobile_refresh_days_remember', 30) * 86400
+        );
+    }
 }

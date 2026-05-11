@@ -4,10 +4,7 @@ namespace App\Enums;
 
 enum WhReceiptStatus: string
 {
-    case InTransit = 'in_transit';
-    case CustomsClearance = 'customs_clearance';
-    case Purchasing = 'purchasing';
-    case FullyReceived = 'fully_received';
+    case Draft = 'draft';
     case Completed = 'completed';
 
     /**

@@ -48,6 +48,8 @@ class UpdateProductRequest extends FormRequest
             'retail_price' => 'nullable|numeric|min:0',
             'wholesale_price' => 'nullable|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
+            'stock_alert_notify' => 'nullable|boolean',
+            'stock_min_quantity' => 'nullable|numeric|min:0',
             'date' => 'nullable|date',
             'creator_id' => 'nullable|exists:users,id',
         ];
@@ -67,6 +69,14 @@ class UpdateProductRequest extends FormRequest
             $categories = array_map('trim', $categories);
             $categories = array_filter($categories);
             $data['categories'] = $categories;
+        }
+
+        if (isset($data['stock_alert_notify'])) {
+            $data['stock_alert_notify'] = filter_var($data['stock_alert_notify'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if (array_key_exists('stock_min_quantity', $data) && $data['stock_min_quantity'] === '') {
+            $data['stock_min_quantity'] = null;
         }
 
         $this->merge($data);

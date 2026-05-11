@@ -9,6 +9,10 @@ use App\Repositories\CategoriesRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
 
+/**
+ * @group Каталог
+ * @subgroup Категории
+ */
 class CategoriesController extends BaseController
 {
     /**
@@ -25,7 +29,7 @@ class CategoriesController extends BaseController
     }
 
     /**
-     * Получить категории с пагинацией
+     * Список категорий
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse

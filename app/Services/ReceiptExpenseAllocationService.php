@@ -13,8 +13,6 @@ use Illuminate\Support\Facades\Log;
 
 class ReceiptExpenseAllocationService
 {
-    private const RECEIPT_LINE_VALUE_EPSILON = 1e-9;
-
     /** @var list<int> */
     private const EXCLUDED_ALLOCATION_CATEGORY_IDS = [6];
 
@@ -64,7 +62,7 @@ class ReceiptExpenseAllocationService
             }
 
             $receipt = WhReceipt::query()
-                ->with(['products', 'cashRegister.currency', 'warehouse', 'waybills.lines'])
+                ->with(['products', 'cashRegister.currency', 'warehouse'])
                 ->findOrFail((int) $transaction->source_id);
 
             if ($receipt->products->isEmpty()) {
@@ -89,10 +87,9 @@ class ReceiptExpenseAllocationService
             $lineCurrency = $this->resolveLineCurrency($receipt, $companyId);
             $date = $receipt->date ? Carbon::parse($receipt->date) : now();
             $rounding = new RoundingService();
-            [$waybillByProduct, $receiptQtyByProduct] = $this->landedProductMaps($receipt);
             $weights = [];
             foreach ($receipt->products as $line) {
-                $raw = $this->lineRawSubtotalInReceiptCurrency($line, $receipt, $waybillByProduct, $receiptQtyByProduct);
+                $raw = $this->lineRawSubtotalInReceiptCurrency($line);
                 $weights[(int) $line->id] = $this->rawSubtotalInDefaultCurrency(
                     $raw,
                     $lineCurrency,
@@ -158,7 +155,6 @@ class ReceiptExpenseAllocationService
             'cashRegister.currency',
             'warehouse',
             'expenseAllocations',
-            'waybills.lines',
         ]);
 
         $receiptId = (int) $receipt->id;
@@ -169,7 +165,6 @@ class ReceiptExpenseAllocationService
             'company_id' => $companyId,
             'warehouse_id' => $receipt->warehouse_id,
             'products_count' => $receipt->products->count(),
-            'is_legacy' => (bool) $receipt->is_legacy,
             'expense_allocations_count' => $receipt->expenseAllocations->count(),
             'cash_id' => $receipt->cash_id,
         ]);
@@ -199,7 +194,6 @@ class ReceiptExpenseAllocationService
         $lineCurrency = $this->resolveLineCurrency($receipt, $companyId);
         $date = $receipt->date ? Carbon::parse($receipt->date) : now();
         $rounding = new RoundingService();
-        [$waybillByProduct, $receiptQtyByProduct] = $this->landedProductMaps($receipt);
 
         $byLineAllocated = [];
         foreach ($receipt->expenseAllocations as $row) {
@@ -213,7 +207,7 @@ class ReceiptExpenseAllocationService
 
         foreach ($receipt->products as $line) {
             $lid = (int) $line->id;
-            $raw = $this->lineRawSubtotalInReceiptCurrency($line, $receipt, $waybillByProduct, $receiptQtyByProduct);
+            $raw = $this->lineRawSubtotalInReceiptCurrency($line);
             $sub = $this->rawSubtotalInDefaultCurrency($raw, $lineCurrency, $defaultCurrency, $companyId, $date);
             $sub = $rounding->roundForCompany($companyId, $sub);
             $alloc = $rounding->roundForCompany($companyId, (float) ($byLineAllocated[$lid] ?? 0));
@@ -237,11 +231,10 @@ class ReceiptExpenseAllocationService
             Log::warning('landed_cost.summary.zero_goods_subtotal', [
                 'receipt_id' => $receiptId,
                 'company_id' => $companyId,
-                'is_legacy' => (bool) $receipt->is_legacy,
                 'line_currency_id' => $lineCurrency->id,
                 'default_currency_id' => $defaultCurrency->id,
-                'lines_preview' => $receipt->products->map(function (WhReceiptProduct $l) use ($receipt, $waybillByProduct, $receiptQtyByProduct) {
-                    $raw = $this->lineRawSubtotalInReceiptCurrency($l, $receipt, $waybillByProduct, $receiptQtyByProduct);
+                'lines_preview' => $receipt->products->map(function (WhReceiptProduct $l) {
+                    $raw = $this->lineRawSubtotalInReceiptCurrency($l);
 
                     return [
                         'wh_receipt_product_id' => (int) $l->id,
@@ -340,56 +333,9 @@ class ReceiptExpenseAllocationService
         return $default;
     }
 
-    /**
-     * @return array{0: array<int, float>, 1: array<int, float>}
-     */
-    private function landedProductMaps(WhReceipt $receipt): array
+    private function lineRawSubtotalInReceiptCurrency(WhReceiptProduct $line): float
     {
-        if ($receipt->is_legacy) {
-            return [[], []];
-        }
-        $receipt->loadMissing('waybills.lines');
-        $waybillByProduct = [];
-        foreach ($receipt->waybills as $wb) {
-            foreach ($wb->lines as $wp) {
-                $pid = (int) $wp->product_id;
-                $waybillByProduct[$pid] = ($waybillByProduct[$pid] ?? 0) + (float) $wp->quantity * (float) $wp->price;
-            }
-        }
-        $qtyByProduct = [];
-        foreach ($receipt->products as $rp) {
-            $pid = (int) $rp->product_id;
-            $qtyByProduct[$pid] = ($qtyByProduct[$pid] ?? 0) + (float) $rp->quantity;
-        }
-
-        return [$waybillByProduct, $qtyByProduct];
-    }
-
-    /**
-     * @param  array<int, float>  $waybillValueByProduct
-     * @param  array<int, float>  $receiptQtyByProduct
-     */
-    private function lineRawSubtotalInReceiptCurrency(
-        WhReceiptProduct $line,
-        WhReceipt $receipt,
-        array $waybillValueByProduct,
-        array $receiptQtyByProduct
-    ): float {
-        $pid = (int) $line->product_id;
-        $fromReceiptLine = (float) $line->price * (float) $line->quantity;
-        if ($receipt->is_legacy) {
-            return $fromReceiptLine;
-        }
-        $wbTotal = (float) ($waybillValueByProduct[$pid] ?? 0);
-        $qtyTotal = (float) ($receiptQtyByProduct[$pid] ?? 0);
-        $lineQty = (float) $line->quantity;
-        $fromWaybill = $qtyTotal > 0 ? $wbTotal * ($lineQty / $qtyTotal) : 0.0;
-
-        if ($fromReceiptLine > self::RECEIPT_LINE_VALUE_EPSILON) {
-            return $fromReceiptLine;
-        }
-
-        return $fromWaybill;
+        return (float) $line->price * (float) $line->quantity;
     }
 
     private function rawSubtotalInDefaultCurrency(

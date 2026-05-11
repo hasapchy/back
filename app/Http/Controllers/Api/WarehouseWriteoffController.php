@@ -11,10 +11,24 @@ use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы со списаниями со склада
+ *
+ * @group Склады
+ * @subgroup Списания
  */
 class WarehouseWriteoffController extends BaseController
 {
     protected $itemsRepository;
+
+    /**
+     * Преобразовать техническую ошибку в понятный текст
+     */
+    private function resolveWriteoffErrorMessage(\Throwable $th): string
+    {
+        return match ($th->getMessage()) {
+            'INSUFFICIENT_STOCK' => 'Недостаточно остатка на складе',
+            default => 'Ошибка списания: '.$th->getMessage(),
+        };
+    }
 
     /**
      * Конструктор контроллера
@@ -25,7 +39,10 @@ class WarehouseWriteoffController extends BaseController
     }
 
     /**
-     * Получить список списаний с пагинацией
+     * Список списаний
+     *
+     * @response 200 {"data":{"items":[],"meta":{"current_page":1,"next_page":null,"last_page":1,"per_page":20,"total":0}}}
+     * @response 401 {"error":"Unauthenticated."}
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -55,9 +72,13 @@ class WarehouseWriteoffController extends BaseController
     }
 
     /**
-     * Получить одно списание по ID
+     * Списание по ID
      *
      * @param  int  $id  ID списания
+     * @response 200 {"data":{"id":1}}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Списание не найдено"}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function show($id)
@@ -78,9 +99,13 @@ class WarehouseWriteoffController extends BaseController
     }
 
     /**
-     * Создать списание со склада
+     * Создать списание
      *
      * @param  Request  $request
+     * @response 200 {"data":null,"message":"Списание создано"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 422 {"error":"The given data was invalid.","errors":{"warehouse_id":["The warehouse id field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreWarehouseWriteoffRequest $request)
@@ -95,11 +120,13 @@ class WarehouseWriteoffController extends BaseController
         $data = [
             'warehouse_id' => $validatedData['warehouse_id'],
             'reason' => $validatedData['reason'],
+            'source_receipt_id' => $validatedData['source_receipt_id'] ?? null,
             'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
                 return [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity'],
+                    'source_receipt_product_id' => $product['source_receipt_product_id'] ?? null,
                 ];
             }, $validatedData['products']),
         ];
@@ -112,15 +139,20 @@ class WarehouseWriteoffController extends BaseController
 
             return $this->successResponse(null, 'Списание создано');
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка списания: '.$th->getMessage(), 400);
+            return $this->errorResponse($this->resolveWriteoffErrorMessage($th), 400);
         }
     }
 
     /**
-     * Обновить списание со склада
+     * Изменить списание
      *
      * @param  Request  $request
      * @param  int  $id  ID списания
+     * @response 200 {"data":null,"message":"Списание обновлено"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Списание не найдено"}
+     * @response 422 {"error":"The given data was invalid.","errors":{"warehouse_id":["The warehouse id field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateWarehouseWriteoffRequest $request, $id)
@@ -135,11 +167,13 @@ class WarehouseWriteoffController extends BaseController
         $data = [
             'warehouse_id' => $validatedData['warehouse_id'],
             'reason' => $validatedData['reason'],
+            'source_receipt_id' => $validatedData['source_receipt_id'] ?? null,
             'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
                 return [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity'],
+                    'source_receipt_product_id' => $product['source_receipt_product_id'] ?? null,
                 ];
             }, $validatedData['products']),
         ];
@@ -152,14 +186,18 @@ class WarehouseWriteoffController extends BaseController
 
             return $this->successResponse(null, 'Списание обновлено');
         } catch (\Throwable $th) {
-            return $this->errorResponse('Ошибка списания: '.$th->getMessage(), 400);
+            return $this->errorResponse($this->resolveWriteoffErrorMessage($th), 400);
         }
     }
 
     /**
-     * Удалить списание со склада
+     * Удалить списание
      *
      * @param  int  $id  ID списания
+     * @response 200 {"data":null,"message":"Списание удалено"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Not found"}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)

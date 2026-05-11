@@ -194,11 +194,13 @@ class TransactionsRepository extends BaseRepository
                             $subQ->where('source_type', 'App\\Models\\Order');
                         } elseif ($source === 'receipt') {
                             $subQ->where('source_type', 'App\\Models\\WhReceipt');
+                        } elseif ($source === 'purchase') {
+                            $subQ->where('source_type', 'App\\Models\\WhPurchase');
                         } elseif ($source === 'salary') {
                             $subQ->where('source_type', 'App\\Models\\EmployeeSalary');
                         } elseif ($source === 'other') {
                             $subQ->whereNull('source_type')
-                                ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order', 'App\\Models\\WhReceipt', 'App\\Models\\EmployeeSalary']);
+                                ->orWhereNotIn('source_type', ['App\\Models\\Sale', 'App\\Models\\Order', 'App\\Models\\WhReceipt', 'App\\Models\\WhPurchase', 'App\\Models\\EmployeeSalary']);
                         }
                     });
                 })
@@ -1360,16 +1362,17 @@ class TransactionsRepository extends BaseRepository
         $hasViewSale = in_array('transactions_view_sale', $permissions);
         $hasViewOrder = in_array('transactions_view_order', $permissions);
         $hasViewReceipt = in_array('transactions_view_receipt', $permissions);
+        $hasViewPurchase = in_array('transactions_view_purchase', $permissions);
         $hasViewSalary = in_array('transactions_view_salary', $permissions);
         $hasViewOther = in_array('transactions_view_other', $permissions);
 
-        $hasAnySourcePermission = $hasViewSale || $hasViewOrder || $hasViewReceipt || $hasViewSalary || $hasViewOther;
+        $hasAnySourcePermission = $hasViewSale || $hasViewOrder || $hasViewReceipt || $hasViewPurchase || $hasViewSalary || $hasViewOther;
 
         if (! $hasAnySourcePermission) {
             return $query;
         }
 
-        $query->where(function ($q) use ($hasViewSale, $hasViewOrder, $hasViewReceipt, $hasViewSalary, $hasViewOther) {
+        $query->where(function ($q) use ($hasViewSale, $hasViewOrder, $hasViewReceipt, $hasViewPurchase, $hasViewSalary, $hasViewOther) {
             if ($hasViewSale) {
                 $q->orWhere('transactions.source_type', 'App\\Models\\Sale');
             }
@@ -1378,6 +1381,9 @@ class TransactionsRepository extends BaseRepository
             }
             if ($hasViewReceipt) {
                 $q->orWhere('transactions.source_type', 'App\\Models\\WhReceipt');
+            }
+            if ($hasViewPurchase) {
+                $q->orWhere('transactions.source_type', 'App\\Models\\WhPurchase');
             }
             if ($hasViewSalary) {
                 $q->orWhere('transactions.source_type', 'App\\Models\\EmployeeSalary');
@@ -1389,6 +1395,7 @@ class TransactionsRepository extends BaseRepository
                             'App\\Models\\Sale',
                             'App\\Models\\Order',
                             'App\\Models\\WhReceipt',
+                            'App\\Models\\WhPurchase',
                             'App\\Models\\EmployeeSalary',
                         ]);
                 });
@@ -1429,6 +1436,9 @@ class TransactionsRepository extends BaseRepository
         }
         if (in_array('transactions_view_receipt', $permissions)) {
             $sources[] = 'receipt';
+        }
+        if (in_array('transactions_view_purchase', $permissions)) {
+            $sources[] = 'purchase';
         }
         if (in_array('transactions_view_salary', $permissions)) {
             $sources[] = 'salary';
@@ -1773,7 +1783,7 @@ class TransactionsRepository extends BaseRepository
         if ($sourceId <= 0 || ! str_contains($sourceType, 'WhReceipt')) {
             return;
         }
-        $receipt = WhReceipt::query()->with(['warehouse', 'cashRegister.currency', 'products', 'waybills.lines'])->find($sourceId);
+        $receipt = WhReceipt::query()->with(['warehouse', 'cashRegister.currency', 'products'])->find($sourceId);
         if (! $receipt) {
             return;
         }

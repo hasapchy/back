@@ -24,6 +24,9 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 /**
  * Контроллер для работы с клиентами
  */
+/**
+ * @group Клиенты
+ */
 class ClientController extends BaseController
 {
     protected $itemsRepository;
@@ -42,7 +45,7 @@ class ClientController extends BaseController
     }
 
     /**
-     * Получить список клиентов с пагинацией
+     * Список клиентов
      *
      * @return JsonResponse
      */
@@ -282,7 +285,7 @@ class ClientController extends BaseController
     }
 
     /**
-     * Создать нового клиента
+     * Создать клиента
      *
      * @param  Request  $request
      * @return JsonResponse

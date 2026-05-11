@@ -29,9 +29,7 @@ class WhReceiptFactory extends Factory
             'note' => fake()->optional()->sentence(),
             'amount' => fake()->randomFloat(2, 100, 10000),
             'date' => now(),
-            'is_legacy' => true,
-            'is_simple' => false,
-            'status' => \App\Enums\WhReceiptStatus::Purchasing,
+            'status' => \App\Enums\WhReceiptStatus::Draft,
         ];
     }
 }

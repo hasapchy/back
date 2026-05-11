@@ -12,6 +12,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы со статусами заказов
  */
+/**
+ * @group Заказы
+ * @subgroup Статусы заказов
+ */
 class OrderStatusController extends BaseController
 {
     protected $itemsRepository;
@@ -25,7 +29,7 @@ class OrderStatusController extends BaseController
     }
 
     /**
-     * Получить список статусов заказов с пагинацией
+     * Список статусов заказов
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -65,7 +69,9 @@ class OrderStatusController extends BaseController
     }
 
     /**
-     * Создать новый статус заказа
+     * Создать статус заказа
+     *
+     * @subgroup Управление статусами заказов
      *
      * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
@@ -89,6 +95,8 @@ class OrderStatusController extends BaseController
 
     /**
      * Обновить статус заказа
+     *
+     * @subgroup Управление статусами заказов
      *
      * @param  Request  $request
      * @param  int  $id  ID статуса
@@ -130,6 +138,8 @@ class OrderStatusController extends BaseController
 
     /**
      * Удалить статус заказа
+     *
+     * @subgroup Управление статусами заказов
      *
      * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse

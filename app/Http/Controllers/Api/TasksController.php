@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+/**
+ * @group Задачи
+ */
 class TasksController extends BaseController
 {
     protected $itemsRepository;
@@ -23,7 +26,7 @@ class TasksController extends BaseController
     }
 
     /**
-     * Получить список задач с пагинацией
+     * Список задач
      */
     public function index(Request $request)
     {
@@ -41,7 +44,9 @@ class TasksController extends BaseController
     }
 
     /**
-     * Количество просроченных задач (дедлайн просрочен), доступных текущему пользователю.
+     * Просроченные задачи
+     *
+     * @hideFromAPIDocumentation
      */
     public function overdueCount()
     {
@@ -57,7 +62,7 @@ class TasksController extends BaseController
     }
 
     /**
-     * Создать новую задачу
+     * Создать задачу
      */
     public function store(TaskRequest $request)
     {

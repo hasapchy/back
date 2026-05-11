@@ -31,10 +31,12 @@ class StoreWarehouseWriteoffRequest extends FormRequest
         return [
             'warehouse_id' => ['required', 'integer', new WarehouseAccessRule()],
             'reason' => ['required', 'string', Rule::in(WhWriteoffReason::values())],
+            'source_receipt_id' => ['nullable', 'integer', 'exists:wh_receipts,id', 'required_if:reason,'.WhWriteoffReason::ReturnSupplier->value],
             'note' => 'nullable|string',
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity' => 'required|numeric|min:0',
+            'products.*.source_receipt_product_id' => 'nullable|integer|exists:wh_receipt_products,id',
         ];
     }
 

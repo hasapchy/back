@@ -1,0 +1,2645 @@
+name: Склады
+description: ''
+endpoints:
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/warehouses
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Склады
+      subgroupDescription: ''
+      title: 'Список складов'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":{"items":[],"meta":{"current_page":1,"next_page":null,"last_page":1,"per_page":20,"total":0}}}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/warehouses
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Склады
+      subgroupDescription: ''
+      title: 'Создать склад'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      name:
+        custom: []
+        name: name
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      users:
+        custom: []
+        name: users
+        description: 'The <code>id</code> of an existing record in the users table.'
+        required: false
+        example: null
+        type: 'string[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      name: consequatur
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":{"id":1},"message":"Склад создан"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 422
+        content: '{"error":"The given data was invalid.","errors":{"name":["The name field is required."]}}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/warehouses/{id}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Склады
+      subgroupDescription: ''
+      title: 'Изменить склад'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the warehouse.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      name:
+        custom: []
+        name: name
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      users:
+        custom: []
+        name: users
+        description: 'The <code>id</code> of an existing record in the users table.'
+        required: false
+        example: null
+        type: 'string[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      name: consequatur
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":{"id":1},"message":"Склад обновлен"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 404
+        content: '{"error":"Not found"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 422
+        content: '{"error":"The given data was invalid.","errors":{"name":["The name field is required."]}}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/warehouses/{id}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Склады
+      subgroupDescription: ''
+      title: 'Удалить склад'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the warehouse.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":null,"message":"Склад удален"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 404
+        content: '{"error":"Not found"}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/warehouse_stocks
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Остатки
+      subgroupDescription: ''
+      title: 'Список остатков на складах'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/inventories
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Инвентаризации
+      subgroupDescription: ''
+      title: 'Список инвентаризаций'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/inventories/{id}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Инвентаризации
+      subgroupDescription: ''
+      title: 'Инвентаризация по ID'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the inventory.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/inventories/{id}/items'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Инвентаризации
+      subgroupDescription: ''
+      title: 'Позиции инвентаризации'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the inventory.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/inventories/{id}/report'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Инвентаризации
+      subgroupDescription: ''
+      title: 'Отчёт по инвентаризации'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the inventory.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/inventories
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Инвентаризации
+      subgroupDescription: ''
+      title: 'Создать инвентаризацию'
+      description: 'Создаёт новую инвентаризацию для выбранного склада.'
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      warehouse_id:
+        custom: []
+        name: warehouse_id
+        description: ''
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      category_ids:
+        custom: []
+        name: category_ids
+        description: 'The <code>id</code> of an existing record in the categories table.'
+        required: false
+        example:
+          - 17
+        type: 'integer[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      warehouse_id: 17
+      category_ids:
+        - 17
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/inventories/{id}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Инвентаризации
+      subgroupDescription: ''
+      title: 'Удалить инвентаризацию'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the inventory.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PATCH
+    uri: 'api/inventories/{id}/items'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Инвентаризации
+      subgroupDescription: ''
+      title: 'Обновить позиции инвентаризации'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the inventory.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      items:
+        custom: []
+        name: items
+        description: 'Количество элементов в поле value должно быть не менее 1.'
+        required: true
+        example:
+          - []
+        type: 'object[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'items[].id':
+        custom: []
+        name: 'items[].id'
+        description: 'The <code>id</code> of an existing record in the inventory_items table.'
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'items[].actual_quantity':
+        custom: []
+        name: 'items[].actual_quantity'
+        description: ''
+        required: false
+        example: 11613.31890586
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      items:
+        -
+          id: 17
+          actual_quantity: 11613.31890586
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/inventories/{id}/finalize'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Инвентаризации
+      subgroupDescription: ''
+      title: ''
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the inventory.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/inventories/{id}/apply-shortage'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Инвентаризации
+      subgroupDescription: ''
+      title: 'Применить к складу недостачу (списание) и/или излишек (оприходование) по завершённой инвентаризации.'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the inventory.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/warehouse_receipts
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Приходы
+      subgroupDescription: ''
+      title: 'Список оприходований'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":{"items":[],"meta":{"current_page":1,"next_page":null,"last_page":1,"per_page":20,"total":0}}}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/warehouse_receipts/{id}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Приходы
+      subgroupDescription: ''
+      title: 'Оприходование по ID'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the warehouse receipt.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":{"id":1}}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 404
+        content: '{"error":"Оприходование не найдено"}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/warehouse_receipts
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Приходы
+      subgroupDescription: ''
+      title: 'Создать оприходование'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      client_id:
+        custom: []
+        name: client_id
+        description: ''
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      warehouse_id:
+        custom: []
+        name: warehouse_id
+        description: ''
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      cash_id:
+        custom: []
+        name: cash_id
+        description: ''
+        required: false
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      date:
+        custom: []
+        name: date
+        description: 'Поле value не является датой.'
+        required: false
+        example: '2026-05-07T20:38:23'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      note:
+        custom: []
+        name: note
+        description: ''
+        required: false
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      products:
+        custom: []
+        name: products
+        description: ''
+        required: true
+        example:
+          - []
+        type: 'object[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      client_balance_id:
+        custom: []
+        name: client_balance_id
+        description: ''
+        required: false
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      is_legacy:
+        custom: []
+        name: is_legacy
+        description: ''
+        required: false
+        example: false
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      is_simple:
+        custom: []
+        name: is_simple
+        description: ''
+        required: false
+        example: true
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      status:
+        custom: []
+        name: status
+        description: ''
+        required: false
+        example: customs_clearance
+        type: string
+        enumValues:
+          - in_transit
+          - customs_clearance
+          - purchasing
+          - fully_received
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      'products[].product_id':
+        custom: []
+        name: 'products[].product_id'
+        description: 'The <code>id</code> of an existing record in the products table.'
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'products[].quantity':
+        custom: []
+        name: 'products[].quantity'
+        description: 'Поле value должно быть не менее 0.'
+        required: true
+        example: 45
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'products[].price':
+        custom: []
+        name: 'products[].price'
+        description: 'Поле value должно быть не менее 0.'
+        required: true
+        example: 56
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      client_id: 17
+      warehouse_id: 17
+      cash_id: 17
+      date: '2026-05-07T20:38:23'
+      note: consequatur
+      products:
+        -
+          product_id: 17
+          quantity: 45
+          price: 56
+      client_balance_id: 17
+      is_legacy: false
+      is_simple: true
+      status: customs_clearance
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":{"id":1},"message":"Оприходование создано"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 422
+        content: '{"error":"The given data was invalid.","errors":{"warehouse_id":["The warehouse id field is required."]}}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/warehouse_receipts/{id}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Приходы
+      subgroupDescription: ''
+      title: 'Изменить оприходование'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the warehouse receipt.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      date:
+        custom: []
+        name: date
+        description: 'Поле value не является датой.'
+        required: false
+        example: '2026-05-07T20:38:23'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      note:
+        custom: []
+        name: note
+        description: ''
+        required: false
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      status:
+        custom: []
+        name: status
+        description: ''
+        required: false
+        example: customs_clearance
+        type: string
+        enumValues:
+          - in_transit
+          - customs_clearance
+          - purchasing
+          - fully_received
+          - completed
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      date: '2026-05-07T20:38:23'
+      note: consequatur
+      status: customs_clearance
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":null,"message":"Оприходование обновлено"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 404
+        content: '{"error":"Оприходование не найдено"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 422
+        content: '{"error":"The given data was invalid.","errors":{"status":["The selected status is invalid."]}}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/warehouse_receipts/{id}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Приходы
+      subgroupDescription: ''
+      title: 'Удалить оприходование'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the warehouse receipt.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":null,"message":"Оприходование удалено"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 404
+        content: '{"error":"Оприходование не найдено"}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/warehouse_receipts/{receiptId}/waybill_allowed_lines'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Накладные
+      subgroupDescription: ''
+      title: ''
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      receiptId:
+        custom: []
+        name: receiptId
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      receiptId: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      editing_waybill_id:
+        custom: []
+        name: editing_waybill_id
+        description: 'Поле value должно быть не менее 1.'
+        required: false
+        example: 73
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      editing_waybill_id: 73
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/warehouse_receipts/{receiptId}/waybills'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Накладные
+      subgroupDescription: ''
+      title: ''
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      receiptId:
+        custom: []
+        name: receiptId
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      receiptId: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: 'api/warehouse_receipts/{receiptId}/waybills'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Накладные
+      subgroupDescription: ''
+      title: ''
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      receiptId:
+        custom: []
+        name: receiptId
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      receiptId: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      date:
+        custom: []
+        name: date
+        description: 'Поле value не является датой.'
+        required: false
+        example: '2026-05-07T20:38:23'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      number:
+        custom: []
+        name: number
+        description: 'Количество символов в поле value не может превышать 255.'
+        required: false
+        example: vmqeopfuudtdsufvyvddq
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      note:
+        custom: []
+        name: note
+        description: ''
+        required: false
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      lines:
+        custom: []
+        name: lines
+        description: 'Количество элементов в поле value должно быть не менее 1.'
+        required: true
+        example:
+          - []
+        type: 'object[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'lines[].product_id':
+        custom: []
+        name: 'lines[].product_id'
+        description: 'The <code>id</code> of an existing record in the products table.'
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'lines[].quantity':
+        custom: []
+        name: 'lines[].quantity'
+        description: 'Поле value должно быть не менее 0.'
+        required: true
+        example: 45
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'lines[].price':
+        custom: []
+        name: 'lines[].price'
+        description: 'Поле value должно быть не менее 0.'
+        required: true
+        example: 56
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      date: '2026-05-07T20:38:23'
+      number: vmqeopfuudtdsufvyvddq
+      note: consequatur
+      lines:
+        -
+          product_id: 17
+          quantity: 45
+          price: 56
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/warehouse_receipts/{receiptId}/waybills/{waybillId}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Накладные
+      subgroupDescription: ''
+      title: ''
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      receiptId:
+        custom: []
+        name: receiptId
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      waybillId:
+        custom: []
+        name: waybillId
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      receiptId: consequatur
+      waybillId: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      date:
+        custom: []
+        name: date
+        description: 'Поле value не является датой.'
+        required: false
+        example: '2026-05-07T20:38:23'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      number:
+        custom: []
+        name: number
+        description: 'Количество символов в поле value не может превышать 255.'
+        required: false
+        example: vmqeopfuudtdsufvyvddq
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      note:
+        custom: []
+        name: note
+        description: ''
+        required: false
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      lines:
+        custom: []
+        name: lines
+        description: 'Количество элементов в поле value должно быть не менее 1.'
+        required: true
+        example:
+          - []
+        type: 'object[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'lines[].product_id':
+        custom: []
+        name: 'lines[].product_id'
+        description: 'The <code>id</code> of an existing record in the products table.'
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'lines[].quantity':
+        custom: []
+        name: 'lines[].quantity'
+        description: 'Поле value должно быть не менее 0.'
+        required: true
+        example: 45
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'lines[].price':
+        custom: []
+        name: 'lines[].price'
+        description: 'Поле value должно быть не менее 0.'
+        required: true
+        example: 56
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      date: '2026-05-07T20:38:23'
+      number: vmqeopfuudtdsufvyvddq
+      note: consequatur
+      lines:
+        -
+          product_id: 17
+          quantity: 45
+          price: 56
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/warehouse_receipts/{receiptId}/waybills/{waybillId}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Накладные
+      subgroupDescription: ''
+      title: ''
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      receiptId:
+        custom: []
+        name: receiptId
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      waybillId:
+        custom: []
+        name: waybillId
+        description: ''
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      receiptId: consequatur
+      waybillId: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/warehouse_writeoffs
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Списания
+      subgroupDescription: ''
+      title: 'Список списаний'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":{"items":[],"meta":{"current_page":1,"next_page":null,"last_page":1,"per_page":20,"total":0}}}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: 'api/warehouse_writeoffs/{id}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Списания
+      subgroupDescription: ''
+      title: 'Списание по ID'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the warehouse writeoff.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":{"id":1}}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 404
+        content: '{"error":"Списание не найдено"}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/warehouse_writeoffs
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Списания
+      subgroupDescription: ''
+      title: 'Создать списание'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      warehouse_id:
+        custom: []
+        name: warehouse_id
+        description: ''
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      reason:
+        custom: []
+        name: reason
+        description: ''
+        required: true
+        example: shortage
+        type: string
+        enumValues:
+          - defect
+          - shortage
+          - consumable
+          - return_supplier
+          - other
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      source_receipt_id:
+        custom: []
+        name: source_receipt_id
+        description: 'This field is required when <code>reason</code> is <code>return_supplier</code>. The <code>id</code> of an existing record in the wh_receipts table.'
+        required: false
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      note:
+        custom: []
+        name: note
+        description: ''
+        required: false
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      products:
+        custom: []
+        name: products
+        description: ''
+        required: true
+        example:
+          - []
+        type: 'object[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'products[].product_id':
+        custom: []
+        name: 'products[].product_id'
+        description: 'The <code>id</code> of an existing record in the products table.'
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'products[].quantity':
+        custom: []
+        name: 'products[].quantity'
+        description: 'Поле value должно быть не менее 0.'
+        required: true
+        example: 45
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'products[].source_receipt_product_id':
+        custom: []
+        name: 'products[].source_receipt_product_id'
+        description: 'The <code>id</code> of an existing record in the wh_receipt_products table.'
+        required: false
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      warehouse_id: 17
+      reason: shortage
+      source_receipt_id: 17
+      note: consequatur
+      products:
+        -
+          product_id: 17
+          quantity: 45
+          source_receipt_product_id: 17
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":null,"message":"Списание создано"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 422
+        content: '{"error":"The given data was invalid.","errors":{"warehouse_id":["The warehouse id field is required."]}}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/warehouse_writeoffs/{id}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Списания
+      subgroupDescription: ''
+      title: 'Изменить списание'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the warehouse writeoff.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      warehouse_id:
+        custom: []
+        name: warehouse_id
+        description: ''
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      reason:
+        custom: []
+        name: reason
+        description: ''
+        required: true
+        example: shortage
+        type: string
+        enumValues:
+          - defect
+          - shortage
+          - consumable
+          - return_supplier
+          - other
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      source_receipt_id:
+        custom: []
+        name: source_receipt_id
+        description: 'This field is required when <code>reason</code> is <code>return_supplier</code>. The <code>id</code> of an existing record in the wh_receipts table.'
+        required: false
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      note:
+        custom: []
+        name: note
+        description: ''
+        required: false
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      products:
+        custom: []
+        name: products
+        description: ''
+        required: true
+        example:
+          - []
+        type: 'object[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'products[].product_id':
+        custom: []
+        name: 'products[].product_id'
+        description: 'The <code>id</code> of an existing record in the products table.'
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'products[].quantity':
+        custom: []
+        name: 'products[].quantity'
+        description: 'Поле value должно быть не менее 0.'
+        required: true
+        example: 45
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'products[].source_receipt_product_id':
+        custom: []
+        name: 'products[].source_receipt_product_id'
+        description: 'The <code>id</code> of an existing record in the wh_receipt_products table.'
+        required: false
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      warehouse_id: 17
+      reason: shortage
+      source_receipt_id: 17
+      note: consequatur
+      products:
+        -
+          product_id: 17
+          quantity: 45
+          source_receipt_product_id: 17
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":null,"message":"Списание обновлено"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 404
+        content: '{"error":"Списание не найдено"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 422
+        content: '{"error":"The given data was invalid.","errors":{"warehouse_id":["The warehouse id field is required."]}}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/warehouse_writeoffs/{id}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Списания
+      subgroupDescription: ''
+      title: 'Удалить списание'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the warehouse writeoff.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":null,"message":"Списание удалено"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 404
+        content: '{"error":"Not found"}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - GET
+    uri: api/warehouse_movements
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Перемещения
+      subgroupDescription: ''
+      title: 'Список перемещений'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":{"items":[],"meta":{"current_page":1,"next_page":null,"last_page":1,"per_page":20,"total":0}}}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/warehouse_movements
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Перемещения
+      subgroupDescription: ''
+      title: 'Создать перемещение'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      warehouse_from_id:
+        custom: []
+        name: warehouse_from_id
+        description: ''
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      warehouse_to_id:
+        custom: []
+        name: warehouse_to_id
+        description: ''
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      date:
+        custom: []
+        name: date
+        description: 'Поле value не является датой.'
+        required: false
+        example: '2026-05-07T20:38:23'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      note:
+        custom: []
+        name: note
+        description: ''
+        required: false
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      products:
+        custom: []
+        name: products
+        description: ''
+        required: true
+        example:
+          - []
+        type: 'object[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'products[].product_id':
+        custom: []
+        name: 'products[].product_id'
+        description: 'The <code>id</code> of an existing record in the products table.'
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'products[].quantity':
+        custom: []
+        name: 'products[].quantity'
+        description: 'Поле value должно быть не менее 0.'
+        required: true
+        example: 45
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      warehouse_from_id: 17
+      warehouse_to_id: 17
+      date: '2026-05-07T20:38:23'
+      note: consequatur
+      products:
+        -
+          product_id: 17
+          quantity: 45
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":null,"message":"Перемещение создано"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 422
+        content: '{"error":"The given data was invalid.","errors":{"warehouse_from_id":["The warehouse from id field is required."]}}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/warehouse_movements/{id}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Перемещения
+      subgroupDescription: ''
+      title: 'Изменить перемещение'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the warehouse movement.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      warehouse_from_id:
+        custom: []
+        name: warehouse_from_id
+        description: ''
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      warehouse_to_id:
+        custom: []
+        name: warehouse_to_id
+        description: ''
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      date:
+        custom: []
+        name: date
+        description: 'Поле value не является датой.'
+        required: false
+        example: '2026-05-07T20:38:23'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      note:
+        custom: []
+        name: note
+        description: ''
+        required: false
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      products:
+        custom: []
+        name: products
+        description: ''
+        required: true
+        example:
+          - []
+        type: 'object[]'
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'products[].product_id':
+        custom: []
+        name: 'products[].product_id'
+        description: 'The <code>id</code> of an existing record in the products table.'
+        required: true
+        example: 17
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      'products[].quantity':
+        custom: []
+        name: 'products[].quantity'
+        description: 'Поле value должно быть не менее 0.'
+        required: true
+        example: 45
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      warehouse_from_id: 17
+      warehouse_to_id: 17
+      date: '2026-05-07T20:38:23'
+      note: consequatur
+      products:
+        -
+          product_id: 17
+          quantity: 45
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":null,"message":"Перемещение обновлено"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 404
+        content: '{"error":"Not found"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 422
+        content: '{"error":"The given data was invalid.","errors":{"warehouse_from_id":["The warehouse from id field is required."]}}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - DELETE
+    uri: 'api/warehouse_movements/{id}'
+    metadata:
+      custom: []
+      groupName: Склады
+      groupDescription: ''
+      subgroup: Перемещения
+      subgroupDescription: ''
+      title: 'Удалить перемещение'
+      description: ''
+      authenticated: true
+      deprecated: false
+    headers:
+      Authorization: 'Bearer {YOUR_ACCESS_TOKEN}'
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
+        custom: []
+        name: id
+        description: 'The ID of the warehouse movement.'
+        required: true
+        example: consequatur
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: consequatur
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: '{"data":null,"message":"Перемещение удалено"}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: '{"error":"Unauthenticated."}'
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 404
+        content: '{"error":"Not found"}'
+        headers: []
+        description: ''
+    responseFields: []
+    auth:
+      - headers
+      - Authorization
+      - 'Bearer 3V5EgbkvZcDPa166h8fd4ae'
+    controller: null
+    method: null
+    route: null

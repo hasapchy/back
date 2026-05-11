@@ -19,6 +19,10 @@ use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
+/**
+ * @group Склады
+ * @subgroup Инвентаризации
+ */
 class InventoryController extends BaseController
 {
     public function __construct(
@@ -28,6 +32,10 @@ class InventoryController extends BaseController
     }
 
     /**
+     * Создать инвентаризацию
+     *
+     * Создаёт новую инвентаризацию для выбранного склада.
+     *
      * @throws ModelNotFoundException
      */
     public function store(StoreInventoryRequest $request): JsonResponse
@@ -47,6 +55,9 @@ class InventoryController extends BaseController
         return $this->successResponse(InventoryResource::make($inventory)->resolve(), 'Инвентаризация создана');
     }
 
+    /**
+     * Список инвентаризаций
+     */
     public function index(Request $request): JsonResponse
     {
         $filters = [];
@@ -67,6 +78,9 @@ class InventoryController extends BaseController
         ]);
     }
 
+    /**
+     * Инвентаризация по ID
+     */
     public function show(int $id): JsonResponse
     {
         return $this->withInventory($id, fn (Inventory $inventory) => $this->successResponse(
@@ -74,6 +88,9 @@ class InventoryController extends BaseController
         ));
     }
 
+    /**
+     * Позиции инвентаризации
+     */
     public function items(int $id, Request $request): JsonResponse
     {
         return $this->withInventory($id, function (Inventory $inventory) use ($request) {
@@ -91,6 +108,9 @@ class InventoryController extends BaseController
         });
     }
 
+    /**
+     * Обновить позиции инвентаризации
+     */
     public function updateItems(int $id, UpdateInventoryItemsRequest $request): JsonResponse
     {
         return $this->withInventory($id, function (Inventory $inventory) use ($request) {
@@ -126,6 +146,9 @@ class InventoryController extends BaseController
         });
     }
 
+    /**
+     * Удалить инвентаризацию
+     */
     public function destroy(int $id): JsonResponse
     {
         return $this->withInventory($id, function (Inventory $inventory) {
@@ -165,6 +188,9 @@ class InventoryController extends BaseController
         });
     }
 
+    /**
+     * Отчёт по инвентаризации
+     */
     public function report(int $id, Request $request): JsonResponse
     {
         return $this->withInventory($id, function (Inventory $inventory) use ($request) {
@@ -179,6 +205,9 @@ class InventoryController extends BaseController
         });
     }
 
+    /**
+     * Экспорт инвентаризации
+     */
     public function export(int $id, Request $request): BinaryFileResponse
     {
         return $this->withInventoryBinary($id, function (Inventory $inventory) use ($request) {

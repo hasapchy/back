@@ -8,6 +8,10 @@ use App\Support\CompanyScopedPermissions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * @group Система
+ * @subgroup Валюты
+ */
 class CurrenciesController extends BaseController
 {
     /**

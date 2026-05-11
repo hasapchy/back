@@ -11,6 +11,10 @@ use App\Support\ResolvedCompany;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
+/**
+ * @group Пользователи
+ * @subgroup Контекст компании
+ */
 class UserCompanyController extends BaseController
 {
     public function __construct(

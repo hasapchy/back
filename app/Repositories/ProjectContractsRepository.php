@@ -512,6 +512,18 @@ class ProjectContractsRepository extends BaseRepository
     {
         return DB::transaction(function () use ($id, $data) {
             $contract = ProjectContract::findOrFail($id);
+            $oldProjectId = (int) $contract->project_id;
+            $newProjectId = $oldProjectId;
+
+            if (array_key_exists('project_id', $data)) {
+                $newProjectId = (int) $data['project_id'];
+                $contract->project_id = $newProjectId;
+            }
+
+            $targetProject = Project::query()->select(['id', 'client_id'])->find($newProjectId);
+            if (! $targetProject) {
+                throw new \DomainException('Проект не найден');
+            }
 
             if (array_key_exists('number', $data)) {
                 $contract->number = $data['number'];
@@ -523,6 +535,9 @@ class ProjectContractsRepository extends BaseRepository
                 $contract->client_id = $data['client_id'] !== null && $data['client_id'] !== ''
                     ? (int) $data['client_id']
                     : null;
+            }
+            if (! array_key_exists('client_id', $data) && $oldProjectId !== $newProjectId) {
+                $contract->client_id = $targetProject->client_id ? (int) $targetProject->client_id : null;
             }
             if (array_key_exists('amount', $data)) {
                 $contract->amount = $data['amount'];
@@ -566,7 +581,6 @@ class ProjectContractsRepository extends BaseRepository
                 ->first();
 
             if ($debtTransaction) {
-                $project = $contract->project;
                 $cashRegister = CashRegister::find($contract->cash_id);
                 $contractCurrencyId = $contract->currency_id ?? ($cashRegister ? $cashRegister->currency_id : null);
                 if (! $contractCurrencyId) {
@@ -581,13 +595,17 @@ class ProjectContractsRepository extends BaseRepository
                     'note' => $contract->note,
                     'cash_id' => $contract->cash_id,
                     'currency_id' => $contractCurrencyId,
-                    'client_id' => $contract->client_id ?? $project->client_id,
+                    'client_id' => $contract->client_id ?? $targetProject->client_id,
                     'client_balance_id' => $contract->client_balance_id,
                     'category_id' => $debtTransaction->category_id,
+                    'project_id' => $contract->project_id,
                 ]);
             }
 
             $this->invalidateProjectContractsCache($contract->project_id, $id);
+            if ($oldProjectId !== (int) $contract->project_id) {
+                $this->invalidateProjectContractsCache($oldProjectId);
+            }
             TimelineCache::forget('project_contract', $id);
 
             return $contract;

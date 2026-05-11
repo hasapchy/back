@@ -6,7 +6,6 @@ use App\Enums\WhReceiptStatus;
 use App\Http\Requests\Concerns\ValidatesOrderClientBalance;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\ClientAccessRule;
-use App\Rules\ProjectAccessRule;
 use App\Rules\WarehouseAccessRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -37,22 +36,20 @@ class StoreWarehouseReceiptRequest extends FormRequest
         return [
             'client_id' => ['required', 'integer', new ClientAccessRule()],
             'warehouse_id' => ['required', 'integer', new WarehouseAccessRule()],
+            'purchase_id' => ['nullable', 'integer', 'exists:wh_purchases,id'],
             'cash_id' => ['nullable', 'integer', new CashRegisterAccessRule()],
             'date' => 'nullable|date',
             'note' => 'nullable|string',
-            'project_id' => ['nullable', 'integer', new ProjectAccessRule()],
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity' => 'required|numeric|min:0',
             'products.*.price' => 'required|numeric|min:0',
             'client_balance_id' => $this->orderClientBalanceIdRules(),
-            'is_legacy' => 'sometimes|boolean',
-            'is_simple' => 'sometimes|boolean',
             'status' => [
                 'sometimes',
                 'nullable',
                 'string',
-                Rule::in(array_values(array_diff(WhReceiptStatus::values(), [WhReceiptStatus::Completed->value]))),
+                Rule::in([WhReceiptStatus::Draft->value]),
             ],
         ];
     }
@@ -67,8 +64,8 @@ class StoreWarehouseReceiptRequest extends FormRequest
             if ($v->errors()->isNotEmpty()) {
                 return;
             }
-            if ($this->boolean('is_simple') && $this->boolean('is_legacy')) {
-                $v->errors()->add('is_simple', __('warehouse_receipt.simple_incompatible_with_legacy'));
+            if (! $this->filled('purchase_id') && ! $this->filled('cash_id')) {
+                $v->errors()->add('cash_id', 'Для оприходования без закупки нужно выбрать кассу');
             }
         });
     }

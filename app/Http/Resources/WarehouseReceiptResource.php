@@ -21,8 +21,11 @@ class WarehouseReceiptResource extends BaseDomainResource
 
         /** @var WhReceipt $receipt */
         $receipt = $this->resource;
+        if (! $receipt->status instanceof WhReceiptStatus) {
+            throw new \LogicException('Invalid receipt status value');
+        }
         $data = $receipt->toArray();
-        unset($data['products'], $data['waybills']);
+        unset($data['products']);
         $routeReceiptId = $request->route('id');
         $includeLandedCost = $routeReceiptId !== null && (int) $routeReceiptId === (int) $receipt->id;
 
@@ -52,15 +55,9 @@ class WarehouseReceiptResource extends BaseDomainResource
         } else {
             $data['products'] = WarehouseReceiptProductResource::collection($receipt->products)->resolve();
         }
-        $data['status'] = $receipt->status instanceof WhReceiptStatus ? $receipt->status->value : (string) $receipt->status;
-        $data['is_legacy'] = (bool) $receipt->is_legacy;
-        $data['is_simple'] = (bool) $receipt->is_simple;
-        if ($receipt->relationLoaded('waybills')) {
-            $data['waybills'] = WhWaybillResource::collection($receipt->waybills)->resolve();
-        } else {
-            $data['waybills'] = [];
-        }
-
+        $data['status'] = $receipt->status->value;
+        $data['purchase_id'] = $receipt->purchase_id !== null ? (int) $receipt->purchase_id : null;
+        $data['is_from_purchase'] = $receipt->purchase_id !== null;
         return $this->normalizeCreator($data);
     }
 }

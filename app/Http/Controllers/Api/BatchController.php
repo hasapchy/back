@@ -9,8 +9,15 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
+/**
+ * @group Система
+ * @subgroup Пакетные операции
+ */
 class BatchController extends BaseController
 {
+    /**
+     * Пакетная операция
+     */
     public function execute(Request $request, BatchService $batchService): JsonResponse
     {
         $user = $this->requireAuthenticatedUser();

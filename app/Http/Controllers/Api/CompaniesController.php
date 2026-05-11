@@ -18,10 +18,13 @@ use Illuminate\Validation\ValidationException;
 /**
  * Контроллер для работы с компаниями
  */
+/**
+ * @group Компании
+ */
 class CompaniesController extends BaseController
 {
     /**
-     * Получить список компаний с пагинацией
+     * Список компаний
      *
      * @return JsonResponse
      */
@@ -45,7 +48,7 @@ class CompaniesController extends BaseController
     }
 
     /**
-     * Создать новую компанию
+     * Создать компанию
      *
      * @return JsonResponse
      */

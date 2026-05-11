@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * @property int $id
  * @property int|null $supplier_id ID поставщика (null для служебных приходов, например излишек по инвентаризации)
+ * @property int|null $purchase_id ID закупки
  * @property int|null $client_balance_id ID выбранного баланса поставщика
  * @property int $warehouse_id ID склада
  * @property string|null $note Примечание
@@ -22,9 +23,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float $amount Сумма
  * @property \Carbon\Carbon $date Дата прихода
  * @property int $creator_id ID пользователя
- * @property int|null $project_id ID проекта
- * @property bool $is_legacy
- * @property bool $is_simple
  * @property WhReceiptStatus $status
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -36,9 +34,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read \App\Models\User $creator
  * @property-read \App\Models\Currency|null $currency
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhReceiptProduct[] $products
- * @property-read \App\Models\Project|null $project
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
- * @property-read \Illuminate\Database\Eloquent\Collection<int, WhWaybill> $waybills
  * @property-read \Illuminate\Database\Eloquent\Collection<int, WhReceiptExpenseAllocation> $expenseAllocations
  */
 class WhReceipt extends Model
@@ -47,6 +43,7 @@ class WhReceipt extends Model
 
     protected $fillable = [
         'supplier_id',
+        'purchase_id',
         'client_balance_id',
         'warehouse_id',
         'note',
@@ -54,16 +51,11 @@ class WhReceipt extends Model
         'amount',
         'date',
         'creator_id',
-        'project_id',
-        'is_legacy',
-        'is_simple',
         'status',
     ];
 
     protected $casts = [
         'amount' => 'decimal:5',
-        'is_legacy' => 'boolean',
-        'is_simple' => 'boolean',
         'status' => WhReceiptStatus::class,
     ];
 
@@ -83,6 +75,14 @@ class WhReceipt extends Model
     public function supplier()
     {
         return $this->belongsTo(Client::class, 'supplier_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function purchase()
+    {
+        return $this->belongsTo(WhPurchase::class, 'purchase_id');
     }
 
     /**
@@ -149,24 +149,6 @@ class WhReceipt extends Model
     public function transactions()
     {
         return $this->morphMany(Transaction::class, 'source');
-    }
-
-    /**
-     * Связь с проектом
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function project()
-    {
-        return $this->belongsTo(Project::class, 'project_id');
-    }
-
-    /**
-     * @return HasMany<WhWaybill>
-     */
-    public function waybills(): HasMany
-    {
-        return $this->hasMany(WhWaybill::class, 'receipt_id');
     }
 
     /**
