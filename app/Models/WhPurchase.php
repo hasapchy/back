@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property int $supplier_id
  * @property int|null $warehouse_id
  * @property int|null $client_balance_id
+ * @property int $cash_id
+ * @property int|null $currency_id
  * @property int $creator_id
  * @property string $status
  * @property \Carbon\Carbon $date
@@ -30,6 +32,8 @@ class WhPurchase extends Model
         'supplier_id',
         'warehouse_id',
         'client_balance_id',
+        'cash_id',
+        'currency_id',
         'creator_id',
         'status',
         'date',
@@ -65,6 +69,22 @@ class WhPurchase extends Model
     public function clientBalance()
     {
         return $this->belongsTo(ClientBalance::class, 'client_balance_id');
+    }
+
+    /**
+     * @return BelongsTo<CashRegister, self>
+     */
+    public function cashRegister(): BelongsTo
+    {
+        return $this->belongsTo(CashRegister::class, 'cash_id');
+    }
+
+    /**
+     * @return BelongsTo<Currency, self>
+     */
+    public function currency(): BelongsTo
+    {
+        return $this->belongsTo(Currency::class, 'currency_id');
     }
 
     /**

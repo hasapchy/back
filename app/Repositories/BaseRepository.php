@@ -358,8 +358,9 @@ abstract class BaseRepository
 
         $fromCurrency = Currency::findOrFail($fromCurrencyId);
         $toCurrency = Currency::findOrFail($toCurrencyId);
+        $companyId = $this->getCurrentCompanyId();
 
-        return CurrencyConverter::convert($amount, $fromCurrency, $toCurrency);
+        return CurrencyConverter::convert($amount, $fromCurrency, $toCurrency, null, $companyId);
     }
 
     /**

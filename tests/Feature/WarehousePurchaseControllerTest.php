@@ -6,6 +6,7 @@ use App\Models\CashRegister;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\Currency;
+use App\Models\CurrencyHistory;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -115,6 +116,7 @@ class WarehousePurchaseControllerTest extends TestCase
         $payload = [
             'supplier_id' => $this->supplier->id,
             'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
             'products' => [
                 [
                     'product_id' => $this->product->id,
@@ -133,6 +135,7 @@ class WarehousePurchaseControllerTest extends TestCase
             'id' => $purchaseId,
             'supplier_id' => $this->supplier->id,
             'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
             'status' => 'draft',
             'amount' => 50,
         ]);
@@ -150,6 +153,7 @@ class WarehousePurchaseControllerTest extends TestCase
         $purchase = WhPurchase::query()->create([
             'supplier_id' => $this->supplier->id,
             'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
             'creator_id' => $this->adminUser->id,
             'status' => 'approved',
             'date' => now(),
@@ -158,6 +162,7 @@ class WarehousePurchaseControllerTest extends TestCase
 
         $response = $this->actingAsApi($this->adminUser)->putJson("/api/warehouse_purchases/{$purchase->id}", [
             'note' => 'updated',
+            'cash_id' => $this->cashRegister->id,
         ]);
 
         $response->assertStatus(400);
@@ -169,6 +174,7 @@ class WarehousePurchaseControllerTest extends TestCase
         $createResponse = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [
             'supplier_id' => $this->supplier->id,
             'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
             'products' => [
                 [
                     'product_id' => $this->product->id,
@@ -199,6 +205,7 @@ class WarehousePurchaseControllerTest extends TestCase
         $purchase = WhPurchase::query()->create([
             'supplier_id' => $this->supplier->id,
             'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
             'creator_id' => $this->adminUser->id,
             'status' => 'draft',
             'date' => now(),
@@ -251,6 +258,109 @@ class WarehousePurchaseControllerTest extends TestCase
                 'meta' => ['current_page', 'next_page', 'last_page', 'per_page', 'total'],
             ],
         ]);
+    }
+
+    public function test_store_purchase_converts_document_currency_to_default_amount(): void
+    {
+        $defaultCurrency = Currency::query()->where('company_id', $this->company->id)->where('is_default', true)->firstOrFail();
+        $usdCurrency = Currency::factory()->create([
+            'company_id' => $this->company->id,
+            'is_default' => false,
+            'is_report' => false,
+        ]);
+        CurrencyHistory::query()->create([
+            'currency_id' => $defaultCurrency->id,
+            'company_id' => $this->company->id,
+            'exchange_rate' => 1,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => null,
+        ]);
+        CurrencyHistory::query()->create([
+            'currency_id' => $usdCurrency->id,
+            'company_id' => $this->company->id,
+            'exchange_rate' => 2,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => null,
+        ]);
+
+        $payload = [
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $usdCurrency->id,
+            'products' => [
+                ['product_id' => $this->product->id, 'quantity' => 5, 'price' => 10],
+            ],
+        ];
+
+        $response = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', $payload);
+        $response->assertStatus(200);
+        $purchaseId = (int) $response->json('data.id');
+
+        $this->assertDatabaseHas('wh_purchases', [
+            'id' => $purchaseId,
+            'currency_id' => $usdCurrency->id,
+            'amount' => 100,
+        ]);
+        $this->assertDatabaseHas('transactions', [
+            'source_type' => \App\Models\WhPurchase::class,
+            'source_id' => $purchaseId,
+            'is_debt' => true,
+            'currency_id' => $usdCurrency->id,
+            'orig_amount' => 50,
+            'def_amount' => 100,
+        ]);
+    }
+
+    public function test_purchase_payment_rejects_overpayment_in_foreign_currency(): void
+    {
+        $defaultCurrency = Currency::query()->where('company_id', $this->company->id)->where('is_default', true)->firstOrFail();
+        $usdCurrency = Currency::factory()->create([
+            'company_id' => $this->company->id,
+            'is_default' => false,
+            'is_report' => false,
+        ]);
+        CurrencyHistory::query()->create([
+            'currency_id' => $defaultCurrency->id,
+            'company_id' => $this->company->id,
+            'exchange_rate' => 1,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => null,
+        ]);
+        CurrencyHistory::query()->create([
+            'currency_id' => $usdCurrency->id,
+            'company_id' => $this->company->id,
+            'exchange_rate' => 2,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => null,
+        ]);
+
+        $createResponse = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $usdCurrency->id,
+            'products' => [
+                ['product_id' => $this->product->id, 'quantity' => 10, 'price' => 10],
+            ],
+        ]);
+        $createResponse->assertStatus(200);
+        $purchaseId = (int) $createResponse->json('data.id');
+
+        $firstPayment = $this->actingAsApi($this->adminUser)->postJson("/api/warehouse_purchases/{$purchaseId}/pay", [
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $usdCurrency->id,
+            'amount' => 60,
+        ]);
+        $firstPayment->assertStatus(200);
+
+        $secondPayment = $this->actingAsApi($this->adminUser)->postJson("/api/warehouse_purchases/{$purchaseId}/pay", [
+            'cash_id' => $this->cashRegister->id,
+            'currency_id' => $usdCurrency->id,
+            'amount' => 50,
+        ]);
+        $secondPayment->assertStatus(400);
+        $secondPayment->assertJsonFragment(['error' => 'Сумма оплаты не может превышать долг по закупке']);
     }
 }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\WhPurchaseStatus;
+use App\Rules\CashRegisterAccessRule;
 use App\Rules\ClientAccessRule;
 use App\Rules\WarehouseAccessRule;
 use Illuminate\Contracts\Validation\Validator;
@@ -29,6 +30,8 @@ class UpdateWarehousePurchaseRequest extends FormRequest
             'supplier_id' => ['sometimes', 'integer', new ClientAccessRule()],
             'warehouse_id' => ['sometimes', 'integer', new WarehouseAccessRule()],
             'client_balance_id' => 'nullable|integer|exists:client_balances,id',
+            'cash_id' => ['required', 'integer', new CashRegisterAccessRule()],
+            'currency_id' => 'nullable|integer|exists:currencies,id',
             'date' => 'nullable|date',
             'note' => 'nullable|string',
             'status' => ['sometimes', 'nullable', 'string', Rule::in(WhPurchaseStatus::values())],

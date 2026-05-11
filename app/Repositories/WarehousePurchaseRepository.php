@@ -3,7 +3,7 @@
 namespace App\Repositories;
 
 use App\Enums\WhPurchaseStatus;
-use App\Models\CashRegister;
+use App\Models\ClientBalance;
 use App\Models\WhPurchase;
 use App\Models\WhPurchaseProduct;
 use App\Services\CacheService;
@@ -28,6 +28,8 @@ class WarehousePurchaseRepository extends BaseRepository
                     'supplier.emails:id,client_id,email',
                     'warehouse:id,name',
                     'clientBalance:id,client_id,currency_id,type',
+                    'cashRegister:id,name,currency_id,is_cash',
+                    'currency:id,symbol',
                     'creator:id,name',
                     'products:id,purchase_id,product_id,quantity,price',
                     'products.product:id,name,image,unit_id',
@@ -66,6 +68,8 @@ class WarehousePurchaseRepository extends BaseRepository
                     'supplier.emails:id,client_id,email',
                     'warehouse:id,name',
                     'clientBalance:id,client_id,currency_id,type',
+                    'cashRegister:id,name,currency_id,is_cash',
+                    'currency:id,symbol',
                     'creator:id,name',
                     'products:id,purchase_id,product_id,quantity,price',
                     'products.product:id,name,image,unit_id',
@@ -88,23 +92,31 @@ class WarehousePurchaseRepository extends BaseRepository
             $rounding = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
             $products = $data['products'] ?? [];
-            $amount = 0.0;
+            $defaultCurrency = $this->getDefaultCurrency();
+            $purchaseCurrencyId = $this->resolvePurchaseCurrencyId($data, $defaultCurrency->id);
+            $purchaseCashId = $this->resolvePurchaseCashId($data);
+            $amountOrig = 0.0;
 
             foreach ($products as $idx => $product) {
                 $products[$idx]['quantity'] = $rounding->roundQuantityForCompany($companyId, (float) $product['quantity']);
-                $amount += (float) $products[$idx]['quantity'] * (float) $product['price'];
+                $amountOrig += (float) $products[$idx]['quantity'] * (float) $product['price'];
             }
-            $amount = $rounding->roundForCompany($companyId, $amount);
+            $amountOrig = $rounding->roundForCompany($companyId, $amountOrig);
+            $amountDefault = $purchaseCurrencyId === (int) $defaultCurrency->id
+                ? $amountOrig
+                : $this->convertAndRoundCurrency($amountOrig, $purchaseCurrencyId, (int) $defaultCurrency->id);
 
             $purchase = new WhPurchase();
             $purchase->supplier_id = (int) $data['supplier_id'];
             $purchase->warehouse_id = isset($data['warehouse_id']) ? (int) $data['warehouse_id'] : null;
             $purchase->client_balance_id = $data['client_balance_id'] ?? null;
+            $purchase->cash_id = $purchaseCashId;
+            $purchase->currency_id = $purchaseCurrencyId;
             $purchase->creator_id = (int) auth('api')->id();
             $purchase->status = WhPurchaseStatus::Draft->value;
             $purchase->date = $data['date'] ?? now();
             $purchase->note = $data['note'] ?? null;
-            $purchase->amount = $amount;
+            $purchase->amount = $amountDefault;
             $purchase->save();
 
             foreach ($products as $product) {
@@ -116,21 +128,13 @@ class WarehousePurchaseRepository extends BaseRepository
                 ]);
             }
 
-            $defaultCurrency = $this->getDefaultCurrency();
-            $cashId = CashRegister::query()
-                ->where('company_id', $this->getCurrentCompanyId())
-                ->orderBy('id')
-                ->value('id');
-            if (! $cashId) {
-                throw new \RuntimeException('Не найдена касса для создания долговой транзакции закупки');
-            }
             $this->createTransactionForSource([
                 'type' => 0,
                 'creator_id' => (int) auth('api')->id(),
-                'amount' => $amount,
-                'orig_amount' => $amount,
-                'currency_id' => (int) $defaultCurrency->id,
-                'cash_id' => (int) $cashId,
+                'amount' => $amountDefault,
+                'orig_amount' => $amountOrig,
+                'currency_id' => $purchaseCurrencyId,
+                'cash_id' => $purchaseCashId,
                 'category_id' => 6,
                 'client_id' => $purchase->supplier_id,
                 'client_balance_id' => $purchase->client_balance_id,
@@ -159,6 +163,11 @@ class WarehousePurchaseRepository extends BaseRepository
             $purchase->supplier_id = (int) ($data['supplier_id'] ?? $purchase->supplier_id);
             $purchase->warehouse_id = isset($data['warehouse_id']) ? (int) $data['warehouse_id'] : $purchase->warehouse_id;
             $purchase->client_balance_id = $data['client_balance_id'] ?? $purchase->client_balance_id;
+            $purchase->cash_id = isset($data['cash_id']) ? (int) $data['cash_id'] : $purchase->cash_id;
+            if (! $purchase->cash_id) {
+                throw new \RuntimeException('Не выбрана касса для закупки');
+            }
+            $purchase->currency_id = $this->resolvePurchaseCurrencyId($data, (int) ($purchase->currency_id ?? $this->getDefaultCurrency()->id), $purchase->client_balance_id);
             $purchase->date = $data['date'] ?? $purchase->date;
             $purchase->note = $data['note'] ?? $purchase->note;
             $status = isset($data['status']) ? WhPurchaseStatus::tryFrom((string) $data['status']) : null;
@@ -166,14 +175,14 @@ class WarehousePurchaseRepository extends BaseRepository
                 $purchase->status = $status->value;
             }
 
+            $rounding = new RoundingService();
+            $companyId = $this->getCurrentCompanyId();
+            $amountOrig = 0.0;
             if (isset($data['products']) && is_array($data['products'])) {
-                $rounding = new RoundingService();
-                $companyId = $this->getCurrentCompanyId();
-                $amount = 0.0;
                 WhPurchaseProduct::query()->where('purchase_id', $purchase->id)->delete();
                 foreach ($data['products'] as $product) {
                     $quantity = $rounding->roundQuantityForCompany($companyId, (float) $product['quantity']);
-                    $amount += $quantity * (float) $product['price'];
+                    $amountOrig += $quantity * (float) $product['price'];
                     WhPurchaseProduct::query()->create([
                         'purchase_id' => $purchase->id,
                         'product_id' => (int) $product['product_id'],
@@ -181,8 +190,18 @@ class WarehousePurchaseRepository extends BaseRepository
                         'price' => (float) $product['price'],
                     ]);
                 }
-                $purchase->amount = $rounding->roundForCompany($companyId, $amount);
+            } else {
+                $amountOrig = (float) WhPurchaseProduct::query()
+                    ->where('purchase_id', $purchase->id)
+                    ->selectRaw('COALESCE(SUM(quantity * price), 0) as amount_orig')
+                    ->value('amount_orig');
             }
+            $amountOrig = $rounding->roundForCompany($companyId, $amountOrig);
+            $defaultCurrency = $this->getDefaultCurrency();
+            $purchaseCurrencyId = (int) ($purchase->currency_id ?? $defaultCurrency->id);
+            $purchase->amount = $purchaseCurrencyId === (int) $defaultCurrency->id
+                ? $amountOrig
+                : $this->convertAndRoundCurrency($amountOrig, $purchaseCurrencyId, (int) $defaultCurrency->id);
 
             $purchase->save();
             $this->invalidateCaches();
@@ -217,23 +236,27 @@ class WarehousePurchaseRepository extends BaseRepository
         return DB::transaction(function () use ($id, $data): int {
             $purchase = WhPurchase::query()->lockForUpdate()->findOrFail($id);
             $amount = (float) $data['amount'];
-            $paidTotal = (float) Transaction::query()
+            $defaultCurrency = $this->getDefaultCurrency();
+            $paymentCurrencyId = (int) ($data['currency_id'] ?? $purchase->currency_id ?? $defaultCurrency->id);
+            $paidTotalDefault = (float) Transaction::query()
                 ->where('source_type', \App\Models\WhPurchase::class)
                 ->where('source_id', $purchase->id)
                 ->where('is_debt', false)
-                ->sum('orig_amount');
-            $debtTotal = max(0.0, (float) $purchase->amount - $paidTotal);
-            if ($amount > $debtTotal + 1e-9) {
+                ->sum('def_amount');
+            $incomingAmountDefault = $paymentCurrencyId === (int) $defaultCurrency->id
+                ? $amount
+                : $this->convertAndRoundCurrency($amount, $paymentCurrencyId, (int) $defaultCurrency->id);
+            $debtTotalDefault = max(0.0, (float) $purchase->amount - $paidTotalDefault);
+            if ($incomingAmountDefault > $debtTotalDefault + 1e-9) {
                 throw new \RuntimeException('Сумма оплаты не может превышать долг по закупке');
             }
 
-            $defaultCurrency = $this->getDefaultCurrency();
             $txId = $this->createTransactionForSource([
                 'type' => 0,
                 'creator_id' => (int) auth('api')->id(),
                 'amount' => $amount,
                 'orig_amount' => $amount,
-                'currency_id' => (int) ($data['currency_id'] ?? $defaultCurrency->id),
+                'currency_id' => $paymentCurrencyId,
                 'cash_id' => (int) $data['cash_id'],
                 'category_id' => 6,
                 'client_id' => $purchase->supplier_id,
@@ -254,5 +277,40 @@ class WarehousePurchaseRepository extends BaseRepository
         CacheService::invalidateWarehouseReceiptsCache();
         CacheService::invalidateTransactionsCache();
         CacheService::invalidateClientsCache();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function resolvePurchaseCashId(array $data): int
+    {
+        if (empty($data['cash_id'])) {
+            throw new \RuntimeException('Не выбрана касса для закупки');
+        }
+
+        return (int) $data['cash_id'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function resolvePurchaseCurrencyId(array $data, int $fallbackCurrencyId, ?int $currentClientBalanceId = null): int
+    {
+        if (! empty($data['currency_id'])) {
+            return (int) $data['currency_id'];
+        }
+
+        $clientBalanceId = isset($data['client_balance_id'])
+            ? (int) $data['client_balance_id']
+            : $currentClientBalanceId;
+
+        if ($clientBalanceId) {
+            $balanceCurrencyId = (int) (ClientBalance::query()->where('id', $clientBalanceId)->value('currency_id') ?? 0);
+            if ($balanceCurrencyId > 0) {
+                return $balanceCurrencyId;
+            }
+        }
+
+        return $fallbackCurrencyId;
     }
 }
