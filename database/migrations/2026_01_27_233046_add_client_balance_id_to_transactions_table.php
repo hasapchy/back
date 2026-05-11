@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasColumn('transactions', 'client_balance_id')) {
+            return;
+        }
+
         Schema::table('transactions', function (Blueprint $table) {
             $table->foreignId('client_balance_id')->nullable()->after('client_id')->constrained('client_balances')->onDelete('set null');
             $table->index('client_balance_id');
@@ -22,6 +26,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasColumn('transactions', 'client_balance_id')) {
+            return;
+        }
+
         Schema::table('transactions', function (Blueprint $table) {
             $table->dropForeign(['client_balance_id']);
             $table->dropIndex(['client_balance_id']);
