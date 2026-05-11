@@ -598,11 +598,9 @@ class WarehouseReceiptRepository extends BaseRepository
     {
         $result = DB::transaction(function () use ($receipt_id) {
             $receipt = WhReceipt::findOrFail($receipt_id);
-            if ($receipt->status === WhReceiptStatus::Completed) {
-                throw new \RuntimeException((string) __('warehouse_receipt.cannot_delete_completed'));
-            }
             app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $receipt->warehouse_id);
-            $this->reverseReceiptStockAndDeleteLines($receipt, false);
+            $reverseStock = $receipt->status === WhReceiptStatus::Completed;
+            $this->reverseReceiptStockAndDeleteLines($receipt, $reverseStock);
 
             $receipt->delete();
 

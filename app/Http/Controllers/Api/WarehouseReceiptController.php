@@ -189,7 +189,13 @@ class WarehouseReceiptController extends BaseController
             'cash_id' => $receipt->cash_id,
             'date' => $validatedData['date'] ?? $receipt->date,
             'note' => $validatedData['note'] ?? $receipt->note,
-            'products' => $receipt->products,
+            'products' => array_map(static function ($product) {
+                return [
+                    'product_id' => (int) $product->product_id,
+                    'quantity' => (float) $product->quantity,
+                    'price' => (float) $product->price,
+                ];
+            }, $receipt->products->all()),
             'status' => array_key_exists('status', $validatedData) ? $validatedData['status'] : null,
         ];
 
