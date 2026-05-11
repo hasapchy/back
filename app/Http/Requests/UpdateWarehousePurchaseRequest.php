@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\WhPurchaseStatus;
 use App\Rules\ClientAccessRule;
+use App\Rules\WarehouseAccessRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -26,6 +27,7 @@ class UpdateWarehousePurchaseRequest extends FormRequest
     {
         return [
             'supplier_id' => ['sometimes', 'integer', new ClientAccessRule()],
+            'warehouse_id' => ['sometimes', 'integer', new WarehouseAccessRule()],
             'client_balance_id' => 'nullable|integer|exists:client_balances,id',
             'date' => 'nullable|date',
             'note' => 'nullable|string',

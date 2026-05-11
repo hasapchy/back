@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WhPurchase;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
@@ -32,6 +33,7 @@ class WarehousePurchaseControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Config::set('broadcasting.default', 'log');
 
         if (!Schema::hasTable('wh_purchases')) {
             $this->markTestSkipped('Таблица wh_purchases не существует.');
@@ -112,6 +114,7 @@ class WarehousePurchaseControllerTest extends TestCase
     {
         $payload = [
             'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
             'products' => [
                 [
                     'product_id' => $this->product->id,
@@ -122,7 +125,6 @@ class WarehousePurchaseControllerTest extends TestCase
         ];
 
         $response = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', $payload);
-
         $response->assertStatus(200);
         $purchaseId = (int) $response->json('data.id');
         $this->assertGreaterThan(0, $purchaseId);
@@ -130,6 +132,7 @@ class WarehousePurchaseControllerTest extends TestCase
         $this->assertDatabaseHas('wh_purchases', [
             'id' => $purchaseId,
             'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
             'status' => 'draft',
             'amount' => 50,
         ]);
@@ -146,6 +149,7 @@ class WarehousePurchaseControllerTest extends TestCase
     {
         $purchase = WhPurchase::query()->create([
             'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
             'creator_id' => $this->adminUser->id,
             'status' => 'approved',
             'date' => now(),
@@ -164,6 +168,7 @@ class WarehousePurchaseControllerTest extends TestCase
     {
         $createResponse = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [
             'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
             'products' => [
                 [
                     'product_id' => $this->product->id,
@@ -193,6 +198,7 @@ class WarehousePurchaseControllerTest extends TestCase
     {
         $purchase = WhPurchase::query()->create([
             'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
             'creator_id' => $this->adminUser->id,
             'status' => 'draft',
             'date' => now(),

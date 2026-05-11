@@ -5,12 +5,14 @@ namespace App\Models;
 use App\Enums\WhPurchaseStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
  * @property int $id
  * @property int $supplier_id
+ * @property int|null $warehouse_id
  * @property int|null $client_balance_id
  * @property int $creator_id
  * @property string $status
@@ -26,6 +28,7 @@ class WhPurchase extends Model
 
     protected $fillable = [
         'supplier_id',
+        'warehouse_id',
         'client_balance_id',
         'creator_id',
         'status',
@@ -46,6 +49,14 @@ class WhPurchase extends Model
     public function supplier()
     {
         return $this->belongsTo(Client::class, 'supplier_id');
+    }
+
+    /**
+     * @return BelongsTo<Warehouse, self>
+     */
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
 
     /**

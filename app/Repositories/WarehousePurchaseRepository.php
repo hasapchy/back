@@ -26,6 +26,7 @@ class WarehousePurchaseRepository extends BaseRepository
                     'supplier:id,first_name,last_name,status',
                     'supplier.phones:id,client_id,phone',
                     'supplier.emails:id,client_id,email',
+                    'warehouse:id,name',
                     'clientBalance:id,client_id,currency_id,type',
                     'creator:id,name',
                     'products:id,purchase_id,product_id,quantity,price',
@@ -63,6 +64,7 @@ class WarehousePurchaseRepository extends BaseRepository
                     'supplier:id,first_name,last_name,status',
                     'supplier.phones:id,client_id,phone',
                     'supplier.emails:id,client_id,email',
+                    'warehouse:id,name',
                     'clientBalance:id,client_id,currency_id,type',
                     'creator:id,name',
                     'products:id,purchase_id,product_id,quantity,price',
@@ -96,6 +98,7 @@ class WarehousePurchaseRepository extends BaseRepository
 
             $purchase = new WhPurchase();
             $purchase->supplier_id = (int) $data['supplier_id'];
+            $purchase->warehouse_id = isset($data['warehouse_id']) ? (int) $data['warehouse_id'] : null;
             $purchase->client_balance_id = $data['client_balance_id'] ?? null;
             $purchase->creator_id = (int) auth('api')->id();
             $purchase->status = WhPurchaseStatus::Draft->value;
@@ -154,6 +157,7 @@ class WarehousePurchaseRepository extends BaseRepository
             }
 
             $purchase->supplier_id = (int) ($data['supplier_id'] ?? $purchase->supplier_id);
+            $purchase->warehouse_id = isset($data['warehouse_id']) ? (int) $data['warehouse_id'] : $purchase->warehouse_id;
             $purchase->client_balance_id = $data['client_balance_id'] ?? $purchase->client_balance_id;
             $purchase->date = $data['date'] ?? $purchase->date;
             $purchase->note = $data['note'] ?? $purchase->note;
