@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             UnitsSeeder::class,
             WarehouseSeeder::class,
             LeaveTypeSeeder::class,
+            LeadDefaultsSeeder::class,
             DepartmentSeeder::class,
             WorkscheduleSeeder::class,
         ]);

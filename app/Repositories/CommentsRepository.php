@@ -186,6 +186,11 @@ class CommentsRepository extends BaseRepository
             'project' => \App\Models\Project::class,
             'task' => \App\Models\Task::class,
             'project_contract' => \App\Models\ProjectContract::class,
+            'lead' => \App\Models\Lead::class,
+            'wh_receipt' => \App\Models\WhReceipt::class,
+            'wh_writeoff' => \App\Models\WhWriteoff::class,
+            'wh_movement' => \App\Models\WhMovement::class,
+            'wh_purchase' => \App\Models\WhPurchase::class,
             default => throw new \InvalidArgumentException("Unknown commentable type: $type"),
         };
     }
@@ -207,6 +212,11 @@ class CommentsRepository extends BaseRepository
             \App\Models\Project::class => 'project',
             \App\Models\Task::class => 'task',
             \App\Models\ProjectContract::class => 'project_contract',
+            \App\Models\Lead::class => 'lead',
+            \App\Models\WhReceipt::class => 'wh_receipt',
+            \App\Models\WhWriteoff::class => 'wh_writeoff',
+            \App\Models\WhMovement::class => 'wh_movement',
+            \App\Models\WhPurchase::class => 'wh_purchase',
             default => throw new \InvalidArgumentException("Unknown commentable model class: {$modelClass}"),
         };
     }

@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class StoreCommentRequest extends FormRequest
@@ -26,7 +27,25 @@ class StoreCommentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type' => 'required|string',
+            'type' => [
+                'required',
+                'string',
+                Rule::in([
+                    'order',
+                    'sale',
+                    'transaction',
+                    'client',
+                    'product',
+                    'project',
+                    'task',
+                    'project_contract',
+                    'lead',
+                    'wh_receipt',
+                    'wh_writeoff',
+                    'wh_movement',
+                    'wh_purchase',
+                ]),
+            ],
             'id' => 'required|integer',
             'body' => 'required|string|max:1000',
         ];

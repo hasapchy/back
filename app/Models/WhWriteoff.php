@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Contracts\SupportsTimeline;
 use App\Enums\WhWriteoffReason;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * Модель списания со склада
@@ -28,9 +31,12 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property-read \App\Models\Product|null $product
  * @property-read \App\Models\WarehouseStock|null $warehouseStock
  */
-class WhWriteoff extends Model
+class WhWriteoff extends Model implements SupportsTimeline
 {
     use HasFactory;
+    use LogsActivity;
+
+    protected static $logName = 'wh_writeoff';
 
     protected $table = 'wh_write_offs';
 
@@ -40,6 +46,47 @@ class WhWriteoff extends Model
         'date' => 'date',
         'reason' => WhWriteoffReason::class,
     ];
+
+    /**
+     * @return LogOptions
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('wh_writeoff')
+            ->logOnly(['warehouse_id', 'source_receipt_id', 'reason', 'note', 'date'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
+    }
+
+    /**
+     * @param string $eventName
+     * @return string
+     */
+    public function getDescriptionForEvent(string $eventName): string
+    {
+        return match ($eventName) {
+            'created', 'updated', 'deleted' => "activity_log.wh_writeoff.{$eventName}",
+            default => 'activity_log.wh_writeoff.default',
+        };
+    }
+
+    /**
+     * @return MorphMany
+     */
+    public function comments(): MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
+
+    /**
+     * @return MorphMany
+     */
+    public function activities(): MorphMany
+    {
+        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
+    }
 
     /**
      * Связь со складом

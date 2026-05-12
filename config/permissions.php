@@ -158,6 +158,24 @@ return [
             'actions' => ['view', 'create', 'update', 'delete', 'export'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
+        'leads' => [
+            'has_creator_id' => true,
+            'check_strategy' => 'creator_id',
+            'actions' => ['view', 'create', 'update', 'delete', 'export'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
+        'lead_statuses' => [
+            'has_creator_id' => false,
+            'check_strategy' => 'default',
+            'actions' => ['view', 'create', 'update', 'delete', 'export'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
+        'lead_sources' => [
+            'has_creator_id' => false,
+            'check_strategy' => 'default',
+            'actions' => ['view', 'create', 'update', 'delete', 'export'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
         'order_statuses' => [
             'has_creator_id' => false,
             'check_strategy' => 'default',
@@ -315,6 +333,10 @@ return [
         'orders' => [
             'label' => 'orders',
             'resources' => ['orders', 'order_statuses', 'order_statuscategories'],
+        ],
+        'leads' => [
+            'label' => 'leads',
+            'resources' => ['leads', 'lead_statuses', 'lead_sources'],
         ],
         'orders_simple' => [
             'label' => 'orders_simple',

@@ -2,13 +2,16 @@
 
 namespace App\Models;
 
+use App\Contracts\SupportsTimeline;
 use App\Enums\WhReceiptStatus;
-use App\Models\ClientBalance;
 use App\Services\CacheService;
 use App\Services\TransactionDeletionService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * Модель прихода на склад
@@ -37,9 +40,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
  * @property-read \Illuminate\Database\Eloquent\Collection<int, WhReceiptExpenseAllocation> $expenseAllocations
  */
-class WhReceipt extends Model
+class WhReceipt extends Model implements SupportsTimeline
 {
     use HasFactory;
+    use LogsActivity;
+
+    protected static $logName = 'wh_receipt';
 
     protected $fillable = [
         'supplier_id',
@@ -65,6 +71,57 @@ class WhReceipt extends Model
             $transactions = $receipt->transactions()->get();
             TransactionDeletionService::softDeleteMany($transactions);
         });
+    }
+
+    /**
+     * @return LogOptions
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('wh_receipt')
+            ->logOnly([
+                'supplier_id',
+                'purchase_id',
+                'client_balance_id',
+                'warehouse_id',
+                'note',
+                'cash_id',
+                'amount',
+                'date',
+                'status',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
+    }
+
+    /**
+     * @param string $eventName
+     * @return string
+     */
+    public function getDescriptionForEvent(string $eventName): string
+    {
+        return match ($eventName) {
+            'created', 'updated', 'deleted' => "activity_log.wh_receipt.{$eventName}",
+            default => 'activity_log.wh_receipt.default',
+        };
+    }
+
+    /**
+     * @return MorphMany
+     */
+    public function comments(): MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
+
+    /**
+     * @return MorphMany
+     */
+    public function activities(): MorphMany
+    {
+        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
     }
 
     /**

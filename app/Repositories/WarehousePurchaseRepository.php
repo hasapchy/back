@@ -9,6 +9,7 @@ use App\Models\WhPurchaseProduct;
 use App\Services\CacheService;
 use App\Services\RoundingService;
 use App\Models\Transaction;
+use App\Services\Timeline\WarehouseTimelineCache;
 use Illuminate\Support\Facades\DB;
 
 class WarehousePurchaseRepository extends BaseRepository
@@ -144,6 +145,7 @@ class WarehousePurchaseRepository extends BaseRepository
             ], \App\Models\WhPurchase::class, (int) $purchase->id, true);
 
             $this->invalidateCaches();
+            WarehouseTimelineCache::forgetPurchase((int) $purchase->id, (int) $purchase->supplier_id);
 
             return (int) $purchase->id;
         });
@@ -205,6 +207,7 @@ class WarehousePurchaseRepository extends BaseRepository
 
             $purchase->save();
             $this->invalidateCaches();
+            WarehouseTimelineCache::forgetPurchase($id, (int) $purchase->supplier_id);
 
             return true;
         });
@@ -221,8 +224,10 @@ class WarehousePurchaseRepository extends BaseRepository
                 throw new \RuntimeException((string) __('warehouse_purchase.delete_forbidden_has_receipts'));
             }
 
+            $supplierId = (int) $purchase->supplier_id;
             $purchase->delete();
             $this->invalidateCaches();
+            WarehouseTimelineCache::forgetPurchase($id, $supplierId);
 
             return true;
         });
@@ -267,6 +272,7 @@ class WarehousePurchaseRepository extends BaseRepository
             ], \App\Models\WhPurchase::class, (int) $purchase->id, true);
 
             $this->invalidateCaches();
+            WarehouseTimelineCache::forgetPurchase($id, (int) $purchase->supplier_id);
 
             return (int) $txId;
         });

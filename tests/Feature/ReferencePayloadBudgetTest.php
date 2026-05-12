@@ -84,15 +84,13 @@ class ReferencePayloadBudgetTest extends TestCase
             ['/api/roles/all', 'roles_all'],
             ['/api/leave_types/all', 'leave_types_all'],
             ['/api/order_status_categories/all', 'order_status_categories_all'],
+            ['/api/transaction_categories/all', 'transaction_categories_all'],
         ];
 
         foreach ($cases as [$uri, $budgetKey]) {
             [$response] = $this->getAuthenticated($uri);
             $this->assertResponseDataWithinBudget($response, $budgetKey, $uri);
         }
-
-        $response = $this->getJson('/api/transaction_categories/all');
-        $this->assertResponseDataWithinBudget($response, 'transaction_categories_all', '/api/transaction_categories/all');
     }
 
     /**

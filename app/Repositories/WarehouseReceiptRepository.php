@@ -14,6 +14,7 @@ use App\Models\WhPurchase;
 use App\Models\WhPurchaseProduct;
 use App\Models\WhUser;
 use App\Services\CacheService;
+use App\Services\Timeline\WarehouseTimelineCache;
 use App\Services\CurrencyConverter;
 use App\Services\InventoryLockService;
 use App\Services\ReceiptExpenseAllocationService;
@@ -283,6 +284,7 @@ class WarehouseReceiptRepository extends BaseRepository
             ]);
 
             $this->invalidateCaches();
+            WarehouseTimelineCache::forgetReceipt((int) $receipt->id);
 
             return $receipt->id;
         });
@@ -443,6 +445,7 @@ class WarehouseReceiptRepository extends BaseRepository
             app(ReceiptExpenseAllocationService::class)->syncAllForReceipt((int) $receipt_id);
 
             $this->invalidateCaches();
+            WarehouseTimelineCache::forgetReceipt((int) $receipt_id);
 
             return true;
         });
@@ -577,6 +580,7 @@ class WarehouseReceiptRepository extends BaseRepository
             $receipt->saveQuietly();
 
             $this->invalidateCaches();
+            WarehouseTimelineCache::forgetReceipt($receipt_id);
         });
     }
 
@@ -596,21 +600,24 @@ class WarehouseReceiptRepository extends BaseRepository
      */
     public function deleteItem($receipt_id)
     {
-        $result = DB::transaction(function () use ($receipt_id) {
+        $meta = DB::transaction(function () use ($receipt_id) {
             $receipt = WhReceipt::findOrFail($receipt_id);
             app(InventoryLockService::class)->checkWarehouseIsUnlocked((int) $receipt->warehouse_id);
             $reverseStock = $receipt->status === WhReceiptStatus::Completed;
             $this->reverseReceiptStockAndDeleteLines($receipt, $reverseStock);
 
+            $rid = (int) $receipt->id;
+            $wid = (int) $receipt->warehouse_id;
             $receipt->delete();
 
-            return true;
+            return ['rid' => $rid, 'wid' => $wid];
         });
-        if ($result) {
+        if (is_array($meta)) {
+            WarehouseTimelineCache::forgetReceipt($meta['rid'], $meta['wid']);
             $this->invalidateCaches();
         }
 
-        return $result;
+        return is_array($meta);
     }
 
     /**
@@ -673,7 +680,8 @@ class WarehouseReceiptRepository extends BaseRepository
 
             $this->applyLegacyReceiptProductLinesToStock($warehouseId, $normalized);
 
-            $this->invalidateCaches(null);
+            $this->invalidateCaches();
+            WarehouseTimelineCache::forgetReceipt((int) $receipt->id);
 
             return $receipt->id;
         });
@@ -756,14 +764,17 @@ class WarehouseReceiptRepository extends BaseRepository
 
     public function deleteReceiptWithoutInventoryLock(int $receiptId): void
     {
-        DB::transaction(function () use ($receiptId) {
+        $warehouseId = 0;
+        DB::transaction(function () use ($receiptId, &$warehouseId): void {
             $receipt = WhReceipt::query()->lockForUpdate()->findOrFail($receiptId);
+            $warehouseId = (int) $receipt->warehouse_id;
 
             $this->reverseReceiptStockAndDeleteLines($receipt, true);
 
             $receipt->delete();
         });
 
+        WarehouseTimelineCache::forgetReceipt($receiptId, $warehouseId > 0 ? $warehouseId : null);
         $this->invalidateCaches();
     }
 

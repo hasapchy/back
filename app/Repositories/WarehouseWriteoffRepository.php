@@ -14,6 +14,7 @@ use App\Models\WhWriteoff;
 use App\Models\WhWriteoffProduct;
 use App\Services\CacheService;
 use App\Services\InventoryLockService;
+use App\Services\Timeline\WarehouseTimelineCache;
 use Illuminate\Support\Facades\DB;
 
 class WarehouseWriteoffRepository extends BaseRepository
@@ -239,6 +240,7 @@ class WarehouseWriteoffRepository extends BaseRepository
 
             CacheService::invalidateWarehouseWriteoffsCache();
             CacheService::invalidateWarehouseStocksCache();
+            WarehouseTimelineCache::forgetWriteoff((int) $writeoff->id);
 
             return true;
         });
@@ -321,6 +323,7 @@ class WarehouseWriteoffRepository extends BaseRepository
 
             CacheService::invalidateWarehouseWriteoffsCache();
             CacheService::invalidateWarehouseStocksCache();
+            WarehouseTimelineCache::forgetWriteoff($writeoff_id);
 
             return true;
         });
@@ -351,10 +354,13 @@ class WarehouseWriteoffRepository extends BaseRepository
                 app(TransactionsRepository::class)->deleteItem((int) $tx->id);
             });
 
+            $wid = (int) $writeoff->warehouse_id;
+            $woid = (int) $writeoff->id;
             $writeoff->delete();
 
             CacheService::invalidateWarehouseWriteoffsCache();
             CacheService::invalidateWarehouseStocksCache();
+            WarehouseTimelineCache::forgetWriteoff($woid, $wid);
 
             return true;
         });
@@ -392,6 +398,7 @@ class WarehouseWriteoffRepository extends BaseRepository
 
             CacheService::invalidateWarehouseWriteoffsCache();
             CacheService::invalidateWarehouseStocksCache();
+            WarehouseTimelineCache::forgetWriteoff((int) $writeoff->id);
 
             return $writeoff->id;
         });
@@ -399,7 +406,8 @@ class WarehouseWriteoffRepository extends BaseRepository
 
     public function deleteWriteoffWithoutInventoryLock(int $writeoffId): void
     {
-        DB::transaction(function () use ($writeoffId) {
+        $warehouseId = 0;
+        DB::transaction(function () use ($writeoffId, &$warehouseId) {
             $writeoff = WhWriteoff::query()->lockForUpdate()->findOrFail($writeoffId);
             $warehouseId = (int) $writeoff->warehouse_id;
 
@@ -417,6 +425,8 @@ class WarehouseWriteoffRepository extends BaseRepository
             CacheService::invalidateWarehouseWriteoffsCache();
             CacheService::invalidateWarehouseStocksCache();
         });
+
+        WarehouseTimelineCache::forgetWriteoff($writeoffId, $warehouseId > 0 ? $warehouseId : null);
     }
 
     /**

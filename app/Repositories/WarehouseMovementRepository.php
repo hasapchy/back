@@ -7,6 +7,7 @@ use App\Models\WarehouseStock;
 use App\Models\WhMovement;
 use App\Models\WhMovementProduct;
 use App\Services\CacheService;
+use App\Services\Timeline\WarehouseTimelineCache;
 use App\Services\InventoryLockService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -145,6 +146,7 @@ class WarehouseMovementRepository extends BaseRepository
 
             CacheService::invalidateWarehouseMovementsCache();
             CacheService::invalidateWarehouseStocksCache();
+            WarehouseTimelineCache::forgetMovement((int) $movement->id, (int) $warehouse_from_id);
 
             return true;
         });
@@ -205,6 +207,7 @@ class WarehouseMovementRepository extends BaseRepository
 
             CacheService::invalidateWarehouseMovementsCache();
             CacheService::invalidateWarehouseStocksCache();
+            WarehouseTimelineCache::forgetMovement($movement_id, (int) $warehouse_from_id);
 
             return true;
         });
@@ -229,10 +232,13 @@ class WarehouseMovementRepository extends BaseRepository
                 $this->updateStocksForMovement($movement->wh_from, $movement->wh_to, $product->product_id, -$product->quantity);
             }
 
+            $mid = (int) $movement->id;
+            $whFrom = (int) $movement->wh_from;
             $movement->delete();
 
             CacheService::invalidateWarehouseMovementsCache();
             CacheService::invalidateWarehouseStocksCache();
+            WarehouseTimelineCache::forgetMovement($mid, $whFrom);
 
             return true;
         });
