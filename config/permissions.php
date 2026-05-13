@@ -318,6 +318,8 @@ return [
         'settings_client_balance_view',
         'settings_client_balance_view_own',
         'settings_client_balance_adjustment',
+        'settings_units_view',
+        'settings_units_manage',
         'products_create_temp',
     ],
 
@@ -409,8 +411,9 @@ return [
             'settings_client_balance_view_own',
             'settings_client_balance_adjustment',
         ],
-        'departments' => [
-            'departments_assign_users',
+        'products' => [
+            'settings_units_view',
+            'settings_units_manage',
         ],
     ],
 ];

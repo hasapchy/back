@@ -31,7 +31,7 @@ class ProductSearchResource extends JsonResource
                     'name' => $c->name,
                 ];
             })->values()->all(),
-            'stock_quantity' => data_get($resource, 'stock_quantity', 0),
+            'stock_quantity' => $resource->stock_quantity,
             'unit_id' => data_get($resource, 'unit_id'),
             'unit_name' => data_get($resource, 'unit_name'),
             'unit_short_name' => data_get($resource, 'unit_short_name'),
@@ -39,6 +39,7 @@ class ProductSearchResource extends JsonResource
             'retail_price' => data_get($resource, 'retail_price'),
             'wholesale_price' => data_get($resource, 'wholesale_price'),
             'purchase_price' => data_get($resource, 'purchase_price'),
+            'stock_by_units' => $resource->stock_by_units,
         ];
     }
 }

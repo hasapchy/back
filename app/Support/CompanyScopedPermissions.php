@@ -29,13 +29,14 @@ final class CompanyScopedPermissions
         return $user->getAllPermissions()->pluck('name')->toArray();
     }
 
-    public static function userHas(User $user, string $permission): bool
-    {
-        return in_array($permission, self::names($user), true);
-    }
-
+    /**
+     * @param  array<int, string>  $permissions
+     */
     public static function userHasAny(User $user, array $permissions): bool
     {
+        if ($user->is_admin) {
+            return true;
+        }
         $names = self::names($user);
         foreach ($permissions as $permission) {
             if (in_array($permission, $names, true)) {
@@ -44,6 +45,18 @@ final class CompanyScopedPermissions
         }
 
         return false;
+    }
+
+    /**
+     * @return bool
+     */
+    public static function userHas(User $user, string $permission): bool
+    {
+        if ($user->is_admin) {
+            return true;
+        }
+
+        return in_array($permission, self::names($user), true);
     }
 
     public static function userCanViewCurrencyHistory(User $user): bool

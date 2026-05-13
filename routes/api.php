@@ -37,6 +37,8 @@ use App\Http\Controllers\Api\ProjectStatusController;
 use App\Http\Controllers\Api\RecurringTransactionsController;
 use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\RolesController;
+use App\Http\Controllers\Api\SettingsUnitConversionsController;
+use App\Http\Controllers\Api\SettingsUnitsController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\TasksController;
 use App\Http\Controllers\Api\TaskStatusController;
@@ -83,6 +85,15 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission.scope:currency_history_delete_all,currency_history_delete')->delete('currency-history/{currencyId}/{historyId}', [CurrencyHistoryController::class, 'destroy']);
 
     Route::middleware('permission.scope:currency_history_view_all,currency_history_view,currency_history_view_own,settings_currencies_view')->get('settings/currencies', [CurrenciesController::class, 'index']);
+
+    Route::middleware('permission.scope:settings_units_view,settings_units_manage')->get('settings/units', [SettingsUnitsController::class, 'index']);
+    Route::middleware('permission.scope:settings_units_view,settings_units_manage')->get('settings/unit-conversions', [SettingsUnitConversionsController::class, 'index']);
+    Route::middleware('permission:settings_units_manage')->post('settings/units', [SettingsUnitsController::class, 'store']);
+    Route::middleware('permission:settings_units_manage')->put('settings/units/{id}', [SettingsUnitsController::class, 'update']);
+    Route::middleware('permission:settings_units_manage')->delete('settings/units/{id}', [SettingsUnitsController::class, 'destroy']);
+    Route::middleware('permission:settings_units_manage')->post('settings/unit-conversions', [SettingsUnitConversionsController::class, 'store']);
+    Route::middleware('permission:settings_units_manage')->put('settings/unit-conversions/{id}', [SettingsUnitConversionsController::class, 'update']);
+    Route::middleware('permission:settings_units_manage')->delete('settings/unit-conversions/{id}', [SettingsUnitConversionsController::class, 'destroy']);
 
     Route::post('user/logout', [AuthController::class, 'logout']);
     Route::get('user/me', [AuthController::class, 'me']);
@@ -141,7 +152,7 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission.scope:warehouses_update_all,warehouses_update')->put('warehouses/{id}', [WarehouseController::class, 'update']);
     Route::middleware('permission.scope:warehouses_delete_all,warehouses_delete')->delete('warehouses/{id}', [WarehouseController::class, 'destroy']);
 
-    Route::middleware('permission:warehouse_stocks_view')->get('warehouse_stocks', [WarehouseStockController::class, 'index']);
+    Route::middleware('permission.scope:warehouse_stocks_view_all,warehouse_stocks_view')->get('warehouse_stocks', [WarehouseStockController::class, 'index']);
     Route::middleware('permission.scope:inventories_view_all,inventories_view_own')->get('inventories', [InventoryController::class, 'index']);
     Route::middleware('permission.scope:inventories_view_all,inventories_view_own')->get('inventories/{id}', [InventoryController::class, 'show']);
     Route::middleware('permission.scope:inventories_view_all,inventories_view_own')->get('inventories/{id}/items', [InventoryController::class, 'items']);
@@ -153,28 +164,28 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission:inventories_finalize')->post('inventories/{id}/finalize', [InventoryController::class, 'finalize']);
     Route::middleware('permission:inventories_finalize')->post('inventories/{id}/apply-shortage', [InventoryController::class, 'applyInventoryStockAdjustment']);
 
-    Route::middleware('permission:warehouse_receipts_view')->get('warehouse_receipts', [WarehouseReceiptController::class, 'index']);
-    Route::middleware('permission:warehouse_receipts_view')->get('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'show']);
+    Route::middleware('permission.scope:warehouse_receipts_view_all,warehouse_receipts_view_own')->get('warehouse_receipts', [WarehouseReceiptController::class, 'index']);
+    Route::middleware('permission.scope:warehouse_receipts_view_all,warehouse_receipts_view_own')->get('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'show']);
     Route::middleware('permission:warehouse_receipts_create')->post('warehouse_receipts', [WarehouseReceiptController::class, 'store']);
-    Route::middleware(['permission:warehouse_receipts_update', 'time.restriction:WhReceipt'])->put('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'update']);
-    Route::middleware(['permission:warehouse_receipts_delete', 'time.restriction:WhReceipt'])->delete('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'destroy']);
-    Route::middleware('permission:warehouse_purchases_view')->get('warehouse_purchases', [WarehousePurchaseController::class, 'index']);
-    Route::middleware('permission:warehouse_purchases_view')->get('warehouse_purchases/{id}', [WarehousePurchaseController::class, 'show']);
+    Route::middleware(['permission.scope:warehouse_receipts_update_all,warehouse_receipts_update_own', 'time.restriction:WhReceipt'])->put('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'update']);
+    Route::middleware(['permission.scope:warehouse_receipts_delete_all,warehouse_receipts_delete_own', 'time.restriction:WhReceipt'])->delete('warehouse_receipts/{id}', [WarehouseReceiptController::class, 'destroy']);
+    Route::middleware('permission.scope:warehouse_purchases_view_all,warehouse_purchases_view_own')->get('warehouse_purchases', [WarehousePurchaseController::class, 'index']);
+    Route::middleware('permission.scope:warehouse_purchases_view_all,warehouse_purchases_view_own')->get('warehouse_purchases/{id}', [WarehousePurchaseController::class, 'show']);
     Route::middleware('permission:warehouse_purchases_create')->post('warehouse_purchases', [WarehousePurchaseController::class, 'store']);
-    Route::middleware('permission:warehouse_purchases_update')->put('warehouse_purchases/{id}', [WarehousePurchaseController::class, 'update']);
-    Route::middleware('permission:warehouse_purchases_update')->post('warehouse_purchases/{id}/pay', [WarehousePurchaseController::class, 'pay']);
-    Route::middleware('permission:warehouse_purchases_delete')->delete('warehouse_purchases/{id}', [WarehousePurchaseController::class, 'destroy']);
+    Route::middleware('permission.scope:warehouse_purchases_update_all,warehouse_purchases_update_own')->put('warehouse_purchases/{id}', [WarehousePurchaseController::class, 'update']);
+    Route::middleware('permission.scope:warehouse_purchases_update_all,warehouse_purchases_update_own')->post('warehouse_purchases/{id}/pay', [WarehousePurchaseController::class, 'pay']);
+    Route::middleware('permission.scope:warehouse_purchases_delete_all,warehouse_purchases_delete_own')->delete('warehouse_purchases/{id}', [WarehousePurchaseController::class, 'destroy']);
 
-    Route::middleware('permission:warehouse_writeoffs_view')->get('warehouse_writeoffs', [WarehouseWriteoffController::class, 'index']);
-    Route::middleware('permission:warehouse_writeoffs_view')->get('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'show']);
+    Route::middleware('permission.scope:warehouse_writeoffs_view_all,warehouse_writeoffs_view_own')->get('warehouse_writeoffs', [WarehouseWriteoffController::class, 'index']);
+    Route::middleware('permission.scope:warehouse_writeoffs_view_all,warehouse_writeoffs_view_own')->get('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'show']);
     Route::middleware('permission:warehouse_writeoffs_create')->post('warehouse_writeoffs', [WarehouseWriteoffController::class, 'store']);
-    Route::middleware(['permission:warehouse_writeoffs_update', 'time.restriction:WhWriteoff'])->put('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'update']);
-    Route::middleware(['permission:warehouse_writeoffs_delete', 'time.restriction:WhWriteoff'])->delete('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'destroy']);
+    Route::middleware(['permission.scope:warehouse_writeoffs_update_all,warehouse_writeoffs_update_own', 'time.restriction:WhWriteoff'])->put('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'update']);
+    Route::middleware(['permission.scope:warehouse_writeoffs_delete_all,warehouse_writeoffs_delete_own', 'time.restriction:WhWriteoff'])->delete('warehouse_writeoffs/{id}', [WarehouseWriteoffController::class, 'destroy']);
 
-    Route::middleware('permission:warehouse_movements_view')->get('warehouse_movements', [WarehouseMovementController::class, 'index']);
+    Route::middleware('permission.scope:warehouse_movements_view_all,warehouse_movements_view_own')->get('warehouse_movements', [WarehouseMovementController::class, 'index']);
     Route::middleware('permission:warehouse_movements_create')->post('warehouse_movements', [WarehouseMovementController::class, 'store']);
-    Route::middleware(['permission:warehouse_movements_update', 'time.restriction:WhMovement'])->put('warehouse_movements/{id}', [WarehouseMovementController::class, 'update']);
-    Route::middleware(['permission:warehouse_movements_delete', 'time.restriction:WhMovement'])->delete('warehouse_movements/{id}', [WarehouseMovementController::class, 'destroy']);
+    Route::middleware(['permission.scope:warehouse_movements_update_all,warehouse_movements_update_own', 'time.restriction:WhMovement'])->put('warehouse_movements/{id}', [WarehouseMovementController::class, 'update']);
+    Route::middleware(['permission.scope:warehouse_movements_delete_all,warehouse_movements_delete_own', 'time.restriction:WhMovement'])->delete('warehouse_movements/{id}', [WarehouseMovementController::class, 'destroy']);
 
     Route::get('categories', [CategoriesController::class, 'index']);
     Route::get('categories/all', [CategoriesController::class, 'all']);
