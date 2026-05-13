@@ -14,7 +14,6 @@ use App\Models\WarehouseStock;
 use App\Models\WhReceipt;
 use App\Repositories\WarehouseReceiptRepository;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class WarehouseReceiptControllerTest extends TestCase
@@ -32,9 +31,6 @@ class WarehouseReceiptControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (!Schema::hasTable('companies')) {
-            $this->markTestSkipped('Таблица companies не существует.');
-        }
 
         $this->company = Company::factory()->create();
         $this->adminUser = User::factory()->create([

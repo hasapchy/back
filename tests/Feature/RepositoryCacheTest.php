@@ -156,7 +156,7 @@ class RepositoryCacheTest extends TestCase
         $driver = config('cache.default');
 
         if ($driver === 'array') {
-            $this->markTestSkipped('Array cache driver flushes all cache, cannot test partial invalidation');
+            $this->fail('Array cache driver flushes all cache, cannot test partial invalidation');
         }
 
         $repo = new OrderStatusRepository();

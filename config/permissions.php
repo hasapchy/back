@@ -41,8 +41,8 @@ return [
         'inventories' => [
             'has_creator_id' => true,
             'check_strategy' => 'creator_id',
-            'actions' => ['view', 'create', 'export'],
-            'scope_actions' => ['view'],
+            'actions' => ['view', 'create', 'delete', 'export'],
+            'scope_actions' => ['view', 'delete'],
             'custom_permissions' => [
                 'count' => 'inventories_count',
                 'finalize' => 'inventories_finalize',

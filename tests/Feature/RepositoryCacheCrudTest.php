@@ -65,7 +65,7 @@ class RepositoryCacheCrudTest extends TestCase
                 $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after delete');
             }
         } catch (\Exception $e) {
-            $this->markTestSkipped('Cannot test order status CRUD: ' . $e->getMessage());
+            $this->fail('Cannot test order status CRUD: ' . $e->getMessage());
         }
     }
 
@@ -90,7 +90,7 @@ class RepositoryCacheCrudTest extends TestCase
             $repo->deleteItem($category->id);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after delete');
         } catch (\Exception $e) {
-            $this->markTestSkipped('Cannot test order status category CRUD: ' . $e->getMessage());
+            $this->fail('Cannot test order status category CRUD: ' . $e->getMessage());
         }
     }
 
@@ -115,7 +115,7 @@ class RepositoryCacheCrudTest extends TestCase
             $repo->deleteItem($status->id);
             $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after delete');
         } catch (\Exception $e) {
-            $this->markTestSkipped('Cannot test project status CRUD: ' . $e->getMessage());
+            $this->fail('Cannot test project status CRUD: ' . $e->getMessage());
         }
     }
 
@@ -145,7 +145,7 @@ class RepositoryCacheCrudTest extends TestCase
                 }
             }
         } catch (\Exception $e) {
-            $this->markTestSkipped('Cannot test transaction category CRUD: ' . $e->getMessage());
+            $this->fail('Cannot test transaction category CRUD: ' . $e->getMessage());
         }
     }
 
@@ -173,7 +173,7 @@ class RepositoryCacheCrudTest extends TestCase
                 $this->assertFalse(Cache::has($fullKey), 'Cache should be invalidated after delete');
             }
         } catch (\Exception $e) {
-            $this->markTestSkipped('Cannot test categories CRUD: ' . $e->getMessage());
+            $this->fail('Cannot test categories CRUD: ' . $e->getMessage());
         }
     }
 
@@ -278,7 +278,7 @@ class RepositoryCacheCrudTest extends TestCase
 
             $this->assertFalse(Cache::has($fullKey), 'Products cache should be invalidated after create');
         } catch (\Exception $e) {
-            $this->markTestSkipped('Cannot test products CRUD: ' . $e->getMessage());
+            $this->fail('Cannot test products CRUD: ' . $e->getMessage());
         }
     }
 
@@ -332,7 +332,7 @@ class RepositoryCacheCrudTest extends TestCase
             CacheService::invalidateCashRegistersCache();
             $this->assertFalse(Cache::has($fullKey), 'Cash registers cache should be invalidated');
         } catch (\Exception $e) {
-            $this->markTestSkipped('Cannot test cash registers CRUD: ' . $e->getMessage());
+            $this->fail('Cannot test cash registers CRUD: ' . $e->getMessage());
         }
     }
 
@@ -360,7 +360,7 @@ class RepositoryCacheCrudTest extends TestCase
             CacheService::invalidateWarehousesCache();
             $this->assertFalse(Cache::has($fullKey), 'Warehouses cache should be invalidated after delete');
         } catch (\Exception $e) {
-            $this->markTestSkipped('Cannot test warehouses CRUD: ' . $e->getMessage());
+            $this->fail('Cannot test warehouses CRUD: ' . $e->getMessage());
         }
     }
 
@@ -435,7 +435,7 @@ class RepositoryCacheCrudTest extends TestCase
             CacheService::invalidateProjectsCache();
             $this->assertFalse(Cache::has($fullKey), 'Projects cache should be invalidated');
         } catch (\Exception $e) {
-            $this->markTestSkipped('Cannot test projects CRUD: ' . $e->getMessage());
+            $this->fail('Cannot test projects CRUD: ' . $e->getMessage());
         }
     }
 
@@ -483,7 +483,7 @@ class RepositoryCacheCrudTest extends TestCase
 
             $this->assertFalse(Cache::has($fullKey), 'Comments cache should be invalidated after create');
         } catch (\Exception $e) {
-            $this->markTestSkipped('Cannot test comments CRUD: ' . $e->getMessage());
+            $this->fail('Cannot test comments CRUD: ' . $e->getMessage());
         }
     }
 

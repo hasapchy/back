@@ -9,7 +9,6 @@ use App\Models\ProjectStatus;
 use App\Models\Client;
 use App\Models\Currency;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ProjectsControllerTest extends TestCase
@@ -25,9 +24,6 @@ class ProjectsControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (!Schema::hasTable('companies')) {
-            $this->markTestSkipped('Таблица companies не существует.');
-        }
 
         $this->company = Company::factory()->create();
         $this->adminUser = User::factory()->create([

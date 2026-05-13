@@ -6,7 +6,6 @@ use App\Models\User;
 use App\Models\Company;
 use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -21,9 +20,6 @@ class WarehouseControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (!Schema::hasTable('companies')) {
-            $this->markTestSkipped('Таблица companies не существует.');
-        }
 
         $this->company = Company::factory()->create();
         $this->adminUser = User::factory()->create([

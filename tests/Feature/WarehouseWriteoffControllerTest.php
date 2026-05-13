@@ -10,7 +10,6 @@ use App\Enums\WhWriteoffReason;
 use App\Models\WarehouseStock;
 use App\Models\WhWriteoff;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class WarehouseWriteoffControllerTest extends TestCase
@@ -26,9 +25,6 @@ class WarehouseWriteoffControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (!Schema::hasTable('companies')) {
-            $this->markTestSkipped('Таблица companies не существует.');
-        }
 
         $this->company = Company::factory()->create();
         $this->adminUser = User::factory()->create([

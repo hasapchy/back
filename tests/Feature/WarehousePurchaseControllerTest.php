@@ -14,7 +14,6 @@ use App\Models\WhPurchase;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -36,9 +35,6 @@ class WarehousePurchaseControllerTest extends TestCase
         parent::setUp();
         Config::set('broadcasting.default', 'log');
 
-        if (!Schema::hasTable('wh_purchases')) {
-            $this->markTestSkipped('Таблица wh_purchases не существует.');
-        }
 
         $this->company = Company::factory()->create();
 

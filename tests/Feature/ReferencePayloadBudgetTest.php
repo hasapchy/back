@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Support\ReferencePayloadBudget;
 use App\Support\ReferenceTelemetry;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
@@ -23,9 +22,6 @@ class ReferencePayloadBudgetTest extends TestCase
     {
         parent::setUp();
 
-        if (! Schema::hasTable('companies')) {
-            $this->markTestSkipped('Таблица companies не существует.');
-        }
 
         config(['reference_contracts.canary.enabled' => false]);
     }

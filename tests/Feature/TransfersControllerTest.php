@@ -8,7 +8,6 @@ use App\Models\CashRegister;
 use App\Models\Currency;
 use App\Models\CashTransfer;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class TransfersControllerTest extends TestCase
@@ -24,9 +23,6 @@ class TransfersControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (!Schema::hasTable('companies')) {
-            $this->markTestSkipped('Таблица companies не существует.');
-        }
 
         $this->company = Company::factory()->create();
         $this->adminUser = User::factory()->create([
