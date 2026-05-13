@@ -129,6 +129,7 @@ class OrderResource extends JsonResource
                 'id' => $cashRegister->id,
                 'name' => $cashRegister->name,
                 'is_cash' => $cashRegister->is_cash,
+                'color' => $cashRegister->color,
                 'currency' => $cashRegister->currency ? [
                     'id' => $cashRegister->currency->id,
                     'name' => $cashRegister->currency->name,

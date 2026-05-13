@@ -28,6 +28,7 @@ class CashRegisterReferenceResource extends JsonResource
                 'symbol' => data_get($currency, 'symbol'),
             ] : null,
             'icon' => data_get($this->resource, 'icon'),
+            'color' => data_get($this->resource, 'color'),
             'users' => collect($users)->map(static function ($user) {
                 return [
                     'id' => data_get($user, 'id'),

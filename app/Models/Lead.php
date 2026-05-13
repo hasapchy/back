@@ -16,9 +16,11 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property int $creator_id
  * @property int|null $responsible_id
  * @property int $client_id
+ * @property string|null $title
  * @property int|null $lead_source_id
  * @property int $status_id
  * @property string|null $comment
+ * @property array<int, string>|null $files
  * @property int|null $order_id
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -35,10 +37,19 @@ class Lead extends Model implements SupportsTimeline
         'creator_id',
         'responsible_id',
         'client_id',
+        'title',
         'lead_source_id',
         'status_id',
         'comment',
+        'files',
         'order_id',
+    ];
+
+    /**
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'files' => 'array',
     ];
 
     /**
@@ -48,7 +59,7 @@ class Lead extends Model implements SupportsTimeline
     {
         return LogOptions::defaults()
             ->useLogName('lead')
-            ->logOnly(['client_id', 'responsible_id', 'lead_source_id', 'status_id', 'comment', 'order_id'])
+            ->logOnly(['client_id', 'title', 'responsible_id', 'lead_source_id', 'status_id', 'comment', 'files', 'order_id'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));

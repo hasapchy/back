@@ -318,6 +318,7 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission.scope:leads_view_all,leads_view_own')->get('leads/{id}', [LeadController::class, 'show']);
     Route::middleware('permission:leads_create')->post('leads', [LeadController::class, 'store']);
     Route::middleware('permission.scope:leads_update_all,leads_update_own')->put('leads/{id}', [LeadController::class, 'update']);
+    Route::middleware(['permission.scope:leads_update_all,leads_update_own', 'throttle:20,1'])->post('leads/{id}/files', [LeadController::class, 'uploadFiles']);
     Route::middleware('permission.scope:leads_delete_all,leads_delete_own')->delete('leads/{id}', [LeadController::class, 'destroy']);
 
     Route::middleware('permission:leave_types_view_all')->get('leave_types', [LeaveTypeController::class, 'index']);

@@ -27,6 +27,7 @@ class StoreLeadRequest extends FormRequest
 
         $rules = [
             'client_id' => ['required', 'integer', 'exists:clients,id', new ClientAccessRule()],
+            'title' => ['nullable', 'string', 'max:255'],
             'lead_source_id' => [
                 'nullable',
                 'integer',
@@ -38,6 +39,8 @@ class StoreLeadRequest extends FormRequest
                 Rule::exists('lead_statuses', 'id')->where(fn ($q) => $q->where('company_id', $companyId)),
             ],
             'comment' => ['nullable', 'string'],
+            'files' => ['nullable', 'array'],
+            'files.*' => ['string', 'max:2048'],
         ];
         if ($companyId) {
             $rules['responsible_id'] = [

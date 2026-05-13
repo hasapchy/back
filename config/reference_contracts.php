@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'cache_version' => '1.7',
+    'cache_version' => '1.8',
     'feature_flag' => 'reference_wave1',
 
     'canary' => [
@@ -56,7 +56,7 @@ return [
 
     'reference_top_level_keys' => [
         'warehouses' => ['id', 'name', 'users'],
-        'cash_registers' => ['balance', 'currency', 'currency_id', 'icon', 'id', 'is_cash', 'is_working_minus', 'name', 'users'],
+        'cash_registers' => ['balance', 'color', 'currency', 'currency_id', 'icon', 'id', 'is_cash', 'is_working_minus', 'name', 'users'],
         'categories' => ['creator', 'creator_id', 'id', 'name', 'parent_id', 'parent_name', 'users'],
         'order_statuses' => ['category', 'category_id', 'created_at', 'id', 'is_active', 'kanban_outcome', 'name', 'updated_at'],
         'project_statuses' => ['color', 'created_at', 'creator_id', 'id', 'is_visible', 'kanban_outcome', 'name', 'updated_at', 'user'],
@@ -102,7 +102,7 @@ return [
         'departments.deputy_head' => ['id', 'name', 'surname'],
         'message_templates.creator' => ['id', 'name', 'surname'],
         'message_templates.company' => ['id', 'name'],
-        'transaction_templates.cash_register' => ['company_id', 'currency_id', 'id', 'is_cash', 'name'],
+        'transaction_templates.cash_register' => ['color', 'company_id', 'currency_id', 'id', 'is_cash', 'name'],
         'transaction_templates.category' => ['id', 'name', 'type'],
         'transaction_templates.client' => [
             'balance', 'client_type', 'created_at', 'emails', 'first_name', 'id', 'is_conflict', 'is_supplier', 'last_name', 'patronymic', 'phones', 'position', 'updated_at',

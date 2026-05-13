@@ -9,6 +9,7 @@ use App\Models\Lead;
 use App\Repositories\LeadsRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 /**
  * @group Лиды
@@ -80,9 +81,11 @@ class LeadController extends BaseController
             'company_id' => $companyId,
             'creator_id' => (int) $user->id,
             'client_id' => (int) $validated['client_id'],
+            'title' => $validated['title'] ?? null,
             'lead_source_id' => $validated['lead_source_id'] ?? null,
             'status_id' => $validated['status_id'] ?? null,
             'comment' => $validated['comment'] ?? null,
+            'files' => $validated['files'] ?? null,
         ];
         if (array_key_exists('responsible_id', $validated)) {
             $payload['responsible_id'] = $validated['responsible_id'];
@@ -125,5 +128,45 @@ class LeadController extends BaseController
         $this->itemsRepository->deleteItem((int) $id);
 
         return $this->successResponse(null, 'Лид удалён');
+    }
+
+    /**
+     * @return JsonResponse
+     */
+    public function uploadFiles(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'files' => ['required', 'array', 'max:8'],
+            'files.*' => ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg,gif,bmp,svg,zip,rar,7z,txt,md'],
+        ], [
+            'files.*.max' => 'Файл не должен превышать 10MB',
+            'files.*.mimes' => 'Неподдерживаемый тип файла',
+        ]);
+
+        $files = $request->file('files', []);
+        if ($files instanceof \Illuminate\Http\UploadedFile) {
+            $files = [$files];
+        }
+        if (count($files) === 0) {
+            return $this->errorResponse('No files uploaded', 400);
+        }
+
+        $lead = $this->itemsRepository->getItemById($id);
+        $this->authorize('update', $lead);
+
+        $existing = is_array($lead->files) ? $lead->files : [];
+        if (count($existing) + count($files) > 50) {
+            return $this->errorResponse('Максимум 50 файлов у лида', 400);
+        }
+
+        $paths = [];
+        foreach ($files as $file) {
+            $filename = Str::uuid()->toString().'.'.$file->getClientOriginalExtension();
+            $paths[] = $file->storeAs('leads/'.$lead->id, $filename, 'public');
+        }
+
+        $lead = $this->itemsRepository->appendStoredFilePaths($id, $paths);
+
+        return $this->successResponse((new LeadResource($lead))->resolve(), 'Files uploaded successfully');
     }
 }

@@ -83,20 +83,33 @@ class LeadsRepository extends BaseRepository
                 ->value('id');
         }
 
-        $responsibleId = array_key_exists('responsible_id', $data)
-            ? ($data['responsible_id'] !== null ? (int) $data['responsible_id'] : null)
-            : (int) $data['creator_id'];
+        $creatorId = (int) $data['creator_id'];
+        $responsibleId = $creatorId;
+        if (array_key_exists('responsible_id', $data) && $data['responsible_id'] !== null && $data['responsible_id'] !== '') {
+            $responsibleId = (int) $data['responsible_id'];
+        }
+
+        $title = (isset($data['title']) && $data['title'] !== null && $data['title'] !== '') ? trim((string) $data['title']) : null;
+        if ($title === '') {
+            $title = null;
+        }
 
         $lead = Lead::query()->create([
             'company_id' => $companyId,
-            'creator_id' => (int) $data['creator_id'],
+            'creator_id' => $creatorId,
             'responsible_id' => $responsibleId,
             'client_id' => (int) $data['client_id'],
+            'title' => $title,
             'lead_source_id' => $data['lead_source_id'] ? (int) $data['lead_source_id'] : null,
             'status_id' => (int) $data['status_id'],
             'comment' => $data['comment'] ?? null,
+            'files' => $this->normalizeLeadFiles($data['files'] ?? null),
             'order_id' => null,
         ]);
+
+        if ($title === null) {
+            $lead->update(['title' => 'Лид #'.$lead->id]);
+        }
 
         $lead = $lead->fresh(['client', 'status', 'source', 'order', 'responsible']);
         TimelineCache::forget('lead', (int) $lead->id, $companyId);
@@ -112,6 +125,9 @@ class LeadsRepository extends BaseRepository
     {
         $lead = Lead::query()->findOrFail($id);
         $previousStatusId = (int) $lead->status_id;
+        if (array_key_exists('title', $data)) {
+            $lead->title = ($data['title'] !== null && $data['title'] !== '') ? (string) $data['title'] : null;
+        }
         if (array_key_exists('responsible_id', $data)) {
             $lead->responsible_id = $data['responsible_id'] !== null ? (int) $data['responsible_id'] : null;
         }
@@ -126,6 +142,9 @@ class LeadsRepository extends BaseRepository
         }
         if (array_key_exists('comment', $data)) {
             $lead->comment = $data['comment'];
+        }
+        if (array_key_exists('files', $data)) {
+            $lead->files = $this->normalizeLeadFiles($data['files']);
         }
         $lead->save();
 
@@ -158,6 +177,43 @@ class LeadsRepository extends BaseRepository
         CacheService::invalidateLeadsCache();
 
         return true;
+    }
+
+    /**
+     * @param  list<string>  $relativePaths
+     */
+    public function appendStoredFilePaths(int $leadId, array $relativePaths): Lead
+    {
+        $lead = Lead::query()->findOrFail($leadId);
+        $existing = is_array($lead->files) ? $lead->files : [];
+        $lead->files = array_values(array_merge($existing, $relativePaths));
+        $lead->save();
+        $lead = $lead->fresh(['client', 'status', 'source', 'order', 'responsible']);
+        TimelineCache::forget('lead', (int) $lead->id, (int) $lead->company_id);
+        CacheService::invalidateLeadsCache();
+
+        return $lead;
+    }
+
+    /**
+     * @param  mixed|null  $files
+     * @return array<int, string>|null
+     */
+    private function normalizeLeadFiles(mixed $files): ?array
+    {
+        if ($files === null || ! is_array($files)) {
+            return null;
+        }
+
+        $out = [];
+        foreach ($files as $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $out[] = is_string($value) ? $value : (string) $value;
+        }
+
+        return $out;
     }
 
     /**

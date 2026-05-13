@@ -13,8 +13,7 @@ use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы с кассами
- */
-/**
+ *
  * @group Финансы
  * @subgroup Кассы
  */
@@ -175,6 +174,7 @@ class CashRegistersController extends BaseController
             'is_cash' => $validatedData['is_cash'] ?? true,
             'is_working_minus' => $validatedData['is_working_minus'] ?? false,
             'icon' => $validatedData['icon'] ?? null,
+            'color' => $validatedData['color'] ?? null,
         ]);
 
         if (!$item_created) {
@@ -216,6 +216,10 @@ class CashRegistersController extends BaseController
 
         if (array_key_exists('icon', $validatedData)) {
             $payload['icon'] = $validatedData['icon'];
+        }
+
+        if (array_key_exists('color', $validatedData)) {
+            $payload['color'] = $validatedData['color'];
         }
 
         $category_updated = $this->itemsRepository->updateItem($id, $payload);

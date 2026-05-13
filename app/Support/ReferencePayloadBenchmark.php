@@ -450,6 +450,7 @@ final class ReferencePayloadBenchmark
                 'is_cash' => true,
                 'is_working_minus' => false,
                 'icon' => 'fa-solid fa-cash-register',
+                'color' => null,
             ]);
             $register->exists = true;
             $register->syncOriginal();

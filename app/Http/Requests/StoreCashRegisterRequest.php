@@ -11,6 +11,16 @@ use Illuminate\Validation\ValidationException;
 class StoreCashRegisterRequest extends FormRequest
 {
     /**
+     * @return void
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('color') && $this->input('color') === '') {
+            $this->merge(['color' => null]);
+        }
+    }
+
+    /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
      * @return bool
@@ -36,6 +46,7 @@ class StoreCashRegisterRequest extends FormRequest
             'is_cash' => 'nullable|boolean',
             'is_working_minus' => 'nullable|boolean',
             'icon' => ['nullable', 'string', 'max:100', Rule::in($this->allowedIcons())],
+            'color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ];
     }
 

@@ -131,9 +131,11 @@ class LeadConversionTest extends TestCase
             'client_id' => $this->client->id,
             'status_id' => $this->statusNew->id,
             'comment' => 'Тестовый комментарий',
+            'files' => ['https://example.com/a.pdf'],
         ]);
         $response->assertStatus(200);
         $leadId = (int) $response->json('data.id');
+        $this->assertSame(['https://example.com/a.pdf'], $response->json('data.files'));
 
         $response2 = $this->actingAsApi($this->adminUser)->putJson("/api/leads/{$leadId}", [
             'status_id' => $this->statusSuccess->id,

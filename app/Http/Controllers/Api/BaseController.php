@@ -8,6 +8,7 @@ use App\Models\Warehouse;
 use App\Support\CompanyScopedPermissions;
 use App\Support\ReferenceWave1Canary;
 use App\Support\ResolvedCompany;
+use App\Support\SimpleUser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -340,8 +341,15 @@ class BaseController extends BaseRoutingController
         if ($warehouseId) {
             $warehouse = Warehouse::find($warehouseId);
             $user = $this->getAuthenticatedUser();
-            if ($warehouse && $user && ! $user->can('view', $warehouse)) {
-                return $this->errorResponse('У вас нет прав на этот склад', 403);
+            if ($warehouse && $user) {
+                if (SimpleUser::matches($user)
+                    && $user->simple_warehouse_id
+                    && (int) $user->simple_warehouse_id === (int) $warehouseId) {
+                    return null;
+                }
+                if (! $user->can('view', $warehouse)) {
+                    return $this->errorResponse('У вас нет прав на этот склад', 403);
+                }
             }
         }
 

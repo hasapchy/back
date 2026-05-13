@@ -30,6 +30,7 @@ class TransactionTemplateReferenceResource extends JsonResource
                 'currency_id' => data_get($cashRegister, 'currency_id'),
                 'company_id' => data_get($cashRegister, 'company_id'),
                 'is_cash' => data_get($cashRegister, 'is_cash'),
+                'color' => data_get($cashRegister, 'color'),
             ] : null,
             'category' => $category ? [
                 'id' => data_get($category, 'id'),
