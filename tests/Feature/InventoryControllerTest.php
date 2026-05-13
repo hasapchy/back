@@ -12,7 +12,6 @@ use App\Models\WarehouseStock;
 use App\Models\WhReceipt;
 use App\Models\WhWriteoff;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class InventoryControllerTest extends TestCase
@@ -33,9 +32,6 @@ class InventoryControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (! Schema::hasTable('inventories')) {
-            $this->markTestSkipped('Таблица inventories не существует.');
-        }
 
         $this->company = Company::factory()->create();
         $this->adminUser = User::factory()->create([

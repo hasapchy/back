@@ -91,9 +91,7 @@ class UpdateUserRequest extends FormRequest
 
         if (isset($data['is_admin'])) {
             $currentUser = auth('api')->user();
-            if (!$currentUser || !$currentUser->is_admin) {
-                unset($data['is_admin']);
-            } else {
+            if ($currentUser && $currentUser->is_admin) {
                 $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
             }
         }
@@ -151,6 +149,11 @@ class UpdateUserRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function (Validator $v): void {
+            $currentUser = auth('api')->user();
+            if ($this->has('is_admin') && (! $currentUser || ! $currentUser->is_admin)) {
+                $v->errors()->add('is_admin', 'Только администратор может изменять признак администратора.');
+            }
+
             $cid = (int) $this->input('simple_category_id');
             $wid = (int) $this->input('simple_warehouse_id');
             if (! $cid && ! $wid) {

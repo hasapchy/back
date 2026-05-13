@@ -148,7 +148,7 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission.scope:inventories_view_all,inventories_view_own')->get('inventories/{id}/report', [InventoryController::class, 'report']);
     Route::middleware('permission:inventories_export')->get('inventories/{id}/export', [InventoryController::class, 'export']);
     Route::middleware('permission:inventories_create')->post('inventories', [InventoryController::class, 'store']);
-    Route::middleware('permission:inventories_create')->delete('inventories/{id}', [InventoryController::class, 'destroy']);
+    Route::middleware('permission.scope:inventories_delete_all,inventories_delete_own')->delete('inventories/{id}', [InventoryController::class, 'destroy']);
     Route::middleware('permission:inventories_count')->patch('inventories/{id}/items', [InventoryController::class, 'updateItems']);
     Route::middleware('permission:inventories_finalize')->post('inventories/{id}/finalize', [InventoryController::class, 'finalize']);
     Route::middleware('permission:inventories_finalize')->post('inventories/{id}/apply-shortage', [InventoryController::class, 'applyInventoryStockAdjustment']);

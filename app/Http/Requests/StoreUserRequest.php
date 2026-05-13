@@ -82,15 +82,9 @@ class StoreUserRequest extends FormRequest
         }
 
         if (isset($data['is_admin'])) {
-            try {
-                $currentUser = auth('api')->user();
-                if (!$currentUser || !$currentUser->is_admin) {
-                    unset($data['is_admin']);
-                } else {
-                    $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
-                }
-            } catch (\Exception $e) {
-                unset($data['is_admin']);
+            $currentUser = auth('api')->user();
+            if ($currentUser && $currentUser->is_admin) {
+                $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
             }
         }
 
@@ -147,6 +141,11 @@ class StoreUserRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function (Validator $v): void {
+            $currentUser = auth('api')->user();
+            if ($this->has('is_admin') && (! $currentUser || ! $currentUser->is_admin)) {
+                $v->errors()->add('is_admin', 'Только администратор может изменять признак администратора.');
+            }
+
             if (! $this->boolean('is_simple_user')) {
                 return;
             }

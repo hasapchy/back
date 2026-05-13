@@ -6,7 +6,6 @@ use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class AuthLoginTest extends TestCase
@@ -17,9 +16,6 @@ class AuthLoginTest extends TestCase
     {
         parent::setUp();
 
-        if (! Schema::hasTable('users') || ! Schema::hasTable('companies')) {
-            $this->markTestSkipped('Нужны таблицы users и companies. Выполните миграции.');
-        }
     }
 
     public function test_login_succeeds_with_valid_credentials_and_returns_user_payload(): void

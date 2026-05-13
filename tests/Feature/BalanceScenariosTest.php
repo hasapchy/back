@@ -139,7 +139,7 @@ class BalanceScenariosTest extends TestCase
             $orderStatus = OrderStatus::first();
 
             if (!$defaultCurrency || !$cashRegister || !$warehouse || !$product || !$user) {
-                $this->markTestSkipped('Не найдены необходимые данные в БД');
+                $this->fail('Не найдены необходимые данные в БД');
             }
 
             // Если нет категории или статуса заказа - создаем временные

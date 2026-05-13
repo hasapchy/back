@@ -12,6 +12,8 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SalesProduct;
 use App\Models\WarehouseStock;
+use App\Models\WhMovement;
+use App\Models\WhMovementProduct;
 use App\Models\WhReceipt;
 use App\Models\WhReceiptProduct;
 use App\Models\WhWriteoff;
@@ -238,6 +240,9 @@ class ProductController extends BaseController
         $unitShortName = $product->unit ? $product->unit->short_name : '';
         $filter = $request->query('filter', 'all');
         $history = collect();
+        $movementProducts = WhMovementProduct::where('product_id', $id)
+            ->with(['movement.creator', 'movement.warehouseFrom', 'movement.warehouseTo'])
+            ->get();
 
         if (in_array($filter, ['all', 'income'], true)) {
             foreach (WhReceiptProduct::where('product_id', $id)->with(['receipt.creator'])->get() as $rp) {
@@ -259,6 +264,9 @@ class ProductController extends BaseController
                         'name' => trim($u->name.' '.($u->surname ?? '')),
                     ] : null,
                 ]);
+            }
+            foreach ($movementProducts as $mp) {
+                $this->pushMovementHistoryItem($history, $mp, $unitShortName, true);
             }
         }
 
@@ -320,6 +328,9 @@ class ProductController extends BaseController
                     ] : null,
                 ]);
             }
+            foreach ($movementProducts as $mp) {
+                $this->pushMovementHistoryItem($history, $mp, $unitShortName, false);
+            }
         }
 
         $history = $history->sortByDesc('date')->values()->toArray();
@@ -352,6 +363,37 @@ class ProductController extends BaseController
             'return_supplier' => (string) __('product_history.writeoff_reason_return_supplier'),
             default => (string) __('product_history.writeoff_reason_other'),
         };
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $history
+     */
+    private function pushMovementHistoryItem($history, WhMovementProduct $movementProduct, string $unitShortName, bool $isIncome): void
+    {
+        $movement = $movementProduct->movement;
+        if (! $movement) {
+            return;
+        }
+
+        $creator = $movement->creator ?? null;
+        $history->push([
+            'source_label' => (string) __(
+                $isIncome ? 'product_history.movement_in' : 'product_history.movement_out',
+                [
+                    'from' => $movement->warehouseFrom?->name ?? '',
+                    'to' => $movement->warehouseTo?->name ?? '',
+                ]
+            ),
+            'source_type' => WhMovement::class,
+            'source_id' => (int) $movement->id,
+            'quantity' => $isIncome ? (float) $movementProduct->quantity : -(float) $movementProduct->quantity,
+            'unit_short_name' => $unitShortName,
+            'date' => $movement->date,
+            'creator' => $creator ? [
+                'id' => (int) $creator->id,
+                'name' => trim($creator->name.' '.($creator->surname ?? '')),
+            ] : null,
+        ]);
     }
 
     protected function normalizeCategoryIdForSimpleUser($categoryId)

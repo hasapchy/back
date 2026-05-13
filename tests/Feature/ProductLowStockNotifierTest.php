@@ -12,7 +12,6 @@ use App\Models\WarehouseStock;
 use App\Services\ProductLowStockNotifier;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ProductLowStockNotifierTest extends TestCase
@@ -67,9 +66,6 @@ class ProductLowStockNotifierTest extends TestCase
 
     public function test_sends_stock_low_notification_to_admin_user_one_when_category_has_no_recipients(): void
     {
-        if (! Schema::hasTable('app_notifications') || ! Schema::hasTable('user_notification_settings')) {
-            $this->markTestSkipped('Таблицы уведомлений отсутствуют.');
-        }
 
         [$company, $admin, $category, $product, $warehouse] = $this->prepareLowStockContext();
 
@@ -102,9 +98,6 @@ class ProductLowStockNotifierTest extends TestCase
 
     public function test_disarms_when_stock_returns_above_threshold(): void
     {
-        if (! Schema::hasTable('app_notifications') || ! Schema::hasTable('user_notification_settings')) {
-            $this->markTestSkipped('Таблицы уведомлений отсутствуют.');
-        }
 
         [$company, $admin, $category, $product, $warehouse] = $this->prepareLowStockContext();
 
@@ -127,9 +120,6 @@ class ProductLowStockNotifierTest extends TestCase
 
     public function test_sends_again_after_reentering_low_stock_state(): void
     {
-        if (! Schema::hasTable('app_notifications') || ! Schema::hasTable('user_notification_settings')) {
-            $this->markTestSkipped('Таблицы уведомлений отсутствуют.');
-        }
 
         [$company, $admin, $category, $product, $warehouse] = $this->prepareLowStockContext();
 

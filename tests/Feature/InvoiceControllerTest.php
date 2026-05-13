@@ -8,7 +8,6 @@ use App\Models\Invoice;
 use App\Models\Client;
 use App\Models\Order;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class InvoiceControllerTest extends TestCase
@@ -24,9 +23,6 @@ class InvoiceControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (!Schema::hasTable('companies')) {
-            $this->markTestSkipped('Таблица companies не существует.');
-        }
 
         $this->company = Company::factory()->create();
         $this->adminUser = User::factory()->create([

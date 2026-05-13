@@ -15,7 +15,6 @@ use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class LeadConversionTest extends TestCase
@@ -46,9 +45,6 @@ class LeadConversionTest extends TestCase
     {
         parent::setUp();
 
-        if (! Schema::hasTable('leads')) {
-            $this->markTestSkipped('Таблица leads не существует.');
-        }
 
         $this->company = Company::factory()->create();
         $this->adminUser = User::factory()->create([

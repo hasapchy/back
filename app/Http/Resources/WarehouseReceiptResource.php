@@ -58,6 +58,7 @@ class WarehouseReceiptResource extends BaseDomainResource
         $data['status'] = $receipt->status->value;
         $data['purchase_id'] = $receipt->purchase_id !== null ? (int) $receipt->purchase_id : null;
         $data['is_from_purchase'] = $receipt->purchase_id !== null;
+        $data['supplier'] = $receipt->supplier ? $receipt->supplier->toArray() : null;
         return $this->normalizeCreator($data);
     }
 }

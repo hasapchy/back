@@ -7,10 +7,80 @@ use App\Models\Currency;
 use App\Models\ProductPrice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
 {
     use CreatesApplication;
+
+    private static bool $forbiddenTestPatternsChecked = false;
+
+    /**
+     * @return void
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->assertSafeTestingDatabase();
+        $this->assertNoForbiddenTestPatterns();
+    }
+
+    /**
+     * @return void
+     */
+    protected function assertSafeTestingDatabase(): void
+    {
+        if (! app()->environment('testing')) {
+            throw new RuntimeException('Tests can run only in testing environment.');
+        }
+
+        $connection = (string) config('database.default');
+        $database = (string) config("database.connections.{$connection}.database");
+
+        if ($connection === 'sqlite' && $database === ':memory:') {
+            return;
+        }
+
+        if (! str_ends_with($database, '_testing')) {
+            throw new RuntimeException("Unsafe test database [{$database}] for connection [{$connection}]. Use sqlite :memory: or *_testing database.");
+        }
+    }
+
+    /**
+     * @return void
+     */
+    private function assertNoForbiddenTestPatterns(): void
+    {
+        if (self::$forbiddenTestPatternsChecked) {
+            return;
+        }
+
+        $testsDir = __DIR__;
+        $violations = [];
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($testsDir));
+        foreach ($iterator as $file) {
+            if (! $file->isFile() || $file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $path = $file->getPathname();
+            $content = file_get_contents($path);
+            if ($content === false) {
+                continue;
+            }
+
+            if (str_contains($content, 'markTestSkipped(')) {
+                $violations[] = $path;
+            }
+        }
+
+        self::$forbiddenTestPatternsChecked = true;
+
+        if ($violations !== []) {
+            throw new RuntimeException('Forbidden markTestSkipped() usage found in tests: '.implode(', ', $violations));
+        }
+    }
 
     protected function ensureDefaultCurrencyForCompany(Company $company): Currency
     {
