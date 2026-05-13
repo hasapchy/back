@@ -11,6 +11,10 @@ use App\Services\InAppNotifications\InAppNotificationDispatcher;
 use App\Services\NewsImageService;
 use Illuminate\Http\Request;
 
+/**
+ * @group Контент
+ * @subgroup Новости
+ */
 class NewsController extends BaseController
 {
     protected $itemsRepository;
@@ -27,7 +31,7 @@ class NewsController extends BaseController
     }
 
     /**
-     * Получить список новостей с пагинацией
+     * Список новостей
      */
     public function index(Request $request)
     {

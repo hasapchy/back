@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreProjectStatusRequest;
 use App\Http\Requests\UpdateProjectStatusRequest;
+use App\Http\Resources\ProjectStatusReferenceResource;
 use App\Http\Resources\ProjectStatusResource;
 use App\Models\ProjectStatus;
 use App\Repositories\ProjectStatusRepository;
@@ -12,6 +13,10 @@ use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы со статусами проектов
+ */
+/**
+ * @group Проекты
+ * @subgroup Статусы
  */
 class ProjectStatusController extends BaseController
 {
@@ -26,7 +31,7 @@ class ProjectStatusController extends BaseController
     }
 
     /**
-     * Получить список статусов проектов с пагинацией
+     * Список статусов проектов
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -38,9 +43,15 @@ class ProjectStatusController extends BaseController
         $page = $request->input('page', 1);
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => ProjectStatusResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                ProjectStatusReferenceResource::class,
+                ProjectStatusResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'next_page' => $items->nextPageUrl(),
@@ -62,11 +73,18 @@ class ProjectStatusController extends BaseController
 
         $items = $this->itemsRepository->getAllItems($userUuid);
 
-        return $this->successResponse(ProjectStatusResource::collection($items)->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($this->getCurrentCompanyId());
+        $collection = $useReference
+            ? ProjectStatusReferenceResource::collection($items)
+            : ProjectStatusResource::collection($items);
+
+        return $this->successResponse($collection->resolve());
     }
 
     /**
-     * Создать новый статус проекта
+     * Создать статус проекта
+     *
+     * @subgroup Управление статусами
      *
      * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
@@ -94,6 +112,8 @@ class ProjectStatusController extends BaseController
     /**
      * Обновить статус проекта
      *
+     * @subgroup Управление статусами
+     *
      * @param  Request  $request
      * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse
@@ -119,6 +139,8 @@ class ProjectStatusController extends BaseController
 
     /**
      * Удалить статус проекта
+     *
+     * @subgroup Управление статусами
      *
      * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse

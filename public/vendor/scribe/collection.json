@@ -3694,7 +3694,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\"client_id\":17,\"warehouse_id\":17,\"type\":\"balance\",\"cash_id\":17,\"date\":\"2026-01-09T18:36:59\",\"note\":\"consequatur\",\"project_id\":17,\"products\":[{\"product_id\":17,\"quantity\":45,\"price\":56}]}"
+                            "raw": "{\"client_id\":17,\"warehouse_id\":17,\"type\":\"balance\",\"cash_id\":17,\"date\":\"2026-01-09T18:36:59\",\"note\":\"consequatur\",\"products\":[{\"product_id\":17,\"quantity\":45,\"price\":56}]}"
                         },
                         "description": ""
                     },

@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class WarehouseControllerTest extends TestCase
@@ -30,6 +31,11 @@ class WarehouseControllerTest extends TestCase
             'is_active' => true,
         ]);
         $this->adminUser->companies()->attach($this->company->id);
+
+        Permission::firstOrCreate(['name' => 'warehouses_view_all', 'guard_name' => 'api']);
+        $this->adminUser->givePermissionTo('warehouses_view_all');
+
+        config(['reference_contracts.canary.enabled' => false]);
     }
 
     protected function actingAsApi(User $user)
@@ -76,6 +82,51 @@ class WarehouseControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson(['message' => 'Склад обновлен']);
+    }
+
+    /**
+     * @return void
+     */
+    /**
+     * @return void
+     */
+    public function test_index_returns_reference_shaped_items_when_wave1_index_show_enabled(): void
+    {
+        $warehouse = Warehouse::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+        $warehouse->users()->sync([$this->adminUser->id]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/warehouses?page=1&per_page=20');
+
+        $response->assertStatus(200);
+        $items = $response->json('data.items');
+        $this->assertIsArray($items);
+        $row = collect($items)->firstWhere('id', $warehouse->id);
+        $this->assertNotNull($row);
+        $this->assertArrayNotHasKey('created_at', $row);
+        $this->assertArrayHasKey('users', $row);
+    }
+
+    public function test_all_returns_reference_payload_without_timestamps(): void
+    {
+        $warehouse = Warehouse::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+        $warehouse->users()->sync([$this->adminUser->id]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/warehouses/all');
+
+        $response->assertStatus(200);
+        $rows = $response->json('data');
+        $this->assertIsArray($rows);
+        $row = collect($rows)->firstWhere('id', $warehouse->id);
+        $this->assertNotNull($row);
+        $this->assertArrayHasKey('users', $row);
+        $this->assertArrayNotHasKey('created_at', $row);
+        $this->assertArrayNotHasKey('updated_at', $row);
     }
 }
 

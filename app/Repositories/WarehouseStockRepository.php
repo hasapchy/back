@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -117,6 +118,8 @@ class WarehouseStockRepository extends BaseRepository
                     'warehouse_stocks.product_id',
                     'products.name as product_name',
                     'products.image as product_image',
+                    'products.stock_alert_notify',
+                    'products.stock_min_quantity',
                     'units.id as unit_id',
                     'units.name as unit_name',
                     'units.short_name as unit_short_name',
@@ -178,12 +181,64 @@ class WarehouseStockRepository extends BaseRepository
             $query->orderByDesc('products.id')->orderByDesc('warehouse_stocks.warehouse_id');
 
             $paginated = $query->paginate($perPage, ['*'], 'page', (int) $page);
+            $lowStockMap = $this->buildLowStockMap($paginated, $companyId);
 
             foreach ($paginated as $item) {
                 $item->quantity = (float) ($item->quantity ?? 0);
+                $item->stock_alert_notify = (bool) ($item->stock_alert_notify ?? false);
+                $item->stock_min_quantity = isset($item->stock_min_quantity) ? (float) $item->stock_min_quantity : null;
+                $item->is_below_min_stock = (bool) ($lowStockMap[(int) $item->product_id] ?? false);
             }
 
             return $paginated;
         }, (int) $page);
+    }
+
+    /**
+     * @param LengthAwarePaginator<int, object> $paginated
+     * @return array<int, bool>
+     */
+    private function buildLowStockMap(LengthAwarePaginator $paginated, ?int $companyId): array
+    {
+        $productIds = collect($paginated->items())
+            ->pluck('product_id')
+            ->map(static fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($productIds === []) {
+            return [];
+        }
+
+        $totalsQuery = WarehouseStock::query()
+            ->join('warehouses', 'warehouses.id', '=', 'warehouse_stocks.warehouse_id')
+            ->whereIn('warehouse_stocks.product_id', $productIds);
+
+        if ($companyId) {
+            $totalsQuery->where('warehouses.company_id', $companyId);
+        } else {
+            $totalsQuery->whereNull('warehouses.company_id');
+        }
+
+        $totals = $totalsQuery
+            ->select('warehouse_stocks.product_id', DB::raw('SUM(warehouse_stocks.quantity) as total_quantity'))
+            ->groupBy('warehouse_stocks.product_id')
+            ->pluck('total_quantity', 'warehouse_stocks.product_id')
+            ->toArray();
+
+        $productMeta = collect($paginated->items())
+            ->keyBy(static fn ($item) => (int) $item->product_id);
+
+        $result = [];
+        foreach ($productIds as $productId) {
+            $item = $productMeta->get($productId);
+            $notify = (bool) ($item->stock_alert_notify ?? false);
+            $min = isset($item->stock_min_quantity) ? (float) $item->stock_min_quantity : null;
+            $total = (float) ($totals[$productId] ?? 0);
+            $result[$productId] = Product::isBelowMinStockByValues($total, $notify, $min);
+        }
+
+        return $result;
     }
 }

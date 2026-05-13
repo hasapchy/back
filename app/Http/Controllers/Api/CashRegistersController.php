@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreCashRegisterRequest;
 use App\Http\Requests\UpdateCashRegisterRequest;
+use App\Http\Resources\CashRegisterReferenceResource;
 use App\Http\Resources\CashRegisterResource;
 use App\Repositories\CashRegistersRepository;
 use App\Models\CashRegister;
@@ -12,6 +13,9 @@ use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы с кассами
+ *
+ * @group Финансы
+ * @subgroup Кассы
  */
 class CashRegistersController extends BaseController
 {
@@ -26,7 +30,7 @@ class CashRegistersController extends BaseController
     }
 
     /**
-     * Получить список касс с пагинацией
+     * Список касс
      *
      * @param Request $request
      * @return JsonResponse
@@ -40,9 +44,15 @@ class CashRegistersController extends BaseController
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 20);
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => CashRegisterResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                CashRegisterReferenceResource::class,
+                CashRegisterResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'next_page' => $items->nextPageUrl(),
@@ -65,11 +75,20 @@ class CashRegistersController extends BaseController
 
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $items = $this->itemsRepository->getAllItems($userUuid);
-        return $this->successResponse(CashRegisterResource::collection($items)->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($this->getCurrentCompanyId());
+        $collection = $useReference
+            ? CashRegisterReferenceResource::collection($items)
+            : CashRegisterResource::collection($items);
+
+        return $this->successResponse($collection->resolve());
     }
 
     /**
      * Получить баланс касс
+     *
+     * Если параметр `cash_register_ids` не передан, вернётся баланс всех доступных касс.
+     * Если передан один ID, вернётся баланс одной кассы.
+     * Если передано несколько ID через запятую, вернётся баланс указанных касс.
      *
      * @param Request $request
      * @return JsonResponse
@@ -135,7 +154,7 @@ class CashRegistersController extends BaseController
     }
 
     /**
-     * Создать новую кассу
+     * Создать кассу
      *
      * @param Request $request
      * @return JsonResponse
@@ -155,6 +174,7 @@ class CashRegistersController extends BaseController
             'is_cash' => $validatedData['is_cash'] ?? true,
             'is_working_minus' => $validatedData['is_working_minus'] ?? false,
             'icon' => $validatedData['icon'] ?? null,
+            'color' => $validatedData['color'] ?? null,
         ]);
 
         if (!$item_created) {
@@ -196,6 +216,10 @@ class CashRegistersController extends BaseController
 
         if (array_key_exists('icon', $validatedData)) {
             $payload['icon'] = $validatedData['icon'];
+        }
+
+        if (array_key_exists('color', $validatedData)) {
+            $payload['color'] = $validatedData['color'];
         }
 
         $category_updated = $this->itemsRepository->updateItem($id, $payload);

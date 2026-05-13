@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Resources\LeaveTypeReferenceResource;
 use App\Http\Resources\LeaveTypeResource;
 use App\Repositories\LeaveTypeRepository;
 use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы с типами отпусков
+ */
+/**
+ * @group Кадры
+ * @subgroup Типы отпусков
  */
 class LeaveTypeController extends BaseController
 {
@@ -22,7 +27,7 @@ class LeaveTypeController extends BaseController
     }
 
     /**
-     * Получить список типов отпусков с пагинацией
+     * Список типов отпусков
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -33,9 +38,15 @@ class LeaveTypeController extends BaseController
         $perPage = $request->input('per_page', 20);
         $page = $request->input('page', 1);
         $items = $this->itemsRepository->getItemsWithPagination($perPage, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => LeaveTypeResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                LeaveTypeReferenceResource::class,
+                LeaveTypeResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'next_page' => $items->nextPageUrl(),
@@ -57,11 +68,16 @@ class LeaveTypeController extends BaseController
 
         $items = $this->itemsRepository->getAllItems();
 
-        return $this->successResponse(LeaveTypeResource::collection($items)->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($this->getCurrentCompanyId());
+        $collection = $useReference
+            ? LeaveTypeReferenceResource::collection($items)
+            : LeaveTypeResource::collection($items);
+
+        return $this->successResponse($collection->resolve());
     }
 
     /**
-     * Создать новый тип отпуска
+     * Создать тип отпуска
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -84,7 +100,12 @@ class LeaveTypeController extends BaseController
             return $this->errorResponse('Ошибка создания типа отпуска', 400);
         }
 
-        return $this->successResponse(new LeaveTypeResource($created), 'Тип отпуска создан');
+        $companyId = $this->getCurrentCompanyId();
+
+        return $this->successResponse(
+            $this->wave1SingleResource($created, LeaveTypeReferenceResource::class, LeaveTypeResource::class, $companyId),
+            'Тип отпуска создан'
+        );
     }
 
     /**
@@ -112,7 +133,12 @@ class LeaveTypeController extends BaseController
             return $this->errorResponse('Ошибка обновления', 400);
         }
 
-        return $this->successResponse(new LeaveTypeResource($updated), 'Тип отпуска обновлен');
+        $companyId = $this->getCurrentCompanyId();
+
+        return $this->successResponse(
+            $this->wave1SingleResource($updated, LeaveTypeReferenceResource::class, LeaveTypeResource::class, $companyId),
+            'Тип отпуска обновлен'
+        );
     }
 
     /**

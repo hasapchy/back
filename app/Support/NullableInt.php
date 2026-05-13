@@ -16,4 +16,16 @@ final class NullableInt
 
         return (int) $value;
     }
+
+    /**
+     * Положительный целочисленный идентификатор из query или null.
+     *
+     * @param  mixed  $value
+     */
+    public static function positiveOrNull(mixed $value): ?int
+    {
+        $id = self::fromRequest($value);
+
+        return ($id !== null && $id > 0) ? $id : null;
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\WhWriteoffReason;
 use App\Models\WhWriteoff;
 use App\Models\Warehouse;
 use App\Models\User;
@@ -23,8 +24,9 @@ class WhWriteoffFactory extends Factory
     {
         return [
             'warehouse_id' => Warehouse::factory(),
+            'reason' => WhWriteoffReason::Other,
             'creator_id' => User::factory(),
-            'note' => fake()->optional()->sentence(),
+            'note' => fake()->sentence(),
             'date' => now(),
         ];
     }

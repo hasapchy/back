@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Category;
+use App\Http\Requests\Concerns\ValidatesSimpleUserCategoryAndWarehouseCompanies;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -10,6 +10,8 @@ use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
 {
+    use ValidatesSimpleUserCategoryAndWarehouseCompanies;
+
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -45,6 +47,12 @@ class StoreUserRequest extends FormRequest
                 'required',
                 'integer',
                 Rule::exists('categories', 'id')->where(fn ($q) => $q->whereNull('parent_id')),
+            ],
+            'simple_warehouse_id' => [
+                'exclude_unless:is_simple_user,true',
+                'required',
+                'integer',
+                'exists:warehouses,id',
             ],
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'roles' => 'nullable|array',
@@ -142,20 +150,21 @@ class StoreUserRequest extends FormRequest
             if (! $this->boolean('is_simple_user')) {
                 return;
             }
-            $cid = (int) $this->input('simple_category_id');
-            if (! $cid) {
-                return;
-            }
             $companies = $this->input('companies', []);
             if (! is_array($companies) || $companies === []) {
                 $v->errors()->add('simple_category_id', 'Выберите компанию.');
 
                 return;
             }
-            $catCompany = Category::whereKey($cid)->value('company_id');
-            if ($catCompany === null || ! in_array((int) $catCompany, array_map('intval', $companies), true)) {
-                $v->errors()->add('simple_category_id', 'Категория должна быть из выбранных компаний.');
-            }
+            $companyIds = array_map('intval', $companies);
+            $this->validateCategoryAndWarehouseBelongToCompanyIds(
+                $v,
+                $companyIds,
+                (int) $this->input('simple_category_id'),
+                (int) $this->input('simple_warehouse_id'),
+                'Категория должна быть из выбранных компаний.',
+                'Склад должен быть из выбранных компаний.'
+            );
         });
     }
 

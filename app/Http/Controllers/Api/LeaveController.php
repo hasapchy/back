@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Resources\LeaveReferenceResource;
 use App\Http\Resources\LeaveResource;
 use App\Models\Leave;
 use App\Repositories\LeaveRepository;
@@ -10,6 +11,10 @@ use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы с записями отпусков
+ */
+/**
+ * @group Кадры
+ * @subgroup Отпуска
  */
 class LeaveController extends BaseController
 {
@@ -26,7 +31,7 @@ class LeaveController extends BaseController
     }
 
     /**
-     * Получить список записей отпусков с пагинацией
+     * Список отпусков
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -40,9 +45,15 @@ class LeaveController extends BaseController
         $filters = $this->buildLeaveFilters($request);
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $filters, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => LeaveResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                LeaveReferenceResource::class,
+                LeaveResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'last_page' => $items->lastPage(),
@@ -64,8 +75,16 @@ class LeaveController extends BaseController
         $filters = $this->buildLeaveFilters($request);
 
         $items = $this->itemsRepository->getAllItems($userUuid, $filters);
+        $companyId = $this->getCurrentCompanyId();
 
-        return $this->successResponse(LeaveResource::collection($items)->resolve());
+        return $this->successResponse(
+            $this->wave1IndexCollection(
+                $items,
+                LeaveReferenceResource::class,
+                LeaveResource::class,
+                $companyId
+            )
+        );
     }
 
     /**
@@ -88,7 +107,7 @@ class LeaveController extends BaseController
     }
 
     /**
-     * Создать новую запись отпуска
+     * Создать запись отпуска
      *
      * @return \Illuminate\Http\JsonResponse
      */

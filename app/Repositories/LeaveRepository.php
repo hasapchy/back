@@ -13,15 +13,28 @@ class LeaveRepository extends BaseRepository
     ) {
     }
     /**
-     * Получить базовые связи для отпусков
+     * Связи для списков и /all (без company).
+     *
+     * @return array<int, string>
+     */
+    private function getListRelations(): array
+    {
+        return [
+            'leaveType:id,name,color,is_penalty,created_at,updated_at',
+            'user:id,name,surname,email',
+        ];
+    }
+
+    /**
+     * Получить базовые связи для отпусков (show и связанные сценарии).
+     *
+     * @return array<int, string>
      */
     private function getBaseRelations(): array
     {
-        return [
-            'leaveType:id,name,color',
-            'user:id,name,surname,email',
+        return array_merge($this->getListRelations(), [
             'company:id,name',
-        ];
+        ]);
     }
 
     /**
@@ -38,7 +51,7 @@ class LeaveRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('leaves_paginated', [$userUuid, $perPage, $filtersKey, $page]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $filters, $page) {
-            $query = Leave::with(['leaveType', 'user']);
+            $query = Leave::with($this->getListRelations());
             $this->applyCompanyFilter($query);
             $this->applyFilters($query, $filters);
 
@@ -60,7 +73,7 @@ class LeaveRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('leaves_all', [$userUuid, $filtersKey]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($filters) {
-            $query = Leave::with(['leaveType', 'user']);
+            $query = Leave::with($this->getListRelations());
             $this->applyCompanyFilter($query);
             $this->applyFilters($query, $filters);
 

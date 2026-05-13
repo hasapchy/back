@@ -11,6 +11,10 @@ use Illuminate\Http\Request;
 /**
  * Контроллер для работы со связями заказов и транзакций
  */
+/**
+ * @group Заказы
+ * @subgroup Связи заказа и транзакций
+ */
 class OrderTransactionController extends BaseController
 {
     protected $itemsRepository;
@@ -27,6 +31,8 @@ class OrderTransactionController extends BaseController
 
     /**
      * Связать транзакцию с заказом
+     *
+     * @hideFromAPIDocumentation
      *
      * @param Request $request
      * @param int $orderId ID заказа
@@ -65,6 +71,8 @@ class OrderTransactionController extends BaseController
     /**
      * Отвязать транзакцию от заказа
      *
+     * @hideFromAPIDocumentation
+     *
      * @param int $orderId ID заказа
      * @param int $transactionId ID транзакции
      * @return \Illuminate\Http\JsonResponse
@@ -94,6 +102,8 @@ class OrderTransactionController extends BaseController
 
     /**
      * Получить транзакции заказа
+     *
+     * @hideFromAPIDocumentation
      *
      * @param int $orderId ID заказа
      * @return \Illuminate\Http\JsonResponse

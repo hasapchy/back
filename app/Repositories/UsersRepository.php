@@ -67,6 +67,7 @@ class UsersRepository extends BaseRepository
                 'users.is_admin',
                 'users.is_simple_user',
                 'users.simple_category_id',
+                'users.simple_warehouse_id',
                 'users.photo',
                 'users.created_at',
                 'users.updated_at',
@@ -200,6 +201,7 @@ class UsersRepository extends BaseRepository
             'users.is_admin',
             'users.is_simple_user',
             'users.simple_category_id',
+            'users.simple_warehouse_id',
             'users.photo',
             'users.created_at',
             'users.last_login_at'
@@ -435,6 +437,9 @@ class UsersRepository extends BaseRepository
             if (! empty($data['simple_category_id'])) {
                 $user->simple_category_id = (int) $data['simple_category_id'];
             }
+            if (! empty($data['simple_warehouse_id'])) {
+                $user->simple_warehouse_id = (int) $data['simple_warehouse_id'];
+            }
 
             if (isset($data['photo'])) {
                 $user->photo = $data['photo'];
@@ -511,6 +516,9 @@ class UsersRepository extends BaseRepository
             }
             if (array_key_exists('simple_category_id', $data)) {
                 $user->simple_category_id = $data['simple_category_id'] ? (int) $data['simple_category_id'] : null;
+            }
+            if (array_key_exists('simple_warehouse_id', $data)) {
+                $user->simple_warehouse_id = $data['simple_warehouse_id'] ? (int) $data['simple_warehouse_id'] : null;
             }
 
             if (isset($data['photo'])) {
@@ -1008,6 +1016,7 @@ class UsersRepository extends BaseRepository
                 'users.is_admin',
                 'users.is_simple_user',
                 'users.simple_category_id',
+                'users.simple_warehouse_id',
                 'users.photo',
                 'users.created_at',
                 'users.updated_at',

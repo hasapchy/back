@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreCompanyHolidayRequest;
 use App\Http\Requests\UpdateCompanyHolidayRequest;
+use App\Http\Resources\CompanyHolidayReferenceResource;
 use App\Http\Resources\CompanyHolidayResource;
 use App\Models\CompanyHoliday;
 use App\Repositories\CompanyHolidayRepository;
@@ -12,6 +13,10 @@ use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы с корпоративными праздниками
+ */
+/**
+ * @group Кадры
+ * @subgroup Праздники
  */
 class CompanyHolidayController extends BaseController
 {
@@ -23,7 +28,7 @@ class CompanyHolidayController extends BaseController
     }
 
     /**
-     * Получить список праздников компании с пагинацией
+     * Список праздников компании
      *
      * @return JsonResponse
      */
@@ -41,9 +46,15 @@ class CompanyHolidayController extends BaseController
         }
 
         $items = $this->repository->getItemsWithPagination($userUuid, $perPage, $filters);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => CompanyHolidayResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                CompanyHolidayReferenceResource::class,
+                CompanyHolidayResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'last_page' => $items->lastPage(),
@@ -70,8 +81,13 @@ class CompanyHolidayController extends BaseController
         }
 
         $items = $this->repository->getAllItems($userUuid, $filters);
+        $companyId = $this->getCurrentCompanyId();
+        $useReference = $this->useReferenceContractsForWave1All($companyId);
+        $collection = $useReference
+            ? CompanyHolidayReferenceResource::collection($items)
+            : CompanyHolidayResource::collection($items);
 
-        return $this->successResponse(CompanyHolidayResource::collection($items)->resolve());
+        return $this->successResponse($collection->resolve());
     }
 
     /**
@@ -94,7 +110,7 @@ class CompanyHolidayController extends BaseController
     }
 
     /**
-     * Создать новый праздник
+     * Создать праздник
      *
      * @return JsonResponse
      */
@@ -118,7 +134,12 @@ class CompanyHolidayController extends BaseController
             return $this->errorResponse('Ошибка создания праздника', 400);
         }
 
-        return $this->successResponse(new CompanyHolidayResource($created), 'Праздник создан');
+        $companyId = $this->getCurrentCompanyId();
+
+        return $this->successResponse(
+            $this->wave1SingleResource($created, CompanyHolidayReferenceResource::class, CompanyHolidayResource::class, $companyId),
+            'Праздник создан'
+        );
     }
 
     /**
@@ -149,7 +170,12 @@ class CompanyHolidayController extends BaseController
                 return $this->errorResponse('Ошибка обновления', 400);
             }
 
-            return $this->successResponse(new CompanyHolidayResource($updated), 'Праздник обновлен');
+            $companyId = $this->getCurrentCompanyId();
+
+            return $this->successResponse(
+                $this->wave1SingleResource($updated, CompanyHolidayReferenceResource::class, CompanyHolidayResource::class, $companyId),
+                'Праздник обновлен'
+            );
         } catch (\Exception $e) {
             return $this->errorResponse('Праздник не найден', 404);
         }

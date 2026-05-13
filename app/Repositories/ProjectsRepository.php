@@ -122,6 +122,85 @@ class ProjectsRepository extends BaseRepository
     }
 
     /**
+     * Получить количество проектов по статусам с учетом тех же фильтров, что и список.
+     *
+     * Возвращает массив элементов вида `['id' => int, 'name' => string, 'color' => ?string, 'count' => int]`,
+     * упорядоченный по `project_statuses.id`. Фильтр по `statusId` намеренно игнорируется,
+     * чтобы суммы оставались стабильными при переключении вкладок статусов.
+     *
+     * @param  string|null  $search  Поисковый запрос
+     * @param  string  $dateFilter  Тип фильтра по дате
+     * @param  string|null  $startDate  Начальная дата (для кастомного фильтра)
+     * @param  string|null  $endDate  Конечная дата (для кастомного фильтра)
+     * @param  int|null  $clientId  Фильтр по клиенту
+     * @return array<int, array{id:int,name:string,color:?string,count:int}>
+     */
+    public function getStatusCountsForFilters(
+        ?string $search = null,
+        string $dateFilter = 'all_time',
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?int $clientId = null,
+    ): array {
+        /** @var User|null $currentUser */
+        $currentUser = auth('api')->user();
+
+        $query = Project::query()
+            ->leftJoin('project_statuses', 'projects.status_id', '=', 'project_statuses.id');
+
+        $query = $this->addCompanyFilterDirect($query, 'projects');
+
+        if ($search) {
+            $searchTrimmed = trim((string) $search);
+            $searchLower = mb_strtolower($searchTrimmed);
+            $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                $q->where('projects.id', 'like', "%{$searchTrimmed}%")
+                    ->orWhereRaw('LOWER(projects.name) LIKE ?', ["%{$searchLower}%"]);
+
+                $q->orWhereHas('client', function ($clientQuery) use ($searchTrimmed) {
+                    $this->applyClientSearchConditions($clientQuery, $searchTrimmed);
+                })
+                    ->orWhereHas('client.phones', function ($phoneQuery) use ($searchLower) {
+                        $phoneQuery->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                    })
+                    ->orWhereHas('client.emails', function ($emailQuery) use ($searchLower) {
+                        $emailQuery->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                    });
+            });
+        }
+
+        if ($dateFilter && $dateFilter !== 'all_time') {
+            $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'projects.date');
+        }
+
+        if ($clientId) {
+            $query->where('projects.client_id', $clientId);
+        }
+
+        $this->applyOwnFilter($query, 'projects', 'projects', 'creator_id', $currentUser);
+
+        return $query
+            ->select([
+                'project_statuses.id as status_id',
+                'project_statuses.name as status_name',
+                'project_statuses.color as status_color',
+                DB::raw('COUNT(projects.id) as status_count'),
+            ])
+            ->whereNotNull('projects.status_id')
+            ->groupBy('project_statuses.id', 'project_statuses.name', 'project_statuses.color')
+            ->orderBy('project_statuses.id')
+            ->get()
+            ->map(fn ($row) => [
+                'id' => (int) $row->status_id,
+                'name' => (string) $row->status_name,
+                'color' => $row->status_color,
+                'count' => (int) $row->status_count,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * Получить все проекты
      *
      * @param  bool  $activeOnly  Только активные проекты

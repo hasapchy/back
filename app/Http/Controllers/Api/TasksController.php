@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\TaskRequest;
 use App\Repositories\TaskRepository;
+use App\Http\Resources\TaskReferenceResource;
 use App\Http\Resources\TaskResource;
 use App\Models\Task;
 use App\Services\InAppNotifications\InAppNotificationDispatcher;
@@ -11,6 +12,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+/**
+ * @group Задачи
+ */
 class TasksController extends BaseController
 {
     protected $itemsRepository;
@@ -23,14 +27,22 @@ class TasksController extends BaseController
     }
 
     /**
-     * Получить список задач с пагинацией
+     * Список задач
+     *
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
         $tasks = $this->itemsRepository->getFilteredTasks($request);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => TaskResource::collection($tasks->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $tasks->items(),
+                TaskReferenceResource::class,
+                TaskResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $tasks->currentPage(),
                 'per_page' => $tasks->perPage(),
@@ -41,7 +53,9 @@ class TasksController extends BaseController
     }
 
     /**
-     * Количество просроченных задач (дедлайн просрочен), доступных текущему пользователю.
+     * Просроченные задачи
+     *
+     * @hideFromAPIDocumentation
      */
     public function overdueCount()
     {
@@ -57,7 +71,7 @@ class TasksController extends BaseController
     }
 
     /**
-     * Создать новую задачу
+     * Создать задачу
      */
     public function store(TaskRequest $request)
     {

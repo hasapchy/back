@@ -3,7 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Models\ProjectContract;
+use App\Models\Project;
 use App\Rules\CashRegisterTypeMatchRule;
+use App\Rules\ProjectAccessRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -12,6 +14,7 @@ use Illuminate\Validation\ValidationException;
 class PatchProjectContractRequest extends FormRequest
 {
     private const PATCH_KEYS = [
+        'project_id',
         'client_id',
         'number',
         'type',
@@ -40,12 +43,16 @@ class PatchProjectContractRequest extends FormRequest
     {
         $contractId = $this->route('id');
         $contract = $contractId ? ProjectContract::query()->with('project:id,client_id')->find($contractId) : null;
-        $projectClientId = $contract?->project?->client_id;
+        $effectiveProjectId = $this->resolveEffectiveProjectId($contract);
+        $projectClientId = $effectiveProjectId
+            ? Project::query()->whereKey($effectiveProjectId)->value('client_id')
+            : null;
         $effectiveType = $this->has('type')
             ? (int) $this->input('type')
             : (int) ($contract?->type ?? 1);
 
         return [
+            'project_id' => ['sometimes', 'integer', 'exists:projects,id', new ProjectAccessRule()],
             'client_id' => [
                 'sometimes',
                 'nullable',
@@ -99,7 +106,28 @@ class PatchProjectContractRequest extends FormRequest
                 return;
             }
 
-            $projectClientId = $contract->project?->client_id;
+            $effectiveProjectId = $this->resolveEffectiveProjectId($contract);
+            $projectClientId = $effectiveProjectId
+                ? Project::query()->whereKey($effectiveProjectId)->value('client_id')
+                : null;
+
+            if ($this->has('project_id')) {
+                $targetProjectId = $this->input('project_id');
+                $targetProject = $targetProjectId
+                    ? Project::query()->select(['id', 'client_id', 'currency_id'])->find((int) $targetProjectId)
+                    : null;
+                $currentContractClientId = $contract->client_id ?? $contract->project?->client_id;
+                if ($targetProject && $currentContractClientId && (int) $targetProject->client_id !== (int) $currentContractClientId) {
+                    $validator->errors()->add('project_id', __('Проект должен быть этого же клиента.'));
+                }
+
+                $effectiveCurrencyId = $this->has('currency_id')
+                    ? (int) $this->input('currency_id')
+                    : (int) ($contract->currency_id ?? 0);
+                if ($targetProject && $effectiveCurrencyId > 0 && (int) ($targetProject->currency_id ?? 0) !== $effectiveCurrencyId) {
+                    $validator->errors()->add('project_id', __('Проект должен быть в той же валюте, что и контракт.'));
+                }
+            }
             if ($this->has('client_id')) {
                 $clientId = $this->input('client_id');
                 if ($projectClientId) {
@@ -117,6 +145,24 @@ class PatchProjectContractRequest extends FormRequest
                 $validator->errors()->add('number', __('Для безналичного контракта укажите номер.'));
             }
         });
+    }
+
+    /**
+     * @param  ProjectContract|null  $contract
+     * @return int|null
+     */
+    private function resolveEffectiveProjectId(?ProjectContract $contract): ?int
+    {
+        if ($this->has('project_id')) {
+            $projectId = $this->input('project_id');
+            if ($projectId === null || $projectId === '') {
+                return null;
+            }
+
+            return (int) $projectId;
+        }
+
+        return $contract?->project_id ? (int) $contract->project_id : null;
     }
 
     public function messages(): array

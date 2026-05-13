@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы с перемещениями между складами
+ *
+ * @group Склады
+ * @subgroup Перемещения
  */
 class WarehouseMovementController extends BaseController
 {
@@ -24,7 +27,10 @@ class WarehouseMovementController extends BaseController
     }
 
     /**
-     * Получить список перемещений с пагинацией
+     * Список перемещений
+     *
+     * @response 200 {"data":{"items":[],"meta":{"current_page":1,"next_page":null,"last_page":1,"per_page":20,"total":0}}}
+     * @response 401 {"error":"Unauthenticated."}
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -50,9 +56,13 @@ class WarehouseMovementController extends BaseController
     }
 
     /**
-     * Создать перемещение между складами
+     * Создать перемещение
      *
      * @param  Request  $request
+     * @response 200 {"data":null,"message":"Перемещение создано"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 422 {"error":"The given data was invalid.","errors":{"warehouse_from_id":["The warehouse from id field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreWarehouseMovementRequest $request)
@@ -90,10 +100,15 @@ class WarehouseMovementController extends BaseController
     }
 
     /**
-     * Обновить перемещение между складами
+     * Изменить перемещение
      *
      * @param  Request  $request
      * @param  int  $id  ID перемещения
+     * @response 200 {"data":null,"message":"Перемещение обновлено"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Not found"}
+     * @response 422 {"error":"The given data was invalid.","errors":{"warehouse_from_id":["The warehouse from id field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateWarehouseMovementRequest $request, $id)
@@ -131,9 +146,13 @@ class WarehouseMovementController extends BaseController
     }
 
     /**
-     * Удалить перемещение между складами
+     * Удалить перемещение
      *
      * @param  int  $id  ID перемещения
+     * @response 200 {"data":null,"message":"Перемещение удалено"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Not found"}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)

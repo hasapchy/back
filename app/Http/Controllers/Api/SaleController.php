@@ -18,6 +18,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 /**
  * Контроллер для работы с продажами
  */
+/**
+ * @group Финансы
+ * @subgroup Продажи
+ */
 class SaleController extends BaseController
 {
     protected $itemsRepository;
@@ -36,7 +40,7 @@ class SaleController extends BaseController
     }
 
     /**
-     * Получить список продаж с пагинацией
+     * Список продаж
      *
      * @return JsonResponse
      */
@@ -66,7 +70,7 @@ class SaleController extends BaseController
     }
 
     /**
-     * Создать новую продажу
+     * Создать продажу
      *
      * @return JsonResponse
      */

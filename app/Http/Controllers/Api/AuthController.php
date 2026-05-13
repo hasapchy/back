@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
+/**
+ * @group Авторизация
+ * @subgroup Сессия
+ */
 class AuthController extends BaseController
 {
     public function __construct(
@@ -266,6 +270,7 @@ class AuthController extends BaseController
             'is_admin' => $user->is_admin,
             'is_simple_user' => (bool) $user->is_simple_user,
             'simple_category_id' => $user->simple_category_id,
+            'simple_warehouse_id' => $user->simple_warehouse_id,
             'roles' => $roles,
             'permissions' => $permissions,
         ];

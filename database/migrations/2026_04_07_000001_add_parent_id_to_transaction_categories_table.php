@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('transaction_categories', 'parent_id')) {
+            return;
+        }
+
         Schema::table('transaction_categories', function (Blueprint $table) {
             $table->foreignId('parent_id')
                 ->nullable()
@@ -19,8 +23,13 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (!Schema::hasColumn('transaction_categories', 'parent_id')) {
+            return;
+        }
+
         Schema::table('transaction_categories', function (Blueprint $table) {
             $table->dropForeign(['parent_id']);
+            $table->dropColumn('parent_id');
         });
     }
 };

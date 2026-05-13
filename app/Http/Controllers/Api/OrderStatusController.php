@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreOrderStatusRequest;
 use App\Http\Requests\UpdateOrderStatusRequest;
+use App\Http\Resources\OrderStatusReferenceResource;
 use App\Http\Resources\OrderStatusResource;
 use App\Models\Order;
 use App\Repositories\OrderStatusRepository;
@@ -11,6 +12,10 @@ use Illuminate\Http\Request;
 
 /**
  * Контроллер для работы со статусами заказов
+ */
+/**
+ * @group Заказы
+ * @subgroup Статусы заказов
  */
 class OrderStatusController extends BaseController
 {
@@ -25,7 +30,7 @@ class OrderStatusController extends BaseController
     }
 
     /**
-     * Получить список статусов заказов с пагинацией
+     * Список статусов заказов
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -37,9 +42,15 @@ class OrderStatusController extends BaseController
         $page = $request->input('page', 1);
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => OrderStatusResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                OrderStatusReferenceResource::class,
+                OrderStatusResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'next_page' => $items->nextPageUrl(),
@@ -61,11 +72,18 @@ class OrderStatusController extends BaseController
 
         $items = $this->itemsRepository->getAllItems($userUuid);
 
-        return $this->successResponse(OrderStatusResource::collection($items)->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($this->getCurrentCompanyId());
+        $collection = $useReference
+            ? OrderStatusReferenceResource::collection($items)
+            : OrderStatusResource::collection($items);
+
+        return $this->successResponse($collection->resolve());
     }
 
     /**
-     * Создать новый статус заказа
+     * Создать статус заказа
+     *
+     * @subgroup Управление статусами заказов
      *
      * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
@@ -89,6 +107,8 @@ class OrderStatusController extends BaseController
 
     /**
      * Обновить статус заказа
+     *
+     * @subgroup Управление статусами заказов
      *
      * @param  Request  $request
      * @param  int  $id  ID статуса
@@ -130,6 +150,8 @@ class OrderStatusController extends BaseController
 
     /**
      * Удалить статус заказа
+     *
+     * @subgroup Управление статусами заказов
      *
      * @param  int  $id  ID статуса
      * @return \Illuminate\Http\JsonResponse

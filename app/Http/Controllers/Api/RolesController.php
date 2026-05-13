@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreRoleRequest;
 use App\Http\Requests\UpdateRoleRequest;
+use App\Http\Resources\RoleReferenceResource;
 use App\Http\Resources\RoleResource;
 use App\Repositories\RolesRepository;
 use App\Services\CacheService;
@@ -16,6 +17,10 @@ use Illuminate\Support\Facades\Cache;
 
 /**
  * Контроллер для работы с ролями
+ */
+/**
+ * @group Пользователи
+ * @subgroup Роли
  */
 class RolesController extends BaseController
 {
@@ -32,7 +37,7 @@ class RolesController extends BaseController
     }
 
     /**
-     * Получить список ролей с пагинацией
+     * Список ролей
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -53,8 +58,14 @@ class RolesController extends BaseController
                 $search = $request->input('search');
                 $companyId = $this->getCurrentCompanyId();
                 $items = $this->itemsRepository->getItemsWithPagination($page, $perPage, $search, $companyId);
+
                 return $this->successResponse([
-                    'items' => RoleResource::collection($items->items())->resolve(),
+                    'items' => $this->wave1IndexCollection(
+                        $items->items(),
+                        RoleReferenceResource::class,
+                        RoleResource::class,
+                        $companyId
+                    ),
                     'meta' => [
                         'current_page' => $items->currentPage(),
                         'next_page' => $items->nextPageUrl(),
@@ -91,12 +102,15 @@ class RolesController extends BaseController
     {
         $allCompanies = $request->boolean('all_companies', false);
         
-        if ($allCompanies) {
-            return $this->successResponse(RoleResource::collection($this->itemsRepository->getAllItemsForAllCompanies())->resolve());
-        }
-        
         $companyId = $this->getCurrentCompanyId();
-        return $this->successResponse(RoleResource::collection($this->itemsRepository->getAllItems($companyId))->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($companyId);
+        $collectionClass = $useReference ? RoleReferenceResource::class : RoleResource::class;
+
+        if ($allCompanies) {
+            return $this->successResponse($collectionClass::collection($this->itemsRepository->getAllItemsForAllCompanies())->resolve());
+        }
+
+        return $this->successResponse($collectionClass::collection($this->itemsRepository->getAllItems($companyId))->resolve());
     }
 
     /**
@@ -119,7 +133,7 @@ class RolesController extends BaseController
     }
 
     /**
-     * Создать новую роль
+     * Создать роль
      *
      * @param StoreRoleRequest $request
      * @return \Illuminate\Http\JsonResponse

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
+use App\Http\Resources\UserSearchResource;
 use App\Repositories\UsersRepository;
 use App\Models\User;
 use App\Models\EmployeeSalary;
@@ -22,6 +23,9 @@ use App\Services\CacheService;
 /**
  * Контроллер для работы с пользователями
  */
+/**
+ * @group Пользователи
+ */
 class UsersController extends BaseController
 {
     protected $itemsRepository;
@@ -37,7 +41,7 @@ class UsersController extends BaseController
     }
 
     /**
-     * Получить список пользователей с пагинацией
+     * Список пользователей
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -115,6 +119,13 @@ class UsersController extends BaseController
         return $this->userResponse($user);
     }
 
+    /**
+     * Обновить пользователя
+     *
+     * @param UpdateUserRequest $request
+     * @param int $id ID пользователя
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(UpdateUserRequest $request, $id)
     {
         $targetUser = User::findOrFail($id);
@@ -276,6 +287,12 @@ class UsersController extends BaseController
         return $this->successResponse(UserResource::collection($items)->resolve());
     }
 
+    /**
+     * Поиск пользователей
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function search(Request $request)
     {
         $this->authorize('viewAny', User::class);
@@ -288,7 +305,7 @@ class UsersController extends BaseController
 
         $items = $this->itemsRepository->searchUser($search_request);
 
-        return $this->successResponse(UserResource::collection($items)->resolve());
+        return $this->successResponse(UserSearchResource::collection($items)->resolve());
     }
 
     /**

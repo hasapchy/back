@@ -7,6 +7,10 @@ use App\Models\AppNotification;
 use App\Services\InAppNotifications\UserNotificationSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+/**
+ * @group Пользователи
+ * @subgroup Уведомления
+ */
 class InAppNotificationController extends BaseController
 {
     public function __construct(

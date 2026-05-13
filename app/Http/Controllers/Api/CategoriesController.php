@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
+use App\Http\Resources\CategoryReferenceResource;
 use App\Http\Resources\CategoryResource;
 use App\Repositories\CategoriesRepository;
 use Illuminate\Http\Request;
 use App\Services\CacheService;
 
+/**
+ * @group Каталог
+ * @subgroup Категории
+ */
 class CategoriesController extends BaseController
 {
     /**
@@ -25,7 +30,7 @@ class CategoriesController extends BaseController
     }
 
     /**
-     * Получить категории с пагинацией
+     * Список категорий
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -37,9 +42,15 @@ class CategoriesController extends BaseController
         $page = $request->input('page', 1);
         $perPage = $request->input('per_page', 20);
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => CategoryResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                CategoryReferenceResource::class,
+                CategoryResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'next_page' => $items->nextPageUrl(),
@@ -60,7 +71,12 @@ class CategoriesController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $items = $this->itemsRepository->getAllItems($userUuid);
-        return $this->successResponse(CategoryResource::collection($items)->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($this->getCurrentCompanyId());
+        $collection = $useReference
+            ? CategoryReferenceResource::collection($items)
+            : CategoryResource::collection($items);
+
+        return $this->successResponse($collection->resolve());
     }
 
     /**
@@ -73,7 +89,13 @@ class CategoriesController extends BaseController
     {
         $userUuid = $this->getAuthenticatedUserIdOrFail();
         $items = $this->itemsRepository->getParentCategories($userUuid);
-        return $this->successResponse(CategoryResource::collection($items)->resolve());
+        $companyId = $this->getCurrentCompanyId();
+
+        return $this->successResponse(
+            $this->useReferenceContractsForWave1IndexShow($companyId)
+                ? CategoryReferenceResource::collection($items)->resolve()
+                : CategoryResource::collection($items)->resolve()
+        );
     }
 
     /**

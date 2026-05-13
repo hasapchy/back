@@ -146,6 +146,7 @@ class CashRegistersRepository extends BaseRepository
                 'currency_symbol' => $cashRegister->currency ? $cashRegister->currency->symbol : null,
                 'is_cash' => (bool) $cashRegister->is_cash,
                 'icon' => $cashRegister->icon,
+                'color' => $cashRegister->color,
                 'balance' => $balance,
             ];
         });
@@ -171,6 +172,7 @@ class CashRegistersRepository extends BaseRepository
             $item->is_cash = (bool) ($data['is_cash'] ?? true);
             $item->is_working_minus = (bool) ($data['is_working_minus'] ?? false);
             $item->icon = $data['icon'] ?? null;
+            $item->color = $data['color'] ?? null;
             $item->save();
 
             $this->syncUsers($item->id, $data['users'] ?? []);
@@ -211,6 +213,10 @@ class CashRegistersRepository extends BaseRepository
 
             if (array_key_exists('icon', $data)) {
                 $item->icon = $data['icon'];
+            }
+
+            if (array_key_exists('color', $data)) {
+                $item->color = $data['color'];
             }
 
             $item->save();

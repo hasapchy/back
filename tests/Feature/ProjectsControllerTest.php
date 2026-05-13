@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\Project;
+use App\Models\ProjectStatus;
 use App\Models\Client;
 use App\Models\Currency;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -107,6 +108,61 @@ class ProjectsControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson(['message' => 'Проект удален']);
+    }
+
+    public function test_get_projects_meta_contains_status_counts_with_name_color_and_count(): void
+    {
+        $statusActive = ProjectStatus::factory()->create([
+            'name' => 'Активный',
+            'color' => '#207AC7',
+            'creator_id' => $this->adminUser->id,
+        ]);
+        $statusClosed = ProjectStatus::factory()->create([
+            'name' => 'Завершен',
+            'color' => '#939699',
+            'creator_id' => $this->adminUser->id,
+        ]);
+
+        Project::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+            'status_id' => $statusActive->id,
+        ]);
+        Project::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+            'status_id' => $statusActive->id,
+        ]);
+        Project::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $this->client->id,
+            'status_id' => $statusClosed->id,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/projects');
+
+        $response->assertStatus(200);
+
+        $statusCounts = collect($response->json('data.meta.status_counts', []));
+        $this->assertTrue($statusCounts->isNotEmpty());
+
+        $activeItem = $statusCounts->firstWhere('id', $statusActive->id);
+        $closedItem = $statusCounts->firstWhere('id', $statusClosed->id);
+
+        $this->assertNotNull($activeItem);
+        $this->assertNotNull($closedItem);
+
+        $this->assertSame('Активный', $activeItem['name']);
+        $this->assertSame('#207AC7', $activeItem['color']);
+        $this->assertSame(2, (int) $activeItem['count']);
+
+        $this->assertSame('Завершен', $closedItem['name']);
+        $this->assertSame('#939699', $closedItem['color']);
+        $this->assertSame(1, (int) $closedItem['count']);
     }
 }
 

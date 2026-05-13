@@ -5,12 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\StoreTransactionTemplateRequest;
 use App\Http\Requests\UpdateTransactionTemplateRequest;
 use App\Http\Resources\ClientResource;
+use App\Http\Resources\TransactionTemplateReferenceResource;
 use App\Http\Resources\TransactionTemplateResource;
 use App\Models\Client;
 use App\Models\Template;
 use App\Repositories\TransactionTemplateRepository;
 use Illuminate\Http\Request;
 
+/**
+ * @group Финансы
+ * @subgroup Шаблоны транзакций
+ */
 class TransactionTemplateController extends BaseController
 {
     protected TransactionTemplateRepository $repository;
@@ -21,7 +26,12 @@ class TransactionTemplateController extends BaseController
     }
 
     /**
+     * Список шаблонов транзакций
+     *
      * @param Request $request
+     * @response 200 {"data":{"items":[],"meta":{"current_page":1,"last_page":1,"per_page":20,"total":0}}}
+     * @response 401 {"error":"Unauthenticated."}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
@@ -36,8 +46,15 @@ class TransactionTemplateController extends BaseController
         }
 
         $items = $this->repository->getItemsWithPagination($perPage, $page, $filters);
+        $companyId = $this->getCurrentCompanyId();
+
         return $this->successResponse([
-            'items' => TransactionTemplateResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                TransactionTemplateReferenceResource::class,
+                TransactionTemplateResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'last_page' => $items->lastPage(),
@@ -56,11 +73,26 @@ class TransactionTemplateController extends BaseController
         $this->getAuthenticatedUserIdOrFail();
 
         $items = $this->repository->getAllItems($this->transactionTemplateListFilters($request));
-        return $this->successResponse(TransactionTemplateResource::collection($items)->resolve());
+        $companyId = $this->getCurrentCompanyId();
+
+        return $this->successResponse(
+            $this->wave1IndexCollection(
+                $items,
+                TransactionTemplateReferenceResource::class,
+                TransactionTemplateResource::class,
+                $companyId
+            )
+        );
     }
 
     /**
+     * Шаблон транзакции по ID
+     *
      * @param int $id
+     * @response 200 {"data":{"id":1}}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Шаблон не найден"}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function show(int $id)
@@ -114,7 +146,13 @@ class TransactionTemplateController extends BaseController
     }
 
     /**
+     * Создать шаблон транзакции
+     *
      * @param StoreTransactionTemplateRequest $request
+     * @response 200 {"data":{"id":1},"message":"Шаблон создан"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 422 {"error":"The given data was invalid.","errors":{"name":["The name field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreTransactionTemplateRequest $request)
@@ -148,8 +186,15 @@ class TransactionTemplateController extends BaseController
     }
 
     /**
+     * Изменить шаблон транзакции
+     *
      * @param UpdateTransactionTemplateRequest $request
      * @param int $id
+     * @response 200 {"data":{"id":1},"message":"Шаблон обновлен"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Шаблон не найден"}
+     * @response 422 {"error":"The given data was invalid.","errors":{"name":["The name field is required."]}}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateTransactionTemplateRequest $request, int $id)
@@ -188,7 +233,13 @@ class TransactionTemplateController extends BaseController
     }
 
     /**
+     * Удалить шаблон транзакции
+     *
      * @param int $id
+     * @response 200 {"data":null,"message":"Шаблон удален"}
+     * @response 401 {"error":"Unauthenticated."}
+     * @response 404 {"error":"Шаблон не найден"}
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy(int $id)

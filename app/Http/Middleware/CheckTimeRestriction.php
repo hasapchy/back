@@ -18,7 +18,7 @@ class CheckTimeRestriction
      */
     public function handle(Request $request, Closure $next, string $model)
     {
-        $user = auth('api')->user();
+        $user = $request->user();
         
         // Если пользователь администратор, пропускаем проверку
         if ($user && $user->is_admin) {
@@ -27,18 +27,18 @@ class CheckTimeRestriction
 
         // Получаем ID из маршрута
         $id = $request->route('id');
-        if (!$id) {
+        if (! $id) {
             return $next($request);
         }
 
         // Получаем модель и запись
         $modelClass = "App\\Models\\{$model}";
-        if (!class_exists($modelClass)) {
+        if (! class_exists($modelClass)) {
             return $next($request);
         }
 
         $record = $modelClass::find($id);
-        if (!$record) {
+        if (! $record) {
             return $next($request);
         }
 

@@ -14,7 +14,7 @@ class PermissionWithScopeMiddleware
     public function handle(Request $request, Closure $next, string ...$permissions): Response
     {
         /** @var User|null $user */
-        $user = auth('api')->user();
+        $user = $request->user();
 
         if (! $user) {
             return response()->json(['message' => 'Unauthorized'], 401);

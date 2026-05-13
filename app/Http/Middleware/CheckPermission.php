@@ -11,9 +11,9 @@ class CheckPermission
     public function handle(Request $request, Closure $next, string $permission)
     {
         /** @var \App\Models\User $user */
-        $user = auth('api')->user();
+        $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 

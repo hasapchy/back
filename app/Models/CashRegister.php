@@ -19,6 +19,7 @@ use App\Models\Traits\HasManyToManyUsers;
  * @property bool $is_cash Наличная касса
  * @property bool $is_working_minus Разрешено ли уходить в минус
  * @property string|null $icon CSS класс иконки кассы
+ * @property string|null $color Акцентный цвет (#RRGGBB)
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -42,6 +43,7 @@ class CashRegister extends Model
         'is_cash',
         'is_working_minus',
         'icon',
+        'color',
     ];
 
     protected const PROTECTED_CASH_REGISTER_ID = 1;

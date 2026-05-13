@@ -424,5 +424,34 @@ class UsersControllerTest extends TestCase
         $this->assertEquals('Updated Name', $user->name);
         $this->assertEquals('Manager', $user->position);
     }
+
+    /**
+     * @return void
+     */
+    public function test_search_returns_user_search_reference_payload(): void
+    {
+        $unique = 'RefSearch'.uniqid();
+        $target = User::factory()->create([
+            'name' => $unique,
+            'surname' => 'User',
+            'email' => $unique.'@example.com',
+            'is_active' => true,
+        ]);
+        $target->companies()->attach($this->company->id);
+
+        $response = $this->withApiTokenForCompany($this->adminUser, (int) $this->company->id)
+            ->getJson('/api/users/search?search_request='.urlencode($unique));
+
+        $response->assertStatus(200);
+        $rows = $response->json('data');
+        $this->assertIsArray($rows);
+        $this->assertNotEmpty($rows);
+        $first = $rows[0];
+        $this->assertArrayHasKey('id', $first);
+        $this->assertArrayHasKey('name', $first);
+        $this->assertArrayHasKey('surname', $first);
+        $this->assertArrayNotHasKey('companies', $first);
+        $this->assertArrayNotHasKey('created_at', $first);
+    }
 }
 

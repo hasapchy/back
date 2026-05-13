@@ -5,9 +5,13 @@ namespace Tests\Feature;
 use App\Models\Client;
 use App\Models\Comment;
 use App\Models\Company;
+use App\Models\Lead;
+use App\Models\LeadSource;
+use App\Models\LeadStatus;
 use App\Models\Order;
 use App\Models\Project;
 use App\Models\ProjectContract;
+use App\Models\TimelineReadState;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -161,6 +165,51 @@ class CommentControllerTest extends TestCase
         $this->assertIsArray($response->json());
     }
 
+    public function test_timeline_returns_success_for_lead(): void
+    {
+        if (! Schema::hasTable('leads')) {
+            $this->markTestSkipped('Таблица leads не существует.');
+        }
+
+        $client = Client::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+        ]);
+        $status = LeadStatus::query()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+            'name' => 'Новый',
+            'color' => '#6c757d',
+            'is_active' => true,
+            'sort' => 0,
+            'kanban_outcome' => null,
+        ]);
+        $source = LeadSource::query()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+            'name' => 'Test source',
+        ]);
+        $leadPayload = [
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $client->id,
+            'lead_source_id' => $source->id,
+            'status_id' => $status->id,
+            'comment' => null,
+            'order_id' => null,
+        ];
+        if (Schema::hasColumn('leads', 'responsible_id')) {
+            $leadPayload['responsible_id'] = $this->adminUser->id;
+        }
+        $lead = Lead::query()->create($leadPayload);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/comments/timeline?type=lead&id=' . $lead->id);
+
+        $response->assertStatus(200);
+        $this->assertIsArray($response->json());
+    }
+
     public function test_timeline_returns_success_for_transaction(): void
     {
         $transaction = Transaction::factory()->create([
@@ -204,6 +253,89 @@ class CommentControllerTest extends TestCase
             ->getJson('/api/comments/timeline?type=unknown_entity&id=1');
 
         $response->assertStatus(500);
+    }
+
+    public function test_unread_counts_excludes_current_user_comments(): void
+    {
+        $order = Order::factory()->create();
+        $otherUser = User::factory()->create([
+            'is_active' => true,
+        ]);
+        $otherUser->companies()->attach($this->company->id);
+
+        Comment::factory()->create([
+            'commentable_type' => Order::class,
+            'commentable_id' => $order->id,
+            'creator_id' => $this->adminUser->id,
+        ]);
+        Comment::factory()->create([
+            'commentable_type' => Order::class,
+            'commentable_id' => $order->id,
+            'creator_id' => $otherUser->id,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/comments/timeline/unread-counts', [
+                'type' => 'order',
+                'ids' => [$order->id],
+            ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath("data.counts.{$order->id}", 1);
+    }
+
+    public function test_mark_read_resets_unread_count(): void
+    {
+        $order = Order::factory()->create();
+        $otherUser = User::factory()->create([
+            'is_active' => true,
+        ]);
+        $otherUser->companies()->attach($this->company->id);
+
+        Comment::factory()->create([
+            'commentable_type' => Order::class,
+            'commentable_id' => $order->id,
+            'creator_id' => $otherUser->id,
+        ]);
+
+        $before = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/comments/timeline/unread-counts', [
+                'type' => 'order',
+                'ids' => [$order->id],
+            ]);
+        $before->assertStatus(200);
+        $before->assertJsonPath("data.counts.{$order->id}", 1);
+
+        $markRead = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/comments/timeline/read', [
+                'type' => 'order',
+                'id' => $order->id,
+            ]);
+
+        $markRead->assertStatus(200);
+
+        $this->assertDatabaseHas('timeline_read_states', [
+            'user_id' => $this->adminUser->id,
+            'company_id' => $this->company->id,
+            'commentable_type' => Order::class,
+            'commentable_id' => $order->id,
+        ]);
+
+        $state = TimelineReadState::query()
+            ->where('user_id', $this->adminUser->id)
+            ->where('company_id', $this->company->id)
+            ->where('commentable_type', Order::class)
+            ->where('commentable_id', $order->id)
+            ->first();
+        $this->assertNotNull($state);
+
+        $after = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/comments/timeline/unread-counts', [
+                'type' => 'order',
+                'ids' => [$order->id],
+            ]);
+        $after->assertStatus(200);
+        $after->assertJsonPath("data.counts.{$order->id}", 0);
     }
 }
 
