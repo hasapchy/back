@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\User;
 use App\Support\CompanyScopedPermissionGate;
+use App\Support\PermissionDeniedLogger;
 use App\Support\ResolvedCompany;
 use Closure;
 use Illuminate\Http\Request;
@@ -11,6 +12,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 class PermissionWithScopeMiddleware
 {
+    /**
+     * @param  \Closure(Request): Response  $next
+     */
     public function handle(Request $request, Closure $next, string ...$permissions): Response
     {
         /** @var User|null $user */
@@ -34,6 +38,19 @@ class PermissionWithScopeMiddleware
         if (CompanyScopedPermissionGate::allowsAny($user, $companyId, $permissionList)) {
             return $next($request);
         }
+
+        $userPermissions = $companyId
+            ? $user->getAllPermissionsForCompany($companyId)->pluck('name')->toArray()
+            : $user->getAllPermissions()->pluck('name')->toArray();
+
+        PermissionDeniedLogger::log(
+            $request,
+            'permission.scope',
+            $permissionList,
+            $user,
+            $companyId,
+            $userPermissions
+        );
 
         return response()->json(['message' => 'Forbidden'], 403);
     }

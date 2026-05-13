@@ -59,13 +59,10 @@ class RolesController extends BaseController
                 $companyId = $this->getCurrentCompanyId();
                 $items = $this->itemsRepository->getItemsWithPagination($page, $perPage, $search, $companyId);
 
+                // Список ролей на экране управления должен содержать permissions; wave1 reference (RoleReferenceResource)
+                // их не отдаёт — тогда фронт показывает 0 прав при живых данных в БД. Здесь всегда полный RoleResource.
                 return $this->successResponse([
-                    'items' => $this->wave1IndexCollection(
-                        $items->items(),
-                        RoleReferenceResource::class,
-                        RoleResource::class,
-                        $companyId
-                    ),
+                    'items' => RoleResource::collection($items->items())->resolve(),
                     'meta' => [
                         'current_page' => $items->currentPage(),
                         'next_page' => $items->nextPageUrl(),
@@ -124,6 +121,7 @@ class RolesController extends BaseController
         try {
             $companyId = $this->getCurrentCompanyId();
             $role = $this->itemsRepository->getItem($id, $companyId);
+
             return $this->successResponse(new RoleResource($role));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Роль не найдена', 404);

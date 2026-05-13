@@ -12,6 +12,7 @@ use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Models\WhUser;
 use App\Services\CacheService;
+use App\Services\UnitStockPresentationService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +38,7 @@ class ProductsRepository extends BaseRepository
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, 'wh_stock_pos_v2']);
+        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, 'wh_stock_pos_v3']);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $currentUser, $warehouseStockPolicy, $categoryIds) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
@@ -118,9 +119,9 @@ class ProductsRepository extends BaseRepository
     {
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, $page, $perPage, 'wh_stock_pos_v2']);
+        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, $page, $perPage, 'wh_stock_pos_v3']);
 
-        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage, $categoryIds) {
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage, $categoryIds, $companyId) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             if (! empty($categoryIds)) {
@@ -211,6 +212,8 @@ class ProductsRepository extends BaseRepository
             $products->each(function ($product) use ($stocksMap) {
                 $this->enrichProduct($product, $stocksMap);
             });
+
+            app(UnitStockPresentationService::class)->attachStockByUnitsForProducts($products, $companyId);
 
             return [
                 'items' => $products,

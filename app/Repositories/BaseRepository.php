@@ -653,4 +653,24 @@ abstract class BaseRepository
             $modelClass::insert($insertData);
         }
     }
+
+    /**
+     * @param array<int|string|null> $userIds
+     * @return array<int|string|null>
+     */
+    protected function includeCurrentUserForNonAdmin(array $userIds): array
+    {
+        $user = auth('api')->user();
+        if (! $user || $user->is_admin) {
+            return $userIds;
+        }
+
+        $currentUserId = (int) $user->id;
+        $normalizedUserIds = array_map(static fn ($userId) => (int) $userId, array_filter($userIds));
+        if (! in_array($currentUserId, $normalizedUserIds, true)) {
+            $userIds[] = $currentUserId;
+        }
+
+        return $userIds;
+    }
 }

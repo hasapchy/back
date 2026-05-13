@@ -7,38 +7,27 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * @return void
+     */
     public function up(): void
     {
         Schema::table('wh_receipts', function (Blueprint $table) {
-            $table->dropForeign(['supplier_id']);
-        });
-
-        Schema::table('wh_receipts', function (Blueprint $table) {
-            $table->dropColumn('supplier_id');
-        });
-
-        Schema::table('wh_receipts', function (Blueprint $table) {
-            $table->foreignId('supplier_id')->nullable()->constrained('clients')->nullOnDelete();
+            $table->unsignedBigInteger('supplier_id')->nullable()->change();
         });
     }
 
+    /**
+     * @return void
+     */
     public function down(): void
     {
         $firstClientId = DB::table('clients')->orderBy('id')->value('id');
         if ($firstClientId !== null) {
             DB::table('wh_receipts')->whereNull('supplier_id')->update(['supplier_id' => $firstClientId]);
         }
-
         Schema::table('wh_receipts', function (Blueprint $table) {
-            $table->dropForeign(['supplier_id']);
-        });
-
-        Schema::table('wh_receipts', function (Blueprint $table) {
-            $table->dropColumn('supplier_id');
-        });
-
-        Schema::table('wh_receipts', function (Blueprint $table) {
-            $table->foreignId('supplier_id')->constrained('clients')->onDelete('cascade');
+            $table->unsignedBigInteger('supplier_id')->nullable(false)->change();
         });
     }
 };
