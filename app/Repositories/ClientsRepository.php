@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\Client;
+use App\Models\ClientBalance;
 use App\Models\ClientsEmail;
 use App\Models\ClientsPhone;
 use App\Models\Currency;
@@ -973,5 +974,80 @@ class ClientsRepository extends BaseRepository
             : ($type === 1 ? -1 : 1);
 
         return $sign * $amount;
+    }
+
+    /**
+     * Сводка взаиморасчётов по всем валютам компании (без конвертации).
+     * Положительный баланс клиента → «должны нам», отрицательный → «мы должны».
+     *
+     * @return array<int, array{currency_id: int, currency_code: string, currency_symbol: string, currency_name: string, is_default: bool, they_owe_us: float, we_owe_them: float}>
+     */
+    public function getSettlementsSummaryByCurrency(): array
+    {
+        /** @var User|null $currentUser */
+        $currentUser = auth('api')->user();
+        $companyId = $this->getCurrentCompanyId();
+        $userId = $currentUser?->id;
+
+        $cacheKey = $this->generateCacheKey('clients_settlements_summary', [
+            $currentUser?->id,
+            $companyId,
+        ]);
+
+        return CacheService::remember($cacheKey, function () use ($currentUser, $companyId, $userId) {
+            $balanceQuery = ClientBalance::query()
+                ->select([
+                    'client_balances.currency_id',
+                    DB::raw('SUM(CASE WHEN client_balances.balance > 0 THEN client_balances.balance ELSE 0 END) as they_owe_us'),
+                    DB::raw('SUM(CASE WHEN client_balances.balance < 0 THEN ABS(client_balances.balance) ELSE 0 END) as we_owe_them'),
+                ])
+                ->join('clients', 'clients.id', '=', 'client_balances.client_id')
+                ->where('clients.status', true);
+
+            $balanceQuery = $this->addCompanyFilterDirect($balanceQuery, 'clients');
+            $this->applyOwnFilter($balanceQuery, 'clients', 'clients', 'creator_id', $currentUser, 'employee_id');
+
+            if ($currentUser && ! $currentUser->is_admin && $userId) {
+                $balanceQuery->where(function ($q) use ($userId) {
+                    $q->whereDoesntHave('users')
+                        ->orWhereHas('users', fn ($uq) => $uq->where('users.id', $userId));
+                });
+            }
+
+            $aggregates = $balanceQuery
+                ->groupBy('client_balances.currency_id')
+                ->get()
+                ->keyBy('currency_id');
+
+            $currencyQuery = Currency::query()->where('status', 1);
+            if ($companyId) {
+                $currencyQuery->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                });
+            } else {
+                $currencyQuery->whereNull('company_id');
+            }
+
+            $currencies = $currencyQuery
+                ->orderByDesc('is_default')
+                ->orderBy('code')
+                ->get();
+
+            $result = [];
+            foreach ($currencies as $currency) {
+                $row = $aggregates->get($currency->id);
+                $result[] = [
+                    'currency_id' => (int) $currency->id,
+                    'currency_code' => (string) $currency->code,
+                    'currency_symbol' => (string) ($currency->symbol ?? $currency->code),
+                    'currency_name' => (string) $currency->name,
+                    'is_default' => (bool) $currency->is_default,
+                    'they_owe_us' => $row ? (float) $row->they_owe_us : 0.0,
+                    'we_owe_them' => $row ? (float) $row->we_owe_them : 0.0,
+                ];
+            }
+
+            return $result;
+        }, $this->getCacheTTL('reference'));
     }
 }

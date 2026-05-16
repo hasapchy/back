@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CashRegister;
 use App\Models\Client;
+use App\Models\ClientBalance;
 use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Transaction;
@@ -382,5 +383,72 @@ class ClientControllerTest extends TestCase
         $response->assertJsonCount(1, 'data');
         $response->assertJsonPath('data.0.id', $client->id);
         $response->assertJsonPath('data.0.currency_symbol', null);
+    }
+
+    public function test_settlements_summary_returns_totals_grouped_by_currency(): void
+    {
+        $currencyTmt = Currency::factory()->create([
+            'code' => 'TMT',
+            'symbol' => 'TMT',
+            'is_default' => true,
+            'status' => true,
+            'company_id' => $this->company->id,
+        ]);
+        $currencyUsd = Currency::factory()->create([
+            'code' => 'USD',
+            'symbol' => '$',
+            'is_default' => false,
+            'status' => true,
+            'company_id' => $this->company->id,
+        ]);
+
+        $clientA = Client::factory()->create([
+            'status' => true,
+            'company_id' => $this->company->id,
+        ]);
+        $clientB = Client::factory()->create([
+            'status' => true,
+            'company_id' => $this->company->id,
+        ]);
+
+        ClientBalance::query()->create([
+            'client_id' => $clientA->id,
+            'currency_id' => $currencyTmt->id,
+            'type' => 1,
+            'balance' => 1000,
+            'is_default' => true,
+        ]);
+        ClientBalance::query()->create([
+            'client_id' => $clientB->id,
+            'currency_id' => $currencyTmt->id,
+            'type' => 1,
+            'balance' => -200,
+            'is_default' => true,
+        ]);
+        ClientBalance::query()->create([
+            'client_id' => $clientA->id,
+            'currency_id' => $currencyUsd->id,
+            'type' => 0,
+            'balance' => 50,
+            'is_default' => false,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/clients/settlements-summary');
+
+        if ($response->status() === 500) {
+            $this->fail('Server error: '.$response->getContent());
+        }
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.by_currency.0.currency_id', $currencyTmt->id);
+        $response->assertJsonPath('data.by_currency.0.they_owe_us', 1000);
+        $response->assertJsonPath('data.by_currency.0.we_owe_them', 200);
+
+        $usdRow = collect($response->json('data.by_currency'))
+            ->firstWhere('currency_id', $currencyUsd->id);
+        $this->assertNotNull($usdRow);
+        $this->assertEquals(50, $usdRow['they_owe_us']);
+        $this->assertEquals(0, $usdRow['we_owe_them']);
     }
 }

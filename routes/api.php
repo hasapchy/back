@@ -195,6 +195,10 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::get('clients', [ClientController::class, 'index']);
     Route::get('clients/all', [ClientController::class, 'all']);
     Route::get('clients/search', [ClientController::class, 'search']);
+    Route::middleware('permission:settings_client_balance_view')->get(
+        'clients/settlements-summary',
+        [ClientController::class, 'settlementsSummary']
+    );
     Route::middleware('permission:clients_export')->get('clients/export', [ClientController::class, 'export']);
     Route::middleware('permission.scope:clients_view_all,clients_view,settings_client_balance_view_own')->get('clients/{id}', [ClientController::class, 'show']);
     Route::middleware('permission:clients_create')->post('clients', [ClientController::class, 'store']);

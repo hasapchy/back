@@ -8,6 +8,9 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use App\Enums\TokenClient;
+use App\Models\Sanctum\PersonalAccessToken;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Facades\DB;
 use App\Models\Leave;
 
@@ -101,6 +104,22 @@ class User extends Authenticatable
         $this->attributes['is_admin'] = $value;
     }
 
+
+    /**
+     * Sanctum-токены конкретного клиента (web / mobile).
+     */
+    public function tokensForClient(TokenClient $client): MorphMany
+    {
+        /** @var MorphMany<PersonalAccessToken, $this> $relation */
+        $relation = $this->tokens();
+
+        return $relation->where('client_type', $client->value);
+    }
+
+    public function deleteTokensForClient(TokenClient $client): void
+    {
+        $this->tokensForClient($client)->delete();
+    }
 
     /**
      * Компании, к которым принадлежит пользователь

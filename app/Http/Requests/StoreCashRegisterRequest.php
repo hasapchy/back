@@ -35,24 +35,7 @@ class StoreCashRegisterRequest extends FormRequest
             'users.*' => 'exists:users,id',
             'is_cash' => 'nullable|boolean',
             'is_working_minus' => 'nullable|boolean',
-            'icon' => ['nullable', 'string', 'max:100', Rule::in($this->allowedIcons())],
-        ];
-    }
-
-    private function allowedIcons(): array
-    {
-        return [
-            'fa-solid fa-building-columns',
-            'fa-solid fa-ticket',
-            'fa-solid fa-location-dot',
-            'fa-solid fa-fire',
-            'fa-solid fa-thumbs-up',
-            'fa-solid fa-dollar-sign',
-            'fa-solid fa-cash-register',
-            'fa-solid fa-credit-card',
-            'fa-solid fa-briefcase',
-            'fa-solid fa-user',
-            'fa-solid fa-star',
+            'icon' => ['nullable', 'string', 'max:100', Rule::in(CashRegister::ALLOWED_ICONS)],
         ];
     }
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Resources\CompanyResource;
 use App\Models\Company;
+use App\Enums\TokenClient;
 use App\Models\Sanctum\PersonalAccessToken;
 use App\Services\CacheService;
 use App\Services\MobileSanctumTokenService;
@@ -97,7 +98,7 @@ class UserCompanyController extends BaseController
         if (! EnsureFrontendRequestsAreStateful::fromFrontend($request)) {
             $current = $user->currentAccessToken();
             $fingerprint = $current instanceof PersonalAccessToken ? $current->device_fingerprint : null;
-            $query = $user->tokens();
+            $query = $user->tokensForClient(TokenClient::Mobile);
             if ($fingerprint !== null && $fingerprint !== '') {
                 $query->where('device_fingerprint', $fingerprint);
             }

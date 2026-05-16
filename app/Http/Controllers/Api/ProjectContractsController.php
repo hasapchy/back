@@ -110,11 +110,23 @@ class ProjectContractsController extends BaseController
             $user = $this->getAuthenticatedUser();
             $hasViewAll = $user && ($user->is_admin || $user->can('contracts_view_all'));
 
+            $metaUserId = null;
             if (! $hasViewAll && $user && $user->can('contracts_view_own')) {
-                $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $user->id, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
+                $metaUserId = (int) $user->id;
+                $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $metaUserId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
             } else {
                 $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
             }
+
+            $sections = $this->repository->getMetaSectionsForFilters(
+                search: is_string($search) ? $search : null,
+                projectId: $projectId ? (int) $projectId : null,
+                cashId: $cashId,
+                type: $type,
+                activeProjectsOnly: $activeProjectsOnly,
+                projectStatusId: $projectStatusId,
+                userId: $metaUserId,
+            );
 
             return $this->successResponse([
                 'items' => ProjectContractResource::collection($result->items())->resolve(),
@@ -123,6 +135,7 @@ class ProjectContractsController extends BaseController
                     'last_page' => $result->lastPage(),
                     'per_page' => $result->perPage(),
                     'total' => $result->total(),
+                    'sections' => $sections,
                 ],
             ]);
         } catch (\Exception $e) {

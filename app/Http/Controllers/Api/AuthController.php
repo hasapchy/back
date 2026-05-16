@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\TokenClient;
 use App\Models\Sanctum\PersonalAccessToken;
 use App\Models\User;
 use App\Services\MobileSanctumTokenService;
@@ -65,7 +66,7 @@ class AuthController extends BaseController
         User::where('id', $user->id)->update(['last_login_at' => now()]);
 
         $remember = $request->boolean('remember');
-        $user->tokens()->delete();
+        $stateful = EnsureFrontendRequestsAreStateful::fromFrontend($request);
 
         [$companyId, $error] = $this->resolveLoginCompanyId($request, $user);
         if ($error !== null) {
@@ -78,9 +79,9 @@ class AuthController extends BaseController
             return $this->errorResponse($error, 404);
         }
 
-        $stateful = EnsureFrontendRequestsAreStateful::fromFrontend($request);
-
         if ($stateful) {
+            $user->deleteTokensForClient(TokenClient::Web);
+
             Auth::guard('web')->login($user, $remember);
             $request->session()->regenerate();
             $request->session()->put(ResolvedCompany::SESSION_KEY, $companyId);
@@ -96,6 +97,8 @@ class AuthController extends BaseController
                 'user' => $this->userPayloadForAuthResponse($user, $companyId),
             ]);
         }
+
+        $user->deleteTokensForClient(TokenClient::Mobile);
 
         $this->authLoginLog('auth.login.success', array_merge($baseCtx, [
             'user_id' => $user->id,
@@ -121,7 +124,7 @@ class AuthController extends BaseController
         }
 
         $token = PersonalAccessToken::findToken($plain);
-        if (! $token || ! $token->can('refresh')) {
+        if (! $token || ! $token->can('refresh') || ! $token->isMobile()) {
             $token?->delete();
 
             return $this->errorResponse('Invalid refresh token', 401);
@@ -189,8 +192,14 @@ class AuthController extends BaseController
     {
         $user = $request->user();
 
-        if ($user !== null && $user->currentAccessToken() !== null) {
-            $user->tokens()->delete();
+        if ($user !== null) {
+            $current = $user->currentAccessToken();
+            if ($current instanceof PersonalAccessToken) {
+                $client = TokenClient::tryFrom((string) $current->client_type) ?? TokenClient::Web;
+                $user->deleteTokensForClient($client);
+            } elseif (EnsureFrontendRequestsAreStateful::fromFrontend($request)) {
+                $user->deleteTokensForClient(TokenClient::Web);
+            }
         }
 
         Auth::guard('web')->logout();

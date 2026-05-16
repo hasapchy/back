@@ -46,6 +46,27 @@ class CashRegister extends Model
 
     protected const PROTECTED_CASH_REGISTER_ID = 1;
 
+    /**
+     * Whitelist of FontAwesome classes selectable in the cashbox icon picker.
+     * Mirrors `front/src/constants/cashIconOptions.js` and is consumed by the
+     * mobile mapper in `mobile/lib/presentation/pages/finance/utils/cash_icon_mapper.dart`.
+     */
+    public const ALLOWED_ICONS = [
+        'fa-solid fa-building-columns',
+        'fa-solid fa-ticket',
+        'fa-solid fa-location-dot',
+        'fa-solid fa-fire',
+        'fa-solid fa-thumbs-up',
+        'fa-solid fa-dollar-sign',
+        'fa-solid fa-cash-register',
+        'fa-solid fa-credit-card',
+        'fa-solid fa-money-check-dollar',
+        'fa-solid fa-vault',
+        'fa-solid fa-briefcase',
+        'fa-solid fa-user',
+        'fa-solid fa-star',
+    ];
+
     protected $casts = [
         'balance' => 'decimal:5',
         'is_cash' => 'boolean',

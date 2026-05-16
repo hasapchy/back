@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\TokenClient;
 use App\Models\User;
 
 class MobileSanctumTokenService
@@ -24,8 +25,12 @@ class MobileSanctumTokenService
         $access = $user->createToken('access-token', ['*'], $expiresAt);
         $refresh = $user->createToken('refresh-token', ['refresh'], $refreshUntil);
 
-        $access->accessToken->forceFill(['company_id' => $companyId])->save();
-        $refresh->accessToken->forceFill(['company_id' => $companyId])->save();
+        $clientAttrs = [
+            'company_id' => $companyId,
+            'client_type' => TokenClient::Mobile->value,
+        ];
+        $access->accessToken->forceFill($clientAttrs)->save();
+        $refresh->accessToken->forceFill($clientAttrs)->save();
 
         return [
             'access_token' => $access->plainTextToken,
