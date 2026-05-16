@@ -55,7 +55,7 @@ class ProductController extends BaseController
 
         $page = $request->query('page', 1);
         $per_page = $request->query('per_page', 20);
-        $warehouseId = $request->query('warehouse_id');
+        $warehouseId = $this->resolveWarehouseIdForProductStock($request->query('warehouse_id'));
         $search = $request->query('search');
         $categoryId = $this->normalizeCategoryIdForSimpleUser($request->query('category_id'));
         $categoryIds = $this->normalizeCategoryIdsForSimpleUser($request->query('category_ids'));
@@ -86,7 +86,7 @@ class ProductController extends BaseController
 
         $search = $request->query('search');
         $productsOnly = $request->query('products_only');
-        $warehouseId = $request->query('warehouse_id');
+        $warehouseId = $this->resolveWarehouseIdForProductStock($request->query('warehouse_id'));
         $categoryId = $this->normalizeCategoryIdForSimpleUser($request->query('category_id'));
         $categoryIds = $this->normalizeCategoryIdsForSimpleUser($request->query('category_ids'));
         $warehouseStockPolicy = $this->resolveWarehouseStockPolicy($request);
@@ -135,7 +135,7 @@ class ProductController extends BaseController
 
         $page = $request->query('page', 1);
         $per_page = $request->query('per_page', 20);
-        $warehouseId = $request->query('warehouse_id');
+        $warehouseId = $this->resolveWarehouseIdForProductStock($request->query('warehouse_id'));
         $search = $request->query('search');
         $categoryId = $this->normalizeCategoryIdForSimpleUser($request->query('category_id'));
         $categoryIds = $this->normalizeCategoryIdsForSimpleUser($request->query('category_ids'));
@@ -498,5 +498,21 @@ class ProductController extends BaseController
         }
 
         return $request->query('warehouse_stock_policy') === 'all' ? 'all' : 'in_stock';
+    }
+
+    /**
+     * Для simple-пользователя без warehouse_id в запросе подставляет simple_warehouse_id,
+     * чтобы остаток в каталоге совпадал со складом простого заказа.
+     *
+     * @param  mixed  $requestWarehouseId
+     * @return int|null
+     */
+    protected function resolveWarehouseIdForProductStock($requestWarehouseId): ?int
+    {
+        if ($requestWarehouseId !== null && $requestWarehouseId !== '') {
+            return (int) $requestWarehouseId;
+        }
+
+        return SimpleUser::preferredWarehouseId(auth('api')->user());
     }
 }

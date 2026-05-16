@@ -30,6 +30,18 @@ final class SimpleUser
     /**
      * ID корневой категории заказов для simple в контексте текущей компании из запроса.
      */
+    /**
+     * Склад simple-пользователя для заказов и остатков в каталоге.
+     */
+    public static function preferredWarehouseId(?User $user): ?int
+    {
+        if (! self::matches($user) || ! $user->simple_warehouse_id) {
+            return null;
+        }
+
+        return (int) $user->simple_warehouse_id;
+    }
+
     public static function rootCategoryIdForCurrentCompany(?User $user): ?int
     {
         if (! self::matches($user) || ! $user->simple_category_id) {

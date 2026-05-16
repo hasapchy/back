@@ -10,10 +10,10 @@ use App\Models\ProductPrice;
 use App\Models\ProductUnitConversion;
 use App\Models\Unit;
 use App\Models\User;
-use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Models\WhUser;
 use App\Services\CacheService;
+use App\Support\SimpleUser;
 use App\Services\ProductUnitConversionGraphService;
 use App\Services\UnitConversionGraphService;
 use App\Services\UnitStockPresentationService;
@@ -274,28 +274,6 @@ class ProductsRepository extends BaseRepository
                 ]
             );
 
-            if (Product::isProductTypeValue($product->type)) {
-                $companyId = $this->getCurrentCompanyId();
-
-                if ($companyId) {
-                    $warehouseIds = Warehouse::where('company_id', $companyId)
-                        ->pluck('id')
-                        ->toArray();
-
-                    foreach ($warehouseIds as $warehouseId) {
-                        WarehouseStock::firstOrCreate(
-                            [
-                                'warehouse_id' => $warehouseId,
-                                'product_id' => $product->id,
-                            ],
-                            ['quantity' => 0]
-                        );
-                    }
-                }
-
-                CacheService::invalidateWarehouseStocksCache();
-            }
-
             if ($isProductType) {
                 $this->syncProductUnitConversionsFromRequest($product, $data);
             }
@@ -382,24 +360,10 @@ class ProductsRepository extends BaseRepository
             $product->save();
             $updatedType = $product->type;
             if ($originalType !== $updatedType) {
-                if (Product::isProductTypeValue($updatedType)) {
-                    $companyId = $this->getCurrentCompanyId();
-                    if ($companyId) {
-                        $warehouseIds = Warehouse::where('company_id', $companyId)->pluck('id')->toArray();
-                        foreach ($warehouseIds as $warehouseId) {
-                            WarehouseStock::firstOrCreate(
-                                [
-                                    'warehouse_id' => $warehouseId,
-                                    'product_id' => $product->id,
-                                ],
-                                ['quantity' => 0]
-                            );
-                        }
-                    }
-                } else {
+                if (! Product::isProductTypeValue($updatedType)) {
                     WarehouseStock::where('product_id', $product->id)->delete();
+                    CacheService::invalidateWarehouseStocksCache();
                 }
-                CacheService::invalidateWarehouseStocksCache();
             }
 
             $prices_data = [];
@@ -580,6 +544,11 @@ class ProductsRepository extends BaseRepository
     {
         if ($productIds->isEmpty()) {
             return [];
+        }
+
+        if (! $warehouseId) {
+            $user = User::query()->find($userUuid);
+            $warehouseId = SimpleUser::preferredWarehouseId($user);
         }
 
         $warehouseIds = [];
