@@ -31,6 +31,7 @@ class User extends Authenticatable
         static::saving(function (User $user) {
             if (! $user->is_simple_user) {
                 $user->simple_category_id = null;
+                $user->simple_warehouse_id = null;
             }
         });
     }
@@ -49,6 +50,7 @@ class User extends Authenticatable
         'is_active',
         'is_simple_user',
         'simple_category_id',
+        'simple_warehouse_id',
         'hire_date',
         'dismissal_date',
         'birthday',
@@ -181,6 +183,11 @@ class User extends Authenticatable
     public function simpleCategory()
     {
         return $this->belongsTo(Category::class, 'simple_category_id');
+    }
+
+    public function simpleWarehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'simple_warehouse_id');
     }
 
     /**

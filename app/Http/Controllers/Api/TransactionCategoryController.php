@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreTransactionCategoryRequest;
 use App\Http\Requests\UpdateTransactionCategoryRequest;
+use App\Http\Resources\TransactionCategoryReferenceResource;
 use App\Http\Resources\TransactionCategoryResource;
 use App\Repositories\TransactionCategoryRepository;
 use Illuminate\Http\Request;
@@ -45,9 +46,15 @@ class TransactionCategoryController extends BaseController
         $perPage = $request->input('per_page', 20);
 
         $items = $this->itemsRepository->getItemsWithPagination($perPage, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => TransactionCategoryResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                TransactionCategoryReferenceResource::class,
+                TransactionCategoryResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'next_page' => $items->nextPageUrl(),
@@ -67,7 +74,12 @@ class TransactionCategoryController extends BaseController
     {
         $items = $this->itemsRepository->getAllItems();
 
-        return $this->successResponse(TransactionCategoryResource::collection($items)->resolve());
+        $useReference = $this->useReferenceContractsForWave1All(null);
+        $collection = $useReference
+            ? TransactionCategoryReferenceResource::collection($items)
+            : TransactionCategoryResource::collection($items);
+
+        return $this->successResponse($collection->resolve());
     }
 
     /**

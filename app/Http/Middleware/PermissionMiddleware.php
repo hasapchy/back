@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
+use App\Support\PermissionDeniedLogger;
 use App\Support\ResolvedCompany;
 use Closure;
 use Illuminate\Http\Request;
@@ -9,10 +11,13 @@ use Symfony\Component\HttpFoundation\Response;
 
 class PermissionMiddleware
 {
+    /**
+     * @param  \Closure(Request): Response  $next
+     */
     public function handle(Request $request, Closure $next, string ...$permissions): Response
     {
-        /** @var \App\Models\User|null $user */
-        $user = auth('api')->user();
+        /** @var User|null $user */
+        $user = $request->user();
 
         if (! $user) {
             return response()->json(['message' => 'Unauthorized'], 401);
@@ -38,6 +43,15 @@ class PermissionMiddleware
                 return $next($request);
             }
         }
+
+        PermissionDeniedLogger::log(
+            $request,
+            'permission',
+            $permissionList,
+            $user,
+            $companyId,
+            $userPermissions
+        );
 
         return response()->json(['message' => 'Forbidden'], 403);
     }

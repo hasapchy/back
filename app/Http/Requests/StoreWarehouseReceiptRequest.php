@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\WhReceiptStatus;
 use App\Http\Requests\Concerns\ValidatesOrderClientBalance;
+use App\Http\Requests\Concerns\ValidatesWarehouseProductLinesOrig;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\ClientAccessRule;
 use App\Rules\WarehouseAccessRule;
@@ -15,6 +16,7 @@ use Illuminate\Validation\ValidationException;
 class StoreWarehouseReceiptRequest extends FormRequest
 {
     use ValidatesOrderClientBalance;
+    use ValidatesWarehouseProductLinesOrig;
 
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
@@ -33,7 +35,7 @@ class StoreWarehouseReceiptRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        return array_merge([
             'client_id' => ['required', 'integer', new ClientAccessRule()],
             'warehouse_id' => ['required', 'integer', new WarehouseAccessRule()],
             'purchase_id' => ['nullable', 'integer', 'exists:wh_purchases,id'],
@@ -51,7 +53,7 @@ class StoreWarehouseReceiptRequest extends FormRequest
                 'string',
                 Rule::in([WhReceiptStatus::Draft->value]),
             ],
-        ];
+        ], $this->warehouseProductLinesOrigRules());
     }
 
     /**
@@ -60,6 +62,8 @@ class StoreWarehouseReceiptRequest extends FormRequest
      */
     public function withValidator(Validator $validator): void
     {
+        $this->addWarehouseProductLinesOrigPairValidator($validator);
+        $this->addWarehouseProductLinesOrigConsistencyValidator($validator);
         $validator->after(function (Validator $v): void {
             if ($v->errors()->isNotEmpty()) {
                 return;

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Contracts\SupportsTimeline;
 use App\Enums\WhPurchaseStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -24,9 +27,12 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
-class WhPurchase extends Model
+class WhPurchase extends Model implements SupportsTimeline
 {
     use HasFactory;
+    use LogsActivity;
+
+    protected static $logName = 'wh_purchase';
 
     protected $fillable = [
         'supplier_id',
@@ -46,6 +52,57 @@ class WhPurchase extends Model
         'status' => WhPurchaseStatus::class,
         'date' => 'datetime',
     ];
+
+    /**
+     * @return LogOptions
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('wh_purchase')
+            ->logOnly([
+                'supplier_id',
+                'warehouse_id',
+                'client_balance_id',
+                'cash_id',
+                'currency_id',
+                'status',
+                'date',
+                'note',
+                'amount',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
+    }
+
+    /**
+     * @param string $eventName
+     * @return string
+     */
+    public function getDescriptionForEvent(string $eventName): string
+    {
+        return match ($eventName) {
+            'created', 'updated', 'deleted' => "activity_log.wh_purchase.{$eventName}",
+            default => 'activity_log.wh_purchase.default',
+        };
+    }
+
+    /**
+     * @return MorphMany
+     */
+    public function comments(): MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
+
+    /**
+     * @return MorphMany
+     */
+    public function activities(): MorphMany
+    {
+        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
+    }
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo

@@ -21,7 +21,7 @@ class CashRegistersRepository extends BaseRepository
      */
     public function getItemsWithPagination($userUuid, $perPage = 20, $page = 1)
     {
-        $query = CashRegister::with(['currency:id,name,symbol', 'users:id,name']);
+        $query = CashRegister::with(['currency:id,name,symbol', 'creator:id,name', 'users:id,name']);
 
         $this->applyUserFilter($query, $userUuid);
         $query = $this->addCompanyFilterDirect($query, 'cash_registers');
@@ -43,7 +43,7 @@ class CashRegistersRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('cash_registers_all', [$userUuid, $currentUser?->id, $companyId]);
 
         return CacheService::getReferenceData($cacheKey, function() use ($userUuid) {
-            $query = CashRegister::with(['currency:id,name,symbol', 'users:id,name']);
+            $query = CashRegister::with(['currency:id,name,symbol', 'creator:id,name', 'users:id,name']);
 
             $this->applyUserFilter($query, $userUuid);
             $query = $this->addCompanyFilterDirect($query, 'cash_registers');
@@ -146,6 +146,7 @@ class CashRegistersRepository extends BaseRepository
                 'currency_symbol' => $cashRegister->currency ? $cashRegister->currency->symbol : null,
                 'is_cash' => (bool) $cashRegister->is_cash,
                 'icon' => $cashRegister->icon,
+                'color' => $cashRegister->color,
                 'balance' => $balance,
             ];
         });
@@ -168,9 +169,11 @@ class CashRegistersRepository extends BaseRepository
             $item->balance = $data['balance'];
             $item->currency_id = $data['currency_id'];
             $item->company_id = $companyId;
+            $item->creator_id = auth('api')->id();
             $item->is_cash = (bool) ($data['is_cash'] ?? true);
             $item->is_working_minus = (bool) ($data['is_working_minus'] ?? false);
             $item->icon = $data['icon'] ?? null;
+            $item->color = $data['color'] ?? null;
             $item->save();
 
             $this->syncUsers($item->id, $data['users'] ?? []);
@@ -211,6 +214,10 @@ class CashRegistersRepository extends BaseRepository
 
             if (array_key_exists('icon', $data)) {
                 $item->icon = $data['icon'];
+            }
+
+            if (array_key_exists('color', $data)) {
+                $item->color = $data['color'];
             }
 
             $item->save();
@@ -276,6 +283,8 @@ class CashRegistersRepository extends BaseRepository
      */
     private function syncUsers(int $cashRegisterId, array $userIds)
     {
+        $userIds = $this->includeCurrentUserForNonAdmin($userIds);
+
         $this->syncManyToManyUsers(
             CashRegisterUser::class,
             'cash_register_id',

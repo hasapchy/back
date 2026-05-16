@@ -16,14 +16,17 @@ use App\Models\Traits\HasManyToManyUsers;
  * @property float $balance Баланс кассы
  * @property int $currency_id ID валюты
  * @property int|null $company_id ID компании
+ * @property int|null $creator_id ID создателя
  * @property bool $is_cash Наличная касса
  * @property bool $is_working_minus Разрешено ли уходить в минус
  * @property string|null $icon CSS класс иконки кассы
+ * @property string|null $color Акцентный цвет (#RRGGBB)
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
  * @property-read \App\Models\Currency $currency
  * @property-read \App\Models\Company|null $company
+ * @property-read \App\Models\User|null $creator
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Template[] $templates
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\CashRegisterUser[] $cashRegisterUsers
@@ -39,9 +42,11 @@ class CashRegister extends Model
         'balance',
         'currency_id',
         'company_id',
+        'creator_id',
         'is_cash',
         'is_working_minus',
         'icon',
+        'color',
     ];
 
     protected const PROTECTED_CASH_REGISTER_ID = 1;
@@ -90,6 +95,16 @@ class CashRegister extends Model
     public function currency()
     {
         return $this->belongsTo(Currency::class, 'currency_id');
+    }
+
+    /**
+     * Связь с создателем кассы
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     /**

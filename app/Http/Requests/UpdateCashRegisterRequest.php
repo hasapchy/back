@@ -11,6 +11,16 @@ use Illuminate\Validation\ValidationException;
 class UpdateCashRegisterRequest extends FormRequest
 {
     /**
+     * @return void
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('color') && $this->input('color') === '') {
+            $this->merge(['color' => null]);
+        }
+    }
+
+    /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
      * @return bool
@@ -39,8 +49,14 @@ class UpdateCashRegisterRequest extends FormRequest
             'users.*' => 'exists:users,id',
             'is_cash' => 'nullable|boolean',
             'is_working_minus' => 'nullable|boolean',
-            'icon' => ['nullable', 'string', 'max:100', Rule::in(CashRegister::ALLOWED_ICONS)],
+            'icon' => ['nullable', 'string', 'max:100', Rule::in($this->allowedIcons())],
+            'color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ];
+    }
+
+    private function allowedIcons(): array
+    {
+        return CashRegister::ALLOWED_ICONS;
     }
 
     /**

@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Models\Client;
 use App\Models\Comment;
 use App\Models\Company;
+use App\Models\Lead;
+use App\Models\LeadSource;
+use App\Models\LeadStatus;
 use App\Models\Order;
 use App\Models\Project;
 use App\Models\ProjectContract;
@@ -12,7 +15,6 @@ use App\Models\TimelineReadState;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class CommentControllerTest extends TestCase
@@ -26,9 +28,6 @@ class CommentControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (!Schema::hasTable('companies')) {
-            $this->markTestSkipped('Таблица companies не существует.');
-        }
 
         $this->company = Company::factory()->create();
         $this->adminUser = User::factory()->create([
@@ -157,6 +156,48 @@ class CommentControllerTest extends TestCase
 
         $response = $this->actingAsApi($this->adminUser)
             ->getJson('/api/comments/timeline?type=project_contract&id=' . $contract->id);
+
+        $response->assertStatus(200);
+        $this->assertIsArray($response->json());
+    }
+
+    public function test_timeline_returns_success_for_lead(): void
+    {
+
+        $client = Client::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+        ]);
+        $status = LeadStatus::query()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+            'name' => 'Новый',
+            'color' => '#6c757d',
+            'is_active' => true,
+            'sort' => 0,
+            'kanban_outcome' => null,
+        ]);
+        $source = LeadSource::query()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+            'name' => 'Test source',
+        ]);
+        $leadPayload = [
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+            'client_id' => $client->id,
+            'lead_source_id' => $source->id,
+            'status_id' => $status->id,
+            'comment' => null,
+            'order_id' => null,
+        ];
+        if (Schema::hasColumn('leads', 'responsible_id')) {
+            $leadPayload['responsible_id'] = $this->adminUser->id;
+        }
+        $lead = Lead::query()->create($leadPayload);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/comments/timeline?type=lead&id=' . $lead->id);
 
         $response->assertStatus(200);
         $this->assertIsArray($response->json());

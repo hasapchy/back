@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreProjectStatusRequest;
 use App\Http\Requests\UpdateProjectStatusRequest;
+use App\Http\Resources\ProjectStatusReferenceResource;
 use App\Http\Resources\ProjectStatusResource;
 use App\Models\ProjectStatus;
 use App\Repositories\ProjectStatusRepository;
@@ -42,9 +43,15 @@ class ProjectStatusController extends BaseController
         $page = $request->input('page', 1);
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => ProjectStatusResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                ProjectStatusReferenceResource::class,
+                ProjectStatusResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'next_page' => $items->nextPageUrl(),
@@ -66,7 +73,12 @@ class ProjectStatusController extends BaseController
 
         $items = $this->itemsRepository->getAllItems($userUuid);
 
-        return $this->successResponse(ProjectStatusResource::collection($items)->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($this->getCurrentCompanyId());
+        $collection = $useReference
+            ? ProjectStatusReferenceResource::collection($items)
+            : ProjectStatusResource::collection($items);
+
+        return $this->successResponse($collection->resolve());
     }
 
     /**

@@ -153,6 +153,8 @@ class WarehouseRepository extends BaseRepository
      */
     private function syncUsers(int $warehouseId, array $userIds)
     {
+        $userIds = $this->includeCurrentUserForNonAdmin($userIds);
+
         $this->syncManyToManyUsers(
             WhUser::class,
             'warehouse_id',

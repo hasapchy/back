@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Category;
+use App\Http\Requests\Concerns\ValidatesSimpleUserCategoryAndWarehouseCompanies;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -10,6 +10,8 @@ use Illuminate\Validation\Rule;
 
 class UpdateUserRequest extends FormRequest
 {
+    use ValidatesSimpleUserCategoryAndWarehouseCompanies;
+
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -54,6 +56,12 @@ class UpdateUserRequest extends FormRequest
                 'integer',
                 Rule::exists('categories', 'id')->where(fn ($q) => $q->whereNull('parent_id')),
             ],
+            'simple_warehouse_id' => [
+                'exclude_unless:is_simple_user,true',
+                'required',
+                'integer',
+                'exists:warehouses,id',
+            ],
             'photo' => 'nullable|file|mimes:jpeg,png,jpg,gif|max:2048',
             'roles' => 'nullable|array',
             'roles.*' => 'string|exists:roles,name,guard_name,api',
@@ -83,9 +91,7 @@ class UpdateUserRequest extends FormRequest
 
         if (isset($data['is_admin'])) {
             $currentUser = auth('api')->user();
-            if (!$currentUser || !$currentUser->is_admin) {
-                unset($data['is_admin']);
-            } else {
+            if ($currentUser && $currentUser->is_admin) {
                 $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
             }
         }
@@ -143,8 +149,14 @@ class UpdateUserRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function (Validator $v): void {
+            $currentUser = auth('api')->user();
+            if ($this->has('is_admin') && (! $currentUser || ! $currentUser->is_admin)) {
+                $v->errors()->add('is_admin', 'Только администратор может изменять признак администратора.');
+            }
+
             $cid = (int) $this->input('simple_category_id');
-            if (! $cid) {
+            $wid = (int) $this->input('simple_warehouse_id');
+            if (! $cid && ! $wid) {
                 return;
             }
             $raw = $this->input('companies');
@@ -156,10 +168,14 @@ class UpdateUserRequest extends FormRequest
                     ? $targetUser->companies()->pluck('companies.id')->map(fn ($id) => (int) $id)->all()
                     : [];
             }
-            $catCompany = Category::whereKey($cid)->value('company_id');
-            if ($catCompany === null || ! in_array((int) $catCompany, $companyIds, true)) {
-                $v->errors()->add('simple_category_id', 'Категория должна быть из компаний пользователя.');
-            }
+            $this->validateCategoryAndWarehouseBelongToCompanyIds(
+                $v,
+                $companyIds,
+                $cid,
+                $wid,
+                'Категория должна быть из компаний пользователя.',
+                'Склад должен быть из компаний пользователя.'
+            );
         });
     }
 

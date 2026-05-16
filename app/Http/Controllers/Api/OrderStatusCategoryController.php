@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreOrderStatusCategoryRequest;
 use App\Http\Requests\UpdateOrderStatusCategoryRequest;
+use App\Http\Resources\OrderStatusCategoryReferenceResource;
 use App\Http\Resources\OrderStatusCategoryResource;
 use App\Repositories\OrderStatusCategoryRepository;
 use Illuminate\Http\Request;
@@ -39,9 +40,15 @@ class OrderStatusCategoryController extends BaseController
         $perPage = $request->input('per_page', 20);
         $page = $request->input('page', 1);
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => OrderStatusCategoryResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                OrderStatusCategoryReferenceResource::class,
+                OrderStatusCategoryResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'next_page' => $items->nextPageUrl(),
@@ -63,7 +70,12 @@ class OrderStatusCategoryController extends BaseController
 
         $items = $this->itemsRepository->getAllItems($userUuid);
 
-        return $this->successResponse(OrderStatusCategoryResource::collection($items)->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($this->getCurrentCompanyId());
+        $collection = $useReference
+            ? OrderStatusCategoryReferenceResource::collection($items)
+            : OrderStatusCategoryResource::collection($items);
+
+        return $this->successResponse($collection->resolve());
     }
 
     /**

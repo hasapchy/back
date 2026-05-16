@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\CashRegister;
+use App\Models\Lead;
 use App\Models\Client;
 use App\Models\Department;
 use App\Models\EmployeeSalary;
@@ -19,6 +20,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Policies\CashRegisterPolicy;
+use App\Policies\LeadPolicy;
 use App\Policies\ClientPolicy;
 use App\Policies\DepartmentPolicy;
 use App\Policies\EmployeeSalaryPolicy;
@@ -45,6 +47,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected $policies = [
         CashRegister::class => CashRegisterPolicy::class,
+        Lead::class => LeadPolicy::class,
         Client::class => ClientPolicy::class,
         Department::class => DepartmentPolicy::class,
         EmployeeSalary::class => EmployeeSalaryPolicy::class,

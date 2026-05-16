@@ -5,7 +5,11 @@ namespace App\Services\Timeline;
 use App\Models\CashRegister;
 use App\Models\Category;
 use App\Models\Client;
+use App\Models\ClientBalance;
 use App\Models\Currency;
+use App\Models\Lead;
+use App\Models\LeadSource;
+use App\Models\LeadStatus;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Product;
@@ -19,6 +23,10 @@ use App\Models\TransactionCategory;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Models\WhMovement;
+use App\Models\WhPurchase;
+use App\Models\WhReceipt;
+use App\Models\WhWriteoff;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Spatie\Activitylog\Models\Activity;
@@ -347,7 +355,7 @@ class TimelineActivityPresenter
             if (in_array($key, ['product_id', 'unit_id'], true)) {
                 continue;
             }
-            if (str_ends_with((string) $key, '_id') && $value) {
+            if ($this->shouldResolveActivityRelationKey((string) $key, $modelClass) && $value) {
                 $relatedModel = $this->getRelatedModelName((string) $key, $modelClass);
 
                 if ($relatedModel && class_exists($relatedModel)) {
@@ -369,6 +377,26 @@ class TimelineActivityPresenter
                             $oldRelatedName = $old && array_key_exists($key, $old ?? [])
                                 ? $this->resolveCurrencySymbolForTimeline($old[$key])
                                 : null;
+                        } elseif ($relatedModel === Order::class && $key === 'order_id') {
+                            $relatedName = $value ? '#'.(int) $value : null;
+                            $oldRelatedName = $old && isset($old[$key]) && $old[$key]
+                                ? '#'.(int) $old[$key]
+                                : ($old[$key] ?? null);
+                        } elseif ($relatedModel === WhPurchase::class && $key === 'purchase_id') {
+                            $relatedName = $value ? '#'.(int) $value : null;
+                            $oldRelatedName = $old && isset($old[$key]) && $old[$key]
+                                ? '#'.(int) $old[$key]
+                                : ($old[$key] ?? null);
+                        } elseif ($relatedModel === WhReceipt::class && $key === 'source_receipt_id') {
+                            $relatedName = $value ? '#'.(int) $value : null;
+                            $oldRelatedName = $old && isset($old[$key]) && $old[$key]
+                                ? '#'.(int) $old[$key]
+                                : ($old[$key] ?? null);
+                        } elseif ($relatedModel === ClientBalance::class) {
+                            $relatedName = $value ? '#'.(int) $value : null;
+                            $oldRelatedName = $old && isset($old[$key]) && $old[$key]
+                                ? '#'.(int) $old[$key]
+                                : ($old[$key] ?? null);
                         } else {
                             $relatedName = $relatedModel::query()->select(['id', 'name'])->find($value)?->name ?? $value;
                             $oldRelatedName = $old && isset($old[$key]) ? ($relatedModel::query()->select(['id', 'name'])->find($old[$key])?->name ?? $old[$key]) : null;
@@ -487,6 +515,8 @@ class TimelineActivityPresenter
     {
         $baseFieldToModelMap = [
             'client_id' => Client::class,
+            'supplier_id' => Client::class,
+            'client_balance_id' => ClientBalance::class,
             'creator_id' => User::class,
             'supervisor_id' => User::class,
             'executor_id' => User::class,
@@ -515,6 +545,22 @@ class TimelineActivityPresenter
             Project::class => [
                 'status_id' => ProjectStatus::class,
             ],
+            Lead::class => [
+                'status_id' => LeadStatus::class,
+                'lead_source_id' => LeadSource::class,
+                'responsible_id' => User::class,
+                'order_id' => Order::class,
+            ],
+            WhReceipt::class => [
+                'purchase_id' => WhPurchase::class,
+            ],
+            WhWriteoff::class => [
+                'source_receipt_id' => WhReceipt::class,
+            ],
+            WhMovement::class => [
+                'wh_from' => Warehouse::class,
+                'wh_to' => Warehouse::class,
+            ],
         ];
 
         if (isset($specificFieldToModelMap[$modelClass][$key])) {
@@ -522,6 +568,18 @@ class TimelineActivityPresenter
         }
 
         return $baseFieldToModelMap[$key] ?? null;
+    }
+
+    /**
+     * @return bool
+     */
+    private function shouldResolveActivityRelationKey(string $key, string $modelClass): bool
+    {
+        if (str_ends_with($key, '_id')) {
+            return true;
+        }
+
+        return $modelClass === WhMovement::class && ($key === 'wh_from' || $key === 'wh_to');
     }
 
     /**

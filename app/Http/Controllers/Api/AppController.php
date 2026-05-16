@@ -66,8 +66,16 @@ class AppController extends BaseController
      */
     public function getUnitsList()
     {
-        $items = CacheService::getReferenceData('units_all', function() {
-            return Unit::all();
+        $user = $this->getAuthenticatedUser();
+        if (! $user) {
+            return $this->errorResponse(null, 401);
+        }
+
+        $companyId = $this->getCurrentCompanyId();
+        $cacheKey = 'units_list_'.($companyId ?? 'none');
+
+        $items = CacheService::getReferenceData($cacheKey, function () use ($companyId) {
+            return Unit::forCompanyCatalog($companyId)->get();
         });
 
         return $this->successResponse($items);

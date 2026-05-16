@@ -46,6 +46,7 @@ use App\Contracts\SupportsTimeline;
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\SalesProduct[] $salesProducts
  * @property-read \App\Models\User $creator
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Comment[] $comments
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\ProductUnitConversion[] $productUnitConversions
  */
 class Product extends Model implements SupportsTimeline
 {
@@ -96,6 +97,14 @@ class Product extends Model implements SupportsTimeline
     public function unit()
     {
         return $this->belongsTo(Unit::class, 'unit_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function productUnitConversions()
+    {
+        return $this->hasMany(ProductUnitConversion::class, 'product_id');
     }
 
     /**

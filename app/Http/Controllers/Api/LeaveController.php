@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Resources\LeaveReferenceResource;
 use App\Http\Resources\LeaveResource;
 use App\Models\Leave;
 use App\Repositories\LeaveRepository;
@@ -44,9 +45,15 @@ class LeaveController extends BaseController
         $filters = $this->buildLeaveFilters($request);
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $filters, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => LeaveResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                LeaveReferenceResource::class,
+                LeaveResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'last_page' => $items->lastPage(),
@@ -68,8 +75,16 @@ class LeaveController extends BaseController
         $filters = $this->buildLeaveFilters($request);
 
         $items = $this->itemsRepository->getAllItems($userUuid, $filters);
+        $companyId = $this->getCurrentCompanyId();
 
-        return $this->successResponse(LeaveResource::collection($items)->resolve());
+        return $this->successResponse(
+            $this->wave1IndexCollection(
+                $items,
+                LeaveReferenceResource::class,
+                LeaveResource::class,
+                $companyId
+            )
+        );
     }
 
     /**

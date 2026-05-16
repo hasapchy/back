@@ -9,7 +9,6 @@ use App\Models\LeaveType;
 use Spatie\Permission\Models\Permission;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class LeaveControllerTest extends TestCase
@@ -25,9 +24,6 @@ class LeaveControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (!Schema::hasTable('leaves')) {
-            $this->markTestSkipped('Таблица leaves не существует. Выполните миграции перед запуском тестов.');
-        }
 
         $this->company = Company::factory()->create();
 

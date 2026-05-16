@@ -16,7 +16,6 @@ use App\Models\WhReceiptExpenseAllocation;
 use App\Models\WhReceiptProduct;
 use App\Services\ReceiptExpenseAllocationService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ReceiptExpenseAllocationTest extends TestCase
@@ -45,9 +44,6 @@ class ReceiptExpenseAllocationTest extends TestCase
     {
         parent::setUp();
 
-        if (! Schema::hasTable('wh_receipt_expense_allocations')) {
-            $this->markTestSkipped('Миграция wh_receipt_expense_allocations не применена.');
-        }
 
         $this->company = Company::factory()->create();
         $this->adminUser = User::factory()->create([
@@ -125,7 +121,7 @@ class ReceiptExpenseAllocationTest extends TestCase
     public function test_excludes_goods_payment_category(): void
     {
         if (! TransactionCategory::query()->whereKey(6)->exists()) {
-            $this->markTestSkipped('Категория 6 (оплата товара) не найдена в БД.');
+            $this->fail('Категория 6 (оплата товара) не найдена в БД.');
         }
         $receipt = WhReceipt::factory()->create([
             'warehouse_id' => $this->warehouse->id,

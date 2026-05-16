@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Category;
+use App\Http\Requests\Concerns\ValidatesSimpleUserCategoryAndWarehouseCompanies;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -10,6 +10,8 @@ use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
 {
+    use ValidatesSimpleUserCategoryAndWarehouseCompanies;
+
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -46,6 +48,12 @@ class StoreUserRequest extends FormRequest
                 'integer',
                 Rule::exists('categories', 'id')->where(fn ($q) => $q->whereNull('parent_id')),
             ],
+            'simple_warehouse_id' => [
+                'exclude_unless:is_simple_user,true',
+                'required',
+                'integer',
+                'exists:warehouses,id',
+            ],
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'roles' => 'nullable|array',
             'roles.*' => 'string|exists:roles,name,guard_name,api',
@@ -74,15 +82,9 @@ class StoreUserRequest extends FormRequest
         }
 
         if (isset($data['is_admin'])) {
-            try {
-                $currentUser = auth('api')->user();
-                if (!$currentUser || !$currentUser->is_admin) {
-                    unset($data['is_admin']);
-                } else {
-                    $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
-                }
-            } catch (\Exception $e) {
-                unset($data['is_admin']);
+            $currentUser = auth('api')->user();
+            if ($currentUser && $currentUser->is_admin) {
+                $data['is_admin'] = filter_var($data['is_admin'], FILTER_VALIDATE_BOOLEAN);
             }
         }
 
@@ -139,11 +141,12 @@ class StoreUserRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function (Validator $v): void {
-            if (! $this->boolean('is_simple_user')) {
-                return;
+            $currentUser = auth('api')->user();
+            if ($this->has('is_admin') && (! $currentUser || ! $currentUser->is_admin)) {
+                $v->errors()->add('is_admin', 'Только администратор может изменять признак администратора.');
             }
-            $cid = (int) $this->input('simple_category_id');
-            if (! $cid) {
+
+            if (! $this->boolean('is_simple_user')) {
                 return;
             }
             $companies = $this->input('companies', []);
@@ -152,10 +155,15 @@ class StoreUserRequest extends FormRequest
 
                 return;
             }
-            $catCompany = Category::whereKey($cid)->value('company_id');
-            if ($catCompany === null || ! in_array((int) $catCompany, array_map('intval', $companies), true)) {
-                $v->errors()->add('simple_category_id', 'Категория должна быть из выбранных компаний.');
-            }
+            $companyIds = array_map('intval', $companies);
+            $this->validateCategoryAndWarehouseBelongToCompanyIds(
+                $v,
+                $companyIds,
+                (int) $this->input('simple_category_id'),
+                (int) $this->input('simple_warehouse_id'),
+                'Категория должна быть из выбранных компаний.',
+                'Склад должен быть из выбранных компаний.'
+            );
         });
     }
 

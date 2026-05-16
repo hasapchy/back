@@ -41,8 +41,8 @@ return [
         'inventories' => [
             'has_creator_id' => true,
             'check_strategy' => 'creator_id',
-            'actions' => ['view', 'create', 'export'],
-            'scope_actions' => ['view'],
+            'actions' => ['view', 'create', 'delete', 'export'],
+            'scope_actions' => ['view', 'delete'],
             'custom_permissions' => [
                 'count' => 'inventories_count',
                 'finalize' => 'inventories_finalize',
@@ -155,6 +155,24 @@ return [
         'orders_simple' => [
             'has_creator_id' => true,
             'check_strategy' => 'creator_id',
+            'actions' => ['view', 'create', 'update', 'delete', 'export'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
+        'leads' => [
+            'has_creator_id' => true,
+            'check_strategy' => 'creator_id',
+            'actions' => ['view', 'create', 'update', 'delete', 'export'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
+        'lead_statuses' => [
+            'has_creator_id' => false,
+            'check_strategy' => 'default',
+            'actions' => ['view', 'create', 'update', 'delete', 'export'],
+            'scope_actions' => ['view', 'update', 'delete'],
+        ],
+        'lead_sources' => [
+            'has_creator_id' => false,
+            'check_strategy' => 'default',
             'actions' => ['view', 'create', 'update', 'delete', 'export'],
             'scope_actions' => ['view', 'update', 'delete'],
         ],
@@ -300,6 +318,8 @@ return [
         'settings_client_balance_view',
         'settings_client_balance_view_own',
         'settings_client_balance_adjustment',
+        'settings_units_view',
+        'settings_units_manage',
         'products_create_temp',
     ],
 
@@ -315,6 +335,10 @@ return [
         'orders' => [
             'label' => 'orders',
             'resources' => ['orders', 'order_statuses', 'order_statuscategories'],
+        ],
+        'leads' => [
+            'label' => 'leads',
+            'resources' => ['leads', 'lead_statuses', 'lead_sources'],
         ],
         'orders_simple' => [
             'label' => 'orders_simple',
@@ -387,8 +411,9 @@ return [
             'settings_client_balance_view_own',
             'settings_client_balance_adjustment',
         ],
-        'departments' => [
-            'departments_assign_users',
+        'products' => [
+            'settings_units_view',
+            'settings_units_manage',
         ],
     ],
 ];

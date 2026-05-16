@@ -17,9 +17,6 @@ class CompaniesControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (! \Schema::hasTable('companies')) {
-            $this->markTestSkipped('Таблица companies не существует. Выполните миграции перед запуском тестов.');
-        }
 
         $this->adminUser = User::factory()->create([
             'is_admin' => true,

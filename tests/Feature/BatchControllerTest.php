@@ -8,7 +8,6 @@ use App\Models\TaskStatus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -27,9 +26,6 @@ class BatchControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (! Schema::hasTable('tasks')) {
-            $this->markTestSkipped('Таблица tasks не существует.');
-        }
 
         $this->company = Company::factory()->create();
 

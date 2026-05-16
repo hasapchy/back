@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\TaskRequest;
 use App\Repositories\TaskRepository;
+use App\Http\Resources\TaskReferenceResource;
 use App\Http\Resources\TaskResource;
 use App\Models\Task;
 use App\Services\InAppNotifications\InAppNotificationDispatcher;
@@ -27,13 +28,21 @@ class TasksController extends BaseController
 
     /**
      * Список задач
+     *
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
         $tasks = $this->itemsRepository->getFilteredTasks($request);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => TaskResource::collection($tasks->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $tasks->items(),
+                TaskReferenceResource::class,
+                TaskResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $tasks->currentPage(),
                 'per_page' => $tasks->perPage(),

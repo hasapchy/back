@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ProjectContractStatus;
 use App\Models\Currency;
 use App\Models\Project;
 use App\Models\ProjectContract;
@@ -21,6 +22,7 @@ class ProjectContractFactory extends Factory
     {
         return [
             'project_id' => Project::factory(),
+            'status' => ProjectContractStatus::Active,
             'number' => fake()->unique()->bothify('CONTRACT-####'),
             'amount' => fake()->randomFloat(2, 1000, 100000),
             'currency_id' => Currency::factory(),

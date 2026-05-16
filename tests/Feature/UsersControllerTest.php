@@ -7,7 +7,7 @@ use App\Models\Company;
 use Spatie\Permission\Models\Role;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class UsersControllerTest extends TestCase
@@ -21,9 +21,12 @@ class UsersControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (!Schema::hasTable('companies')) {
-            $this->markTestSkipped('Таблица companies не существует. Выполните миграции перед запуском тестов.');
+        try {
+            DB::connection()->getPdo();
+        } catch (\Throwable $e) {
+            $this->fail('Нет подключения к тестовой БД: ' . $e->getMessage());
         }
+
 
         $this->company = Company::factory()->create();
 
@@ -246,12 +249,11 @@ class UsersControllerTest extends TestCase
         $regularUser = User::factory()->create(['is_admin' => false]);
         $regularUser->companies()->attach($this->company->id);
 
-        $role = Role::create(['name' => 'test_role_' . uniqid(), 'guard_name' => 'api']);
-
         $userData = [
             'name' => 'Test User',
             'email' => 'test6@example.com',
             'password' => 'password123',
+            'password_confirmation' => 'password123',
             'companies' => [$this->company->id],
             'is_admin' => true,
         ];
@@ -259,15 +261,76 @@ class UsersControllerTest extends TestCase
         $response = $this->actingAsApi($regularUser)
             ->postJson('/api/users', $userData);
 
-        if ($response->status() === 403) {
-            $this->assertTrue(true, 'Non-admin user correctly received 403 Forbidden');
-            return;
-        }
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['is_admin']);
+        $this->assertDatabaseMissing('users', ['email' => 'test6@example.com']);
+    }
 
-        $response->assertStatus(200);
-        $user = User::where('email', 'test6@example.com')->first();
-        $this->assertNotNull($user);
-        $this->assertFalse((bool)$user->is_admin);
+    public function test_non_admin_cannot_update_is_admin(): void
+    {
+        $regularUser = User::factory()->create(['is_admin' => false]);
+        $regularUser->companies()->attach($this->company->id);
+
+        $targetUser = User::factory()->create(['is_admin' => false]);
+        $targetUser->companies()->attach($this->company->id);
+
+        $response = $this->actingAsApi($regularUser)
+            ->putJson("/api/users/{$targetUser->id}", [
+                'companies' => [$this->company->id],
+                'is_admin' => true,
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['is_admin']);
+    }
+
+    public function test_cannot_remove_admin_rights_from_root_admin(): void
+    {
+        $rootAdmin = User::query()->find(1);
+        if (! $rootAdmin) {
+            $rootAdmin = User::factory()->create([
+                'id' => 1,
+                'name' => 'Root',
+                'email' => 'root_admin_test@example.com',
+                'password' => Hash::make('password123'),
+                'is_admin' => true,
+                'is_active' => true,
+            ]);
+        }
+        $rootAdmin->companies()->syncWithoutDetaching([$this->company->id]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->putJson('/api/users/1', [
+                'companies' => [$this->company->id],
+                'is_admin' => false,
+            ]);
+
+        $response->assertStatus(400);
+        $this->assertStringContainsString('Нельзя убрать права администратора', (string) $response->json('message'));
+        $this->assertDatabaseHas('users', ['id' => 1, 'is_admin' => true]);
+    }
+
+    public function test_cannot_delete_root_admin(): void
+    {
+        $rootAdmin = User::query()->find(1);
+        if (! $rootAdmin) {
+            $rootAdmin = User::factory()->create([
+                'id' => 1,
+                'name' => 'Root',
+                'email' => 'root_delete_test@example.com',
+                'password' => Hash::make('password123'),
+                'is_admin' => true,
+                'is_active' => true,
+            ]);
+        }
+        $rootAdmin->companies()->syncWithoutDetaching([$this->company->id]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->deleteJson('/api/users/1');
+
+        $response->assertStatus(400);
+        $this->assertStringContainsString('Нельзя удалить главного администратора', (string) $response->json('message'));
+        $this->assertDatabaseHas('users', ['id' => 1]);
     }
 
     public function test_destroy_user_successfully(): void
@@ -423,6 +486,35 @@ class UsersControllerTest extends TestCase
         $user->refresh();
         $this->assertEquals('Updated Name', $user->name);
         $this->assertEquals('Manager', $user->position);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_search_returns_user_search_reference_payload(): void
+    {
+        $unique = 'RefSearch'.uniqid();
+        $target = User::factory()->create([
+            'name' => $unique,
+            'surname' => 'User',
+            'email' => $unique.'@example.com',
+            'is_active' => true,
+        ]);
+        $target->companies()->attach($this->company->id);
+
+        $response = $this->withApiTokenForCompany($this->adminUser, (int) $this->company->id)
+            ->getJson('/api/users/search?search_request='.urlencode($unique));
+
+        $response->assertStatus(200);
+        $rows = $response->json('data');
+        $this->assertIsArray($rows);
+        $this->assertNotEmpty($rows);
+        $first = $rows[0];
+        $this->assertArrayHasKey('id', $first);
+        $this->assertArrayHasKey('name', $first);
+        $this->assertArrayHasKey('surname', $first);
+        $this->assertArrayNotHasKey('companies', $first);
+        $this->assertArrayNotHasKey('created_at', $first);
     }
 }
 

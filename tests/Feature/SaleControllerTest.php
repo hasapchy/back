@@ -11,7 +11,6 @@ use App\Models\Product;
 use App\Models\CashRegister;
 use App\Models\Currency;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class SaleControllerTest extends TestCase
@@ -30,9 +29,6 @@ class SaleControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (!Schema::hasTable('companies')) {
-            $this->markTestSkipped('Таблица companies не существует.');
-        }
 
         $this->company = Company::factory()->create();
         $this->adminUser = User::factory()->create([

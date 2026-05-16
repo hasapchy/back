@@ -6,13 +6,17 @@ use App\Enums\WhPurchaseStatus;
 use App\Models\ClientBalance;
 use App\Models\WhPurchase;
 use App\Models\WhPurchaseProduct;
+use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\RoundingService;
 use App\Models\Transaction;
+use App\Services\Timeline\WarehouseTimelineCache;
 use Illuminate\Support\Facades\DB;
 
 class WarehousePurchaseRepository extends BaseRepository
 {
+    use ResolvesWarehouseLineOrigDisplay;
+
     /**
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<WhPurchase>
      */
@@ -31,9 +35,10 @@ class WarehousePurchaseRepository extends BaseRepository
                     'cashRegister:id,name,currency_id,is_cash',
                     'currency:id,symbol',
                     'creator:id,name',
-                    'products:id,purchase_id,product_id,quantity,price',
+                    'products:id,purchase_id,product_id,quantity,price,orig_unit_id,orig_quantity',
                     'products.product:id,name,image,unit_id',
                     'products.product.unit:id,name,short_name',
+                    'products.origUnit:id,name,short_name',
                     'receipts:id,purchase_id,warehouse_id,supplier_id,amount,status,date,creator_id',
                     'transactions:id,source_type,source_id,type,is_debt,category_id,cash_id,currency_id,orig_amount,amount,def_amount,date,note,client_id,creator_id,is_deleted',
                 ]);
@@ -71,9 +76,10 @@ class WarehousePurchaseRepository extends BaseRepository
                     'cashRegister:id,name,currency_id,is_cash',
                     'currency:id,symbol',
                     'creator:id,name',
-                    'products:id,purchase_id,product_id,quantity,price',
+                    'products:id,purchase_id,product_id,quantity,price,orig_unit_id,orig_quantity',
                     'products.product:id,name,image,unit_id',
                     'products.product.unit:id,name,short_name',
+                    'products.origUnit:id,name,short_name',
                     'receipts:id,purchase_id,warehouse_id,supplier_id,amount,status,date,creator_id',
                     'transactions:id,source_type,source_id,type,is_debt,category_id,cash_id,currency_id,orig_amount,amount,def_amount,date,note,client_id,creator_id,is_deleted',
                 ]);
@@ -120,12 +126,12 @@ class WarehousePurchaseRepository extends BaseRepository
             $purchase->save();
 
             foreach ($products as $product) {
-                WhPurchaseProduct::query()->create([
+                WhPurchaseProduct::query()->create(array_merge([
                     'purchase_id' => $purchase->id,
                     'product_id' => (int) $product['product_id'],
                     'quantity' => (float) $product['quantity'],
                     'price' => (float) $product['price'],
-                ]);
+                ], $this->resolveWarehouseLineOrigDisplay($product)));
             }
 
             $this->createTransactionForSource([
@@ -144,6 +150,7 @@ class WarehousePurchaseRepository extends BaseRepository
             ], \App\Models\WhPurchase::class, (int) $purchase->id, true);
 
             $this->invalidateCaches();
+            WarehouseTimelineCache::forgetPurchase((int) $purchase->id, (int) $purchase->supplier_id);
 
             return (int) $purchase->id;
         });
@@ -183,12 +190,12 @@ class WarehousePurchaseRepository extends BaseRepository
                 foreach ($data['products'] as $product) {
                     $quantity = $rounding->roundQuantityForCompany($companyId, (float) $product['quantity']);
                     $amountOrig += $quantity * (float) $product['price'];
-                    WhPurchaseProduct::query()->create([
+                    WhPurchaseProduct::query()->create(array_merge([
                         'purchase_id' => $purchase->id,
                         'product_id' => (int) $product['product_id'],
                         'quantity' => $quantity,
                         'price' => (float) $product['price'],
-                    ]);
+                    ], $this->resolveWarehouseLineOrigDisplay($product)));
                 }
             } else {
                 $amountOrig = (float) WhPurchaseProduct::query()
@@ -205,11 +212,18 @@ class WarehousePurchaseRepository extends BaseRepository
 
             $purchase->save();
             $this->invalidateCaches();
+            WarehouseTimelineCache::forgetPurchase($id, (int) $purchase->supplier_id);
 
             return true;
         });
     }
 
+    /**
+     * Удалить закупку в статусе «Черновик» и связанные с ней транзакции.
+     *
+     * @param  int  $id  ID закупки
+     * @return bool
+     */
     public function deleteItem(int $id): bool
     {
         return DB::transaction(function () use ($id): bool {
@@ -221,8 +235,13 @@ class WarehousePurchaseRepository extends BaseRepository
                 throw new \RuntimeException((string) __('warehouse_purchase.delete_forbidden_has_receipts'));
             }
 
+            $supplierId = (int) $purchase->supplier_id;
+            $purchase->transactions()->where('is_deleted', false)->get()->each(function ($tx): void {
+                app(TransactionsRepository::class)->deleteItem((int) $tx->id);
+            });
             $purchase->delete();
             $this->invalidateCaches();
+            WarehouseTimelineCache::forgetPurchase($id, $supplierId);
 
             return true;
         });
@@ -267,6 +286,7 @@ class WarehousePurchaseRepository extends BaseRepository
             ], \App\Models\WhPurchase::class, (int) $purchase->id, true);
 
             $this->invalidateCaches();
+            WarehouseTimelineCache::forgetPurchase($id, (int) $purchase->supplier_id);
 
             return (int) $txId;
         });

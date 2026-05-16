@@ -203,6 +203,8 @@ class CategoriesRepository extends BaseRepository
      */
     private function syncUsers(int $categoryId, array $userIds)
     {
+        $userIds = $this->includeCurrentUserForNonAdmin($userIds);
+
         $this->syncManyToManyUsers(
             CategoryUser::class,
             'category_id',

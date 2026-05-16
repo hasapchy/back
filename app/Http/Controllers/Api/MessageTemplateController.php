@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreMessageTemplateRequest;
 use App\Http\Requests\UpdateMessageTemplateRequest;
+use App\Http\Resources\MessageTemplateReferenceResource;
 use App\Http\Resources\MessageTemplateResource;
 use App\Models\MessageTemplate;
 use App\Repositories\MessageTemplateRepository;
@@ -48,9 +49,15 @@ class MessageTemplateController extends BaseController
         }
 
         $items = $this->repository->getItemsWithPagination($perPage, $page, $filters);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => MessageTemplateResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                MessageTemplateReferenceResource::class,
+                MessageTemplateResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'last_page' => $items->lastPage(),
@@ -75,8 +82,13 @@ class MessageTemplateController extends BaseController
         }
 
         $items = $this->repository->getAllItems($filters);
+        $companyId = $this->getCurrentCompanyId();
+        $useReference = $this->useReferenceContractsForWave1All($companyId);
+        $collection = $useReference
+            ? MessageTemplateReferenceResource::collection($items)
+            : MessageTemplateResource::collection($items);
 
-        return $this->successResponse(MessageTemplateResource::collection($items)->resolve());
+        return $this->successResponse($collection->resolve());
     }
 
     /**

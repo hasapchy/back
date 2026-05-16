@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreTaskStatusRequest;
 use App\Http\Requests\UpdateTaskStatusRequest;
+use App\Http\Resources\TaskStatusReferenceResource;
 use App\Http\Resources\TaskStatusResource;
 use App\Models\TaskStatus;
 use App\Repositories\TaskStatusRepository;
@@ -41,9 +42,15 @@ class TaskStatusController extends BaseController
         $page = $request->input('page', 1);
 
         $items = $this->itemsRepository->getItemsWithPagination($userUuid, $perPage, $page);
+        $companyId = $this->getCurrentCompanyId();
 
         return $this->successResponse([
-            'items' => TaskStatusResource::collection($items->items())->resolve(),
+            'items' => $this->wave1IndexCollection(
+                $items->items(),
+                TaskStatusReferenceResource::class,
+                TaskStatusResource::class,
+                $companyId
+            ),
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'next_page' => $items->nextPageUrl(),
@@ -65,7 +72,12 @@ class TaskStatusController extends BaseController
 
         $items = $this->itemsRepository->getAllItems($userUuid);
 
-        return $this->successResponse(TaskStatusResource::collection($items)->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($this->getCurrentCompanyId());
+        $collection = $useReference
+            ? TaskStatusReferenceResource::collection($items)
+            : TaskStatusResource::collection($items);
+
+        return $this->successResponse($collection->resolve());
     }
 
     /**

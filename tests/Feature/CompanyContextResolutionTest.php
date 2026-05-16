@@ -6,7 +6,6 @@ use App\Models\Company;
 use App\Models\User;
 use App\Support\ResolvedCompany;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class CompanyContextResolutionTest extends TestCase
@@ -15,9 +14,6 @@ class CompanyContextResolutionTest extends TestCase
 
     public function test_current_company_resolves_from_pat_company_id(): void
     {
-        if (! Schema::hasTable('companies')) {
-            $this->markTestSkipped('companies table missing');
-        }
 
         $company = Company::factory()->create();
         $user = User::factory()->create(['is_active' => true]);
@@ -32,9 +28,6 @@ class CompanyContextResolutionTest extends TestCase
 
     public function test_current_company_resolves_from_session_when_stateful(): void
     {
-        if (! Schema::hasTable('companies')) {
-            $this->markTestSkipped('companies table missing');
-        }
 
         $company = Company::factory()->create();
         $user = User::factory()->create(['is_active' => true]);
@@ -52,9 +45,6 @@ class CompanyContextResolutionTest extends TestCase
 
     public function test_company_header_mismatch_with_pat_returns_409(): void
     {
-        if (! Schema::hasTable('companies')) {
-            $this->markTestSkipped('companies table missing');
-        }
 
         $company = Company::factory()->create();
         $other = Company::factory()->create();
@@ -70,9 +60,6 @@ class CompanyContextResolutionTest extends TestCase
 
     public function test_me_returns_409_when_company_context_missing_for_stateful_user(): void
     {
-        if (! Schema::hasTable('companies')) {
-            $this->markTestSkipped('companies table missing');
-        }
 
         $company = Company::factory()->create();
         $user = User::factory()->create(['is_active' => true]);
@@ -87,9 +74,6 @@ class CompanyContextResolutionTest extends TestCase
 
     public function test_me_returns_user_with_permissions_when_company_context_present_in_session(): void
     {
-        if (! Schema::hasTable('companies')) {
-            $this->markTestSkipped('companies table missing');
-        }
 
         $company = Company::factory()->create();
         $user = User::factory()->create(['is_active' => true]);

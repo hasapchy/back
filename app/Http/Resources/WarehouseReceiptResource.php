@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Enums\WhReceiptStatus;
 use App\Models\WhReceipt;
 use App\Services\ReceiptExpenseAllocationService;
+use App\Services\UnitStockPresentationService;
 use App\Services\WarehouseReceiptGoodsPaymentLimitService;
 
 class WarehouseReceiptResource extends BaseDomainResource
@@ -24,6 +25,13 @@ class WarehouseReceiptResource extends BaseDomainResource
         if (! $receipt->status instanceof WhReceiptStatus) {
             throw new \LogicException('Invalid receipt status value');
         }
+        $receipt->loadMissing('products.product.unit');
+        $presentation = app(UnitStockPresentationService::class);
+        $lineProducts = $receipt->products->map(static fn ($l) => $l->product)->filter()->unique('id')->values();
+        if ($lineProducts->isNotEmpty()) {
+            $presentation->attachStockByUnitsForProducts($lineProducts);
+        }
+        $presentation->attachStockByUnitsToReceiptLines($receipt->products);
         $data = $receipt->toArray();
         unset($data['products']);
         $routeReceiptId = $request->route('id');
@@ -58,6 +66,7 @@ class WarehouseReceiptResource extends BaseDomainResource
         $data['status'] = $receipt->status->value;
         $data['purchase_id'] = $receipt->purchase_id !== null ? (int) $receipt->purchase_id : null;
         $data['is_from_purchase'] = $receipt->purchase_id !== null;
+        $data['supplier'] = $receipt->supplier ? $receipt->supplier->toArray() : null;
         return $this->normalizeCreator($data);
     }
 }

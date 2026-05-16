@@ -7,15 +7,21 @@ use App\Models\OrderProduct;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductPrice;
+use App\Models\ProductUnitConversion;
+use App\Models\Unit;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Models\WhUser;
 use App\Services\CacheService;
+use App\Services\ProductUnitConversionGraphService;
+use App\Services\UnitConversionGraphService;
+use App\Services\UnitStockPresentationService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class ProductsRepository extends BaseRepository
 {
@@ -37,9 +43,9 @@ class ProductsRepository extends BaseRepository
         /** @var User|null $currentUser */
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, 'wh_stock_pos_v2']);
+        $cacheKey = $this->generateCacheKey('products', [$userUuid, $perPage, $type, $warehouseId, $search, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, 'wh_stock_pos_v6']);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $currentUser, $warehouseStockPolicy, $categoryIds) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $type, $page, $warehouseId, $search, $categoryId, $currentUser, $warehouseStockPolicy, $categoryIds, $companyId) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             if (! empty($categoryIds)) {
@@ -100,6 +106,8 @@ class ProductsRepository extends BaseRepository
                 $this->enrichProduct($product, $stocksMap);
             });
 
+            app(UnitStockPresentationService::class)->attachStockByUnitsForProducts($products->getCollection());
+
             return $products;
         }, (int) $page);
     }
@@ -118,9 +126,9 @@ class ProductsRepository extends BaseRepository
     {
         $currentUser = auth('api')->user();
         $companyId = $this->getCurrentCompanyId();
-        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, $page, $perPage, 'wh_stock_pos_v2']);
+        $cacheKey = $this->generateCacheKey('products_search', [$userUuid, $search, $productsOnly, $warehouseId, $categoryId, $categoryIds, $currentUser?->id, $companyId, $warehouseStockPolicy, $page, $perPage, 'wh_stock_pos_v6']);
 
-        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage, $categoryIds) {
+        return CacheService::getReferenceData($cacheKey, function () use ($userUuid, $search, $productsOnly, $warehouseId, $categoryId, $warehouseStockPolicy, $page, $perPage, $categoryIds, $companyId) {
             $userCategoryIds = $this->getUserCategoryIds($userUuid);
 
             if (! empty($categoryIds)) {
@@ -212,6 +220,8 @@ class ProductsRepository extends BaseRepository
                 $this->enrichProduct($product, $stocksMap);
             });
 
+            app(UnitStockPresentationService::class)->attachStockByUnitsForProducts($products);
+
             return [
                 'items' => $products,
                 'total' => $total,
@@ -286,9 +296,13 @@ class ProductsRepository extends BaseRepository
                 CacheService::invalidateWarehouseStocksCache();
             }
 
+            if ($isProductType) {
+                $this->syncProductUnitConversionsFromRequest($product, $data);
+            }
+
             CacheService::invalidateProductsCache();
 
-            return Product::select([
+            $ret = Product::select([
                 'products.*',
                 'primary_categories.name as category_name',
                 'units.name as unit_name',
@@ -303,6 +317,9 @@ class ProductsRepository extends BaseRepository
                 ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
                 ->where('products.id', $product->id)
                 ->first();
+            $ret->setRelation('productUnitConversions', ProductUnitConversion::with(['parentUnit', 'childUnit'])->where('product_id', $product->id)->get());
+
+            return $ret;
         });
     }
 
@@ -342,6 +359,10 @@ class ProductsRepository extends BaseRepository
                 $product->categories()->sync([$data['category_id']]);
             }
             if (isset($data['unit_id'])) {
+                $newUnit = (int) $data['unit_id'];
+                if ($newUnit !== (int) $product->unit_id) {
+                    ProductUnitConversion::query()->where('product_id', $product->id)->delete();
+                }
                 $product->unit_id = $data['unit_id'];
             }
             if (array_key_exists('stock_alert_notify', $data)) {
@@ -355,6 +376,7 @@ class ProductsRepository extends BaseRepository
                 $product->stock_alert_notify = false;
                 $product->stock_min_quantity = null;
                 $product->low_stock_notification_armed = false;
+                ProductUnitConversion::query()->where('product_id', $product->id)->delete();
             }
 
             $product->save();
@@ -392,9 +414,13 @@ class ProductsRepository extends BaseRepository
                 $prices_data
             );
 
+            if (Product::isProductTypeValue($product->type)) {
+                $this->syncProductUnitConversionsFromRequest($product, $data);
+            }
+
             CacheService::invalidateProductsCache();
 
-            return Product::select([
+            $ret = Product::select([
                 'products.*',
                 'primary_categories.name as category_name',
                 'units.name as unit_name',
@@ -409,6 +435,9 @@ class ProductsRepository extends BaseRepository
                 ->leftJoin('product_prices', 'products.id', '=', 'product_prices.product_id')
                 ->where('products.id', $product->id)
                 ->first();
+            $ret->setRelation('productUnitConversions', ProductUnitConversion::with(['parentUnit', 'childUnit'])->where('product_id', $product->id)->get());
+
+            return $ret;
         });
     }
 
@@ -436,7 +465,7 @@ class ProductsRepository extends BaseRepository
             return null;
         }
 
-        $product = Product::with(['categories', 'unit', 'prices', 'creator'])->find($id);
+        $product = Product::with(['categories', 'unit', 'prices', 'creator', 'productUnitConversions.parentUnit', 'productUnitConversions.childUnit'])->find($id);
 
         if (! $product) {
             return null;
@@ -459,6 +488,16 @@ class ProductsRepository extends BaseRepository
         $productArray['purchase_price'] = $price?->purchase_price ?? 0;
         $productArray['stock_quantity'] = 0;
         $productArray['is_below_min_stock'] = $product->isBelowMinStock(0.0);
+        $productArray['product_unit_conversions'] = $product->productUnitConversions->map(static function ($c) {
+            return [
+                'id' => $c->id,
+                'parent_unit_id' => $c->parent_unit_id,
+                'child_unit_id' => $c->child_unit_id,
+                'quantity' => $c->quantity,
+                'parent_short_name' => $c->parentUnit?->short_name,
+                'child_short_name' => $c->childUnit?->short_name,
+            ];
+        })->values()->all();
 
         return $productArray;
     }
@@ -626,5 +665,57 @@ class ProductsRepository extends BaseRepository
                 $q->where('quantity', '>', 0);
             }
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function syncProductUnitConversionsFromRequest(Product $product, array $data): void
+    {
+        if (! Product::isProductTypeValue($product->type)) {
+            return;
+        }
+        if (! array_key_exists('product_unit_conversions', $data)) {
+            return;
+        }
+        $rows = $data['product_unit_conversions'];
+        if (! is_array($rows)) {
+            return;
+        }
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId === null) {
+            ProductUnitConversion::query()->where('product_id', $product->id)->delete();
+
+            return;
+        }
+        $allowedIds = Unit::forCompanyCatalog($companyId)->pluck('id')->map(static fn ($id) => (int) $id)->all();
+        $pack = app(UnitConversionGraphService::class);
+        $graph = app(ProductUnitConversionGraphService::class);
+        $normalized = [];
+        foreach ($rows as $row) {
+            $p = (int) ($row['parent_unit_id'] ?? 0);
+            $c = (int) ($row['child_unit_id'] ?? 0);
+            if (! in_array($p, $allowedIds, true) || ! in_array($c, $allowedIds, true)) {
+                throw ValidationException::withMessages([
+                    'product_unit_conversions' => [__('units.invalid_unit_catalog_scope')],
+                ]);
+            }
+            $normalized[] = [
+                'parent_unit_id' => $p,
+                'child_unit_id' => $c,
+                'quantity' => $pack->normalizePackQuantity((string) ($row['quantity'] ?? '0')),
+            ];
+        }
+        $graph->assertReplacementSetValid($normalized);
+        ProductUnitConversion::query()->where('product_id', $product->id)->delete();
+        foreach ($normalized as $r) {
+            ProductUnitConversion::query()->create([
+                'product_id' => $product->id,
+                'parent_unit_id' => $r['parent_unit_id'],
+                'child_unit_id' => $r['child_unit_id'],
+                'quantity' => $r['quantity'],
+            ]);
+        }
+        CacheService::invalidateWarehouseStocksCache();
     }
 }

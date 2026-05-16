@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Requests\StoreRoleRequest;
 use App\Http\Requests\UpdateRoleRequest;
+use App\Http\Resources\RoleReferenceResource;
 use App\Http\Resources\RoleResource;
 use App\Repositories\RolesRepository;
 use App\Services\CacheService;
@@ -57,6 +58,9 @@ class RolesController extends BaseController
                 $search = $request->input('search');
                 $companyId = $this->getCurrentCompanyId();
                 $items = $this->itemsRepository->getItemsWithPagination($page, $perPage, $search, $companyId);
+
+                // Список ролей на экране управления должен содержать permissions; wave1 reference (RoleReferenceResource)
+                // их не отдаёт — тогда фронт показывает 0 прав при живых данных в БД. Здесь всегда полный RoleResource.
                 return $this->successResponse([
                     'items' => RoleResource::collection($items->items())->resolve(),
                     'meta' => [
@@ -95,12 +99,15 @@ class RolesController extends BaseController
     {
         $allCompanies = $request->boolean('all_companies', false);
         
-        if ($allCompanies) {
-            return $this->successResponse(RoleResource::collection($this->itemsRepository->getAllItemsForAllCompanies())->resolve());
-        }
-        
         $companyId = $this->getCurrentCompanyId();
-        return $this->successResponse(RoleResource::collection($this->itemsRepository->getAllItems($companyId))->resolve());
+        $useReference = $this->useReferenceContractsForWave1All($companyId);
+        $collectionClass = $useReference ? RoleReferenceResource::class : RoleResource::class;
+
+        if ($allCompanies) {
+            return $this->successResponse($collectionClass::collection($this->itemsRepository->getAllItemsForAllCompanies())->resolve());
+        }
+
+        return $this->successResponse($collectionClass::collection($this->itemsRepository->getAllItems($companyId))->resolve());
     }
 
     /**
@@ -114,6 +121,7 @@ class RolesController extends BaseController
         try {
             $companyId = $this->getCurrentCompanyId();
             $role = $this->itemsRepository->getItem($id, $companyId);
+
             return $this->successResponse(new RoleResource($role));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->errorResponse('Роль не найдена', 404);

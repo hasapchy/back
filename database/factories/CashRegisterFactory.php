@@ -28,6 +28,7 @@ class CashRegisterFactory extends Factory
             'company_id' => null,
             'is_cash' => true,
             'icon' => 'fa-solid fa-cash-register',
+            'color' => null,
         ];
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
+use App\Http\Resources\UserSearchResource;
 use App\Repositories\UsersRepository;
 use App\Models\User;
 use App\Models\EmployeeSalary;
@@ -304,7 +305,7 @@ class UsersController extends BaseController
 
         $items = $this->itemsRepository->searchUser($search_request);
 
-        return $this->successResponse(UserResource::collection($items)->resolve());
+        return $this->successResponse(UserSearchResource::collection($items)->resolve());
     }
 
     /**

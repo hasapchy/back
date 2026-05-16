@@ -9,6 +9,7 @@ use App\Models\Warehouse;
 use App\Models\WarehouseStock;
 use App\Models\WhUser;
 use App\Services\CacheService;
+use App\Services\UnitStockPresentationService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -40,7 +41,7 @@ class WarehouseStockRepository extends BaseRepository
             $category_id,
             $availability,
             md5($searchNormalized),
-            'per_warehouse_row_v1',
+            'per_warehouse_row_v3_stock_by_units',
             $currentUser?->id,
             $companyId,
             $categoryAccessHash,
@@ -182,6 +183,8 @@ class WarehouseStockRepository extends BaseRepository
 
             $paginated = $query->paginate($perPage, ['*'], 'page', (int) $page);
             $lowStockMap = $this->buildLowStockMap($paginated, $companyId);
+
+            app(UnitStockPresentationService::class)->attachStockByUnitsToWarehouseStockItems($paginated->items());
 
             foreach ($paginated as $item) {
                 $item->quantity = (float) ($item->quantity ?? 0);

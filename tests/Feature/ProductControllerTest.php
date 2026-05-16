@@ -8,8 +8,10 @@ use App\Models\Product;
 use App\Models\ProductPrice;
 use App\Models\Category;
 use App\Models\Unit;
+use App\Models\Warehouse;
+use App\Models\WhMovement;
+use App\Models\WhMovementProduct;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -26,9 +28,6 @@ class ProductControllerTest extends TestCase
     {
         parent::setUp();
 
-        if (!Schema::hasTable('companies')) {
-            $this->markTestSkipped('Таблица companies не существует.');
-        }
 
         Storage::fake('public');
 
@@ -227,6 +226,55 @@ class ProductControllerTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertEquals(55.55, (float) ProductPrice::where('product_id', $product->id)->value('purchase_price'));
+    }
+
+    public function test_history_includes_warehouse_movements_for_income_and_expense_filters(): void
+    {
+        $unit = Unit::create([
+            'name' => 'mv'.uniqid(),
+            'short_name' => 'mv'.substr(uniqid(), 0, 8),
+        ]);
+        $product = Product::factory()->create([
+            'creator_id' => $this->adminUser->id,
+            'unit_id' => $unit->id,
+        ]);
+        $product->categories()->attach($this->category->id);
+
+        $warehouseFrom = Warehouse::factory()->create(['company_id' => $this->company->id, 'name' => 'From WH']);
+        $warehouseTo = Warehouse::factory()->create(['company_id' => $this->company->id, 'name' => 'To WH']);
+
+        $movement = WhMovement::factory()->create([
+            'wh_from' => $warehouseFrom->id,
+            'wh_to' => $warehouseTo->id,
+            'creator_id' => $this->adminUser->id,
+            'date' => now()->toDateString(),
+        ]);
+
+        WhMovementProduct::create([
+            'movement_id' => $movement->id,
+            'product_id' => $product->id,
+            'quantity' => 4,
+        ]);
+
+        $incomeResponse = $this->actingAsApi($this->adminUser)
+            ->getJson("/api/products/{$product->id}/history?filter=income");
+        $expenseResponse = $this->actingAsApi($this->adminUser)
+            ->getJson("/api/products/{$product->id}/history?filter=expense");
+
+        $incomeResponse->assertStatus(200);
+        $expenseResponse->assertStatus(200);
+        $this->assertTrue(
+            collect($incomeResponse->json('data.items', []))
+                ->contains(fn (array $item): bool => (int) ($item['source_id'] ?? 0) === (int) $movement->id
+                    && ($item['source_type'] ?? null) === WhMovement::class
+                    && (float) ($item['quantity'] ?? 0.0) === 4.0)
+        );
+        $this->assertTrue(
+            collect($expenseResponse->json('data.items', []))
+                ->contains(fn (array $item): bool => (int) ($item['source_id'] ?? 0) === (int) $movement->id
+                    && ($item['source_type'] ?? null) === WhMovement::class
+                    && (float) ($item['quantity'] ?? 0.0) === -4.0)
+        );
     }
 }
 

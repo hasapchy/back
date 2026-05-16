@@ -205,10 +205,19 @@ class CacheService
     protected static function invalidateOtherCache(string $like, ?int $companyId, string $driver): void
     {
         try {
-            if ($companyId !== null) {
-                $pattern = str_replace('%', '', $like)."_{$companyId}";
-                Cache::forget($pattern);
+            $hasWildcard = str_contains($like, '%');
+            if ($hasWildcard) {
+                Cache::flush();
+                return;
             }
+
+            if ($companyId !== null) {
+                $pattern = "{$like}_{$companyId}";
+                Cache::forget($pattern);
+                return;
+            }
+
+            Cache::forget($like);
         } catch (\Exception $e) {
         }
     }
@@ -326,6 +335,14 @@ class CacheService
     public static function invalidateOrdersCache(): void
     {
         self::invalidateByLike('%order%');
+    }
+
+    /**
+     * Invalidate leads list and item cache
+     */
+    public static function invalidateLeadsCache(): void
+    {
+        self::invalidateByLike('%lead%');
     }
 
     /**

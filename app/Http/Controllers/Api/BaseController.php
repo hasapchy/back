@@ -6,7 +6,9 @@ use App\Models\CashRegister;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Support\CompanyScopedPermissions;
+use App\Support\ReferenceWave1Canary;
 use App\Support\ResolvedCompany;
+use App\Support\SimpleUser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -14,6 +16,7 @@ use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Routing\Controller as BaseRoutingController;
 use Illuminate\Support\Facades\DB;
 
@@ -29,13 +32,61 @@ class BaseController extends BaseRoutingController
     }
 
     /**
+     * @param  int|null  $companyId  null — эндпоинты без контекста компании (например публичный список)
+     */
+    protected function useReferenceContractsForWave1All(?int $companyId = null): bool
+    {
+        return ReferenceWave1Canary::useReferenceAllPayload($companyId);
+    }
+
+    /**
+     * @param  int|null  $companyId
+     */
+    protected function useReferenceContractsForWave1IndexShow(?int $companyId = null): bool
+    {
+        if (! config('features.reference_wave1')) {
+            return false;
+        }
+
+        if (! config('features.reference_wave1_index_show')) {
+            return false;
+        }
+
+        return ReferenceWave1Canary::useReferenceAllPayload($companyId);
+    }
+
+    /**
+     * @param  iterable<int|string, mixed>  $items
+     * @param  class-string<JsonResource>  $referenceResourceClass
+     * @param  class-string<JsonResource>  $fullResourceClass
+     * @return array<int|string, mixed>
+     */
+    protected function wave1IndexCollection(iterable $items, string $referenceResourceClass, string $fullResourceClass, ?int $companyId = null): array
+    {
+        $class = $this->useReferenceContractsForWave1IndexShow($companyId) ? $referenceResourceClass : $fullResourceClass;
+
+        return $class::collection($items)->resolve();
+    }
+
+    /**
+     * @param  class-string<JsonResource>  $referenceResourceClass
+     * @param  class-string<JsonResource>  $fullResourceClass
+     */
+    protected function wave1SingleResource(mixed $model, string $referenceResourceClass, string $fullResourceClass, ?int $companyId = null): JsonResource
+    {
+        $class = $this->useReferenceContractsForWave1IndexShow($companyId) ? $referenceResourceClass : $fullResourceClass;
+
+        return new $class($model);
+    }
+
+    /**
      * Получить авторизованного пользователя API
      *
      * @return User|null
      */
     protected function getAuthenticatedUser()
     {
-        return auth('api')->user();
+        return request()->user();
     }
 
     /**
@@ -290,8 +341,15 @@ class BaseController extends BaseRoutingController
         if ($warehouseId) {
             $warehouse = Warehouse::find($warehouseId);
             $user = $this->getAuthenticatedUser();
-            if ($warehouse && $user && ! $user->can('view', $warehouse)) {
-                return $this->errorResponse('У вас нет прав на этот склад', 403);
+            if ($warehouse && $user) {
+                if (SimpleUser::matches($user)
+                    && $user->simple_warehouse_id
+                    && (int) $user->simple_warehouse_id === (int) $warehouseId) {
+                    return null;
+                }
+                if (! $user->can('view', $warehouse)) {
+                    return $this->errorResponse('У вас нет прав на этот склад', 403);
+                }
             }
         }
 
