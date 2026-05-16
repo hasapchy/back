@@ -308,6 +308,7 @@ class ReferenceResourcePayloadKeysTest extends TestCase
         $product->wholesale_price = $price?->wholesale_price;
         $product->purchase_price = $price?->purchase_price;
         $product->stock_by_units = [];
+        $product->alternate_unit_options = [];
 
         $payload = (new ProductSearchResource($product))->toArray($this->apiRequest());
         $this->assertSearchItemKeysMatchConfig('products', $payload);

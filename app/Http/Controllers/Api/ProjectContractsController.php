@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ProjectContractStatus;
 use App\Http\Requests\PatchProjectContractRequest;
 use App\Http\Requests\StoreProjectContractRequest;
 use App\Http\Resources\ProjectContractResource;
@@ -102,18 +103,22 @@ class ProjectContractsController extends BaseController
             $activeProjectsOnly = $request->boolean('active_projects_only');
 
             $v = $request->get('payment_status');
-            $paymentStatus = ($v !== null && $v !== '' && in_array($v, ['unpaid', 'partially_paid', 'paid'], true)) ? $v : null;
+            $paymentStatus = ($v !== null && $v !== '' && in_array($v, ['unpaid', 'partially_paid', 'paid', 'draft'], true)) ? $v : null;
             $returned = $request->has('returned') ? $request->boolean('returned') : null;
             $cashId = $request->get('cash_id') ? (int) $request->get('cash_id') : null;
             $type = $request->has('type') ? (int) $request->get('type') : null;
+            $statusParam = $request->get('status');
+            $contractStatus = ($statusParam !== null && $statusParam !== '' && in_array($statusParam, ProjectContractStatus::values(), true))
+                ? (string) $statusParam
+                : null;
 
             $user = $this->getAuthenticatedUser();
             $hasViewAll = $user && ($user->is_admin || $user->can('contracts_view_all'));
 
             if (! $hasViewAll && $user && $user->can('contracts_view_own')) {
-                $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $user->id, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
+                $result = $this->repository->getAllContractsWithPaginationForUser($perPage, $page, $search, $projectId, $user->id, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId, $contractStatus);
             } else {
-                $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId);
+                $result = $this->repository->getAllContractsWithPagination($perPage, $page, $search, $projectId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId, $contractStatus);
             }
 
             return $this->successResponse([

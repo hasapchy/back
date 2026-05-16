@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesWarehouseProductLinesOrig;
 use App\Rules\WarehouseAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
@@ -9,6 +10,8 @@ use Illuminate\Validation\ValidationException;
 
 class UpdateWarehouseMovementRequest extends FormRequest
 {
+    use ValidatesWarehouseProductLinesOrig;
+
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -26,7 +29,7 @@ class UpdateWarehouseMovementRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        return array_merge([
             'warehouse_from_id' => ['required', 'integer', new WarehouseAccessRule()],
             'warehouse_to_id' => ['required', 'integer', new WarehouseAccessRule()],
             'date' => 'nullable|date',
@@ -34,7 +37,17 @@ class UpdateWarehouseMovementRequest extends FormRequest
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity' => 'required|numeric|min:0',
-        ];
+        ], $this->warehouseProductLinesOrigRules());
+    }
+
+    /**
+     * @param Validator $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $this->addWarehouseProductLinesOrigPairValidator($validator);
+        $this->addWarehouseProductLinesOrigConsistencyValidator($validator);
     }
 
     /**

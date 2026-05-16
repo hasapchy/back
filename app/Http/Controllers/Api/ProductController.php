@@ -241,54 +241,58 @@ class ProductController extends BaseController
         $filter = $request->query('filter', 'all');
         $history = collect();
         $movementProducts = WhMovementProduct::where('product_id', $id)
-            ->with(['movement.creator', 'movement.warehouseFrom', 'movement.warehouseTo'])
+            ->with(['movement.creator', 'movement.warehouseFrom', 'movement.warehouseTo', 'origUnit'])
             ->get();
 
+        $productUnitId = (int) ($product->unit_id ?? 0);
+
         if (in_array($filter, ['all', 'income'], true)) {
-            foreach (WhReceiptProduct::where('product_id', $id)->with(['receipt.creator'])->get() as $rp) {
+            foreach (WhReceiptProduct::where('product_id', $id)->with(['receipt.creator', 'origUnit'])->get() as $rp) {
                 $r = $rp->receipt;
                 if (! $r) {
                     continue;
                 }
                 $u = $r->creator ?? null;
-                $history->push([
+                $qty = (float) $rp->quantity;
+                $history->push(array_merge([
                     'source_label' => (string) __('product_history.receipt_direct_stock'),
                     'source_type' => WhReceipt::class,
                     'source_id' => (int) $r->id,
                     'receipt_id' => null,
-                    'quantity' => (float) $rp->quantity,
+                    'quantity' => $qty,
                     'unit_short_name' => $unitShortName,
                     'date' => $r->date,
                     'creator' => $u ? [
                         'id' => (int) $u->id,
                         'name' => trim($u->name.' '.($u->surname ?? '')),
                     ] : null,
-                ]);
+                ], $this->productHistoryOrigPayload($rp, $productUnitId, $qty)));
             }
             foreach ($movementProducts as $mp) {
-                $this->pushMovementHistoryItem($history, $mp, $unitShortName, true);
+                $this->pushMovementHistoryItem($history, $mp, $unitShortName, true, $productUnitId);
             }
         }
 
         if (in_array($filter, ['all', 'expense'])) {
-            foreach (WhWriteoffProduct::where('product_id', $id)->with(['writeOff.creator'])->get() as $wp) {
+            foreach (WhWriteoffProduct::where('product_id', $id)->with(['writeOff.creator', 'origUnit'])->get() as $wp) {
                 $w = $wp->writeOff;
                 if (! $w) {
                     continue;
                 }
                 $u = $w->creator ?? null;
-                $history->push([
+                $qty = -(float) $wp->quantity;
+                $history->push(array_merge([
                     'source_label' => (string) __('product_history.writeoff_with_reason', ['reason' => $this->writeoffReasonLabel($w->reason)]),
                     'source_type' => WhWriteoff::class,
                     'source_id' => (int) $w->id,
-                    'quantity' => -(float) $wp->quantity,
+                    'quantity' => $qty,
                     'unit_short_name' => $unitShortName,
                     'date' => $w->date,
                     'creator' => $u ? [
                         'id' => (int) $u->id,
                         'name' => trim($u->name.' '.($u->surname ?? '')),
                     ] : null,
-                ]);
+                ], $this->productHistoryOrigPayload($wp, $productUnitId, $qty)));
             }
             foreach (SalesProduct::where('product_id', $id)->with(['sale.creator'])->get() as $sp) {
                 $s = $sp->sale;
@@ -329,7 +333,7 @@ class ProductController extends BaseController
                 ]);
             }
             foreach ($movementProducts as $mp) {
-                $this->pushMovementHistoryItem($history, $mp, $unitShortName, false);
+                $this->pushMovementHistoryItem($history, $mp, $unitShortName, false, $productUnitId);
             }
         }
 
@@ -349,6 +353,7 @@ class ProductController extends BaseController
         return $this->successResponse([
             'items' => $history,
             'warehouse_stocks' => $warehouseStocks,
+            'product_unit_id' => $productUnitId,
         ]);
     }
 
@@ -367,8 +372,9 @@ class ProductController extends BaseController
 
     /**
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $history
+     * @param  WhMovementProduct  $movementProduct
      */
-    private function pushMovementHistoryItem($history, WhMovementProduct $movementProduct, string $unitShortName, bool $isIncome): void
+    private function pushMovementHistoryItem($history, WhMovementProduct $movementProduct, string $unitShortName, bool $isIncome, int $productUnitId): void
     {
         $movement = $movementProduct->movement;
         if (! $movement) {
@@ -376,7 +382,8 @@ class ProductController extends BaseController
         }
 
         $creator = $movement->creator ?? null;
-        $history->push([
+        $qty = $isIncome ? (float) $movementProduct->quantity : -(float) $movementProduct->quantity;
+        $history->push(array_merge([
             'source_label' => (string) __(
                 $isIncome ? 'product_history.movement_in' : 'product_history.movement_out',
                 [
@@ -386,14 +393,48 @@ class ProductController extends BaseController
             ),
             'source_type' => WhMovement::class,
             'source_id' => (int) $movement->id,
-            'quantity' => $isIncome ? (float) $movementProduct->quantity : -(float) $movementProduct->quantity,
+            'quantity' => $qty,
             'unit_short_name' => $unitShortName,
             'date' => $movement->date,
             'creator' => $creator ? [
                 'id' => (int) $creator->id,
                 'name' => trim($creator->name.' '.($creator->surname ?? '')),
             ] : null,
-        ]);
+        ], $this->productHistoryOrigPayload($movementProduct, $productUnitId, $qty)));
+    }
+
+    /**
+     * @param  WhReceiptProduct|WhWriteoffProduct|WhMovementProduct  $line
+     * @return array<string, float|string>
+     */
+    private function productHistoryOrigPayload($line, int $productUnitId, float $signedLineQuantity): array
+    {
+        $origUnitId = $line->orig_unit_id !== null ? (int) $line->orig_unit_id : 0;
+        if ($origUnitId === 0 || $origUnitId === $productUnitId) {
+            return [];
+        }
+        if ($line->orig_quantity === null) {
+            return [];
+        }
+        $absOrig = abs((float) $line->orig_quantity);
+        if ($absOrig <= 0) {
+            return [];
+        }
+        $sign = $signedLineQuantity < 0 ? -1.0 : 1.0;
+        $unit = $line->relationLoaded('origUnit') ? $line->origUnit : null;
+        $label = trim((string) ($unit?->short_name ?? ''));
+        if ($label === '') {
+            $label = trim((string) ($unit?->name ?? ''));
+        }
+        if ($label === '') {
+            return [];
+        }
+
+        return [
+            'orig_unit_id' => $origUnitId,
+            'orig_quantity' => $sign * $absOrig,
+            'orig_unit_short_name' => $label,
+        ];
     }
 
     protected function normalizeCategoryIdForSimpleUser($categoryId)

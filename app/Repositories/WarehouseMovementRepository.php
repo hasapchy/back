@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\WarehouseStock;
 use App\Models\WhMovement;
 use App\Models\WhMovementProduct;
+use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\Timeline\WarehouseTimelineCache;
 use App\Services\InventoryLockService;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Log;
 
 class WarehouseMovementRepository extends BaseRepository
 {
+    use ResolvesWarehouseLineOrigDisplay;
+
     /**
      * Получить перемещения между складами с пагинацией
      *
@@ -139,6 +142,9 @@ class WarehouseMovementRepository extends BaseRepository
                 $movementProduct->movement_id = $movement->id;
                 $movementProduct->product_id = $product_id;
                 $movementProduct->quantity = $quantity;
+                $orig = $this->resolveWarehouseLineOrigDisplay($product);
+                $movementProduct->orig_unit_id = $orig['orig_unit_id'];
+                $movementProduct->orig_quantity = $orig['orig_quantity'];
                 $movementProduct->save();
 
                 $this->updateStocksForMovement($warehouse_from_id, $warehouse_to_id, $product_id, $quantity);
@@ -189,7 +195,10 @@ class WarehouseMovementRepository extends BaseRepository
 
                 $movementProduct = WhMovementProduct::updateOrCreate(
                     ['movement_id' => $movement->id, 'product_id' => $product_id],
-                    ['quantity' => $quantity]
+                    array_merge(
+                        ['quantity' => $quantity],
+                        $this->resolveWarehouseLineOrigDisplay($product)
+                    )
                 );
 
                 $existingProduct = $existingProducts->firstWhere('product_id', $product_id);
@@ -299,6 +308,7 @@ class WarehouseMovementRepository extends BaseRepository
         return WhMovementProduct::whereIn('movement_id', $wh_movement_ids)
             ->leftJoin('products', 'wh_movement_products.product_id', '=', 'products.id')
             ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+            ->leftJoin('units as orig_units', 'wh_movement_products.orig_unit_id', '=', 'orig_units.id')
             ->select(
                 'wh_movement_products.id as id',
                 'wh_movement_products.movement_id as movement_id',
@@ -308,7 +318,11 @@ class WarehouseMovementRepository extends BaseRepository
                 'products.unit_id as unit_id',
                 'units.name as unit_name',
                 'units.short_name as unit_short_name',
-                'wh_movement_products.quantity as quantity'
+                'wh_movement_products.quantity as quantity',
+                'wh_movement_products.orig_unit_id as orig_unit_id',
+                'wh_movement_products.orig_quantity as orig_quantity',
+                'orig_units.name as orig_unit_name',
+                'orig_units.short_name as orig_unit_short_name'
             )
             ->get()
             ->groupBy('movement_id');

@@ -122,11 +122,19 @@ class WarehouseReceiptController extends BaseController
             'note' => $validatedData['note'] ?? '',
             'status' => $validatedData['status'] ?? null,
             'products' => array_map(function ($product) {
-                return [
+                $row = [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity'],
                     'price' => $product['price'],
                 ];
+                if (array_key_exists('orig_unit_id', $product)) {
+                    $row['orig_unit_id'] = $product['orig_unit_id'];
+                }
+                if (array_key_exists('orig_quantity', $product)) {
+                    $row['orig_quantity'] = $product['orig_quantity'];
+                }
+
+                return $row;
             }, $validatedData['products']),
         ];
 
@@ -194,6 +202,8 @@ class WarehouseReceiptController extends BaseController
                     'product_id' => (int) $product->product_id,
                     'quantity' => (float) $product->quantity,
                     'price' => (float) $product->price,
+                    'orig_unit_id' => $product->orig_unit_id !== null ? (int) $product->orig_unit_id : null,
+                    'orig_quantity' => $product->orig_quantity !== null ? (float) $product->orig_quantity : null,
                 ];
             }, $receipt->products->all()),
             'status' => array_key_exists('status', $validatedData) ? $validatedData['status'] : null,

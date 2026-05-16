@@ -6,8 +6,8 @@ use App\Http\Requests\StoreUnitRequest;
 use App\Http\Requests\UpdateUnitRequest;
 use App\Http\Resources\UnitResource;
 use App\Models\Product;
+use App\Models\ProductUnitConversion;
 use App\Models\Unit;
-use App\Models\UnitConversion;
 use App\Services\CacheService;
 use App\Support\CompanyScopedPermissions;
 use Illuminate\Http\JsonResponse;
@@ -97,7 +97,7 @@ class SettingsUnitsController extends BaseController
         if (Product::query()->where('unit_id', $unit->id)->exists()) {
             return $this->errorResponse(__('units.delete_in_use_by_products'), 422);
         }
-        if (UnitConversion::query()->where('company_id', $companyId)->where(function ($q) use ($unit) {
+        if (ProductUnitConversion::query()->where(function ($q) use ($unit) {
             $q->where('parent_unit_id', $unit->id)->orWhere('child_unit_id', $unit->id);
         })->exists()) {
             return $this->errorResponse(__('units.delete_in_use_by_conversions'), 422);

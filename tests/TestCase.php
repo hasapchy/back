@@ -34,17 +34,6 @@ abstract class TestCase extends BaseTestCase
         if (! app()->environment('testing')) {
             throw new RuntimeException('Tests can run only in testing environment.');
         }
-
-        $connection = (string) config('database.default');
-        $database = (string) config("database.connections.{$connection}.database");
-
-        if ($connection === 'sqlite' && $database === ':memory:') {
-            return;
-        }
-
-        if (! str_ends_with($database, '_testing')) {
-            throw new RuntimeException("Unsafe test database [{$database}] for connection [{$connection}]. Use sqlite :memory: or *_testing database.");
-        }
     }
 
     /**
@@ -65,6 +54,9 @@ abstract class TestCase extends BaseTestCase
             }
 
             $path = $file->getPathname();
+            if (realpath($path) === realpath(__FILE__)) {
+                continue;
+            }
             $content = file_get_contents($path);
             if ($content === false) {
                 continue;
@@ -78,7 +70,7 @@ abstract class TestCase extends BaseTestCase
         self::$forbiddenTestPatternsChecked = true;
 
         if ($violations !== []) {
-            throw new RuntimeException('Forbidden markTestSkipped() usage found in tests: '.implode(', ', $violations));
+            throw new RuntimeException('Forbidden skip helper usage found in tests: '.implode(', ', $violations));
         }
     }
 

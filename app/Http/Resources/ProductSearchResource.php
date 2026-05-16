@@ -40,6 +40,7 @@ class ProductSearchResource extends JsonResource
             'wholesale_price' => data_get($resource, 'wholesale_price'),
             'purchase_price' => data_get($resource, 'purchase_price'),
             'stock_by_units' => $resource->stock_by_units,
+            'alternate_unit_options' => data_get($resource, 'alternate_unit_options', []),
         ];
     }
 }

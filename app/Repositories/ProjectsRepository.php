@@ -325,6 +325,7 @@ class ProjectsRepository extends BaseRepository
                 'projects.date',
                 'projects.creator_id',
                 'projects.client_id',
+                'projects.status_id',
                 'projects.files',
                 'projects.created_at',
                 'projects.updated_at',
@@ -335,14 +336,13 @@ class ProjectsRepository extends BaseRepository
                     'client.emails:id,client_id,email',
                     'creator:id,name,photo',
                     'currency:id,name,symbol',
+                    'status:id,name,color,is_visible',
                     'users:id,name',
                     'projectUsers:id,project_id,user_id',
                 ])
                 ->where('id', $id);
 
-            $result = $query->first();
-
-            return $result;
+            return $query->first();
         }, $this->getCacheTTL('reference'));
     }
 

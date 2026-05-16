@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\Company;
 use App\Models\Warehouse;
 use App\Models\Product;
+use App\Models\ProductUnitConversion;
+use App\Models\Unit;
 use App\Models\Client;
 use App\Models\CashRegister;
 use App\Models\Currency;
@@ -104,6 +106,40 @@ class WarehouseReceiptControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson(['message' => 'Оприходование создано']);
+    }
+
+    public function test_store_warehouse_receipt_rejects_inconsistent_orig_quantity(): void
+    {
+        $piece = Unit::create(['name' => 'Piece r '.uniqid(), 'short_name' => 'шт']);
+        $box = Unit::create(['name' => 'Box r '.uniqid(), 'short_name' => 'кор']);
+        $this->product->update(['unit_id' => $piece->id]);
+        ProductUnitConversion::create([
+            'product_id' => $this->product->id,
+            'parent_unit_id' => $box->id,
+            'child_unit_id' => $piece->id,
+            'quantity' => '12',
+        ]);
+
+        $data = [
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 100,
+                    'price' => 100.00,
+                    'orig_unit_id' => $box->id,
+                    'orig_quantity' => 12,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/warehouse_receipts', $data);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['products.0.orig_unit_id']);
     }
 
     public function test_update_warehouse_receipt_success(): void

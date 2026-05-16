@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\WhPurchaseStatus;
+use App\Http\Requests\Concerns\ValidatesWarehouseProductLinesOrig;
 use App\Rules\CashRegisterAccessRule;
 use App\Rules\ClientAccessRule;
 use App\Rules\WarehouseAccessRule;
@@ -13,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class StoreWarehousePurchaseRequest extends FormRequest
 {
+    use ValidatesWarehouseProductLinesOrig;
+
     /**
      * @return bool
      */
@@ -26,7 +29,7 @@ class StoreWarehousePurchaseRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        return array_merge([
             'supplier_id' => ['required', 'integer', new ClientAccessRule()],
             'warehouse_id' => ['required', 'integer', new WarehouseAccessRule()],
             'client_balance_id' => 'nullable|integer|exists:client_balances,id',
@@ -39,7 +42,17 @@ class StoreWarehousePurchaseRequest extends FormRequest
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity' => 'required|numeric|gt:0',
             'products.*.price' => 'required|numeric|min:0',
-        ];
+        ], $this->warehouseProductLinesOrigRules());
+    }
+
+    /**
+     * @param  Validator  $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $this->addWarehouseProductLinesOrigPairValidator($validator);
+        $this->addWarehouseProductLinesOrigConsistencyValidator($validator);
     }
 
     /**

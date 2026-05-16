@@ -56,7 +56,7 @@ return [
 
     'reference_top_level_keys' => [
         'warehouses' => ['id', 'name', 'users'],
-        'cash_registers' => ['balance', 'color', 'currency', 'currency_id', 'icon', 'id', 'is_cash', 'is_working_minus', 'name', 'users'],
+        'cash_registers' => ['balance', 'color', 'created_at', 'creator', 'creator_id', 'currency', 'currency_id', 'icon', 'id', 'is_cash', 'is_working_minus', 'name', 'updated_at', 'users'],
         'categories' => ['creator', 'creator_id', 'id', 'name', 'parent_id', 'parent_name', 'users'],
         'order_statuses' => ['category', 'category_id', 'created_at', 'id', 'is_active', 'kanban_outcome', 'name', 'updated_at'],
         'project_statuses' => ['color', 'created_at', 'creator_id', 'id', 'is_visible', 'kanban_outcome', 'name', 'updated_at', 'user'],
@@ -128,8 +128,8 @@ return [
 
     'search_item_top_level_keys' => [
         'products' => [
-            'barcode', 'categories', 'category_id', 'category_name', 'description', 'id', 'image', 'name',
-            'purchase_price', 'retail_price', 'sku', 'stock_quantity', 'type', 'unit_id', 'unit_name', 'unit_short_name',
+            'alternate_unit_options', 'barcode', 'categories', 'category_id', 'category_name', 'description', 'id', 'image', 'name',
+            'purchase_price', 'retail_price', 'sku', 'stock_by_units', 'stock_quantity', 'type', 'unit_id', 'unit_name', 'unit_short_name',
             'wholesale_price',
         ],
         'users' => ['email', 'id', 'is_active', 'name', 'photo', 'position', 'surname'],

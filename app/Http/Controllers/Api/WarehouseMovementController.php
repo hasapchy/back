@@ -80,10 +80,18 @@ class WarehouseMovementController extends BaseController
             'date' => $validatedData['date'] ?? now(),
             'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
-                return [
+                $row = [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity'],
                 ];
+                if (array_key_exists('orig_unit_id', $product)) {
+                    $row['orig_unit_id'] = $product['orig_unit_id'];
+                }
+                if (array_key_exists('orig_quantity', $product)) {
+                    $row['orig_quantity'] = $product['orig_quantity'];
+                }
+
+                return $row;
             }, $validatedData['products']),
         ];
 
@@ -126,10 +134,18 @@ class WarehouseMovementController extends BaseController
             'date' => $validatedData['date'] ?? now(),
             'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
-                return [
+                $row = [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity'],
                 ];
+                if (array_key_exists('orig_unit_id', $product)) {
+                    $row['orig_unit_id'] = $product['orig_unit_id'];
+                }
+                if (array_key_exists('orig_quantity', $product)) {
+                    $row['orig_quantity'] = $product['orig_quantity'];
+                }
+
+                return $row;
             }, $validatedData['products']),
         ];
 

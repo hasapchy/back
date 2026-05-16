@@ -133,11 +133,19 @@ class WarehouseWriteoffController extends BaseController
             'source_receipt_id' => $validatedData['source_receipt_id'] ?? null,
             'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
-                return [
+                $row = [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity'],
                     'source_receipt_product_id' => $product['source_receipt_product_id'] ?? null,
                 ];
+                if (array_key_exists('orig_unit_id', $product)) {
+                    $row['orig_unit_id'] = $product['orig_unit_id'];
+                }
+                if (array_key_exists('orig_quantity', $product)) {
+                    $row['orig_quantity'] = $product['orig_quantity'];
+                }
+
+                return $row;
             }, $validatedData['products']),
         ];
 
@@ -180,11 +188,19 @@ class WarehouseWriteoffController extends BaseController
             'source_receipt_id' => $validatedData['source_receipt_id'] ?? null,
             'note' => $validatedData['note'] ?? '',
             'products' => array_map(function ($product) {
-                return [
+                $row = [
                     'product_id' => $product['product_id'],
                     'quantity' => $product['quantity'],
                     'source_receipt_product_id' => $product['source_receipt_product_id'] ?? null,
                 ];
+                if (array_key_exists('orig_unit_id', $product)) {
+                    $row['orig_unit_id'] = $product['orig_unit_id'];
+                }
+                if (array_key_exists('orig_quantity', $product)) {
+                    $row['orig_quantity'] = $product['orig_quantity'];
+                }
+
+                return $row;
             }, $validatedData['products']),
         ];
 

@@ -8,6 +8,7 @@ return [
     'conversion_conflicting_paths' => 'A different factor for these units is already implied by existing links.',
     'conversion_path_quantity_mismatch' => 'Quantity does not match the factor implied by existing links.',
     'delete_in_use_by_products' => 'This unit is assigned to products and cannot be deleted.',
-    'delete_in_use_by_conversions' => 'This unit is used in packaging links and cannot be deleted.',
+    'delete_in_use_by_conversions' => 'This unit is used in product packaging links and cannot be deleted.',
+    'invalid_unit_catalog_scope' => 'Pick units from your company catalog.',
     'system_unit_readonly' => 'System reference units cannot be renamed or deleted.',
 ];

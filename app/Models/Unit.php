@@ -17,8 +17,6 @@ use Illuminate\Database\Eloquent\Model;
  * @method static Builder|static forCompanyCatalog(?int $companyId)
  *
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Product[] $products
- * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\UnitConversion[] $conversionsAsParent
- * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\UnitConversion[] $conversionsAsChild
  */
 class Unit extends Model
 {
@@ -38,22 +36,6 @@ class Unit extends Model
     public function products()
     {
         return $this->hasMany(Product::class, 'unit_id');
-    }
-
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function conversionsAsParent()
-    {
-        return $this->hasMany(UnitConversion::class, 'parent_unit_id');
-    }
-
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function conversionsAsChild()
-    {
-        return $this->hasMany(UnitConversion::class, 'child_unit_id');
     }
 
     /**

@@ -13,6 +13,7 @@ use App\Models\WhReceiptProduct;
 use App\Models\WhPurchase;
 use App\Models\WhPurchaseProduct;
 use App\Models\WhUser;
+use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\Timeline\WarehouseTimelineCache;
 use App\Services\CurrencyConverter;
@@ -25,6 +26,8 @@ use Illuminate\Support\Facades\Log;
 
 class WarehouseReceiptRepository extends BaseRepository
 {
+    use ResolvesWarehouseLineOrigDisplay;
+
     /**
      * Получить оприходования с пагинацией
      *
@@ -147,9 +150,10 @@ class WarehouseReceiptRepository extends BaseRepository
                 'supplier.emails:id,client_id,email',
                 'purchase:id,supplier_id,status,amount',
                 'clientBalance:id,client_id,currency_id,type',
-                'products:id,receipt_id,product_id,quantity,price',
+                'products:id,receipt_id,product_id,quantity,price,orig_unit_id,orig_quantity',
                 'products.product:id,name,image,unit_id',
                 'products.product.unit:id,name,short_name',
+                'products.origUnit:id,name,short_name',
             ]);
 
         if ($this->shouldApplyUserFilter('warehouses')) {
@@ -250,6 +254,9 @@ class WarehouseReceiptRepository extends BaseRepository
                 $receiptProduct->product_id = $product['product_id'];
                 $receiptProduct->quantity = $product['quantity'];
                 $receiptProduct->price = $product['price'];
+                $orig = $this->resolveWarehouseLineOrigDisplay($product);
+                $receiptProduct->orig_unit_id = $orig['orig_unit_id'];
+                $receiptProduct->orig_quantity = $orig['orig_quantity'];
                 $receiptProduct->save();
             }
 
@@ -398,7 +405,10 @@ class WarehouseReceiptRepository extends BaseRepository
 
                 WhReceiptProduct::updateOrCreate(
                     ['receipt_id' => $receipt->id, 'product_id' => $product_id],
-                    ['quantity' => $quantity, 'price' => $price]
+                    array_merge(
+                        ['quantity' => $quantity, 'price' => $price],
+                        $this->resolveWarehouseLineOrigDisplay($product)
+                    )
                 );
 
                 $total_amount += $price * $quantity;
