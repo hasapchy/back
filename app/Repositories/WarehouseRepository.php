@@ -2,9 +2,11 @@
 
 namespace App\Repositories;
 
+use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WhUser;
 use App\Services\CacheService;
+use App\Support\SimpleUser;
 
 class WarehouseRepository extends BaseRepository
 {
@@ -25,13 +27,9 @@ class WarehouseRepository extends BaseRepository
         return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page) {
             $query = Warehouse::with(['users:id,name,surname,email,position']);
 
-            if ($this->shouldApplyUserFilter('warehouses')) {
-                $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
-                $warehouseIds = WhUser::where('user_id', $filterUserId)
-                    ->pluck('warehouse_id')
-                    ->toArray();
-
-                if (empty($warehouseIds)) {
+            $warehouseIds = $this->resolveAccessibleWarehouseIds($userUuid);
+            if ($warehouseIds !== null) {
+                if ($warehouseIds === []) {
                     return collect([])->paginate($perPage);
                 }
 
@@ -60,13 +58,9 @@ class WarehouseRepository extends BaseRepository
         return CacheService::getReferenceData($cacheKey, function () use ($userUuid) {
             $query = Warehouse::with(['users:id,name,surname,email,position']);
 
-            if ($this->shouldApplyUserFilter('warehouses')) {
-                $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
-                $warehouseIds = WhUser::where('user_id', $filterUserId)
-                    ->pluck('warehouse_id')
-                    ->toArray();
-
-                if (empty($warehouseIds)) {
+            $warehouseIds = $this->resolveAccessibleWarehouseIds($userUuid);
+            if ($warehouseIds !== null) {
+                if ($warehouseIds === []) {
                     return collect([]);
                 }
 
@@ -79,6 +73,35 @@ class WarehouseRepository extends BaseRepository
                 ->orderBy('name', 'asc')
                 ->get();
         });
+    }
+
+    /**
+     * ID складов, доступных пользователю (wh_users + simple_warehouse_id для simple).
+     *
+     * @return int[]|null null — без фильтра по привязкам (админ / view_all)
+     */
+    private function resolveAccessibleWarehouseIds(int $userUuid): ?array
+    {
+        if (! $this->shouldApplyUserFilter('warehouses')) {
+            return null;
+        }
+
+        $filterUserId = $this->getFilterUserIdForPermission('warehouses', $userUuid);
+        $warehouseIds = WhUser::where('user_id', $filterUserId)
+            ->pluck('warehouse_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $user = auth('api')->user();
+        if (! $user instanceof User || (int) $user->id !== $filterUserId) {
+            $user = User::query()->find($filterUserId);
+        }
+        $preferredWarehouseId = SimpleUser::preferredWarehouseId($user);
+        if ($preferredWarehouseId !== null) {
+            $warehouseIds[] = $preferredWarehouseId;
+        }
+
+        return array_values(array_unique($warehouseIds));
     }
 
     /**
