@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\WhWriteoffReason;
+use App\Http\Requests\Concerns\ValidatesWarehouseProductLinesOrig;
 use App\Rules\WarehouseAccessRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,6 +12,8 @@ use Illuminate\Validation\ValidationException;
 
 class UpdateWarehouseWriteoffRequest extends FormRequest
 {
+    use ValidatesWarehouseProductLinesOrig;
+
     /**
      * Определить, авторизован ли пользователь для выполнения этого запроса
      *
@@ -28,7 +31,7 @@ class UpdateWarehouseWriteoffRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        return array_merge([
             'warehouse_id' => ['required', 'integer', new WarehouseAccessRule()],
             'reason' => ['required', 'string', Rule::in(WhWriteoffReason::values())],
             'source_receipt_id' => ['nullable', 'integer', 'exists:wh_receipts,id', 'required_if:reason,'.WhWriteoffReason::ReturnSupplier->value],
@@ -37,7 +40,17 @@ class UpdateWarehouseWriteoffRequest extends FormRequest
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity' => 'required|numeric|min:0',
             'products.*.source_receipt_product_id' => 'nullable|integer|exists:wh_receipt_products,id',
-        ];
+        ], $this->warehouseProductLinesOrigRules());
+    }
+
+    /**
+     * @param Validator $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $this->addWarehouseProductLinesOrigPairValidator($validator);
+        $this->addWarehouseProductLinesOrigConsistencyValidator($validator);
     }
 
     /**

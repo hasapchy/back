@@ -12,6 +12,7 @@ use App\Models\WhReceiptProduct;
 use App\Models\WhUser;
 use App\Models\WhWriteoff;
 use App\Models\WhWriteoffProduct;
+use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\InventoryLockService;
 use App\Services\Timeline\WarehouseTimelineCache;
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\DB;
 
 class WarehouseWriteoffRepository extends BaseRepository
 {
+    use ResolvesWarehouseLineOrigDisplay;
+
     /**
      * Получить списания с пагинацией
      *
@@ -164,6 +167,10 @@ class WarehouseWriteoffRepository extends BaseRepository
                 'quantity' => (float) $p->quantity,
                 'price' => (float) $p->price,
                 'source_receipt_product_id' => $p->source_receipt_product_id !== null ? (int) $p->source_receipt_product_id : null,
+                'orig_unit_id' => $p->orig_unit_id !== null ? (int) $p->orig_unit_id : null,
+                'orig_quantity' => $p->orig_quantity !== null ? (float) $p->orig_quantity : null,
+                'orig_unit_name' => $p->orig_unit_name,
+                'orig_unit_short_name' => $p->orig_unit_short_name,
             ];
         })->values()->all();
 
@@ -231,6 +238,9 @@ class WarehouseWriteoffRepository extends BaseRepository
                 $writeoffProduct->quantity = $quantity;
                 $writeoffProduct->price = (float) ($product['price'] ?? 0);
                 $writeoffProduct->source_receipt_product_id = $product['source_receipt_product_id'] ?? null;
+                $orig = $this->resolveWarehouseLineOrigDisplay($product);
+                $writeoffProduct->orig_unit_id = $orig['orig_unit_id'];
+                $writeoffProduct->orig_quantity = $orig['orig_quantity'];
                 $writeoffProduct->save();
 
                 $this->updateStock($warehouse_id, $product_id, $quantity);
@@ -291,11 +301,14 @@ class WarehouseWriteoffRepository extends BaseRepository
 
                 WhWriteoffProduct::updateOrCreate(
                     ['write_off_id' => $writeoff->id, 'product_id' => $product_id],
-                    [
-                        'quantity' => $quantity,
-                        'price' => (float) ($product['price'] ?? 0),
-                        'source_receipt_product_id' => $product['source_receipt_product_id'] ?? null,
-                    ]
+                    array_merge(
+                        [
+                            'quantity' => $quantity,
+                            'price' => (float) ($product['price'] ?? 0),
+                            'source_receipt_product_id' => $product['source_receipt_product_id'] ?? null,
+                        ],
+                        $this->resolveWarehouseLineOrigDisplay($product)
+                    )
                 );
 
                 $existingProduct = $existingProducts->firstWhere('product_id', $product_id);
@@ -511,13 +524,13 @@ class WarehouseWriteoffRepository extends BaseRepository
         array $products
     ): array {
         if ($reason !== WhWriteoffReason::ReturnSupplier) {
-            return array_map(static function (array $product): array {
-                return [
+            return array_map(function (array $product): array {
+                return array_merge([
                     'product_id' => (int) $product['product_id'],
                     'quantity' => (float) $product['quantity'],
                     'price' => 0.0,
                     'source_receipt_product_id' => null,
-                ];
+                ], $this->resolveWarehouseLineOrigDisplay($product));
             }, $products);
         }
 
@@ -563,12 +576,12 @@ class WarehouseWriteoffRepository extends BaseRepository
                 throw new \RuntimeException('RETURN_QUANTITY_EXCEEDS_RECEIPT');
             }
 
-            return [
+            return array_merge([
                 'product_id' => $productId,
                 'quantity' => $quantity,
                 'price' => (float) $receiptLine->price,
                 'source_receipt_product_id' => $sourceReceiptProductId,
-            ];
+            ], $this->resolveWarehouseLineOrigDisplay($product));
         }, $products);
     }
 
@@ -618,6 +631,7 @@ class WarehouseWriteoffRepository extends BaseRepository
         return WhWriteoffProduct::whereIn('write_off_id', $wh_write_off_ids)
             ->leftJoin('products', 'wh_write_off_products.product_id', '=', 'products.id')
             ->leftJoin('units', 'products.unit_id', '=', 'units.id')
+            ->leftJoin('units as orig_units', 'wh_write_off_products.orig_unit_id', '=', 'orig_units.id')
             ->select(
                 'wh_write_off_products.id as id',
                 'wh_write_off_products.write_off_id as write_off_id',
@@ -629,7 +643,11 @@ class WarehouseWriteoffRepository extends BaseRepository
                 'units.short_name as unit_short_name',
                 'wh_write_off_products.quantity as quantity',
                 'wh_write_off_products.price as price',
-                'wh_write_off_products.source_receipt_product_id as source_receipt_product_id'
+                'wh_write_off_products.source_receipt_product_id as source_receipt_product_id',
+                'wh_write_off_products.orig_unit_id as orig_unit_id',
+                'wh_write_off_products.orig_quantity as orig_quantity',
+                'orig_units.name as orig_unit_name',
+                'orig_units.short_name as orig_unit_short_name'
             )
             ->get()
             ->groupBy('write_off_id');

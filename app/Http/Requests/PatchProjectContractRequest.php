@@ -2,10 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ProjectContractStatus;
 use App\Models\ProjectContract;
 use App\Models\Project;
 use App\Rules\CashRegisterTypeMatchRule;
 use App\Rules\ProjectAccessRule;
+use App\Support\ProjectContractActivationRules;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -15,6 +17,7 @@ class PatchProjectContractRequest extends FormRequest
 {
     private const PATCH_KEYS = [
         'project_id',
+        'status',
         'client_id',
         'number',
         'type',
@@ -28,6 +31,9 @@ class PatchProjectContractRequest extends FormRequest
         'note',
     ];
 
+    /**
+     * @return bool
+     */
     public function authorize(): bool
     {
         $contract = ProjectContract::query()->find($this->route('id'));
@@ -39,6 +45,9 @@ class PatchProjectContractRequest extends FormRequest
         return $this->user()->can('update', $contract);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         $contractId = $this->route('id');
@@ -53,6 +62,7 @@ class PatchProjectContractRequest extends FormRequest
 
         return [
             'project_id' => ['sometimes', 'integer', 'exists:projects,id', new ProjectAccessRule()],
+            'status' => ['sometimes', 'string', Rule::in(ProjectContractStatus::values())],
             'client_id' => [
                 'sometimes',
                 'nullable',
@@ -84,6 +94,10 @@ class PatchProjectContractRequest extends FormRequest
         ];
     }
 
+    /**
+     * @param Validator $validator
+     * @return void
+     */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
@@ -103,6 +117,17 @@ class PatchProjectContractRequest extends FormRequest
             $contractId = $this->route('id');
             $contract = $contractId ? ProjectContract::query()->with('project:id,client_id')->find($contractId) : null;
             if (! $contract) {
+                return;
+            }
+
+            $currentStatus = $contract->contractStatus();
+            $incomingStatus = $this->has('status')
+                ? ProjectContractActivationRules::resolveStatus($this->input('status'))
+                : $currentStatus;
+
+            if ($currentStatus === ProjectContractStatus::Active && $incomingStatus === ProjectContractStatus::Draft) {
+                $validator->errors()->add('status', __('Нельзя вернуть активный контракт в черновик.'));
+
                 return;
             }
 
@@ -128,21 +153,30 @@ class PatchProjectContractRequest extends FormRequest
                     $validator->errors()->add('project_id', __('Проект должен быть в той же валюте, что и контракт.'));
                 }
             }
-            if ($this->has('client_id')) {
-                $clientId = $this->input('client_id');
-                if ($projectClientId) {
-                    if ((int) $clientId !== (int) $projectClientId) {
-                        $validator->errors()->add('client_id', __('Клиент должен совпадать с клиентом проекта.'));
-                    }
-                } elseif ($clientId !== null && $clientId !== '') {
-                    $validator->errors()->add('client_id', __('У проекта не указан клиент.'));
-                }
-            }
 
-            $type = $this->has('type') ? (int) $this->input('type') : (int) $contract->type;
-            $number = $this->has('number') ? $this->input('number') : $contract->number;
-            if ($type === 0 && (! is_string($number) || trim($number) === '')) {
-                $validator->errors()->add('number', __('Для безналичного контракта укажите номер.'));
+            if ($currentStatus === ProjectContractStatus::Draft && $incomingStatus === ProjectContractStatus::Active) {
+                $merged = ProjectContractActivationRules::mergeEffectiveFields(
+                    $this->only(self::PATCH_KEYS),
+                    $contract->only(['project_id', 'client_id', 'number', 'type', 'amount', 'currency_id', 'cash_id', 'client_balance_id', 'date', 'returned', 'note'])
+                );
+                ProjectContractActivationRules::validateActiveFields($validator, $merged, $effectiveProjectId);
+            } elseif ($currentStatus === ProjectContractStatus::Active) {
+                $type = $this->has('type') ? (int) $this->input('type') : (int) $contract->type;
+                $number = $this->has('number') ? $this->input('number') : $contract->number;
+                if ($type === 0 && (! is_string($number) || trim((string) $number) === '')) {
+                    $validator->errors()->add('number', __('Для безналичного контракта укажите номер.'));
+                }
+
+                if ($this->has('client_id')) {
+                    $clientId = $this->input('client_id');
+                    if ($projectClientId) {
+                        if ((int) $clientId !== (int) $projectClientId) {
+                            $validator->errors()->add('client_id', __('Клиент должен совпадать с клиентом проекта.'));
+                        }
+                    } elseif ($clientId !== null && $clientId !== '') {
+                        $validator->errors()->add('client_id', __('У проекта не указан клиент.'));
+                    }
+                }
             }
         });
     }
@@ -165,6 +199,9 @@ class PatchProjectContractRequest extends FormRequest
         return $contract?->project_id ? (int) $contract->project_id : null;
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function messages(): array
     {
         return [
@@ -172,6 +209,9 @@ class PatchProjectContractRequest extends FormRequest
         ];
     }
 
+    /**
+     * @return void
+     */
     protected function prepareForValidation(): void
     {
         if ($this->has('returned')) {
@@ -181,6 +221,10 @@ class PatchProjectContractRequest extends FormRequest
         }
     }
 
+    /**
+     * @param Validator $validator
+     * @return void
+     */
     protected function failedValidation(Validator $validator)
     {
         throw (new ValidationException($validator))

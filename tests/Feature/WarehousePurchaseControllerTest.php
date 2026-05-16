@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\Currency;
 use App\Models\CurrencyHistory;
 use App\Models\Product;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WhPurchase;
@@ -141,6 +142,40 @@ class WarehousePurchaseControllerTest extends TestCase
             'source_id' => $purchaseId,
             'is_debt' => true,
             'orig_amount' => 50,
+        ]);
+    }
+
+    public function test_destroy_draft_purchase_soft_deletes_linked_transactions(): void
+    {
+        $createResponse = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 2,
+                    'price' => 15,
+                ],
+            ],
+        ]);
+        $createResponse->assertStatus(200);
+        $purchaseId = (int) $createResponse->json('data.id');
+
+        $txId = (int) Transaction::query()
+            ->where('source_type', WhPurchase::class)
+            ->where('source_id', $purchaseId)
+            ->where('is_deleted', false)
+            ->value('id');
+        $this->assertGreaterThan(0, $txId);
+
+        $deleteResponse = $this->actingAsApi($this->adminUser)->deleteJson("/api/warehouse_purchases/{$purchaseId}");
+        $deleteResponse->assertStatus(200);
+
+        $this->assertDatabaseMissing('wh_purchases', ['id' => $purchaseId]);
+        $this->assertDatabaseHas('transactions', [
+            'id' => $txId,
+            'is_deleted' => true,
         ]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProjectContractStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -16,6 +17,7 @@ use App\Contracts\SupportsTimeline;
  *
  * @property int $id
  * @property int $project_id ID проекта
+ * @property ProjectContractStatus $status Статус контракта (draft|active)
  * @property int|null $client_id ID клиента (как у проекта на момент сохранения)
  * @property int|null $creator_id ID пользователя, создавшего контракт
  * @property string $number Номер контракта
@@ -48,6 +50,7 @@ class ProjectContract extends Model implements SupportsTimeline
 
     protected $fillable = [
         'project_id',
+        'status',
         'client_id',
         'creator_id',
         'number',
@@ -64,6 +67,7 @@ class ProjectContract extends Model implements SupportsTimeline
     ];
 
     protected $casts = [
+        'status' => ProjectContractStatus::class,
         'date' => 'date',
         'type' => 'integer',
         'returned' => 'boolean',
@@ -91,6 +95,7 @@ class ProjectContract extends Model implements SupportsTimeline
         return LogOptions::defaults()
             ->logOnly([
                 'project_id',
+                'status',
                 'client_id',
                 'creator_id',
                 'number',
@@ -174,6 +179,34 @@ class ProjectContract extends Model implements SupportsTimeline
     public function transactions()
     {
         return $this->morphMany(Transaction::class, 'source');
+    }
+
+    /**
+     * @return ProjectContractStatus
+     */
+    public function contractStatus(): ProjectContractStatus
+    {
+        $status = $this->status;
+
+        return $status instanceof ProjectContractStatus
+            ? $status
+            : ProjectContractStatus::tryFrom((string) ($status ?? '')) ?? ProjectContractStatus::Draft;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isDraft(): bool
+    {
+        return $this->contractStatus() === ProjectContractStatus::Draft;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isActive(): bool
+    {
+        return $this->contractStatus() === ProjectContractStatus::Active;
     }
 
     /**

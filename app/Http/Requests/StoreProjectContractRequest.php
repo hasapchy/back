@@ -2,10 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ProjectContractStatus;
 use App\Models\Project;
 use App\Models\ProjectContract;
 use App\Rules\ProjectAccessRule;
 use App\Rules\CashRegisterTypeMatchRule;
+use App\Support\ProjectContractActivationRules;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -30,6 +32,26 @@ class StoreProjectContractRequest extends FormRequest
      */
     public function rules(): array
     {
+        $status = ProjectContractActivationRules::resolveStatus($this->input('status'));
+
+        if ($status === ProjectContractStatus::Draft) {
+            return [
+                'project_id' => ['required', new ProjectAccessRule()],
+                'status' => ['nullable', 'string', Rule::in(ProjectContractStatus::values())],
+                'client_id' => ['nullable', 'integer', 'exists:clients,id'],
+                'number' => 'nullable|string|max:255',
+                'type' => 'nullable|integer|in:0,1',
+                'amount' => 'nullable|numeric|min:0',
+                'currency_id' => 'nullable|exists:currencies,id',
+                'cash_id' => ['nullable', 'exists:cash_registers,id', new CashRegisterTypeMatchRule()],
+                'client_balance_id' => ['nullable', 'integer', 'exists:client_balances,id'],
+                'date' => 'nullable|date',
+                'returned' => 'nullable|boolean',
+                'files' => 'nullable|array',
+                'note' => 'nullable|string',
+            ];
+        }
+
         $projectClientId = null;
         $projectId = $this->input('project_id');
         if ($projectId) {
@@ -40,6 +62,7 @@ class StoreProjectContractRequest extends FormRequest
 
         return [
             'project_id' => ['required', new ProjectAccessRule()],
+            'status' => ['nullable', 'string', Rule::in(ProjectContractStatus::values())],
             'client_id' => [
                 Rule::requiredIf(fn () => (bool) $projectClientId),
                 'nullable',
@@ -79,6 +102,12 @@ class StoreProjectContractRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            $status = ProjectContractActivationRules::resolveStatus($this->input('status'));
+
+            if ($status === ProjectContractStatus::Draft) {
+                return;
+            }
+
             $projectId = $this->input('project_id');
             $project = $projectId ? Project::query()->select('id', 'client_id')->find($projectId) : null;
             $projectClientId = $project?->client_id;
@@ -116,6 +145,10 @@ class StoreProjectContractRequest extends FormRequest
 
         if (isset($data['returned'])) {
             $data['returned'] = filter_var($data['returned'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if (! isset($data['status']) || $data['status'] === null || $data['status'] === '') {
+            $data['status'] = ProjectContractStatus::Draft->value;
         }
 
         $this->merge($data);
