@@ -49,7 +49,10 @@ class ProjectContractsRepository extends BaseRepository
             'currencies.name as currency_name',
             'currencies.symbol as currency_symbol',
             'cash_registers.name as cash_register_name',
+            'cash_registers.icon as cash_register_icon',
+            'cash_registers.is_cash as cash_register_is_cash',
             'contract_creator.name as creator_name',
+            'contract_creator.photo as creator_photo',
         ])
             ->leftJoin('currencies', 'project_contracts.currency_id', '=', 'currencies.id')
             ->leftJoin('cash_registers', 'project_contracts.cash_id', '=', 'cash_registers.id')
@@ -116,11 +119,203 @@ class ProjectContractsRepository extends BaseRepository
             $contract->creator = $contract->creator_id ? [
                 'id' => (int) $contract->creator_id,
                 'name' => $contract->creator_name,
+                'photo' => $contract->creator_photo ?? null,
             ] : null;
-            unset($contract->creator_name);
+            unset($contract->creator_name, $contract->creator_photo);
         }
 
         return $contracts;
+    }
+
+    /**
+     * @param  Collection|iterable  $contracts
+     * @return Collection|iterable
+     */
+    private function normalizeContractClients($contracts)
+    {
+        $collection = collect($contracts);
+
+        foreach ($collection as $contract) {
+            $first = trim((string) ($contract->client_first_name ?? ''));
+            $last = trim((string) ($contract->client_last_name ?? ''));
+            $name = trim($first.' '.$last);
+            $contract->client_name = $name !== '' ? $name : null;
+            $contract->client = ($contract->client_id ?? null)
+                ? [
+                    'id' => (int) $contract->client_id,
+                    'name' => $contract->client_name,
+                    'client_type' => $contract->client_type ?? null,
+                ]
+                : null;
+            unset($contract->client_first_name, $contract->client_last_name, $contract->client_type);
+        }
+
+        return $contracts;
+    }
+
+    /**
+     * @param  Collection|iterable  $contracts
+     * @return Collection|iterable
+     */
+    private function normalizeContractCashRegisters($contracts)
+    {
+        $collection = collect($contracts);
+
+        foreach ($collection as $contract) {
+            $contract->cash_register = ($contract->cash_id ?? null)
+                ? [
+                    'id' => (int) $contract->cash_id,
+                    'name' => $contract->cash_register_name ?? null,
+                    'icon' => $contract->cash_register_icon ?? null,
+                    'is_cash' => (bool) ($contract->cash_register_is_cash ?? false),
+                ]
+                : null;
+            unset($contract->cash_register_icon, $contract->cash_register_is_cash);
+        }
+
+        return $contracts;
+    }
+
+    /**
+     * Aggregated counts for mobile/web list header (respects filters except payment/returned when counting those dimensions).
+     *
+     * @return list<array{id: string, count: int, color?: string}>
+     */
+    public function getMetaSectionsForFilters(
+        ?string $search = null,
+        ?int $projectId = null,
+        ?int $cashId = null,
+        ?int $type = null,
+        bool $activeProjectsOnly = false,
+        ?int $projectStatusId = null,
+        ?int $userId = null,
+        ?string $contractStatus = null,
+    ): array {
+        $query = $this->buildAllContractsListQuery(
+            search: $search,
+            projectId: $projectId,
+            paymentStatus: null,
+            returned: null,
+            cashId: $cashId,
+            type: $type,
+            activeProjectsOnly: $activeProjectsOnly,
+            projectStatusId: $projectStatusId,
+            userId: $userId,
+            contractStatus: $contractStatus,
+        );
+
+        $total = (clone $query)->count('project_contracts.id');
+        $unpaid = (clone $query)->whereRaw('project_contracts.paid_amount <= 0')->count('project_contracts.id');
+        $partiallyPaid = (clone $query)
+            ->whereRaw('project_contracts.paid_amount > 0 AND project_contracts.paid_amount < project_contracts.amount')
+            ->count('project_contracts.id');
+        $paid = (clone $query)
+            ->whereRaw('project_contracts.paid_amount >= project_contracts.amount AND project_contracts.amount > 0')
+            ->count('project_contracts.id');
+        $returned = (clone $query)->where('project_contracts.returned', 1)->count('project_contracts.id');
+        $notReturned = (clone $query)->where('project_contracts.returned', 0)->count('project_contracts.id');
+
+        return [
+            ['id' => 'total', 'count' => $total],
+            ['id' => 'unpaid', 'count' => $unpaid, 'color' => '#EF4444'],
+            ['id' => 'partially_paid', 'count' => $partiallyPaid, 'color' => '#F59E0B'],
+            ['id' => 'paid', 'count' => $paid, 'color' => '#22C55E'],
+            ['id' => 'returned', 'count' => $returned, 'color' => '#22C55E'],
+            ['id' => 'not_returned', 'count' => $notReturned, 'color' => '#EF4444'],
+        ];
+    }
+
+    /**
+     * @return Builder
+     */
+    private function buildAllContractsListQuery(
+        ?string $search = null,
+        ?int $projectId = null,
+        ?string $paymentStatus = null,
+        ?bool $returned = null,
+        ?int $cashId = null,
+        ?int $type = null,
+        bool $activeProjectsOnly = false,
+        ?int $projectStatusId = null,
+        ?int $userId = null,
+        ?string $contractStatus = null,
+    ) {
+        $query = $this->getBaseQuery()
+            ->leftJoin('projects', 'project_contracts.project_id', '=', 'projects.id')
+            ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
+            ->addSelect(
+                'projects.name as project_name',
+                'clients.id as client_id',
+                'clients.first_name as client_first_name',
+                'clients.last_name as client_last_name',
+                'clients.client_type as client_type',
+            );
+
+        $companyId = $this->getCurrentCompanyId();
+        if ($companyId) {
+            $query->where('projects.company_id', $companyId);
+        }
+
+        if ($userId !== null) {
+            $query->where('project_contracts.creator_id', $userId);
+        }
+
+        if ($activeProjectsOnly) {
+            $query->join('project_statuses', 'projects.status_id', '=', 'project_statuses.id')
+                ->where('project_statuses.is_visible', true);
+        }
+
+        if ($projectStatusId !== null) {
+            $query->where('projects.status_id', $projectStatusId);
+        }
+
+        if ($projectId) {
+            $query->where('project_contracts.project_id', $projectId);
+        }
+
+        $this->applyContractStatusFilter($query, $contractStatus);
+        $this->applyPaymentStatusFilter($query, $paymentStatus);
+        $query->when($returned !== null, function ($q) use ($returned) {
+            return $q->where('project_contracts.returned', $returned ? 1 : 0);
+        })
+            ->when($cashId !== null, function ($q) use ($cashId) {
+                return $q->where('project_contracts.cash_id', $cashId);
+            })
+            ->when($type !== null, function ($q) use ($type) {
+                return $q->where('project_contracts.type', $type);
+            });
+
+        if ($search) {
+            $searchTrimmed = trim((string) $search);
+            $searchLower = mb_strtolower($searchTrimmed);
+            $query->where(function ($q) use ($searchTrimmed, $searchLower) {
+                $q->where('project_contracts.number', 'like', "%{$searchTrimmed}%")
+                    ->orWhere('project_contracts.amount', 'like', "%{$searchTrimmed}%")
+                    ->orWhere('projects.name', 'like', "%{$searchTrimmed}%")
+                    ->orWhereExists(function ($sub) use ($searchTrimmed) {
+                        $sub->select(DB::raw(1))
+                            ->from('clients')
+                            ->whereColumn('clients.id', 'projects.client_id')
+                            ->where(function ($cq) use ($searchTrimmed) {
+                                $this->applyClientSearchConditions($cq, $searchTrimmed, 'clients');
+                            });
+                    })
+                    ->orWhereExists(function ($phoneSub) use ($searchLower) {
+                        $phoneSub->select(DB::raw(1))
+                            ->from('clients_phones')
+                            ->whereColumn('clients_phones.client_id', 'projects.client_id')
+                            ->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
+                    })
+                    ->orWhereExists(function ($emailSub) use ($searchLower) {
+                        $emailSub->select(DB::raw(1))
+                            ->from('clients_emails')
+                            ->whereColumn('clients_emails.client_id', 'projects.client_id')
+                            ->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
+                    });
+            });
+        }
+
+        return $query;
     }
 
     /**
@@ -313,77 +508,25 @@ class ProjectContractsRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('all_contracts_paginated', [$perPage, $page, $searchKey, $projectId, $paymentStatus, $returnedKey, $cashId, $type, $activeProjectsOnly, $projectStatusId, $statusKey]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId, $contractStatus) {
-
-            $query = $this->getBaseQuery()
-                ->leftJoin('projects', 'project_contracts.project_id', '=', 'projects.id')
-                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
-                ->addSelect('projects.name as project_name', 'projects.id as project_id',
-                    'clients.id as client_id', 'clients.first_name as client_first_name', 'clients.last_name as client_last_name');
-
-            $companyId = $this->getCurrentCompanyId();
-            if ($companyId) {
-                $query->where('projects.company_id', $companyId);
-            }
-
-            if ($activeProjectsOnly) {
-                $query->join('project_statuses', 'projects.status_id', '=', 'project_statuses.id')
-                    ->where('project_statuses.is_visible', true);
-            }
-
-            if ($projectStatusId !== null) {
-                $query->where('projects.status_id', $projectStatusId);
-            }
-
-            if ($projectId) {
-                $query->where('project_contracts.project_id', $projectId);
-            }
-
-            $this->applyContractStatusFilter($query, $contractStatus);
-            $this->applyPaymentStatusFilter($query, $paymentStatus);
-            $query->when($returned !== null, function ($q) use ($returned) {
-                return $q->where('project_contracts.returned', $returned ? 1 : 0);
-            })
-                ->when($cashId !== null, function ($q) use ($cashId) {
-                    return $q->where('project_contracts.cash_id', $cashId);
-                })
-                ->when($type !== null, function ($q) use ($type) {
-                    return $q->where('project_contracts.type', $type);
-                });
-
-            if ($search) {
-                $searchTrimmed = trim((string) $search);
-                $searchLower = mb_strtolower($searchTrimmed);
-                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
-                    $q->where('project_contracts.number', 'like', "%{$searchTrimmed}%")
-                        ->orWhere('project_contracts.amount', 'like', "%{$searchTrimmed}%")
-                        ->orWhere('projects.name', 'like', "%{$searchTrimmed}%")
-                        ->orWhereExists(function ($sub) use ($searchTrimmed) {
-                            $sub->select(DB::raw(1))
-                                ->from('clients')
-                                ->whereColumn('clients.id', 'projects.client_id')
-                                ->where(function ($cq) use ($searchTrimmed) {
-                                    $this->applyClientSearchConditions($cq, $searchTrimmed, 'clients');
-                                });
-                        })
-                        ->orWhereExists(function ($phoneSub) use ($searchLower) {
-                            $phoneSub->select(DB::raw(1))
-                                ->from('clients_phones')
-                                ->whereColumn('clients_phones.client_id', 'projects.client_id')
-                                ->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
-                        })
-                        ->orWhereExists(function ($emailSub) use ($searchLower) {
-                            $emailSub->select(DB::raw(1))
-                                ->from('clients_emails')
-                                ->whereColumn('clients_emails.client_id', 'projects.client_id')
-                                ->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
-                        });
-                });
-            }
+            $query = $this->buildAllContractsListQuery(
+                search: $search,
+                projectId: $projectId,
+                paymentStatus: $paymentStatus,
+                returned: $returned,
+                cashId: $cashId,
+                type: $type,
+                activeProjectsOnly: $activeProjectsOnly,
+                projectStatusId: $projectStatusId,
+                contractStatus: $contractStatus,
+            );
 
             $paginator = $query->orderBy('project_contracts.id', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int) $page);
-            $this->enrichContractsWithPaymentStatus($paginator->getCollection());
-            $this->normalizeContractCreators($paginator->getCollection());
+            $collection = $paginator->getCollection();
+            $this->enrichContractsWithPaymentStatus($collection);
+            $this->normalizeContractCreators($collection);
+            $this->normalizeContractClients($collection);
+            $this->normalizeContractCashRegisters($collection);
 
             return $paginator;
         }, (int) $page);
@@ -414,77 +557,26 @@ class ProjectContractsRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('all_contracts_paginated_user', [$perPage, $page, $searchKey, $projectId, $userId, $paymentStatus, $returnedKey, $cashId, $type, $activeProjectsOnly, $projectStatusId, $statusKey]);
 
         return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $search, $page, $projectId, $userId, $paymentStatus, $returned, $cashId, $type, $activeProjectsOnly, $projectStatusId, $contractStatus) {
-
-            $query = $this->getBaseQuery()
-                ->leftJoin('projects', 'project_contracts.project_id', '=', 'projects.id')
-                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
-                ->addSelect('projects.name as project_name', 'projects.id as project_id',
-                    'clients.id as client_id', 'clients.first_name as client_first_name', 'clients.last_name as client_last_name')
-                ->where('project_contracts.creator_id', $userId);
-
-            $companyId = $this->getCurrentCompanyId();
-            if ($companyId) {
-                $query->where('projects.company_id', $companyId);
-            }
-
-            if ($activeProjectsOnly) {
-                $query->join('project_statuses', 'projects.status_id', '=', 'project_statuses.id')
-                    ->where('project_statuses.is_visible', true);
-            }
-
-            if ($projectStatusId !== null) {
-                $query->where('projects.status_id', $projectStatusId);
-            }
-
-            $query->when($projectId, function ($q) use ($projectId) {
-                return $q->where('project_contracts.project_id', $projectId);
-            });
-            $this->applyContractStatusFilter($query, $contractStatus);
-            $this->applyPaymentStatusFilter($query, $paymentStatus);
-            $query->when($returned !== null, function ($q) use ($returned) {
-                return $q->where('project_contracts.returned', $returned ? 1 : 0);
-            })
-                ->when($cashId !== null, function ($q) use ($cashId) {
-                    return $q->where('project_contracts.cash_id', $cashId);
-                })
-                ->when($type !== null, function ($q) use ($type) {
-                    return $q->where('project_contracts.type', $type);
-                });
-
-            if ($search) {
-                $searchTrimmed = trim((string) $search);
-                $searchLower = mb_strtolower($searchTrimmed);
-                $query->where(function ($q) use ($searchTrimmed, $searchLower) {
-                    $q->where('project_contracts.number', 'like', "%{$searchTrimmed}%")
-                        ->orWhere('project_contracts.amount', 'like', "%{$searchTrimmed}%")
-                        ->orWhere('projects.name', 'like', "%{$searchTrimmed}%")
-                        ->orWhereExists(function ($sub) use ($searchTrimmed) {
-                            $sub->select(DB::raw(1))
-                                ->from('clients')
-                                ->whereColumn('clients.id', 'projects.client_id')
-                                ->where(function ($cq) use ($searchTrimmed) {
-                                    $this->applyClientSearchConditions($cq, $searchTrimmed, 'clients');
-                                });
-                        })
-                        ->orWhereExists(function ($phoneSub) use ($searchLower) {
-                            $phoneSub->select(DB::raw(1))
-                                ->from('clients_phones')
-                                ->whereColumn('clients_phones.client_id', 'projects.client_id')
-                                ->whereRaw('LOWER(phone) LIKE ?', ["%{$searchLower}%"]);
-                        })
-                        ->orWhereExists(function ($emailSub) use ($searchLower) {
-                            $emailSub->select(DB::raw(1))
-                                ->from('clients_emails')
-                                ->whereColumn('clients_emails.client_id', 'projects.client_id')
-                                ->whereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"]);
-                        });
-                });
-            }
+            $query = $this->buildAllContractsListQuery(
+                search: $search,
+                projectId: $projectId,
+                paymentStatus: $paymentStatus,
+                returned: $returned,
+                cashId: $cashId,
+                type: $type,
+                activeProjectsOnly: $activeProjectsOnly,
+                projectStatusId: $projectStatusId,
+                userId: $userId,
+                contractStatus: $contractStatus,
+            );
 
             $paginator = $query->orderBy('project_contracts.id', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int) $page);
-            $this->enrichContractsWithPaymentStatus($paginator->getCollection());
-            $this->normalizeContractCreators($paginator->getCollection());
+            $collection = $paginator->getCollection();
+            $this->enrichContractsWithPaymentStatus($collection);
+            $this->normalizeContractCreators($collection);
+            $this->normalizeContractClients($collection);
+            $this->normalizeContractCashRegisters($collection);
 
             return $paginator;
         }, (int) $page);

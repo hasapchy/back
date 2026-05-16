@@ -52,19 +52,7 @@ class StoreCashRegisterRequest extends FormRequest
 
     private function allowedIcons(): array
     {
-        return [
-            'fa-solid fa-building-columns',
-            'fa-solid fa-ticket',
-            'fa-solid fa-location-dot',
-            'fa-solid fa-fire',
-            'fa-solid fa-thumbs-up',
-            'fa-solid fa-dollar-sign',
-            'fa-solid fa-cash-register',
-            'fa-solid fa-credit-card',
-            'fa-solid fa-briefcase',
-            'fa-solid fa-user',
-            'fa-solid fa-star',
-        ];
+        return CashRegister::ALLOWED_ICONS;
     }
 
     /**

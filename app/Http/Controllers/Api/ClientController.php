@@ -231,6 +231,25 @@ class ClientController extends BaseController
     }
 
     /**
+     * Сводка взаиморасчётов по всем валютам (без конвертации).
+     *
+     * @return JsonResponse
+     */
+    public function settlementsSummary(): JsonResponse
+    {
+        try {
+            $items = $this->itemsRepository->getSettlementsSummaryByCurrency();
+
+            return $this->successResponse(['by_currency' => $items]);
+        } catch (\Throwable $e) {
+            return $this->errorResponse(
+                'Ошибка при получении сводки взаиморасчётов: '.$e->getMessage(),
+                500
+            );
+        }
+    }
+
+    /**
      * Получить всех клиентов
      *
      * @return JsonResponse
