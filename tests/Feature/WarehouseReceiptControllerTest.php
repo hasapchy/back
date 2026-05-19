@@ -11,10 +11,13 @@ use App\Models\Unit;
 use App\Models\Client;
 use App\Models\CashRegister;
 use App\Models\Currency;
+use App\Models\CurrencyHistory;
 use App\Models\Transaction;
 use App\Models\WarehouseStock;
+use App\Models\WhPurchase;
 use App\Models\WhReceipt;
 use App\Repositories\WarehouseReceiptRepository;
+use App\Services\CacheService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
@@ -106,6 +109,81 @@ class WarehouseReceiptControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson(['message' => 'Оприходование создано']);
+
+        $receiptId = (int) WhReceipt::query()->orderByDesc('id')->value('id');
+        $this->assertDatabaseHas('wh_receipts', [
+            'id' => $receiptId,
+            'orig_amount' => 1000,
+            'orig_currency_id' => $this->cashRegister->currency_id,
+            'amount' => 1000,
+        ]);
+        $this->assertDatabaseHas('wh_receipt_products', [
+            'receipt_id' => $receiptId,
+            'product_id' => $this->product->id,
+            'orig_unit_price' => 100,
+            'orig_currency_id' => $this->cashRegister->currency_id,
+            'price' => 100,
+        ]);
+    }
+
+    public function test_store_warehouse_receipt_converts_document_currency_to_default_amount(): void
+    {
+        $defaultCurrency = Currency::query()
+            ->where('company_id', $this->company->id)
+            ->where('is_default', true)
+            ->firstOrFail();
+        $usdCurrency = Currency::factory()->create([
+            'company_id' => $this->company->id,
+            'is_default' => false,
+            'is_report' => false,
+        ]);
+        CurrencyHistory::query()->create([
+            'currency_id' => $defaultCurrency->id,
+            'company_id' => $this->company->id,
+            'exchange_rate' => 1,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => null,
+        ]);
+        CurrencyHistory::query()->create([
+            'currency_id' => $usdCurrency->id,
+            'company_id' => $this->company->id,
+            'exchange_rate' => 2,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => null,
+        ]);
+        $usdCashRegister = CashRegister::factory()->create([
+            'company_id' => $this->company->id,
+            'currency_id' => $usdCurrency->id,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_receipts', [
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $usdCashRegister->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 5,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $receiptId = (int) WhReceipt::query()->orderByDesc('id')->value('id');
+        $this->assertDatabaseHas('wh_receipts', [
+            'id' => $receiptId,
+            'orig_amount' => 50,
+            'orig_currency_id' => $usdCurrency->id,
+            'amount' => 100,
+        ]);
+        $this->assertDatabaseHas('wh_receipt_products', [
+            'receipt_id' => $receiptId,
+            'product_id' => $this->product->id,
+            'orig_unit_price' => 10,
+            'orig_currency_id' => $usdCurrency->id,
+            'price' => 20,
+        ]);
     }
 
     public function test_store_warehouse_receipt_rejects_inconsistent_orig_quantity(): void
@@ -243,13 +321,11 @@ class WarehouseReceiptControllerTest extends TestCase
             ->where('is_deleted', false)
             ->orderBy('id')
             ->get();
-        $this->assertCount(2, $txs);
+        $this->assertCount(1, $txs);
         $this->assertSame(1, $txs->where('is_debt', true)->count());
-        $this->assertSame(1, $txs->where('is_debt', false)->count());
+        $this->assertSame(0, $txs->where('is_debt', false)->count());
         $this->assertEqualsWithDelta(60.0, (float) $txs->where('is_debt', true)->first()->orig_amount, 0.01);
-        $this->assertEqualsWithDelta(60.0, (float) $txs->where('is_debt', false)->first()->orig_amount, 0.01);
         $this->assertEquals((int) $defaultCurrency->id, (int) $txs->where('is_debt', true)->first()->currency_id);
-        $this->assertEquals((int) $defaultCurrency->id, (int) $txs->where('is_debt', false)->first()->currency_id);
 
         $repo->completeReceipt((int) $receiptId);
 
@@ -260,6 +336,91 @@ class WarehouseReceiptControllerTest extends TestCase
         $this->assertEqualsWithDelta(3.0, (float) ($stockAfterComplete ?? 0.0), 1e-9);
 
         $this->assertSame('completed', (string) WhReceipt::query()->findOrFail((int) $receiptId)->status->value);
+    }
+
+    public function test_standalone_receipt_payment_status_after_create_and_partial_payment(): void
+    {
+        $createResponse = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_receipts', [
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 10,
+                    'price' => 100.00,
+                ],
+            ],
+        ]);
+        $createResponse->assertStatus(200);
+
+        $receiptId = (int) WhReceipt::query()->orderByDesc('id')->value('id');
+        $showResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_receipts/{$receiptId}");
+        $showResponse->assertStatus(200);
+        $showResponse->assertJsonPath('data.payment_status', 'unpaid');
+
+        $currencyId = (int) $this->cashRegister->currency_id;
+        Transaction::query()->create([
+            'type' => 0,
+            'creator_id' => $this->adminUser->id,
+            'orig_amount' => 400,
+            'amount' => 400,
+            'def_amount' => 400,
+            'currency_id' => $currencyId,
+            'cash_id' => $this->cashRegister->id,
+            'category_id' => 6,
+            'client_id' => $this->client->id,
+            'exchange_rate' => 1,
+            'date' => now(),
+            'is_debt' => false,
+            'is_deleted' => false,
+            'source_type' => WhReceipt::class,
+            'source_id' => $receiptId,
+        ]);
+        CacheService::invalidateWarehouseReceiptsCache();
+
+        $partialResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_receipts/{$receiptId}");
+        $partialResponse->assertStatus(200);
+        $partialResponse->assertJsonPath('data.payment_status', 'partially_paid');
+
+        $unpaidIndex = $this->actingAsApi($this->adminUser)->getJson('/api/warehouse_receipts?payment_status=unpaid');
+        $unpaidIndex->assertStatus(200);
+        $unpaidIds = collect($unpaidIndex->json('data.items'))->pluck('id')->map(fn ($id) => (int) $id);
+        $this->assertTrue($unpaidIds->contains($receiptId));
+    }
+
+    public function test_receipt_from_purchase_has_null_payment_status(): void
+    {
+        $purchase = WhPurchase::query()->create([
+            'supplier_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'creator_id' => $this->adminUser->id,
+            'status' => 'approved',
+            'date' => now(),
+            'amount' => 500,
+            'orig_amount' => 500,
+            'orig_currency_id' => $this->cashRegister->currency_id,
+        ]);
+
+        $receipt = WhReceipt::query()->create([
+            'warehouse_id' => $this->warehouse->id,
+            'supplier_id' => $this->client->id,
+            'purchase_id' => $purchase->id,
+            'cash_id' => $this->cashRegister->id,
+            'creator_id' => $this->adminUser->id,
+            'status' => 'completed',
+            'date' => now(),
+            'amount' => 500,
+            'orig_amount' => 500,
+            'orig_currency_id' => $this->cashRegister->currency_id,
+        ]);
+
+        CacheService::invalidateWarehouseReceiptsCache();
+
+        $showResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_receipts/{$receipt->id}");
+        $showResponse->assertStatus(200);
+        $showResponse->assertJsonPath('data.payment_status', null);
     }
 }
 

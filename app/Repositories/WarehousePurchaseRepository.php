@@ -9,6 +9,7 @@ use App\Models\WhPurchaseProduct;
 use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\RoundingService;
+use App\Services\WarehouseDocumentPaymentStatusService;
 use App\Models\Transaction;
 use App\Services\Timeline\WarehouseTimelineCache;
 use Illuminate\Support\Facades\DB;
@@ -20,11 +21,11 @@ class WarehousePurchaseRepository extends BaseRepository
     /**
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<WhPurchase>
      */
-    public function getItemsWithPagination(int $perPage = 20, int $page = 1, ?int $supplierId = null, ?string $status = null)
+    public function getItemsWithPagination(int $perPage = 20, int $page = 1, ?int $supplierId = null, ?string $status = null, ?string $paymentStatus = null)
     {
-        $cacheKey = $this->generateCacheKey('warehouse_purchases_paginated', [$perPage, $page, $supplierId, $status]);
+        $cacheKey = $this->generateCacheKey('warehouse_purchases_paginated', [$perPage, $page, $supplierId, $status, $paymentStatus]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $page, $supplierId, $status) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($perPage, $page, $supplierId, $status, $paymentStatus) {
             $query = WhPurchase::query()
                 ->with([
                     'supplier:id,first_name,last_name,status',
@@ -34,8 +35,9 @@ class WarehousePurchaseRepository extends BaseRepository
                     'clientBalance:id,client_id,currency_id,type',
                     'cashRegister:id,name,currency_id,is_cash',
                     'currency:id,symbol',
+                    'origCurrency:id,symbol',
                     'creator:id,name',
-                    'products:id,purchase_id,product_id,quantity,price,orig_unit_id,orig_quantity',
+                    'products:id,purchase_id,product_id,quantity,price,orig_unit_price,orig_currency_id,orig_unit_id,orig_quantity',
                     'products.product:id,name,image,unit_id',
                     'products.product.unit:id,name,short_name',
                     'products.origUnit:id,name,short_name',
@@ -54,7 +56,12 @@ class WarehousePurchaseRepository extends BaseRepository
                 $query->where('status', $statusEnum->value);
             }
 
-            return $query->orderByDesc('created_at')->paginate($perPage, ['*'], 'page', $page);
+            app(WarehouseDocumentPaymentStatusService::class)->applyPurchasePaymentStatusFilter($query, $paymentStatus);
+
+            $paginator = $query->orderByDesc('created_at')->paginate($perPage, ['*'], 'page', $page);
+            app(WarehouseDocumentPaymentStatusService::class)->attachPaymentStatusToPurchases($paginator->getCollection());
+
+            return $paginator;
         }, $page);
     }
 
@@ -75,8 +82,9 @@ class WarehousePurchaseRepository extends BaseRepository
                     'clientBalance:id,client_id,currency_id,type',
                     'cashRegister:id,name,currency_id,is_cash',
                     'currency:id,symbol',
+                    'origCurrency:id,symbol',
                     'creator:id,name',
-                    'products:id,purchase_id,product_id,quantity,price,orig_unit_id,orig_quantity',
+                    'products:id,purchase_id,product_id,quantity,price,orig_unit_price,orig_currency_id,orig_unit_id,orig_quantity',
                     'products.product:id,name,image,unit_id',
                     'products.product.unit:id,name,short_name',
                     'products.origUnit:id,name,short_name',
@@ -85,7 +93,12 @@ class WarehousePurchaseRepository extends BaseRepository
                 ]);
             $query = $this->addCompanyFilterThroughRelation($query, 'supplier');
 
-            return $query->find($id);
+            $purchase = $query->find($id);
+            if ($purchase) {
+                app(WarehouseDocumentPaymentStatusService::class)->attachPaymentStatusToPurchases([$purchase]);
+            }
+
+            return $purchase;
         });
     }
 
@@ -103,9 +116,12 @@ class WarehousePurchaseRepository extends BaseRepository
             $purchaseCashId = $this->resolvePurchaseCashId($data);
             $amountOrig = 0.0;
 
+            $linePayloads = [];
             foreach ($products as $idx => $product) {
                 $products[$idx]['quantity'] = $rounding->roundQuantityForCompany($companyId, (float) $product['quantity']);
-                $amountOrig += (float) $products[$idx]['quantity'] * (float) $product['price'];
+                $lineOrig = $this->resolveWarehouseLineOrigAmount($products[$idx], $purchaseCurrencyId, $data['date'] ?? null);
+                $linePayloads[$idx] = array_merge($this->resolveWarehouseLineOrigDisplay($product), $lineOrig);
+                $amountOrig += (float) $products[$idx]['quantity'] * (float) $lineOrig['orig_unit_price'];
             }
             $amountOrig = $rounding->roundForCompany($companyId, $amountOrig);
             $amountDefault = $purchaseCurrencyId === (int) $defaultCurrency->id
@@ -123,15 +139,16 @@ class WarehousePurchaseRepository extends BaseRepository
             $purchase->date = $data['date'] ?? now();
             $purchase->note = $data['note'] ?? null;
             $purchase->amount = $amountDefault;
+            $purchase->orig_amount = $amountOrig;
+            $purchase->orig_currency_id = $purchaseCurrencyId;
             $purchase->save();
 
-            foreach ($products as $product) {
+            foreach ($products as $idx => $product) {
                 WhPurchaseProduct::query()->create(array_merge([
                     'purchase_id' => $purchase->id,
                     'product_id' => (int) $product['product_id'],
                     'quantity' => (float) $product['quantity'],
-                    'price' => (float) $product['price'],
-                ], $this->resolveWarehouseLineOrigDisplay($product)));
+                ], $linePayloads[$idx]));
             }
 
             $this->createTransactionForSource([
@@ -147,7 +164,7 @@ class WarehousePurchaseRepository extends BaseRepository
                 'date' => $purchase->date,
                 'note' => $purchase->note,
                 'is_debt' => true,
-            ], \App\Models\WhPurchase::class, (int) $purchase->id, true);
+            ], WhPurchase::class, (int) $purchase->id, true);
 
             $this->invalidateCaches();
             WarehouseTimelineCache::forgetPurchase((int) $purchase->id, (int) $purchase->supplier_id);
@@ -184,38 +201,77 @@ class WarehousePurchaseRepository extends BaseRepository
 
             $rounding = new RoundingService();
             $companyId = $this->getCurrentCompanyId();
+            $defaultCurrency = $this->getDefaultCurrency();
+            $purchaseCurrencyId = (int) ($purchase->currency_id ?? $defaultCurrency->id);
             $amountOrig = 0.0;
             if (isset($data['products']) && is_array($data['products'])) {
                 WhPurchaseProduct::query()->where('purchase_id', $purchase->id)->delete();
                 foreach ($data['products'] as $product) {
                     $quantity = $rounding->roundQuantityForCompany($companyId, (float) $product['quantity']);
-                    $amountOrig += $quantity * (float) $product['price'];
+                    $lineOrig = $this->resolveWarehouseLineOrigAmount($product, $purchaseCurrencyId, $purchase->date);
+                    $amountOrig += $quantity * (float) $lineOrig['orig_unit_price'];
                     WhPurchaseProduct::query()->create(array_merge([
                         'purchase_id' => $purchase->id,
                         'product_id' => (int) $product['product_id'],
                         'quantity' => $quantity,
-                        'price' => (float) $product['price'],
-                    ], $this->resolveWarehouseLineOrigDisplay($product)));
+                    ], $this->resolveWarehouseLineOrigDisplay($product), $lineOrig));
                 }
             } else {
                 $amountOrig = (float) WhPurchaseProduct::query()
                     ->where('purchase_id', $purchase->id)
-                    ->selectRaw('COALESCE(SUM(quantity * price), 0) as amount_orig')
+                    ->selectRaw('COALESCE(SUM(quantity * COALESCE(orig_unit_price, price)), 0) as amount_orig')
                     ->value('amount_orig');
             }
             $amountOrig = $rounding->roundForCompany($companyId, $amountOrig);
-            $defaultCurrency = $this->getDefaultCurrency();
-            $purchaseCurrencyId = (int) ($purchase->currency_id ?? $defaultCurrency->id);
             $purchase->amount = $purchaseCurrencyId === (int) $defaultCurrency->id
                 ? $amountOrig
                 : $this->convertAndRoundCurrency($amountOrig, $purchaseCurrencyId, (int) $defaultCurrency->id);
+            $purchase->orig_amount = $amountOrig;
+            $purchase->orig_currency_id = $purchaseCurrencyId;
 
             $purchase->save();
+            $this->syncPurchaseDebtTransaction($purchase, $amountOrig, (float) $purchase->amount, $purchaseCurrencyId);
             $this->invalidateCaches();
             WarehouseTimelineCache::forgetPurchase($id, (int) $purchase->supplier_id);
 
             return true;
         });
+    }
+
+    /**
+     * @param  float  $amountOrig  Сумма в валюте документа
+     * @param  float  $amountDefault  Сумма в дефолтной валюте
+     */
+    private function syncPurchaseDebtTransaction(WhPurchase $purchase, float $amountOrig, float $amountDefault, int $purchaseCurrencyId): void
+    {
+        $debtTx = $purchase->transactions()
+            ->where('is_debt', true)
+            ->where('is_deleted', false)
+            ->orderBy('id')
+            ->first();
+
+        $txData = [
+            'type' => 0,
+            'creator_id' => (int) auth('api')->id(),
+            'amount' => $amountDefault,
+            'orig_amount' => $amountOrig,
+            'currency_id' => $purchaseCurrencyId,
+            'cash_id' => (int) $purchase->cash_id,
+            'category_id' => 6,
+            'client_id' => (int) $purchase->supplier_id,
+            'client_balance_id' => $purchase->client_balance_id,
+            'date' => $purchase->date,
+            'note' => $purchase->note,
+            'is_debt' => true,
+            'source_type' => WhPurchase::class,
+            'source_id' => (int) $purchase->id,
+        ];
+
+        if ($debtTx) {
+            app(TransactionsRepository::class)->updateItem((int) $debtTx->id, $txData);
+        } else {
+            $this->createTransactionForSource($txData, WhPurchase::class, (int) $purchase->id, true);
+        }
     }
 
     /**
@@ -258,7 +314,7 @@ class WarehousePurchaseRepository extends BaseRepository
             $defaultCurrency = $this->getDefaultCurrency();
             $paymentCurrencyId = (int) ($data['currency_id'] ?? $purchase->currency_id ?? $defaultCurrency->id);
             $paidTotalDefault = (float) Transaction::query()
-                ->where('source_type', \App\Models\WhPurchase::class)
+                ->where('source_type', WhPurchase::class)
                 ->where('source_id', $purchase->id)
                 ->where('is_debt', false)
                 ->sum('def_amount');
@@ -283,7 +339,7 @@ class WarehousePurchaseRepository extends BaseRepository
                 'date' => $data['date'] ?? now(),
                 'note' => $data['note'] ?? null,
                 'is_debt' => false,
-            ], \App\Models\WhPurchase::class, (int) $purchase->id, true);
+            ], WhPurchase::class, (int) $purchase->id, true);
 
             $this->invalidateCaches();
             WarehouseTimelineCache::forgetPurchase($id, (int) $purchase->supplier_id);

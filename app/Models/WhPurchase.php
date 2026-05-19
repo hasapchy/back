@@ -24,6 +24,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property \Carbon\Carbon $date
  * @property string|null $note
  * @property float $amount
+ * @property float|null $orig_amount Сумма в валюте документа
+ * @property int|null $orig_currency_id ID валюты документа
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -45,10 +47,13 @@ class WhPurchase extends Model implements SupportsTimeline
         'date',
         'note',
         'amount',
+        'orig_amount',
+        'orig_currency_id',
     ];
 
     protected $casts = [
         'amount' => 'decimal:5',
+        'orig_amount' => 'decimal:5',
         'status' => WhPurchaseStatus::class,
         'date' => 'datetime',
     ];
@@ -70,6 +75,8 @@ class WhPurchase extends Model implements SupportsTimeline
                 'date',
                 'note',
                 'amount',
+                'orig_amount',
+                'orig_currency_id',
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
@@ -142,6 +149,14 @@ class WhPurchase extends Model implements SupportsTimeline
     public function currency(): BelongsTo
     {
         return $this->belongsTo(Currency::class, 'currency_id');
+    }
+
+    /**
+     * @return BelongsTo<Currency, self>
+     */
+    public function origCurrency(): BelongsTo
+    {
+        return $this->belongsTo(Currency::class, 'orig_currency_id');
     }
 
     /**

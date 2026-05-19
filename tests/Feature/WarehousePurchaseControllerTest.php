@@ -331,7 +331,16 @@ class WarehousePurchaseControllerTest extends TestCase
         $this->assertDatabaseHas('wh_purchases', [
             'id' => $purchaseId,
             'currency_id' => $usdCurrency->id,
+            'orig_amount' => 50,
+            'orig_currency_id' => $usdCurrency->id,
             'amount' => 100,
+        ]);
+        $this->assertDatabaseHas('wh_purchase_products', [
+            'purchase_id' => $purchaseId,
+            'product_id' => $this->product->id,
+            'orig_unit_price' => 10,
+            'orig_currency_id' => $usdCurrency->id,
+            'price' => 20,
         ]);
         $this->assertDatabaseHas('transactions', [
             'source_type' => \App\Models\WhPurchase::class,
@@ -392,6 +401,148 @@ class WarehousePurchaseControllerTest extends TestCase
         ]);
         $secondPayment->assertStatus(400);
         $secondPayment->assertJsonFragment(['error' => 'Сумма оплаты не может превышать долг по закупке']);
+    }
+
+    public function test_update_draft_syncs_products_and_debt(): void
+    {
+        $createResponse = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 2,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+        $createResponse->assertStatus(200);
+        $purchaseId = (int) $createResponse->json('data.id');
+
+        $updateResponse = $this->actingAsApi($this->adminUser)->putJson("/api/warehouse_purchases/{$purchaseId}", [
+            'cash_id' => $this->cashRegister->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 5,
+                    'price' => 12,
+                ],
+            ],
+        ]);
+        $updateResponse->assertStatus(200);
+
+        $this->assertDatabaseHas('wh_purchases', [
+            'id' => $purchaseId,
+            'amount' => 60,
+            'orig_amount' => 60,
+        ]);
+        $this->assertDatabaseHas('wh_purchase_products', [
+            'purchase_id' => $purchaseId,
+            'product_id' => $this->product->id,
+            'quantity' => 5,
+            'orig_unit_price' => 12,
+            'price' => 12,
+        ]);
+        $this->assertDatabaseHas('transactions', [
+            'source_type' => WhPurchase::class,
+            'source_id' => $purchaseId,
+            'is_debt' => true,
+            'orig_amount' => 60,
+            'amount' => 60,
+        ]);
+    }
+
+    public function test_get_after_update_returns_fresh_products(): void
+    {
+        $createResponse = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 1,
+                    'price' => 100,
+                ],
+            ],
+        ]);
+        $createResponse->assertStatus(200);
+        $purchaseId = (int) $createResponse->json('data.id');
+
+        $this->actingAsApi($this->adminUser)->putJson("/api/warehouse_purchases/{$purchaseId}", [
+            'cash_id' => $this->cashRegister->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 3,
+                    'price' => 25,
+                ],
+            ],
+        ])->assertStatus(200);
+
+        $showResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_purchases/{$purchaseId}");
+        $showResponse->assertStatus(200);
+        $products = $showResponse->json('data.products');
+        $this->assertCount(1, $products);
+        $this->assertEquals(3, (float) $products[0]['quantity']);
+        $this->assertEquals(25, (float) $products[0]['orig_unit_price']);
+        $this->assertEquals(75, (float) $showResponse->json('data.orig_amount'));
+    }
+
+    public function test_purchase_payment_status_lifecycle_and_unpaid_filter(): void
+    {
+        $createResponse = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_purchases', [
+            'supplier_id' => $this->supplier->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $this->cashRegister->id,
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 10,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+        $createResponse->assertStatus(200);
+        $purchaseId = (int) $createResponse->json('data.id');
+
+        $showResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_purchases/{$purchaseId}");
+        $showResponse->assertStatus(200);
+        $showResponse->assertJsonPath('data.payment_status', 'unpaid');
+
+        $unpaidIndex = $this->actingAsApi($this->adminUser)->getJson('/api/warehouse_purchases?payment_status=unpaid');
+        $unpaidIndex->assertStatus(200);
+        $unpaidIds = collect($unpaidIndex->json('data.items'))->pluck('id')->map(fn ($id) => (int) $id);
+        $this->assertTrue($unpaidIds->contains($purchaseId));
+
+        $this->actingAsApi($this->adminUser)->postJson("/api/warehouse_purchases/{$purchaseId}/pay", [
+            'cash_id' => $this->cashRegister->id,
+            'amount' => 40,
+        ])->assertStatus(200);
+
+        $partialResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_purchases/{$purchaseId}");
+        $partialResponse->assertStatus(200);
+        $partialResponse->assertJsonPath('data.payment_status', 'partially_paid');
+
+        $this->actingAsApi($this->adminUser)->postJson("/api/warehouse_purchases/{$purchaseId}/pay", [
+            'cash_id' => $this->cashRegister->id,
+            'amount' => 60,
+        ])->assertStatus(200);
+
+        $paidResponse = $this->actingAsApi($this->adminUser)->getJson("/api/warehouse_purchases/{$purchaseId}");
+        $paidResponse->assertStatus(200);
+        $paidResponse->assertJsonPath('data.payment_status', 'paid');
+
+        $paidIndex = $this->actingAsApi($this->adminUser)->getJson('/api/warehouse_purchases?payment_status=paid');
+        $paidIndex->assertStatus(200);
+        $paidIds = collect($paidIndex->json('data.items'))->pluck('id')->map(fn ($id) => (int) $id);
+        $this->assertTrue($paidIds->contains($purchaseId));
+
+        $unpaidAfter = $this->actingAsApi($this->adminUser)->getJson('/api/warehouse_purchases?payment_status=unpaid');
+        $unpaidAfter->assertStatus(200);
+        $unpaidAfterIds = collect($unpaidAfter->json('data.items'))->pluck('id')->map(fn ($id) => (int) $id);
+        $this->assertFalse($unpaidAfterIds->contains($purchaseId));
     }
 }
 

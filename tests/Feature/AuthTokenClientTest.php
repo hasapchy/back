@@ -7,25 +7,11 @@ use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class AuthTokenClientTest extends TestCase
 {
     use DatabaseTransactions;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (! Schema::hasTable('users') || ! Schema::hasTable('personal_access_tokens')) {
-            $this->markTestSkipped('Нужны таблицы users и personal_access_tokens.');
-        }
-
-        if (! Schema::hasColumn('personal_access_tokens', 'client_type')) {
-            $this->markTestSkipped('Выполните миграцию client_type для personal_access_tokens.');
-        }
-    }
 
     public function test_mobile_login_revokes_only_mobile_tokens(): void
     {

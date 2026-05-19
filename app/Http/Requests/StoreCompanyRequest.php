@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\WorkScheduleNormalizer;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 
@@ -94,6 +95,10 @@ class StoreCompanyRequest extends FormRequest
                 $data['rounding_quantity_direction'] = null;
                 $data['rounding_quantity_custom_threshold'] = null;
             }
+        }
+
+        if (array_key_exists('work_schedule', $data)) {
+            $data['work_schedule'] = WorkScheduleNormalizer::prepareInput($data['work_schedule']);
         }
 
         $this->merge($data);

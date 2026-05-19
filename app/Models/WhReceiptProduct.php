@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $orig_unit_id Единица ввода (отображение)
  * @property float|null $orig_quantity Количество в единице ввода
  * @property float $price Цена
+ * @property float|null $orig_unit_price Цена в валюте ввода
+ * @property int|null $orig_currency_id ID валюты ввода
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  *
@@ -33,12 +35,15 @@ class WhReceiptProduct extends Model
         'orig_unit_id',
         'orig_quantity',
         'price',
+        'orig_unit_price',
+        'orig_currency_id',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:5',
         'orig_quantity' => 'decimal:5',
         'price' => 'decimal:5',
+        'orig_unit_price' => 'decimal:5',
     ];
 
     /**
@@ -63,5 +68,13 @@ class WhReceiptProduct extends Model
     public function origUnit()
     {
         return $this->belongsTo(Unit::class, 'orig_unit_id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function origCurrency()
+    {
+        return $this->belongsTo(Currency::class, 'orig_currency_id');
     }
 }

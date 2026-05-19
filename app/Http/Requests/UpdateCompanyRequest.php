@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\WorkScheduleNormalizer;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 
@@ -98,21 +99,8 @@ class UpdateCompanyRequest extends FormRequest
             }
         }
 
-        // Обработка work_schedule: если пришла JSON строка, преобразуем в массив
-        // Если пришел массив - оставляем как есть
-        if (isset($data['work_schedule'])) {
-            if (is_string($data['work_schedule'])) {
-                // Если это JSON строка, декодируем
-                $decoded = json_decode($data['work_schedule'], true);
-                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                    $data['work_schedule'] = $decoded;
-                } else {
-                    // Если не удалось декодировать, устанавливаем null
-                    $data['work_schedule'] = null;
-                }
-            }
-            // Если это уже массив - оставляем как есть
-            // Laravel автоматически преобразует массив в JSON через cast 'array' в модели
+        if (array_key_exists('work_schedule', $data)) {
+            $data['work_schedule'] = WorkScheduleNormalizer::prepareInput($data['work_schedule']);
         }
 
         $this->merge($data);

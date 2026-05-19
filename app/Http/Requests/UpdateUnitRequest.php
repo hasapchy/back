@@ -17,7 +17,7 @@ class UpdateUnitRequest extends StoreUnitRequest
 
         return $user !== null
             && ResolvedCompany::fromRequest($this) !== null
-            && CompanyScopedPermissions::userHas($user, 'settings_units_edit');
+            && CompanyScopedPermissions::userHas($user, 'units_update');
     }
 
     /**

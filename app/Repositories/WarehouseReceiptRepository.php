@@ -15,6 +15,7 @@ use App\Models\WhPurchaseProduct;
 use App\Models\WhUser;
 use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
+use App\Services\WarehouseDocumentPaymentStatusService;
 use App\Services\Timeline\WarehouseTimelineCache;
 use App\Services\CurrencyConverter;
 use App\Services\InventoryLockService;
@@ -54,6 +55,7 @@ class WarehouseReceiptRepository extends BaseRepository
         string $dateFilter = 'all_time',
         ?string $startDate = null,
         ?string $endDate = null,
+        ?string $paymentStatus = null,
     ) {
         /** @var \App\Models\User|null $currentUser */
         $currentUser = auth('api')->user();
@@ -68,11 +70,12 @@ class WarehouseReceiptRepository extends BaseRepository
             $dateFilter,
             $startDate,
             $endDate,
+            $paymentStatus,
             $currentUser?->id,
             $companyId,
         ]);
 
-        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $clientId, $status, $warehouseId, $productId, $dateFilter, $startDate, $endDate) {
+        return CacheService::getPaginatedData($cacheKey, function () use ($userUuid, $perPage, $page, $clientId, $status, $warehouseId, $productId, $dateFilter, $startDate, $endDate, $paymentStatus) {
             $query = $this->buildBaseQuery($userUuid);
             if ($clientId) {
                 $query->where('wh_receipts.supplier_id', $clientId);
@@ -91,8 +94,13 @@ class WarehouseReceiptRepository extends BaseRepository
                 $this->applyDateFilter($query, $dateFilter, $startDate, $endDate, 'wh_receipts.date');
             }
 
-            return $query->orderBy('wh_receipts.created_at', 'desc')
+            app(WarehouseDocumentPaymentStatusService::class)->applyReceiptPaymentStatusFilter($query, $paymentStatus);
+
+            $paginator = $query->orderBy('wh_receipts.created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', (int) $page);
+            app(WarehouseDocumentPaymentStatusService::class)->attachPaymentStatusToReceipts($paginator->getCollection());
+
+            return $paginator;
         }, (int) $page);
     }
 
@@ -108,9 +116,14 @@ class WarehouseReceiptRepository extends BaseRepository
         $cacheKey = $this->generateCacheKey('warehouse_receipts_item', [$id, $userUuid]);
 
         return CacheService::getReferenceData($cacheKey, function () use ($id, $userUuid) {
-            return $this->buildBaseQuery($userUuid)
+            $receipt = $this->buildBaseQuery($userUuid)
                 ->where('wh_receipts.id', $id)
                 ->first();
+            if ($receipt) {
+                app(WarehouseDocumentPaymentStatusService::class)->attachPaymentStatusToReceipts([$receipt]);
+            }
+
+            return $receipt;
         });
     }
 
@@ -129,6 +142,8 @@ class WarehouseReceiptRepository extends BaseRepository
             'wh_receipts.purchase_id',
             'wh_receipts.client_balance_id',
             'wh_receipts.amount',
+            'wh_receipts.orig_amount',
+            'wh_receipts.orig_currency_id',
             'wh_receipts.cash_id',
             'wh_receipts.note',
             'wh_receipts.creator_id',
@@ -144,13 +159,14 @@ class WarehouseReceiptRepository extends BaseRepository
                 'warehouse:id,name,company_id',
                 'cashRegister:id,name,currency_id,is_cash',
                 'cashRegister.currency:id,name,symbol',
+                'origCurrency:id,name,symbol',
                 'creator:id,name',
                 'supplier:id,first_name,last_name,status,balance',
                 'supplier.phones:id,client_id,phone',
                 'supplier.emails:id,client_id,email',
                 'purchase:id,supplier_id,status,amount',
                 'clientBalance:id,client_id,currency_id,type',
-                'products:id,receipt_id,product_id,quantity,price,orig_unit_id,orig_quantity',
+                'products:id,receipt_id,product_id,quantity,price,orig_unit_price,orig_currency_id,orig_unit_id,orig_quantity',
                 'products.product:id,name,image,unit_id',
                 'products.product.unit:id,name,short_name',
                 'products.origUnit:id,name,short_name',
@@ -243,17 +259,23 @@ class WarehouseReceiptRepository extends BaseRepository
             $receipt->cash_id = $cash_id;
             $receipt->date = $date;
             $receipt->note = $note;
-            $receipt->amount = $total_amount;
+            $lineCurrencyId = (int) $lineCurrency->id;
+            $receipt->orig_amount = $total_amount;
+            $receipt->orig_currency_id = $lineCurrencyId;
+            $receipt->amount = $totalInDefault;
             $receipt->creator_id = (int) auth('api')->id();
             $receipt->status = $status;
             $receipt->save();
 
             foreach ($products as $product) {
+                $lineOrig = $this->resolveWarehouseLineOrigAmount($product, $lineCurrencyId);
                 $receiptProduct = new WhReceiptProduct();
                 $receiptProduct->receipt_id = $receipt->id;
                 $receiptProduct->product_id = $product['product_id'];
                 $receiptProduct->quantity = $product['quantity'];
-                $receiptProduct->price = $product['price'];
+                $receiptProduct->price = $lineOrig['price'];
+                $receiptProduct->orig_unit_price = $lineOrig['orig_unit_price'];
+                $receiptProduct->orig_currency_id = $lineOrig['orig_currency_id'];
                 $orig = $this->resolveWarehouseLineOrigDisplay($product);
                 $receiptProduct->orig_unit_id = $orig['orig_unit_id'];
                 $receiptProduct->orig_quantity = $orig['orig_quantity'];
@@ -271,18 +293,7 @@ class WarehouseReceiptRepository extends BaseRepository
                     'date' => $date,
                     'is_debt' => true,
                 ]);
-                $paymentTransactionData = $this->buildReceiptTransactionData([
-                    'amount' => $totalInDefault,
-                    'currency_id' => $defaultCurrency->id,
-                    'cash_id' => $cash_id,
-                    'client_id' => $client_id,
-                    'client_balance_id' => $client_balance_id,
-                    'note' => $note,
-                    'date' => $date,
-                    'is_debt' => false,
-                ]);
                 $this->createTransactionForSource($debtTransactionData, \App\Models\WhReceipt::class, $receipt->id, true);
-                $this->createTransactionForSource($paymentTransactionData, \App\Models\WhReceipt::class, $receipt->id, true);
             }
 
             Log::info('wh_receipt_created', [
@@ -398,29 +409,6 @@ class WarehouseReceiptRepository extends BaseRepository
             $existingProducts = WhReceiptProduct::where('receipt_id', $receipt_id)->get();
             $existingProductIds = $existingProducts->pluck('product_id')->toArray();
 
-            foreach ($products as $product) {
-                $product_id = $product['product_id'];
-                $quantity = (new RoundingService())->roundQuantityForCompany($this->getCurrentCompanyId(), (float) ($product['quantity']));
-                $price = $product['price'];
-
-                WhReceiptProduct::updateOrCreate(
-                    ['receipt_id' => $receipt->id, 'product_id' => $product_id],
-                    array_merge(
-                        ['quantity' => $quantity, 'price' => $price],
-                        $this->resolveWarehouseLineOrigDisplay($product)
-                    )
-                );
-
-                $total_amount += $price * $quantity;
-            }
-
-            $roundingService = new RoundingService();
-            $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
-            $total_amount = $roundingService->roundForCompany($companyId, (float) $total_amount);
-
-            $receipt->amount = $total_amount;
-            $receipt->save();
-
             $lineCurrency = Currency::firstWhere('is_default', true);
             if ($cash_id !== null) {
                 $cash = CashRegister::query()->find($cash_id);
@@ -431,7 +419,37 @@ class WarehouseReceiptRepository extends BaseRepository
                     $lineCurrency = Currency::query()->findOrFail((int) $cash->currency_id);
                 }
             }
+            $lineCurrencyId = (int) $lineCurrency->id;
+
+            foreach ($products as $product) {
+                $product_id = $product['product_id'];
+                $quantity = (new RoundingService())->roundQuantityForCompany($this->getCurrentCompanyId(), (float) ($product['quantity']));
+                $lineOrig = $this->resolveWarehouseLineOrigAmount($product, $lineCurrencyId);
+
+                WhReceiptProduct::updateOrCreate(
+                    ['receipt_id' => $receipt->id, 'product_id' => $product_id],
+                    array_merge(
+                        [
+                            'quantity' => $quantity,
+                            'price' => $lineOrig['price'],
+                            'orig_unit_price' => $lineOrig['orig_unit_price'],
+                            'orig_currency_id' => $lineOrig['orig_currency_id'],
+                        ],
+                        $this->resolveWarehouseLineOrigDisplay($product)
+                    )
+                );
+
+                $total_amount += (float) $lineOrig['price'] * $quantity;
+            }
+
+            $roundingService = new RoundingService();
+            $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
+            $total_amount = $roundingService->roundForCompany($companyId, (float) $total_amount);
             $totalInDefault = $this->sumReceiptLinesInDefaultCurrency($products, $lineCurrency, $companyId, $date);
+            $receipt->orig_amount = $total_amount;
+            $receipt->orig_currency_id = $lineCurrencyId;
+            $receipt->amount = $totalInDefault;
+            $receipt->save();
 
             $transactions = $receipt->transactions()->get();
             if ($transactions->isEmpty()) {
@@ -464,7 +482,7 @@ class WarehouseReceiptRepository extends BaseRepository
     }
 
     /**
-     * Синхронизировать базовые автотранзакции чернового оприходования (долг + оплата товара).
+     * Синхронизировать автотранзакцию долга по товарам чернового оприходования.
      */
     private function syncDraftAutoTransactions(WhReceipt $receipt, float $totalInDefault): void
     {
@@ -472,24 +490,21 @@ class WarehouseReceiptRepository extends BaseRepository
             return;
         }
 
-        $txs = Transaction::query()
+        /** @var Transaction|null $debtTx */
+        $debtTx = Transaction::query()
             ->where('source_type', WhReceipt::class)
             ->where('source_id', (int) $receipt->id)
             ->where('category_id', 6)
+            ->where('is_debt', true)
             ->where('is_deleted', false)
             ->orderBy('id')
-            ->get();
+            ->first();
 
-        /** @var Transaction|null $debtTx */
-        $debtTx = $txs->first(fn (Transaction $t) => (bool) $t->is_debt);
-        /** @var Transaction|null $paymentTx */
-        $paymentTx = $txs->first(fn (Transaction $t) => ! (bool) $t->is_debt);
-        if (! $debtTx || ! $paymentTx) {
+        if (! $debtTx) {
             return;
         }
 
-        $repo = app(TransactionsRepository::class);
-        $base = [
+        app(TransactionsRepository::class)->updateItem((int) $debtTx->id, [
             'type' => 0,
             'category_id' => 6,
             'client_id' => (int) $receipt->supplier_id,
@@ -500,18 +515,10 @@ class WarehouseReceiptRepository extends BaseRepository
             'source_id' => (int) $receipt->id,
             'cash_id' => $receipt->cash_id,
             'client_balance_id' => $receipt->client_balance_id,
-        ];
-
-        $repo->updateItem((int) $debtTx->id, array_merge($base, [
             'is_debt' => true,
             'orig_amount' => $totalInDefault,
             'currency_id' => (int) $debtTx->currency_id,
-        ]));
-        $repo->updateItem((int) $paymentTx->id, array_merge($base, [
-            'is_debt' => false,
-            'orig_amount' => $totalInDefault,
-            'currency_id' => (int) $paymentTx->currency_id,
-        ]));
+        ]);
     }
 
     /**
@@ -675,16 +682,23 @@ class WarehouseReceiptRepository extends BaseRepository
             foreach ($normalized as $product) {
                 $totalAmount += $product['price'] * $product['quantity'];
             }
-            $receipt->amount = $roundingService->roundForCompany($companyId, $totalAmount);
+            $defaultCurrency = Currency::firstWhere('is_default', true);
+            $defaultCurrencyId = (int) $defaultCurrency->id;
+            $receipt->orig_amount = $roundingService->roundForCompany($companyId, $totalAmount);
+            $receipt->orig_currency_id = $defaultCurrencyId;
+            $receipt->amount = $receipt->orig_amount;
             $receipt->status = WhReceiptStatus::Completed;
             $receipt->save();
 
             foreach ($normalized as $product) {
+                $price = (float) $product['price'];
                 $receiptProduct = new WhReceiptProduct();
                 $receiptProduct->receipt_id = $receipt->id;
                 $receiptProduct->product_id = $product['product_id'];
                 $receiptProduct->quantity = $product['quantity'];
-                $receiptProduct->price = $product['price'];
+                $receiptProduct->price = $price;
+                $receiptProduct->orig_unit_price = $price;
+                $receiptProduct->orig_currency_id = $defaultCurrencyId;
                 $receiptProduct->save();
             }
 

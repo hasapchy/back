@@ -12,7 +12,7 @@ use App\Services\CacheService;
 use App\Support\CompanyScopedPermissions;
 use Illuminate\Http\JsonResponse;
 
-class SettingsUnitsController extends BaseController
+class UnitsController extends BaseController
 {
     /**
      * @return JsonResponse
@@ -23,7 +23,7 @@ class SettingsUnitsController extends BaseController
         if (! $user) {
             return $this->errorResponse(null, 401);
         }
-        if (! CompanyScopedPermissions::userHasAny($user, ['settings_units_view', 'settings_units_create', 'settings_units_edit'])) {
+        if (! CompanyScopedPermissions::userHasAny($user, ['units_view', 'units_create', 'units_update'])) {
             return $this->errorResponse('Forbidden', 403);
         }
 
@@ -83,7 +83,7 @@ class SettingsUnitsController extends BaseController
         if (! $user) {
             return $this->errorResponse(null, 401);
         }
-        if (! CompanyScopedPermissions::userHas($user, 'settings_units_edit')) {
+        if (! CompanyScopedPermissions::userHas($user, 'units_delete')) {
             return $this->errorResponse('Forbidden', 403);
         }
         $companyId = $this->getCurrentCompanyId();
@@ -114,9 +114,6 @@ class SettingsUnitsController extends BaseController
      */
     private function guardMutableCompanyUnit(Unit $unit, int $companyId): ?JsonResponse
     {
-        if ($unit->isSystemUnit()) {
-            return $this->errorResponse(__('units.system_unit_readonly'), 403);
-        }
         if ($unit->company_id !== $companyId) {
             return $this->errorResponse('Forbidden', 403);
         }
