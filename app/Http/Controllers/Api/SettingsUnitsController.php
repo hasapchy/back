@@ -23,7 +23,7 @@ class SettingsUnitsController extends BaseController
         if (! $user) {
             return $this->errorResponse(null, 401);
         }
-        if (! CompanyScopedPermissions::userHasAny($user, ['settings_units_view', 'settings_units_manage'])) {
+        if (! CompanyScopedPermissions::userHasAny($user, ['settings_units_view', 'settings_units_create', 'settings_units_edit'])) {
             return $this->errorResponse('Forbidden', 403);
         }
 
@@ -83,7 +83,7 @@ class SettingsUnitsController extends BaseController
         if (! $user) {
             return $this->errorResponse(null, 401);
         }
-        if (! CompanyScopedPermissions::userHas($user, 'settings_units_manage')) {
+        if (! CompanyScopedPermissions::userHas($user, 'settings_units_edit')) {
             return $this->errorResponse('Forbidden', 403);
         }
         $companyId = $this->getCurrentCompanyId();

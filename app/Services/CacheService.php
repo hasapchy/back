@@ -362,6 +362,14 @@ class CacheService
     }
 
     /**
+     * Invalidate warehouse purchases cache
+     */
+    public static function invalidateWarehousePurchasesCache(): void
+    {
+        self::invalidateByLike('%warehouse_purchase%');
+    }
+
+    /**
      * Invalidate warehouse writeoffs cache
      */
     public static function invalidateWarehouseWriteoffsCache(): void

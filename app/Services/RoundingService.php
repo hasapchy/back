@@ -58,6 +58,73 @@ class RoundingService
     }
 
     /**
+     * @param int|null $companyId
+     * @return bool
+     */
+    public function shouldRoundOrderAmounts(?int $companyId): bool
+    {
+        return $this->isModuleAmountRoundingEnabled($companyId, 'rounding_orders_enabled');
+    }
+
+    /**
+     * @param int|null $companyId
+     * @return bool
+     */
+    public function shouldRoundContractAmounts(?int $companyId): bool
+    {
+        return $this->isModuleAmountRoundingEnabled($companyId, 'rounding_contracts_enabled');
+    }
+
+    /**
+     * @param int|null $companyId
+     * @param float $value
+     * @return float
+     */
+    public function roundOrderAmountForCompany(?int $companyId, float $value): float
+    {
+        if (! $this->shouldRoundOrderAmounts($companyId)) {
+            return $value;
+        }
+
+        return $this->roundForCompany($companyId, $value);
+    }
+
+    /**
+     * @param int|null $companyId
+     * @param float $value
+     * @return float
+     */
+    public function roundContractAmountForCompany(?int $companyId, float $value): float
+    {
+        if (! $this->shouldRoundContractAmounts($companyId)) {
+            return $value;
+        }
+
+        return $this->roundForCompany($companyId, $value);
+    }
+
+    /**
+     * @param int|null $companyId
+     * @param string $moduleEnabledField
+     * @return bool
+     */
+    protected function isModuleAmountRoundingEnabled(?int $companyId, string $moduleEnabledField): bool
+    {
+        if (! $companyId) {
+            return false;
+        }
+
+        /** @var Company|null $company */
+        $company = Company::find($companyId);
+
+        if (! $company) {
+            return false;
+        }
+
+        return (bool) $company->rounding_enabled && (bool) $company->{$moduleEnabledField};
+    }
+
+    /**
      * Apply rounding with company settings
      *
      * @param int|null $companyId Company ID

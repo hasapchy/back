@@ -18,7 +18,7 @@ class StoreUnitRequest extends FormRequest
 
         return $user !== null
             && ResolvedCompany::fromRequest($this) !== null
-            && CompanyScopedPermissions::userHas($user, 'settings_units_manage');
+            && CompanyScopedPermissions::userHas($user, 'settings_units_create');
     }
 
     /**

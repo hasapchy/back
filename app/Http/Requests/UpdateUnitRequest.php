@@ -2,11 +2,24 @@
 
 namespace App\Http\Requests;
 
+use App\Support\CompanyScopedPermissions;
 use App\Support\ResolvedCompany;
 use Illuminate\Validation\Rule;
 
 class UpdateUnitRequest extends StoreUnitRequest
 {
+    /**
+     * @return bool
+     */
+    public function authorize(): bool
+    {
+        $user = $this->user();
+
+        return $user !== null
+            && ResolvedCompany::fromRequest($this) !== null
+            && CompanyScopedPermissions::userHas($user, 'settings_units_edit');
+    }
+
     /**
      * @return array<string, mixed>
      */

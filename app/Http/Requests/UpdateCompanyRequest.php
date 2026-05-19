@@ -34,6 +34,8 @@ class UpdateCompanyRequest extends FormRequest
             'rounding_enabled' => 'nullable|boolean',
             'rounding_direction' => 'nullable|in:standard,up,down,custom',
             'rounding_custom_threshold' => 'nullable|numeric|min:0|max:1',
+            'rounding_orders_enabled' => 'nullable|boolean',
+            'rounding_contracts_enabled' => 'nullable|boolean',
             'rounding_quantity_decimals' => 'nullable|integer|min:0|max:5',
             'rounding_quantity_enabled' => 'nullable|boolean',
             'rounding_quantity_direction' => 'nullable|in:standard,up,down,custom',
@@ -58,6 +60,12 @@ class UpdateCompanyRequest extends FormRequest
         if (isset($data['rounding_enabled'])) {
             $data['rounding_enabled'] = filter_var($data['rounding_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
+        if (isset($data['rounding_orders_enabled'])) {
+            $data['rounding_orders_enabled'] = filter_var($data['rounding_orders_enabled'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($data['rounding_contracts_enabled'])) {
+            $data['rounding_contracts_enabled'] = filter_var($data['rounding_contracts_enabled'], FILTER_VALIDATE_BOOLEAN);
+        }
         if (isset($data['rounding_quantity_enabled'])) {
             $data['rounding_quantity_enabled'] = filter_var($data['rounding_quantity_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
@@ -77,6 +85,8 @@ class UpdateCompanyRequest extends FormRequest
             if ($roundingEnabled === false || $roundingEnabled === 'false' || $roundingEnabled === '0' || $roundingEnabled === 0) {
                 $data['rounding_direction'] = null;
                 $data['rounding_custom_threshold'] = null;
+                $data['rounding_orders_enabled'] = false;
+                $data['rounding_contracts_enabled'] = false;
             }
         }
 
