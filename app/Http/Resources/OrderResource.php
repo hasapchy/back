@@ -50,8 +50,8 @@ class OrderResource extends JsonResource
         $companyId = (int) ($order->cashRegister?->company_id ?? 0);
         if ($companyId > 0) {
             $rounding = new RoundingService;
-            $totalPrice = $rounding->roundForCompany($companyId, $totalPrice);
-            $paidForStatus = $rounding->roundForCompany($companyId, $paidForStatus);
+            $totalPrice = $rounding->roundOrderAmountForCompany($companyId, $totalPrice);
+            $paidForStatus = $rounding->roundOrderAmountForCompany($companyId, $paidForStatus);
         }
 
         $paymentStatusText = $paidForStatus <= 0

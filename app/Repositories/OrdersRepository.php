@@ -992,7 +992,7 @@ class OrdersRepository extends BaseRepository
 
             $discountForCalc = (float) $discount;
             if ($discount_type === 'fixed') {
-                $discountForCalc = $roundingService->roundForCompany(
+                $discountForCalc = $roundingService->roundOrderAmountForCompany(
                     $companyId,
                     CurrencyConverter::convert($discountForCalc, $documentCurrency, $defaultCurrency, null, $companyId, $rateDate)
                 );
@@ -1209,7 +1209,7 @@ class OrdersRepository extends BaseRepository
 
             $discountForCalc = (float) $discount;
             if ($discount_type === 'fixed') {
-                $discountForCalc = $roundingService->roundForCompany(
+                $discountForCalc = $roundingService->roundOrderAmountForCompany(
                     $companyId,
                     CurrencyConverter::convert($discountForCalc, $documentCurrency, $defaultCurrency, null, $companyId, $rateDate)
                 );
@@ -1764,14 +1764,14 @@ class OrdersRepository extends BaseRepository
         }
         $total_price = max(0, $price - $discount_calculated);
 
-        $price = $roundingService->roundForCompany($companyId, (float) $price);
-        $discount_calculated = $roundingService->roundForCompany($companyId, (float) $discount_calculated);
+        $price = $roundingService->roundOrderAmountForCompany($companyId, (float) $price);
+        $discount_calculated = $roundingService->roundOrderAmountForCompany($companyId, (float) $discount_calculated);
 
         if ($discount_calculated > $price) {
             throw new \Exception('Скидка не может превышать сумму заказа');
         }
 
-        $total_price = $roundingService->roundForCompany($companyId, (float) $total_price);
+        $total_price = $roundingService->roundOrderAmountForCompany($companyId, (float) $total_price);
 
         return [
             'price' => $price,
@@ -1938,8 +1938,8 @@ class OrdersRepository extends BaseRepository
         }
 
         if ($wholesaleDef !== null) {
-            $defUnit = $roundingService->roundForCompany($companyId, $wholesaleDef);
-            $origUnit = $roundingService->roundForCompany(
+            $defUnit = $roundingService->roundOrderAmountForCompany($companyId, $wholesaleDef);
+            $origUnit = $roundingService->roundOrderAmountForCompany(
                 $companyId,
                 CurrencyConverter::convert($defUnit, $defaultCurrency, $documentCurrency, null, $companyId, $rateDate)
             );
@@ -1951,8 +1951,8 @@ class OrdersRepository extends BaseRepository
             ];
         }
 
-        $origUnit = $roundingService->roundForCompany($companyId, $requestUnitPrice);
-        $defUnit = $roundingService->roundForCompany(
+        $origUnit = $roundingService->roundOrderAmountForCompany($companyId, $requestUnitPrice);
+        $defUnit = $roundingService->roundOrderAmountForCompany(
             $companyId,
             CurrencyConverter::convert($origUnit, $documentCurrency, $defaultCurrency, null, $companyId, $rateDate)
         );
@@ -1975,8 +1975,8 @@ class OrdersRepository extends BaseRepository
         string $rateDate,
         RoundingService $roundingService
     ): array {
-        $origUnit = $roundingService->roundForCompany($companyId, $requestUnitPrice);
-        $defUnit = $roundingService->roundForCompany(
+        $origUnit = $roundingService->roundOrderAmountForCompany($companyId, $requestUnitPrice);
+        $defUnit = $roundingService->roundOrderAmountForCompany(
             $companyId,
             CurrencyConverter::convert($origUnit, $documentCurrency, $defaultCurrency, null, $companyId, $rateDate)
         );

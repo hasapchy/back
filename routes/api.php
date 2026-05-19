@@ -85,10 +85,10 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
 
     Route::middleware('permission.scope:currency_history_view_all,currency_history_view,currency_history_view_own,settings_currencies_view')->get('settings/currencies', [CurrenciesController::class, 'index']);
 
-    Route::middleware('permission.scope:settings_units_view,settings_units_manage')->get('settings/units', [SettingsUnitsController::class, 'index']);
-    Route::middleware('permission:settings_units_manage')->post('settings/units', [SettingsUnitsController::class, 'store']);
-    Route::middleware('permission:settings_units_manage')->put('settings/units/{id}', [SettingsUnitsController::class, 'update']);
-    Route::middleware('permission:settings_units_manage')->delete('settings/units/{id}', [SettingsUnitsController::class, 'destroy']);
+    Route::middleware('permission.scope:settings_units_view,settings_units_create,settings_units_edit')->get('settings/units', [SettingsUnitsController::class, 'index']);
+    Route::middleware('permission:settings_units_create')->post('settings/units', [SettingsUnitsController::class, 'store']);
+    Route::middleware('permission:settings_units_edit')->put('settings/units/{id}', [SettingsUnitsController::class, 'update']);
+    Route::middleware('permission:settings_units_edit')->delete('settings/units/{id}', [SettingsUnitsController::class, 'destroy']);
 
     Route::post('user/logout', [AuthController::class, 'logout']);
     Route::get('user/me', [AuthController::class, 'me']);

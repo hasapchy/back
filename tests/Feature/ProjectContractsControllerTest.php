@@ -259,4 +259,34 @@ class ProjectContractsControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJson(['message' => 'Контракт успешно удален']);
     }
+
+    public function test_store_contract_preserves_fractional_amount_when_contract_rounding_disabled(): void
+    {
+        $this->company->update([
+            'rounding_enabled' => true,
+            'rounding_decimals' => 0,
+            'rounding_direction' => 'standard',
+            'rounding_orders_enabled' => true,
+            'rounding_contracts_enabled' => false,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson("/api/projects/{$this->project->id}/contracts", [
+                'project_id' => $this->project->id,
+                'status' => 'draft',
+                'client_id' => $this->client->id,
+                'number' => 'CONTRACT-FRAC',
+                'type' => 1,
+                'amount' => 10.4,
+                'currency_id' => $this->currency->id,
+                'cash_id' => $this->cashRegister->id,
+                'date' => '2025-01-01',
+                'returned' => false,
+            ]);
+
+        $response->assertStatus(200);
+        $contractId = $response->json('data.item.id');
+        $contract = ProjectContract::findOrFail($contractId);
+        $this->assertEqualsWithDelta(10.4, (float) $contract->amount, 0.001);
+    }
 }

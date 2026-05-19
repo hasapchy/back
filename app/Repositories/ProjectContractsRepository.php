@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\ProjectContract;
 use App\Models\Transaction;
 use App\Services\CacheService;
+use App\Services\RoundingService;
 use App\Services\Timeline\TimelineCache;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -592,7 +593,9 @@ class ProjectContractsRepository extends BaseRepository
     public function createContract(array $data): ProjectContract
     {
         return DB::transaction(function () use ($data) {
-            $project = Project::findOrFail($data['project_id']);
+            $project = Project::query()->select(['id', 'client_id', 'company_id'])->findOrFail($data['project_id']);
+            $companyId = (int) ($project->company_id ?: $this->getCurrentCompanyId());
+            $rounding = app(RoundingService::class);
             $status = isset($data['status'])
                 ? ProjectContractStatus::tryFrom((string) $data['status']) ?? ProjectContractStatus::Draft
                 : ProjectContractStatus::Draft;
@@ -608,9 +611,10 @@ class ProjectContractsRepository extends BaseRepository
             $contract->type = array_key_exists('type', $data) && $data['type'] !== null && $data['type'] !== ''
                 ? (int) $data['type']
                 : 0;
-            $contract->amount = array_key_exists('amount', $data) && $data['amount'] !== null && $data['amount'] !== ''
-                ? $data['amount']
-                : 0;
+            $rawAmount = array_key_exists('amount', $data) && $data['amount'] !== null && $data['amount'] !== ''
+                ? (float) $data['amount']
+                : 0.0;
+            $contract->amount = $rounding->roundContractAmountForCompany($companyId, $rawAmount);
             $contract->currency_id = $data['currency_id'] ?? null;
             $contract->cash_id = isset($data['cash_id']) && $data['cash_id'] !== '' && $data['cash_id'] !== null
                 ? (int) $data['cash_id']
@@ -663,10 +667,12 @@ class ProjectContractsRepository extends BaseRepository
                 $contract->project_id = $newProjectId;
             }
 
-            $targetProject = Project::query()->select(['id', 'client_id'])->find($newProjectId);
+            $targetProject = Project::query()->select(['id', 'client_id', 'company_id'])->find($newProjectId);
             if (! $targetProject) {
                 throw new \DomainException('Проект не найден');
             }
+            $companyId = (int) ($targetProject->company_id ?: $this->getCurrentCompanyId());
+            $rounding = app(RoundingService::class);
 
             if (array_key_exists('number', $data)) {
                 $contract->number = $data['number'];
@@ -683,7 +689,10 @@ class ProjectContractsRepository extends BaseRepository
                 $contract->client_id = $targetProject->client_id ? (int) $targetProject->client_id : null;
             }
             if (array_key_exists('amount', $data)) {
-                $contract->amount = $data['amount'];
+                $contract->amount = $rounding->roundContractAmountForCompany(
+                    $companyId,
+                    (float) ($data['amount'] ?? 0)
+                );
             }
             if (array_key_exists('currency_id', $data)) {
                 $contract->currency_id = $data['currency_id'];

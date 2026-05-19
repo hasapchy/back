@@ -294,6 +294,7 @@ class WarehousePurchaseRepository extends BaseRepository
 
     private function invalidateCaches(): void
     {
+        CacheService::invalidateWarehousePurchasesCache();
         CacheService::invalidateWarehouseReceiptsCache();
         CacheService::invalidateTransactionsCache();
         CacheService::invalidateClientsCache();

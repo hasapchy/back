@@ -110,6 +110,8 @@ class CompaniesControllerTest extends TestCase
         $this->assertFalse($company->rounding_enabled);
         $this->assertNull($company->rounding_direction);
         $this->assertNull($company->rounding_custom_threshold);
+        $this->assertFalse($company->rounding_orders_enabled);
+        $this->assertFalse($company->rounding_contracts_enabled);
     }
 
     public function test_store_company_resets_rounding_quantity_fields_when_disabled(): void
@@ -162,6 +164,27 @@ class CompaniesControllerTest extends TestCase
             'id' => $company->id,
             'name' => 'New Name',
         ]);
+    }
+
+    public function test_store_company_saves_module_rounding_flags(): void
+    {
+        $companyData = [
+            'name' => 'Test Company Module Rounding',
+            'rounding_enabled' => true,
+            'rounding_decimals' => 0,
+            'rounding_direction' => 'standard',
+            'rounding_orders_enabled' => true,
+            'rounding_contracts_enabled' => false,
+        ];
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/companies', $companyData);
+
+        $response->assertStatus(200);
+        $company = Company::where('name', 'Test Company Module Rounding')->first();
+        $this->assertTrue($company->rounding_enabled);
+        $this->assertTrue($company->rounding_orders_enabled);
+        $this->assertFalse($company->rounding_contracts_enabled);
     }
 
     public function test_update_company_via_post_multipart_still_works(): void

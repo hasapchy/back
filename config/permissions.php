@@ -319,7 +319,8 @@ return [
         'settings_client_balance_view_own',
         'settings_client_balance_adjustment',
         'settings_units_view',
-        'settings_units_manage',
+        'settings_units_create',
+        'settings_units_edit',
         'products_create_temp',
     ],
 
@@ -413,7 +414,8 @@ return [
         ],
         'products' => [
             'settings_units_view',
-            'settings_units_manage',
+            'settings_units_create',
+            'settings_units_edit',
         ],
     ],
 ];

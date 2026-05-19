@@ -19,6 +19,8 @@ class CompanyFactory extends Factory
             'rounding_enabled' => false,
             'rounding_direction' => null,
             'rounding_custom_threshold' => null,
+            'rounding_orders_enabled' => true,
+            'rounding_contracts_enabled' => false,
             'rounding_quantity_decimals' => 2,
             'rounding_quantity_enabled' => false,
             'rounding_quantity_direction' => null,
