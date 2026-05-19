@@ -37,7 +37,7 @@ use App\Http\Controllers\Api\ProjectStatusController;
 use App\Http\Controllers\Api\RecurringTransactionsController;
 use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\RolesController;
-use App\Http\Controllers\Api\SettingsUnitsController;
+use App\Http\Controllers\Api\UnitsController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\TasksController;
 use App\Http\Controllers\Api\TaskStatusController;
@@ -85,10 +85,10 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
 
     Route::middleware('permission.scope:currency_history_view_all,currency_history_view,currency_history_view_own,settings_currencies_view')->get('settings/currencies', [CurrenciesController::class, 'index']);
 
-    Route::middleware('permission.scope:settings_units_view,settings_units_create,settings_units_edit')->get('settings/units', [SettingsUnitsController::class, 'index']);
-    Route::middleware('permission:settings_units_create')->post('settings/units', [SettingsUnitsController::class, 'store']);
-    Route::middleware('permission:settings_units_edit')->put('settings/units/{id}', [SettingsUnitsController::class, 'update']);
-    Route::middleware('permission:settings_units_edit')->delete('settings/units/{id}', [SettingsUnitsController::class, 'destroy']);
+    Route::middleware('permission.scope:units_view,units_create,units_update,units_delete')->get('units', [UnitsController::class, 'index']);
+    Route::middleware('permission:units_create')->post('units', [UnitsController::class, 'store']);
+    Route::middleware('permission:units_update')->put('units/{id}', [UnitsController::class, 'update']);
+    Route::middleware('permission:units_delete')->delete('units/{id}', [UnitsController::class, 'destroy']);
 
     Route::post('user/logout', [AuthController::class, 'logout']);
     Route::get('user/me', [AuthController::class, 'me']);

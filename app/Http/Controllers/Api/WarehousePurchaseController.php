@@ -7,6 +7,7 @@ use App\Http\Requests\StoreWarehousePurchasePaymentRequest;
 use App\Http\Requests\UpdateWarehousePurchaseRequest;
 use App\Http\Resources\WarehousePurchaseResource;
 use App\Repositories\WarehousePurchaseRepository;
+use App\Services\WarehouseDocumentPaymentStatusService;
 use Illuminate\Http\Request;
 
 /**
@@ -29,7 +30,10 @@ class WarehousePurchaseController extends BaseController
             (int) $request->input('per_page', 20),
             (int) $request->input('page', 1),
             $request->filled('supplier_id') ? (int) $request->input('supplier_id') : null,
-            $request->filled('status') ? (string) $request->input('status') : null
+            $request->filled('status') ? (string) $request->input('status') : null,
+            app(WarehouseDocumentPaymentStatusService::class)->normalizePurchasePaymentStatusFilter(
+                $request->filled('payment_status') ? (string) $request->input('payment_status') : null
+            ),
         );
 
         return $this->successResponse([

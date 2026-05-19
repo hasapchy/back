@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\DefaultWorkSchedule;
+use App\Support\WorkScheduleNormalizer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -99,46 +101,14 @@ class Company extends Model
         return $this->hasMany(CompanyProductionCalendarDay::class);
     }
 
-     /**
-     * Получить рабочий график с дефолтными значениями
-     * Работает с raw значением из БД, так как cast 'array' применяется после accessor
-     */
-    public function getWorkScheduleAttribute($value)
-    {
-        // Получаем raw значение из БД (до применения cast)
-        $rawValue = $this->getAttributes()['work_schedule'] ?? null;
-
-        if ($rawValue) {
-            // Если это уже массив (после cast), возвращаем как есть
-            if (is_array($rawValue)) {
-                return $rawValue;
-            }
-            // Если это JSON строка, декодируем
-            if (is_string($rawValue)) {
-                $decoded = json_decode($rawValue, true);
-                if ($decoded) {
-                    return $decoded;
-                }
-            }
-        }
-
-        // Дефолтный график, если не установлен
-        return $this->getDefaultWorkSchedule();
-    }
-
     /**
-     * Получить дефолтный рабочий график
+     * @return array<int, array{enabled: bool, start: string, end: string}>
      */
-    protected function getDefaultWorkSchedule()
+    public function getWorkScheduleAttribute($value): array
     {
-        return [
-            1 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'], // Monday
-            2 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'], // Tuesday
-            3 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'], // Wednesday
-            4 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'], // Thursday
-            5 => ['enabled' => true, 'start' => '09:00', 'end' => '18:00'], // Friday
-            6 => ['enabled' => false, 'start' => '10:00', 'end' => '14:00'], // Saturday
-            7 => ['enabled' => false, 'start' => '00:00', 'end' => '00:00']  // Sunday
-        ];
+        $raw = $this->getAttributes()['work_schedule'] ?? null;
+
+        return WorkScheduleNormalizer::normalize(is_array($raw) ? $raw : null)
+            ?? DefaultWorkSchedule::get();
     }
 }

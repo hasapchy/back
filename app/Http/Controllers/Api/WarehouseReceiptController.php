@@ -7,6 +7,7 @@ use App\Http\Requests\StoreWarehouseReceiptRequest;
 use App\Http\Requests\UpdateWarehouseReceiptRequest;
 use App\Http\Resources\WarehouseReceiptResource;
 use App\Repositories\WarehouseReceiptRepository;
+use App\Services\WarehouseDocumentPaymentStatusService;
 use App\Support\NullableInt;
 use Illuminate\Http\Request;
 
@@ -51,6 +52,9 @@ class WarehouseReceiptController extends BaseController
             is_string($dateFilter) && $dateFilter !== '' ? $dateFilter : 'all_time',
             is_string($startDate) && $startDate !== '' ? $startDate : null,
             is_string($endDate) && $endDate !== '' ? $endDate : null,
+            app(WarehouseDocumentPaymentStatusService::class)->normalizeReceiptPaymentStatusFilter(
+                $request->filled('payment_status') ? (string) $request->input('payment_status') : null
+            ),
         );
 
         return $this->successResponse([

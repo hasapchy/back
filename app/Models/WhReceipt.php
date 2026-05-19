@@ -8,6 +8,7 @@ use App\Services\CacheService;
 use App\Services\TransactionDeletionService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Spatie\Activitylog\LogOptions;
@@ -24,6 +25,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string|null $note Примечание
  * @property int|null $cash_id ID кассы
  * @property float $amount Сумма
+ * @property float|null $orig_amount Сумма в валюте документа
+ * @property int|null $orig_currency_id ID валюты документа (касса / ввод)
  * @property \Carbon\Carbon $date Дата прихода
  * @property int $creator_id ID пользователя
  * @property WhReceiptStatus $status
@@ -35,7 +38,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property-read \App\Models\Warehouse $warehouse
  * @property-read \App\Models\CashRegister|null $cashRegister
  * @property-read \App\Models\User $creator
- * @property-read \App\Models\Currency|null $currency
+ * @property-read \App\Models\Currency|null $origCurrency
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\WhReceiptProduct[] $products
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Transaction[] $transactions
  * @property-read \Illuminate\Database\Eloquent\Collection<int, WhReceiptExpenseAllocation> $expenseAllocations
@@ -55,6 +58,8 @@ class WhReceipt extends Model implements SupportsTimeline
         'note',
         'cash_id',
         'amount',
+        'orig_amount',
+        'orig_currency_id',
         'date',
         'creator_id',
         'status',
@@ -62,6 +67,7 @@ class WhReceipt extends Model implements SupportsTimeline
 
     protected $casts = [
         'amount' => 'decimal:5',
+        'orig_amount' => 'decimal:5',
         'status' => WhReceiptStatus::class,
     ];
 
@@ -88,6 +94,8 @@ class WhReceipt extends Model implements SupportsTimeline
                 'note',
                 'cash_id',
                 'amount',
+                'orig_amount',
+                'orig_currency_id',
                 'date',
                 'status',
             ])
@@ -179,13 +187,11 @@ class WhReceipt extends Model implements SupportsTimeline
     }
 
     /**
-     * Связь с валютой
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo<Currency, self>
      */
-    public function currency()
+    public function origCurrency(): BelongsTo
     {
-        return $this->belongsTo(Currency::class);
+        return $this->belongsTo(Currency::class, 'orig_currency_id');
     }
 
     /**

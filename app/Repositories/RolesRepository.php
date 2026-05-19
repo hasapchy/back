@@ -189,7 +189,7 @@ class RolesRepository extends BaseRepository
         }
 
         // Фильтруем валидные разрешения
-        $permissions = array_filter($permissions, fn($p) => is_string($p) && !empty(trim($p)));
+        $permissions = array_filter($permissions, fn ($p) => is_string($p) && ! empty(trim($p)));
 
         if (empty($permissions)) {
             return [];

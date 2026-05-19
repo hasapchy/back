@@ -10,6 +10,7 @@ use App\Models\ClientBalance;
 use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Transaction;
+use App\Models\WhPurchase;
 use App\Models\WhReceipt;
 use App\Services\CacheService;
 use App\Services\CurrencyConverter;
@@ -615,6 +616,7 @@ class TransactionsRepository extends BaseRepository
             if (($data['source_type'] ?? null) === 'App\Models\Order' && ! empty($data['source_id'])) {
                 CacheService::invalidateOrdersCache();
             }
+            $this->invalidateWarehouseSourceCaches($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
 
             TimelineCache::forget('transaction', (int) $transaction->id);
         } catch (\Exception $e) {
@@ -703,6 +705,7 @@ class TransactionsRepository extends BaseRepository
         if ($transaction->source_type === 'App\Models\Order' && $transaction->source_id) {
             CacheService::invalidateOrdersCache();
         }
+        $this->invalidateWarehouseSourceCaches($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
 
         TimelineCache::forget('transaction', (int) $id);
 
@@ -1023,6 +1026,7 @@ class TransactionsRepository extends BaseRepository
             if ($transaction->source_type === 'App\Models\Order' && $transaction->source_id) {
                 CacheService::invalidateOrdersCache();
             }
+            $this->invalidateWarehouseSourceCaches($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
 
             TimelineCache::forget('transaction', (int) $id);
 
@@ -1153,6 +1157,7 @@ class TransactionsRepository extends BaseRepository
                     CacheService::invalidateProjectsCache();
                 }
             }
+            $this->invalidateWarehouseSourceCaches($transaction->source_type, $transaction->source_id ? (int) $transaction->source_id : null);
 
             TimelineCache::forget('transaction', $id);
 
@@ -1768,6 +1773,24 @@ class TransactionsRepository extends BaseRepository
         $receipt = WhReceipt::query()->find($sourceId);
         if ($receipt instanceof WhReceipt && $receipt->status === WhReceiptStatus::Completed) {
             throw new \RuntimeException((string) __('warehouse_receipt.receipt_completed_transactions_locked'));
+        }
+    }
+
+    /**
+     * @param  string|null  $sourceType
+     */
+    private function invalidateWarehouseSourceCaches(?string $sourceType, ?int $sourceId): void
+    {
+        if ($sourceId === null || $sourceId <= 0 || $sourceType === null || $sourceType === '') {
+            return;
+        }
+        if ($sourceType === WhPurchase::class || str_contains($sourceType, 'WhPurchase')) {
+            CacheService::invalidateWarehousePurchasesCache();
+
+            return;
+        }
+        if ($sourceType === WhReceipt::class || str_contains($sourceType, 'WhReceipt')) {
+            CacheService::invalidateWarehouseReceiptsCache();
         }
     }
 

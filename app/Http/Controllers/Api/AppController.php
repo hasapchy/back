@@ -101,33 +101,39 @@ class AppController extends BaseController
      * @param int $currencyId ID валюты
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getCurrencyExchangeRate($currencyId)
+    public function getCurrencyExchangeRate(\Illuminate\Http\Request $request, int $currencyId)
     {
         $user = $this->getAuthenticatedUser();
 
-        if (!$user) {
+        if (! $user) {
             return $this->errorResponse(null, 401);
         }
 
         $currency = Currency::find($currencyId);
-        if (!$currency) {
+        if (! $currency) {
             return $this->errorResponse('Валюта не найдена', 404);
         }
 
         $companyId = $this->getCurrentCompanyId();
+        $date = $request->query('date');
+        $dateKey = $date ? md5((string) $date) : 'current';
+        $cacheKey = "currency_exchange_rate_{$currencyId}_{$companyId}_{$dateKey}";
 
-        $cacheKey = "currency_exchange_rate_{$currencyId}_{$companyId}";
-
-        $exchangeRate = CacheService::getReferenceData($cacheKey, function () use ($currency, $companyId) {
+        $exchangeRate = CacheService::getReferenceData($cacheKey, function () use ($currency, $companyId, $date) {
+            if ($date) {
+                return (float) $currency->getExchangeRateForCompany($companyId, (string) $date);
+            }
             $rateHistory = $currency->getCurrentExchangeRateForCompany($companyId);
-            return $rateHistory ? $rateHistory->exchange_rate : 1;
+
+            return $rateHistory ? (float) $rateHistory->exchange_rate : 1.0;
         });
 
         return $this->successResponse([
             'currency_id' => $currencyId,
             'exchange_rate' => $exchangeRate,
             'currency_name' => $currency->name,
-            'currency_symbol' => $currency->symbol
+            'currency_symbol' => $currency->symbol,
+            'rate_date' => $date,
         ]);
     }
 
