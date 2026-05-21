@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\CompanyHoliday;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class UpdateCompanyHolidayRequest extends FormRequest
@@ -30,15 +32,26 @@ class UpdateCompanyHolidayRequest extends FormRequest
             'end_date' => 'nullable|date',
             'is_recurring' => 'nullable|boolean',
             'color' => 'nullable|string|max:7',
+            'icon' => ['required', 'string', 'max:100', Rule::in($this->allowedIcons())],
         ];
     }
 
     /**
-     * Подготовить данные для валидации
+     * @return void
      */
     protected function prepareForValidation(): void
     {
-        // company_id теперь опционально приходит в body запроса
+        if ($this->has('icon') && $this->input('icon') === '') {
+            $this->merge(['icon' => null]);
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function allowedIcons(): array
+    {
+        return CompanyHoliday::ALLOWED_ICONS;
     }
 
     /**

@@ -126,6 +126,7 @@ class CompanyHolidayController extends BaseController
             'end_date' => $validatedData['end_date'] ?? null,
             'is_recurring' => $validatedData['is_recurring'] ?? true,
             'color' => $validatedData['color'] ?? '#FF5733',
+            'icon' => $validatedData['icon'],
             'company_id' => $validatedData['company_id'],
         ];
 
@@ -158,11 +159,12 @@ class CompanyHolidayController extends BaseController
             $holiday = CompanyHoliday::findOrFail($id);
 
             $data = array_filter([
-                'name' => $request->input('name'),
-                'date' => $request->input('date'),
-                'end_date' => $request->input('end_date'),
-                'is_recurring' => $request->has('is_recurring') ? $request->input('is_recurring') : null,
-                'color' => $request->input('color'),
+                'name' => $validatedData['name'] ?? null,
+                'date' => $validatedData['date'] ?? null,
+                'end_date' => array_key_exists('end_date', $validatedData) ? $validatedData['end_date'] : null,
+                'is_recurring' => $validatedData['is_recurring'] ?? null,
+                'color' => $validatedData['color'] ?? null,
+                'icon' => $validatedData['icon'] ?? null,
             ], fn ($value) => $value !== null);
 
             $updated = $this->repository->updateItem($id, $data);

@@ -6,6 +6,7 @@ use App\Enums\WhReceiptStatus;
 use App\Http\Requests\StoreWarehouseReceiptRequest;
 use App\Http\Requests\UpdateWarehouseReceiptRequest;
 use App\Http\Resources\WarehouseReceiptResource;
+use App\Exceptions\WarehouseLockedForInventoryException;
 use App\Repositories\WarehouseReceiptRepository;
 use App\Services\WarehouseDocumentPaymentStatusService;
 use App\Support\NullableInt;
@@ -146,6 +147,8 @@ class WarehouseReceiptController extends BaseController
             $receiptId = $this->itemsRepository->createItem($data);
 
             return $this->successResponse(['id' => $receiptId], __('warehouse_receipt.created_success'));
+        } catch (WarehouseLockedForInventoryException $e) {
+            return $this->errorResponse($e->getMessage(), 400);
         } catch (\Throwable $th) {
             return $this->errorResponse(__('warehouse_receipt.store_error', ['message' => $th->getMessage()]), 400);
         }
@@ -195,21 +198,45 @@ class WarehouseReceiptController extends BaseController
             }
         }
 
+        if (! empty($validatedData['products'])) {
+            $products = array_map(function (array $product) {
+                $row = [
+                    'product_id' => (int) $product['product_id'],
+                    'quantity' => (float) $product['quantity'],
+                    'price' => (float) $product['price'],
+                ];
+                if (array_key_exists('orig_unit_id', $product)) {
+                    $row['orig_unit_id'] = $product['orig_unit_id'];
+                }
+                if (array_key_exists('orig_quantity', $product)) {
+                    $row['orig_quantity'] = $product['orig_quantity'];
+                }
+
+                return $row;
+            }, $validatedData['products']);
+        } else {
+            $products = array_map(static function ($product) {
+                $documentPrice = $product->orig_unit_price !== null
+                    ? (float) $product->orig_unit_price
+                    : (float) $product->price;
+
+                return [
+                    'product_id' => (int) $product->product_id,
+                    'quantity' => (float) $product->quantity,
+                    'price' => $documentPrice,
+                    'orig_unit_id' => $product->orig_unit_id !== null ? (int) $product->orig_unit_id : null,
+                    'orig_quantity' => $product->orig_quantity !== null ? (float) $product->orig_quantity : null,
+                ];
+            }, $receipt->products->all());
+        }
+
         $data = [
             'client_id' => $receipt->supplier_id,
             'warehouse_id' => $receipt->warehouse_id,
             'cash_id' => $receipt->cash_id,
             'date' => $validatedData['date'] ?? $receipt->date,
             'note' => $validatedData['note'] ?? $receipt->note,
-            'products' => array_map(static function ($product) {
-                return [
-                    'product_id' => (int) $product->product_id,
-                    'quantity' => (float) $product->quantity,
-                    'price' => (float) $product->price,
-                    'orig_unit_id' => $product->orig_unit_id !== null ? (int) $product->orig_unit_id : null,
-                    'orig_quantity' => $product->orig_quantity !== null ? (float) $product->orig_quantity : null,
-                ];
-            }, $receipt->products->all()),
+            'products' => $products,
             'status' => array_key_exists('status', $validatedData) ? $validatedData['status'] : null,
         ];
 

@@ -248,6 +248,73 @@ class WarehouseReceiptControllerTest extends TestCase
         $response->assertJson(['message' => 'Оприходование обновлено']);
     }
 
+    public function test_update_draft_receipt_note_preserves_foreign_currency_amounts(): void
+    {
+        $defaultCurrency = Currency::query()
+            ->where('company_id', $this->company->id)
+            ->where('is_default', true)
+            ->firstOrFail();
+        $usdCurrency = Currency::factory()->create([
+            'company_id' => $this->company->id,
+            'is_default' => false,
+            'is_report' => false,
+        ]);
+        CurrencyHistory::query()->create([
+            'currency_id' => $defaultCurrency->id,
+            'company_id' => $this->company->id,
+            'exchange_rate' => 1,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => null,
+        ]);
+        CurrencyHistory::query()->create([
+            'currency_id' => $usdCurrency->id,
+            'company_id' => $this->company->id,
+            'exchange_rate' => 2,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => null,
+        ]);
+        $usdCashRegister = CashRegister::factory()->create([
+            'company_id' => $this->company->id,
+            'currency_id' => $usdCurrency->id,
+        ]);
+
+        $createResponse = $this->actingAsApi($this->adminUser)->postJson('/api/warehouse_receipts', [
+            'client_id' => $this->client->id,
+            'warehouse_id' => $this->warehouse->id,
+            'cash_id' => $usdCashRegister->id,
+            'status' => 'draft',
+            'products' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 2,
+                    'price' => 10,
+                ],
+            ],
+        ]);
+        $createResponse->assertStatus(200);
+        $receiptId = (int) WhReceipt::query()->orderByDesc('id')->value('id');
+
+        $updateResponse = $this->actingAsApi($this->adminUser)->putJson("/api/warehouse_receipts/{$receiptId}", [
+            'note' => 'only note changed',
+        ]);
+        $updateResponse->assertStatus(200);
+
+        $this->assertDatabaseHas('wh_receipts', [
+            'id' => $receiptId,
+            'orig_amount' => 20,
+            'orig_currency_id' => $usdCurrency->id,
+            'amount' => 40,
+            'note' => 'only note changed',
+        ]);
+        $this->assertDatabaseHas('wh_receipt_products', [
+            'receipt_id' => $receiptId,
+            'product_id' => $this->product->id,
+            'orig_unit_price' => 10,
+            'orig_currency_id' => $usdCurrency->id,
+            'price' => 20,
+        ]);
+    }
+
     public function test_destroy_warehouse_receipt_success(): void
     {
         $receipt = WhReceipt::factory()->create([
@@ -270,10 +337,11 @@ class WarehouseReceiptControllerTest extends TestCase
         request()->headers->set('X-Company-ID', (string) $this->company->id);
 
         $repo = app(WarehouseReceiptRepository::class);
-        $defaultCurrency = Currency::query()
-            ->where('company_id', $this->company->id)
-            ->where('is_default', true)
-            ->firstOrFail();
+        $defaultCurrency = Currency::firstWhere('is_default', true)
+            ?? Currency::query()
+                ->where('company_id', $this->company->id)
+                ->where('is_default', true)
+                ->firstOrFail();
 
         $receiptId = $repo->createItem([
             'client_id' => $this->client->id,
@@ -383,10 +451,15 @@ class WarehouseReceiptControllerTest extends TestCase
         $partialResponse->assertStatus(200);
         $partialResponse->assertJsonPath('data.payment_status', 'partially_paid');
 
+        $partiallyPaidIndex = $this->actingAsApi($this->adminUser)->getJson('/api/warehouse_receipts?payment_status=partially_paid');
+        $partiallyPaidIndex->assertStatus(200);
+        $partiallyPaidIds = collect($partiallyPaidIndex->json('data.items'))->pluck('id')->map(fn ($id) => (int) $id);
+        $this->assertTrue($partiallyPaidIds->contains($receiptId));
+
         $unpaidIndex = $this->actingAsApi($this->adminUser)->getJson('/api/warehouse_receipts?payment_status=unpaid');
         $unpaidIndex->assertStatus(200);
         $unpaidIds = collect($unpaidIndex->json('data.items'))->pluck('id')->map(fn ($id) => (int) $id);
-        $this->assertTrue($unpaidIds->contains($receiptId));
+        $this->assertFalse($unpaidIds->contains($receiptId));
     }
 
     public function test_receipt_from_purchase_has_null_payment_status(): void

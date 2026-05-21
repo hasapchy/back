@@ -6,6 +6,7 @@ use App\Enums\WhPurchaseStatus;
 use App\Models\ClientBalance;
 use App\Models\WhPurchase;
 use App\Models\WhPurchaseProduct;
+use App\Services\WarehousePurchaseGoodsPaymentLimitService;
 use App\Repositories\Concerns\ResolvesWarehouseLineOrigDisplay;
 use App\Services\CacheService;
 use App\Services\RoundingService;
@@ -17,6 +18,23 @@ use Illuminate\Support\Facades\DB;
 class WarehousePurchaseRepository extends BaseRepository
 {
     use ResolvesWarehouseLineOrigDisplay;
+
+    /**
+     * @return \Closure(\Illuminate\Database\Eloquent\Relations\MorphMany): void
+     */
+    protected function purchaseTransactionsWithRelations(): \Closure
+    {
+        return function ($query): void {
+            $query->where('is_deleted', false)
+                ->with([
+                    'creator:id,name,surname',
+                    'category:id,name,type',
+                    'cashRegister:id,name,currency_id,is_cash,icon,color',
+                    'cashRegister.currency:id,name,symbol',
+                    'currency:id,name,symbol',
+                ]);
+        };
+    }
 
     /**
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<WhPurchase>
@@ -42,7 +60,7 @@ class WarehousePurchaseRepository extends BaseRepository
                     'products.product.unit:id,name,short_name',
                     'products.origUnit:id,name,short_name',
                     'receipts:id,purchase_id,warehouse_id,supplier_id,amount,status,date,creator_id',
-                    'transactions:id,source_type,source_id,type,is_debt,category_id,cash_id,currency_id,orig_amount,amount,def_amount,date,note,client_id,creator_id,is_deleted',
+                    'transactions' => $this->purchaseTransactionsWithRelations(),
                 ]);
 
             $query = $this->addCompanyFilterThroughRelation($query, 'supplier');
@@ -89,7 +107,7 @@ class WarehousePurchaseRepository extends BaseRepository
                     'products.product.unit:id,name,short_name',
                     'products.origUnit:id,name,short_name',
                     'receipts:id,purchase_id,warehouse_id,supplier_id,amount,status,date,creator_id',
-                    'transactions:id,source_type,source_id,type,is_debt,category_id,cash_id,currency_id,orig_amount,amount,def_amount,date,note,client_id,creator_id,is_deleted',
+                    'transactions' => $this->purchaseTransactionsWithRelations(),
                 ]);
             $query = $this->addCompanyFilterThroughRelation($query, 'supplier');
 
@@ -313,17 +331,12 @@ class WarehousePurchaseRepository extends BaseRepository
             $amount = (float) $data['amount'];
             $defaultCurrency = $this->getDefaultCurrency();
             $paymentCurrencyId = (int) ($data['currency_id'] ?? $purchase->currency_id ?? $defaultCurrency->id);
-            $paidTotalDefault = (float) Transaction::query()
-                ->where('source_type', WhPurchase::class)
-                ->where('source_id', $purchase->id)
-                ->where('is_debt', false)
-                ->sum('def_amount');
             $incomingAmountDefault = $paymentCurrencyId === (int) $defaultCurrency->id
                 ? $amount
                 : $this->convertAndRoundCurrency($amount, $paymentCurrencyId, (int) $defaultCurrency->id);
-            $debtTotalDefault = max(0.0, (float) $purchase->amount - $paidTotalDefault);
-            if ($incomingAmountDefault > $debtTotalDefault + 1e-9) {
-                throw new \RuntimeException('Сумма оплаты не может превышать долг по закупке');
+            $remaining = app(WarehousePurchaseGoodsPaymentLimitService::class)->remainingDefault($purchase, null);
+            if ($incomingAmountDefault > $remaining + 1e-9) {
+                throw new \RuntimeException((string) __('warehouse_purchase.goods_payment_exceeds_remaining'));
             }
 
             $txId = $this->createTransactionForSource([

@@ -320,7 +320,7 @@ class WarehouseReceiptRepository extends BaseRepository
         /** @var WhPurchaseProduct $line */
         foreach ($purchase->products as $line) {
             $planned[(int) $line->product_id] = $rounding->roundQuantityForCompany($companyId, (float) $line->quantity);
-            $plannedPrices[(int) $line->product_id] = (float) $line->price;
+            $plannedPrices[(int) $line->product_id] = $line->documentCurrencyUnitPrice();
         }
 
         $received = WhReceiptProduct::query()
@@ -402,10 +402,9 @@ class WarehouseReceiptRepository extends BaseRepository
             $receipt->cash_id = $cash_id;
             $receipt->date = $date;
             $receipt->note = $note;
-            $receipt->amount = 0;
-            $receipt->save();
 
-            $total_amount = 0;
+            $total_amount = 0.0;
+            $totalInDefault = 0.0;
             $existingProducts = WhReceiptProduct::where('receipt_id', $receipt_id)->get();
             $existingProductIds = $existingProducts->pluck('product_id')->toArray();
 
@@ -424,7 +423,7 @@ class WarehouseReceiptRepository extends BaseRepository
             foreach ($products as $product) {
                 $product_id = $product['product_id'];
                 $quantity = (new RoundingService())->roundQuantityForCompany($this->getCurrentCompanyId(), (float) ($product['quantity']));
-                $lineOrig = $this->resolveWarehouseLineOrigAmount($product, $lineCurrencyId);
+                $lineOrig = $this->resolveWarehouseLineOrigAmount($product, $lineCurrencyId, $date);
 
                 WhReceiptProduct::updateOrCreate(
                     ['receipt_id' => $receipt->id, 'product_id' => $product_id],
@@ -439,13 +438,14 @@ class WarehouseReceiptRepository extends BaseRepository
                     )
                 );
 
-                $total_amount += (float) $lineOrig['price'] * $quantity;
+                $total_amount += (float) $lineOrig['orig_unit_price'] * $quantity;
+                $totalInDefault += (float) $lineOrig['price'] * $quantity;
             }
 
             $roundingService = new RoundingService();
             $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
             $total_amount = $roundingService->roundForCompany($companyId, (float) $total_amount);
-            $totalInDefault = $this->sumReceiptLinesInDefaultCurrency($products, $lineCurrency, $companyId, $date);
+            $totalInDefault = $roundingService->roundForCompany($companyId, (float) $totalInDefault);
             $receipt->orig_amount = $total_amount;
             $receipt->orig_currency_id = $lineCurrencyId;
             $receipt->amount = $totalInDefault;
@@ -453,7 +453,7 @@ class WarehouseReceiptRepository extends BaseRepository
 
             $transactions = $receipt->transactions()->get();
             if ($transactions->isEmpty()) {
-                $this->updateClientBalance($client_id, $total_amount - $old_total_amount);
+                $this->updateClientBalance($client_id, $totalInDefault - $old_total_amount);
             }
             $this->syncDraftAutoTransactions($receipt, $totalInDefault);
 
@@ -504,6 +504,8 @@ class WarehouseReceiptRepository extends BaseRepository
             return;
         }
 
+        $defaultCurrency = $this->getDefaultCurrency();
+
         app(TransactionsRepository::class)->updateItem((int) $debtTx->id, [
             'type' => 0,
             'category_id' => 6,
@@ -517,7 +519,7 @@ class WarehouseReceiptRepository extends BaseRepository
             'client_balance_id' => $receipt->client_balance_id,
             'is_debt' => true,
             'orig_amount' => $totalInDefault,
-            'currency_id' => (int) $debtTx->currency_id,
+            'currency_id' => (int) $defaultCurrency->id,
         ]);
     }
 
@@ -882,6 +884,7 @@ class WarehouseReceiptRepository extends BaseRepository
         CacheService::invalidateWarehouseStocksCache();
         CacheService::invalidateProductsCache();
         CacheService::invalidateClientsCache();
+        CacheService::invalidateWarehousePurchasesCache();
     }
 
     /**

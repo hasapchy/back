@@ -20,6 +20,7 @@ class CompanyHolidayReferenceResource extends JsonResource
             'end_date' => data_get($this->resource, 'end_date'),
             'is_recurring' => data_get($this->resource, 'is_recurring'),
             'color' => data_get($this->resource, 'color'),
+            'icon' => data_get($this->resource, 'icon'),
             'created_at' => data_get($this->resource, 'created_at'),
             'updated_at' => data_get($this->resource, 'updated_at'),
         ];

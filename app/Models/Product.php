@@ -15,6 +15,8 @@ use App\Models\SalesProduct;
 use App\Models\Unit;
 use App\Models\Comment;
 use App\Contracts\SupportsTimeline;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * Модель продукта
@@ -51,6 +53,7 @@ use App\Contracts\SupportsTimeline;
 class Product extends Model implements SupportsTimeline
 {
     use HasFactory;
+    use LogsActivity;
 
     protected $table = 'products';
     protected $fillable = [
@@ -175,6 +178,41 @@ class Product extends Model implements SupportsTimeline
     public function creator()
     {
         return $this->belongsTo(User::class, 'creator_id');
+    }
+
+    /**
+     * @return LogOptions
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('product')
+            ->logOnly([
+                'name',
+                'description',
+                'sku',
+                'barcode',
+                'unit_id',
+                'type',
+                'stock_alert_notify',
+                'stock_min_quantity',
+                'image',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn (string $eventName) => $this->getDescriptionForEvent($eventName));
+    }
+
+    /**
+     * @param string $eventName
+     * @return string
+     */
+    public function getDescriptionForEvent(string $eventName): string
+    {
+        return match ($eventName) {
+            'created', 'updated', 'deleted' => "activity_log.product.{$eventName}",
+            default => 'activity_log.product.default',
+        };
     }
 
     /**

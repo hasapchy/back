@@ -1,0 +1,129 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Company;
+use App\Models\CompanyHoliday;
+use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Tests\TestCase;
+
+class CompanyHolidaysControllerTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    protected User $adminUser;
+
+    protected Company $company;
+
+    /**
+     * @return void
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->company = Company::factory()->create();
+        $this->adminUser = User::factory()->create([
+            'is_admin' => true,
+            'is_active' => true,
+        ]);
+        $this->adminUser->companies()->attach($this->company->id);
+    }
+
+    /**
+     * @param  User  $user
+     * @return $this
+     */
+    protected function actingAsApi(User $user)
+    {
+        return $this->withApiTokenForCompany($user, (int) $this->company->id);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_store_company_holiday_requires_icon(): void
+    {
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/company-holidays', [
+                'company_id' => $this->company->id,
+                'name' => 'Test Event',
+                'date' => '2026-12-31',
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['icon']);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_store_company_holiday_rejects_invalid_icon(): void
+    {
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/company-holidays', [
+                'company_id' => $this->company->id,
+                'name' => 'Test Event',
+                'date' => '2026-12-31',
+                'icon' => 'fa-solid fa-unknown-icon',
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['icon']);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_store_company_holiday_persists_icon(): void
+    {
+        $icon = CompanyHoliday::ALLOWED_ICONS[1];
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->postJson('/api/company-holidays', [
+                'company_id' => $this->company->id,
+                'name' => 'Test Event',
+                'date' => '2026-12-31',
+                'icon' => $icon,
+            ]);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('company_holidays', [
+            'company_id' => $this->company->id,
+            'name' => 'Test Event',
+            'icon' => $icon,
+        ]);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_update_company_holiday_persists_icon(): void
+    {
+        $holiday = CompanyHoliday::query()->create([
+            'company_id' => $this->company->id,
+            'name' => 'Old Event',
+            'date' => '2026-01-01',
+            'icon' => CompanyHoliday::DEFAULT_ICON,
+        ]);
+
+        $newIcon = CompanyHoliday::ALLOWED_ICONS[2];
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->putJson("/api/company-holidays/{$holiday->id}", [
+                'name' => 'Updated Event',
+                'date' => '2026-01-02',
+                'icon' => $newIcon,
+            ]);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('company_holidays', [
+            'id' => $holiday->id,
+            'name' => 'Updated Event',
+            'icon' => $newIcon,
+        ]);
+    }
+}

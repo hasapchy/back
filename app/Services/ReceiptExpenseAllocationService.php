@@ -335,7 +335,7 @@ class ReceiptExpenseAllocationService
 
     private function lineRawSubtotalInReceiptCurrency(WhReceiptProduct $line): float
     {
-        return (float) $line->price * (float) $line->quantity;
+        return $line->documentCurrencySubtotal();
     }
 
     private function rawSubtotalInDefaultCurrency(

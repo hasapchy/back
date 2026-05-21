@@ -340,7 +340,7 @@ class TransactionsRepository extends BaseRepository
             'creator_id' => $transaction->creator_id,
             'creator' => $transaction->creator ? [
                 'id' => $transaction->creator->id,
-                'name' => $transaction->creator->name,
+                'name' => trim(($transaction->creator->name ?? '').' '.($transaction->creator->surname ?? '')),
             ] : null,
             'category_id' => $transaction->category_id,
             'category_name' => $transaction->category->name,
@@ -348,6 +348,7 @@ class TransactionsRepository extends BaseRepository
             'project_id' => $transaction->project_id,
             'project_name' => $transaction->project?->name,
             'client_id' => $transaction->client_id,
+            'client_balance_id' => $transaction->client_balance_id,
             'client' => $transaction->client ? [
                 'id' => $transaction->client->id,
                 'first_name' => $transaction->client->first_name,
@@ -374,6 +375,14 @@ class TransactionsRepository extends BaseRepository
             'source_id' => $transaction->source_id,
             'is_deleted' => $transaction->is_deleted ?? false,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function transactionToListArray(Transaction $transaction): array
+    {
+        return (array) $this->transformTransactionToListItem($transaction);
     }
 
     /**
@@ -492,7 +501,7 @@ class TransactionsRepository extends BaseRepository
             $companyId
         );
 
-        $this->assertWarehouseReceiptGoodsPaymentCap($data, (float) $defAmount, null);
+        $this->assertWarehouseGoodsPaymentCap($data, (float) $defAmount, null);
 
         DB::beginTransaction();
 
@@ -881,7 +890,7 @@ class TransactionsRepository extends BaseRepository
             $transaction->def_rate = $defRate;
             $transaction->def_amount = $defAmount;
 
-            $this->assertWarehouseReceiptGoodsPaymentCap([
+            $this->assertWarehouseGoodsPaymentCap([
                 'type' => (int) $transaction->type,
                 'is_debt' => (bool) $transaction->is_debt,
                 'category_id' => (int) $transaction->category_id,
@@ -1794,7 +1803,7 @@ class TransactionsRepository extends BaseRepository
         }
     }
 
-    private function assertWarehouseReceiptGoodsPaymentCap(array $data, float $defAmount, ?int $excludeTransactionId): void
+    private function assertWarehouseGoodsPaymentCap(array $data, float $defAmount, ?int $excludeTransactionId): void
     {
         if ((int) ($data['type'] ?? -1) !== 0) {
             return;
@@ -1807,16 +1816,35 @@ class TransactionsRepository extends BaseRepository
         }
         $sourceType = (string) ($data['source_type'] ?? '');
         $sourceId = (int) ($data['source_id'] ?? 0);
-        if ($sourceId <= 0 || ! str_contains($sourceType, 'WhReceipt')) {
+        if ($sourceId <= 0) {
             return;
         }
-        $receipt = WhReceipt::query()->with(['warehouse', 'cashRegister.currency', 'products'])->find($sourceId);
-        if (! $receipt) {
+        if (str_contains($sourceType, 'WhReceipt')) {
+            $receipt = WhReceipt::query()->with(['warehouse', 'cashRegister.currency', 'products'])->find($sourceId);
+            if (! $receipt) {
+                return;
+            }
+            if ($receipt->purchase_id !== null) {
+                throw new \RuntimeException((string) __('warehouse_receipt.goods_payment_via_purchase'));
+            }
+            $remaining = app(\App\Services\WarehouseReceiptGoodsPaymentLimitService::class)
+                ->remainingDefault($receipt, $excludeTransactionId);
+            if ($defAmount > $remaining + 0.01) {
+                throw new \RuntimeException((string) __('warehouse_receipt.goods_payment_exceeds_remaining'));
+            }
+
             return;
         }
-        $remaining = app(\App\Services\WarehouseReceiptGoodsPaymentLimitService::class)->remainingDefault($receipt, $excludeTransactionId);
-        if ($defAmount > $remaining + 0.01) {
-            throw new \RuntimeException((string) __('warehouse_receipt.goods_payment_exceeds_remaining'));
+        if (str_contains($sourceType, 'WhPurchase')) {
+            $purchase = WhPurchase::query()->find($sourceId);
+            if (! $purchase) {
+                return;
+            }
+            $remaining = app(\App\Services\WarehousePurchaseGoodsPaymentLimitService::class)
+                ->remainingDefault($purchase, $excludeTransactionId);
+            if ($defAmount > $remaining + 0.01) {
+                throw new \RuntimeException((string) __('warehouse_purchase.goods_payment_exceeds_remaining'));
+            }
         }
     }
 

@@ -15,7 +15,9 @@ class InventoryLockService
             ->exists();
 
         if ($hasActiveInventory) {
-            throw new WarehouseLockedForInventoryException('WAREHOUSE_LOCKED');
+            throw new WarehouseLockedForInventoryException(
+                (string) __('warehouse_receipt.warehouse_locked_for_inventory')
+            );
         }
     }
 }

@@ -4,18 +4,12 @@ namespace App\Http\Requests\Concerns;
 
 use App\Models\CashRegister;
 use App\Models\ClientBalance;
+use App\Services\DocumentParentBalanceResolver;
 use Illuminate\Contracts\Validation\Validator;
 
 trait ValidatesTransactionClientBalanceConsistency
 {
     /**
-     * Проверка: при переданном client_balance_id валюта и касса совпадают с балансом, баланс принадлежит клиенту.
-     *
-     * @param  Validator  $validator
-     * @param  mixed  $clientBalanceId
-     * @param  mixed  $clientId
-     * @param  mixed  $currencyId
-     * @param  mixed  $cashId
      * @return void
      */
     protected function assertTransactionPayloadMatchesClientBalance(
@@ -71,5 +65,45 @@ trait ValidatesTransactionClientBalanceConsistency
                 __('Валюта кассы должна совпадать с валютой выбранного баланса клиента.')
             );
         }
+    }
+
+    /**
+     * @return void
+     */
+    protected function assertParentDocumentClientBalance(
+        Validator $validator,
+        mixed $orderId,
+        mixed $sourceType,
+        mixed $sourceId,
+        mixed $clientBalanceId,
+        bool $isDebt = false,
+        ?int $categoryId = null,
+    ): void {
+        app(DocumentParentBalanceResolver::class)->assertManualDocumentPayment(
+            $validator,
+            $this->normalizeOptionalInt($orderId),
+            $sourceType ? (string) $sourceType : null,
+            $this->normalizeOptionalInt($sourceId),
+            $clientBalanceId,
+            $isDebt,
+            $categoryId,
+        );
+    }
+
+    /**
+     * @return bool
+     */
+    protected function requestBool(mixed $value): bool
+    {
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    private function normalizeOptionalInt(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (int) $value;
     }
 }

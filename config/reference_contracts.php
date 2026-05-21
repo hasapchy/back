@@ -71,7 +71,7 @@ return [
         'message_templates' => [
             'company', 'company_id', 'created_at', 'creator', 'creator_id', 'id', 'is_active', 'name', 'type', 'updated_at',
         ],
-        'company_holidays' => ['color', 'company_id', 'created_at', 'date', 'end_date', 'id', 'is_recurring', 'name', 'updated_at'],
+        'company_holidays' => ['color', 'company_id', 'created_at', 'date', 'end_date', 'icon', 'id', 'is_recurring', 'name', 'updated_at'],
         'transaction_templates' => [
             'amount', 'cash_id', 'cash_register', 'category', 'category_id', 'client', 'client_id', 'created_at', 'creator', 'creator_id', 'currency', 'currency_id', 'icon', 'id', 'name', 'note', 'project', 'project_id', 'type', 'updated_at',
         ],

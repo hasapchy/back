@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\WarehouseStock;
 use App\Models\WhUser;
 use App\Services\CacheService;
+use App\Services\Timeline\TimelineCache;
 use App\Support\SimpleUser;
 use App\Services\ProductUnitConversionGraphService;
 use App\Services\UnitConversionGraphService;
@@ -279,6 +280,7 @@ class ProductsRepository extends BaseRepository
             }
 
             CacheService::invalidateProductsCache();
+            TimelineCache::forget('product', (int) $product->id);
 
             $ret = Product::select([
                 'products.*',
@@ -383,6 +385,7 @@ class ProductsRepository extends BaseRepository
             }
 
             CacheService::invalidateProductsCache();
+            TimelineCache::forget('product', (int) $product->id);
 
             $ret = Product::select([
                 'products.*',
@@ -497,6 +500,7 @@ class ProductsRepository extends BaseRepository
         });
 
         CacheService::invalidateProductsCache();
+        TimelineCache::forget('product', (int) $id);
 
         return ['success' => true];
     }

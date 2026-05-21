@@ -228,7 +228,7 @@ class WarehousePurchaseControllerTest extends TestCase
             'amount' => 40,
         ]);
         $secondPayment->assertStatus(400);
-        $secondPayment->assertJsonFragment(['error' => 'Сумма оплаты не может превышать долг по закупке']);
+        $secondPayment->assertJsonFragment(['error' => __('warehouse_purchase.goods_payment_exceeds_remaining')]);
     }
 
     public function test_receipt_creation_from_draft_purchase_is_forbidden(): void
@@ -400,7 +400,7 @@ class WarehousePurchaseControllerTest extends TestCase
             'amount' => 50,
         ]);
         $secondPayment->assertStatus(400);
-        $secondPayment->assertJsonFragment(['error' => 'Сумма оплаты не может превышать долг по закупке']);
+        $secondPayment->assertJsonFragment(['error' => __('warehouse_purchase.goods_payment_exceeds_remaining')]);
     }
 
     public function test_update_draft_syncs_products_and_debt(): void

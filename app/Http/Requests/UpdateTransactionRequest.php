@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\ValidatesTransactionClientBalanceConsistency;
+use App\Models\Order;
 use App\Models\ProjectContract;
 use App\Models\Transaction;
 use App\Rules\ProjectAccessRule;
@@ -49,6 +50,7 @@ class UpdateTransactionRequest extends FormRequest
             'is_debt' => 'nullable|boolean',
             'source_type' => 'nullable|string',
             'source_id' => 'nullable|integer',
+            'order_id' => 'nullable|integer|exists:orders,id',
             'exchange_rate' => 'nullable|numeric|min:0.00001',
         ];
     }
@@ -91,17 +93,40 @@ class UpdateTransactionRequest extends FormRequest
                     $projectId = $transaction->project_id;
                 }
             }
-            if (!$sourceType || !$sourceId || strpos($sourceType, 'ProjectContract') === false) {
-                return;
+            if ($sourceType && $sourceId && str_contains($sourceType, 'ProjectContract')) {
+                $contract = ProjectContract::find($sourceId);
+                if (!$contract) {
+                    $validator->errors()->add('source_id', __('Контракт не найден.'));
+                } elseif ($projectId && (int) $contract->project_id !== (int) $projectId) {
+                    $validator->errors()->add('source_id', __('Контракт не принадлежит выбранному проекту.'));
+                }
             }
-            $contract = ProjectContract::find($sourceId);
-            if (!$contract) {
-                $validator->errors()->add('source_id', __('Контракт не найден.'));
-                return;
+
+            $transaction = $transactionId ? Transaction::find($transactionId) : null;
+            $orderId = $this->input('order_id');
+            $sourceType = $this->input('source_type') ?? $transaction?->source_type;
+            $sourceId = $this->input('source_id') ?? $transaction?->source_id;
+            if (($orderId === null || $orderId === '') && $sourceType && str_contains((string) $sourceType, 'Order') && $sourceId) {
+                $orderId = $sourceId;
             }
-            if ($projectId && (int) $contract->project_id !== (int) $projectId) {
-                $validator->errors()->add('source_id', __('Контракт не принадлежит выбранному проекту.'));
-            }
+            $balanceId = $this->has('client_balance_id')
+                ? $this->input('client_balance_id')
+                : $transaction?->client_balance_id;
+            $isDebt = $this->has('is_debt')
+                ? $this->requestBool($this->input('is_debt'))
+                : (bool) ($transaction?->is_debt ?? false);
+            $categoryId = $this->has('category_id')
+                ? $this->normalizeOptionalInt($this->input('category_id'))
+                : ($transaction?->category_id !== null ? (int) $transaction->category_id : null);
+            $this->assertParentDocumentClientBalance(
+                $validator,
+                $orderId,
+                $sourceType,
+                $sourceId,
+                $balanceId,
+                $isDebt,
+                $categoryId,
+            );
         });
     }
 

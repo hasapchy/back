@@ -11,10 +11,16 @@ use App\Models\LeadStatus;
 use App\Models\Order;
 use App\Models\Project;
 use App\Models\ProjectContract;
+use App\Models\Product;
 use App\Models\TimelineReadState;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Models\Warehouse;
+use App\Models\WhPurchase;
+use App\Models\CashRegister;
+use App\Models\Category;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class CommentControllerTest extends TestCase
@@ -42,6 +48,28 @@ class CommentControllerTest extends TestCase
         return $this->withApiTokenForCompany($user, (int) $this->company->id);
     }
 
+    /**
+     * @return Order
+     */
+    protected function createScopedOrder(): Order
+    {
+        $client = Client::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+        ]);
+        $cash = CashRegister::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+
+        return Order::factory()->create([
+            'client_id' => $client->id,
+            'cash_id' => $cash->id,
+            'warehouse_id' => null,
+            'project_id' => null,
+            'creator_id' => $this->adminUser->id,
+        ]);
+    }
+
     public function test_store_comment_requires_validation(): void
     {
         $response = $this->actingAsApi($this->adminUser)
@@ -53,7 +81,7 @@ class CommentControllerTest extends TestCase
 
     public function test_store_comment_success(): void
     {
-        $order = Order::factory()->create();
+        $order = $this->createScopedOrder();
 
         $data = [
             'type' => 'order',
@@ -70,7 +98,7 @@ class CommentControllerTest extends TestCase
 
     public function test_update_comment_requires_validation(): void
     {
-        $order = Order::factory()->create();
+        $order = $this->createScopedOrder();
 
         $comment = \App\Models\Comment::factory()->create([
             'commentable_type' => Order::class,
@@ -96,13 +124,57 @@ class CommentControllerTest extends TestCase
 
     public function test_timeline_returns_success_for_order(): void
     {
-        $order = Order::factory()->create();
+        $order = $this->createScopedOrder();
 
         $response = $this->actingAsApi($this->adminUser)
             ->getJson('/api/comments/timeline?type=order&id=' . $order->id);
 
         $response->assertStatus(200);
-        $this->assertIsArray($response->json());
+        $response->assertJsonStructure([
+            'data' => [
+                'items',
+                'next_cursor',
+                'has_more',
+            ],
+        ]);
+    }
+
+    public function test_timeline_pagination_without_duplicates(): void
+    {
+        $client = Client::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+        ]);
+
+        for ($i = 0; $i < 55; $i++) {
+            Comment::factory()->create([
+                'commentable_type' => Client::class,
+                'commentable_id' => $client->id,
+                'creator_id' => $this->adminUser->id,
+                'body' => "Comment {$i}",
+                'created_at' => now()->subMinutes(55 - $i),
+            ]);
+        }
+
+        $first = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/comments/timeline?type=client&id='.$client->id.'&limit=50');
+        $first->assertStatus(200);
+        $first->assertJsonPath('data.has_more', true);
+        $firstItems = $first->json('data.items');
+        $this->assertCount(50, $firstItems);
+
+        $cursor = $first->json('data.next_cursor');
+        $this->assertNotEmpty($cursor);
+
+        $second = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/comments/timeline?type=client&id='.$client->id.'&limit=50&cursor='.$cursor);
+        $second->assertStatus(200);
+        $secondItems = $second->json('data.items');
+        $this->assertGreaterThanOrEqual(5, count($secondItems));
+
+        $firstIds = collect($firstItems)->map(fn (array $row) => $row['type'].'_'.$row['id'])->all();
+        $secondIds = collect($secondItems)->map(fn (array $row) => $row['type'].'_'.$row['id'])->all();
+        $this->assertEmpty(array_intersect($firstIds, $secondIds));
     }
 
     public function test_timeline_returns_success_for_client(): void
@@ -200,17 +272,72 @@ class CommentControllerTest extends TestCase
             ->getJson('/api/comments/timeline?type=lead&id=' . $lead->id);
 
         $response->assertStatus(200);
-        $this->assertIsArray($response->json());
+        $response->assertJsonStructure(['data' => ['items', 'next_cursor', 'has_more']]);
     }
 
     public function test_timeline_returns_success_for_transaction(): void
     {
+        $cash = CashRegister::factory()->create([
+            'company_id' => $this->company->id,
+            'balance' => 1000000,
+            'is_working_minus' => true,
+        ]);
         $transaction = Transaction::factory()->create([
+            'cash_id' => $cash->id,
             'creator_id' => $this->adminUser->id,
+            'amount' => 100,
+            'orig_amount' => 100,
         ]);
 
         $response = $this->actingAsApi($this->adminUser)
             ->getJson('/api/comments/timeline?type=transaction&id=' . $transaction->id);
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure(['data' => ['items', 'next_cursor', 'has_more']]);
+    }
+
+    public function test_timeline_returns_success_for_product(): void
+    {
+        $category = Category::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+        ]);
+        $product = Product::factory()->create([
+            'creator_id' => $this->adminUser->id,
+        ]);
+        $product->categories()->attach($category->id);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/comments/timeline?type=product&id=' . $product->id);
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure(['data' => ['items', 'next_cursor', 'has_more']]);
+    }
+
+    public function test_timeline_returns_success_for_wh_purchase(): void
+    {
+        $supplier = Client::factory()->create([
+            'company_id' => $this->company->id,
+            'creator_id' => $this->adminUser->id,
+        ]);
+        $warehouse = Warehouse::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+        $cashRegister = CashRegister::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
+        $purchase = WhPurchase::query()->create([
+            'supplier_id' => $supplier->id,
+            'warehouse_id' => $warehouse->id,
+            'cash_id' => $cashRegister->id,
+            'creator_id' => $this->adminUser->id,
+            'status' => 'draft',
+            'date' => now(),
+            'amount' => 100,
+        ]);
+
+        $response = $this->actingAsApi($this->adminUser)
+            ->getJson('/api/comments/timeline?type=wh_purchase&id=' . $purchase->id);
 
         $response->assertStatus(200);
         $this->assertIsArray($response->json());
@@ -218,7 +345,7 @@ class CommentControllerTest extends TestCase
 
     public function test_timeline_includes_comment_entry_shape(): void
     {
-        $order = Order::factory()->create();
+        $order = $this->createScopedOrder();
         Comment::factory()->create([
             'commentable_type' => Order::class,
             'commentable_id' => $order->id,
@@ -230,7 +357,7 @@ class CommentControllerTest extends TestCase
             ->getJson('/api/comments/timeline?type=order&id=' . $order->id);
 
         $response->assertStatus(200);
-        $rows = $response->json();
+        $rows = $response->json('data.items');
         $this->assertNotEmpty($rows);
         $commentRow = collect($rows)->firstWhere('type', 'comment');
         $this->assertNotNull($commentRow);
@@ -245,12 +372,12 @@ class CommentControllerTest extends TestCase
         $response = $this->actingAsApi($this->adminUser)
             ->getJson('/api/comments/timeline?type=unknown_entity&id=1');
 
-        $response->assertStatus(500);
+        $response->assertStatus(404);
     }
 
     public function test_unread_counts_excludes_current_user_comments(): void
     {
-        $order = Order::factory()->create();
+        $order = $this->createScopedOrder();
         $otherUser = User::factory()->create([
             'is_active' => true,
         ]);
@@ -279,7 +406,7 @@ class CommentControllerTest extends TestCase
 
     public function test_mark_read_resets_unread_count(): void
     {
-        $order = Order::factory()->create();
+        $order = $this->createScopedOrder();
         $otherUser = User::factory()->create([
             'is_active' => true,
         ]);

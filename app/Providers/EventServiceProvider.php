@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Listeners\BroadcastTimelineActivityListener;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Event;
+use Spatie\Activitylog\Events\ActivityLogged;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -17,6 +19,9 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         Registered::class => [
             SendEmailVerificationNotification::class,
+        ],
+        ActivityLogged::class => [
+            BroadcastTimelineActivityListener::class,
         ],
     ];
 

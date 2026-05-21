@@ -64,6 +64,10 @@ class WarehouseReceiptGoodsPaymentLimitService
      */
     public function remainingDefault(WhReceipt $receipt, ?int $excludeTransactionId = null): float
     {
+        if ($receipt->purchase_id !== null) {
+            return 0.0;
+        }
+
         $companyId = (int) ($receipt->warehouse?->company_id ?? 0);
         $total = $this->goodsTotalDefault($receipt);
         $paid = $this->paidGoodsCashDefault((int) $receipt->id, $excludeTransactionId);

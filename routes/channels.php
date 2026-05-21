@@ -1,6 +1,7 @@
 <?php
 
 use App\Broadcasting\CompanyPrivateChannel;
+use App\Services\Timeline\TimelineEntityAccessGuard;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\DB;
 
@@ -48,6 +49,24 @@ Broadcast::channel('company.{companyId}.chat.{chatId}', function ($user, $compan
             ->exists();
     } catch (\Throwable $e) {
         report($e);
+        return false;
+    }
+});
+
+Broadcast::channel('company.{companyId}.timeline.{apiType}.{entityId}', function ($user, $companyId, $apiType, $entityId) use ($userBelongsToCompany) {
+    try {
+        $companyId = (int) $companyId;
+        $entityId = (int) $entityId;
+        $apiType = (string) $apiType;
+
+        if (! $userBelongsToCompany($user, $companyId)) {
+            return false;
+        }
+
+        return app(TimelineEntityAccessGuard::class)->canView($user, $apiType, $entityId, $companyId);
+    } catch (\Throwable $e) {
+        report($e);
+
         return false;
     }
 });

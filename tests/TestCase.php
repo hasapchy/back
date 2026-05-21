@@ -4,6 +4,7 @@ namespace Tests;
 
 use App\Models\Company;
 use App\Models\Currency;
+use App\Models\CurrencyHistory;
 use App\Models\ProductPrice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
@@ -84,15 +85,23 @@ abstract class TestCase extends BaseTestCase
             return $existing;
         }
 
-        return Currency::factory()->create([
+        $currency = Currency::factory()->create([
             'company_id' => $company->id,
             'is_default' => true,
             'code' => 'ZZ'.$company->id.'_'.bin2hex(random_bytes(4)),
             'name' => 'Test default',
             'symbol' => '¤',
-            'exchange_rate' => 1,
             'status' => true,
         ]);
+        CurrencyHistory::query()->create([
+            'currency_id' => $currency->id,
+            'company_id' => $company->id,
+            'exchange_rate' => 1,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => null,
+        ]);
+
+        return $currency;
     }
 
     protected function ensureProductPurchasePrice(int $productId, float $purchasePrice = 150.0): void
