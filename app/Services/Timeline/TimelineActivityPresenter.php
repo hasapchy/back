@@ -96,6 +96,40 @@ class TimelineActivityPresenter
     }
 
     /**
+     * @return array<string, mixed>|null
+     */
+    public function processOrderTransactionActivityLog(Activity $log): ?array
+    {
+        if (! $log->subject instanceof Transaction) {
+            return null;
+        }
+
+        $transaction = $log->subject;
+        $transaction->loadMissing(['currency:id,symbol']);
+        $currencySymbol = optional($transaction->currency)->symbol;
+        [$descriptionKey, $descriptionParams, $descriptionFallback] = $this->buildActivityLogI18n($log);
+
+        return [
+            'type' => 'log',
+            'id' => $log->id,
+            'event' => $log->event,
+            'description' => $descriptionFallback ?? $descriptionKey,
+            'description_key' => $descriptionKey,
+            'description_params' => $descriptionParams,
+            'description_fallback' => $descriptionFallback,
+            'changes' => null,
+            'user' => $this->getUserForActivity($log, Order::class),
+            'created_at' => $log->created_at,
+            'log_name' => $log->log_name ?? 'transaction',
+            'meta' => [
+                'transaction_id' => $transaction->id,
+                'amount' => $transaction->amount !== null ? (float) $transaction->amount : null,
+                'currency_symbol' => $currencySymbol,
+            ],
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function processActivityLog(Activity $log, string $modelClass): array
@@ -265,6 +299,19 @@ class TimelineActivityPresenter
      */
     private function extractDescriptionParams(Activity $log, string $key): array
     {
+        if ($key === 'activity_log.order.products_updated') {
+            $props = $log->properties;
+            $all = is_object($props) && method_exists($props, 'toArray')
+                ? $props->toArray()
+                : (is_array($props) ? $props : []);
+
+            return [
+                'added' => implode(', ', array_map('strval', $all['added'] ?? [])),
+                'removed' => implode(', ', array_map('strval', $all['removed'] ?? [])),
+                'updated' => implode(', ', array_map('strval', $all['updated'] ?? [])),
+            ];
+        }
+
         if (str_starts_with($key, 'activity_log.invoice_product.')) {
             $attrs = $this->activityPropertyAttributes($log);
             $old = $this->activityPropertyOld($log);

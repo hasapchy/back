@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\TimelineItemCreated;
 use App\Http\Requests\StoreCommentRequest;
 use App\Http\Requests\UpdateCommentRequest;
 use App\Http\Resources\CommentResource;
@@ -10,6 +11,8 @@ use App\Repositories\CommentsRepository;
 use App\Services\CacheService;
 use App\Services\Timeline\TimelineBuilder;
 use App\Services\Timeline\TimelineCache;
+use App\Services\Timeline\TimelineCursor;
+use App\Services\Timeline\TimelineEntityAccessGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -26,10 +29,12 @@ class CommentController extends BaseController
     /**
      * @param CommentsRepository $itemsRepository Репозиторий комментариев
      * @param TimelineBuilder $timelineBuilder Сборщик таймлайна
+     * @param TimelineEntityAccessGuard $timelineAccessGuard Проверка доступа к сущности таймлайна
      */
     public function __construct(
         protected CommentsRepository $itemsRepository,
-        protected TimelineBuilder $timelineBuilder
+        protected TimelineBuilder $timelineBuilder,
+        protected TimelineEntityAccessGuard $timelineAccessGuard
     ) {}
 
     /**
@@ -49,6 +54,14 @@ class CommentController extends BaseController
             'type' => 'required|string',
             'id' => 'required|integer',
         ]);
+
+        $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
+        $this->timelineAccessGuard->resolveEntityForCompany(
+            $user,
+            (string) $request->type,
+            (int) $request->id,
+            $companyId
+        );
 
         $comments = $this->itemsRepository->getCommentsFor($request->type, $request->id);
 
@@ -70,43 +83,56 @@ class CommentController extends BaseController
 
         $validatedData = $request->validated();
         $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
+        $apiType = (string) $validatedData['type'];
+        $entityId = (int) $validatedData['id'];
 
         Log::info('comment.store.request', [
             'user_id' => (int) $user->id,
             'company_id' => $companyId,
-            'type' => (string) ($validatedData['type'] ?? ''),
-            'entity_id' => (int) ($validatedData['id'] ?? 0),
+            'type' => $apiType,
+            'entity_id' => $entityId,
             'body_length' => strlen((string) ($validatedData['body'] ?? '')),
         ]);
 
         try {
-            $comment = $this->itemsRepository->createItem(
-                $validatedData['type'],
-                $validatedData['id'],
+            $model = $this->timelineAccessGuard->resolveEntityForCompany($user, $apiType, $entityId, $companyId);
+
+            $commentPayload = $this->itemsRepository->createItem(
+                $apiType,
+                $entityId,
                 $validatedData['body'],
                 $user->id
             );
 
-            $this->invalidateTimelineCache($validatedData['type'], (int) $validatedData['id']);
+            $this->invalidateTimelineCache($apiType, $entityId);
+
+            $comment = Comment::query()->findOrFail((int) $commentPayload['id']);
+            $timelineItem = $this->timelineBuilder->buildCommentItemForEntity($model, $comment, $companyId);
+            TimelineItemCreated::dispatch($companyId, $apiType, $entityId, $timelineItem);
 
             Log::info('comment.store.success', [
                 'user_id' => (int) $user->id,
                 'company_id' => $companyId,
-                'type' => (string) $validatedData['type'],
-                'entity_id' => (int) $validatedData['id'],
-                'comment_id' => (int) ($comment['id'] ?? 0),
+                'type' => $apiType,
+                'entity_id' => $entityId,
+                'comment_id' => (int) ($commentPayload['id'] ?? 0),
             ]);
 
             return $this->successResponse([
                 'message' => 'Комментарий добавлен',
-                'comment' => (new CommentResource($comment))->resolve(),
+                'comment' => (new CommentResource($commentPayload))->resolve(),
+                'timeline_item' => $timelineItem,
             ]);
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             Log::error('comment.store.failed', [
                 'user_id' => (int) $user->id,
                 'company_id' => $companyId,
-                'type' => (string) ($validatedData['type'] ?? ''),
-                'entity_id' => (int) ($validatedData['id'] ?? 0),
+                'type' => $apiType,
+                'entity_id' => $entityId,
                 'error' => $e->getMessage(),
             ]);
 
@@ -136,8 +162,17 @@ class CommentController extends BaseController
             return $this->errorResponse('Комментарий не найден или нет прав', 403);
         }
 
+        $apiType = $this->itemsRepository->apiTypeFromModelClass($updatedComment->commentable_type);
+        $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
+        $this->timelineAccessGuard->resolveEntityForCompany(
+            $user,
+            $apiType,
+            (int) $updatedComment->commentable_id,
+            $companyId
+        );
+
         $this->invalidateTimelineCache(
-            $this->itemsRepository->apiTypeFromModelClass($updatedComment->commentable_type),
+            $apiType,
             (int) $updatedComment->commentable_id
         );
 
@@ -168,6 +203,8 @@ class CommentController extends BaseController
 
         $apiType = $this->itemsRepository->apiTypeFromModelClass($comment->commentable_type);
         $commentableId = (int) $comment->commentable_id;
+        $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
+        $this->timelineAccessGuard->resolveEntityForCompany($user, $apiType, $commentableId, $companyId);
 
         $deleted = $this->itemsRepository->deleteItem($id, $user->id);
 
@@ -196,35 +233,57 @@ class CommentController extends BaseController
         $request->validate([
             'type' => 'required|string',
             'id' => 'required|integer',
+            'limit' => 'sometimes|integer|min:1|max:100',
+            'cursor' => 'sometimes|nullable|string',
         ]);
 
         try {
-            $modelClass = $this->itemsRepository->resolveType($request->type);
-            $apiType = $request->type;
+            $apiType = (string) $request->type;
             $entityId = (int) $request->id;
             $companyId = (int) ($this->getCurrentCompanyId() ?? 0);
-            $cacheKey = TimelineCache::key($apiType, $entityId, $companyId);
+            $limit = (int) $request->input('limit', 50);
+            $cursorRaw = $request->input('cursor');
+            $cursor = $cursorRaw ? TimelineCursor::decode((string) $cursorRaw) : null;
+
+            $this->timelineAccessGuard->resolveEntityForCompany($user, $apiType, $entityId, $companyId);
+            $modelClass = $this->itemsRepository->resolveType($apiType);
 
             Log::info('comment.timeline.request', [
                 'user_id' => (int) $user->id,
                 'company_id' => $companyId,
-                'type' => (string) $apiType,
+                'type' => $apiType,
                 'entity_id' => $entityId,
+                'limit' => $limit,
+                'has_cursor' => $cursor !== null,
             ]);
 
-            $timeline = CacheService::remember($cacheKey, function () use ($modelClass, $entityId, $companyId) {
-                return $this->timelineBuilder->build($modelClass, $entityId, $companyId);
-            }, 600);
+            $loadPage = function () use ($modelClass, $entityId, $companyId, $limit, $cursor) {
+                return $this->timelineBuilder->buildPage($modelClass, $entityId, $companyId, $limit, $cursor);
+            };
+
+            if ($cursor === null) {
+                $cacheKey = TimelineCache::page1Key($apiType, $entityId, $companyId);
+                $page = CacheService::remember($cacheKey, $loadPage, 60);
+            } else {
+                $page = $loadPage();
+            }
 
             Log::info('comment.timeline.response', [
                 'user_id' => (int) $user->id,
                 'company_id' => $companyId,
-                'type' => (string) $apiType,
+                'type' => $apiType,
                 'entity_id' => $entityId,
-                'items_count' => method_exists($timeline, 'count') ? (int) $timeline->count() : (is_countable($timeline) ? count($timeline) : 0),
+                'items_count' => count($page['items'] ?? []),
+                'has_more' => (bool) ($page['has_more'] ?? false),
             ]);
 
-            return $timeline;
+            return $this->successResponse($page);
+        } catch (\InvalidArgumentException $e) {
+            return $this->errorResponse('Некорректный курсор таймлайна', 422);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             Log::error('comment.timeline.failed', [
                 'user_id' => (int) ($user->id ?? 0),
@@ -233,7 +292,8 @@ class CommentController extends BaseController
                 'entity_id' => (int) ($request->id ?? 0),
                 'error' => $e->getMessage(),
             ]);
-            return $this->errorResponse('Ошибка загрузки таймлайна: ' . $e->getMessage(), 500);
+
+            return $this->errorResponse('Ошибка загрузки таймлайна: '.$e->getMessage(), 500);
         }
     }
 
@@ -275,9 +335,16 @@ class CommentController extends BaseController
             return $this->errorResponse('Company context is required', 422);
         }
 
-        $counts = $this->itemsRepository->getUnreadCountsForEntities(
+        $allowedIds = $this->timelineAccessGuard->filterAccessibleEntityIds(
+            $user,
             $validated['type'],
             $validated['ids'],
+            $companyId
+        );
+
+        $counts = $this->itemsRepository->getUnreadCountsForEntities(
+            $validated['type'],
+            $allowedIds,
             (int) $user->id,
             $companyId
         );
@@ -323,6 +390,13 @@ class CommentController extends BaseController
         if ($companyId < 1) {
             return $this->errorResponse('Company context is required', 422);
         }
+
+        $this->timelineAccessGuard->resolveEntityForCompany(
+            $user,
+            $validated['type'],
+            (int) $validated['id'],
+            $companyId
+        );
 
         $lastReadCommentId = $this->itemsRepository->markEntityCommentsAsRead(
             $validated['type'],

@@ -8,4 +8,5 @@ return [
     'edit_only_draft' => 'Only draft purchase can be edited',
     'delete_only_draft' => 'Only draft purchase can be deleted',
     'delete_forbidden_has_receipts' => 'Cannot delete purchase with linked receipts',
+    'goods_payment_exceeds_remaining' => 'The goods payment amount cannot exceed the remaining balance for this purchase in the base currency.',
 ];

@@ -78,6 +78,15 @@ class OrderProduct extends Model
     }
 
     /**
+     * @param string $eventName
+     * @return bool
+     */
+    public function shouldLogEvent(string $eventName): bool
+    {
+        return in_array($eventName, ['created', 'deleted'], true);
+    }
+
+    /**
      * Получить настройки логирования активности
      *
      * @return LogOptions

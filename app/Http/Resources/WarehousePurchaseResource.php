@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Enums\WhPurchaseStatus;
 use App\Models\WhPurchase;
 use App\Services\UnitStockPresentationService;
+use App\Services\WarehousePurchaseGoodsPaymentLimitService;
 
 class WarehousePurchaseResource extends BaseDomainResource
 {
@@ -34,6 +35,8 @@ class WarehousePurchaseResource extends BaseDomainResource
         $data['products'] = WarehousePurchaseProductResource::collection($purchase->products)->resolve();
         $data['receipts'] = WarehouseReceiptResource::collection($purchase->receipts)->resolve();
         $data['transactions'] = TransactionResource::collection($purchase->transactions)->resolve();
+        $data['goods_payment_remaining_default'] = app(WarehousePurchaseGoodsPaymentLimitService::class)
+            ->remainingDefault($purchase, null);
 
         return $this->normalizeCreator($data);
     }

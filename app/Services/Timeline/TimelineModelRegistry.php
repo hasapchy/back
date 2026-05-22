@@ -101,9 +101,10 @@ class TimelineModelRegistry
                 'merge_order_transaction_logs' => false,
             ],
             Product::class => [
-                'select' => ['creator_id'],
+                'select' => ['creator_id', 'unit_id', 'name', 'sku', 'type'],
                 'with' => [
                     'creator:id,name',
+                    'unit:id,name',
                 ],
                 'merge_order_transaction_logs' => false,
             ],

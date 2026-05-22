@@ -530,6 +530,7 @@ final class ReferencePayloadBenchmark
                 'end_date' => null,
                 'is_recurring' => true,
                 'color' => '#FF5733',
+                'icon' => 'fa-solid fa-calendar-day',
             ]);
             $holiday->exists = true;
             $holiday->syncOriginal();

@@ -70,6 +70,16 @@ class StoreTransactionRequest extends FormRequest
                 $this->input('cash_id'),
             );
 
+            $this->assertParentDocumentClientBalance(
+                $validator,
+                $this->input('order_id'),
+                $this->input('source_type'),
+                $this->input('source_id'),
+                $this->input('client_balance_id'),
+                $this->requestBool($this->input('is_debt')),
+                $this->normalizeOptionalInt($this->input('category_id')),
+            );
+
             $sourceType = $this->input('source_type');
             $sourceId = $this->input('source_id');
             $projectId = $this->input('project_id');

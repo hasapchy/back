@@ -195,6 +195,7 @@ Route::middleware(['auth:sanctum', 'resolve.company', 'user.active'])->group(fun
     Route::middleware('permission.scope:products_view_all,products_view')->get('products/{id}', [ProductController::class, 'show']);
     Route::middleware('permission:products_create')->post('products', [ProductController::class, 'store']);
     Route::middleware('permission.scope:products_update_all,products_update')->put('products/{id}', [ProductController::class, 'update']);
+    Route::middleware('permission.scope:products_update_all,products_update')->post('products/{id}', [ProductController::class, 'update']);
     Route::middleware('permission.scope:products_delete_all,products_delete')->delete('products/{id}', [ProductController::class, 'destroy']);
 
     Route::middleware('permission.scope:products_view_all,products_view')->get('products/{id}/history', [ProductController::class, 'history']);

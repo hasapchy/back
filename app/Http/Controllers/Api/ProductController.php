@@ -182,24 +182,29 @@ class ProductController extends BaseController
      */
     public function update(UpdateProductRequest $request, $id)
     {
-        $userUuid = $this->getAuthenticatedUserIdOrFail();
+        $this->getAuthenticatedUserIdOrFail();
 
-        Product::findOrFail($id);
+        $product = Product::findOrFail($id);
 
         $data = $request->validated();
-        $data = array_filter($data, function ($value) {
-            return ! is_null($value);
-        });
-
-        $product = $this->itemsRepository->updateItem($id, $data);
 
         if ($request->hasFile('image')) {
             if ($product->image) {
                 Storage::disk('public')->delete($product->image);
             }
             $data['image'] = $request->file('image')->store('products', 'public');
-            $product = $this->itemsRepository->updateItem($id, $data);
+        } elseif ($request->has('image') && $request->input('image') === '') {
+            if ($product->image) {
+                Storage::disk('public')->delete($product->image);
+            }
+            $data['image'] = null;
         }
+
+        $data = array_filter($data, static function ($value) {
+            return $value !== null;
+        });
+
+        $product = $this->itemsRepository->updateItem($id, $data);
 
         return $this->successResponse(new ProductResource($product), 'Product successfully updated');
     }

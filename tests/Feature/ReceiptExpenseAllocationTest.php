@@ -6,6 +6,7 @@ use App\Models\CashRegister;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\Currency;
+use App\Models\CurrencyHistory;
 use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\TransactionCategory;
@@ -62,6 +63,7 @@ class ReceiptExpenseAllocationTest extends TestCase
         $this->cashRegister = CashRegister::factory()->create([
             'currency_id' => $this->defaultCurrency->id,
             'company_id' => $this->company->id,
+            'balance' => 100000,
         ]);
         $this->productA = Product::factory()->create(['creator_id' => $this->adminUser->id]);
         $this->productB = Product::factory()->create(['creator_id' => $this->adminUser->id]);
@@ -153,6 +155,48 @@ class ReceiptExpenseAllocationTest extends TestCase
         app(ReceiptExpenseAllocationService::class)->syncForTransaction($transaction);
 
         $this->assertSame(0, WhReceiptExpenseAllocation::query()->where('transaction_id', $transaction->id)->count());
+    }
+
+    public function test_landed_cost_summary_uses_orig_unit_price_not_default_price_for_foreign_cash(): void
+    {
+        $usdCurrency = Currency::factory()->create([
+            'company_id' => $this->company->id,
+            'is_default' => false,
+            'is_report' => false,
+        ]);
+        CurrencyHistory::query()->create([
+            'currency_id' => $usdCurrency->id,
+            'company_id' => $this->company->id,
+            'exchange_rate' => 2,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => null,
+        ]);
+        $usdCashRegister = CashRegister::factory()->create([
+            'company_id' => $this->company->id,
+            'currency_id' => $usdCurrency->id,
+        ]);
+        $receipt = WhReceipt::factory()->create([
+            'warehouse_id' => $this->warehouse->id,
+            'supplier_id' => $this->client->id,
+            'creator_id' => $this->adminUser->id,
+            'cash_id' => $usdCashRegister->id,
+            'orig_amount' => 50,
+            'orig_currency_id' => $usdCurrency->id,
+            'amount' => 100,
+        ]);
+        WhReceiptProduct::query()->create([
+            'receipt_id' => $receipt->id,
+            'product_id' => $this->productA->id,
+            'quantity' => 5,
+            'price' => 20,
+            'orig_unit_price' => 10,
+            'orig_currency_id' => $usdCurrency->id,
+        ]);
+
+        $summary = app(ReceiptExpenseAllocationService::class)->buildLandedCostSummary($receipt);
+
+        $this->assertEqualsWithDelta(100.0, (float) $summary['goods_subtotal_default'], 0.01);
+        $this->assertEqualsWithDelta(100.0, (float) $summary['lines'][0]['line_subtotal_default'], 0.01);
     }
 
 }

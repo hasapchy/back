@@ -21,6 +21,7 @@ use App\Services\CacheService;
 use App\Services\InventoryLockService;
 use Illuminate\Support\Facades\DB;
 use App\Services\RoundingService;
+use App\Services\Timeline\OrderTimelineSummaryLogger;
 use App\Http\Resources\OrderResource;
 
 class OrdersRepository extends BaseRepository
@@ -1247,6 +1248,7 @@ class OrdersRepository extends BaseRepository
             $existingProductsMap = $existingProducts->keyBy('id');
             $processedProductIds = [];
             $productsChanged = false;
+            $productSummary = ['added' => [], 'removed' => [], 'updated' => []];
 
             foreach ($productsCache as $cachedProduct) {
                 $orderProductId = $cachedProduct['id'] ?? null;
@@ -1281,6 +1283,7 @@ class OrdersRepository extends BaseRepository
                         $existingProduct->height = $cachedProduct['height'] ?? null;
                         $existingProduct->save();
                         $productsChanged = true;
+                        $productSummary['updated'][] = $this->resolveOrderProductLabel($existingProduct);
                     }
 
                     $processedProductIds[] = $orderProductId;
@@ -1313,6 +1316,7 @@ class OrdersRepository extends BaseRepository
                             $existingProduct->orig_currency_id = $cachedProduct['orig_currency_id'];
                             $existingProduct->save();
                             $productsChanged = true;
+                            $productSummary['updated'][] = $this->resolveOrderProductLabel($existingProduct);
                         }
 
                         $processedProductIds[] = $existingProduct->id;
@@ -1328,12 +1332,19 @@ class OrdersRepository extends BaseRepository
                             'height' => $cachedProduct['height'] ?? null,
                         ]);
                         $productsChanged = true;
+                        $productSummary['added'][] = $this->resolveOrderProductLabel($newProduct);
                     }
                 }
             }
 
             $idsToDelete = $existingProductsMap->keys()->diff($processedProductIds);
             if ($idsToDelete->isNotEmpty()) {
+                foreach ($idsToDelete as $deleteId) {
+                    $removed = $existingProductsMap->get($deleteId);
+                    if ($removed) {
+                        $productSummary['removed'][] = $this->resolveOrderProductLabel($removed);
+                    }
+                }
                 OrderProduct::whereIn('id', $idsToDelete->all())->delete();
                 $productsChanged = true;
             }
@@ -1348,6 +1359,12 @@ class OrdersRepository extends BaseRepository
                     ->map(fn($value) => (int)$value);
 
                 if ($explicitlyRemovedIds->isNotEmpty()) {
+                    foreach ($explicitlyRemovedIds as $removedTempId) {
+                        $removedTemp = $existingTempMap->get((int) $removedTempId);
+                        if ($removedTemp) {
+                            $productSummary['removed'][] = (string) $removedTemp->name;
+                        }
+                    }
                     OrderTempProduct::whereIn('id', $explicitlyRemovedIds->all())->delete();
                     $existingTempMap = $existingTempMap->except($explicitlyRemovedIds->all());
                     $tempProductsChanged = true;
@@ -1397,6 +1414,7 @@ class OrdersRepository extends BaseRepository
                             'height' => $temp_product['height'] ?? null,
                         ]);
                         $tempProductsChanged = true;
+                        $productSummary['updated'][] = (string) ($temp_product['name'] ?? $existingTemp->name);
                     }
 
                     $processedTempIds[] = $tempId;
@@ -1414,11 +1432,18 @@ class OrdersRepository extends BaseRepository
                         'height' => $temp_product['height'] ?? null,
                     ]);
                     $tempProductsChanged = true;
+                    $productSummary['added'][] = (string) ($temp_product['name'] ?? '');
                 }
             }
 
             $tempIdsToDelete = $existingTempMap->keys()->diff($processedTempIds);
             if ($tempIdsToDelete->isNotEmpty()) {
+                foreach ($tempIdsToDelete as $tempDeleteId) {
+                    $removedTemp = $existingTempMap->get($tempDeleteId);
+                    if ($removedTemp) {
+                        $productSummary['removed'][] = (string) $removedTemp->name;
+                    }
+                }
                 OrderTempProduct::where('order_id', $id)
                     ->whereIn('id', $tempIdsToDelete->all())
                     ->delete();
@@ -1427,6 +1452,15 @@ class OrdersRepository extends BaseRepository
 
             if ($tempProductsChanged) {
                 $productsChanged = true;
+            }
+
+            if ($productsChanged) {
+                app(OrderTimelineSummaryLogger::class)->logProductsUpdated(
+                    $order,
+                    $productSummary,
+                    (int) (auth('api')->id() ?? 0) ?: null,
+                    (int) $companyId
+                );
             }
 
             if (!$hasChanges && !$productsChanged) {
@@ -2142,5 +2176,21 @@ class OrdersRepository extends BaseRepository
         ]);
 
         CacheService::invalidateOrdersCache();
+    }
+
+    /**
+     * @param OrderProduct $orderProduct
+     * @return string
+     */
+    private function resolveOrderProductLabel(OrderProduct $orderProduct): string
+    {
+        $orderProduct->loadMissing('product:id,name');
+        $name = $orderProduct->product?->name;
+
+        if ($name !== null && $name !== '') {
+            return (string) $name;
+        }
+
+        return '#'.(int) $orderProduct->product_id;
     }
 }
